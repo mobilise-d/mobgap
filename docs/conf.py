@@ -25,10 +25,20 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent.parent))
 
 
-URL = "https://github.com/mobilise-d/gaitlink"
+def convert_github_links(base_url, text):
+    regex = base_url + r"(pull|issues|commit)/(\w+)"
+
+    def substitute(matchobj):
+        if matchobj.group(1) == "commit":
+            return f"[{matchobj.group(2)[:5]}]({matchobj.group(0)})"
+        return f"[#{matchobj.group(2)}]({matchobj.group(0)})"
+
+    return re.sub(regex, substitute, text)
+
 
 # -- Project information -----------------------------------------------------
 
+URL = "https://github.com/mobilise-d/gaitlink"
 # Info from poetry config:
 info = toml.load("../pyproject.toml")["tool"]["poetry"]
 
@@ -47,6 +57,7 @@ with (HERE / "README.md").open("w+") as f:
 
 with (HERE.parent / "CHANGELOG.md").open() as f:
     out = f.read()
+out = convert_github_links(URL, out)
 with (HERE / "CHANGELOG.md").open("w+") as f:
     f.write(out)
 
@@ -162,4 +173,3 @@ linkcode_resolve = make_linkcode_resolve(
     "gaitlink",
     "https://github.com/orgs/mobilise-d/gaitlink/blob/{revision}/{package}/{path}#L{lineno}",
 )
-
