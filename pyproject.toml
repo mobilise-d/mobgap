@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "gaitlink"
+version = "0.1.0"
+description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
+authors = ["Arne Küderle <arne.kuederle@fau.de>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+poethepoet = "^0.22.0"
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+ruff = "^0.0.286"
+numpydoc = "^1.5.0"
+sphinx = "^7.2.5"
+sphinx-gallery = "^0.14.0"
+recommonmark = "^0.7.1"
+memory-profiler = "^0.61.0"
+matplotlib = "^3.7.2"
+toml = "^0.10.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = "py39"
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | docs
+    | build
+    | dist
+    | \.virtual_documents
+  )/
+)
+'''
+
+[tool.poe.tasks]
+_format_black = "black ."
+_format_ruff = "ruff . --fix-only --exit-zero"
+format = ["_format_black", "_format_ruff", "_format_black"]
+lint = { cmd = "ruff gaitlink --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff gaitlink --format=github"
+_check_black = "black . --check"
+ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
+test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
+docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
+version = { script = "_tasks:task_update_version()" }
