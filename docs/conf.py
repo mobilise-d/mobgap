@@ -157,7 +157,7 @@ intersphinx_mapping = {
 sphinx_gallery_conf = {
     "examples_dirs": ["../examples"],
     "gallery_dirs": ["./auto_examples"],
-    "reference_url": {"gaitlink": None, **{k: v[0] for k, v in intersphinx_module_mapping.items()}},
+    "reference_url": {"gaitlink": None},
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
     "doc_module": ("gaitlink",),
