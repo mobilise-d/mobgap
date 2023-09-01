@@ -2,7 +2,7 @@
 name: New Algorithm
 about: Add a new algorithm
 title: "[ALGO] {Algorithm Name}"
-labels: ''
+labels: 'New Algorithm'
 assignees: ''
 
 ---
@@ -18,7 +18,7 @@ This issue is meant to track the implementation of the {Algorithm}
 ## Notes
 
 
-## TODO
+## Todo-List
 
 ### Prepare work:
 
