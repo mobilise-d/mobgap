@@ -1,6 +1,5 @@
 line-length = 120
-update-check = true
-target-version = "py38"
+target-version = "py39"
 
 select = [
     # pyflakes

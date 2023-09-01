@@ -29,7 +29,7 @@ def update_version_strings(file_path, new_version):
         f.write(
             re.sub(
                 version_regex,
-                lambda match: '{}{}"'.format(match.group(1), new_version),
+                lambda match: f'{match.group(1)}{new_version}"',
                 content,
             )
         )
