@@ -75,7 +75,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     # "sphinx.ext.imgconverter",
     "sphinx_gallery.gen_gallery",
-    "recommonmark",
+    "myst_parser",
 ]
 
 # this is needed for some reason...

@@ -25,11 +25,12 @@ ruff = "^0.0.286"
 numpydoc = "^1.5.0"
 sphinx = "^7.2.5"
 sphinx-gallery = "^0.14.0"
-recommonmark = "^0.7.1"
 memory-profiler = "^0.61.0"
 matplotlib = "^3.7.2"
 toml = "^0.10.2"
 pydata-sphinx-theme = "^0.13.3"
+myst-parser = "^2.0.0"
+ipykernel = "^6.25.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -59,11 +60,14 @@ exclude = '''
 [tool.poe.tasks]
 _format_black = "black ."
 _format_ruff = "ruff . --fix-only --exit-zero"
-format = ["_format_black", "_format_ruff", "_format_black"]
+format = { sequence = ["_format_black", "_format_ruff", "_format_black"], help = "Format all files with Black and Ruff." }
 lint = { cmd = "ruff gaitlink --fix", help = "Lint all files with ruff." }
 _lint_ci = "ruff gaitlink --format=github"
 _check_black = "black . --check"
 ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
-version = { script = "_tasks:task_update_version()" }
+version = { script = "_tasks:task_update_version()", help="Pump the version number in all relevant files."}
+conf_jupyter = { cmd = "python -m ipykernel install --user --name gaitlink", help = "Add a new jupyter kernel for the project." }
+remove_jupyter = { cmd = "jupyter kernelspec uninstall gaitlink", help = "Remove the project specific jupyter kernel."}
+
