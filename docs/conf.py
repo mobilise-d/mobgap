@@ -25,7 +25,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent.parent))
 
 
-URL = "https://github.com/orgs/mobilise-d/gaitlink"
+URL = "https://github.com/mobilise-d/gaitlink"
 
 # -- Project information -----------------------------------------------------
 
