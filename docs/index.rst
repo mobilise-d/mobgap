@@ -1,7 +1,7 @@
 .. gaitlink documentation master file
 
-gaitlink Docu Overview
-==================
+Gaitlink Docu Overview
+======================
 
 .. toctree::
    :maxdepth: 1
