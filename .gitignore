@@ -225,9 +225,6 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/jupyternotebooks,linux,macos,python,windows
 
-# Virtual env
-.venv
-
 # vscode (full)
 .vscode
 
@@ -237,4 +234,7 @@ $RECYCLE.BIN/
 
 # Pyenv
 .python-version
+
+# Local debug folder
+_debug
 

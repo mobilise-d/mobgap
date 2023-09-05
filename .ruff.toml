@@ -57,7 +57,19 @@ select = [
     "TRY",
     # flake8-use-pathlib
     "PTH",
-    "RUF"
+    "RUF",
+    # Numpy rules
+    "NPY",
+    # Implicit namespace packages
+    "INP",
+    # No relative imports
+    "TID252",
+    # f-strings over string concatenation
+    "FLY",
+    # Annotations
+    "ANN"
+
+
 ]
 
 ignore = [
@@ -72,20 +84,18 @@ ignore = [
     "EM101",
     "EM102",
     "EM103",
-    # Multiline docstring summary
-    "D213",
+    # Exception strings
+    "TRY003",
     # Varaibles before return
     "RET504",
     # Abstract raise into inner function
     "TRY301",
-    # Use type-checking block
-    "TCH001",
-    "TCH002",
-    "TCH003",
     # df as varaible name
     "PD901",
     # melt over stack
-    "PD013"
+    "PD013",
+    # No Any annotations
+    "ANN401",
 ]
 
 
@@ -101,7 +111,3 @@ exclude = [
 
 [pydocstyle]
 convention = "numpy"
-
-[pyupgrade]
-# Preserve types, even if a file imports `from __future__ import annotations`.
-keep-runtime-typing = true
