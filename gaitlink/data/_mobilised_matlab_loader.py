@@ -154,11 +154,12 @@ def _process_test_data(
         # In the data files the sampling rate for each sensor type is reported individually.
         # But in reality, we expect them all to have the same sampling rate.
         # We check that here to simplify the return data structure.
-        if len(set(sampling_rates.values())) != 1:
+        sampling_rate_values = set(sampling_rates.values())
+        if len(sampling_rate_values) != 1:
             raise ValueError(
                 f"Expected all sensors across all positions to have the same sampling rate, but found {sampling_rates}"
             )
-        meta_data["sampling_rate_hz"] = next(iter(sampling_rates.values()))
+        meta_data["sampling_rate_hz"] = sampling_rate_values.pop()
     else:
         all_imu_data = None
         meta_data["sampling_rate_hz"] = None
