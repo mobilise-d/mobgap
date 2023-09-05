@@ -3,6 +3,7 @@ from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, Optional, Union
 
+import numpy as np
 import pandas as pd
 import scipy.io as sio
 
@@ -17,7 +18,7 @@ class Metadata(NamedTuple):
 class TestData(NamedTuple):
     imu_data: Optional[dict[str, pd.DataFrame]]
     # TODO: Update Any typing once I understand the data better.
-    reference_parameter: Optional[dict[str, Any]]
+    reference_parameter: Optional[dict[Literal["wb", "lwb"], Any]]
     metadata: Metadata
 
 
@@ -113,7 +114,7 @@ def _parse_until_test_level(
             )
 
 
-def _process_test_data(
+def _process_test_data(  # noqa: PLR0912
     test_data: sio.matlab.mio5_params.mat_struct,
     test_name: tuple[str, ...],
     *,
@@ -164,9 +165,24 @@ def _process_test_data(
         all_imu_data = None
         meta_data["sampling_rate_hz"] = None
 
-    if reference_system:
-        # TODO: Reference system loading
-        reference_data = getattr(test_data.Standards, reference_system)
+    # In many cases, reference data is only available for a subset of the tests.
+    # Hence, we handle the case where the reference data is missing and just return None for this test.
+    if reference_system and (reference_data_mat := getattr(test_data.Standards, reference_system, None)):
+        meta_data["reference_sampling_rate_hz"] = reference_data_mat.Fs
+        # For the supported reference systems, we always get parameters on the level of MircoWB and
+        # ContinuousWalkingPeriod.
+        # However, this naming was changed at some point (MircoWB -> LWB and ContinuousWalkingPeriod-> WB).
+        # TODO: I don't know, if any newer data files actually use the new naming.
+        #       We just check for the old names and rename them to the new ones.
+        reference_data = {}
+        try:
+            reference_data["lwb"] = _parse_reference_parameters(reference_data_mat.MicroWB)
+            reference_data["wb"] = _parse_reference_parameters(reference_data_mat.ContinuousWalkingPeriod)
+        except AttributeError as e:
+            raise ValueError(
+                f"Reference data using the reference system {reference_system} for test {test_name} is missing results "
+                "for either LWBs/MicroWBs or WBs/ContinuousWalkingPeriods or parsing of the respective data failed."
+            ) from e
     else:
         reference_data = None
         meta_data["reference_sampling_rate_hz"] = None
@@ -194,3 +210,15 @@ def _parse_single_sensor_data(
         parsed_data.index.name = "samples"
 
     return parsed_data
+
+
+def _parse_reference_parameters(
+    reference_data: Union[sio.matlab.mio5_params.mat_struct, list[sio.matlab.mio5_params.mat_struct]],
+) -> list[dict[str, Union[str, float, int, np.ndarray]]]:
+    # For now reference data is either a list of structs or a single struct.
+    # Each struct represents one walking bout
+    # Each struct has various fields that either contain a single value or a list of values (np.arrays).
+    # We perform the conversion in a way that we always return a list of dicts.
+    if isinstance(reference_data, sio.matlab.mio5_params.mat_struct):
+        reference_data = [reference_data]
+    return [{k: getattr(wb_data, k) for k in wb_data._fieldnames} for wb_data in reference_data]
