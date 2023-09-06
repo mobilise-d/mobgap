@@ -39,6 +39,35 @@ class MobilisedTestData(NamedTuple):
     metadata: MobilisedMetadata
 
 
+def load_mobilised_participant_metadata_file(path: Union[Path, str]) -> dict[str, dict[str, Any]]:
+    """Load the participant metadata file (usually called infoForAlgo.mat).
+
+    This file contains various metadata about the participant and the measurement setup.
+    There should be one file per corresponding data file.
+
+    Parameters
+    ----------
+    path
+        Path to the infoForAlgo.mat file.
+
+    Returns
+    -------
+    info_for_algo
+        A dictionary with two levels.
+        The first level corresponds to the first level of the test-names in the corresponding data file (usually the
+        TimeMeasure).
+        The second level contains the actual metadata.
+
+    """
+    info_for_algo = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)["infoForAlgo"]
+    # The first level of the "infoForAlgo" file is the TimeMeasure.
+    # This should correspond to the first level of test-names in the corresponding data file.
+    return {
+        time_measure: _parse_matlab_struct(getattr(info_for_algo, time_measure))
+        for time_measure in info_for_algo._fieldnames
+    }
+
+
 def load_mobilised_matlab_format(
     path: Union[Path, str],
     *,
@@ -245,4 +274,9 @@ def _parse_reference_parameters(
     # We perform the conversion in a way that we always return a list of dicts.
     if isinstance(reference_data, sio.matlab.mat_struct):
         reference_data = [reference_data]
-    return [{k: getattr(wb_data, k) for k in wb_data._fieldnames} for wb_data in reference_data]
+    return [_parse_matlab_struct(wb_data) for wb_data in reference_data]
+
+
+def _parse_matlab_struct(struct: sio.matlab.mio5_params.mat_struct) -> dict[str, Any]:
+    """Parse a simple matlab struct that only contains simple types (no nested structs or arrays)."""
+    return {k: getattr(struct, k) for k in struct._fieldnames}
