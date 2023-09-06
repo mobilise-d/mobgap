@@ -18,7 +18,7 @@ class Metadata(NamedTuple):
 class TestData(NamedTuple):
     imu_data: Optional[dict[str, pd.DataFrame]]
     # TODO: Update Any typing once I understand the data better.
-    reference_parameter: Optional[dict[Literal["wb", "lwb"], Any]]
+    reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
     metadata: Metadata
 
 
@@ -187,7 +187,7 @@ def _process_test_data(  # noqa: PLR0912
         reference_data = None
         meta_data["reference_sampling_rate_hz"] = None
 
-    return TestData(imu_data=all_imu_data, reference_parameter=reference_data, metadata=Metadata(**meta_data))
+    return TestData(imu_data=all_imu_data, reference_parameters=reference_data, metadata=Metadata(**meta_data))
 
 
 def _parse_single_sensor_data(
