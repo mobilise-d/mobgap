@@ -24,7 +24,6 @@ def test_simple_file_loading(example_file_path):
         assert test_data.metadata.time_zone == "Europe/Berlin"
 
         assert test_data.metadata.sampling_rate_hz == 100
-        # assert data.metadata.reference_sampling_rate_hz == 100
         assert isinstance(test_data.metadata.start_date_time_iso, str)
         # First sample should be equivalent to the start date time
         assert (
@@ -39,3 +38,27 @@ def test_simple_file_loading(example_file_path):
         assert list(test_data.imu_data["LowerBack"].columns) == ["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]
         assert set(test_data.imu_data.keys()) == {"LowerBack"}
         assert len(test_data.imu_data["LowerBack"]) > 100
+
+        # By default, there should be no reference parameter
+        assert test_data.reference_parameter is None
+        assert test_data.metadata.reference_sampling_rate_hz is None
+
+
+def test_reference_system_loading(example_file_path):
+    data = load_mobilised_matlab_format(example_file_path, reference_system="INDIP")
+
+    number_of_tests_with_reference = 0
+
+    for _name, test_data in data.items():
+        if test_data.reference_parameter is not None:
+            number_of_tests_with_reference += 1
+
+            assert test_data.metadata.reference_sampling_rate_hz == 100
+            assert set(test_data.reference_parameter.keys()) == {"lwb", "wb"}
+            for _key, value in test_data.reference_parameter.items():
+                assert isinstance(value, list)
+                assert len(value) > 0
+                for wb in value:
+                    assert isinstance(wb, dict)
+
+    assert number_of_tests_with_reference == 11
