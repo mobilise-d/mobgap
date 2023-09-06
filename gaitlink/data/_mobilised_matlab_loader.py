@@ -57,7 +57,7 @@ def load_mobilised_matlab_format(
     data_per_test
         A dictionary mapping the test names to the loaded data.
         The name of each test is a tuple of strings, where each string is a level of the test name hierarchy (e.g.
-        ("TimeMeasure1", "Test1", "Trail1")).
+        ("TimeMeasure1", "Test1", "Trial1")).
         The number of levels can vary between datasets.
         The data is returned as a :class:`~TestData` named-tuple, which contains the raw data, (optional) reference
         parameters and metadata.
