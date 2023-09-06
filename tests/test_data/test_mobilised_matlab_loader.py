@@ -40,7 +40,7 @@ def test_simple_file_loading(example_file_path):
         assert len(test_data.imu_data["LowerBack"]) > 100
 
         # By default, there should be no reference parameter
-        assert test_data.reference_parameter is None
+        assert test_data.reference_parameters is None
         assert test_data.metadata.reference_sampling_rate_hz is None
 
 
@@ -50,12 +50,12 @@ def test_reference_system_loading(example_file_path):
     number_of_tests_with_reference = 0
 
     for _name, test_data in data.items():
-        if test_data.reference_parameter is not None:
+        if test_data.reference_parameters is not None:
             number_of_tests_with_reference += 1
 
             assert test_data.metadata.reference_sampling_rate_hz == 100
-            assert set(test_data.reference_parameter.keys()) == {"lwb", "wb"}
-            for _key, value in test_data.reference_parameter.items():
+            assert set(test_data.reference_parameters.keys()) == {"lwb", "wb"}
+            for _key, value in test_data.reference_parameters.items():
                 assert isinstance(value, list)
                 assert len(value) > 0
                 for wb in value:
