@@ -10,8 +10,11 @@ def example_file_path():
     return PROJECT_ROOT / "_debug/example_data/data.mat"
 
 
-def test_simple_file_loading(example_file_path):
+def test_simple_file_loading(example_file_path, recwarn):
     data = load_mobilised_matlab_format(example_file_path)
+
+    # We don't expect any user-warnings to be raised
+    assert len([w for w in recwarn if issubclass(w.category, UserWarning)]) == 0
 
     assert len(data) == 14
 

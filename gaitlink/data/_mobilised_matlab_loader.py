@@ -98,6 +98,7 @@ def _parse_until_test_level(
     # If one of the test level markers is in the field names, we reached the level of a test.
     if any(marker in data._fieldnames for marker in test_level_marker):
         yield _parent_key, data
+        return  # We don't need to parse any further
 
     for key in data._fieldnames:
         _local_parent_key = (*_parent_key, key)
