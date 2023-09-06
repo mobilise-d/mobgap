@@ -93,8 +93,8 @@ def load_mobilised_matlab_format(
 
 
 def _parse_until_test_level(
-    data: sio.matlab.mio5_params.mat_struct, test_level_marker: Sequence[str], _parent_key: tuple[str, ...] = ()
-) -> Iterator[tuple[tuple[str, ...], sio.matlab.mio5_params.mat_struct]]:
+    data: sio.matlab.mat_struct, test_level_marker: Sequence[str], _parent_key: tuple[str, ...] = ()
+) -> Iterator[tuple[tuple[str, ...], sio.matlab.mat_struct]]:
     # If one of the test level markers is in the field names, we reached the level of a test.
     if any(marker in data._fieldnames for marker in test_level_marker):
         yield _parent_key, data
@@ -102,7 +102,7 @@ def _parse_until_test_level(
     for key in data._fieldnames:
         _local_parent_key = (*_parent_key, key)
         val = getattr(data, key)
-        if isinstance(val, sio.matlab.mio5_params.mat_struct):
+        if isinstance(val, sio.matlab.mat_struct):
             yield from _parse_until_test_level(val, test_level_marker, _parent_key=_local_parent_key)
         else:
             warnings.warn(
@@ -115,7 +115,7 @@ def _parse_until_test_level(
 
 
 def _process_test_data(  # noqa: PLR0912
-    test_data: sio.matlab.mio5_params.mat_struct,
+    test_data: sio.matlab.mat_struct,
     test_name: tuple[str, ...],
     *,
     raw_data_sensor: Optional[str],
@@ -191,7 +191,7 @@ def _process_test_data(  # noqa: PLR0912
 
 
 def _parse_single_sensor_data(
-    sensor_data: sio.matlab.mio5_params.mat_struct, sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    sensor_data: sio.matlab.mat_struct, sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
 ) -> pd.DataFrame:
     parsed_data = []
     for sensor_type in sensor_types:
@@ -213,12 +213,12 @@ def _parse_single_sensor_data(
 
 
 def _parse_reference_parameters(
-    reference_data: Union[sio.matlab.mio5_params.mat_struct, list[sio.matlab.mio5_params.mat_struct]],
+    reference_data: Union[sio.matlab.mat_struct, list[sio.matlab.mat_struct]],
 ) -> list[dict[str, Union[str, float, int, np.ndarray]]]:
     # For now reference data is either a list of structs or a single struct.
     # Each struct represents one walking bout
     # Each struct has various fields that either contain a single value or a list of values (np.arrays).
     # We perform the conversion in a way that we always return a list of dicts.
-    if isinstance(reference_data, sio.matlab.mio5_params.mat_struct):
+    if isinstance(reference_data, sio.matlab.mat_struct):
         reference_data = [reference_data]
     return [{k: getattr(wb_data, k) for k in wb_data._fieldnames} for wb_data in reference_data]
