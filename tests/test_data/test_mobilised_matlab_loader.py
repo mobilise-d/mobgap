@@ -1,15 +1,23 @@
+from pathlib import Path
+
+import joblib
 import pytest
 
+from gaitlink.data import (
+    GenericMobilisedDataset,
+    load_mobilised_matlab_format,
+    load_mobilised_participant_metadata_file,
+)
 from gaitlink.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
 
 
 @pytest.fixture()
-def example_file_path():
-    return get_all_lab_example_data_paths()[("HA", "001")] / "data.mat"
+def example_data_path():
+    return get_all_lab_example_data_paths()[("HA", "001")]
 
 
-def test_simple_file_loading(example_file_path, recwarn, snapshot):
-    data = load_mobilised_matlab_format(example_file_path)
+def test_simple_file_loading(example_data_path, recwarn, snapshot):
+    data = load_mobilised_matlab_format(example_data_path / "data.mat")
 
     # We don't expect any user-warnings to be raised
     assert len([w for w in recwarn if issubclass(w.category, UserWarning)]) == 0
@@ -48,8 +56,11 @@ def test_simple_file_loading(example_file_path, recwarn, snapshot):
         assert test_data.metadata.reference_sampling_rate_hz is None
 
 
-def test_reference_system_loading(example_file_path):
-    data = load_mobilised_matlab_format(example_file_path, reference_system="INDIP")
+def test_reference_system_loading(example_data_path):
+    data = load_mobilised_matlab_format(
+        example_data_path / "data.mat",
+        reference_system="INDIP",
+    )
 
     number_of_tests_with_reference = 0
 
@@ -66,3 +77,42 @@ def test_reference_system_loading(example_file_path):
                     assert isinstance(wb, dict)
 
     assert number_of_tests_with_reference == 3
+
+
+
+def test_load_participant_metadata(example_data_path):
+    participant_metadata = load_mobilised_participant_metadata_file(example_data_path / "infoForAlgo.mat")
+
+    assert len(participant_metadata) == 1
+
+    t1_metadata = participant_metadata["TimeMeasure1"]
+
+    # We test the values for a couple of different datatypes to make sure they were parsed correctly
+    assert t1_metadata["Height"] == 176
+    assert t1_metadata["Handedness"] == "R"
+    assert t1_metadata["SensorType_SU"] == "MM+"
+
+
+class TestDatasetClass:
+    def test_index_creation(self, example_data_path):
+        ds = GenericMobilisedDataset(
+            list(Path("/home/arne/Downloads/Mobilise-D dataset_1-18-2023").rglob("data.mat")),
+            ("time_measure", "recording"),
+            ("cohort",),
+            memory=joblib.Memory(".cache"),
+        )
+
+        ds.index
+        print(ds.index)
+
+        # ds = GenericMobilisedDataset(
+        #     list(Path(example_data_path).rglob("data.mat")),
+        #     GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+        #     ("cohort",),
+        #     memory=joblib.Memory(".cache"),
+        # )
+
+        data = ds[3].data
+        print(data)
+        print(ds[3].participant_metadata)
+        print(ds[3].metadata)
