@@ -1,11 +1,18 @@
 import warnings
 from collections.abc import Iterator, Sequence
+from functools import lru_cache, partial
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, Optional, Union
+from typing import Any, Callable, ClassVar, Literal, NamedTuple, Optional, TypeVar, Union
 
+import joblib
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from tpcp import Dataset
+
+T = TypeVar("T")
+
+PathLike = TypeVar("PathLike", str, Path)
 
 
 class MobilisedMetadata(NamedTuple):
@@ -39,7 +46,7 @@ class MobilisedTestData(NamedTuple):
     metadata: MobilisedMetadata
 
 
-def load_mobilised_participant_metadata_file(path: Union[Path, str]) -> dict[str, dict[str, Any]]:
+def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
     """Load the participant metadata file (usually called infoForAlgo.mat).
 
     This file contains various metadata about the participant and the measurement setup.
@@ -69,7 +76,7 @@ def load_mobilised_participant_metadata_file(path: Union[Path, str]) -> dict[str
 
 
 def load_mobilised_matlab_format(
-    path: Union[Path, str],
+    path: PathLike,
     *,
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
     reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
@@ -277,6 +284,195 @@ def _parse_reference_parameters(
     return [_parse_matlab_struct(wb_data) for wb_data in reference_data]
 
 
-def _parse_matlab_struct(struct: sio.matlab.mio5_params.mat_struct) -> dict[str, Any]:
+def _parse_matlab_struct(struct: sio.matlab.mat_struct) -> dict[str, Any]:
     """Parse a simple matlab struct that only contains simple types (no nested structs or arrays)."""
     return {k: getattr(struct, k) for k in struct._fieldnames}
+
+
+@lru_cache(maxsize=1)
+def cached_load_current(selected_file: PathLike, loader_function: Callable[[PathLike], T]) -> T:
+    # TODO: Check if we actually get a proper cache hit here and it really helps performance.
+    return loader_function(selected_file)
+
+
+class GenericMobilisedDataset(Dataset):
+    """A generic dataset loader for the Mobilise-D data format.
+
+    This allows to create a dataset from multiple data files in the Mobilise-D data format stored within nested folder
+    structures.
+    The index of the dataset will be derived from the folder structure and the test names.
+
+    Notes
+    -----
+    The current implementation has two main limitations:
+
+    1. To get the test names, we need to load the entire data file.
+       If you have many large data files, this can take a long time.
+       To avoid doing that over and over again, we highly recommend to use the ``memory`` parameter to cache the
+       results.
+       Even with that, the first creation of a dataset, can take a long time, and you need to remember to clean the
+       cache, when you change the content of the data files (without changing their paths).
+    2. To make sure that the output of the ``index`` property is consistent accross multiple machines, you need to make
+       sure that the paths are always sorted in the same way.
+       Hence, you should always use ``list(sorted(Path.glob(...))`` to get the paths.
+
+    """
+
+    paths_list: Union[PathLike, Sequence[PathLike]]
+    # TODO: Rethink variable name
+    test_level_names: Sequence[str]
+    parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
+    raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
+    reference_system: Optional[Literal["INDIP", "Stereophoto"]]
+    sensor_positions: Sequence[str]
+    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    memory: joblib.Memory
+
+    COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
+        "tvs_lab": ("time_measure", "test", "trial"),
+        "tvs_2.5h": ("time_measure", "recording"),
+    }
+
+    def __init__(
+        self,
+        paths_list: Union[PathLike, Sequence[PathLike]],
+        test_level_names: Sequence[str],
+        parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
+        *,
+        raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
+        reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
+        sensor_positions: Sequence[str] = ("LowerBack",),
+        sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+        memory: joblib.Memory = joblib.Memory(None),
+        groupby_cols: Optional[Union[list[str], str]] = None,
+        subset_index: Optional[pd.DataFrame] = None,
+    ) -> None:
+        self.paths_list = paths_list
+        self.test_level_names = test_level_names
+        self.parent_folders_as_metadata = parent_folders_as_metadata
+        self.raw_data_sensor = raw_data_sensor
+        self.reference_system = reference_system
+        self.sensor_positions = sensor_positions
+        self.sensor_types = sensor_types
+        self.memory = memory
+
+        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+
+    @property
+    def data(self) -> MobilisedTestData.imu_data:
+        return self._load_selected_data("data").imu_data
+
+    @property
+    def reference_parameters(self) -> MobilisedTestData.reference_parameters:
+        return self._load_selected_data("reference_parameters").reference_parameters
+
+    @property
+    def sampling_rate_hz(self) -> float:
+        return self._load_selected_data("sampling_rate_hz").metadata.sampling_rate_hz
+
+    @property
+    def reference_sampling_rate_hz(self) -> float:
+        return self._load_selected_data("reference_sampling_rate_hz").metadata.reference_sampling_rate_hz
+
+    @property
+    def metadata(self) -> MobilisedMetadata:
+        return self._load_selected_data("metadata").metadata
+
+    @property
+    def participant_metadata(self) -> dict[str, Any]:
+        selected_file = self._get_selected_data_file("participant_metadata")
+        # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
+        info_for_algo_file = selected_file.parent / "infoForAlgo.mat"
+
+        if not info_for_algo_file.exists():
+            raise FileNotFoundError(
+                f"Could not find the participant metadata file {info_for_algo_file} for the selected data file "
+                f"{selected_file}. "
+                "We assume that this file is always in the same folder as the `data.mat` file."
+            )
+        participant_metadata = load_mobilised_participant_metadata_file(info_for_algo_file)
+
+        first_level_selected_test_name = self.index.iloc[0][next(iter(self.test_level_names))]
+
+        return participant_metadata[first_level_selected_test_name]
+
+    @property
+    def _paths_list(self) -> list[Path]:
+        paths_list = self.paths_list
+
+        if isinstance(paths_list, (str, Path)):
+            paths_list = [paths_list]
+        elif not isinstance(paths_list, Sequence):
+            raise TypeError(
+                f"paths_list must be a PathLike or a Sequence of PathLikes, but got {type(paths_list)}. "
+                "For the list of paths, you need to make sure that it is persistent and can be iterated over "
+                "multiple times. "
+                "So don't use a generator or directly path the output of `Path.glob`. "
+            )
+
+        return [Path(path) for path in paths_list]
+
+    @property
+    def _cached_data_load(self) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
+        return partial(
+            self.memory.cache(load_mobilised_matlab_format),
+            raw_data_sensor=self.raw_data_sensor,
+            reference_system=self.reference_system,
+            sensor_positions=self.sensor_positions,
+            sensor_types=self.sensor_types,
+        )
+
+    def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
+        return list(self._cached_data_load(path).keys())
+
+    def _load_selected_data(self, property_name: str) -> MobilisedTestData:
+        selected_file = self._get_selected_data_file(property_name)
+
+        selected_test = next(self.index[list(self.test_level_names)].itertuples(index=False, name=None))
+        # We use two-level caching here.
+        # If the file was loaded before (even in a previous execution) and memory caching is enabled, we get the cached
+        # result.
+        # If we get the multiple times in the same execution and on the same Dataset object, we use the lru_cache to
+        # to keep the current file in memory.
+        # The second part is important, when we use the same Dataset object to load multiple parts of the file (e.g.
+        # the raw data and the reference parameters).
+        return cached_load_current(selected_file, self._cached_data_load)[selected_test]
+
+    def _get_selected_data_file(self, property_name: str) -> Path:
+        self.assert_is_single(None, property_name)
+
+        index_value = self.index.index[0]
+        selected_file = self._paths_list[index_value]
+
+        return selected_file
+
+    def create_index(self) -> pd.DataFrame:
+        """Create the dataset index.
+
+        The index columns will consist of the metadata extracted from the columns and the test names.
+        """
+        # Resolve metadata (aka) test list from loading the files.
+        test_name_metadata = (
+            pd.concat(
+                {
+                    path: pd.DataFrame(self._get_test_list(path), columns=list(self.test_level_names))
+                    for path in self._paths_list
+                }
+            )
+            .reset_index(level=-1, drop=True)
+            .rename_axis(index="__path")
+        )
+
+        if self.parent_folders_as_metadata is None:
+            return test_name_metadata.reset_index(drop=True)
+
+        # Resolve metadata from the parent folders of the paths.
+        metadata_per_level = {"__path": self._paths_list}
+        for level, level_name in enumerate(self.parent_folders_as_metadata):
+            if level_name is None:
+                continue
+            metadata_per_level[level_name] = [path.parents[level].name for path in self._paths_list]
+
+        metadata_per_level = pd.DataFrame(metadata_per_level).set_index("__path")
+
+        return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)

@@ -96,6 +96,8 @@ ignore = [
     "PD013",
     # No Any annotations
     "ANN401",
+    # Self annotation
+    "ANN101",
     # To many arguments
     "PLR0913"
 ]
