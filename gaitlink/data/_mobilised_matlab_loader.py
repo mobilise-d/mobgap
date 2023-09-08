@@ -25,6 +25,7 @@ class MobilisedMetadata(NamedTuple):
         None, if no reference data is available or loaded.
 
     """
+
     start_date_time_iso: str
     time_zone: str
     sampling_rate_hz: Optional[float]
@@ -204,7 +205,9 @@ def _process_test_data(  # noqa: PLR0912
         reference_data = None
         meta_data["reference_sampling_rate_hz"] = None
 
-    return MobilisedTestData(imu_data=all_imu_data, reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data))
+    return MobilisedTestData(
+        imu_data=all_imu_data, reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data)
+    )
 
 
 def _parse_single_sensor_data(

@@ -90,7 +90,7 @@ else:
     mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
 
 napoleon_use_rtype = False
-napoleon_custom_sections = [('Action Paras', 'params_style')]
+napoleon_custom_sections = [("Action Paras", "params_style")]
 
 autodoc_default_options = {"members": True, "inherited-members": True, "special_members": True}
 autodoc_typehints = "both"
