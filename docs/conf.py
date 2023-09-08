@@ -67,9 +67,8 @@ with (HERE / "CHANGELOG.md").open("w+") as f:
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
+    "numpydoc",
     "sphinx.ext.linkcode",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
@@ -89,12 +88,12 @@ else:
     extensions.append("sphinx.ext.mathjax")
     mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"
 
-napoleon_use_rtype = False
-napoleon_custom_sections = [("Action Paras", "params_style")]
+# this is needed for some reason...
+# see https://github.com/numpy/numpydoc/issues/69
+numpydoc_class_members_toctree = False
 
 autodoc_default_options = {"members": True, "inherited-members": True, "special_members": True}
-autodoc_typehints = "both"
-autodoc_typehints_description_target = "documented_params"
+autodoc_typehints = "signature"
 
 python_maximum_signature_line_length = 88
 
