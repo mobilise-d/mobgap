@@ -8,18 +8,34 @@ import pandas as pd
 import scipy.io as sio
 
 
-class Metadata(NamedTuple):
+class MobilisedMetadata(NamedTuple):
+    """Metadata of each individual test/recording.
+
+    Parameters
+    ----------
+    start_date_time_iso
+        The start date and time of the test in ISO format.
+    time_zone
+        The time zone of the test (e.g. "Europe/Berlin").
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+        None, if no IMU data is available or loaded.
+    reference_sampling_rate_hz
+        The sampling rate of the reference data in Hz.
+        None, if no reference data is available or loaded.
+
+    """
     start_date_time_iso: str
     time_zone: str
     sampling_rate_hz: Optional[float]
     reference_sampling_rate_hz: Optional[float]
 
 
-class TestData(NamedTuple):
+class MobilisedTestData(NamedTuple):
     imu_data: Optional[dict[str, pd.DataFrame]]
     # TODO: Update Any typing once I understand the data better.
     reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
-    metadata: Metadata
+    metadata: MobilisedMetadata
 
 
 def load_mobilised_matlab_format(
@@ -29,7 +45,7 @@ def load_mobilised_matlab_format(
     reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
     sensor_positions: Sequence[str] = ("LowerBack",),
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-) -> dict[tuple[str, ...], TestData]:
+) -> dict[tuple[str, ...], MobilisedTestData]:
     """Load a single data.mat file formatted according to the Mobilise-D guidelines.
 
     Parameters
@@ -59,8 +75,8 @@ def load_mobilised_matlab_format(
         The name of each test is a tuple of strings, where each string is a level of the test name hierarchy (e.g.
         ("TimeMeasure1", "Test1", "Trial1")).
         The number of levels can vary between datasets.
-        The data is returned as a :class:`~TestData` named-tuple, which contains the raw data, (optional) reference
-        parameters and metadata.
+        The data is returned as a :class:`~MobilisedTestData` named-tuple, which contains the raw data, (optional)
+        reference parameters and metadata.
 
     Notes
     -----
@@ -123,7 +139,7 @@ def _process_test_data(  # noqa: PLR0912
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
-) -> TestData:
+) -> MobilisedTestData:
     meta_data = {}
 
     try:
@@ -188,7 +204,7 @@ def _process_test_data(  # noqa: PLR0912
         reference_data = None
         meta_data["reference_sampling_rate_hz"] = None
 
-    return TestData(imu_data=all_imu_data, reference_parameters=reference_data, metadata=Metadata(**meta_data))
+    return MobilisedTestData(imu_data=all_imu_data, reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data))
 
 
 def _parse_single_sensor_data(
