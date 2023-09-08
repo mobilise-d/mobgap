@@ -1,9 +1,10 @@
-{{module}}.{{objname}}
+{{objname}}
 {{ underline }}==============
 
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
+    :show-inheritance:
 
    {% block methods %}
    .. automethod:: __init__

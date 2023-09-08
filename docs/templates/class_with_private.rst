@@ -1,9 +1,10 @@
-:mod:`{{module}}`.{{objname}}
+{{objname}}
 {{ underline }}==============
 
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
+   :show-inheritance:
    :private-members:
 
    {% block methods %}
