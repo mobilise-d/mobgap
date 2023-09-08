@@ -71,6 +71,7 @@ CONFIGURED TASKS
   ci_check        Check all potential format and linting issues.
   test            Run Pytest with coverage.
   docs            Build the html docs using Sphinx.
+  docs_preview    Preview the built html docs.
   version         Pump the version number in all relevant files.
   conf_jupyter    Add a new jupyter kernel for the project.
   remove_jupyter  Remove the project specific jupyter kernel.
