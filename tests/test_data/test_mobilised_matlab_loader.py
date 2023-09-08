@@ -1,13 +1,11 @@
 import pytest
 
-from gaitlink.data import load_mobilised_matlab_format
-from tests import PROJECT_ROOT
+from gaitlink.data import get_lab_example_data_path, load_mobilised_matlab_format
 
 
 @pytest.fixture()
 def example_file_path():
-    # TODO: Update once we have example data
-    return PROJECT_ROOT / "_debug/example_data/data.mat"
+    return get_lab_example_data_path("HA", "001") / "data.mat"
 
 
 def test_simple_file_loading(example_file_path, recwarn):
@@ -16,7 +14,7 @@ def test_simple_file_loading(example_file_path, recwarn):
     # We don't expect any user-warnings to be raised
     assert len([w for w in recwarn if issubclass(w.category, UserWarning)]) == 0
 
-    assert len(data) == 14
+    assert len(data) == 3
 
     for name, test_data in data.items():
         assert isinstance(name, tuple)
@@ -64,4 +62,4 @@ def test_reference_system_loading(example_file_path):
                 for wb in value:
                     assert isinstance(wb, dict)
 
-    assert number_of_tests_with_reference == 11
+    assert number_of_tests_with_reference == 3
