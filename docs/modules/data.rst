@@ -16,6 +16,7 @@ Load functions
    :toctree: generated/data
    :template: function.rst
 
+    get_lab_example_data_path
     load_mobilised_matlab_format
 
 Datatypes
