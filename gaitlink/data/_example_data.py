@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Literal
 
 from gaitlink import PACKAGE_ROOT
 
@@ -10,24 +9,16 @@ def _is_manually_installed() -> bool:
     return (LOCAL_EXAMPLE_PATH / "README.md").is_file()
 
 
-def get_lab_example_data_path(cohort: Literal["HA", "PD", "MS", "COPD", "PFF", "CHF"], participant_id: str) -> Path:
-    """Get the path to the example data for a given cohort and participant.
-
-    Parameters
-    ----------
-    cohort
-        The cohort of the participant.
-    participant_id
-        The id of the participant as string.
+def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
+    """Get the paths to all lab example data.
 
     Returns
     -------
-    The path to the example data for the given cohort and participant.
-    Within this folder the `data.mat` file and the `infoForAlgo.mat` file can be found.
+    A dictionary mapping the cohort and participant id to the path to the example data.
 
     See Also
     --------
-    load_mobilised_matlab_format
+    get_lab_example_data_path
 
     """
     if not _is_manually_installed():
@@ -39,11 +30,5 @@ def get_lab_example_data_path(cohort: Literal["HA", "PD", "MS", "COPD", "PFF", "
             "At the moment, we only support accessing the example data if you cloned the repo manually. "
         )
 
-    potential_path = LOCAL_EXAMPLE_PATH / "data" / "lab" / cohort / participant_id
-    if potential_path.is_dir():
-        return potential_path
-    raise FileNotFoundError(
-        f"Could not find example data for {cohort}/{participant_id}. "
-        f"Double check that example-data folder ({LOCAL_EXAMPLE_PATH}) if the expected chohort and "
-        "participant id exist."
-    )
+    potential_paths = (LOCAL_EXAMPLE_PATH / "data/lab").rglob("data.mat")
+    return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}

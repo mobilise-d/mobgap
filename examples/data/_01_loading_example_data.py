@@ -21,12 +21,16 @@ The data is stored in the `examples/data` folder of the repository in the Mobili
 # %%
 # Functional interface
 # ++++++++++++++++++++
-# We can get the local path to the example data using :func:`~gaitlink.data.get_lab_example_data_path`
+# We can get the local path to the example data using :func:`~gaitlink.data.get_all_lab_example_data_paths`
 # and then use :func:`~gaitlink.data.load_mobilised_matlab_format` to load the data.
-from gaitlink.data import load_mobilised_matlab_format, get_lab_example_data_path
+from gaitlink.data import load_mobilised_matlab_format, get_all_lab_example_data_paths
 
-example_participant_path = get_lab_example_data_path("HA", "002")
+all_example_data_paths = get_all_lab_example_data_paths()
+list(all_example_data_paths.keys())
 
+# %%
+# Then we can select the participant we want to load.
+example_participant_path = all_example_data_paths[("HA", "002")]
 data = load_mobilised_matlab_format(example_participant_path / "data.mat")
 
 # %%
