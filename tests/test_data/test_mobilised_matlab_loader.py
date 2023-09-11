@@ -1,11 +1,11 @@
 import pytest
 
-from gaitlink.data import get_lab_example_data_path, load_mobilised_matlab_format
+from gaitlink.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
 
 
 @pytest.fixture()
 def example_file_path():
-    return get_lab_example_data_path("HA", "001") / "data.mat"
+    return get_all_lab_example_data_paths()[("HA", "001")] / "data.mat"
 
 
 def test_simple_file_loading(example_file_path, recwarn):
