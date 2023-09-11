@@ -17,6 +17,53 @@ The data is stored in the `examples/data` folder of the repository in the Mobili
        procedure for data standardization. Sci Data. 2023 Jan 19;10(1):38. doi: 10.1038/s41597-023-01930-9.
        PMID: 36658136; PMCID: PMC9852581.
 """
+# %%
+# Dataset Class
+# +++++++++++++
+# We provide a :class:`~gaitlink.data.LabExampleDataset` class to load the example data.
+# This is the easiest way to access the example data and allows you to select and iterate over the data in an easy way.
+from gaitlink.data import LabExampleDataset
+
+example_data = LabExampleDataset()
+# %%
+# You can select the data you want using the ``get_subset`` method.
+ha_example_data = example_data.get_subset(cohort="HA")
+ha_example_data
+
+# %%
+# Once you selected only a single row of the dataset (either by repeated ``get_subset`` or by iteration), you can load
+# the actual data.
+single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial1")
+single_test
+
+# %%
+# The raw IMU data:
+imu_data = single_test.data["LowerBack"]
+imu_data
+
+# %%
+import matplotlib.pyplot as plt
+
+imu_data.filter(like="gyr").plot()
+plt.show()
+
+# %%
+# Test-level metadata:
+single_test.metadata
+
+# %%
+# Participant-level metadata:
+single_test.participant_metadata
+
+# %%
+# You can also load the reference system data, by specifying the ``reference_system`` argument.
+# All parameters related to the reference systems have a trailing underscore.
+example_data_with_reference = LabExampleDataset(reference_system="INDIP")
+single_trial_with_reference = example_data_with_reference.get_subset(
+    cohort="HA", participant_id="002", test="Test5", trial="Trial1"
+)
+single_trial_with_reference.reference_parameters_
+
 
 # %%
 # Functional interface
@@ -48,12 +95,6 @@ imu_data = test_5_data.imu_data["LowerBack"]
 imu_data
 
 # %%
-import matplotlib.pyplot as plt
-
-imu_data.filter(like="gyr").plot()
-plt.show()
-
-# %%
 # We can also access the metadata of the test.
 test_5_data.metadata
 
@@ -67,7 +108,7 @@ data_with_reference = load_mobilised_matlab_format(example_participant_path / "d
 
 # %%
 # The returned :class:`~gaitlink.data.MobilisedTestData` objects now contain the reference parameters.
-data_with_reference[test_list[0]].reference_parameters
+data_with_reference[test_list[2]].reference_parameters
 
 # %%
 # And metadata about the reference system is available as well.

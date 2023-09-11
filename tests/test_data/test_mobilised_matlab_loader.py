@@ -1,14 +1,12 @@
-from pathlib import Path
-
-import joblib
 import pytest
+from pandas._testing import assert_frame_equal
 
 from gaitlink.data import (
     GenericMobilisedDataset,
+    get_all_lab_example_data_paths,
     load_mobilised_matlab_format,
     load_mobilised_participant_metadata_file,
 )
-from gaitlink.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
 
 
 @pytest.fixture()
@@ -87,7 +85,7 @@ def test_load_participant_metadata(example_data_path):
     t1_metadata = participant_metadata["TimeMeasure1"]
 
     # We test the values for a couple of different datatypes to make sure they were parsed correctly
-    assert t1_metadata["Height"] == 176
+    assert t1_metadata["Height"] == 159.0
     assert t1_metadata["Handedness"] == "R"
     assert t1_metadata["SensorType_SU"] == "MM+"
 
@@ -95,23 +93,54 @@ def test_load_participant_metadata(example_data_path):
 class TestDatasetClass:
     def test_index_creation(self, example_data_path):
         ds = GenericMobilisedDataset(
-            list(Path("/home/arne/Downloads/Mobilise-D dataset_1-18-2023").rglob("data.mat")),
-            ("time_measure", "recording"),
-            ("cohort",),
-            memory=joblib.Memory(".cache"),
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("cohort", "participant_id"),
         )
 
-        ds.index
-        print(ds.index)
+        manually_loaded_participant_index = list(get_all_lab_example_data_paths().keys())
 
-        # ds = GenericMobilisedDataset(
-        #     list(Path(example_data_path).rglob("data.mat")),
-        #     GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
-        #     ("cohort",),
-        #     memory=joblib.Memory(".cache"),
-        # )
+        assert len(ds) == 3 * 3
+        assert set(ds.index[["cohort", "participant_id"]].to_records(index=False).tolist()) == set(
+            manually_loaded_participant_index
+        )
 
-        data = ds[3].data
-        print(data)
-        print(ds[3].participant_metadata)
-        print(ds[3].metadata)
+        assert ds.index.columns.tolist() == ["cohort", "participant_id", "time_measure", "test", "trial"]
+
+    def test_loaded_data(self, example_data_path):
+        ds = GenericMobilisedDataset(
+            example_data_path / "data.mat",
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            None,
+            reference_system="INDIP",
+        )
+
+        manually_data = load_mobilised_matlab_format(example_data_path / "data.mat", reference_system="INDIP")
+
+        assert list(ds.index.itertuples(index=False)) == list(manually_data.keys())
+
+        for test_ds, test in zip(ds, manually_data.values()):
+            assert test_ds.metadata == test.metadata
+            assert test_ds.sampling_rate_hz == test.metadata.sampling_rate_hz
+            assert test_ds.reference_sampling_rate_hz_ == test.metadata.reference_sampling_rate_hz
+            assert test_ds.data.keys() == test.imu_data.keys()
+            for sensor in test_ds.data:
+                assert_frame_equal(test_ds.data[sensor], test.imu_data[sensor])
+            # It is a little hard to compare the entire reference parameters, as they are a list of dicts
+            # We just compare the length and the first entry
+            for wb_type in test_ds.reference_parameters_:
+                assert len(test_ds.reference_parameters_[wb_type]) == len(test.reference_parameters[wb_type])
+                assert (
+                    test_ds.reference_parameters_[wb_type][0]["Start"] == test.reference_parameters[wb_type][0]["Start"]
+                )
+
+    def test_duplicated_metadata(self):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            # With these setting, we will get duplicated metadata, because just the p_id is not unique
+            (None, "participant_id"),
+        )
+
+        with pytest.raises(ValueError, match="The metadata for each file path must be unique."):
+            _ = ds.index

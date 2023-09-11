@@ -296,30 +296,6 @@ def cached_load_current(selected_file: PathLike, loader_function: Callable[[Path
 
 
 class _GenericMobilisedDataset(Dataset):
-    """A generic dataset loader for the Mobilise-D data format.
-
-    This allows to create a dataset from multiple data files in the Mobilise-D data format stored within nested folder
-    structures.
-    The index of the dataset will be derived from the folder structure and the test names.
-
-    Notes
-    -----
-    The current implementation has two main limitations:
-
-    1. To get the test names, we need to load the entire data file.
-       If you have many large data files, this can take a long time.
-       To avoid doing that over and over again, we highly recommend to use the ``memory`` parameter to cache the
-       results.
-       Even with that, the first creation of a dataset, can take a long time, and you need to remember to clean the
-       cache, when you change the content of the data files (without changing their paths).
-       If you run into cases, where the load time is unreasonable, please open a Github issue, then we can try to
-       improve the implementation.
-    2. To make sure that the output of the ``index`` property is consistent across multiple machines, you need to make
-       sure that the paths are always sorted in the same way.
-       Hence, you should always use ``list(sorted(Path.glob(...))`` to get the paths.
-
-    """
-
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
     sensor_positions: Sequence[str]
@@ -373,7 +349,7 @@ class _GenericMobilisedDataset(Dataset):
         return self._load_selected_data("data").imu_data
 
     @property
-    def reference_parameters(self) -> MobilisedTestData.reference_parameters:
+    def reference_parameters_(self) -> MobilisedTestData.reference_parameters:
         return self._load_selected_data("reference_parameters").reference_parameters
 
     @property
@@ -381,7 +357,7 @@ class _GenericMobilisedDataset(Dataset):
         return self._load_selected_data("sampling_rate_hz").metadata.sampling_rate_hz
 
     @property
-    def reference_sampling_rate_hz(self) -> float:
+    def reference_sampling_rate_hz_(self) -> float:
         return self._load_selected_data("reference_sampling_rate_hz").metadata.reference_sampling_rate_hz
 
     @property
@@ -468,12 +444,124 @@ class _GenericMobilisedDataset(Dataset):
 
         metadata_per_level = pd.DataFrame.from_records(metadata_per_level).set_index("__path")
 
+        # We test that the meta data for each path is unique. Otherwise we will run into problems later.
+        if metadata_per_level.duplicated().any():
+            raise ValueError(
+                "The metadata for each file path must be unique. "
+                "Otherwise, the correct file can not be identified from the selected index rows. "
+                "The following paths have duplicate metadata:\n"
+                f"{metadata_per_level[metadata_per_level.duplicated(keep=False)]}."
+            )
+
         return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
 
 
 class GenericMobilisedDataset(_GenericMobilisedDataset):
+    """A generic dataset loader for the Mobilise-D data format.
+
+    This allows to create a dataset from multiple data files in the Mobilise-D data format stored within nested folder
+    structures.
+    The index of the dataset will be derived from the folder structure (``parent_folders_as_metadata``) and the
+    test names (``test_level_names``).
+
+    All data-attributes are only available, if just a single test is selected.
+    Attributes with a trailing underscore (e.g. ``reference_parameters_``) indicate that they contain information from
+    external reference systems and not just the IMU.
+
+    Notes
+    -----
+    The current implementation has two main limitations:
+
+    1. To get the test names, we need to load the entire data file.
+       If you have many large data files, this can take a long time.
+       To avoid doing that over and over again, we highly recommend to use the ``memory`` parameter to cache the
+       results.
+       Even with that, the first creation of a dataset, can take a long time, and you need to remember to clean the
+       cache, when you change the content of the data files (without changing their paths).
+       If you run into cases, where the load time is unreasonable, please open a Github issue, then we can try to
+       improve the implementation.
+    2. To make sure that the output of the ``index`` property is consistent across multiple machines, you need to make
+       sure that the paths are always sorted in the same way.
+       Hence, you should always use ``list(sorted(Path.glob(...))`` to get the paths.
+
+
+    Parameters
+    ----------
+    paths_list
+        A list of paths to the data files.
+        These should be the path to the actual data.mat files.
+        If you want to use ``participant_metadata``, we expect a ``inforForAlgo.mat`` file within the same folder.
+    test_level_names
+        The names of the test levels in the data files.
+        These will be used as the column names in the index.
+        Usually, this will be something like ("TimeMeasure", "Test", "Trial").
+        The number of levels can vary between datasets.
+        For typically Mobilise-D datasets, check the ``COMMON_TEST_LEVEL_NAMES`` class variable.
+    parent_folders_as_metadata
+        When multiple data files are provided, you need metadata to distinguish them.
+        This class implementation expects the names of the parend folder(s) to be used as metadata.
+        This parameter expects a list of strings, where each string corresponds to one level of the parent folder
+        from left to right (i.e. like you would read the path).
+        For example, when ``parent_folders_as_metadata=["cohort", "participant_id"]``, then the path
+        ``/parent_folder1/cohort_name/participant_id/data.mat`` would be parsed as
+        ``{"cohort": "cohort_name", "participant_id": "participant_id"}``.
+        If you want to skip a level, you can pass ``None`` instead of a string.
+        For example, when ``parent_folders_as_metadata=["cohort", None, "participant_id"]``, then the path
+        ``/parent_folder1/cohort_name/ignored_folder/participant_id/data.mat`` would be parsed as
+        ``{"cohort": "cohort_name", "participant_id": "participant_id"}``.
+        Note, however, that each file needs a unique combination of metadata.
+        If the levels you supply don't result in unique combinations, you will get an error during index creation.
+        If you only have a single data file, then you can simply set ``parent_folders_as_metadata=None``.
+    raw_data_sensor
+        Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
+        "SU" is the normal lower back sensor.
+    reference_system
+        When specified, reference gait parameters are loaded using the specified reference system.
+    sensor_positions
+        Which sensor positions to load the raw data for.
+        For "SU", only "LowerBack" is available, but for other sensors, more positions might be available.
+        If a sensor position is not available, an error is raised.
+    sensor_types
+        Which sensor types to load the raw data for.
+        This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
+        Some sensors might only have a subset of the available sensor types.
+        If a sensor type is not available, it is ignored.
+    memory
+        A joblib memory object to cache the results of the data loading.
+        This is highly recommended, if you have many large data files.
+        Otherwise, the initial index creation can take a long time.
+    groupby_cols
+        Columns to group the data by. See :class:`~tpcp.Dataset` for details.
+    subset_index
+        The selected subset of the index. See :class:`~tpcp.Dataset` for details.
+
+    Attributes
+    ----------
+    COMMON_TEST_LEVEL_NAMES
+        (ClassVar) A dictionary of common test level names for Mobilise-D datasets.
+        These can be passed to the ``test_level_names`` parameter.
+    data
+        The raw IMU data.
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+    reference_parameters_
+        The reference parameters (if available).
+    reference_sampling_rate_hz_
+        The sampling rate of the reference data in Hz.
+    metadata
+        The metadata of the selected test.
+    participant_metadata
+        The participant metadata loaded from the `infoForAlgo.mat` file.
+
+    See Also
+    --------
+    :class:`~tpcp.Dataset`
+        For details about the ``groupby_cols`` and ``subset_index`` parameters.
+    load_mobilised_matlab_format
+
+    """
+
     paths_list: Union[PathLike, Sequence[PathLike]]
-    # TODO: Rethink variable name
     test_level_names: Sequence[str]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
 
@@ -542,8 +630,9 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         is not None.
 
         """
+        start_level = len(self.parent_folders_as_metadata) - 1
         return tuple(
-            path.parents[level].name
-            for level, level_name in enumerate(self._metadata_level_names)
+            path.parents[start_level - level].name
+            for level, level_name in enumerate(self.parent_folders_as_metadata)
             if level_name is not None
         )
