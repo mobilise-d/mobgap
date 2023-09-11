@@ -65,7 +65,7 @@ docfiller = filldoc(
     :class:`~tpcp.Dataset`
         For details about the ``groupby_cols`` and ``subset_index`` parameters.
     load_mobilised_matlab_format
-    """
+    """,
     }
 )
 
@@ -351,6 +351,7 @@ class _GenericMobilisedDataset(Dataset):
     %(dataset_data_attrs)s
 
     """
+
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
     sensor_positions: Sequence[str]

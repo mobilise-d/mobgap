@@ -35,6 +35,7 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
     potential_paths = (LOCAL_EXAMPLE_PATH / "data/lab").rglob("data.mat")
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}
 
+
 @docfiller
 class LabExampleDataset(_GenericMobilisedDataset):
     """A dataset containing all lab example data provided with gaitlink.
