@@ -1,6 +1,7 @@
 import pytest
 from pandas._testing import assert_frame_equal
 
+from gaitlink import PACKAGE_ROOT
 from gaitlink.data import (
     GenericMobilisedDataset,
     get_all_lab_example_data_paths,
@@ -52,6 +53,27 @@ def test_simple_file_loading(example_data_path, recwarn, snapshot):
         # By default, there should be no reference parameter
         assert test_data.reference_parameters is None
         assert test_data.metadata.reference_sampling_rate_hz is None
+
+
+def test_error_if_nothing_to_load(example_data_path):
+    with pytest.raises(ValueError, match="At least one of raw_data_sensor and reference_system must be set."):
+        _ = load_mobilised_matlab_format(example_data_path / "data.mat", raw_data_sensor=None, reference_system=None)
+
+
+def test_load_only_reference(example_data_path, recwarn):
+    data = load_mobilised_matlab_format(example_data_path / "data.mat", raw_data_sensor=None, reference_system="INDIP")
+
+    # We don't expect any user-warnings to be raised
+    assert len([w for w in recwarn if issubclass(w.category, UserWarning)]) == 0
+
+    assert len(data) == 3
+
+    for _name, test_data in data.items():
+        assert test_data.imu_data is None
+        assert test_data.metadata.sampling_rate_hz is None
+
+        assert test_data.reference_parameters is not None
+        assert test_data.metadata.reference_sampling_rate_hz == 100
 
 
 def test_reference_system_loading(example_data_path):
@@ -143,4 +165,13 @@ class TestDatasetClass:
         )
 
         with pytest.raises(ValueError, match="The metadata for each file path must be unique."):
+            _ = ds.index
+
+    def test_invalid_path_type(self):
+        ds = GenericMobilisedDataset(
+            (PACKAGE_ROOT / "example_data/data/lab").rglob("data.mat"),
+            test_level_names=GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+        )
+
+        with pytest.raises(TypeError, match="paths_list must be a PathLike or a Sequence of PathLikes"):
             _ = ds.index
