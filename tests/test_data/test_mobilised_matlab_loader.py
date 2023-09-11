@@ -79,7 +79,6 @@ def test_reference_system_loading(example_data_path):
     assert number_of_tests_with_reference == 3
 
 
-
 def test_load_participant_metadata(example_data_path):
     participant_metadata = load_mobilised_participant_metadata_file(example_data_path / "infoForAlgo.mat")
 

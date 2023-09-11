@@ -295,7 +295,7 @@ def cached_load_current(selected_file: PathLike, loader_function: Callable[[Path
     return loader_function(selected_file)
 
 
-class GenericMobilisedDataset(Dataset):
+class _GenericMobilisedDataset(Dataset):
     """A generic dataset loader for the Mobilise-D data format.
 
     This allows to create a dataset from multiple data files in the Mobilise-D data format stored within nested folder
@@ -312,32 +312,22 @@ class GenericMobilisedDataset(Dataset):
        results.
        Even with that, the first creation of a dataset, can take a long time, and you need to remember to clean the
        cache, when you change the content of the data files (without changing their paths).
-    2. To make sure that the output of the ``index`` property is consistent accross multiple machines, you need to make
+       If you run into cases, where the load time is unreasonable, please open a Github issue, then we can try to
+       improve the implementation.
+    2. To make sure that the output of the ``index`` property is consistent across multiple machines, you need to make
        sure that the paths are always sorted in the same way.
        Hence, you should always use ``list(sorted(Path.glob(...))`` to get the paths.
 
     """
 
-    paths_list: Union[PathLike, Sequence[PathLike]]
-    # TODO: Rethink variable name
-    test_level_names: Sequence[str]
-    parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
     sensor_positions: Sequence[str]
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
 
-    COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
-        "tvs_lab": ("time_measure", "test", "trial"),
-        "tvs_2.5h": ("time_measure", "recording"),
-    }
-
     def __init__(
         self,
-        paths_list: Union[PathLike, Sequence[PathLike]],
-        test_level_names: Sequence[str],
-        parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
@@ -347,9 +337,6 @@ class GenericMobilisedDataset(Dataset):
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
-        self.paths_list = paths_list
-        self.test_level_names = test_level_names
-        self.parent_folders_as_metadata = parent_folders_as_metadata
         self.raw_data_sensor = raw_data_sensor
         self.reference_system = reference_system
         self.sensor_positions = sensor_positions
@@ -357,6 +344,29 @@ class GenericMobilisedDataset(Dataset):
         self.memory = memory
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+
+    @property
+    def _paths_list(self) -> list[Path]:
+        raise NotImplementedError
+
+    @property
+    def _test_level_names(self) -> tuple[str, ...]:
+        raise NotImplementedError
+
+    @property
+    def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
+        raise NotImplementedError
+
+    def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
+        """Return the metadata for a single file that should be included as index columns.
+
+        This method will be called during index creation for each file returned by `_paths_list`.
+        Note, that this will only happen, if `_metadata_level_names` is not None.
+
+        The length of the returned tuple must match the length of `_metadata_level_names`.
+
+        """
+        raise NotImplementedError
 
     @property
     def data(self) -> MobilisedTestData.imu_data:
@@ -392,25 +402,9 @@ class GenericMobilisedDataset(Dataset):
             )
         participant_metadata = load_mobilised_participant_metadata_file(info_for_algo_file)
 
-        first_level_selected_test_name = self.index.iloc[0][next(iter(self.test_level_names))]
+        first_level_selected_test_name = self.index.iloc[0][next(iter(self._test_level_names))]
 
         return participant_metadata[first_level_selected_test_name]
-
-    @property
-    def _paths_list(self) -> list[Path]:
-        paths_list = self.paths_list
-
-        if isinstance(paths_list, (str, Path)):
-            paths_list = [paths_list]
-        elif not isinstance(paths_list, Sequence):
-            raise TypeError(
-                f"paths_list must be a PathLike or a Sequence of PathLikes, but got {type(paths_list)}. "
-                "For the list of paths, you need to make sure that it is persistent and can be iterated over "
-                "multiple times. "
-                "So don't use a generator or directly path the output of `Path.glob`. "
-            )
-
-        return [Path(path) for path in paths_list]
 
     @property
     def _cached_data_load(self) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
@@ -428,7 +422,7 @@ class GenericMobilisedDataset(Dataset):
     def _load_selected_data(self, property_name: str) -> MobilisedTestData:
         selected_file = self._get_selected_data_file(property_name)
 
-        selected_test = next(self.index[list(self.test_level_names)].itertuples(index=False, name=None))
+        selected_test = next(self.index[list(self._test_level_names)].itertuples(index=False, name=None))
         # We use two-level caching here.
         # If the file was loaded before (even in a previous execution) and memory caching is enabled, we get the cached
         # result.
@@ -455,7 +449,7 @@ class GenericMobilisedDataset(Dataset):
         test_name_metadata = (
             pd.concat(
                 {
-                    path: pd.DataFrame(self._get_test_list(path), columns=list(self.test_level_names))
+                    path: pd.DataFrame(self._get_test_list(path), columns=list(self._test_level_names))
                     for path in self._paths_list
                 }
             )
@@ -463,16 +457,93 @@ class GenericMobilisedDataset(Dataset):
             .rename_axis(index="__path")
         )
 
-        if self.parent_folders_as_metadata is None:
+        if self._metadata_level_names is None:
             return test_name_metadata.reset_index(drop=True)
 
-        # Resolve metadata from the parent folders of the paths.
-        metadata_per_level = {"__path": self._paths_list}
-        for level, level_name in enumerate(self.parent_folders_as_metadata):
-            if level_name is None:
-                continue
-            metadata_per_level[level_name] = [path.parents[level].name for path in self._paths_list]
+        # Resolve metadata based on the implementation of the child class.
+        metadata_per_level = [
+            {"__path": path, **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path)))}
+            for path in self._paths_list
+        ]
 
-        metadata_per_level = pd.DataFrame(metadata_per_level).set_index("__path")
+        metadata_per_level = pd.DataFrame.from_records(metadata_per_level).set_index("__path")
 
         return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
+
+
+class GenericMobilisedDataset(_GenericMobilisedDataset):
+    paths_list: Union[PathLike, Sequence[PathLike]]
+    # TODO: Rethink variable name
+    test_level_names: Sequence[str]
+    parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
+
+    COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
+        "tvs_lab": ("time_measure", "test", "trial"),
+        "tvs_2.5h": ("time_measure", "recording"),
+    }
+
+    def __init__(
+        self,
+        paths_list: Union[PathLike, Sequence[PathLike]],
+        test_level_names: Sequence[str],
+        parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
+        *,
+        raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
+        reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
+        sensor_positions: Sequence[str] = ("LowerBack",),
+        sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+        memory: joblib.Memory = joblib.Memory(None),
+        groupby_cols: Optional[Union[list[str], str]] = None,
+        subset_index: Optional[pd.DataFrame] = None,
+    ) -> None:
+        self.paths_list = paths_list
+        self.test_level_names = test_level_names
+        self.parent_folders_as_metadata = parent_folders_as_metadata
+        super().__init__(
+            raw_data_sensor=raw_data_sensor,
+            reference_system=reference_system,
+            sensor_positions=sensor_positions,
+            sensor_types=sensor_types,
+            memory=memory,
+            groupby_cols=groupby_cols,
+            subset_index=subset_index,
+        )
+
+    @property
+    def _paths_list(self) -> list[Path]:
+        paths_list = self.paths_list
+
+        if isinstance(paths_list, (str, Path)):
+            paths_list = [paths_list]
+        elif not isinstance(paths_list, Sequence):
+            raise TypeError(
+                f"paths_list must be a PathLike or a Sequence of PathLikes, but got {type(paths_list)}. "
+                "For the list of paths, you need to make sure that it is persistent and can be iterated over "
+                "multiple times. "
+                "So don't use a generator or directly path the output of `Path.glob`. "
+            )
+
+        return [Path(path) for path in paths_list]
+
+    @property
+    def _test_level_names(self) -> tuple[str, ...]:
+        return tuple(self.test_level_names)
+
+    @property
+    def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
+        if self.parent_folders_as_metadata is None:
+            return None
+        return tuple(name for name in self.parent_folders_as_metadata if name is not None)
+
+    def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
+        """Select the metadata from the file path.
+
+        We pick all the parent folder names for the entries in `self.parent_folders_as_metadata` for which the value
+        is not None.
+
+        """
+        return tuple(
+            path.parents[level].name
+            for level, level_name in enumerate(self._metadata_level_names)
+            if level_name is not None
+        )

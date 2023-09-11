@@ -9,7 +9,12 @@ Mobilise-D Matlab format
 ------------------------
 .. currentmodule:: gaitlink.data
 
-Load functions
+Dataset Classes
++++++++++++++++
+GenericMobilisedDataset
+LabExampleDataset
+
+Load Functions
 ++++++++++++++
 
 .. autosummary::
