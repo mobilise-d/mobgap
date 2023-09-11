@@ -17,7 +17,6 @@ Dataset Classes
    :template: class.rst
 
     GenericMobilisedDataset
-    LabExampleDataset
 
 Load Functions
 ++++++++++++++
@@ -26,7 +25,6 @@ Load Functions
    :toctree: generated/data
    :template: function.rst
 
-    get_all_lab_example_data_paths
     load_mobilised_matlab_format
 
 Datatypes
@@ -39,3 +37,27 @@ Datatypes
     MobilisedTestData
     MobilisedMetadata
 
+Example Data
+------------
+
+Dataset Classes
++++++++++++++++
+.. currentmodule:: gaitlink.data
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    LabExampleDataset
+
+Functional Interface
+++++++++++++++++++++
+
+Load Functions
+++++++++++++++
+
+.. autosummary::
+   :toctree: generated/data
+   :template: function.rst
+
+    get_all_lab_example_data_paths

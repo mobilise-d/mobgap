@@ -10,9 +10,64 @@ import pandas as pd
 import scipy.io as sio
 from tpcp import Dataset
 
+from gaitlink._docutils import filldoc
+
 T = TypeVar("T")
 
 PathLike = TypeVar("PathLike", str, Path)
+
+docfiller = filldoc(
+    {
+        "file_loader_args": """
+    raw_data_sensor
+        Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
+        SU is usually the "normal" lower back sensor.
+        INDIP and INDIP2 are only available under special circumstances for the Mobilise-D TVS data.
+    reference_system
+        When specified, reference gait parameters are loaded using the specified reference system.
+    sensor_positions
+        Which sensor positions to load the raw data for.
+        For "SU", only "LowerBack" is available, but for other sensors, more positions might be available.
+        If a sensor position is not available, an error is raised.
+    sensor_types
+        Which sensor types to load the raw data for.
+        This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
+        Some sensors might only have a subset of the available sensor types.
+        If a sensor type is not available, it is ignored.
+    """,
+        "general_dataset_args": """
+    groupby_cols
+        Columns to group the data by. See :class:`~tpcp.Dataset` for details.
+    subset_index
+        The selected subset of the index. See :class:`~tpcp.Dataset` for details.
+    """,
+        "dataset_memory_args": """
+    memory
+        A joblib memory object to cache the results of the data loading.
+        This is highly recommended, if you have many large data files.
+        Otherwise, the initial index creation can take a long time.
+    """,
+        "dataset_data_attrs": """
+    data
+        The raw IMU data.
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+    reference_parameters_
+        The reference parameters (if available).
+    reference_sampling_rate_hz_
+        The sampling rate of the reference data in Hz.
+    metadata
+        The metadata of the selected test.
+    participant_metadata
+        The participant metadata loaded from the `infoForAlgo.mat` file.
+    """,
+        "dataset_see_also": """
+    :class:`~tpcp.Dataset`
+        For details about the ``groupby_cols`` and ``subset_index`` parameters.
+    load_mobilised_matlab_format
+    """
+    }
+)
 
 
 class MobilisedMetadata(NamedTuple):
@@ -75,6 +130,7 @@ def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[s
     }
 
 
+@docfiller
 def load_mobilised_matlab_format(
     path: PathLike,
     *,
@@ -89,21 +145,7 @@ def load_mobilised_matlab_format(
     ----------
     path
         Path to the data.mat file.
-    raw_data_sensor
-        Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
-        SU is usually the "normal" lower back sensor.
-        INDIP and INDIP2 are only available under special circumstances for the Mobilise-D TVS data.
-    reference_system
-        When specified, reference gait parameters are loaded using the specified reference system.
-    sensor_positions
-        Which sensor positions to load the raw data for.
-        For "SU", only "LowerBack" is available, but for other sensors, more positions might be available.
-        If a sensor position is not available, an error is raised.
-    sensor_types
-        Which sensor types to load the raw data for.
-        This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
-        Some sensors might only have a subset of the available sensor types.
-        If a sensor type is not available, it is ignored.
+    %(file_loader_args)s
 
     Returns
     -------
@@ -296,6 +338,19 @@ def cached_load_current(selected_file: PathLike, loader_function: Callable[[Path
 
 
 class _GenericMobilisedDataset(Dataset):
+    """Common base class for Datasets based on the Mobilise-D matlab format.
+
+    Parameters
+    ----------
+    %(file_loader_args)s
+    %(dataset_memory_args)s
+    %(general_dataset_args)s
+
+    Attributes
+    ----------
+    %(dataset_data_attrs)s
+
+    """
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
     sensor_positions: Sequence[str]
@@ -456,6 +511,7 @@ class _GenericMobilisedDataset(Dataset):
         return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
 
 
+@docfiller
 class GenericMobilisedDataset(_GenericMobilisedDataset):
     """A generic dataset loader for the Mobilise-D data format.
 
@@ -512,52 +568,20 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         Note, however, that each file needs a unique combination of metadata.
         If the levels you supply don't result in unique combinations, you will get an error during index creation.
         If you only have a single data file, then you can simply set ``parent_folders_as_metadata=None``.
-    raw_data_sensor
-        Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
-        "SU" is the normal lower back sensor.
-    reference_system
-        When specified, reference gait parameters are loaded using the specified reference system.
-    sensor_positions
-        Which sensor positions to load the raw data for.
-        For "SU", only "LowerBack" is available, but for other sensors, more positions might be available.
-        If a sensor position is not available, an error is raised.
-    sensor_types
-        Which sensor types to load the raw data for.
-        This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
-        Some sensors might only have a subset of the available sensor types.
-        If a sensor type is not available, it is ignored.
-    memory
-        A joblib memory object to cache the results of the data loading.
-        This is highly recommended, if you have many large data files.
-        Otherwise, the initial index creation can take a long time.
-    groupby_cols
-        Columns to group the data by. See :class:`~tpcp.Dataset` for details.
-    subset_index
-        The selected subset of the index. See :class:`~tpcp.Dataset` for details.
+    %(file_loader_args)s
+    %(dataset_memory_args)s
+    %(general_dataset_args)s
 
     Attributes
     ----------
     COMMON_TEST_LEVEL_NAMES
         (ClassVar) A dictionary of common test level names for Mobilise-D datasets.
         These can be passed to the ``test_level_names`` parameter.
-    data
-        The raw IMU data.
-    sampling_rate_hz
-        The sampling rate of the IMU data in Hz.
-    reference_parameters_
-        The reference parameters (if available).
-    reference_sampling_rate_hz_
-        The sampling rate of the reference data in Hz.
-    metadata
-        The metadata of the selected test.
-    participant_metadata
-        The participant metadata loaded from the `infoForAlgo.mat` file.
+    %(dataset_data_attrs)s
 
     See Also
     --------
-    :class:`~tpcp.Dataset`
-        For details about the ``groupby_cols`` and ``subset_index`` parameters.
-    load_mobilised_matlab_format
+    %(dataset_see_also)s
 
     """
 
