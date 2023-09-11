@@ -134,7 +134,7 @@ def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[s
 def load_mobilised_matlab_format(
     path: PathLike,
     *,
-    raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
+    raw_data_sensor: Optional[Literal["SU", "INDIP", "INDIP2"]] = "SU",
     reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
     sensor_positions: Sequence[str] = ("LowerBack",),
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
@@ -170,10 +170,13 @@ def load_mobilised_matlab_format(
             "At least one of raw_data_sensor and reference_system must be set. Otherwise no data is loaded."
         )
 
-    raw_data_sensor = ("SU_" + raw_data_sensor) if raw_data_sensor != "SU" else "SU"
+    if raw_data_sensor:
+        raw_data_sensor = ("SU_" + raw_data_sensor) if raw_data_sensor != "SU" else "SU"
+
+    sensor_test_level_marker = raw_data_sensor or "SU"
 
     data = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)
-    data_per_test = _parse_until_test_level(data["data"], (raw_data_sensor, "Standards"))
+    data_per_test = _parse_until_test_level(data["data"], (sensor_test_level_marker, "Standards"))
     return {
         test_name: _process_test_data(
             test_data,
