@@ -405,7 +405,7 @@ class _GenericMobilisedDataset(Dataset):
 
     @property
     def reference_parameters_(self) -> MobilisedTestData.reference_parameters:
-        return self._load_selected_data("reference_parameters").reference_parameters
+        return self._load_selected_data("reference_parameters_").reference_parameters
 
     @property
     def sampling_rate_hz(self) -> float:
@@ -413,7 +413,7 @@ class _GenericMobilisedDataset(Dataset):
 
     @property
     def reference_sampling_rate_hz_(self) -> float:
-        return self._load_selected_data("reference_sampling_rate_hz").metadata.reference_sampling_rate_hz
+        return self._load_selected_data("reference_sampling_rate_hz_").metadata.reference_sampling_rate_hz
 
     @property
     def metadata(self) -> MobilisedMetadata:
