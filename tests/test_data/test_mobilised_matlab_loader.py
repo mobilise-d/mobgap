@@ -21,7 +21,6 @@ def test_simple_file_loading(example_file_path, recwarn):
         assert len(name) == 3
 
         # Test basic metadata
-        # TODO: Change values once decided on actual example data
         assert test_data.metadata.time_zone == "Europe/Berlin"
 
         assert test_data.metadata.sampling_rate_hz == 100
