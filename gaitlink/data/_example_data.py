@@ -37,6 +37,14 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
 
 
 class LabExampleDataset(_GenericMobilisedDataset):
+    """A dataset containing all lab example data provided with gaitlink.
+
+    Parameters
+    ----------
+
+
+    """
+
     @property
     def _paths_list(self) -> list[Path]:
         return [p / "data.mat" for p in sorted(get_all_lab_example_data_paths().values())]

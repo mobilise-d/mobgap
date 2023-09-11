@@ -7,12 +7,17 @@ gaitlink.data: Helper functions for data loading and data management
 
 Mobilise-D Matlab format
 ------------------------
-.. currentmodule:: gaitlink.data
 
 Dataset Classes
 +++++++++++++++
-GenericMobilisedDataset
-LabExampleDataset
+.. currentmodule:: gaitlink.data
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    GenericMobilisedDataset
+    LabExampleDataset
 
 Load Functions
 ++++++++++++++
