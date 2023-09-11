@@ -632,7 +632,8 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
                 f"paths_list must be a PathLike or a Sequence of PathLikes, but got {type(paths_list)}. "
                 "For the list of paths, you need to make sure that it is persistent and can be iterated over "
                 "multiple times. "
-                "So don't use a generator or directly path the output of `Path.glob`. "
+                "So don't use a generator or directly pass the output of `Path.glob`. "
+                "Instead use `list(sorted(Path.glob(...)))` to get the paths."
             )
 
         return [Path(path) for path in paths_list]
