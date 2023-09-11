@@ -1,5 +1,5 @@
 """Helper to load data and example in the various supported formats."""
-from gaitlink.data._example_data import get_all_lab_example_data_paths
+from gaitlink.data._example_data import LabExampleDataset, get_all_lab_example_data_paths
 from gaitlink.data._mobilised_matlab_loader import (
     GenericMobilisedDataset,
     MobilisedMetadata,
@@ -13,6 +13,7 @@ __all__ = [
     "load_mobilised_participant_metadata_file",
     "MobilisedTestData",
     "MobilisedMetadata",
-    "GenericMobilisedDataset",
     "get_all_lab_example_data_paths",
+    "GenericMobilisedDataset",
+    "LabExampleDataset",
 ]

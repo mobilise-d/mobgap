@@ -1,6 +1,8 @@
 from pathlib import Path
+from typing import Optional
 
 from gaitlink import PACKAGE_ROOT
+from gaitlink.data._mobilised_matlab_loader import GenericMobilisedDataset, _GenericMobilisedDataset
 
 LOCAL_EXAMPLE_PATH = PACKAGE_ROOT.parent / "example_data/"
 
@@ -32,3 +34,20 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
 
     potential_paths = (LOCAL_EXAMPLE_PATH / "data/lab").rglob("data.mat")
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}
+
+
+class LabExampleDataset(_GenericMobilisedDataset):
+    @property
+    def _paths_list(self) -> list[Path]:
+        return [p / "data.mat" for p in sorted(get_all_lab_example_data_paths().values())]
+
+    @property
+    def _test_level_names(self) -> tuple[str, ...]:
+        return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
+
+    @property
+    def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
+        return "cohort", "participant_id"
+
+    def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
+        return path.parents[1].name, path.parents[0].name

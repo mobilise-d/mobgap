@@ -1,4 +1,4 @@
-from gaitlink.data import get_all_lab_example_data_paths
+from gaitlink.data import LabExampleDataset, get_all_lab_example_data_paths
 from tests import PROJECT_ROOT
 
 
@@ -14,3 +14,11 @@ def test_get_lab_example_data_path():
 
     example_path = paths[("HA", "002")]
     assert PROJECT_ROOT / "example_data/" / "data" / "lab" / "HA" / "002" == example_path
+
+
+class TestLabExampleDataset:
+    def test_index(self):
+        dataset = LabExampleDataset()
+        assert len(dataset) == 9
+
+        assert dataset.index.columns.tolist() == ["cohort", "participant_id", "time_measure", "test", "trial"]
