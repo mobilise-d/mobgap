@@ -33,7 +33,7 @@ ha_example_data
 # %%
 # Once you selected only a single row of the dataset (either by repeated ``get_subset`` or by iteration), you can load
 # the actual data.
-single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial1")
+single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
 single_test
 
 # %%
@@ -58,9 +58,9 @@ single_test.participant_metadata
 # %%
 # You can also load the reference system data, by specifying the ``reference_system`` argument.
 # All parameters related to the reference systems have a trailing underscore.
-example_data_with_reference = LabExampleDataset(reference_system="INDIP")
+example_data_with_reference = LabExampleDataset(reference_system="Stereophoto")
 single_trial_with_reference = example_data_with_reference.get_subset(
-    cohort="HA", participant_id="002", test="Test5", trial="Trial1"
+    cohort="HA", participant_id="002", test="Test5", trial="Trial2"
 )
 single_trial_with_reference.reference_parameters_
 
@@ -90,13 +90,13 @@ test_list
 
 # %%
 # We can access the data of a single test by using the test name as key.
-test_5_data = data[test_list[2]]
-imu_data = test_5_data.imu_data["LowerBack"]
+test_11_data = data[test_list[2]]
+imu_data = test_11_data.imu_data["LowerBack"]
 imu_data
 
 # %%
 # We can also access the metadata of the test.
-test_5_data.metadata
+test_11_data.metadata
 
 # %%
 # To load reference data as well, we can use the ``reference_system`` argument.

@@ -167,6 +167,16 @@ class TestDatasetClass:
         with pytest.raises(ValueError, match="The metadata for each file path must be unique."):
             _ = ds.index
 
+    def test_no_metadata_for_multiple_files(self):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            # With these setting, we will get duplicated metadata, because just the p_id is not unique
+        )
+
+        with pytest.raises(ValueError, match="It seems like no metadata for the files was provided."):
+            _ = ds.index
+
     def test_invalid_path_type(self):
         ds = GenericMobilisedDataset(
             (PACKAGE_ROOT / "example_data/data/lab").rglob("data.mat"),

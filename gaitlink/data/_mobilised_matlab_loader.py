@@ -425,16 +425,9 @@ class _GenericMobilisedDataset(Dataset):
 
     @property
     def participant_metadata(self) -> dict[str, Any]:
-        selected_file = self._get_selected_data_file("participant_metadata")
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
-        info_for_algo_file = selected_file.parent / "infoForAlgo.mat"
+        info_for_algo_file = self.selected_meta_data_file
 
-        if not info_for_algo_file.exists():
-            raise FileNotFoundError(
-                f"Could not find the participant metadata file {info_for_algo_file} for the selected data file "
-                f"{selected_file}. "
-                "We assume that this file is always in the same folder as the `data.mat` file."
-            )
         participant_metadata = load_mobilised_participant_metadata_file(info_for_algo_file)
 
         first_level_selected_test_name = self.index.iloc[0][next(iter(self._test_level_names))]
@@ -467,13 +460,67 @@ class _GenericMobilisedDataset(Dataset):
         # the raw data and the reference parameters).
         return cached_load_current(selected_file, self._cached_data_load)[selected_test]
 
+    @property
+    def selected_data_file(self) -> Path:
+        return self._get_selected_data_file("selected_data_file")
+
+    @property
+    def selected_meta_data_file(self) -> Path:
+        # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
+        selected_data_file = self._get_selected_data_file("selected_meta_data_file")
+        meta_data_file = selected_data_file.parent / "infoForAlgo.mat"
+
+        if not meta_data_file.exists():
+            raise FileNotFoundError(
+                f"Could not find the participant metadata file {meta_data_file} for the selected data file "
+                f"{selected_data_file}. "
+                "We assume that this file is always in the same folder as the `data.mat` file."
+            )
+        return meta_data_file
+
     def _get_selected_data_file(self, property_name: str) -> Path:
         self.assert_is_single(None, property_name)
+        # We basically make an inverse lookup of the metadata.
+        all_path_metadata = self._get_all_path_metadata()
 
-        index_value = self.index.index[0]
-        selected_file = self._paths_list[index_value]
+        # Note, we don't check if the metadata is unique here, because we already do that in _get_all_path_metadata.
+        if all_path_metadata is None:
+            # If no metadata is available, there can only be one file.
+            return self._paths_list[0]
+
+        current_selection_metadata = self.index.iloc[0][list(self._metadata_level_names)]
+
+        selected_file = all_path_metadata[(all_path_metadata == current_selection_metadata).all(axis=1)].index[0]
 
         return selected_file
+
+    def _get_all_path_metadata(self) -> Optional[pd.DataFrame]:
+        if self._metadata_level_names is None:
+            if len(self._paths_list) > 1:
+                raise ValueError(
+                    "It seems like no metadata for the files was provided, but there are multiple files. "
+                    "We can not distinguish between the files in this case and build a correct index. "
+                    "Provide sufficient information that metadata can be loaded for each file. "
+                    "How this works depends on the implementation of the Dataset class you are using."
+                )
+            return None
+
+        metadata_per_level = [
+            {"__path": path, **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path)))}
+            for path in self._paths_list
+        ]
+        metadata_per_level = pd.DataFrame.from_records(metadata_per_level).set_index("__path")
+
+        # We test that the meta data for each path is unique. Otherwise we will run into problems later.
+        if metadata_per_level.duplicated().any():
+            raise ValueError(
+                "The metadata for each file path must be unique. "
+                "Otherwise, the correct file can not be identified from the selected index rows. "
+                "The following paths have duplicate metadata:\n"
+                f"{metadata_per_level[metadata_per_level.duplicated(keep=False)]}."
+            )
+
+        return metadata_per_level
 
     def create_index(self) -> pd.DataFrame:
         """Create the dataset index.
@@ -492,25 +539,10 @@ class _GenericMobilisedDataset(Dataset):
             .rename_axis(index="__path")
         )
 
-        if self._metadata_level_names is None:
-            return test_name_metadata.reset_index(drop=True)
-
         # Resolve metadata based on the implementation of the child class.
-        metadata_per_level = [
-            {"__path": path, **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path)))}
-            for path in self._paths_list
-        ]
-
-        metadata_per_level = pd.DataFrame.from_records(metadata_per_level).set_index("__path")
-
-        # We test that the meta data for each path is unique. Otherwise we will run into problems later.
-        if metadata_per_level.duplicated().any():
-            raise ValueError(
-                "The metadata for each file path must be unique. "
-                "Otherwise, the correct file can not be identified from the selected index rows. "
-                "The following paths have duplicate metadata:\n"
-                f"{metadata_per_level[metadata_per_level.duplicated(keep=False)]}."
-            )
+        metadata_per_level = self._get_all_path_metadata()
+        if metadata_per_level is None:
+            return test_name_metadata.reset_index(drop=True)
 
         return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
 
