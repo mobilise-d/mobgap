@@ -222,6 +222,10 @@ def _parse_single_sensor_data(
                 column_names = [f"{sensor_type}_{axis}" for axis in ("x", "y", "z")]
             parsed_data.append(pd.DataFrame(getattr(sensor_data, sensor_type_mat), columns=column_names))
     parsed_data = pd.concat(parsed_data, axis=1)
+    # We convert acc data to m/s^2
+    if "acc" in sensor_types:
+        parsed_data[["acc_x", "acc_y", "acc_z"]] *= 9.81
+
     # Some sensors provide realtime timestamps.
     # If they are available, we load them as the index.
     if "Timestamp" in sensor_data._fieldnames:
