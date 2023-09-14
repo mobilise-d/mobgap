@@ -8,7 +8,7 @@ def example_file_path():
     return get_all_lab_example_data_paths()[("HA", "001")] / "data.mat"
 
 
-def test_simple_file_loading(example_file_path, recwarn):
+def test_simple_file_loading(example_file_path, recwarn, snapshot):
     data = load_mobilised_matlab_format(example_file_path)
 
     # We don't expect any user-warnings to be raised
@@ -38,6 +38,10 @@ def test_simple_file_loading(example_file_path, recwarn):
         assert list(test_data.imu_data["LowerBack"].columns) == ["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]
         assert set(test_data.imu_data.keys()) == {"LowerBack"}
         assert len(test_data.imu_data["LowerBack"]) > 100
+
+        snapshot_data = test_data.imu_data["LowerBack"].head(5)
+        snapshot_data.index = snapshot_data.index.round("ms")
+        snapshot.assert_match(snapshot_data, name)
 
         # By default, there should be no reference parameter
         assert test_data.reference_parameters is None
