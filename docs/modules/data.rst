@@ -1,7 +1,7 @@
 gaitlink.data: Helper functions for data loading and data management
 ====================================================================
 
-.. automodule:: gaitmap.data_transform
+.. automodule:: gaitlink.data
     :no-members:
     :no-inherited-members:
 
