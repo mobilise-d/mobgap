@@ -3,12 +3,10 @@
 For now, this just exports some functions from scipy._lib.doccer, to have only one place to import from.
 While, the ``doccer`` submodule of scip[y is not part of the public API, it seems to be stable enough to use it here.
 """
-from typing import Optional
-
 from scipy._lib.doccer import filldoc
 
-
-def make_filldoc(docdict: dict[str, str], *, doc_summary: Optional[str] = None) -> filldoc:
+from typing import Dict, Any
+def make_filldoc(docdict: Dict[str, str], *, doc_summary: Dict[str, Any] = None) -> filldoc:
     """Create a new doc-filler from a dictionary.
 
     This can be applied to a function, method, or class to substitute ``%(key)s`` occurrences in its docstring.

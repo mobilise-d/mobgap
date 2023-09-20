@@ -2,7 +2,7 @@ import warnings
 from collections.abc import Iterator, Sequence
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import Any, Callable, ClassVar, Literal, NamedTuple, Optional, TypeVar, Union, Dict, Tuple, Iterator, List
 
 import joblib
 import numpy as np
@@ -95,13 +95,13 @@ class MobilisedMetadata(NamedTuple):
 
 
 class MobilisedTestData(NamedTuple):
-    imu_data: Optional[dict[str, pd.DataFrame]]
+    imu_data: Optional[Dict[str, pd.DataFrame]]
     # TODO: Update Any typing once I understand the data better.
-    reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
+    reference_parameters: Optional[Dict[Literal["wb", "lwb"], Any]]
     metadata: MobilisedMetadata
 
 
-def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
+def load_mobilised_participant_metadata_file(path: PathLike) -> Dict[str, Dict[str, Any]]:
     """Load the participant metadata file (usually called infoForAlgo.mat).
 
     This file contains various metadata about the participant and the measurement setup.
@@ -136,9 +136,9 @@ def load_mobilised_matlab_format(
     *,
     raw_data_sensor: Optional[Literal["SU", "INDIP", "INDIP2"]] = "SU",
     reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
-    sensor_positions: Sequence[str] = ("LowerBack",),
-    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-) -> dict[tuple[str, ...], MobilisedTestData]:
+    sensor_positions: Tuple[str] = ("LowerBack",),
+    sensor_types: Tuple[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+) -> Dict[Tuple[str, ...], MobilisedTestData]:
     """Load a single data.mat file formatted according to the Mobilise-D guidelines.
 
     Parameters
@@ -191,8 +191,8 @@ def load_mobilised_matlab_format(
 
 
 def _parse_until_test_level(
-    data: sio.matlab.mat_struct, test_level_marker: Sequence[str], _parent_key: tuple[str, ...] = ()
-) -> Iterator[tuple[tuple[str, ...], sio.matlab.mat_struct]]:
+    data: sio.matlab.mat_struct, test_level_marker: Tuple[str], _parent_key: Tuple[str, ...] = ()
+) -> Iterator[Tuple[Tuple[str, ...], sio.matlab.mat_struct]]:
     # If one of the test level markers is in the field names, we reached the level of a test.
     if any(marker in data._fieldnames for marker in test_level_marker):
         yield _parent_key, data
@@ -215,12 +215,12 @@ def _parse_until_test_level(
 
 def _process_test_data(  # noqa: PLR0912
     test_data: sio.matlab.mat_struct,
-    test_name: tuple[str, ...],
+    test_name: Tuple[str, ...],
     *,
     raw_data_sensor: Optional[str],
     reference_system: Optional[str],
-    sensor_positions: Sequence[str],
-    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
+    sensor_positions: Tuple[str],
+    sensor_types: Tuple[Literal["acc", "gyr", "mag", "bar"]],
 ) -> MobilisedTestData:
     meta_data = {}
 
@@ -292,7 +292,7 @@ def _process_test_data(  # noqa: PLR0912
 
 
 def _parse_single_sensor_data(
-    sensor_data: sio.matlab.mat_struct, sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    sensor_data: sio.matlab.mat_struct, sensor_types: Tuple[Literal["acc", "gyr", "mag", "bar"]]
 ) -> pd.DataFrame:
     parsed_data = []
     for sensor_type in sensor_types:
@@ -318,8 +318,8 @@ def _parse_single_sensor_data(
 
 
 def _parse_reference_parameters(
-    reference_data: Union[sio.matlab.mat_struct, list[sio.matlab.mat_struct]],
-) -> list[dict[str, Union[str, float, int, np.ndarray]]]:
+    reference_data: Union[sio.matlab.mat_struct, List[sio.matlab.mat_struct]],
+) -> List[Dict[str, Union[str, float, int, np.ndarray]]]:
     # For now reference data is either a list of structs or a single struct.
     # Each struct represents one walking bout
     # Each struct has various fields that either contain a single value or a list of values (np.arrays).
@@ -329,7 +329,7 @@ def _parse_reference_parameters(
     return [_parse_matlab_struct(wb_data) for wb_data in reference_data]
 
 
-def _parse_matlab_struct(struct: sio.matlab.mat_struct) -> dict[str, Any]:
+def _parse_matlab_struct(struct: sio.matlab.mat_struct) -> Dict[str, Any]:
     """Parse a simple matlab struct that only contains simple types (no nested structs or arrays)."""
     return {k: getattr(struct, k) for k in struct._fieldnames}
 
@@ -358,8 +358,8 @@ class _GenericMobilisedDataset(Dataset):
 
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
-    sensor_positions: Sequence[str]
-    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    sensor_positions: Tuple[str]
+    sensor_types: Tuple[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
 
     def __init__(
@@ -367,10 +367,10 @@ class _GenericMobilisedDataset(Dataset):
         *,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
-        sensor_positions: Sequence[str] = ("LowerBack",),
-        sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+        sensor_positions: Tuple[str] = ("LowerBack",),
+        sensor_types: Tuple[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
         memory: joblib.Memory = joblib.Memory(None),
-        groupby_cols: Optional[Union[list[str], str]] = None,
+        groupby_cols: Optional[Union[List[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
         self.raw_data_sensor = raw_data_sensor
@@ -382,18 +382,18 @@ class _GenericMobilisedDataset(Dataset):
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     @property
-    def _paths_list(self) -> list[Path]:
+    def _paths_list(self) -> List[Path]:
         raise NotImplementedError
 
     @property
-    def _test_level_names(self) -> tuple[str, ...]:
+    def _test_level_names(self) -> Tuple[str, ...]:
         raise NotImplementedError
 
     @property
-    def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
+    def _metadata_level_names(self) -> Optional[Tuple[str, ...]]:
         raise NotImplementedError
 
-    def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
+    def _get_file_index_metadata(self, path: Path) -> Tuple[str, ...]:
         """Return the metadata for a single file that should be included as index columns.
 
         This method will be called during index creation for each file returned by `_paths_list`.
@@ -425,7 +425,7 @@ class _GenericMobilisedDataset(Dataset):
         return self._load_selected_data("metadata").metadata
 
     @property
-    def participant_metadata(self) -> dict[str, Any]:
+    def participant_metadata(self) -> Dict[str, Any]:
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
         info_for_algo_file = self.selected_meta_data_file
 
@@ -436,7 +436,7 @@ class _GenericMobilisedDataset(Dataset):
         return participant_metadata[first_level_selected_test_name]
 
     @property
-    def _cached_data_load(self) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
+    def _cached_data_load(self) -> Callable[[PathLike], Dict[Tuple[str, ...], MobilisedTestData]]:
         return partial(
             self.memory.cache(load_mobilised_matlab_format),
             raw_data_sensor=self.raw_data_sensor,
@@ -445,7 +445,7 @@ class _GenericMobilisedDataset(Dataset):
             sensor_types=self.sensor_types,
         )
 
-    def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
+    def _get_test_list(self, path: PathLike) -> List[Tuple[str, ...]]:
         return list(self._cached_data_load(path).keys())
 
     def _load_selected_data(self, property_name: str) -> MobilisedTestData:
@@ -622,27 +622,27 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
 
     """
 
-    paths_list: Union[PathLike, Sequence[PathLike]]
-    test_level_names: Sequence[str]
-    parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
+    paths_list: Union[PathLike, Tuple[PathLike]]
+    test_level_names: Tuple[str]
+    parent_folders_as_metadata: Optional[Tuple[Union[str, None]]]
 
-    COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
+    COMMON_TEST_LEVEL_NAMES: ClassVar[Dict[str, Tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
         "tvs_2.5h": ("time_measure", "recording"),
     }
 
     def __init__(
         self,
-        paths_list: Union[PathLike, Sequence[PathLike]],
-        test_level_names: Sequence[str],
-        parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
+        paths_list: Union[PathLike, Tuple[PathLike]],
+        test_level_names: Tuple[str],
+        parent_folders_as_metadata: Optional[Tuple[Union[str, None]]] = None,
         *,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
-        sensor_positions: Sequence[str] = ("LowerBack",),
-        sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+        sensor_positions: Tuple[str] = ("LowerBack",),
+        sensor_types: Tuple[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
         memory: joblib.Memory = joblib.Memory(None),
-        groupby_cols: Optional[Union[list[str], str]] = None,
+        groupby_cols: Optional[Union[List[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
         self.paths_list = paths_list
@@ -659,12 +659,12 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         )
 
     @property
-    def _paths_list(self) -> list[Path]:
+    def _paths_list(self) -> List[Path]:
         paths_list = self.paths_list
 
         if isinstance(paths_list, (str, Path)):
             paths_list = [paths_list]
-        elif not isinstance(paths_list, Sequence):
+        elif not isinstance(paths_list, Tuple):
             raise TypeError(
                 f"paths_list must be a PathLike or a Sequence of PathLikes, but got {type(paths_list)}. "
                 "For the list of paths, you need to make sure that it is persistent and can be iterated over "
@@ -676,16 +676,16 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         return [Path(path) for path in paths_list]
 
     @property
-    def _test_level_names(self) -> tuple[str, ...]:
+    def _test_level_names(self) -> Tuple[str, ...]:
         return tuple(self.test_level_names)
 
     @property
-    def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
+    def _metadata_level_names(self) -> Optional[Tuple[str, ...]]:
         if self.parent_folders_as_metadata is None:
             return None
-        return tuple(name for name in self.parent_folders_as_metadata if name is not None)
+        return Tuple(name for name in self.parent_folders_as_metadata if name is not None)
 
-    def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
+    def _get_file_index_metadata(self, path: Path) -> Tuple[str, ...]:
         """Select the metadata from the file path.
 
         We pick all the parent folder names for the entries in `self.parent_folders_as_metadata` for which the value
@@ -693,7 +693,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
 
         """
         start_level = len(self.parent_folders_as_metadata) - 1
-        return tuple(
+        return Tuple(
             path.parents[start_level - level].name
             for level, level_name in enumerate(self.parent_folders_as_metadata)
             if level_name is not None

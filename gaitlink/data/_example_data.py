@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Tuple, List
 
 from gaitlink import PACKAGE_ROOT
 from gaitlink.data._mobilised_matlab_loader import GenericMobilisedDataset, _GenericMobilisedDataset, docfiller
@@ -11,7 +11,7 @@ def _is_manually_installed() -> bool:
     return (LOCAL_EXAMPLE_PATH / "README.md").is_file()
 
 
-def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
+def get_all_lab_example_data_paths() -> Dict[Tuple[str, str], Path]:
     """Get the paths to all lab example data.
 
     Returns
@@ -57,16 +57,16 @@ class LabExampleDataset(_GenericMobilisedDataset):
     """
 
     @property
-    def _paths_list(self) -> list[Path]:
+    def _paths_list(self) -> List[Path]:
         return [p / "data.mat" for p in sorted(get_all_lab_example_data_paths().values())]
 
     @property
-    def _test_level_names(self) -> tuple[str, ...]:
+    def _test_level_names(self) -> Tuple[str, ...]:
         return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
 
     @property
-    def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
+    def _metadata_level_names(self) -> Dict[Tuple[str, ...], int]:
         return "cohort", "participant_id"
 
-    def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
+    def _get_file_index_metadata(self, path: Path) -> Tuple[str, ...]:
         return path.parents[1].name, path.parents[0].name

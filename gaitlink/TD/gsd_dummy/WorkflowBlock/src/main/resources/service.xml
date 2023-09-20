@@ -1,0 +1,125 @@
+<!--
+  e-Science Central
+  Copyright (C) 2008-2013 School of Computing Science, Newcastle University
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  version 2 as published by the Free Software Foundation at:
+  http://www.gnu.org/licenses/gpl-2.0.html
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin Street, 5th Floor, Boston, MA 02110-1301, USA.
+-->
+<WorkflowService>
+    <!-- Name of the service, and also the caption that will appear     -->
+    <!-- in the top line of the block on the workflow editor            -->
+    <Name>Dummy</Name>
+
+    <!-- Service description that appears at the bottom of the editor   -->
+    <!-- window when the block is selected                              -->
+    <Description>Dummy Gait Sequence block that just groups all of the data into a single sequence</Description>
+
+    <!-- Category to place the service in on the editor palette         -->
+    <Category>Mobilise-D.GSD</Category>
+
+    <!-- Homepage for block documentation                               -->
+    <Homepage>/</Homepage>
+
+    <!-- DO NOT change for octave based workflow services               -->
+    <ServiceRoutine>com.connexience.server.workflow.cloud.services.DockerMatlabDataProcessorService</ServiceRoutine>
+
+    <!-- Auto deployed service. Do NOT change for dynamically deployed  -->
+    <!-- services that are uploaded via this editor                     -->
+    <ServiceType>AUTO</ServiceType>
+
+    <!-- Data streaming mode for this service. This can be one of:      -->
+    <!--                                                                -->
+    <!-- nostream   - Data is passed in one block through service       -->
+    <!-- sequential - Data is streamed one connection at a time         -->
+    <!-- parallel   - Data is streamed from all connections in parallel -->
+    <StreamMode>nostream</StreamMode>
+
+    <!-- Editable service parameters. These properties define what is   -->
+    <!-- displayed in the properties panel when a block is selected in  -->
+    <!-- the workflow editor. The format of properties is:              -->
+    <!--                                                                -->
+    <!-- <Property name="" type="" description="" default=""/>          -->
+    <!--                                                                -->
+    <!-- A list of options is supported for Text and numerical          -->
+    <!-- properties, so adding options="A,B,C" will show a drop down    -->        
+    <!-- list in the editor. The values in options are comma delimited  -->        
+    <!--                                                                -->      
+    <!--                                                                -->
+    <!-- Where:     name = property name without spaces                 -->
+    <!--            type = Document - file reference                    -->
+    <!--                   Folder - folder reference                    -->
+    <!--                   Integer - integer paramater                  -->
+    <!--                   Boolean - true / false value                 -->
+    <!--                   String - text parameter                      -->
+    <!--                   Double - floating point value                -->
+    <!--                   Date - java date parameter                   -->
+    <!--                   StringList - vector of text values           -->
+    <!--                   TwoColumnList - two columns of text values   -->
+    <!--                   ServerObject - an arbitraray object that the -->
+    <!--                                  user has access to. The class -->
+    <!--                                  name used for searching is set-->
+    <!--                                  in the default attribute      -->
+    <Properties>        
+        <!-- ADD ANY SETTINGS THAT NEED TO BE EXPOSED AS ENVIRONMENT VARIABLES HERE -->
+        
+        <!-- Docker properties -->
+        <Property name="STANDARD" type="String" description="Gold standard device" default="Stereophoto" options="Stereophoto,Walkway,Gaitrite,INDIP,IMU,SU_LowerShanks"/>
+        <Property name="BOUT" type="String" description="Type of walking bout" default="MicroWB" options="MicroWB,ContinuousWalkingPeriod,Pass"/>
+        <Property name="CopyInputDataToOutputFolder" type="Boolean" description="Put a copy of the input data into the outputs folder so that downstream blocks can access it" default="true" category="Docker"/>
+        <Property name="UseTopLevelForOutputs" type="Boolean" description="Should the output data be stored at the top level" default="false" category="Docker"/>
+        <Property name="ClassName" type="String" description="Name of the packaged class" default="driver.ESCMatlab" category="Docker"/>
+        <Property name="MethodName" type="String" description="Name of the method in the packaged class" default="driver" category="Docker"/>
+        <Property name="DockerImage" type="String" description="Docker image to use to run code" default="hugohiden/mobilise:2017b" category="Docker"/>
+        <Property name="TransferFolderName" default="/transfer" type="String" description="Name of the transfer folder mounted in the docker container" category="Docker"/>
+        <Property name="InputFolderName" default="/inputs/" type="String" description="In Docker name of input subdirectory" category="Docker"/>
+        <Property name="OutputFolderName" default="/outputs/" type="String" description="In Docker name of output subdirectory" category="Docker"/>
+        <Property name="DockerCommand" type="String" description="Command to run to execute Docker" default="/usr/bin/docker" category="Docker"/>
+        <Property name="FailOnDownloadErrors" type="Boolean" description="Should the block fail if there were any download errors" default="true" category="Docker"/>
+        <Property name="ExposeGlobalProperties" type="Boolean" description="Should the global workflow properties be exposed as environemnt variables to the docker code" default="true" category="Docker"/>
+        <Property name="CaptureEnvironment" type="Boolean" description="Should the environment variables be stored in the invocation folder" default="true" category="Docker"/>
+        <Property name="CodeFolderName" type="String" description="Path for the code directory in the running image" default="/code" category="Docker"/>
+        <Property name="WrapperClassName" type="String" description="Name of the class that invokes the compiled driver" default="appwrapper.GenericRunner" category="Docker"/>
+        
+        <Property name="DebugMode" type="Boolean" default="false" description="" category="Debugging"/>
+        <Property name="DebugSuspended" type="Boolean" default="true" description="" category="Debugging"/>
+        <Property name="DebugPort" type="Integer" default="5005"  description="" category="Debugging"/>       
+    </Properties>
+
+    <!-- Definition of all of the inputs to a service. The format is:   -->
+    <!--                                                                -->
+    <!-- <Input name="" type="" streaming=""/>                          -->
+    <!--                                                                -->
+    <!-- Where:     name = name of input also displayed on connections  -->
+    <!--            type = data-wrapper - mixed matrix of data          -->
+    <!--                   file-wrapper - list of file names            -->
+    <!--                   object-wrapper - Serialized Java object      -->
+    <!--            streaming = true / false - is this a streaming link -->
+    <Inputs>
+        <Input name="input-folder" type="link-wrapper" streaming="false"/>
+    </Inputs>
+
+    <!-- Definition of all of the outputs from service. The format is:  -->
+    <!--                                                                -->
+    <!-- <Output name="" type="" streaming=""/>                         -->
+    <!--                                                                -->
+    <!-- Where:     name = name of input also displayed on connections  -->
+    <!--            type = data-wrapper - mixed matrix of data          -->
+    <!--                   file-wrapper - list of file names            -->
+    <!--                   object-wrapper - Serialized Java object      -->
+    <!--            streaming = true / false - is this a streaming link -->
+    <Outputs>
+        <Output name="output-files" type="file-wrapper" streaming="false"/>
+    </Outputs>
+
+</WorkflowService>

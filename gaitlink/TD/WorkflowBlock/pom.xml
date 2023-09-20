@@ -1,0 +1,143 @@
+<!--
+  e-Science Central
+  Copyright (C) 2008-2013 School of Computing Science, Newcastle University
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  version 2 as published by the Free Software Foundation at:
+  http://www.gnu.org/licenses/gpl-2.0.html
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin Street, 5th Floor, Boston, MA 02110-1301, USA.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.connexience.blocks.mobilise.turning</groupId>
+    <artifactId>ElGohary</artifactId>
+    <version>3.4-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>${project.artifactId}</name>
+    <url>http://www.esciencecentral.co.uk</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Location of the compiled file. This is relative to the base folder -->
+        <!-- Of the block source code, so is typically:                         -->
+        <!--                                                                    -->
+        <!-- ../driver/for_redistribution_files_only/driver.jar                 -->
+        <driver.dir>../driver/for_redistribution_files_only</driver.dir>
+    </properties>
+    
+    <dependencies>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.0-alpha-2</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                        <configuration>
+                            <files>
+                                <file>${user.home}/.inkspot/maven.props</file>
+                            </files>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+                <executions>
+                    <execution>
+                        <id>copy-resources</id>
+                        <!-- here the phase you need -->
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/driver</outputDirectory>
+                            <resources>          
+                                <resource>
+                                    <directory>${driver.dir}</directory>
+                                    <filtering>false</filtering>
+                                    <includes>
+                                        <include>**/*.jar</include>
+                                    </includes>
+                                </resource>
+                            </resources>              
+                        </configuration>            
+                    </execution>
+                </executions>
+            </plugin> 
+            
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/assembly.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <!-- Attach the assembly creation to the packaging phase.  Goal = attached creates jar -->
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.connexience</groupId>
+                <artifactId>upload-plugin</artifactId>
+                <version>3.4-SNAPSHOT</version>
+                <configuration>
+                    <!-- URL of e-SC e.g. http://localhost:8080 -->
+                    <serverURL>${serverURL}</serverURL>
+                    <!-- Upload location on web sever -->
+                    <context>/workflow</context>
+                    <!-- The type of object to upload: either 'service' or 'library' -->
+                    <objectType>service</objectType>
+                    <!-- Full path of folder in e-Science Central to upload the object to.  This needs to exist in e-SC
+                    beforehand.  e.g. /services/test-->
+                    <folderPath>/Services</folderPath>
+                    <!-- Your username in e-SC -->
+                    <username>${username}</username>
+                    <!-- Your password in e-SC -->
+                    <password>${password}</password>
+                    <!-- Don't upload during release todo: remove me-->
+                    <doUpload>true</doUpload>
+                    <!-- ID -->
+                    <id>${project.groupId}.${project.artifactId}-${project.version}</id>
+                    <makePublic>true</makePublic>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>upload</goal>
+                        </goals>
+                    </execution>
+                </executions>                
+            </plugin>
+        </plugins>
+    </build>
+</project>
