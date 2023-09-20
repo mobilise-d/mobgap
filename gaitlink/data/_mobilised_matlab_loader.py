@@ -10,13 +10,13 @@ import pandas as pd
 import scipy.io as sio
 from tpcp import Dataset
 
-from gaitlink._docutils import filldoc
+from gaitlink._docutils import make_filldoc
 
 T = TypeVar("T")
 
 PathLike = TypeVar("PathLike", str, Path)
 
-docfiller = filldoc(
+docfiller = make_filldoc(
     {
         "file_loader_args": """
     raw_data_sensor
