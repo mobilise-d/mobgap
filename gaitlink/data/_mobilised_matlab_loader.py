@@ -340,6 +340,7 @@ def cached_load_current(selected_file: PathLike, loader_function: Callable[[Path
     return loader_function(selected_file)
 
 
+@docfiller
 class _GenericMobilisedDataset(Dataset):
     """Common base class for Datasets based on the Mobilise-D matlab format.
 
