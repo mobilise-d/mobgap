@@ -5,7 +5,7 @@ While, the ``doccer`` submodule of scip[y is not part of the public API, it seem
 """
 from typing import Optional
 
-from scipy._lib.doccer import filldoc
+from scipy._lib.doccer import filldoc, inherit_docstring_from
 
 
 def make_filldoc(docdict: dict[str, str], *, doc_summary: Optional[str] = None) -> filldoc:
@@ -42,4 +42,4 @@ def make_filldoc(docdict: dict[str, str], *, doc_summary: Optional[str] = None) 
     return inner
 
 
-__all__ = ["make_filldoc"]
+__all__ = ["make_filldoc", "inherit_docstring_from"]

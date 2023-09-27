@@ -99,7 +99,10 @@ ignore = [
     # Self annotation
     "ANN101",
     # To many arguments
-    "PLR0913"
+    "PLR0913",
+    # Class attribute shadows builtin
+    "A003"
+
 ]
 
 
