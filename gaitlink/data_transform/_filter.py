@@ -10,7 +10,10 @@ from gaitlink.data_transform.base import FixedFilter, fixed_filter_docfiller
 
 @fixed_filter_docfiller
 class EpflGaitFilter(FixedFilter):
-    """A filter developed by EPFL to enhance gait related signals in noicy IMU data from lower-back sensors.
+    """A filter developed by EPFL to enhance gait related signals in noisy IMU data from lower-back sensors.
+
+    .. warning::
+        This filter is only intended to be used with data sampled at 40 Hz.
 
     Parameters
     ----------
@@ -41,6 +44,25 @@ class EpflGaitFilter(FixedFilter):
 
 
 class EpflDedriftFilter(FixedFilter):
+    """A custom IIR filter developed by EPFL to remove baseline drift.
+
+    .. warning::
+        This filter is only intended to be used with data sampled at 40 Hz.
+
+    Parameters
+    ----------
+    %(zero_phase)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(results)s
+
+    """
+
     EXPECTED_SAMPLING_RATE_HZ: ClassVar[float] = 40.0
 
     @property
