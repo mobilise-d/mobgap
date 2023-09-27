@@ -10,5 +10,6 @@ This is the API Reference for ``gaitlink``.
     :maxdepth: 1
 
     gsd
+    data_transform
     data
 
