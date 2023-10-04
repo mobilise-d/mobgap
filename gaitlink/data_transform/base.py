@@ -1,25 +1,26 @@
 """Base classes for all data transformers and filters."""
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, Union
 
 import numpy as np
 import pandas as pd
 from scipy.signal import filtfilt, lfilter
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
+from typing_extensions import Self, Unpack, TypeAlias
 
 from gaitlink._docutils import make_filldoc
 
+DfLike: TypeAlias = Union[pd.Series, pd.DataFrame, np.ndarray]
 
 class BaseTransformer(Algorithm):
     """Base class for all data transformers."""
 
     _action_methods = ("transform",)
 
-    transformed_data_: pd.DataFrame
+    transformed_data_: DfLike
 
-    data: pd.DataFrame
+    data: DfLike
 
-    def transform(self, data: pd.DataFrame, **kwargs: Unpack[dict[str, Any]]) -> Self:
+    def transform(self, data: DfLike, **kwargs: Unpack[dict[str, Any]]) -> Self:
         """Transform the data using the transformer.
 
         Parameters
@@ -42,12 +43,14 @@ _base_filter_doc_replace = {
     "results": """
     transformed_data_
         The filtered data.
+        The datatype matches the datatype of the passed data.
     filtered_data_
         Alias for ``transformed_data_``.
     """,
     "other_parameters": """
     data
-        The raw IMU data passed to the ``filter``/``transform`` method.
+        The raw data passed to the ``filter``/``transform`` method.
+        This can either be a dataframe, a series, or a numpy array.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``filter``/``transform`` method.
     """,
@@ -56,7 +59,8 @@ _base_filter_doc_replace = {
     """,
     "filter_para": """
     data
-        The raw IMU of a single sensor.
+        The raw data to be filtered.
+        This can either be a dataframe, a series, or a numpy array.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     """,
@@ -109,7 +113,7 @@ class BaseFilter(BaseTransformer):
     sampling_rate_hz: float
 
     @property
-    def filtered_data_(self) -> pd.DataFrame:
+    def filtered_data_(self) -> DfLike:
         """Get filtered data.
 
         This is the same as `transformed_data_` and is just here, as it is easier to remember.
@@ -117,7 +121,7 @@ class BaseFilter(BaseTransformer):
         return self.transformed_data_
 
     def transform(
-        self, data: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
     ) -> Self:
         """Transform the data using the filter.
 
@@ -225,7 +229,7 @@ class FixedFilter(BaseFilter):
 
     @fixed_filter_docfiller
     def filter(
-        self, data: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]
     ) -> Self:
         """%(filter_short)s.
 
@@ -256,6 +260,6 @@ class FixedFilter(BaseFilter):
         else:
             transformed_data = lfilter(*self.coefficients, data, axis=0)
 
-        self.transformed_data_ = pd.DataFrame(transformed_data, columns=data.columns, index=data.index)
+        self.transformed_data_ = pd.DataFrame(transformed_data, columns=data.columns, index=data.index, copy=False)
 
         return self
