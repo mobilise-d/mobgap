@@ -1,15 +1,15 @@
 """Base classes for all data transformers and filters."""
-from typing import Any, ClassVar, Optional, Union
+from typing import Any, ClassVar, Optional
 
 import numpy as np
 import pandas as pd
 from scipy.signal import filtfilt, lfilter
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack, TypeAlias
+from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import make_filldoc
+from gaitlink.utils.dtype_conversion import DfLike, dflike_as_2d_array
 
-DfLike: TypeAlias = Union[pd.Series, pd.DataFrame, np.ndarray]
 
 class BaseTransformer(Algorithm):
     """Base class for all data transformers."""
@@ -228,9 +228,7 @@ class FixedFilter(BaseFilter):
         raise NotImplementedError()
 
     @fixed_filter_docfiller
-    def filter(
-        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]
-    ) -> Self:
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
         """%(filter_short)s.
 
         Note, that the sampling rate will not change the filter coefficients.
@@ -255,11 +253,16 @@ class FixedFilter(BaseFilter):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
+        data, transformation_func = dflike_as_2d_array(data)
+
         if self.zero_phase:
             transformed_data = filtfilt(*self.coefficients, data, axis=0)
         else:
             transformed_data = lfilter(*self.coefficients, data, axis=0)
 
-        self.transformed_data_ = pd.DataFrame(transformed_data, columns=data.columns, index=data.index, copy=False)
+        self.transformed_data_ = transformation_func(transformed_data)
 
         return self
+
+
+__all__ = ["BaseTransformer", "BaseFilter", "FixedFilter"]
