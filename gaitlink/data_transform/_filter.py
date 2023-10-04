@@ -42,7 +42,7 @@ class EpflGaitFilter(FixedFilter):
             coeffs = pd.read_csv(test_data, header=0)["coefficients"].to_numpy()
         return coeffs, np.array(1)
 
-
+@fixed_filter_docfiller
 class EpflDedriftFilter(FixedFilter):
     """A custom IIR filter developed by EPFL to remove baseline drift.
 

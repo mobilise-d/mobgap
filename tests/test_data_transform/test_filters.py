@@ -13,14 +13,14 @@ class TestMetaEpflGaitFilter(TestAlgorithmMixin):
 
     @pytest.fixture()
     def after_action_instance(self):
-        return EpflGaitFilter().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
+        return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
 
 
 class TestMetaEpflDedriftFilter(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = EpflGaitFilter
+    ALGORITHM_CLASS = EpflDedriftFilter
 
     @pytest.fixture()
     def after_action_instance(self):
-        return EpflDedriftFilter().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
+        return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
