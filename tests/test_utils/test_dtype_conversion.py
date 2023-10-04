@@ -20,7 +20,7 @@ class TestDflikeAs2dArray:
         data = np.arange(10)
         result, convert = dflike_as_2d_array(data)
 
-        assert np.all(result == data.reshape(1, -1))
+        assert np.all(result[:, 0] == data)
         assert np.all(convert(result) == data)
 
     def test_2d_array(self):
@@ -35,7 +35,7 @@ class TestDflikeAs2dArray:
         data.index += 1
         result, convert = dflike_as_2d_array(data)
 
-        assert np.all(result == data.to_numpy().reshape(1, -1))
+        assert np.all(result[:, 0] == data.to_numpy())
         assert_series_equal(convert(result), data)
 
     def test_dataframe(self):
@@ -44,4 +44,5 @@ class TestDflikeAs2dArray:
         result, convert = dflike_as_2d_array(data)
 
         assert np.all(result == data.to_numpy())
+        assert np.all(result[:, 0] == data[0])
         pd.testing.assert_frame_equal(convert(result), data)

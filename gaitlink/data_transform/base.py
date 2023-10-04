@@ -255,14 +255,13 @@ class FixedFilter(BaseFilter):
 
         data, transformation_func = dflike_as_2d_array(data)
 
-        if self.zero_phase:
-            transformed_data = filtfilt(*self.coefficients, data, axis=0)
-        else:
-            transformed_data = lfilter(*self.coefficients, data, axis=0)
+        filter_func = filtfilt if self.zero_phase else lfilter
+
+        transformed_data = filter_func(*self.coefficients, data, axis=0)
 
         self.transformed_data_ = transformation_func(transformed_data)
 
         return self
 
 
-__all__ = ["BaseTransformer", "BaseFilter", "FixedFilter"]
+__all__ = ["BaseTransformer", "BaseFilter", "FixedFilter", "fixed_filter_docfiller"]
