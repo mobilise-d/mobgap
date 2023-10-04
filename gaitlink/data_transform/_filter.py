@@ -1,4 +1,4 @@
-from importlib.resources import open_text
+from importlib.resources import files
 from typing import ClassVar
 
 import numpy as np
@@ -35,10 +35,7 @@ class EpflGaitFilter(FixedFilter):
     @property
     @inherit_docstring_from(FixedFilter)
     def coefficients(self) -> tuple[np.ndarray, np.ndarray]:
-        with open_text(
-            "gaitlink.data_transform._filter_coeffs",
-            self._COEFFS_FILE_NAME,
-        ) as test_data:
+        with (files("gaitlink") / "data_transform/_filter_coeffs" / self._COEFFS_FILE_NAME).open() as test_data:
             coeffs = pd.read_csv(test_data, header=0)["coefficients"].to_numpy()
         return coeffs, np.array(1)
 
