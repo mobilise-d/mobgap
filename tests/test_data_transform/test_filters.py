@@ -1,9 +1,13 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
+from pandas._testing import assert_frame_equal
 from scipy.signal import filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
+from gaitlink import PACKAGE_ROOT
 from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter
 from gaitlink.data_transform.base import FixedFilter
 
@@ -60,6 +64,12 @@ class TestFixedFilter:
         assert np.allclose(result.transformed_data_, reference)
         assert type(result.transformed_data_) == type(data)
 
+        if dtype == pd.DataFrame:
+            assert result.transformed_data_.columns == data.columns
+
+        if dtype in (pd.Series, pd.DataFrame):
+            assert result.transformed_data_.index.equals(data.index)
+
         assert result.transformed_data_ is result.filtered_data_
 
     def test_error_on_wrong_sampling_rate(self):
@@ -67,3 +77,18 @@ class TestFixedFilter:
             self.filter_subclass().filter(
                 pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=self.filter_subclass.EXPECTED_SAMPLING_RATE_HZ + 1
             )
+
+class TestEpflGaitFilter:
+    def test_matlab_comparison(self):
+        """This actually tests if the output is identical to the output of the matlab code."""
+        HERE = Path(__file__).parent
+        data_folder = HERE / "epfl_filter_example_data"
+
+        input_data = pd.read_csv(data_folder / "example_input.csv")
+        expected_output = pd.read_csv(data_folder / "mat_output.csv", header=None)
+        expected_output.columns = ["x", "y", "z"]
+
+        result = EpflGaitFilter(zero_phase=True).filter(input_data, sampling_rate_hz=40.0)
+
+        assert_frame_equal(result.transformed_data_, expected_output, atol=1e-5)
+
