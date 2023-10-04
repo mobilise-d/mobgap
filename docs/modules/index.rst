@@ -12,4 +12,5 @@ This is the API Reference for ``gaitlink``.
     gsd
     data_transform
     data
+    utils/index.rst
 

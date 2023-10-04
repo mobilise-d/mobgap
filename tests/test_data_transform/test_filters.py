@@ -7,7 +7,6 @@ from pandas._testing import assert_frame_equal
 from scipy.signal import filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink import PACKAGE_ROOT
 from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter
 from gaitlink.data_transform.base import FixedFilter
 
@@ -78,6 +77,7 @@ class TestFixedFilter:
                 pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=self.filter_subclass.EXPECTED_SAMPLING_RATE_HZ + 1
             )
 
+
 class TestEpflGaitFilter:
     def test_matlab_comparison(self):
         """This actually tests if the output is identical to the output of the matlab code."""
@@ -91,4 +91,3 @@ class TestEpflGaitFilter:
         result = EpflGaitFilter(zero_phase=True).filter(input_data, sampling_rate_hz=40.0)
 
         assert_frame_equal(result.transformed_data_, expected_output, atol=1e-5)
-

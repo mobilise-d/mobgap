@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_series_equal
 
-from gaitlink.utils.dtype_conversion import dflike_as_2d_array
+from gaitlink.utils.dtypes import dflike_as_2d_array
 
 
 class TestDflikeAs2dArray:

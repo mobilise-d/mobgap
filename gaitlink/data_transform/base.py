@@ -8,7 +8,7 @@ from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.utils.dtype_conversion import DfLike, dflike_as_2d_array
+from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
 class BaseTransformer(Algorithm):
