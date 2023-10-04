@@ -1,10 +1,13 @@
+"""Helper to validate and convert common data types used in gaitlink."""
 from typing import Any, Callable, TypeVar, Union
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
+# : Type alias for dataframe-like objects.
 DfLike: TypeAlias = Union[pd.Series, pd.DataFrame, np.ndarray]
+# : The type variable for dataframe-like objects.
 DfLikeT = TypeVar("DfLikeT", bound=DfLike)
 
 
@@ -79,3 +82,6 @@ def dflike_as_2d_array(data: DfLikeT) -> tuple[np.ndarray, Callable[[np.ndarray]
         )
 
     return data.to_numpy(copy=False), lambda x: pd.DataFrame(x, columns=data.columns, index=data.index, copy=False)
+
+
+__all__ = ["DfLike", "is_dflike", "dflike_as_2d_array", "DfLikeT"]
