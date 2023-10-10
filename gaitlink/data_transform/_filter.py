@@ -1,9 +1,9 @@
 from importlib.resources import files
-from typing import Any, ClassVar, Optional, Unpack
+from typing import Any, ClassVar, Optional
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import inherit_docstring_from
 from gaitlink.data_transform.base import BaseFilter, FixedFilter, fixed_filter_docfiller
