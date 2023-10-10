@@ -4,17 +4,51 @@ import pandas as pd
 from tpcp import Algorithm
 from typing_extensions import Self
 
-from gaitlink.wba._interval_criteria import IntervalSummaryCriteria
+from gaitlink.wba._interval_criteria import BaseIntervalCriteria
 
 
 class StrideSelection(Algorithm):
-    rules: Optional[list[tuple[str, IntervalSummaryCriteria]]]
+    """Selects strides based on a set of criteria.
+
+    This can be used to filter out valid strides from a list of strides provided by a gait pipeline.
+
+    Parameters
+    ----------
+    rules
+        The rules that are used to filter the strides.
+        They need to be provided as a list of tuples, where the first element is the name of the rule and the second
+        is an instance of a subclass of :class:`gaitlink.wba.BaseIntervalCriteria`.
+        If `None`, no rules are applied and all strides are considered valid.
+
+    Attributes
+    ----------
+    filtered_stride_list_
+        A dataframe containing all strides that are considered valid.
+        This is a strict subset of the stride list that was provided to the :meth:`filter` method.
+    excluded_stride_list_
+        A dataframe containing all strides that are considered invalid.
+        This is a strict subset of the stride list that was provided to the :meth:`filter` method.
+    exclusion_reasons_
+        A dataframe containing the reason why a stride was excluded.
+        The dataframe has the same index as the stride list that was provided to the :meth:`filter` method.
+        For strides that were not excluded, the `rule_name` and `rule_obj` columns are `None`.
+        For excluded strides the name and the rule object as provided in the `rules` parameter are stored in the
+        `rule_name` and `rule_obj` columns, respectively.
+
+    Other Parameters
+    ----------------
+    stride_list
+        The stride list provided to the :meth:`filter` method.
+
+    """
+
+    rules: Optional[list[tuple[str, BaseIntervalCriteria]]]
 
     stride_list: pd.DataFrame
 
     exclusion_reasons_: pd.DataFrame
 
-    def __init__(self, rules: Optional[list[tuple[str, IntervalSummaryCriteria]]]) -> None:
+    def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
         self.rules = rules
 
     @property
@@ -25,21 +59,30 @@ class StrideSelection(Algorithm):
     def excluded_stride_list_(self) -> pd.DataFrame:
         return self.stride_list[self.exclusion_reasons_["rule_name"].notna()]
 
-    def filter(self, stride_list: pd.DataFrame) -> Self:
+    def filter(self, stride_list: pd.DataFrame) -> Self:  # noqa: A003
+        """Filter the stride list.
+
+        Parameters
+        ----------
+        stride_list
+            The stride list to filter.
+            The stride list must be a dataframe, where each row represents a stride.
+            The index should be a unique identifier for each stride.
+            The dataframe must at least have a `start` and `end` column.
+            Additional required columns depend on the rules that are used for filtering.
+        """
         for _, rule in self.rules or []:
-            if not isinstance(rule, IntervalSummaryCriteria):
-                raise ValueError(
-                    "All rules must be instances of `IntervalSummaryCriteria` or one of its child classes."
-                )
+            if not isinstance(rule, BaseIntervalCriteria):
+                raise TypeError("All rules must be instances of `IntervalSummaryCriteria` or one of its child classes.")
 
         self.stride_list = stride_list
-        self.exclusion_reasons_ = self.stride_list.sort_values("start").apply(
+        self.exclusion_reasons_ = self.stride_list.apply(
             lambda x: pd.Series(self._check_stride(x), index=["rule_name", "rule_obj"]), axis=1
         )
 
         return self
 
-    def _check_stride(self, stride) -> tuple[Optional[str], Optional[IntervalSummaryCriteria]]:
+    def _check_stride(self, stride: pd.Series) -> tuple[Optional[str], Optional[BaseIntervalCriteria]]:
         for rule_name, rule in self.rules or []:
             if not rule.check(stride):
                 return rule_name, rule

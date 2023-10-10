@@ -17,8 +17,7 @@ def check_thresholds(
 
     if not lower_threshold < upper_threshold:
         raise ValueError(
-            "The lower threshold must be below the upper threshold. Currently: {} not < {}".format(
-                lower_threshold, upper_threshold
-            )
+            "The lower threshold must be below the upper threshold. "
+            f"Currently: {lower_threshold} not < {upper_threshold}"
         )
     return lower_threshold, upper_threshold
