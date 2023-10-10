@@ -1,11 +1,13 @@
 from importlib.resources import files
-from typing import ClassVar
+from typing import Any, ClassVar, Optional, Unpack
 
 import numpy as np
 import pandas as pd
+from typing_extensions import Self
 
 from gaitlink._docutils import inherit_docstring_from
-from gaitlink.data_transform.base import FixedFilter, fixed_filter_docfiller
+from gaitlink.data_transform.base import BaseFilter, FixedFilter, fixed_filter_docfiller
+from gaitlink.utils.dtypes import DfLike
 
 
 @fixed_filter_docfiller
@@ -67,3 +69,69 @@ class EpflDedriftFilter(FixedFilter):
     @inherit_docstring_from(FixedFilter)
     def coefficients(self) -> tuple[np.ndarray, np.ndarray]:
         return np.array([1.0, -1.0]), np.array([1.0, -0.9748])
+
+
+@fixed_filter_docfiller
+class EpflDedriftedGaitFilter(BaseFilter):
+    """A filter combining the :class:`EpflDedriftFilter` and :class:`EpflGaitFilter`.
+
+    This filter exists, as these two filteres are often used together.
+    It just provides a convenient wrapper without any further optimization.
+    The dedrifting filter is applied first and then the gait filter.
+    I.e. it is equivalent to the following code:
+
+    .. code-block:: python
+
+        dedrifted_data = EpflDedriftFilter().filter(data, sampling_rate_hz=40.0).filtered_data_
+        result = EpflGaitFilter().filter(dedrifted_data, sampling_rate_hz=40.0)
+
+    .. warning::
+        This filter is only intended to be used with data sampled at 40 Hz.
+
+    Parameters
+    ----------
+    %(zero_phase)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(results)s
+
+    """
+
+    EXPECTED_SAMPLING_RATE_HZ: ClassVar[float]
+
+    zero_phase: bool
+
+    def __init__(self, zero_phase: bool = True) -> None:
+        self.zero_phase = zero_phase
+
+    @fixed_filter_docfiller
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
+        """%(filter_short)s.
+
+        Note, that the sampling rate will not change the filter coefficients.
+        Instead, the sampling rate is only used to check, that the passed data has the expected sampling rate.
+        If not, a ValueError is raised.
+        Hence, the ``sampling_rate_hz`` parameter only exists to make sure that you are reminded of the expected
+        sampling rate.
+
+        Parameters
+        ----------
+        %(filter_para)s
+        %(filter_kwargs)s
+
+        %(filter_return)s
+        """
+        dedrift_filter = EpflDedriftFilter(zero_phase=self.zero_phase)
+        gait_filter = EpflGaitFilter(zero_phase=self.zero_phase)
+
+        self.transformed_data_ = gait_filter.filter(
+            dedrift_filter.filter(data, sampling_rate_hz=sampling_rate_hz).filtered_data_,
+            sampling_rate_hz=sampling_rate_hz,
+        ).filtered_data_
+
+        return self

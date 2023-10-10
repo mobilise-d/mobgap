@@ -1,5 +1,5 @@
-gaitlink.data_transform: Algorithms to transform and filter gait data
-======================================================================
+Data Transformations and Filters
+================================
 
 .. automodule:: gaitlink.data_transform
     :no-members:
@@ -15,6 +15,7 @@ Filter
 
     EpflGaitFilter
     EpflDedriftFilter
+    EpflDedriftedGaitFilter
 
 Base Classes
 ++++++++++++
