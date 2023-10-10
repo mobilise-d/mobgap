@@ -24,7 +24,6 @@ def filldoc_with_better_error(docdict: dict[str, str]) -> filldoc:
 
     return inner
 
-
 def make_filldoc(docdict: dict[str, str], *, doc_summary: Optional[str] = None) -> filldoc:
     """Create a new doc-filler from a dictionary.
 

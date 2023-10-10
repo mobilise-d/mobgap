@@ -1,8 +1,7 @@
 import pandas as pd
 import pytest
 
-from gaitlink.wba._interval_criteria import IntervalParameterCriteria
-from gaitlink.wba._stride_selection import StrideSelection
+from gaitlink.wba import IntervalParameterCriteria, StrideSelection
 
 
 def test_stride_list_creation(naive_stride_list):
@@ -34,5 +33,5 @@ def test_stride_filter_all_invalid(naive_stride_list, rules):
 
 
 def test_stride_selection_wrong_rules():
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         StrideSelection([("test", "something_invalid")]).filter(pd.DataFrame([]))
