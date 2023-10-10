@@ -8,6 +8,7 @@ from scipy.signal import filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter
+from gaitlink.data_transform._filter import EpflDedriftedGaitFilter
 from gaitlink.data_transform.base import FixedFilter
 
 
@@ -91,3 +92,21 @@ class TestEpflGaitFilter:
         result = EpflGaitFilter(zero_phase=True).filter(input_data, sampling_rate_hz=40.0)
 
         assert_frame_equal(result.transformed_data_, expected_output, atol=1e-5)
+
+
+class TestEpflDedriftedGaitFilter:
+    def test_equivalence_to_manual(self):
+        HERE = Path(__file__).parent
+        data_folder = HERE / "epfl_filter_example_data"
+
+        input_data = pd.read_csv(data_folder / "example_input.csv")
+
+        direct_output = EpflDedriftedGaitFilter().filter(input_data, sampling_rate_hz=40.0).filtered_data_
+
+        cascaded_output = (
+            EpflGaitFilter()
+            .filter(EpflDedriftFilter().filter(input_data, sampling_rate_hz=40.0).filtered_data_, sampling_rate_hz=40.0)
+            .filtered_data_
+        )
+
+        assert_frame_equal(direct_output, cascaded_output, atol=1e-5)
