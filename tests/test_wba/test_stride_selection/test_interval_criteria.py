@@ -23,3 +23,27 @@ class TestIntervalParameterCriteria:
         test_stride = pd.Series(window(0, 0, length=value))
 
         assert c.check(test_stride) == result
+
+    @pytest.mark.parametrize("para_value", (-1, 0, 40, 100))
+    @pytest.mark.parametrize("lower_upper", (0, 1))
+    def test_inclusive(self, lower_upper, para_value):
+        interval = pd.Series(window(0, 0, para=para_value))
+        rule = IntervalParameterCriteria(
+            "para",
+            para_value if lower_upper == 0 else None,
+            para_value if lower_upper == 1 else None,
+            inclusive=(False, False),
+        )
+        # First we test that it is rejected
+        assert not rule.check(interval)
+
+        # Now we test that it is accepted
+        inclusive_value = (True, False) if lower_upper == 0 else (False, True)
+        rule.set_params(inclusive=inclusive_value)
+
+        assert rule.check(interval) is True
+
+        # Now we check that it is true if both are true
+        rule.set_params(inclusive=(True, True))
+
+        assert rule.check(interval) is True

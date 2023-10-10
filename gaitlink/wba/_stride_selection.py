@@ -70,6 +70,7 @@ class StrideSelection(Algorithm):
             The index should be a unique identifier for each stride.
             The dataframe must at least have a `start` and `end` column.
             Additional required columns depend on the rules that are used for filtering.
+
         """
         for _, rule in self.rules or []:
             if not isinstance(rule, BaseIntervalCriteria):

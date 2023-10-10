@@ -78,7 +78,8 @@ class _IntervalParameterCriteria(BaseIntervalCriteria):
         operator = np.less_equal if self.inclusive[1] else np.less
         upper_comparison = operator(value, upper_threshold)
 
-        return lower_comparison and upper_comparison
+        # We convert to bool, so that we don't have to deal with numpy dtypes
+        return bool(lower_comparison and upper_comparison)
 
 
 @_interval_parameter_criteria_docfiller
