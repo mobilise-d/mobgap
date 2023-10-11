@@ -10,6 +10,79 @@ from gaitlink.wba._wb_criteria_base import BaseWBCriteria, EndOfList
 
 
 class WBAssembly(Algorithm):
+    """Assembles strides into walking bouts based on a set of criteria.
+
+    This method uses a two-step approach.
+    First, it iterates through the list of strides and adds them to a preliminary walking bout until a termination
+    is reached.
+    These preliminary walking bouts are then checked against a set of inclusion rules.
+    See Notes sections for some more details.
+
+    Parameters
+    ----------
+    rules
+        The rules that are used to assemble the walking bouts.
+        They need to be provided as a list of tuples, where the first element is the name of the rule and the second
+        is an instance of a subclass of :class:`gaitlink.wba.BaseWBCriteria`.
+        If `None`, no rules are applied and all strides are returned as a single WB.
+
+    Attributes
+    ----------
+    annotated_stride_list_
+        A dataframe containing all strides that are considered that are part of a WB.
+        The dataframe has an additional column `wb_id` that contains the id of the WB the stride is part of.
+        This output can be used to calculate per-WB statistics, by grouping by the `wb_id` column.
+    wbs_
+        A dictionary containing all walking bouts that were assembled.
+        The keys are the ids of the walking bouts.
+        The values are dataframes containing the strides that are part of the respective walking bout.
+    excluded_stride_list_
+        A dataframe containing all strides that are considered invalid, as they are not part of a WB.
+        This can happen, because strides were part of a preliminary WB that was later discarded or because they were
+        never part of a WB, which can happen when a termination rule moves the start or end of a WB.
+    excluded_wbs_
+        A dictionary containing all walking bouts that were discarded.
+    termination_reasons_
+        A dictionary containing the reason why a WB was terminated.
+        The dictionary has the WB id as key and a tuple of the rule name and the rule object as value.
+        These rules are match to the rule tuples provided in the `rules` parameter.
+        The only exception is the `end_of_list` rule, which is used when the end of the stride list is reached and
+        no other rule terminated the WB.
+        This dictionary contains all WBs, including the ones that were discarded.
+    exclusion_reasons_
+        A dictionary containing the reason why a stride was excluded.
+        The dictionary has the stride id as key and a tuple of the rule name and the rule object as value.
+        This dictionary only contains WBs that were discarded.
+
+    Other Parameters
+    ----------------
+    stride_list
+        The stride list provided to the :meth:`assemble` method.
+
+    Notes
+    -----
+    Each rule can act as a termination rule and an inclusion rule using the `check_wb_start_end` and `check_include`
+    methods respectively.
+    Inclusion rules are rather simple, as they only need to return a boolean value and can perform a simple check on
+    the stride list or a preliminary WB.
+    Termination rules are more complex, as they need to be able to not just terminate a WB, but also adjust the start
+    and end of the WB.
+    For example, the break rule does not just stop a WB, when there is a gap between strides, it also removes the
+    last stride of the WB, as this is not considered a valid stride based on the Mobilise-D definition.
+    This means, it must also signal that the last stride should be removed.
+    This is done by providing all strides to the `check_wb_start_end` method and the current start and end of the WB as
+    defined by all previous rules.
+    The method can then adjust the start and end of the WB to implement arbitrary complex rules.
+    At each step, the rule that would result in the shortest WB is chosen (i.e. the latest start and the earliest end).
+
+    For the currently implemented rules, a lot of this complexity is not needed.
+    However, the current approach was developed as a general framework to solve these types of grouping issues.
+    More complex rules where implemented, but ultimately not used, as they were not needed for the Mobilise-D pipeline.
+    However, we still left the basic framework in place to allow for more complex rules to be implemented in the future
+    or on the user side.
+
+    """
+
     _action_methods = ("assemble",)
     _composite_params = ("rules",)
 
@@ -42,11 +115,12 @@ class WBAssembly(Algorithm):
         stride_list: pd.DataFrame,
     ) -> Self:
         # TODO: Add better checks for correct type of compound rule field
-        self.stride_list = stride_list
-        stride_list_sorted = self.stride_list.sort_values(by=["start", "end"])
         for _, rule in self.rules or []:
             if not isinstance(rule, BaseWBCriteria):
                 raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
+
+        self.stride_list = stride_list
+        stride_list_sorted = self.stride_list.sort_values(by=["start", "end"])
 
         (
             preliminary_wb_list,
