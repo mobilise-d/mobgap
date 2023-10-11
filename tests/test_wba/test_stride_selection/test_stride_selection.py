@@ -1,7 +1,21 @@
 import pandas as pd
 import pytest
+from tpcp._base import BaseTpcpObjectObjT
+from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.wba import IntervalParameterCriteria, StrideSelection
+
+
+class TestStrideSelectionMeta(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = StrideSelection
+
+    @pytest.fixture()
+    def after_action_instance(self, naive_stride_list) -> StrideSelection:
+        return self.ALGORITHM_CLASS([("simple_thres", IntervalParameterCriteria("para_1", 1.5, 2.5))]).filter(
+            naive_stride_list
+        )
 
 
 def test_stride_list_creation(naive_stride_list):
