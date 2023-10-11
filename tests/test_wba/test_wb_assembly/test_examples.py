@@ -29,12 +29,16 @@ def test_simple_single_wb():
 
     assert len(wba.wbs_) == 1
     single_wb = next(iter(wba.wbs_.values()))
+    single_wb_id = next(iter(wba.wbs_.keys()))
     assert len(single_wb) == n_strides
     assert_frame_equal(single_wb, strides)
 
     assert len(wba.excluded_stride_list_) == 0
     assert len(wba.excluded_wbs_) == 0
     assert len(wba.exclusion_reasons_) == 0
+    assert len(wba.termination_reasons_) == 1
+
+    assert wba.termination_reasons_[single_wb_id][0] == "end_of_list"
 
 
 def test_simple_break_center():
@@ -65,17 +69,21 @@ def test_simple_break_center():
 
     assert len(wba.excluded_wbs_) == 0
     assert len(wba.excluded_stride_list_) == 0
+    assert len(wba.termination_reasons_) == 2
     assert len(wba.exclusion_reasons_) == 0
 
     assert len(wba.wbs_) == 2
     wbs = list(wba.wbs_.values())
+    wb_ids = list(wba.wbs_.keys())
     assert wbs[0].iloc[0]["start"] == wb_start_time
     assert wbs[0].iloc[-1]["end"] == wb_start_time + 7
+    assert wba.termination_reasons_[wb_ids[0]][0] == "break"
     assert_frame_equal(wbs[0], strides.iloc[:7])
 
     assert wbs[1].iloc[0]["start"] == 16
     assert wbs[1].iloc[-1]["end"] == wb_start_time + n_strides
     assert_frame_equal(wbs[1], strides.iloc[7:])
+    assert wba.termination_reasons_[wb_ids[1]][0] == "end_of_list"
 
 
 # TODO: Add a couple more simple test cases
