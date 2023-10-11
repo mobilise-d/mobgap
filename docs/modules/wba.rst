@@ -27,3 +27,28 @@ Rules
     IntervalParameterCriteria
     IntervalDurationCriteria
     BaseIntervalCriteria
+
+Walking Bout Assembly
+---------------------
+.. currentmodule:: gaitlink.wba
+
+.. autosummary::
+   :toctree: generated/wba
+   :template: class.rst
+
+    WBAssembly
+
+Rules
++++++
+
+.. currentmodule:: gaitlink.wba
+
+.. autosummary::
+   :toctree: generated/wba
+   :template: class.rst
+
+    LeftRightCriteria
+    MaxBreakCriteria
+    NStridesCriteria
+    BaseWBCriteria
+    BaseSummaryCriteria
