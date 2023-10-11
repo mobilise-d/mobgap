@@ -30,7 +30,6 @@ class WBAssembly(Algorithm):
     rules: Optional[list[tuple[str, BaseWBCriteria]]]
 
     stride_list: list[dict]
-    event_list: list[dict[str, list[dict]]]
 
     wb_list_: list[dict]
     excluded_wb_list_: list[dict]
@@ -78,11 +77,9 @@ class WBAssembly(Algorithm):
     def assemble(
         self,
         stride_list: list,
-        event_list: Optional[list[dict[str, list[dict]]]] = None,
     ) -> Self:
         self.stride_list = stride_list
         stride_list_sorted = sorted(self.stride_list, key=lambda x: x["start"])
-        self.event_list = event_list
         for _rule_name, rule in self.rules or []:
             if not isinstance(rule, BaseWBCriteria):
                 raise ValueError("All rules must be instances of `WBCriteria` or one of its child classes.")
@@ -94,10 +91,8 @@ class WBAssembly(Algorithm):
             termination_reasons,
             excluded_strides,
             stride_exclusion_reasons,
-        ) = self._apply_termination_rules(stride_list_sorted, self.event_list)
-        self.wb_list_, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(
-            preliminary_wb_list, event_list
-        )
+        ) = self._apply_termination_rules(stride_list_sorted)
+        self.wb_list_, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
         self.termination_reasons_ = termination_reasons
         self.excluded_wb_list_ = [*excluded_wb_list, *excluded_wb_list_2]
         self.exclusion_reasons_ = {**exclusion_reasons, **exclusion_reasons_2}
@@ -106,7 +101,7 @@ class WBAssembly(Algorithm):
         return self
 
     def _apply_termination_rules(
-        self, stride_list, event_list
+        self, stride_list
     ) -> tuple[
         list[dict],
         list[dict],
@@ -125,7 +120,7 @@ class WBAssembly(Algorithm):
         while end < len(stride_list):
             start = end
             final_start, final_end, start_delay_reason, termination_reason = self._find_first_preliminary_wb(
-                stride_list, start, event_list
+                stride_list, start
             )
             if final_start >= final_end:
                 # There was a termination criteria, but the WB was never properly started
@@ -160,16 +155,14 @@ class WBAssembly(Algorithm):
         self,
         stride_list: list[dict],
         original_start,
-        event_list: Optional[list[dict]] = None,
     ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
-        # TODO: Filter evenetlist here to not have any events that are before the window anyway.
         end_index = len(stride_list)
         current_end = original_start
         current_start = original_start
         start_delay_reason = None
         while current_end < end_index:
             tmp_start, tmp_end, tmp_start_delay_reason, termination_reason = self._check_wb_start_end(
-                stride_list, original_start, current_start, current_end, event_list
+                stride_list, original_start, current_start, current_end
             )
             if termination_reason:
                 # In case of termination return directly.
@@ -190,14 +183,13 @@ class WBAssembly(Algorithm):
         original_start,
         current_start,
         current_end,
-        event_list: Optional[list[dict]] = None,
     ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
         termination_rule = None
         start_delay_rule = None
         tmp_start = -1
         tmp_end = np.inf
         for rule_name, rule in self.rules or []:
-            start, end = rule.check_wb_start_end(stride_list, original_start, current_start, current_end, event_list)
+            start, end = rule.check_wb_start_end(stride_list, original_start, current_start, current_end)
             if start is not None and start > tmp_start:
                 tmp_start = start
                 start_delay_rule = (rule_name, rule)
@@ -207,14 +199,14 @@ class WBAssembly(Algorithm):
         return tmp_start, tmp_end, start_delay_rule, termination_rule
 
     def _apply_inclusion_rules(
-        self, preliminary_wb_list: list[dict], event_list
+        self, preliminary_wb_list: list[dict]
     ) -> tuple[list[dict], list[dict], dict[str, tuple[str, BaseWBCriteria]]]:
         wb_list = []
         removed_wb_list_ = []
         exclusion_reasons = {}
         for wb in preliminary_wb_list:
             for rule_name, rule in self.rules or []:
-                if not rule.check_include(wb, event_list):
+                if not rule.check_include(wb):
                     removed_wb_list_.append(wb)
                     exclusion_reasons[wb["id"]] = (rule_name, rule)
                     break
