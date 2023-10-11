@@ -86,6 +86,7 @@ class StrideSelection(Algorithm):
             Additional required columns depend on the rules that are used for filtering.
 
         """
+        # TODO: Add better checking for compound fields dtype
         for _, rule in self.rules or []:
             if not isinstance(rule, BaseIntervalCriteria):
                 raise TypeError("All rules must be instances of `IntervalSummaryCriteria` or one of its child classes.")
