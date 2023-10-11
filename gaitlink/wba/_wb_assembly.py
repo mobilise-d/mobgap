@@ -1,88 +1,42 @@
 import uuid
-from typing import Callable, Optional
+from typing import Optional
 
 import numpy as np
+import pandas as pd
 from tpcp import Algorithm
 from typing_extensions import Self
 
 from gaitlink.wba._wb_criteria_base import BaseWBCriteria, EndOfList
 
 
-# TODO: Update namings
-# TODO: Change default outputs to dataframes?
-def create_wb(stride_list: list[dict]) -> dict:
-    wb = {
-        "id": str(uuid.uuid1()),
-        "nStrides": len(stride_list),
-        "start": stride_list[0]["start"],
-        "end": stride_list[-1]["end"],
-        "timeUnit": stride_list[0].get("timeUnit", None),
-        "strideList": stride_list,
-    }
-    return wb
-
-
 class WBAssembly(Algorithm):
     _action_methods = ("assemble",)
     _composite_params = ("rules",)
 
-    post_processors: Optional[list[Callable]]
     rules: Optional[list[tuple[str, BaseWBCriteria]]]
 
-    stride_list: list[dict]
+    stride_list: pd.DataFrame
 
-    wb_list_: list[dict]
-    excluded_wb_list_: list[dict]
-    termination_reasons_: dict[str, tuple[str, BaseWBCriteria]]
-    exclusion_reasons_: dict[str, tuple[str, BaseWBCriteria]]
-
-    _excluded_strides_: list[dict]
-    _stride_exclusion_reasons_: dict[str, tuple[str, BaseWBCriteria]]
+    annotated_stride_list_: pd.DataFrame
+    excluded_stride_list_: pd.DataFrame
 
     def __init__(self, rules: Optional[list[tuple[str, BaseWBCriteria]]] = None) -> None:
         self.rules = rules
-        # rules = rules or []
-
-        # rules = rules + list(self._default_rules)
-        # self.rules = rules
 
     @property
-    def filtered_stride_list_(self) -> list[dict]:
-        all_strides = []
-        for wb in self.wb_list_:
-            all_strides.extend(wb["strideList"])
-        return all_strides
-
-    @property
-    def excluded_stride_list_(self) -> list[dict]:
-        all_strides = self._wb_excluded_stride_list_
-        all_strides.extend(self._excluded_strides_)
-        return all_strides
-
-    @property
-    def _wb_excluded_stride_list_(self) -> list[dict]:
-        all_strides = []
-        for wb in self.excluded_wb_list_:
-            all_strides.extend(wb["strideList"])
-        return all_strides
-
-    @property
-    def stride_exclusion_reasons_(self) -> dict[str, BaseWBCriteria]:
-        all_reasons = {}
-        for wb in self.excluded_wb_list_:
-            all_reasons = {**all_reasons, **{s["id"]: self.exclusion_reasons_[wb["id"]] for s in wb["strideList"]}}
-        all_reasons = {**all_reasons, **self._stride_exclusion_reasons_}
-        return all_reasons
+    def wbs_(self) -> dict[str, pd.DataFrame]:
+        return {k: v.drop("wb_id", axis=1) for k, v in self.annotated_stride_list_.groupby("wb_id")}
 
     def assemble(
         self,
-        stride_list: list,
+        stride_list: pd.DataFrame,
     ) -> Self:
+        # TODO: Add better checks for correct type of compound rule field
         self.stride_list = stride_list
-        stride_list_sorted = sorted(self.stride_list, key=lambda x: x["start"])
-        for _rule_name, rule in self.rules or []:
+        stride_list_sorted = self.stride_list.sort_values(by=["start", "end"])
+        for _, rule in self.rules or []:
             if not isinstance(rule, BaseWBCriteria):
-                raise ValueError("All rules must be instances of `WBCriteria` or one of its child classes.")
+                raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
         (
             preliminary_wb_list,
@@ -92,28 +46,38 @@ class WBAssembly(Algorithm):
             excluded_strides,
             stride_exclusion_reasons,
         ) = self._apply_termination_rules(stride_list_sorted)
-        self.wb_list_, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
-        self.termination_reasons_ = termination_reasons
-        self.excluded_wb_list_ = [*excluded_wb_list, *excluded_wb_list_2]
-        self.exclusion_reasons_ = {**exclusion_reasons, **exclusion_reasons_2}
-        self._excluded_strides_ = excluded_strides
-        self._stride_exclusion_reasons_ = stride_exclusion_reasons
+        wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
+        self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
+
+        if len(combined_excluded_stride_list := {**excluded_wb_list, **excluded_wb_list_2}) > 0:
+            excluded_strides_in_wbs = pd.concat(combined_excluded_stride_list, names=["wb_id", "s_id"]).reset_index(
+                "wb_id"
+            )
+        else:
+            excluded_strides_in_wbs = pd.DataFrame(columns=stride_list.columns)
+        other_excluded_strides = excluded_strides.assign(wb_id=None)
+        self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides])
+        # self.termination_reasons_ = termination_reasons
+        # self.excluded_wb_list_ = [*excluded_wb_list, *excluded_wb_list_2]
+        # self.exclusion_reasons_ = {**exclusion_reasons, **exclusion_reasons_2}
+        # self._excluded_strides_ = excluded_strides
+        # self._stride_exclusion_reasons_ = stride_exclusion_reasons
         return self
 
     def _apply_termination_rules(
-        self, stride_list
+        self, stride_list: pd.DataFrame
     ) -> tuple[
-        list[dict],
-        list[dict],
+        dict[str, pd.DataFrame],
+        dict[str, pd.DataFrame],
         dict[str, tuple[str, BaseWBCriteria]],
         dict[str, tuple[str, BaseWBCriteria]],
-        list[dict],
+        pd.DataFrame,
         dict[str, tuple[str, BaseWBCriteria]],
     ]:
         end = 0
-        preliminary_wb_list = []
+        preliminary_wb_list = {}
         termination_reasons = {}
-        excluded_wb_list = []
+        excluded_wb_list = {}
         exclusion_reasons = {}
         excluded_strides = []
         stride_exclusion_reasons = {}
@@ -122,26 +86,31 @@ class WBAssembly(Algorithm):
             final_start, final_end, start_delay_reason, termination_reason = self._find_first_preliminary_wb(
                 stride_list, start
             )
+            preliminary_wb_id = str(uuid.uuid1())
+
             if final_start >= final_end:
                 # There was a termination criteria, but the WB was never properly started
                 final_start = final_end + 1
-                removed_wb = create_wb(stride_list[start:final_start])
-                excluded_wb_list.append(removed_wb)
-                exclusion_reasons[removed_wb["id"]] = start_delay_reason
-                termination_reasons[removed_wb["id"]] = termination_reason
+                excluded_wb_list[preliminary_wb_id] = stride_list.iloc[start:final_start]
+                exclusion_reasons[preliminary_wb_id] = start_delay_reason
+                termination_reasons[preliminary_wb_id] = termination_reason
             else:
                 # The preliminary WB is saved
-                preliminary_wb = create_wb(stride_list[final_start : final_end + 1])
-                preliminary_wb_list.append(preliminary_wb)
-                termination_reasons[preliminary_wb["id"]] = termination_reason
-                # Save strides that were excluded in the beginning as a excluded strides
-                removed_strides = stride_list[start:final_start]
-                excluded_strides.extend(removed_strides)
+                preliminary_wb_list[preliminary_wb_id] = stride_list.iloc[final_start : final_end + 1]
+                termination_reasons[preliminary_wb_id] = termination_reason
+                # Save strides that were excluded in the beginning as an excluded strides
+                removed_strides = stride_list.iloc[start:final_start]
+                if len(removed_strides) > 0:
+                    excluded_strides.append(removed_strides)
                 # All strides that were considered as invalid start strides will be removed.
-                for s in removed_strides:
-                    stride_exclusion_reasons[s["id"]] = start_delay_reason
+                for s in removed_strides.index:
+                    stride_exclusion_reasons[s] = start_delay_reason
 
             end = final_end + 1
+        if len(excluded_strides) > 0:
+            excluded_strides = pd.concat(excluded_strides)
+        else:
+            excluded_strides = pd.DataFrame(columns=stride_list.columns)
         return (
             preliminary_wb_list,
             excluded_wb_list,
@@ -153,8 +122,8 @@ class WBAssembly(Algorithm):
 
     def _find_first_preliminary_wb(
         self,
-        stride_list: list[dict],
-        original_start,
+        stride_list: pd.DataFrame,
+        original_start: int,
     ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
         end_index = len(stride_list)
         current_end = original_start
@@ -179,17 +148,19 @@ class WBAssembly(Algorithm):
 
     def _check_wb_start_end(
         self,
-        stride_list: list[dict],
-        original_start,
-        current_start,
-        current_end,
+        stride_list: pd.DataFrame,
+        original_start: int,
+        current_start: int,
+        current_end: int,
     ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
         termination_rule = None
         start_delay_rule = None
         tmp_start = -1
         tmp_end = np.inf
         for rule_name, rule in self.rules or []:
-            start, end = rule.check_wb_start_end(stride_list, original_start, current_start, current_end)
+            start, end = rule.check_wb_start_end(
+                stride_list, original_start=original_start, current_start=current_start, current_end=current_end
+            )
             if start is not None and start > tmp_start:
                 tmp_start = start
                 start_delay_rule = (rule_name, rule)
@@ -199,17 +170,17 @@ class WBAssembly(Algorithm):
         return tmp_start, tmp_end, start_delay_rule, termination_rule
 
     def _apply_inclusion_rules(
-        self, preliminary_wb_list: list[dict]
-    ) -> tuple[list[dict], list[dict], dict[str, tuple[str, BaseWBCriteria]]]:
-        wb_list = []
-        removed_wb_list_ = []
+        self, preliminary_wb_list: dict[str, pd.DataFrame]
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame], dict[str, tuple[str, BaseWBCriteria]]]:
+        wb_list = {}
+        removed_wb_list = {}
         exclusion_reasons = {}
-        for wb in preliminary_wb_list:
+        for wb_id, stride_list in preliminary_wb_list.items():
             for rule_name, rule in self.rules or []:
-                if not rule.check_include(wb):
-                    removed_wb_list_.append(wb)
-                    exclusion_reasons[wb["id"]] = (rule_name, rule)
+                if not rule.check_include(stride_list):
+                    removed_wb_list[wb_id] = stride_list
+                    exclusion_reasons[wb_id] = (rule_name, rule)
                     break
             else:
-                wb_list.append(wb)
-        return wb_list, removed_wb_list_, exclusion_reasons
+                wb_list[wb_id] = stride_list
+        return wb_list, removed_wb_list, exclusion_reasons

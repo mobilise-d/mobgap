@@ -1,6 +1,6 @@
-from collections import Counter
 from typing import Optional, Union
 
+import pandas as pd
 from typing_extensions import Literal
 
 from gaitlink.wba._wb_criteria_base import (
@@ -18,6 +18,8 @@ class NStridesCriteria(BaseWBCriteria):
     min_strides_left: Optional[int]
     min_strides_right: Optional[int]
 
+    _FOOT_COL_NAME: str = "foot"
+
     def __init__(
         self,
         min_strides: Optional[int] = None,
@@ -28,17 +30,27 @@ class NStridesCriteria(BaseWBCriteria):
         self.min_strides_left = min_strides_left
         self.min_strides_right = min_strides_right
 
-    def check_include(self, wb: dict) -> bool:
-        stride_list = wb["strideList"]
+    def check_include(
+        self,
+        stride_list: pd.DataFrame,
+    ) -> bool:
         if self.min_strides is not None:
+            if self.min_strides < 0:
+                raise ValueError(f"Only positive values are allowed for `min_strides` not {self.min_strides}")
             return len(stride_list) >= self.min_strides
         if self.min_strides_left is None and self.min_strides_right is None:
             return False
-        foot = [s["foot"] for s in stride_list]
-        foot_count = Counter(foot)
+        foot = stride_list[self._FOOT_COL_NAME]
+        foot_count = foot.value_counts()
         if self.min_strides_left is not None:
+            if self.min_strides_left < 0:
+                raise ValueError(f"Only positive values are allowed for `min_strides_left` not {self.min_strides_left}")
             return foot_count["left"] >= self.min_strides_left
         if self.min_strides_right is not None:
+            if self.min_strides_right < 0:
+                raise ValueError(
+                    f"Only positive values are allowed for `min_strides_right` not {self.min_strides_right}"
+                )
             return foot_count["right"] >= self.min_strides_right
         return False
 
@@ -64,44 +76,60 @@ class MaxBreakCriteria(BaseWBCriteria):
 
     max_break: float
 
+    _FOOT_COL_NAME: str = "foot"
+    _START_COL_NAME: str = "start"
+    _END_COL_NAME: str = "end"
+
     def __init__(
         self,
         max_break: float,
         remove_last_ic: Union[bool, Literal["per_foot"]] = False,
     ) -> None:
-        if max_break < 0:
-            raise ValueError(f'Only positive values are allowed for "max_break" not {max_break}')
         self.max_break = max_break
-        if not isinstance(remove_last_ic, bool) and not remove_last_ic == "per_foot":
-            raise ValueError("`remove_last_ic` must be a Boolean or the string 'per_foot'.")
         self.remove_last_ic = remove_last_ic
 
     def check_wb_start_end(
         self,
-        stride_list: list[dict],
+        stride_list: pd.DataFrame,
+        *,
         original_start: int,
-        current_start: int,
+        current_start: int,  # noqa: ARG002
         current_end: int,
     ) -> tuple[Optional[int], Optional[int]]:
+        if self.max_break < 0:
+            raise ValueError(f'Only positive values are allowed for "max_break" not {self.max_break}')
+
+        if not isinstance(self.remove_last_ic, bool) and not self.remove_last_ic == "per_foot":
+            raise ValueError("`remove_last_ic` must be a Boolean or the string 'per_foot'.")
+
         if current_end - original_start < 1:
             return None, None
-        last_stride = stride_list[current_end - 1]
-        current_stride = stride_list[current_end]
-        if current_stride["start"] - last_stride["end"] <= self.max_break:
+        last_stride = stride_list.iloc[current_end - 1]
+        current_stride = stride_list.iloc[current_end]
+        if current_stride[self._START_COL_NAME] - last_stride[self._END_COL_NAME] <= self.max_break:
+            # No break -> no termination
             return None, None
-        lag = 0
+        # Break -> terminate
+        # This means the current stride is not part of the WB
+        # The last stride is at index current_end - 1
+        wb_end = current_end - 1
         if self.remove_last_ic is True:
-            lag = 1
+            wb_end -= 1
         elif self.remove_last_ic == "per_foot":
             # If the last two strides of the terminated wb have different feet values remove them both. If they have
             # the same, remove only the last, as we assume that the IC of the other foot was not detected
-            lag = 1
             if len(stride_list) >= 3:
-                last_foot = stride_list[-3]["foot"]
-                this_foot = stride_list[-2]["foot"]
-                if last_foot and this_foot and last_foot != this_foot:
-                    lag = 2
-        return None, current_end - lag - 1
+                feet = stride_list[self._FOOT_COL_NAME]
+                second_to_last_foot = feet.iloc[wb_end - 1]
+                last_foot = feet.iloc[wb_end]
+                if last_foot and second_to_last_foot and last_foot != second_to_last_foot:
+                    wb_end -= 2
+            else:
+                # The last two strides are from the same foot.
+                # We assume we did not correctly detect the second to last stride and hence, only remove the last stride
+                # and not the last two strides.
+                wb_end -= 1
+        return None, wb_end
 
 
 class LeftRightCriteria(BaseWBCriteria):
@@ -112,17 +140,21 @@ class LeftRightCriteria(BaseWBCriteria):
 
     max_break: float
 
+    _FOOT_COL_NAME: str = "foot"
+
     def check_wb_start_end(
         self,
-        stride_list: list[dict],
-        original_start: int,
-        current_start: int,
+        stride_list: pd.DataFrame,
+        *,
+        original_start: int,  # noqa: ARG002
+        current_start: int,  # noqa: ARG002
         current_end: int,
     ) -> tuple[Optional[int], Optional[int]]:
         if current_end < 1:
             return None, None
-        last_foot = stride_list[current_end - 1]["foot"]
-        this_foot = stride_list[current_end]["foot"]
+        feet = stride_list[self._FOOT_COL_NAME]
+        last_foot = feet.iloc[current_end - 1]
+        this_foot = feet.iloc[current_end]
         if last_foot and this_foot and last_foot == this_foot:
             return None, current_end - 1
         return None, None
