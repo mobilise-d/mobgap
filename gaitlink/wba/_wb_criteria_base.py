@@ -12,7 +12,6 @@ class BaseWBCriteria(BaseTpcpObject):
         original_start: int,
         current_start: int,
         current_end: int,
-        event_list: Optional[list[dict]] = None,
     ) -> tuple[Optional[int], Optional[int]]:
         """Determine the current start and end of the current WB.
 
@@ -24,8 +23,6 @@ class BaseWBCriteria(BaseTpcpObject):
         ----------
         stride_list
             A list of all strides within the measurement.
-        event_list
-            A nested list of all events of the measurement
         original_start
             The index in the stride list at which the WB was originally started.
             This is usually the stride after the end of the last WB.
@@ -52,15 +49,13 @@ class BaseWBCriteria(BaseTpcpObject):
         """
         return None, None
 
-    def check_include(self, preliminary_wb: dict, event_list: Optional[list[dict]] = None) -> bool:
+    def check_include(self, preliminary_wb: dict) -> bool:
         """Check if a preliminary WB should be considered an actual WB.
 
         Parameters
         ----------
         preliminary_wb
             The preliminary wb including its stride list
-        event_list
-            A nested list of all events of the measurement
 
         Returns
         -------
@@ -86,7 +81,7 @@ class SummaryCriteria(BaseWBCriteria):
         self.upper_threshold = upper_threshold
         self.inclusive = inclusive
 
-    def check_include(self, wb: dict, event_list: Optional[list[dict]] = None) -> bool:
+    def check_include(self, wb: dict) -> bool:
         stride_list = wb["strideList"]
         value = self._calc_summary(stride_list)
         return compare_with_threshold(value, self.lower_threshold, self.upper_threshold, self.inclusive)

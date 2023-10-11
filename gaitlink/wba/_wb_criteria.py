@@ -28,7 +28,7 @@ class NStridesCriteria(BaseWBCriteria):
         self.min_strides_left = min_strides_left
         self.min_strides_right = min_strides_right
 
-    def check_include(self, wb: dict, event_list: Optional[list[dict]] = None) -> bool:
+    def check_include(self, wb: dict) -> bool:
         stride_list = wb["strideList"]
         if self.min_strides is not None:
             return len(stride_list) >= self.min_strides
@@ -82,7 +82,6 @@ class MaxBreakCriteria(BaseWBCriteria):
         original_start: int,
         current_start: int,
         current_end: int,
-        event_list: Optional[list[dict]] = None,
     ) -> tuple[Optional[int], Optional[int]]:
         if current_end - original_start < 1:
             return None, None
@@ -119,7 +118,6 @@ class LeftRightCriteria(BaseWBCriteria):
         original_start: int,
         current_start: int,
         current_end: int,
-        event_list: Optional[list[dict]] = None,
     ) -> tuple[Optional[int], Optional[int]]:
         if current_end < 1:
             return None, None
