@@ -30,10 +30,9 @@ class StrideSelection(Algorithm):
         This is a strict subset of the stride list that was provided to the :meth:`filter` method.
     exclusion_reasons_
         A dataframe containing the reason why a stride was excluded.
-        The dataframe has the same index as the stride list that was provided to the :meth:`filter` method.
-        For strides that were not excluded, the `rule_name` and `rule_obj` columns are `None`.
-        For excluded strides the name and the rule object as provided in the `rules` parameter are stored in the
-        `rule_name` and `rule_obj` columns, respectively.
+        The dataframe has two columns: `rule_name` and `rule_obj` corresponding to the values in the `rules` parameter.
+        The df only contains rows for strides that were excluded.
+
 
     Other Parameters
     ----------------
@@ -46,18 +45,22 @@ class StrideSelection(Algorithm):
 
     stride_list: pd.DataFrame
 
-    exclusion_reasons_: pd.DataFrame
+    _exclusion_reasons: pd.DataFrame
 
     def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
         self.rules = rules
 
     @property
     def filtered_stride_list_(self) -> pd.DataFrame:
-        return self.stride_list[self.exclusion_reasons_["rule_name"].isna()]
+        return self.stride_list[self._exclusion_reasons["rule_name"].isna()]
 
     @property
     def excluded_stride_list_(self) -> pd.DataFrame:
-        return self.stride_list[self.exclusion_reasons_["rule_name"].notna()]
+        return self.stride_list[self._exclusion_reasons["rule_name"].notna()]
+
+    @property
+    def exclusion_reasons_(self) -> pd.DataFrame:
+        return self._exclusion_reasons[self._exclusion_reasons["rule_name"].notna()]
 
     def filter(self, stride_list: pd.DataFrame) -> Self:  # noqa: A003
         """Filter the stride list.
@@ -77,7 +80,7 @@ class StrideSelection(Algorithm):
                 raise TypeError("All rules must be instances of `IntervalSummaryCriteria` or one of its child classes.")
 
         self.stride_list = stride_list
-        self.exclusion_reasons_ = self.stride_list.apply(
+        self._exclusion_reasons = self.stride_list.apply(
             lambda x: pd.Series(self._check_stride(x), index=["rule_name", "rule_obj"]), axis=1
         )
 

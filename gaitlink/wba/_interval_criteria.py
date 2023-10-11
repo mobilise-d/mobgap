@@ -33,15 +33,16 @@ class BaseIntervalCriteria(BaseTpcpObject):
 _interval_parameter_criteria_docfiller = make_filldoc(
     {
         "common_paras": """
-    parameter
-        The name of the parameter to check.
     lower_threshold
         The lower threshold for the parameter.
         If `None`, the lower threshold is not checked.
     upper_threshold
         The upper threshold for the parameter.
         If `None`, the upper threshold is not checked.
-        """
+    inclusive
+        A tuple of two booleans indicating if the lower and upper threshold should be inclusive in the comparison.
+        By default, the lower threshold is exclusive and the upper threshold is inclusive.
+    """
     },
 )
 
@@ -88,9 +89,9 @@ class IntervalParameterCriteria(_IntervalParameterCriteria):
 
     Parameters
     ----------
+    parameter
+        The name of the parameter to check.
     %(common_paras)s
-    inclusive
-        A tuple of two booleans indicating if the lower and upper threshold should be inclusive in the comparison.
 
     """
 
