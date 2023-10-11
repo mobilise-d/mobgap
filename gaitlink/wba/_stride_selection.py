@@ -1,10 +1,16 @@
 from typing import Optional
 
 import pandas as pd
-from tpcp import Algorithm
+from tpcp import Algorithm, cf
 from typing_extensions import Self
 
-from gaitlink.wba._interval_criteria import BaseIntervalCriteria
+from gaitlink.wba._interval_criteria import BaseIntervalCriteria, IntervalDurationCriteria, IntervalParameterCriteria
+
+# : The default rules that are used for stride selection in the Mobilise-D pipeline.
+default_mobilised_stride_selection_rules = [
+    ("stride_duration_thres", IntervalDurationCriteria(lower_threshold=0.2, upper_threshold=3.0)),
+    ("stride_length_thres", IntervalParameterCriteria("stride_length", lower_threshold=0.15, upper_threshold=None)),
+]
 
 
 class StrideSelection(Algorithm):
@@ -41,13 +47,18 @@ class StrideSelection(Algorithm):
 
     """
 
+    _action_methods = ("filter",)
+    _composite_params = ("rules",)
+
     rules: Optional[list[tuple[str, BaseIntervalCriteria]]]
 
     stride_list: pd.DataFrame
 
     _exclusion_reasons: pd.DataFrame
 
-    def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
+    def __init__(
+        self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]] = cf(default_mobilised_stride_selection_rules)
+    ) -> None:
         self.rules = rules
 
     @property
