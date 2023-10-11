@@ -1,5 +1,6 @@
 from typing import Optional
 
+import pandas as pd
 from tpcp import BaseTpcpObject
 
 from gaitlink.wba._utils import compare_with_threshold
@@ -8,10 +9,11 @@ from gaitlink.wba._utils import compare_with_threshold
 class BaseWBCriteria(BaseTpcpObject):
     def check_wb_start_end(
         self,
-        stride_list: list[dict],
-        original_start: int,
-        current_start: int,
-        current_end: int,
+        stride_list: pd.DataFrame,  # noqa: ARG002
+        *,
+        original_start: int,  # noqa: ARG002
+        current_start: int,  # noqa: ARG002
+        current_end: int,  # noqa: ARG002
     ) -> tuple[Optional[int], Optional[int]]:
         """Determine the current start and end of the current WB.
 
@@ -49,7 +51,7 @@ class BaseWBCriteria(BaseTpcpObject):
         """
         return None, None
 
-    def check_include(self, preliminary_wb: dict) -> bool:
+    def check_include(self, preliminary_wb: dict) -> bool:  # noqa: ARG002
         """Check if a preliminary WB should be considered an actual WB.
 
         Parameters
@@ -86,7 +88,7 @@ class SummaryCriteria(BaseWBCriteria):
         value = self._calc_summary(stride_list)
         return compare_with_threshold(value, self.lower_threshold, self.upper_threshold, self.inclusive)
 
-    def _calc_summary(self, stride_list: list[dict]) -> float:
+    def _calc_summary(self, stride_list: pd.DataFrame) -> float:
         raise NotImplementedError("This needs to implemented by child class")
 
 

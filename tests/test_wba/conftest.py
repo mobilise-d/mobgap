@@ -10,7 +10,7 @@ def window(start, end, **parameter):
 
     parameter = {**parameter, **{"duration": end - start}}
 
-    return dict(id=str(uuid.uuid4()), start=start, end=end, **parameter)
+    return dict(s_id=str(uuid.uuid4()), start=start, end=end, **parameter)
 
 
 @pytest.fixture()
@@ -21,7 +21,7 @@ def naive_stride_list():
 
     return pd.DataFrame.from_records(
         [window(start=s, end=e, para_1=1) for i, (s, e) in enumerate(start_end)]
-    ).set_index("id")
+    ).set_index("s_id")
 
 
 @pytest.fixture()
