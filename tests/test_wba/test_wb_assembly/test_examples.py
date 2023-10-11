@@ -33,11 +33,8 @@ def test_simple_single_wb():
     assert_frame_equal(single_wb, strides)
 
     assert len(wba.excluded_stride_list_) == 0
-
-    # assert len(wba.excluded_wb_list_) == 0
-    # assert len(wba.excluded_stride_list_) == 0
-    # assert len(wba.exclusion_reasons_) == 0
-    # assert len(wba.stride_exclusion_reasons_) == 0
+    assert len(wba.excluded_wbs_) == 0
+    assert len(wba.exclusion_reasons_) == 0
 
 
 def test_simple_break_center():
@@ -66,10 +63,9 @@ def test_simple_break_center():
     wba = WBAssembly(rules)
     wba.assemble(strides)
 
-    # assert len(wba.excluded_wb_list_) == 0
+    assert len(wba.excluded_wbs_) == 0
     assert len(wba.excluded_stride_list_) == 0
-    # assert len(wba.exclusion_reasons_) == 0
-    # assert len(wba.stride_exclusion_reasons_) == 0
+    assert len(wba.exclusion_reasons_) == 0
 
     assert len(wba.wbs_) == 2
     wbs = list(wba.wbs_.values())
@@ -83,3 +79,4 @@ def test_simple_break_center():
 
 
 # TODO: Add a couple more simple test cases
+# TODO: Test examples with excluded strides and WBs
