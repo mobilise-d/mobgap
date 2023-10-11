@@ -67,7 +67,7 @@ class BaseWBCriteria(BaseTpcpObject):
         return True
 
 
-class SummaryCriteria(BaseWBCriteria):
+class BaseSummaryCriteria(BaseWBCriteria):
     lower_threshold: float
     upper_threshold: float
     inclusive: tuple[bool, bool]

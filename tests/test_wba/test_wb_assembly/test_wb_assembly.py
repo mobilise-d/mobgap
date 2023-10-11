@@ -1,6 +1,6 @@
 import pytest
 
-from gaitlink.wba._wb_assembly import WBAssembly
+from gaitlink.wba import WBAssembly
 from tests.test_wba.conftest import window
 
 
