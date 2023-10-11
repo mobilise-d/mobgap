@@ -116,15 +116,11 @@ class IntervalDurationCriteria(_IntervalParameterCriteria):
     Parameters
     ----------
     %(common_paras)s
-    start_col_name
-        The name of the column containing the start value. Default: `start`
-    end_col_name
-        The name of the column containing the end value. Default: `end`
 
     """
 
-    start_col_name: str
-    end_col_name: str
+    _START_COL_NAME: str = "start"
+    _END_COL_NAME: str = "end"
 
     def __init__(
         self,
@@ -132,17 +128,13 @@ class IntervalDurationCriteria(_IntervalParameterCriteria):
         upper_threshold: Optional[float] = None,
         *,
         inclusive: tuple[bool, bool] = (False, True),
-        start_col_name: str = "start",
-        end_col_name: str = "end",
     ) -> None:
-        self.start_col_name = start_col_name
-        self.end_col_name = end_col_name
         super().__init__(lower_threshold, upper_threshold, inclusive=inclusive)
 
     def _get_value(self, interval: pd.Series) -> float:
         try:
-            return interval[self.end_col_name] - interval[self.start_col_name]
+            return interval[self._END_COL_NAME] - interval[self._START_COL_NAME]
         except KeyError as e:
             raise ValueError(
-                f"Interval does not contain both columns {self.start_col_name} and {self.end_col_name}"
+                f"Interval does not contain both columns {self._START_COL_NAME} and {self._END_COL_NAME}"
             ) from e
