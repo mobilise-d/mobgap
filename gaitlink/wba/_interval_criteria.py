@@ -1,12 +1,11 @@
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 from scipy._lib.doccer import inherit_docstring_from
 from tpcp import BaseTpcpObject
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.wba._utils import check_thresholds
+from gaitlink.wba._utils import compare_with_threshold
 
 
 class BaseIntervalCriteria(BaseTpcpObject):
@@ -69,18 +68,7 @@ class _IntervalParameterCriteria(BaseIntervalCriteria):
     @inherit_docstring_from(BaseIntervalCriteria)
     def check(self, interval: pd.Series) -> bool:
         value = self._get_value(interval)
-        lower_threshold, upper_threshold = check_thresholds(self.lower_threshold, self.upper_threshold)
-
-        # Lower comparison
-        operator = np.greater_equal if self.inclusive[0] else np.greater
-        lower_comparison = operator(value, lower_threshold)
-
-        # Upper comparison
-        operator = np.less_equal if self.inclusive[1] else np.less
-        upper_comparison = operator(value, upper_threshold)
-
-        # We convert to bool, so that we don't have to deal with numpy dtypes
-        return bool(lower_comparison and upper_comparison)
+        return compare_with_threshold(value, self.lower_threshold, self.upper_threshold, self.inclusive)
 
 
 @_interval_parameter_criteria_docfiller

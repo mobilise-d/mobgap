@@ -1,6 +1,5 @@
 import pandas as pd
 import pytest
-from tpcp._base import BaseTpcpObjectObjT
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.wba import IntervalParameterCriteria, StrideSelection

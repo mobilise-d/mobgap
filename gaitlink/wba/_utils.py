@@ -21,3 +21,17 @@ def check_thresholds(
             f"Currently: {lower_threshold} not < {upper_threshold}"
         )
     return lower_threshold, upper_threshold
+
+
+def compare_with_threshold(
+    value: float, lower_threshold: float, upper_threshold: float, inclusive: tuple[bool, bool]
+) -> bool:
+    lower_threshold, upper_threshold = check_thresholds(lower_threshold, upper_threshold)
+    # Lower comparison
+    operator = np.greater_equal if inclusive[0] else np.greater
+    lower_comparison = operator(value, lower_threshold)
+    # Upper comparison
+    operator = np.less_equal if inclusive[1] else np.less
+    upper_comparison = operator(value, upper_threshold)
+    # We convert to bool, so that we don't have to deal with numpy dtypes
+    return bool(lower_comparison and upper_comparison)
