@@ -1,12 +1,12 @@
 import pandas as pd
 import pytest
 
-from gaitlink.wba._wb_criteria import (
+from gaitlink.wba import (
+    BaseWBCriteria,
     LeftRightCriteria,
     MaxBreakCriteria,
     NStridesCriteria,
 )
-from gaitlink.wba._wb_criteria_base import BaseWBCriteria
 from tests.test_wba.conftest import window
 
 

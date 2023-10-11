@@ -1,8 +1,7 @@
 import pandas as pd
-from pandas._testing import assert_frame_equal
+from pandas.testing import assert_frame_equal
 
-from gaitlink.wba._wb_assembly import WBAssembly
-from gaitlink.wba._wb_criteria import MaxBreakCriteria, NStridesCriteria
+from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WBAssembly
 from tests.test_wba.conftest import window
 
 
