@@ -45,13 +45,13 @@ class NStridesCriteria(BaseWBCriteria):
         if self.min_strides_left is not None:
             if self.min_strides_left < 0:
                 raise ValueError(f"Only positive values are allowed for `min_strides_left` not {self.min_strides_left}")
-            return foot_count["left"] >= self.min_strides_left
+            return foot_count.get("left", -1) >= self.min_strides_left
         if self.min_strides_right is not None:
             if self.min_strides_right < 0:
                 raise ValueError(
                     f"Only positive values are allowed for `min_strides_right` not {self.min_strides_right}"
                 )
-            return foot_count["right"] >= self.min_strides_right
+            return foot_count.get("right", -1) >= self.min_strides_right
         return False
 
 
