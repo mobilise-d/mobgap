@@ -5,12 +5,12 @@ import numpy as np
 from tpcp import Algorithm
 from typing_extensions import Self
 
-from gaitlink.wba._wb_criteria_base import EndOfList, WBCriteria
+from gaitlink.wba._wb_criteria_base import BaseWBCriteria, EndOfList
 
 
 # TODO: Update namings
 # TODO: Change default outputs to dataframes?
-def create_wb(stride_list: list[dict], post_processors: Optional[list[Callable]] = None) -> dict:
+def create_wb(stride_list: list[dict]) -> dict:
     wb = {
         "id": str(uuid.uuid1()),
         "nStrides": len(stride_list),
@@ -19,9 +19,6 @@ def create_wb(stride_list: list[dict], post_processors: Optional[list[Callable]]
         "timeUnit": stride_list[0].get("timeUnit", None),
         "strideList": stride_list,
     }
-    if post_processors:
-        for pp in post_processors:
-            wb = pp(wb, stride_list)
     return wb
 
 
@@ -30,23 +27,20 @@ class WBAssembly(Algorithm):
     _composite_params = ("rules",)
 
     post_processors: Optional[list[Callable]]
-    rules: Optional[list[tuple[str, WBCriteria]]]
+    rules: Optional[list[tuple[str, BaseWBCriteria]]]
 
     stride_list: list[dict]
     event_list: list[dict[str, list[dict]]]
 
     wb_list_: list[dict]
     excluded_wb_list_: list[dict]
-    termination_reasons_: dict[str, tuple[str, WBCriteria]]
-    exclusion_reasons_: dict[str, tuple[str, WBCriteria]]
+    termination_reasons_: dict[str, tuple[str, BaseWBCriteria]]
+    exclusion_reasons_: dict[str, tuple[str, BaseWBCriteria]]
 
     _excluded_strides_: list[dict]
-    _stride_exclusion_reasons_: dict[str, tuple[str, WBCriteria]]
+    _stride_exclusion_reasons_: dict[str, tuple[str, BaseWBCriteria]]
 
-    def __init__(
-        self, rules: Optional[list[tuple[str, WBCriteria]]] = None, post_processors: Optional[list[Callable]] = None
-    ) -> None:
-        self.post_processors = post_processors
+    def __init__(self, rules: Optional[list[tuple[str, BaseWBCriteria]]] = None) -> None:
         self.rules = rules
         # rules = rules or []
 
@@ -74,7 +68,7 @@ class WBAssembly(Algorithm):
         return all_strides
 
     @property
-    def stride_exclusion_reasons_(self) -> dict[str, WBCriteria]:
+    def stride_exclusion_reasons_(self) -> dict[str, BaseWBCriteria]:
         all_reasons = {}
         for wb in self.excluded_wb_list_:
             all_reasons = {**all_reasons, **{s["id"]: self.exclusion_reasons_[wb["id"]] for s in wb["strideList"]}}
@@ -90,7 +84,7 @@ class WBAssembly(Algorithm):
         stride_list_sorted = sorted(self.stride_list, key=lambda x: x["start"])
         self.event_list = event_list
         for _rule_name, rule in self.rules or []:
-            if not isinstance(rule, WBCriteria):
+            if not isinstance(rule, BaseWBCriteria):
                 raise ValueError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
         (
@@ -116,10 +110,10 @@ class WBAssembly(Algorithm):
     ) -> tuple[
         list[dict],
         list[dict],
-        dict[str, tuple[str, WBCriteria]],
-        dict[str, tuple[str, WBCriteria]],
+        dict[str, tuple[str, BaseWBCriteria]],
+        dict[str, tuple[str, BaseWBCriteria]],
         list[dict],
-        dict[str, tuple[str, WBCriteria]],
+        dict[str, tuple[str, BaseWBCriteria]],
     ]:
         end = 0
         preliminary_wb_list = []
@@ -136,13 +130,13 @@ class WBAssembly(Algorithm):
             if final_start >= final_end:
                 # There was a termination criteria, but the WB was never properly started
                 final_start = final_end + 1
-                removed_wb = create_wb(stride_list[start:final_start], self.post_processors)
+                removed_wb = create_wb(stride_list[start:final_start])
                 excluded_wb_list.append(removed_wb)
                 exclusion_reasons[removed_wb["id"]] = start_delay_reason
                 termination_reasons[removed_wb["id"]] = termination_reason
             else:
                 # The preliminary WB is saved
-                preliminary_wb = create_wb(stride_list[final_start : final_end + 1], self.post_processors)
+                preliminary_wb = create_wb(stride_list[final_start : final_end + 1])
                 preliminary_wb_list.append(preliminary_wb)
                 termination_reasons[preliminary_wb["id"]] = termination_reason
                 # Save strides that were excluded in the beginning as a excluded strides
@@ -167,7 +161,7 @@ class WBAssembly(Algorithm):
         stride_list: list[dict],
         original_start,
         event_list: Optional[list[dict]] = None,
-    ) -> tuple[int, int, Optional[tuple[str, WBCriteria]], Optional[tuple[str, WBCriteria]]]:
+    ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
         # TODO: Filter evenetlist here to not have any events that are before the window anyway.
         end_index = len(stride_list)
         current_end = original_start
@@ -197,7 +191,7 @@ class WBAssembly(Algorithm):
         current_start,
         current_end,
         event_list: Optional[list[dict]] = None,
-    ) -> tuple[int, int, Optional[tuple[str, WBCriteria]], Optional[tuple[str, WBCriteria]]]:
+    ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
         termination_rule = None
         start_delay_rule = None
         tmp_start = -1
@@ -214,7 +208,7 @@ class WBAssembly(Algorithm):
 
     def _apply_inclusion_rules(
         self, preliminary_wb_list: list[dict], event_list
-    ) -> tuple[list[dict], list[dict], dict[str, tuple[str, WBCriteria]]]:
+    ) -> tuple[list[dict], list[dict], dict[str, tuple[str, BaseWBCriteria]]]:
         wb_list = []
         removed_wb_list_ = []
         exclusion_reasons = {}
