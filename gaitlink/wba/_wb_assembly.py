@@ -19,6 +19,8 @@ class WBAssembly(Algorithm):
 
     annotated_stride_list_: pd.DataFrame
     excluded_stride_list_: pd.DataFrame
+    termination_reasons_: dict[str, tuple[str, BaseWBCriteria]]
+    exclusion_reasons_: dict[str, tuple[str, BaseWBCriteria]]
 
     def __init__(self, rules: Optional[list[tuple[str, BaseWBCriteria]]] = None) -> None:
         self.rules = rules
@@ -26,6 +28,14 @@ class WBAssembly(Algorithm):
     @property
     def wbs_(self) -> dict[str, pd.DataFrame]:
         return {k: v.drop("wb_id", axis=1) for k, v in self.annotated_stride_list_.groupby("wb_id")}
+
+    @property
+    def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
+        return {
+            k: v.drop("wb_id", axis=1)
+            # We group only the strides that are part of a preliminary WB
+            for k, v in self.excluded_stride_list_[self.excluded_stride_list_["pre_wb_id"].notna()].groupby("pre_wb_id")
+        }
 
     def assemble(
         self,
@@ -50,18 +60,15 @@ class WBAssembly(Algorithm):
         self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
 
         if len(combined_excluded_stride_list := {**excluded_wb_list, **excluded_wb_list_2}) > 0:
-            excluded_strides_in_wbs = pd.concat(combined_excluded_stride_list, names=["wb_id", "s_id"]).reset_index(
-                "wb_id"
+            excluded_strides_in_wbs = pd.concat(combined_excluded_stride_list, names=["pre_wb_id", "s_id"]).reset_index(
+                "pre_wb_id"
             )
         else:
             excluded_strides_in_wbs = pd.DataFrame(columns=stride_list.columns)
-        other_excluded_strides = excluded_strides.assign(wb_id=None)
+        other_excluded_strides = excluded_strides.assign(pre_wb_id=None)
         self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides])
-        # self.termination_reasons_ = termination_reasons
-        # self.excluded_wb_list_ = [*excluded_wb_list, *excluded_wb_list_2]
-        # self.exclusion_reasons_ = {**exclusion_reasons, **exclusion_reasons_2}
-        # self._excluded_strides_ = excluded_strides
-        # self._stride_exclusion_reasons_ = stride_exclusion_reasons
+        self.termination_reasons_ = termination_reasons
+        self.exclusion_reasons_ = {**exclusion_reasons, **exclusion_reasons_2}
         return self
 
     def _apply_termination_rules(
