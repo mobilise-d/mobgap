@@ -1,6 +1,6 @@
+import pandas as pd
 import pytest
 
-from gaitlink.wba._wb_assembly import create_wb
 from gaitlink.wba._wb_criteria import (
     LeftRightCriteria,
     MaxBreakCriteria,
@@ -15,11 +15,11 @@ class BaseTestCriteriaInclusion:
 
     defaults = {}
 
-    def test_single_stride(self, naive_stride_list, naive_event_list):
+    def test_single_stride(self, naive_stride_list):
         """Test that now exception is thrown if a list with a single stride is checked."""
-        single_stride_list = [naive_stride_list[0]]
+        single_stride_list = naive_stride_list.iloc[:1]
 
-        self.criteria_class(**self.defaults).check_include(create_wb(single_stride_list), naive_event_list)
+        self.criteria_class(**self.defaults).check_include(single_stride_list)
 
 
 class BaseTestCriteriaTermination:
@@ -27,16 +27,21 @@ class BaseTestCriteriaTermination:
 
     defaults = {}
 
-    def test_single_stride(self, naive_stride_list, naive_event_list):
+    def test_single_stride(self, naive_stride_list):
         """Test that no exception is thrown if a list with a single stride is checked."""
-        single_stride_list = [naive_stride_list[0]]
+        single_stride_list = naive_stride_list.iloc[:1]
 
-        self.criteria_class(**self.defaults).check_wb_start_end(single_stride_list, 0, 0, 0, naive_event_list)
+        self.criteria_class(**self.defaults).check_wb_start_end(
+            single_stride_list,
+            original_start=0,
+            current_start=0,
+            current_end=0,
+        )
 
 
 class TestMaxBreakCriteria(BaseTestCriteriaTermination):
     criteria_class = MaxBreakCriteria
-    defaults = {"max_break": 0, "remove_last_ic": False, "comment": "comment"}
+    defaults = {"max_break": 0, "remove_last_ic": False}
 
     @pytest.fixture(
         params=(
@@ -64,9 +69,11 @@ class TestMaxBreakCriteria(BaseTestCriteriaTermination):
         ((0, 2, True), (2, 2, True), (3, 2, False)),
     )
     def test_check_simple(self, naive_stride_list, new_stride_break, allowed_break, expected):
-        new_stride_start = naive_stride_list[-1]["end"] + new_stride_break
+        new_stride_start = naive_stride_list.iloc[-1]["end"] + new_stride_break
         new_stride = window(start=new_stride_start, end=new_stride_start + 100)
-        naive_stride_list.append(new_stride)
+        stride_id = new_stride["s_id"]
+        new_stride.pop("s_id")
+        naive_stride_list.loc[stride_id] = new_stride
         c = MaxBreakCriteria(allowed_break)
 
         expected = None if expected is True else len(naive_stride_list) - 2
@@ -84,7 +91,7 @@ class TestMaxBreakCriteria(BaseTestCriteriaTermination):
 
 class TestNStridesCriteria(BaseTestCriteriaInclusion):
     criteria_class = NStridesCriteria
-    defaults = {"min_strides": 1, "comment": "comment"}
+    defaults = {"min_strides": 1}
 
     @pytest.fixture(
         params=(
@@ -119,9 +126,8 @@ class TestNStridesCriteria(BaseTestCriteriaInclusion):
     )
     def test_check_no_foot(self, lower, length, result):
         c = NStridesCriteria(lower)
-        stride_list = [window(0, 0) for _ in range(length)]
-        wb = create_wb(stride_list)
-        assert c.check_include(wb) == result
+        stride_list = pd.DataFrame.from_records([window(0, 0) for _ in range(length)]).set_index("s_id")
+        assert c.check_include(stride_list) == result
 
     @pytest.mark.parametrize(
         ("lower", "lower_left", "lower_right", "nleft", "nright", "nrest", "result"),
@@ -139,14 +145,13 @@ class TestNStridesCriteria(BaseTestCriteriaInclusion):
         left = [window(0, 0, foot="left") for _ in range(nleft)]
         right = [window(0, 0, foot="right") for _ in range(nright)]
         rest = [window(0, 0, foot=None) for _ in range(nrest)]
-        stride_list = [*left, *right, *rest]
-        wb = create_wb(stride_list)
-        assert c.check_include(wb) == result
+        stride_list = pd.DataFrame.from_records([*left, *right, *rest]).set_index("s_id")
+        assert c.check_include(stride_list) == result
 
 
 class TestLeftRightCriteria(BaseTestCriteriaTermination):
     criteria_class = LeftRightCriteria
-    defaults = {"comment": "comment"}
+    defaults = {}
 
     @pytest.fixture(
         params=(
@@ -170,7 +175,7 @@ class TestLeftRightCriteria(BaseTestCriteriaTermination):
     )
     def test_check(self, feet, result):
         c = LeftRightCriteria()
-        stride_list = [window(0, 0, foot=f) for f in feet]
+        stride_list = pd.DataFrame.from_records([window(0, 0, foot=f) for f in feet]).set_index("s_id")
         out = c.check_wb_start_end(stride_list, current_start=0, original_start=0, current_end=len(stride_list) - 1)
         assert out[1] == result
         assert out[0] is None
