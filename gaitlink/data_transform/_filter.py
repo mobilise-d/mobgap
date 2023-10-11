@@ -75,7 +75,7 @@ class EpflDedriftFilter(FixedFilter):
 class EpflDedriftedGaitFilter(BaseFilter):
     """A filter combining the :class:`EpflDedriftFilter` and :class:`EpflGaitFilter`.
 
-    This filter exists, as these two filteres are often used together.
+    This filter exists, as these two filters are often used together.
     It just provides a convenient wrapper without any further optimization.
     The dedrifting filter is applied first and then the gait filter.
     I.e. it is equivalent to the following code:
