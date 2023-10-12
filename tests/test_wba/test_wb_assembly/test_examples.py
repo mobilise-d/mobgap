@@ -1,11 +1,13 @@
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
 from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
 from tests.test_wba.conftest import window
 
 
-def test_simple_single_wb():
+@pytest.mark.parametrize("consider_end_as_break", [True, False])
+def test_simple_single_wb(consider_end_as_break):
     """Simple single WB test.
 
     Scenario:
@@ -22,7 +24,10 @@ def test_simple_single_wb():
     strides = pd.DataFrame.from_records(
         [window(wb_start_time + i, wb_start_time + i + 1) for i in range(n_strides)]
     ).set_index("s_id")
-    rules = [("break", MaxBreakCriteria(3)), ("n_strides", NStridesCriteria(4))]
+    rules = [
+        ("break", MaxBreakCriteria(3, consider_end_as_break=consider_end_as_break)),
+        ("n_strides", NStridesCriteria(4)),
+    ]
 
     wba = WbAssembly(rules)
     wba.assemble(strides)
@@ -38,10 +43,11 @@ def test_simple_single_wb():
     assert len(wba.exclusion_reasons_) == 0
     assert len(wba.termination_reasons_) == 1
 
-    assert wba.termination_reasons_[single_wb_id][0] == "end_of_list"
+    assert wba.termination_reasons_[single_wb_id][0] == ("break" if consider_end_as_break else "end_of_list")
 
 
-def test_simple_break_center():
+@pytest.mark.parametrize("consider_end_as_break", [True, False])
+def test_simple_break_center(consider_end_as_break):
     """Test gait sequence with a break in the center.
 
     Scenario:
@@ -62,7 +68,10 @@ def test_simple_break_center():
         [window(wb_start_time + i, wb_start_time + i + 1) for i in range(n_strides)]
     ).set_index("s_id")
     strides = strides.drop(strides.index[7:11])
-    rules = [("break", MaxBreakCriteria(3)), ("n_strides", NStridesCriteria(4))]
+    rules = [
+        ("break", MaxBreakCriteria(3, consider_end_as_break=consider_end_as_break)),
+        ("n_strides", NStridesCriteria(4)),
+    ]
 
     wba = WbAssembly(rules)
     wba.assemble(strides)
@@ -83,7 +92,7 @@ def test_simple_break_center():
     assert wbs[1].iloc[0]["start"] == 16
     assert wbs[1].iloc[-1]["end"] == wb_start_time + n_strides
     assert_frame_equal(wbs[1], strides.iloc[7:])
-    assert wba.termination_reasons_[wb_ids[1]][0] == "end_of_list"
+    assert wba.termination_reasons_[wb_ids[1]][0] == ("break" if consider_end_as_break else "end_of_list")
 
 
 # TODO: Add a couple more simple test cases
