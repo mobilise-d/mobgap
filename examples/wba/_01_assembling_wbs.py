@@ -153,7 +153,7 @@ ss.excluded_stride_list_.merge(ss.exclusion_reasons_, left_index=True, right_ind
 from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
 
 rules = [
-    ("max_break", MaxBreakCriteria(max_break=10, remove_last_ic="per_foot")),
+    ("max_break", MaxBreakCriteria(max_break=10, remove_last_ic="per_foot", consider_end_as_break=True)),
     ("min_strides", NStridesCriteria(min_strides=5)),
 ]
 
