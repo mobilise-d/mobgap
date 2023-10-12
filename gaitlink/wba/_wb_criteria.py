@@ -98,7 +98,7 @@ class MaxBreakCriteria(BaseWbCriteria):
         original_start: int,
         current_start: int,  # noqa: ARG002
         current_end: int,
-    ) -> tuple[Optional[int], Optional[int]]:
+    ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         if self.max_break < 0:
             raise ValueError(f'Only positive values are allowed for "max_break" not {self.max_break}')
 
@@ -106,16 +106,18 @@ class MaxBreakCriteria(BaseWbCriteria):
             raise ValueError("`remove_last_ic` must be a Boolean or the string 'per_foot'.")
 
         if current_end - original_start < 1:
-            return None, None
+            return None, None, None
         last_stride = stride_list.iloc[current_end - 1]
         current_stride = stride_list.iloc[current_end]
         if current_stride[self._START_COL_NAME] - last_stride[self._END_COL_NAME] <= self.max_break:
             # No break -> no termination
-            return None, None
+            return None, None, None
         # Break -> terminate
         # This means the current stride is not part of the WB
         # The last stride is at index current_end - 1
         wb_end = current_end - 1
+        # While we remove strides from the end, we don't want to try to start a new WB.
+        start_new_wb_after = wb_end
         if self.remove_last_ic is True:
             wb_end -= 1
         elif self.remove_last_ic == "per_foot":
@@ -124,7 +126,7 @@ class MaxBreakCriteria(BaseWbCriteria):
             if wb_end - original_start < 2:
                 # If we don't have that we basically just remove this stride and remove the WB
                 # I am not sure if we even can end up here, but just in case
-                return None, original_start
+                return None, original_start, start_new_wb_after
             # If the last two strides of the terminated wb have different feet values remove them both. If they have
             # the same, remove only the last, as we assume that the IC of the other foot was not detected
             feet = stride_list[self._FOOT_COL_NAME]
@@ -137,7 +139,7 @@ class MaxBreakCriteria(BaseWbCriteria):
                 # We assume we did not correctly detect the second to last stride and hence, only remove the last stride
                 # and not the last two strides.
                 wb_end -= 1
-        return None, wb_end
+        return None, wb_end, start_new_wb_after
 
 
 class LeftRightCriteria(BaseWbCriteria):
@@ -157,12 +159,12 @@ class LeftRightCriteria(BaseWbCriteria):
         original_start: int,  # noqa: ARG002
         current_start: int,  # noqa: ARG002
         current_end: int,
-    ) -> tuple[Optional[int], Optional[int]]:
+    ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         if current_end < 1:
-            return None, None
+            return None, None, None
         feet = stride_list[self._FOOT_COL_NAME]
         last_foot = feet.iloc[current_end - 1]
         this_foot = feet.iloc[current_end]
         if last_foot and this_foot and last_foot == this_foot:
-            return None, current_end - 1
-        return None, None
+            return None, current_end - 1, current_end - 1
+        return None, None, None

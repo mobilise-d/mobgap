@@ -14,7 +14,7 @@ class BaseWbCriteria(BaseTpcpObject):
         original_start: int,  # noqa: ARG002
         current_start: int,  # noqa: ARG002
         current_end: int,  # noqa: ARG002
-    ) -> tuple[Optional[int], Optional[int]]:
+    ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         """Determine the current start and end of the current WB.
 
         This method gets passed all strides (past and future) of the entire measurement.
@@ -49,7 +49,7 @@ class BaseWbCriteria(BaseTpcpObject):
             In case multiple rules predict a termination, the one with the earliest index is chosen.
             If the WB should not be terminated either None or `current_end` should be returned.
         """
-        return None, None
+        return None, None, None
 
     def check_include(self, preliminary_wb: dict) -> bool:  # noqa: ARG002
         """Check if a preliminary WB should be considered an actual WB.
