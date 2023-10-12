@@ -177,14 +177,19 @@ class WbAssembly(Algorithm):
         exclusion_reasons = {}
         excluded_strides = []
         stride_exclusion_reasons = {}
+        last_end = end
         while end < len(stride_list):
             start = end
-            final_start, final_end, start_delay_reason, termination_reason = self._find_first_preliminary_wb(
-                stride_list, start
-            )
+            (
+                final_start,
+                final_end,
+                start_new_wb_after,
+                start_delay_reason,
+                termination_reason,
+            ) = self._find_first_preliminary_wb(stride_list, start)
             preliminary_wb_id = str(uuid.uuid1())
 
-            if final_start >= final_end:
+            if final_start > final_end:
                 # There was a termination criteria, but the WB was never properly started
                 final_start = final_end + 1
                 excluded_wb_list[preliminary_wb_id] = stride_list.iloc[start:final_start]
@@ -197,12 +202,27 @@ class WbAssembly(Algorithm):
                 # Save strides that were excluded in the beginning as an excluded strides
                 removed_strides = stride_list.iloc[start:final_start]
                 if len(removed_strides) > 0:
+                    for s in removed_strides.index:
+                        stride_exclusion_reasons[s] = start_delay_reason
                     excluded_strides.append(removed_strides)
-                # All strides that were considered as invalid start strides will be removed.
-                for s in removed_strides.index:
-                    stride_exclusion_reasons[s] = start_delay_reason
+                # Save strides that were excluded in the end as an excluded strides
+                removed_strides = stride_list.iloc[final_end + 1 : start_new_wb_after + 1]
+                if len(removed_strides) > 0:
+                    for s in removed_strides.index:
+                        stride_exclusion_reasons[s] = termination_reason
+                    excluded_strides.append(removed_strides)
+                # Save strides that were not considered a valid start of a WB.
+                # I.e. all strides since the end of the last WB until the original start of the WB
+                if start > last_end:
+                    removed_strides = stride_list.iloc[last_end:start]
+                    if len(removed_strides) > 0:
+                        for s in removed_strides.index:
+                            stride_exclusion_reasons[s] = ("no_start", None)
+                        excluded_strides.append(removed_strides)
 
-            end = final_end + 1
+                last_end = start_new_wb_after + 1
+
+            end = start_new_wb_after + 1
         if len(excluded_strides) > 0:
             excluded_strides = pd.concat(excluded_strides)
         else:
@@ -220,27 +240,27 @@ class WbAssembly(Algorithm):
         self,
         stride_list: pd.DataFrame,
         original_start: int,
-    ) -> tuple[int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
+    ) -> tuple[int, int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
         end_index = len(stride_list)
         current_end = original_start
         current_start = original_start
         start_delay_reason = None
         while current_end < end_index:
-            tmp_start, tmp_end, tmp_start_delay_reason, termination_reason = self._check_wb_start_end(
+            tmp_start, tmp_end, tmp_restart_at, tmp_start_delay_reason, termination_reason = self._check_wb_start_end(
                 stride_list, original_start, current_start, current_end
             )
             if termination_reason:
                 # In case of termination return directly.
                 # Do not consider further updates on the start as they might be made based on strides that are not part
                 # of a WB
-                return current_start, tmp_end, start_delay_reason, termination_reason
+                return current_start, tmp_end, tmp_restart_at, start_delay_reason, termination_reason
             if tmp_start_delay_reason:
                 start_delay_reason = tmp_start_delay_reason
                 current_start = tmp_start
 
             current_end += 1
         # In case we end the loop without any termination rule firing
-        return current_start, len(stride_list), start_delay_reason, ("end_of_list", EndOfList())
+        return current_start, len(stride_list), len(stride_list), start_delay_reason, ("end_of_list", EndOfList())
 
     def _check_wb_start_end(
         self,
@@ -248,13 +268,14 @@ class WbAssembly(Algorithm):
         original_start: int,
         current_start: int,
         current_end: int,
-    ) -> tuple[int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
+    ) -> tuple[int, int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
         termination_rule = None
         start_delay_rule = None
         tmp_start = -1
         tmp_end = np.inf
+        tmp_restart_at = np.inf
         for rule_name, rule in self.rules or []:
-            start, end = rule.check_wb_start_end(
+            start, end, restart_at = rule.check_wb_start_end(
                 stride_list, original_start=original_start, current_start=current_start, current_end=current_end
             )
             if start is not None and start > tmp_start:
@@ -262,8 +283,9 @@ class WbAssembly(Algorithm):
                 start_delay_rule = (rule_name, rule)
             if end is not None and end < tmp_end:
                 tmp_end = end
+                tmp_restart_at = restart_at
                 termination_rule = (rule_name, rule)
-        return tmp_start, tmp_end, start_delay_rule, termination_rule
+        return tmp_start, tmp_end, tmp_restart_at, start_delay_rule, termination_rule
 
     def _apply_inclusion_rules(
         self, preliminary_wb_list: dict[str, pd.DataFrame]
