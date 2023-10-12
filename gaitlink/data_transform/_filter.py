@@ -6,7 +6,7 @@ import pandas as pd
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import inherit_docstring_from
-from gaitlink.data_transform.base import BaseFilter, FixedFilter, fixed_filter_docfiller
+from gaitlink.data_transform.base import BaseFilter, FixedFilter, chain_transformers, fixed_filter_docfiller
 from gaitlink.utils.dtypes import DfLike
 
 
@@ -126,12 +126,10 @@ class EpflDedriftedGaitFilter(BaseFilter):
 
         %(filter_return)s
         """
-        dedrift_filter = EpflDedriftFilter(zero_phase=self.zero_phase)
-        gait_filter = EpflGaitFilter(zero_phase=self.zero_phase)
-
-        self.transformed_data_ = gait_filter.filter(
-            dedrift_filter.filter(data, sampling_rate_hz=sampling_rate_hz).filtered_data_,
-            sampling_rate_hz=sampling_rate_hz,
-        ).filtered_data_
+        filter_chain = [
+            ("dedrift", EpflDedriftFilter(zero_phase=self.zero_phase)),
+            ("gait_filter", EpflGaitFilter(zero_phase=self.zero_phase)),
+        ]
+        self.transformed_data_ = chain_transformers(data, filter_chain, sampling_rate_hz=sampling_rate_hz)
 
         return self

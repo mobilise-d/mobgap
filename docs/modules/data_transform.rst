@@ -17,8 +17,8 @@ Filter
     EpflDedriftFilter
     EpflDedriftedGaitFilter
 
-Base Classes
-++++++++++++
+Base Classes and Utilities
+++++++++++++++++++++++++++
 .. automodule:: gaitlink.data_transform.base
     :no-members:
     :no-inherited-members:
@@ -32,6 +32,12 @@ Base Classes
     BaseTransformer
     BaseFilter
     FixedFilter
+
+.. autosummary::
+   :toctree: generated/data_transform
+   :template: function.rst
+
+   chain_transformers
 
 Docu-helper
 -----------
