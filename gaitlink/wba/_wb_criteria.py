@@ -4,11 +4,11 @@ import pandas as pd
 from typing_extensions import Literal
 
 from gaitlink.wba._wb_criteria_base import (
-    BaseWBCriteria,
+    BaseWbCriteria,
 )
 
 
-class NStridesCriteria(BaseWBCriteria):
+class NStridesCriteria(BaseWbCriteria):
     """Min number of strides in the WB.
 
     If any of the three criteria is True the WB is accepted.
@@ -55,7 +55,7 @@ class NStridesCriteria(BaseWBCriteria):
         return False
 
 
-class MaxBreakCriteria(BaseWBCriteria):
+class MaxBreakCriteria(BaseWbCriteria):
     """Test if the break between the last two strides of a window list is larger than a threshold.
 
     Parameters
@@ -132,7 +132,7 @@ class MaxBreakCriteria(BaseWBCriteria):
         return None, wb_end
 
 
-class LeftRightCriteria(BaseWBCriteria):
+class LeftRightCriteria(BaseWbCriteria):
     """Test a left stride is always followed by a right stride.
 
     The WB is broken if two consecutive strides are performed with the same foot.

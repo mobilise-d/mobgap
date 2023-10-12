@@ -1,7 +1,7 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WBAssembly
+from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
 from tests.test_wba.conftest import window
 
 
@@ -24,7 +24,7 @@ def test_simple_single_wb():
     ).set_index("s_id")
     rules = [("break", MaxBreakCriteria(3)), ("n_strides", NStridesCriteria(4))]
 
-    wba = WBAssembly(rules)
+    wba = WbAssembly(rules)
     wba.assemble(strides)
 
     assert len(wba.wbs_) == 1
@@ -64,7 +64,7 @@ def test_simple_break_center():
     strides = strides.drop(strides.index[7:11])
     rules = [("break", MaxBreakCriteria(3)), ("n_strides", NStridesCriteria(4))]
 
-    wba = WBAssembly(rules)
+    wba = WbAssembly(rules)
     wba.assemble(strides)
 
     assert len(wba.excluded_wbs_) == 0

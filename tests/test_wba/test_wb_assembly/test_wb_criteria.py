@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from gaitlink.wba import (
-    BaseWBCriteria,
+    BaseWbCriteria,
     LeftRightCriteria,
     MaxBreakCriteria,
     NStridesCriteria,
@@ -11,7 +11,7 @@ from tests.test_wba.conftest import window
 
 
 class BaseTestCriteriaInclusion:
-    criteria_class: type[BaseWBCriteria]
+    criteria_class: type[BaseWbCriteria]
 
     defaults = {}
 
@@ -23,7 +23,7 @@ class BaseTestCriteriaInclusion:
 
 
 class BaseTestCriteriaTermination:
-    criteria_class: type[BaseWBCriteria]
+    criteria_class: type[BaseWbCriteria]
 
     defaults = {}
 

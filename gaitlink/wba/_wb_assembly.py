@@ -6,11 +6,11 @@ import pandas as pd
 from tpcp import Algorithm, cf
 from typing_extensions import Self
 
-from gaitlink.wba import MaxBreakCriteria, NStridesCriteria
-from gaitlink.wba._wb_criteria_base import BaseWBCriteria, EndOfList
+from gaitlink.wba._wb_criteria import MaxBreakCriteria, NStridesCriteria
+from gaitlink.wba._wb_criteria_base import BaseWbCriteria, EndOfList
 
 
-class WBAssembly(Algorithm):
+class WbAssembly(Algorithm):
     """Assembles strides into walking bouts based on a set of criteria.
 
     This method uses a two-step approach.
@@ -87,23 +87,23 @@ class WBAssembly(Algorithm):
     _action_methods = ("assemble",)
     _composite_params = ("rules",)
 
-    rules: Optional[list[tuple[str, BaseWBCriteria]]]
+    rules: Optional[list[tuple[str, BaseWbCriteria]]]
 
     stride_list: pd.DataFrame
 
     annotated_stride_list_: pd.DataFrame
     excluded_stride_list_: pd.DataFrame
-    termination_reasons_: dict[str, tuple[str, BaseWBCriteria]]
-    exclusion_reasons_: dict[str, tuple[str, BaseWBCriteria]]
+    termination_reasons_: dict[str, tuple[str, BaseWbCriteria]]
+    exclusion_reasons_: dict[str, tuple[str, BaseWbCriteria]]
 
-    PREDEFINED_RULES: ClassVar[dict[str, list[tuple[str, BaseWBCriteria]]]] = {
+    PREDEFINED_RULES: ClassVar[dict[str, list[tuple[str, BaseWbCriteria]]]] = {
         "mobilise_wb": [
             ("min_strides", NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3)),
             ("max_break", MaxBreakCriteria(max_break=3)),
         ],
     }
 
-    def __init__(self, rules: Optional[list[tuple[str, BaseWBCriteria]]] = cf(PREDEFINED_RULES["mobilise_wb"])) -> None:
+    def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]] = cf(PREDEFINED_RULES["mobilise_wb"])) -> None:
         self.rules = rules
 
     @property
@@ -124,7 +124,7 @@ class WBAssembly(Algorithm):
     ) -> Self:
         # TODO: Add better checks for correct type of compound rule field
         for _, rule in self.rules or []:
-            if not isinstance(rule, BaseWBCriteria):
+            if not isinstance(rule, BaseWbCriteria):
                 raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
         self.stride_list = stride_list
@@ -158,10 +158,10 @@ class WBAssembly(Algorithm):
     ) -> tuple[
         dict[str, pd.DataFrame],
         dict[str, pd.DataFrame],
-        dict[str, tuple[str, BaseWBCriteria]],
-        dict[str, tuple[str, BaseWBCriteria]],
+        dict[str, tuple[str, BaseWbCriteria]],
+        dict[str, tuple[str, BaseWbCriteria]],
         pd.DataFrame,
-        dict[str, tuple[str, BaseWBCriteria]],
+        dict[str, tuple[str, BaseWbCriteria]],
     ]:
         end = 0
         preliminary_wb_list = {}
@@ -213,7 +213,7 @@ class WBAssembly(Algorithm):
         self,
         stride_list: pd.DataFrame,
         original_start: int,
-    ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
+    ) -> tuple[int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
         end_index = len(stride_list)
         current_end = original_start
         current_start = original_start
@@ -241,7 +241,7 @@ class WBAssembly(Algorithm):
         original_start: int,
         current_start: int,
         current_end: int,
-    ) -> tuple[int, int, Optional[tuple[str, BaseWBCriteria]], Optional[tuple[str, BaseWBCriteria]]]:
+    ) -> tuple[int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
         termination_rule = None
         start_delay_rule = None
         tmp_start = -1
@@ -260,7 +260,7 @@ class WBAssembly(Algorithm):
 
     def _apply_inclusion_rules(
         self, preliminary_wb_list: dict[str, pd.DataFrame]
-    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame], dict[str, tuple[str, BaseWBCriteria]]]:
+    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame], dict[str, tuple[str, BaseWbCriteria]]]:
         wb_list = {}
         removed_wb_list = {}
         exclusion_reasons = {}
