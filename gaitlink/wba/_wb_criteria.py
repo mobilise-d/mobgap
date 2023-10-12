@@ -58,9 +58,6 @@ class NStridesCriteria(BaseWbCriteria):
 class MaxBreakCriteria(BaseWbCriteria):
     """Test if the break between the last two strides of a window list is larger than a threshold.
 
-    TODO: Add a note that the `per_foot` setting results in strange excluded WBs, as it will cause a new WB to start
-          directly after the the modified end, which will result in a WB of 2 strides that will be terminated again
-
     Parameters
     ----------
     max_break
@@ -75,6 +72,12 @@ class MaxBreakCriteria(BaseWbCriteria):
         performed with different feet.
         In case they were performed with the same feet, it is assumed that the last stride of the other foot was missed
         in the recording and hence, only the last stride will be removed.
+    consider_end_as_break
+        If True, the termination rule will fire at the very end of the stride list.
+        I.e. it will consider the end of the stride list as a break.
+        This should be set to True, if `remove_last_ic` is used, as otherwise the post-processing will not happen for
+        the last bout in the stride list.
+
     """
 
     max_break: float
@@ -87,9 +90,11 @@ class MaxBreakCriteria(BaseWbCriteria):
         self,
         max_break: float,
         remove_last_ic: Union[bool, Literal["per_foot"]] = False,
+        consider_end_as_break: bool = True,
     ) -> None:
         self.max_break = max_break
         self.remove_last_ic = remove_last_ic
+        self.consider_end_as_break = consider_end_as_break
 
     def check_wb_start_end(
         self,
@@ -105,19 +110,35 @@ class MaxBreakCriteria(BaseWbCriteria):
         if not isinstance(self.remove_last_ic, bool) and not self.remove_last_ic == "per_foot":
             raise ValueError("`remove_last_ic` must be a Boolean or the string 'per_foot'.")
 
+        # The method is called once including the final stride.
+        # We handle this case only, if the `consider_end_as_break` is True.
+        if current_end == len(stride_list):
+            if self.consider_end_as_break is True:
+                return self._process_break(stride_list, original_start, current_end)
+            return None, None, None
+
         if current_end - original_start < 1:
             return None, None, None
+
         last_stride = stride_list.iloc[current_end - 1]
         current_stride = stride_list.iloc[current_end]
+
         if current_stride[self._START_COL_NAME] - last_stride[self._END_COL_NAME] <= self.max_break:
             # No break -> no termination
             return None, None, None
         # Break -> terminate
+        return self._process_break(stride_list, original_start, current_end)
+
+    def _process_break(
+        self,
+        stride_list: pd.DataFrame,
+        original_start: int,
+        current_end: int,
+    ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         # This means the current stride is not part of the WB
         # The last stride is at index current_end - 1
         wb_end = current_end - 1
         # While we remove strides from the end, we don't want to try to start a new WB.
-        start_new_wb_after = wb_end
         if self.remove_last_ic is True:
             wb_end -= 1
         elif self.remove_last_ic == "per_foot":
@@ -126,7 +147,7 @@ class MaxBreakCriteria(BaseWbCriteria):
             if wb_end - original_start < 2:
                 # If we don't have that we basically just remove this stride and remove the WB
                 # I am not sure if we even can end up here, but just in case
-                return None, original_start, start_new_wb_after
+                return None, original_start, current_end
             # If the last two strides of the terminated wb have different feet values remove them both. If they have
             # the same, remove only the last, as we assume that the IC of the other foot was not detected
             feet = stride_list[self._FOOT_COL_NAME]
@@ -139,7 +160,7 @@ class MaxBreakCriteria(BaseWbCriteria):
                 # We assume we did not correctly detect the second to last stride and hence, only remove the last stride
                 # and not the last two strides.
                 wb_end -= 1
-        return None, wb_end, start_new_wb_after
+        return None, wb_end, current_end
 
 
 class LeftRightCriteria(BaseWbCriteria):

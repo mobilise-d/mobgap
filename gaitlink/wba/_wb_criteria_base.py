@@ -13,13 +13,40 @@ class BaseWbCriteria(BaseTpcpObject):
         *,
         original_start: int,  # noqa: ARG002
         current_start: int,  # noqa: ARG002
-        current_end: int,  # noqa: ARG002
+        current_end: int,
     ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         """Determine the current start and end of the current WB.
+
+        This method is expected to return 3 values:
+
+            - The adjusted start index (or None if no adjustment is required)
+            - The adjusted end index (or None if no adjustment is required)
+            - The index the WBA should restart the search after the termination.
+              This is often simply `current_end`, but can be adjusted if you want to allow a new search to start
+              earlier.
+              This might be useful in cases, where the end index was adjusted, but starting a new search directly after
+              the adjusted end would still be meaningfull.
 
         This method gets passed all strides (past and future) of the entire measurement.
         All this information can be used in the rule.
         However, looking in the future is discouraged, as this might interfere with other rules.
+
+        The method will be called for every end-stride the WBA considers.
+        The method needs to decide, if the new stride (`stride_list.iloc[current_end]`) should be included in the
+        WB or not.
+        If the stride should be included, the method should return `None, None, current_end`.
+        If the stride should not be included, the method should return the adjusted end indices (second value).
+        For example, `None, current_end - 1, current_end` would mean that the stride should not be included and the
+        search for a new WB will start with the stride that was rejected.
+        However, the method can also decide that given the current strides, the WB should be terminated even earlier.
+        In this case, the method can return an arbitrary index as the second value.
+        For example, `None, current_end - 2, current_end` would mean that the current stride is not part of the WB and
+        the last stride is actively excluded from the WB.
+        However, the search is still restarted with the current stride as the third value is set to `current_end`.
+        This avoids restarting a new WB, that (depending on the rule), would be terminated immediately again.
+        Sometimes, it makes sense to set the last value to something else than `current_end`.
+        This would allow to start a new WB earlier or even skip a number of strides, before a new WB can be started.
+        Only very complex rules usually need this.
 
         Parameters
         ----------
@@ -48,8 +75,14 @@ class BaseWbCriteria(BaseTpcpObject):
             If earlier termination times are required the respective index should be returned.
             In case multiple rules predict a termination, the one with the earliest index is chosen.
             If the WB should not be terminated either None or `current_end` should be returned.
+        restart_index
+            The index at which the WBA should restart the search for a new WB.
+            By default, this should be `current_end`, but can be adjusted if the rule wants to allow a new search to
+            start earlier or even later (skipping a number of strides).
+            This value is only considered, if the respective WB-rule is used for the termination of the WB.
+
         """
-        return None, None, None
+        return None, None, current_end
 
     def check_include(self, preliminary_wb: dict) -> bool:  # noqa: ARG002
         """Check if a preliminary WB should be considered an actual WB.
