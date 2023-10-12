@@ -58,6 +58,9 @@ class NStridesCriteria(BaseWbCriteria):
 class MaxBreakCriteria(BaseWbCriteria):
     """Test if the break between the last two strides of a window list is larger than a threshold.
 
+    TODO: Add a note that the `per_foot` setting results in strange excluded WBs, as it will cause a new WB to start
+          directly after the the modified end, which will result in a WB of 2 strides that will be terminated again
+
     Parameters
     ----------
     max_break
@@ -116,14 +119,19 @@ class MaxBreakCriteria(BaseWbCriteria):
         if self.remove_last_ic is True:
             wb_end -= 1
         elif self.remove_last_ic == "per_foot":
+            # TODO: Add proper tests for this
+            # For this approach we need at least 2 strides in the WB
+            if wb_end - original_start < 2:
+                # If we don't have that we basically just remove this stride and remove the WB
+                # I am not sure if we even can end up here, but just in case
+                return None, original_start
             # If the last two strides of the terminated wb have different feet values remove them both. If they have
             # the same, remove only the last, as we assume that the IC of the other foot was not detected
-            if len(stride_list) >= 3:
-                feet = stride_list[self._FOOT_COL_NAME]
-                second_to_last_foot = feet.iloc[wb_end - 1]
-                last_foot = feet.iloc[wb_end]
-                if last_foot and second_to_last_foot and last_foot != second_to_last_foot:
-                    wb_end -= 2
+            feet = stride_list[self._FOOT_COL_NAME]
+            second_to_last_foot = feet.iloc[wb_end - 1]
+            last_foot = feet.iloc[wb_end]
+            if last_foot and second_to_last_foot and last_foot != second_to_last_foot:
+                wb_end -= 2
             else:
                 # The last two strides are from the same foot.
                 # We assume we did not correctly detect the second to last stride and hence, only remove the last stride

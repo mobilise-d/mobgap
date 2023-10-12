@@ -32,6 +32,7 @@ This works in 3 steps:
 # We specifically create list of "left" and "right" strides and combine them at the end.
 import uuid
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -57,15 +58,15 @@ def naive_stride_list(start, stop, duration, foot=None, **paras):
 stride_list = [
     naive_stride_list(0, 5000, 100, foot="left"),
     naive_stride_list(50, 5050, 100, foot="right"),
-    naive_stride_list(5000, 6000, 60, foot="left"),
-    naive_stride_list(5050, 6050, 60, foot="right"),
-    naive_stride_list(6000, 8000, 90, foot="left"),
-    naive_stride_list(6050, 8050, 90, foot="right"),
+    naive_stride_list(5000, 6020, 60, foot="left"),
+    naive_stride_list(5050, 6070, 60, foot="right"),
+    naive_stride_list(6020, 8000, 90, foot="left"),
+    naive_stride_list(6070, 8050, 90, foot="right"),
 ]
 
 stride_list = pd.concat(stride_list).sort_values("start")
 # We add some additional parameters, we can use to filter later on.
-large_sl_ids = [10, 11, 12, 13, 14, 18, 19, 20, 21, 56, 90, 91, 121, 122, 176, 178]
+large_sl_ids = [10, 11, 12, 13, 14, 18, 19, 20, 21, 56, 90, 91, 121, 122, 176]
 stride_list["stride_length"] = 1
 stride_list.loc[stride_list.index[large_sl_ids], "stride_length"] = 2
 stride_list
@@ -128,3 +129,55 @@ ss.excluded_stride_list_
 # And even see which rule filtered them out.
 # Note, that only the first rule that filtered the stride is shown.
 ss.excluded_stride_list_.merge(ss.exclusion_reasons_, left_index=True, right_index=True)
+
+# %%
+# Step 2,3: WB Assembly
+# ---------------------
+# Now that we have a list of strides that we consider valid, we want to group them into WBs.
+# For this we define a set of rules that define when a WB should be terminated and if a preliminary WB fulfills
+# the criteria to be a valid WB.
+# These rules are subclasses of :class:`~gaitlink.wba.BaseWbCriteria` and each rule can act as both a termination
+# criterion and an inclusion criterion.
+# Have a look at the documentation of the specific rules for more details.
+# For more details on how the rules are applied, have a look at the documentation of the
+# :class:`~gaitlink.wba.WbAssembly`.
+#
+# For this example, we use two rules:
+#
+# 1. :class:`~gaitlink.wba.MaxBreakCriteria`: This rule terminates a WB if the time between two strides is larger
+#    than a given threshold.
+#    It acts as a termination criterion.
+# 2. :class:`~gaitlink.wba.NStridesCriteria`: This rule excludes preliminary WBs that have less than a given number of
+#    strides.
+#    It acts as an inclusion criterion.
+from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
+
+rules = [
+    ("max_break", MaxBreakCriteria(max_break=10, remove_last_ic="per_foot")),
+    ("min_strides", NStridesCriteria(min_strides=5)),
+]
+
+wb_assembly = WbAssembly(rules)
+# Note, that we use the filtered stride list from above.
+wb_assembly.assemble(filtered_stride_list)
+
+# %%
+# The wb_assembly object now contains a grouping of each stride to a WB.
+# Depending on how we want to further process the data, we can either use the `wbs_` attribute, which is a dictionary
+# mapping a WB id to a list of strides, or the `annotated_stride_list_` attribute, which is a copy of the stride list
+# containing an additional column `wb_id` that contains the id of the WB the stride belongs to.
+# Note, that both outputs only contain the strides that belong to a final WB.
+# Strides belonging to a WB that was ultimately filtered out, or never belonged to a WB in the first place are not
+# included.
+# They can be accessed via the `excluded_stride_list_` and `excluded_wbs` attributes.
+wb_assembly.annotated_stride_list_
+
+# %%
+print(f"The method identified {len(wb_assembly.wbs_)} WBs.")
+
+# %%
+# We can also get an idea of how the final results looks, by plotting the wba outputs.
+from gaitlink.wba.plot import plot_wba_results
+
+plot_wba_results(wb_assembly, stride_selection=ss)
+plt.show()
