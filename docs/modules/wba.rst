@@ -36,7 +36,7 @@ Walking Bout Assembly
    :toctree: generated/wba
    :template: class.rst
 
-    WBAssembly
+    WbAssembly
 
 Rules
 +++++
@@ -50,5 +50,5 @@ Rules
     LeftRightCriteria
     MaxBreakCriteria
     NStridesCriteria
-    BaseWBCriteria
+    BaseWbCriteria
     BaseSummaryCriteria

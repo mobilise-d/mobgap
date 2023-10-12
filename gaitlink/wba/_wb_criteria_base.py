@@ -6,7 +6,7 @@ from tpcp import BaseTpcpObject
 from gaitlink.wba._utils import compare_with_threshold
 
 
-class BaseWBCriteria(BaseTpcpObject):
+class BaseWbCriteria(BaseTpcpObject):
     def check_wb_start_end(
         self,
         stride_list: pd.DataFrame,  # noqa: ARG002
@@ -67,7 +67,7 @@ class BaseWBCriteria(BaseTpcpObject):
         return True
 
 
-class BaseSummaryCriteria(BaseWBCriteria):
+class BaseSummaryCriteria(BaseWbCriteria):
     lower_threshold: float
     upper_threshold: float
     inclusive: tuple[bool, bool]
@@ -92,7 +92,7 @@ class BaseSummaryCriteria(BaseWBCriteria):
         raise NotImplementedError("This needs to implemented by child class")
 
 
-class EndOfList(BaseWBCriteria):
+class EndOfList(BaseWbCriteria):
     """Dummy criteria to describe the end of the stride list.
 
     DO NOT USE THIS AS A CUSTOM RULE
