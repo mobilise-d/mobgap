@@ -108,12 +108,16 @@ class WbAssembly(Algorithm):
 
     @property
     def wbs_(self) -> dict[str, pd.DataFrame]:
+        if len(self.annotated_stride_list_) == 0:
+            return {}
         return {k: v.drop("wb_id", axis=1) for k, v in self.annotated_stride_list_.groupby("wb_id")}
 
     @property
     def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
+        if len(self.excluded_stride_list_) == 0:
+            return {}
         return {
-            k: v.drop("wb_id", axis=1)
+            k: v.drop("pre_wb_id", axis=1)
             # We group only the strides that are part of a preliminary WB
             for k, v in self.excluded_stride_list_[self.excluded_stride_list_["pre_wb_id"].notna()].groupby("pre_wb_id")
         }
@@ -139,14 +143,17 @@ class WbAssembly(Algorithm):
             stride_exclusion_reasons,
         ) = self._apply_termination_rules(stride_list_sorted)
         wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
-        self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
+        if len(wb_list) > 0:
+            self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
+        else:
+            self.annotated_stride_list_ = pd.DataFrame(columns=[*stride_list.columns, "wb_id"])
 
         if len(combined_excluded_stride_list := {**excluded_wb_list, **excluded_wb_list_2}) > 0:
             excluded_strides_in_wbs = pd.concat(combined_excluded_stride_list, names=["pre_wb_id", "s_id"]).reset_index(
                 "pre_wb_id"
             )
         else:
-            excluded_strides_in_wbs = pd.DataFrame(columns=stride_list.columns)
+            excluded_strides_in_wbs = pd.DataFrame(columns=[*stride_list.columns, "pre_wb_id"])
         other_excluded_strides = excluded_strides.assign(pre_wb_id=None)
         self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides])
         self.termination_reasons_ = termination_reasons

@@ -68,11 +68,11 @@ class StrideSelection(Algorithm):
 
     @property
     def filtered_stride_list_(self) -> pd.DataFrame:
-        return self.stride_list[self._exclusion_reasons["rule_name"].isna()]
+        return self.stride_list[self._exclusion_reasons["rule_name"].isna()].copy()
 
     @property
     def excluded_stride_list_(self) -> pd.DataFrame:
-        return self.stride_list[self._exclusion_reasons["rule_name"].notna()]
+        return self.stride_list[self._exclusion_reasons["rule_name"].notna()].copy()
 
     @property
     def exclusion_reasons_(self) -> pd.DataFrame:

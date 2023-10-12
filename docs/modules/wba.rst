@@ -52,3 +52,14 @@ Rules
     NStridesCriteria
     BaseWbCriteria
     BaseSummaryCriteria
+
+Plotting
+--------
+
+.. currentmodule:: gaitlink.wba.plot
+
+.. autosummary::
+   :toctree: generated/wba
+   :template: function.rst
+
+    plot_wba_results
