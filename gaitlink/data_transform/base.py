@@ -224,7 +224,12 @@ class FixedFilter(BaseFilter):
 
     @property
     def coefficients(self) -> tuple[np.ndarray, np.ndarray]:
-        """Get the filter coefficients."""
+        """Get the filter coefficients.
+
+        This should return the filter coefficients in the ``b, a`` format used by :func:`scipy.signal.lfilter` and
+        :func:`scipy.signal.filtfilt`.
+        The first returned array should contain the ``b`` coefficients and the second array should contain the ``a``
+        """
         raise NotImplementedError()
 
     @fixed_filter_docfiller
@@ -247,7 +252,7 @@ class FixedFilter(BaseFilter):
         if sampling_rate_hz != self.EXPECTED_SAMPLING_RATE_HZ:
             raise ValueError(
                 f"{type(self).__name__} requires a sampling rate of {self.EXPECTED_SAMPLING_RATE_HZ} Hz. "
-                f"If your data has a different sampling rate, please resample it first."
+                "If your data has a different sampling rate, please resample it first."
             )
 
         self.data = data
