@@ -6,7 +6,8 @@ import pandas as pd
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import inherit_docstring_from
-from gaitlink.data_transform.base import BaseFilter, FixedFilter, chain_transformers, fixed_filter_docfiller
+from gaitlink.data_transform._utils import chain_transformers
+from gaitlink.data_transform.base import BaseFilter, FixedFilter, fixed_filter_docfiller
 from gaitlink.utils.dtypes import DfLike
 
 

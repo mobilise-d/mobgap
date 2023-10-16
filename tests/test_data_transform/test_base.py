@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from gaitlink.data_transform.base import BaseTransformer, chain_transformers
+from gaitlink.data_transform._utils import chain_transformers
+from gaitlink.data_transform.base import BaseTransformer
 
 
 class TestChainTransformers:
