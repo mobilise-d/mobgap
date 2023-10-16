@@ -38,18 +38,18 @@ around transformation objects as arguments to other methods and algorithms (see 
 Creating your own data transform
 --------------------------------
 
-To understand how generic datatransforms work, we will create a simple example transform, that we can then use for
+To understand how generic data transforms work, we will create a simple example transform, that we can then use for
 further examples.
 We will create two transforms: One that adds a constant and one that multiplies the data by a factor.
 
 The basic things that a data-transform needs are:
 
-- Inherit from :class:`~tpcp.base.data_transform.BaseTransformer` (or one of its subclasses, e.g.
-  :class:`~tpcp.base.data_transform.BaseFilter`)
+- Inherit from :class:`~gaitlink.data_transform.base.BaseTransformer` (or one of its subclasses, e.g.
+  :class:`~gaitlink.data_transform.base.BaseFilter`)
 - Implement the ``transform`` method
 - The transform method should support data-frames, series, and numpy arrays as input and output.
   The output should match the input function.
-  :func:`~tpcp.utils.dtypes.dflike_as_2d_array` can be used for that.
+  :func:`~gaitlink.utils.dtypes.dflike_as_2d_array` can be used for that.
 
 """
 from typing import Any
