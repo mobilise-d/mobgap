@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 import toml
+from sphinx_gallery.sorting import ExplicitOrder, FileNameSortKey
 
 HERE = Path(__file__)
 
@@ -165,6 +166,13 @@ sphinx_gallery_conf = {
     "filename_pattern": re.escape(os.sep),
     "remove_config_comments": True,
     "show_memory": True,
+    "subsection_order": ExplicitOrder(
+        [
+            "../examples/data",
+            "../examples/data_transform",
+        ]
+    ),
+    "within_subsection_order": FileNameSortKey,
 }
 
 
