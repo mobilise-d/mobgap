@@ -2,4 +2,8 @@
 User Guides
 ===========
 
-Developer Guide <developer_guide.md>
+
+.. toctree::
+    :maxdepth: 1
+
+    Developer Guide <developer_guide.md>
