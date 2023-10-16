@@ -1,7 +1,8 @@
 """
+.. _generic_data_transforms:
 
 Generic Data Transforms
-+++++++++++++++++++++++
+=======================
 
 Besides explicit gait specif algorithms, we also provide a set of generic data transforms, which can be used as part
 of an algorithm or to pre-process the data before applying a gait specific algorithm.
