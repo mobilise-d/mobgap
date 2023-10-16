@@ -6,7 +6,7 @@ One of the most common data transformations is filtering.
 In gaitlink various types of filters are used to clean data and enhance signal features.
 Important filters are implemented using the :class:`~tpcp.base.data_transform.BaseFilter` class, which supports
 a consistent interface for filtering data.
-See the `generic data transforms example <_generic_data_transforms>`_ for more information.
+See the :ref:`generic data transforms example <generic_data_transforms>` for more information.
 
 Working with filters
 --------------------
