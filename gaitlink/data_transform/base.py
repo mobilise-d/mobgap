@@ -3,42 +3,12 @@ from typing import Any, ClassVar, Optional
 
 import numpy as np
 import pandas as pd
-from gaitmap.data_transform import BaseTransformer
 from scipy.signal import filtfilt, lfilter
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.utils.dtypes import DfLike, DfLikeT, dflike_as_2d_array
-
-
-def chain_transformers(
-    data: DfLikeT, transformers: list[tuple[str, BaseTransformer]], **kwargs: Unpack[dict[str, Any]]
-) -> DfLikeT:
-    """Chain multiple transformers together.
-
-    Parameters
-    ----------
-    data
-        The data to be transformed.
-    transformers
-        A list of tuples, where the first element is the name of the transformer and the second element is the
-        transformer instance itself.
-    kwargs
-        Further keyword arguments for the transform function.
-
-    Returns
-    -------
-    data
-        The transformed data.
-
-    """
-    for name, transformer in transformers:
-        try:
-            data = transformer.clone().transform(data, **kwargs).transformed_data_
-        except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"Error while applying transformer '{name}' in the transformer chain") from e
-    return data
+from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
 class BaseTransformer(Algorithm):
@@ -294,4 +264,4 @@ class FixedFilter(BaseFilter):
         return self
 
 
-__all__ = ["BaseTransformer", "BaseFilter", "FixedFilter", "fixed_filter_docfiller", "chain_transformers"]
+__all__ = ["BaseTransformer", "BaseFilter", "FixedFilter", "fixed_filter_docfiller"]
