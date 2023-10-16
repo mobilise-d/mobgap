@@ -17,3 +17,9 @@ def test_generic_data_transform():
 
     my_algorithm = MyComplicatedAlgorithm(pre_processing=ScaleTransformer(scale_by=3))
     assert_frame_equal(my_algorithm.run(pd.DataFrame(data)).result_, pd.DataFrame([3, 6, 9]))
+
+
+def test_filter(snapshot):
+    from examples.data_transform._02_filter import epfl_filter
+
+    snapshot.assert_match(epfl_filter.filtered_data_, "filtered_data")
