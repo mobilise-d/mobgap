@@ -1,5 +1,5 @@
-gaitlink.utils.dtypes: General helper for validating and converting dtypes
-==========================================================================
+General helper for validating and converting dtypes
+===================================================
 
 .. automodule:: gaitlink.utils.dtypes
     :no-members:
@@ -11,7 +11,7 @@ DataFrame Like
 .. currentmodule:: gaitlink.utils.dtypes
 
 .. autosummary::
-   :toctree: generated/dtypes
+   :toctree: ../generated/utils/dtypes
    :template: function.rst
 
     is_dflike
@@ -23,7 +23,7 @@ Types
 .. currentmodule:: gaitlink.utils.dtypes
 
 .. autosummary::
-   :toctree: generated/dtypes
+   :toctree: ../generated/utils/dtypes
    :template: class.rst
 
     DfLike
