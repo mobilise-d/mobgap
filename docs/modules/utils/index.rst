@@ -3,3 +3,7 @@
 Utility functions
 =================
 
+.. toctree::
+    :maxdepth: 1
+
+    dtypes
