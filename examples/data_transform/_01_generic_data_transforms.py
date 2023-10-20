@@ -89,9 +89,9 @@ class ShiftTransformer(BaseTransformer):
         # The use of `dflike_as_2d_array` is not strictly necessary here, as all inputs would support the addition
         # operation.
         # But we use it here to show the general structure.
-        data_array, to_dflike = dflike_as_2d_array(data)
+        data_array, index, to_dflike = dflike_as_2d_array(data)
         data_array = data_array + self.shift_by
-        self.transformed_data_ = to_dflike(data_array)
+        self.transformed_data_ = to_dflike(data_array, index)
         return self
 
 
@@ -118,9 +118,9 @@ class ScaleTransformer(BaseTransformer):
             The instance of the class with the ``transformed_data_`` attribute set to the scaled data.
 
         """
-        data_array, to_dflike = dflike_as_2d_array(data)
+        data_array, index, to_dflike = dflike_as_2d_array(data)
         data_array = data_array * self.scale_by
-        self.transformed_data_ = to_dflike(data_array)
+        self.transformed_data_ = to_dflike(data_array, index)
         return self
 
 
