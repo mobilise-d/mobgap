@@ -1,5 +1,5 @@
 """Helper to validate and convert common data types used in gaitlink."""
-from typing import Any, Callable, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -30,7 +30,9 @@ def is_dflike(data: Any) -> bool:
     return isinstance(data, (pd.Series, pd.DataFrame, np.ndarray))
 
 
-def dflike_as_2d_array(data: DfLikeT) -> tuple[np.ndarray, Callable[[np.ndarray], DfLikeT]]:
+def dflike_as_2d_array(
+    data: DfLikeT,
+) -> tuple[np.ndarray, Optional[pd.Index], Callable[[np.ndarray, Optional[pd.Index]], DfLikeT]]:
     """Convert the passed data to a 2d numpy array and return a function to convert it back to the original datatype.
 
     We expect that each row in the data represents one timepoint and each column represents one sensor axis.
@@ -48,6 +50,12 @@ def dflike_as_2d_array(data: DfLikeT) -> tuple[np.ndarray, Callable[[np.ndarray]
     Conversion of ``pd.DataFrame`` and ``pd.Series`` objects will attempt to not copy the data and will preserve the
     index.
 
+    The returned numpy array and index can be passed into the returned function to convert the data back to the original
+    datatype.
+    We return the index as well, to allow for potential manipulation of the index during the conversion.
+    For example, when you want to resample the data, you can pass the index to the resampling function and then pass
+    the resampled data and the resampled index to the returned function to convert the resampled data back to the same
+    datatype as the original data.
 
     Parameters
     ----------
@@ -59,7 +67,11 @@ def dflike_as_2d_array(data: DfLikeT) -> tuple[np.ndarray, Callable[[np.ndarray]
     -------
     np.ndarray
         The data as a 2d numpy array.
-    Callable[[np.ndarray], DfLike]
+    Optional[pd.Index]
+        The index of the passed data.
+        This is only returned if the passed data is a ``pd.Series`` or ``pd.DataFrame``.
+        Otherwise, ``None`` is returned.
+    Callable[[np.ndarray, Optional[pd.Index]], DfLike]
         A function to convert the data back to the original datatype.
         This can be used to convert the results of a data transformation performed on the converted array back to the
         original datatype.
@@ -73,15 +85,21 @@ def dflike_as_2d_array(data: DfLikeT) -> tuple[np.ndarray, Callable[[np.ndarray]
         if data.ndim > 2 or data.ndim == 0:
             raise ValueError("The passed data must have 1 or 2 dimensions.")
         if data.ndim == 1:
-            return data.reshape(-1, 1), lambda x: x.reshape(-1)
-        return data, lambda x: x
+            return data.reshape(-1, 1), None, lambda x, _: x.reshape(-1)
+        return data, None, lambda x, _: x
 
     if isinstance(data, pd.Series):
-        return data.to_numpy(copy=False).reshape(-1, 1), lambda x: pd.Series(
-            x.reshape(data.shape), index=data.index, copy=False, name=data.name
+        return (
+            data.to_numpy(copy=False).reshape(-1, 1),
+            data.index,
+            lambda x, i: pd.Series(x.reshape(data.shape), index=i, copy=False, name=data.name),
         )
 
-    return data.to_numpy(copy=False), lambda x: pd.DataFrame(x, columns=data.columns, index=data.index, copy=False)
+    return (
+        data.to_numpy(copy=False),
+        data.index,
+        lambda x, i: pd.DataFrame(x, columns=data.columns, index=i, copy=False),
+    )
 
 
 __all__ = ["DfLike", "is_dflike", "dflike_as_2d_array", "DfLikeT"]

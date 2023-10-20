@@ -258,13 +258,13 @@ class FixedFilter(BaseFilter):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        data, transformation_func = dflike_as_2d_array(data)
+        data, index, transformation_func = dflike_as_2d_array(data)
 
         filter_func = filtfilt if self.zero_phase else lfilter
 
         transformed_data = filter_func(*self.coefficients, data, axis=0)
 
-        self.transformed_data_ = transformation_func(transformed_data)
+        self.transformed_data_ = transformation_func(transformed_data, index)
 
         return self
 
