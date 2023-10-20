@@ -63,7 +63,7 @@ _format_black = "black ."
 _format_ruff = "ruff . --fix-only --exit-zero"
 format = { sequence = ["_format_black", "_format_ruff", "_format_black"], help = "Format all files with Black and Ruff." }
 lint = { cmd = "ruff gaitlink --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff gaitlink --format=github"
+_lint_ci = "ruff gaitlink --output-format=github"
 _check_black = "black . --check"
 ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
