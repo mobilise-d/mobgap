@@ -1,5 +1,6 @@
 """Base class for GSD detectors."""
 from typing import Any
+
 import pandas as pd
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
