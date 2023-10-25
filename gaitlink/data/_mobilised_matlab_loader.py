@@ -95,6 +95,25 @@ class MobilisedMetadata(NamedTuple):
 
 
 class MobilisedTestData(NamedTuple):
+    """Data representation of a single test/recording.
+
+    Parameters
+    ----------
+    imu_data
+        The raw IMU data.
+        This is a dictionary mapping the sensor position to the loaded data.
+        In most cases, only "LowerBack" is available.
+    reference_parameters
+        The reference parameters (if available).
+        This will depend on the reference system used loaded.
+        The parameter only represents the data of one system.
+        All compliant reference systems, structure the output into `wb` (walking bout) and `lwb` (level-walking bout).
+        The actual structure of the data depends on the reference system.
+    metadata
+        The metadata of the selected test.
+        At the moment we only support cases where all imu-sensors have the same sampling rate
+    """
+
     imu_data: Optional[dict[str, pd.DataFrame]]
     # TODO: Update Any typing once I understand the data better.
     reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]

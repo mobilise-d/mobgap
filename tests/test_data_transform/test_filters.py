@@ -16,6 +16,7 @@ class TestMetaEpflGaitFilter(TestAlgorithmMixin):
     __test__ = True
 
     ALGORITHM_CLASS = EpflGaitFilter
+    _IGNORED_NAMES = ["EXPECTED_SAMPLING_RATE_HZ"]
 
     @pytest.fixture()
     def after_action_instance(self):
@@ -26,6 +27,17 @@ class TestMetaEpflDedriftFilter(TestAlgorithmMixin):
     __test__ = True
 
     ALGORITHM_CLASS = EpflDedriftFilter
+    _IGNORED_NAMES = ["EXPECTED_SAMPLING_RATE_HZ"]
+
+    @pytest.fixture()
+    def after_action_instance(self):
+        return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
+
+
+class TestMetaEpflDedriftedGaitFilter(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = EpflDedriftedGaitFilter
 
     @pytest.fixture()
     def after_action_instance(self):

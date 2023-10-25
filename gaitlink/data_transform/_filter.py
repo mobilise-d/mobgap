@@ -29,6 +29,7 @@ class EpflGaitFilter(FixedFilter):
     Attributes
     ----------
     %(results)s
+    %(EXPECTED_SAMPLING_RATE_HZ)s
 
     """
 
@@ -61,6 +62,7 @@ class EpflDedriftFilter(FixedFilter):
     Attributes
     ----------
     %(results)s
+    %(EXPECTED_SAMPLING_RATE_HZ)s
 
     """
 
@@ -103,8 +105,6 @@ class EpflDedriftedGaitFilter(BaseFilter):
 
     """
 
-    EXPECTED_SAMPLING_RATE_HZ: ClassVar[float]
-
     zero_phase: bool
 
     def __init__(self, zero_phase: bool = True) -> None:
@@ -127,6 +127,9 @@ class EpflDedriftedGaitFilter(BaseFilter):
 
         %(filter_return)s
         """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
         filter_chain = [
             ("dedrift", EpflDedriftFilter(zero_phase=self.zero_phase)),
             ("gait_filter", EpflGaitFilter(zero_phase=self.zero_phase)),
