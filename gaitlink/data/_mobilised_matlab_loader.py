@@ -241,7 +241,17 @@ def _process_test_data(  # noqa: PLR0912
         all_imu_data = {}
         for sensor_pos in sensor_positions:
             try:
-                raw_data = getattr(all_sensor_data, sensor_pos)
+                # Get all available sensor positions and pick the one containing the sensor position string. 
+                # If multiple sensor positions matching the string are available, raise an error.
+                sensor_positions_list = all_sensor_data._fieldnames
+                position_in = [pos for pos in sensor_positions_list if sensor_pos in pos]
+                if len(position_in) > 1:
+                    raise ValueError(
+                        f"""Sensor position '{sensor_pos}' similar to multiple positions ({position_in})
+                        for test {test_name}."""
+                    )
+
+                raw_data = getattr(all_sensor_data, position_in[0])
             except AttributeError as e:
                 raise ValueError(f"Sensor position {sensor_pos} is not available for test {test_name}.") from e
 
