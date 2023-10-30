@@ -13,6 +13,8 @@ Filter
    :toctree: generated/data_transform
    :template: class.rst
 
+    ButterworthFilter
+    FirFilter
     EpflGaitFilter
     EpflDedriftFilter
     EpflDedriftedGaitFilter
@@ -43,6 +45,7 @@ Base Classes
     BaseTransformer
     BaseFilter
     FixedFilter
+    ScipyFilter
 
 Docu-helper
 -----------
@@ -53,3 +56,4 @@ Docu-helper
 
     base_filter_docfiller
     fixed_filter_docfiller
+    scipy_filter_docfiller
