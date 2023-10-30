@@ -7,7 +7,13 @@ from pandas.testing import assert_frame_equal
 from scipy.signal import filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter, EpflDedriftedGaitFilter
+from gaitlink.data_transform import (
+    EpflDedriftFilter,
+    EpflGaitFilter,
+    EpflDedriftedGaitFilter,
+    ButterworthFilter,
+    FirFilter,
+)
 from gaitlink.data_transform.base import FixedFilter
 
 
@@ -20,6 +26,28 @@ class TestMetaEpflGaitFilter(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
+
+
+class TestMetaButterworthFilter(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = ButterworthFilter
+    ONLY_DEFAULT_PARAMS = False
+
+    @pytest.fixture()
+    def after_action_instance(self):
+        return self.ALGORITHM_CLASS(2, 30).filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=100.0)
+
+
+class TestMetaFirFilter(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = FirFilter
+    ONLY_DEFAULT_PARAMS = False
+
+    @pytest.fixture()
+    def after_action_instance(self):
+        return self.ALGORITHM_CLASS(2, 30).filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=100.0)
 
 
 class TestMetaEpflDedriftFilter(TestAlgorithmMixin):

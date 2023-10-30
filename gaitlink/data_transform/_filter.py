@@ -204,10 +204,10 @@ class FirFilter(ScipyFilter):
 
     def __init__(
         self,
-        *,
-        window: Union[str, tuple[str, Any]] = "hamming",
         order: int,
         cutoff_freq_hz: Union[float, tuple[float, float]],
+        *,
+        window: Union[str, tuple[str, Any]] = "hamming",
         filter_type: Literal["lowpass", "highpass", "bandpass", "bandstop"] = "lowpass",
         zero_phase: bool = True,
     ) -> None:
