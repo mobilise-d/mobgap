@@ -4,15 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from scipy.signal import butter, filtfilt, lfilter
+from scipy.signal import butter, filtfilt, firwin, lfilter, sosfilt, sosfiltfilt
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import (
+    ButterworthFilter,
+    EpflDedriftedGaitFilter,
     EpflDedriftFilter,
     EpflGaitFilter,
-    EpflDedriftedGaitFilter,
-    ButterworthFilter,
     FirFilter,
 )
 from gaitlink.data_transform.base import FixedFilter
@@ -172,7 +172,7 @@ class TestEpflDedriftedGaitFilter:
 
 class TestButterworthFilter:
     @pytest.mark.parametrize("zero_phase", (True, False))
-    @pytest.mark.parametrize("order", (2, 4))
+    @pytest.mark.parametrize("order", (2, 30))
     def test_equivalence_to_manual(self, zero_phase, order, supported_dtypes):
         conversion_func, output_assertions = supported_dtypes
 
@@ -185,8 +185,33 @@ class TestButterworthFilter:
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 
         if zero_phase:
-            reference = filtfilt(*butter(order, cutoff, fs=sampling_rate), data, axis=0)
+            reference = sosfiltfilt(butter(order, cutoff, fs=sampling_rate, output="sos"), data, axis=0)
         else:
-            reference = lfilter(*butter(order, cutoff, fs=sampling_rate), data, axis=0)
+            reference = sosfilt(butter(order, cutoff, fs=sampling_rate, output="sos"), data, axis=0)
+
+        output_assertions(result, reference, data)
+
+
+class TestFirFilter:
+    @pytest.mark.parametrize("zero_phase", (True, False))
+    @pytest.mark.parametrize("window", ("hamming", ("kaiser", 2)))
+    def test_equivalence_to_manual(self, zero_phase, window, supported_dtypes):
+        conversion_func, output_assertions = supported_dtypes
+
+        cutoff = 10
+        order = 2
+        sampling_rate = 100
+        f = FirFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff, window=window)
+
+        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        data = conversion_func(raw_data)
+        result = f.filter(data, sampling_rate_hz=100).filtered_data_
+
+        b = firwin(order + 1, cutoff, fs=sampling_rate, pass_zero="lowpass", window=window)
+
+        if zero_phase:
+            reference = filtfilt(b, 1, data, axis=0)
+        else:
+            reference = lfilter(b, 1, data, axis=0)
 
         output_assertions(result, reference, data)
