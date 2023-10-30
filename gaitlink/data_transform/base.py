@@ -296,7 +296,7 @@ scipy_filter_docfiller = make_filldoc(
     """,
         "zero_phase_sos": """
     zero_phase
-        Whether to apply a zero-phase filter (i.e. forward and backward filtering) using 
+        Whether to apply a zero-phase filter (i.e. forward and backward filtering) using
         :func:`scipy.signal.sosfiltfilt`/ or a normal forward filter using :func:`scipy.signal.sosfilter`.
     """,
         "filter_kwargs": """
@@ -336,7 +336,7 @@ class ScipyFilter(BaseFilter):
     """
 
     _FILTER_TYPE: ClassVar[Literal["sos", "ba"]]
-    _METHODS = {
+    _METHODS: ClassVar = {
         "sos": {"single_pass": sosfilt, "double_pass": sosfiltfilt},
         "ba": {"single_pass": lfilter, "double_pass": filtfilt},
     }
@@ -349,11 +349,10 @@ class ScipyFilter(BaseFilter):
     sampling_rate_hz: float
 
     def __init__(
-        # TODO: Add zero-phase
         self,
-        *,
         order: int,
         cutoff_freq_hz: Union[float, tuple[float, float]],
+        *,
         filter_type: Literal["lowpass", "highpass", "bandpass", "bandstop"] = "lowpass",
         zero_phase: bool = True,
     ) -> None:
