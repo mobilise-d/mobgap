@@ -1,13 +1,20 @@
 from importlib.resources import files
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
+from scipy.signal import butter, firwin
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import inherit_docstring_from
 from gaitlink.data_transform._utils import chain_transformers
-from gaitlink.data_transform.base import BaseFilter, FixedFilter, fixed_filter_docfiller
+from gaitlink.data_transform.base import (
+    BaseFilter,
+    FixedFilter,
+    ScipyFilter,
+    fixed_filter_docfiller,
+    scipy_filter_docfiller,
+)
 from gaitlink.utils.dtypes import DfLike
 
 
@@ -137,3 +144,77 @@ class EpflDedriftedGaitFilter(BaseFilter):
         self.transformed_data_ = chain_transformers(data, filter_chain, sampling_rate_hz=sampling_rate_hz)
 
         return self
+
+
+@scipy_filter_docfiller
+class ButterworthFilter(ScipyFilter):
+    """Apply a butterworth filter using the transformer interface.
+
+    Internally, this is using the :func:`scipy.signal.butter` function to design the filter coefficients using the
+    second-order sections (SOS) representation.
+
+    Parameters
+    ----------
+    %(common_paras)s
+    %(zero_phase_sos)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(results)s
+
+    """
+
+    _FILTER_TYPE = "sos"
+
+    def _sos_filter_design(self, sampling_rate_hz: float) -> np.ndarray:
+        return butter(self.order, self.cutoff_freq_hz, btype=self.filter_type, output="sos", fs=sampling_rate_hz)
+
+
+@scipy_filter_docfiller
+class FirFilter(ScipyFilter):
+    """Apply a fir filter using the transformer interface.
+
+    Internally, this is using the :func:`scipy.signal.butter` function to design the filter coefficients using the
+    second-order sections (SOS) representation.
+
+    Parameters
+    ----------
+    %(common_paras)s
+    %(zero_phase_ba)s
+    window
+        The window used for the FIR filter.
+        This is passed to :func:`scipy.signal.firwin`.
+        See `scipy.signal.get_window` for a list of windows and required parameters.
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(results)s
+
+    """
+
+    _FILTER_TYPE = "ba"
+
+    def __init__(
+        self,
+        *,
+        window: Union[str, tuple[str, Any]] = "hamming",
+        order: int,
+        cutoff_freq_hz: Union[float, tuple[float, float]],
+        filter_type: Literal["lowpass", "highpass", "bandpass", "bandstop"] = "lowpass",
+        zero_phase: bool = True,
+    ) -> None:
+        self.window = window
+        super().__init__(order=order, cutoff_freq_hz=cutoff_freq_hz, filter_type=filter_type, zero_phase=zero_phase)
+
+    def _ba_filter_design(self, sampling_rate_hz: float) -> tuple[np.ndarray, np.ndarray]:
+        return firwin(
+            self.order + 1, self.cutoff_freq_hz, pass_zero=self.filter_type, fs=sampling_rate_hz, window="hamming"
+        ), np.array([1])
