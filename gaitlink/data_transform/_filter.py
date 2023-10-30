@@ -216,5 +216,5 @@ class FirFilter(ScipyFilter):
 
     def _ba_filter_design(self, sampling_rate_hz: float) -> tuple[np.ndarray, np.ndarray]:
         return firwin(
-            self.order + 1, self.cutoff_freq_hz, pass_zero=self.filter_type, fs=sampling_rate_hz, window="hamming"
+            self.order + 1, self.cutoff_freq_hz, pass_zero=self.filter_type, fs=sampling_rate_hz, window=self.window
         ), np.array([1])
