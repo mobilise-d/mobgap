@@ -6,8 +6,9 @@ from gaitmap.utils.array_handling import merge_intervals
 from scipy.signal import find_peaks
 from typing_extensions import Self
 
-from gaitlink.consts import GRAV
-from gaitlink.data_transform import BaseFilter, FirFilter
+from gaitlink.consts import GRAV_MS2
+from gaitlink.data_transform.base import BaseFilter
+from gaitlink.data_transform import FirFilter
 from gaitlink.gsd.base import BaseGsdDetector
 from gaitlink.utils.array_handling import sliding_window_view
 
@@ -19,10 +20,10 @@ class GsdIluz(BaseGsdDetector):
         pre_filter: Optional[BaseFilter] = FirFilter(order=200, cutoff_freq_hz=(0.5, 3), filter_type="bandpass"),
         window_length_s: float = 3,
         window_overlap: float = 0.5,
-        std_activity_threshold: float = 0.01 * GRAV,
-        mean_activity_threshold: float = -0.1 * GRAV,
-        step_detection_thresholds: tuple[float, float] = (0.4 * GRAV, 1.5 * GRAV),
-        acc_v_standing_threshold: float = 0.5 * GRAV,
+        std_activity_threshold: float = 0.01 * GRAV_MS2,
+        mean_activity_threshold: float = -0.1 * GRAV_MS2,
+        step_detection_thresholds: tuple[float, float] = (0.4 * GRAV_MS2, 1.5 * GRAV_MS2),
+        acc_v_standing_threshold: float = 0.5 * GRAV_MS2,
         sin_template_freq_hz: float = 2,
         # Note: The original implementation uses 1 step per second as the lower bound. This means a minimum of 3
         #       steps per 3-second window. We use 0.5 steps per second as the lower bound, which means a minimum of
@@ -65,7 +66,7 @@ class GsdIluz(BaseGsdDetector):
         # General Activity Recognition
         activity_windows = windowed_filtered_data.std(axis=1, ddof=1) > self.std_activity_threshold
         # Basic threshold on normalised data (not sure why this is done, but it is in the original implementation)
-        active_windows_no_grav = windowed_data[activity_windows] - GRAV
+        active_windows_no_grav = windowed_data[activity_windows] - GRAV_MS2
         # Standing filtering
         # This should remove windows where the person is not standing upright by checking the value of acc_v
         activity_windows[activity_windows] &= (
