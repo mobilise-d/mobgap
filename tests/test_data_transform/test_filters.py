@@ -4,9 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from scipy.signal import filtfilt, lfilter
+from scipy.signal import butter, filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
+from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import (
     EpflDedriftFilter,
     EpflGaitFilter,
@@ -15,6 +16,38 @@ from gaitlink.data_transform import (
     FirFilter,
 )
 from gaitlink.data_transform.base import FixedFilter
+
+
+@pytest.fixture(params=[np.array, pd.DataFrame, pd.Series, "array_1d"])
+def supported_dtypes(request):
+    dtype = request.param
+
+    def conversion_func(data_raw):
+        assert isinstance(data_raw, pd.DataFrame)
+        if dtype == pd.DataFrame:
+            data = data_raw
+        elif dtype == pd.Series:
+            data = data_raw.iloc[:, 0]
+        elif dtype == "array_1d":
+            data = data_raw.to_numpy()[:, 0]
+        else:
+            data = data_raw.to_numpy()
+        return data
+
+    def assertions(result, reference, input_data):
+        if dtype in (pd.Series, "array_1d"):
+            reference = pd.Series(reference)
+        assert np.allclose(result, reference)
+
+        assert type(result) == type(input_data)
+
+        if dtype == pd.DataFrame:
+            assert set(result.columns) == set(input_data.columns)
+
+        if dtype in (pd.Series, pd.DataFrame):
+            assert result.index.equals(input_data.index)
+
+    return conversion_func, assertions
 
 
 class TestMetaEpflGaitFilter(TestAlgorithmMixin):
@@ -79,37 +112,23 @@ class TestFixedFilter:
         self.filter_subclass = request.param
 
     @pytest.mark.parametrize("zero_phase", [True, False])
-    @pytest.mark.parametrize("dtype", [np.array, pd.DataFrame, pd.Series, "array_1d"])
-    def test_simple_filter(self, zero_phase, dtype):
-        data_raw = np.random.rand(1000, 1)
-        if dtype == pd.DataFrame:
-            data = pd.DataFrame(data_raw)
-        elif dtype == pd.Series:
-            data = pd.Series(data_raw[:, 0])
-        elif dtype == "array_1d":
-            data = data_raw[:, 0]
-        else:
-            data = data_raw
+    def test_simple_filter(self, zero_phase, supported_dtypes):
+        conversion_func, output_assertions = supported_dtypes
 
+        data_raw = pd.DataFrame(np.random.rand(1000, 2))
+        data_raw.index += 2
+
+        data = conversion_func(data_raw)
         result = self.filter_subclass(zero_phase=zero_phase).filter(data, sampling_rate_hz=40.0)
 
         if zero_phase:
-            reference = filtfilt(*self.filter_subclass().coefficients, data_raw, axis=0)
+            reference = filtfilt(*self.filter_subclass().coefficients, data, axis=0)
         else:
-            reference = lfilter(*self.filter_subclass().coefficients, data_raw, axis=0)
-
-        if dtype in (pd.Series, "array_1d"):
-            reference = pd.Series(reference[:, 0])
-        assert np.allclose(result.transformed_data_, reference)
-        assert type(result.transformed_data_) == type(data)
-
-        if dtype == pd.DataFrame:
-            assert result.transformed_data_.columns == data.columns
-
-        if dtype in (pd.Series, pd.DataFrame):
-            assert result.transformed_data_.index.equals(data.index)
+            reference = lfilter(*self.filter_subclass().coefficients, data, axis=0)
 
         assert result.transformed_data_ is result.filtered_data_
+
+        output_assertions(result.transformed_data_, reference, data)
 
     def test_error_on_wrong_sampling_rate(self):
         with pytest.raises(ValueError):
@@ -149,3 +168,25 @@ class TestEpflDedriftedGaitFilter:
         )
 
         assert_frame_equal(direct_output, cascaded_output, atol=1e-5)
+
+
+class TestButterworthFilter:
+    @pytest.mark.parametrize("zero_phase", (True, False))
+    @pytest.mark.parametrize("order", (2, 4))
+    def test_equivalence_to_manual(self, zero_phase, order, supported_dtypes):
+        conversion_func, output_assertions = supported_dtypes
+
+        cutoff = 10
+        sampling_rate = 100
+        f = ButterworthFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff)
+
+        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        data = conversion_func(raw_data)
+        result = f.filter(data, sampling_rate_hz=100).filtered_data_
+
+        if zero_phase:
+            reference = filtfilt(*butter(order, cutoff, fs=sampling_rate), data, axis=0)
+        else:
+            reference = lfilter(*butter(order, cutoff, fs=sampling_rate), data, axis=0)
+
+        output_assertions(result, reference, data)
