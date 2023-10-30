@@ -1,9 +1,9 @@
 """Base classes for all data transformers and filters."""
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
-from scipy.signal import filtfilt, lfilter
+from scipy.signal import filtfilt, lfilter, sosfilt, sosfiltfilt
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
@@ -275,4 +275,164 @@ class FixedFilter(BaseFilter):
         return self
 
 
-__all__ = ["BaseTransformer", "BaseFilter", "FixedFilter", "fixed_filter_docfiller"]
+scipy_filter_docfiller = make_filldoc(
+    {
+        **_base_filter_doc_replace,
+        "common_paras": """
+    order
+        The filter order.
+    cutoff_freq_hz
+        The critical frequencies describing the filter.
+        This depends on the filter type.
+        If the filtertype requires only a single frequence ("lowpass" or "highpass"), this should be a single float.
+        If the filtertype requires two frequencies ("bandpass" or "bandstop"), this should be a tuple of two floats.
+    filter_type
+        The filter type ("lowpass", "highpass", "bandpass", "bandstop").
+    """,
+        "zero_phase_ba": """
+    zero_phase
+        Whether to apply a zero-phase filter (i.e. forward and backward filtering) using :func:`scipy.signal.filtfilt`/
+        or a normal forward filter using :func:`scipy.signal.lfilter`.
+    """,
+        "zero_phase_sos": """
+    zero_phase
+        Whether to apply a zero-phase filter (i.e. forward and backward filtering) using 
+        :func:`scipy.signal.sosfiltfilt`/ or a normal forward filter using :func:`scipy.signal.sosfilter`.
+    """,
+        "filter_kwargs": """
+    _
+        Dummy to catch further parameters.
+        They are ignored.
+    """,
+    },
+    doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`ScipyFilter`.",
+)
+
+
+@scipy_filter_docfiller
+class ScipyFilter(BaseFilter):
+    """Base class for generic filters using the scipy filter functions.
+
+    Child-classes should specify `_FILTER_TYPE` as class var and inplement `_sos_filter_design` or `_ba_filter_design`
+    depending on the `_FILTER_TYPE`.
+
+    Parameters
+    ----------
+    %(common_paras)s
+    zero_phase
+        Whether to apply a zero-phase filter (i.e. forward and backward filtering) using
+        :func:`scipy.signal.sosfiltfilt`/:func:`scipy.signal.filtfilt` or a normal forward filter using
+        :func:`scipy.signal.sosfilter`/:`func:`scipy.signal.lfilter`, depending on the `_FILTER_TYPE` of the
+        child class.
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(results)s
+
+    """
+
+    _FILTER_TYPE: ClassVar[Literal["sos", "ba"]]
+    _METHODS = {
+        "sos": {"single_pass": sosfilt, "double_pass": sosfiltfilt},
+        "ba": {"single_pass": lfilter, "double_pass": filtfilt},
+    }
+
+    order: int
+    cutoff_freq_hz: Union[float, tuple[float, float]]
+    zero_phase: bool
+    filter_type: Literal["lowpass", "highpass", "bandpass", "bandstop"]
+
+    sampling_rate_hz: float
+
+    def __init__(
+        # TODO: Add zero-phase
+        self,
+        *,
+        order: int,
+        cutoff_freq_hz: Union[float, tuple[float, float]],
+        filter_type: Literal["lowpass", "highpass", "bandpass", "bandstop"] = "lowpass",
+        zero_phase: bool = True,
+    ) -> None:
+        self.order = order
+        self.cutoff_freq_hz = cutoff_freq_hz
+        self.zero_phase = zero_phase
+        self.filter_type = filter_type
+
+    @scipy_filter_docfiller
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
+        """Filter the data.
+
+        This will apply the filter along the **first** axis (axis=0) (aka each column will be filtered).
+
+        Parameters
+        ----------
+        %(filter_para)s
+        %(filter_kwargs)s
+
+        %(filter_return)s
+
+        """
+        if sampling_rate_hz is None:
+            raise ValueError(f"{type(self).__name__}.filter requires a `sampling_rate_hz` to be passed.")
+
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
+        data, index, transformation_func = dflike_as_2d_array(data)
+        pass_type = "double_pass" if self.zero_phase else "single_pass"
+
+        if self._FILTER_TYPE == "sos":
+            sos = self._sos_filter_design(sampling_rate_hz)
+            transformed_data = self._METHODS["sos"][pass_type](sos=sos, x=data, axis=0)
+        elif self._FILTER_TYPE == "ba":
+            b, a = self._ba_filter_design(sampling_rate_hz)
+            transformed_data = self._METHODS["ba"][pass_type](b, a, x=data, axis=0)
+        else:
+            raise ValueError(f"Unknown filter type: {self._FILTER_TYPE}")
+
+        self.transformed_data_ = transformation_func(transformed_data, index)
+        return self
+
+    def _sos_filter_design(self, sampling_rate_hz: float) -> np.ndarray:
+        """Design the filter.
+
+        Parameters
+        ----------
+        sampling_rate_hz
+            The sampling rate of the data in Hz
+
+        Returns
+        -------
+        The filter coefficients in sos format
+
+        """
+        raise NotImplementedError()
+
+    def _ba_filter_design(self, sampling_rate_hz: float) -> tuple[np.ndarray, np.ndarray]:
+        """Design the filter.
+
+        Parameters
+        ----------
+        sampling_rate_hz
+            The sampling rate of the data in Hz
+
+        Returns
+        -------
+        The filter coefficients in b, a format
+
+        """
+        raise NotImplementedError()
+
+
+__all__ = [
+    "BaseTransformer",
+    "BaseFilter",
+    "FixedFilter",
+    "fixed_filter_docfiller",
+    "ScipyFilter",
+    "scipy_filter_docfiller",
+]
