@@ -36,7 +36,7 @@ class GsdIluz(BaseGsdDetector):
         Each window will be processed separately.
     window_overlap
         The overlap between two consecutive windows in percent.
-        For example, a value of 0.5 means that the windows will overlap by 50%.
+        For example, a value of 0.5 means that the windows will overlap by 50%%.
     std_activity_threshold
         The lower threshold for the standard deviation of the filtered acc_x data to be considered as activity.
     mean_activity_threshold
@@ -55,7 +55,7 @@ class GsdIluz(BaseGsdDetector):
         This is converted in a minimum and maximum number of steps per window using the ``window_length_s`` parameter.
     allowed_acc_v_change_per_window
         The maximum change in the mean of the acc_v data between the first and the last second of the window in percent.
-        I.e. 0.1 means a maximum change of 10%.
+        I.e. 0.1 means a maximum change of 10%%.
         If this change is exceeded, the window is discarded, as we assume that the person changed their posture (i.e
         from lying to standing).
     min_gsd_duration_s
@@ -147,6 +147,7 @@ class GsdIluz(BaseGsdDetector):
         self.min_gsd_duration_s = min_gsd_duration_s
 
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        # TODO: Add docstring
         relevant_columns = ["acc_x", "acc_z"]
         data = data[relevant_columns]
 
