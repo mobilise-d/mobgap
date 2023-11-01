@@ -171,6 +171,7 @@ sphinx_gallery_conf = {
     "subsection_order": ExplicitOrder(
         [
             "../examples/data",
+            "../examples/gsd",
             "../examples/data_transform",
         ]
     ),
