@@ -14,6 +14,8 @@ Algorithms
    :toctree: generated/gsd
    :template: class.rst
 
+    GsdIluz
+
 Base Classes
 ++++++++++++
 .. automodule:: gaitlink.gsd.base
