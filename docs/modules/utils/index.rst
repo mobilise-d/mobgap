@@ -7,3 +7,4 @@ Utility functions
     :maxdepth: 1
 
     dtypes
+    array_handling
