@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from gaitmap.utils.array_handling import merge_intervals
 from scipy.signal import find_peaks
+from tpcp import cf
 from typing_extensions import Self, Unpack
 
 from gaitlink.consts import GRAV_MS2
@@ -119,7 +120,7 @@ class GsdIluz(BaseGsdDetector):
     def __init__(
         self,
         *,
-        pre_filter: Optional[BaseFilter] = FirFilter(order=200, cutoff_freq_hz=(0.5, 3), filter_type="bandpass"),
+        pre_filter: Optional[BaseFilter] = cf(FirFilter(order=200, cutoff_freq_hz=(0.5, 3), filter_type="bandpass")),
         window_length_s: float = 3,
         window_overlap: float = 0.5,
         std_activity_threshold: float = 0.01 * GRAV_MS2,
@@ -146,7 +147,19 @@ class GsdIluz(BaseGsdDetector):
         self.allowed_acc_v_change_per_window = allowed_acc_v_change_per_window
         self.min_gsd_duration_s = min_gsd_duration_s
 
+    @base_gsd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        """%(detect_short)s.
+
+        Parameters
+        ----------
+        %(detect_para)s
+
+        %(detect_return)s
+
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
         # TODO: Add docstring
         relevant_columns = ["acc_x", "acc_z"]
         data = data[relevant_columns]
@@ -179,6 +192,11 @@ class GsdIluz(BaseGsdDetector):
         activity_windows[activity_windows] &= (
             windowed_data[activity_windows].mean(axis=1) > self.acc_v_standing_threshold
         )
+
+        # We shortcut here, if there are no activity windows
+        if not activity_windows.any():
+            self.gsd_list_ = pd.DataFrame(columns=["start", "end"])
+            return self
 
         # Convolve the data with sin signal
         # The template is equivalent to cycle of a sin wave with a frequency of `sin_template_freq_hz`

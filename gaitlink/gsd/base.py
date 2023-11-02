@@ -22,7 +22,7 @@ base_gsd_docfiller = make_filldoc(
         The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
     """,
         "detect_short": """
-    Detect gait sequences in the passed data.
+    Detect gait sequences in the passed data
     """,
         "detect_para": """
     data
