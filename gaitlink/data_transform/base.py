@@ -10,6 +10,7 @@ from typing_extensions import Self, Unpack
 from gaitlink._docutils import make_filldoc
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
+
 class BaseTransformer(Algorithm):
     """Base class for all data transformers."""
 
