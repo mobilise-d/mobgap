@@ -1,4 +1,4 @@
-#Here's a quick implementation of the resample class
+# Here's a quick implementation of the resample class
 
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform._resample import Resample
@@ -8,6 +8,7 @@ from gaitlink.data_transform._resample import Resample
 import matplotlib.pyplot as plt
 from scipy import signal
 import pandas as pd
+
 # Load the data
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
@@ -16,7 +17,7 @@ df = single_test.data["LowerBack"]
 
 print(df.head())
 
-#Here's a quick implementation of the function
+# Here's a quick implementation of the function
 
 # Example usage
 data_to_resample = df  # Replace with your actual data
@@ -49,6 +50,3 @@ elif target_sampling_rate < current_sampling_rate:
 else:
     plt.title("No change in data")
     plt.show()
-
-
-
