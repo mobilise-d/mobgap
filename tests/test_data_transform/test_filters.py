@@ -3,12 +3,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from pandas._testing import assert_frame_equal
+from pandas.testing import assert_frame_equal
 from scipy.signal import filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter
-from gaitlink.data_transform._filter import EpflDedriftedGaitFilter
+from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter, EpflDedriftedGaitFilter
 from gaitlink.data_transform.base import FixedFilter
 
 
