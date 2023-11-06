@@ -34,6 +34,9 @@ docfiller = make_filldoc(
         This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
         Some sensors might only have a subset of the available sensor types.
         If a sensor type is not available, it is ignored.
+    missing_sensor_error_type
+        Whether to throw an error ("error"), a warning ("warning") or ignore ("ignore") when a sensor is missing.
+
     """,
         "general_dataset_args": """
     groupby_cols
@@ -138,6 +141,7 @@ def load_mobilised_matlab_format(
     reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
     sensor_positions: Sequence[str] = ("LowerBack",),
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+    missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
 ) -> dict[tuple[str, ...], MobilisedTestData]:
     """Load a single data.mat file formatted according to the Mobilise-D guidelines.
 
@@ -185,6 +189,7 @@ def load_mobilised_matlab_format(
             reference_system=reference_system,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
+            missing_sensor_error_type=missing_sensor_error_type,
         )
         for test_name, test_data in data_per_test
     }
@@ -221,6 +226,7 @@ def _process_test_data(  # noqa: PLR0912
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
+    missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
 ) -> MobilisedTestData:
     meta_data = {}
 
@@ -243,13 +249,20 @@ def _process_test_data(  # noqa: PLR0912
             try:
                 raw_data = getattr(all_sensor_data, sensor_pos)
             except AttributeError as e:
-                raise ValueError(f"Sensor position {sensor_pos} is not available for test {test_name}.") from e
-
-            all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
-            sampling_rates_obj = raw_data.Fs
-            sampling_rates.update(
-                {f"{sensor_pos}_{k}": getattr(sampling_rates_obj, k) for k in sampling_rates_obj._fieldnames}
-            )
+                if missing_sensor_error_type == "error":
+                    raise ValueError(f"Sensor position {sensor_pos} is not available for test {test_name}.") from e
+                elif missing_sensor_error_type == "warning":
+                    warnings.warn(f"Sensor position {sensor_pos} is not available for test {test_name}.")
+                elif missing_sensor_error_type == "ignore":
+                    pass
+                else:
+                    raise ValueError(f"'missing_sensor_error_type' should be 'error', 'warning', or 'ignore'.") from e
+            else:
+                all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
+                sampling_rates_obj = raw_data.Fs
+                sampling_rates.update(
+                    {f"{sensor_pos}_{k}": getattr(sampling_rates_obj, k) for k in sampling_rates_obj._fieldnames}
+                )
 
         # In the data files the sampling rate for each sensor type is reported individually.
         # But in reality, we expect them all to have the same sampling rate.
@@ -369,6 +382,7 @@ class _GenericMobilisedDataset(Dataset):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         sensor_positions: Sequence[str] = ("LowerBack",),
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+        missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -378,6 +392,7 @@ class _GenericMobilisedDataset(Dataset):
         self.sensor_positions = sensor_positions
         self.sensor_types = sensor_types
         self.memory = memory
+        self.missing_sensor_error_type = missing_sensor_error_type
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
@@ -443,6 +458,8 @@ class _GenericMobilisedDataset(Dataset):
             reference_system=self.reference_system,
             sensor_positions=self.sensor_positions,
             sensor_types=self.sensor_types,
+            missing_sensor_error_type = self.missing_sensor_error_type
+
         )
 
     def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
@@ -641,6 +658,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         sensor_positions: Sequence[str] = ("LowerBack",),
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+        missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -656,6 +674,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
             memory=memory,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
+            missing_sensor_error_type = missing_sensor_error_type
         )
 
     @property
