@@ -275,7 +275,7 @@ def _process_test_data(  # noqa: PLR0912
                 elif missing_sensor_error_type == "ignore":
                     pass
                 else:
-                    raise ValueError(f"'missing_sensor_error_type' should be 'error', 'warning', or 'ignore'.") from e
+                    raise ValueError("'missing_sensor_error_type' should be 'error', 'warning', or 'ignore'.") from e
             else:
                 all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
                 sampling_rates_obj = raw_data.Fs
@@ -477,8 +477,7 @@ class _GenericMobilisedDataset(Dataset):
             reference_system=self.reference_system,
             sensor_positions=self.sensor_positions,
             sensor_types=self.sensor_types,
-            missing_sensor_error_type = self.missing_sensor_error_type
-
+            missing_sensor_error_type=self.missing_sensor_error_type,
         )
 
     def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
@@ -693,7 +692,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
             memory=memory,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
-            missing_sensor_error_type = missing_sensor_error_type
+            missing_sensor_error_type=missing_sensor_error_type,
         )
 
     @property
