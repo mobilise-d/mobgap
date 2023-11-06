@@ -7,7 +7,7 @@ from pandas.testing import assert_frame_equal
 from scipy.signal import filtfilt, lfilter
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data_transform import EpflDedriftFilter, EpflGaitFilter, EpflDedriftedGaitFilter
+from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflDedriftFilter, EpflGaitFilter
 from gaitlink.data_transform.base import FixedFilter
 
 
@@ -88,6 +88,10 @@ class TestFixedFilter:
             self.filter_subclass().filter(
                 pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=self.filter_subclass.EXPECTED_SAMPLING_RATE_HZ + 1
             )
+
+    def test_error_no_sampling_rate(self):
+        with pytest.raises(ValueError):
+            self.filter_subclass().filter(pd.DataFrame(np.zeros((500, 3))))
 
 
 class TestEpflGaitFilter:

@@ -120,9 +120,7 @@ class BaseFilter(BaseTransformer):
         """
         return self.transformed_data_
 
-    def transform(
-        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
-    ) -> Self:
+    def transform(self, data: DfLike, *, sampling_rate_hz: float = None, **kwargs: Unpack[dict[str, Any]]) -> Self:
         """Transform the data using the filter.
 
         This just calls ``self.filter``.
@@ -249,6 +247,12 @@ class FixedFilter(BaseFilter):
 
         %(filter_return)s
         """
+        if sampling_rate_hz is None:
+            raise ValueError(
+                f"{type(self).__name__}.filter requires a `sampling_rate_hz` to be passed. "
+                "Currently, `None` (the default value) is passed."
+            )
+
         if sampling_rate_hz != self.EXPECTED_SAMPLING_RATE_HZ:
             raise ValueError(
                 f"{type(self).__name__} requires a sampling rate of {self.EXPECTED_SAMPLING_RATE_HZ} Hz. "
