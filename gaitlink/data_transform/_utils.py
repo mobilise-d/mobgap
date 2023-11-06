@@ -31,6 +31,8 @@ def chain_transformers(
         try:
             data = transformer.clone().transform(data, **kwargs).transformed_data_
         except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"Error while applying transformer '{name}' in the transformer chain. "
-                               "Scroll up to see the full traceback of this error.") from e
+            raise RuntimeError(
+                f"Error while applying transformer '{name}' in the transformer chain. "
+                "Scroll up to see the full traceback of this error."
+            ) from e
     return data

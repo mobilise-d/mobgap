@@ -120,7 +120,9 @@ class BaseFilter(BaseTransformer):
         """
         return self.transformed_data_
 
-    def transform(self, data: DfLike, *, sampling_rate_hz: float = None, **kwargs: Unpack[dict[str, Any]]) -> Self:
+    def transform(
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+    ) -> Self:
         """Transform the data using the filter.
 
         This just calls ``self.filter``.
