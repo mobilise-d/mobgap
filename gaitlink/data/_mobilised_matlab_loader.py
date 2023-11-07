@@ -35,7 +35,7 @@ docfiller = make_filldoc(
         Some sensors might only have a subset of the available sensor types.
         If a sensor type is not available, it is ignored.
     missing_sensor_error_type
-        Whether to throw an error ("error"), a warning ("warning") or ignore ("ignore") when a sensor is missing.
+        Whether to throw an error ("raise"), a warning ("warn") or ignore ("ignore") when a sensor is missing.
 
     """,
         "general_dataset_args": """
@@ -160,7 +160,7 @@ def load_mobilised_matlab_format(
     reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
     sensor_positions: Sequence[str] = ("LowerBack",),
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-    missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
+    missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
 ) -> dict[tuple[str, ...], MobilisedTestData]:
     """Load a single data.mat file formatted according to the Mobilise-D guidelines.
 
@@ -237,7 +237,7 @@ def _parse_until_test_level(
             )
 
 
-def _process_test_data(  # noqa: PLR0912
+def _process_test_data(  # noqa: C901, PLR0912
     test_data: sio.matlab.mat_struct,
     test_name: tuple[str, ...],
     *,
@@ -245,8 +245,11 @@ def _process_test_data(  # noqa: PLR0912
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
-    missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
+    missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
 ) -> MobilisedTestData:
+    if missing_sensor_error_type not in ["raise", "warn", "ignore"]:
+        raise ValueError(f"Invalid value for missing_sensor_error_type: {missing_sensor_error_type}")
+
     meta_data = {}
 
     try:
@@ -268,14 +271,13 @@ def _process_test_data(  # noqa: PLR0912
             try:
                 raw_data = getattr(all_sensor_data, sensor_pos)
             except AttributeError as e:
-                if missing_sensor_error_type == "error":
-                    raise ValueError(f"Sensor position {sensor_pos} is not available for test {test_name}.") from e
-                elif missing_sensor_error_type == "warning":
-                    warnings.warn(f"Sensor position {sensor_pos} is not available for test {test_name}.")
-                elif missing_sensor_error_type == "ignore":
-                    pass
-                else:
-                    raise ValueError("'missing_sensor_error_type' should be 'error', 'warning', or 'ignore'.") from e
+                error_message = f"Sensor position {sensor_pos} is not available for test {test_name}."
+
+                if missing_sensor_error_type == "raise":
+                    raise ValueError(error_message) from e
+                if missing_sensor_error_type == "warn":
+                    warnings.warn(error_message, stacklevel=1)
+
             else:
                 all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
                 sampling_rates_obj = raw_data.Fs
@@ -401,7 +403,7 @@ class _GenericMobilisedDataset(Dataset):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         sensor_positions: Sequence[str] = ("LowerBack",),
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -676,7 +678,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         sensor_positions: Sequence[str] = ("LowerBack",),
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["error", "warning", "ignore"] = "error",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
