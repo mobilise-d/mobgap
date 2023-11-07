@@ -285,6 +285,11 @@ def _process_test_data(  # noqa: C901, PLR0912
                     {f"{sensor_pos}_{k}": getattr(sampling_rates_obj, k) for k in sampling_rates_obj._fieldnames}
                 )
 
+        if all_imu_data == {}:
+            raise ValueError(
+                f"Expected at least one valid sensor position for {raw_data_sensor}. Given: {sensor_positions}"
+            )
+
         # In the data files the sampling rate for each sensor type is reported individually.
         # But in reality, we expect them all to have the same sampling rate.
         # We check that here to simplify the return data structure.
