@@ -376,7 +376,10 @@ class ScipyFilter(BaseFilter):
 
         """
         if sampling_rate_hz is None:
-            raise ValueError(f"{type(self).__name__}.filter requires a `sampling_rate_hz` to be passed.")
+            raise ValueError(
+                f"{type(self).__name__}.filter requires a `sampling_rate_hz` to be passed. "
+                "Currently, `None` (the default value) is passed."
+            )
 
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
