@@ -4,12 +4,17 @@ GSD Iluz
 
 This example shows how to use the GSD Iluz algorithm and some examples on how the results compare to the original
 matlab implementation.
+
+We start by defining some helpers for plotting and loading the data.
+You can skip them for now and jump directly to "Performance on a single lab trial", if you just want to see how to
+apply the algorithm.
 """
 # %%
 # Plotting Helper
 # ---------------
+# We define a helper function to plot the results of the algorithm.
+# Just ignore this function for now.
 import matplotlib.pyplot as plt
-import pandas as pd
 
 
 def plot_gsd_outputs(data, **kwargs):
@@ -36,9 +41,11 @@ def plot_gsd_outputs(data, **kwargs):
 # %%
 # Loading some example data
 # -------------------------
+# .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+#
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP "WB" output as ground truth.
-# Note, that the "WB" output is further processed than a normal "Gait Sequence".
+# Note, that the "WB" (Walking Bout) output is further processed than a normal "Gait Sequence".
 # This means we expect Gait Sequences to contain some false positives compared to the "WB" output.
 # However, a good gait sequence detection algorithm should have high sensitivity (i.e. contain all the "WBs"
 # of the reference system).

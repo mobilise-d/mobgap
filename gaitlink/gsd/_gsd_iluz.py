@@ -212,7 +212,7 @@ class GsdIluz(BaseGsdDetector):
                 # TODO: I don't really know, why a min distance of 1/10 of the sampling rate is used
                 # Note: The original find peaks implementation also uses some upper bound. However, due to the way this
                 #       is implemented, I don't think it does what is was originally intended to do.
-                #       So, I decided to not implement it here in favor of beeing able to use the basic find_peaks
+                #       So, I decided to not implement it here in favor of being able to use the basic find_peaks
                 #       method.
                 distance=sampling_rate_hz / 10,
                 height=threshold,
