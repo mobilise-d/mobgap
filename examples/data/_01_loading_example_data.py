@@ -1,4 +1,7 @@
 """
+
+.. _data_loading_example:
+
 Loading example data
 ====================
 
