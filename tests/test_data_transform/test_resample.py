@@ -2,10 +2,11 @@ import pandas as pd
 import pytest
 from scipy.signal import resample
 from tpcp.testing import TestAlgorithmMixin
-
+from tpcp import get_results
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform._resample import Resample
-
+from numpydoc.docscrape import NumpyDocString
+import inspect
 
 class TestMetaResample(TestAlgorithmMixin):
     ALGORITHM_CLASS = Resample
@@ -40,39 +41,44 @@ class TestResample:
         sample_data = pd.DataFrame({"acc_x": [1.0, 2.0, 3.0, 4.0], "acc_y": [0.5, 1.0, 1.5, 2.0]})
 
         # Perform the transformation with the source sampling rate
-
         transformed_data = resampler.transform(sample_data, sampling_rate_hz=source_sampling_rate)
+
+        # Check if 'transformed_data_' is not None
+        assert transformed_data.transformed_data_ is not None and not transformed_data.transformed_data_.empty
+
+
+        # Check if the transformed_data is not an empty DataFrame
+        assert not transformed_data.transformed_data_.empty
 
         # Calculate the expected output using scipy.signal.resample
         resampling_factor = target_sampling_rate / source_sampling_rate
         expected_output = pd.DataFrame(resample(sample_data, int(len(sample_data) * resampling_factor)))
         expected_output.columns = ["acc_x", "acc_y"]
 
-        # Check if the 'transformed_data_' attribute is updated with the transformed data
-        expected_resampled_data = pd.DataFrame(
-            data=resample(sample_data, int(len(sample_data) * resampling_factor)), columns=sample_data.columns
-        )
+        print("Transformed Data Shape:", transformed_data.transformed_data_.shape)
+        print("Expected Output Shape:", expected_output.shape)
+
+        # Compare the shapes of the transformed data with the expected output
+        assert transformed_data.transformed_data_.shape == expected_output.shape
 
         # Compare the transformed data with the manually resampled data
         pd.testing.assert_frame_equal(transformed_data.transformed_data_, expected_output)
 
-        # Check if the transformed data is a copy when source and target sampling rates are identical
+        # Check if the transformed data is not the same object when source and target sampling rates are identical
         if source_sampling_rate == target_sampling_rate:
-            assert (
-                transformed_data is not sample_data
-            )  # Check that transformed_data is not the same object as sample_data
+            assert not transformed_data is sample_data
 
 
-example_data = LabExampleDataset()
-ha_example_data = example_data.get_subset(cohort="HA")
-single_test = ha_example_data.get_subset(participant_id="002", test="Test11", trial="Trial1")
-df = single_test.data["LowerBack"]
 
 
 # Regression Test
 class TestResampleRegression:
     @pytest.mark.parametrize("target_sampling_rate", [100.0, 200.0])
     def test_regression_test(self, target_sampling_rate):
+        example_data = LabExampleDataset()
+        ha_example_data = example_data.get_subset(cohort="HA")
+        single_test = ha_example_data.get_subset(participant_id="002", test="Test11", trial="Trial1")
+        df = single_test.data["LowerBack"]
         # Load your real data or create a synthetic dataset
         real_data = df
 

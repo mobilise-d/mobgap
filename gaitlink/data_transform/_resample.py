@@ -8,7 +8,9 @@ from gaitlink.data_transform.base import BaseTransformer
 
 class Resample(BaseTransformer):
     """
-    Resample the input data to the target sampling rate.
+    A class for resampling input data to a specified target sampling rate using signal processing techniques.
+    Derived from BaseTransformer for integration into gait analysis pipelines.
+
 
     Parameters
     ----------
@@ -17,19 +19,21 @@ class Resample(BaseTransformer):
 
     Attributes
     ----------
-    transformed_data_ : pd.DataFrame, optional
-        The resampled data as a Pandas DataFrame.
+    transformed_data_ :
+        The transformed data after resampling.
 
-    # Other Parameters
-    # ----------
-    # data : pd.Dataframe, optional
-    #     The data to save what we pass to the action function
+    data : pd.DataFrame
+        The input data to be resampled.
 
+    Methods
+    -------
+    transform(data, sampling_rate_hz)
+        Perform the resampling action on the input data.
     """
 
     def __init__(self, target_sampling_rate_hz: float = 100.0) -> None:
         self.target_sampling_rate_hz = target_sampling_rate_hz
-        self.transformed_data_ = None  # Initialize transformed_data_ to None
+        self.transformed_data_ = pd.DataFrame()  # Initialize transformed_data_ to None
 
     def transform(self, data: pd.DataFrame, sampling_rate_hz: Optional[float] = None) -> "Resample":
         """
@@ -37,7 +41,7 @@ class Resample(BaseTransformer):
 
         Parameters
         ----------
-        data : pd.Dataframe
+        data : pd.DataFrame
             A dataframe representing single sensor data.
         sampling_rate_hz : float
             The sampling rate of the IMU data in Hz.
@@ -47,25 +51,41 @@ class Resample(BaseTransformer):
         Resample
             The instance of the transform with the results attached
 
+        Raises
+        ------
+        ValueError
+            If sampling_rate_hz is None or data is None.
+
         """
-        if data is not None and sampling_rate_hz is not None:
-            self.data = data
-            # Create a copy of the input data for consistency
-            self.transformed_data_ = data.copy()
+        if sampling_rate_hz is None:
+            raise ValueError("Parameter 'sampling_rate_hz' must be provided.")
+
+        if isinstance(data, pd.DataFrame):
+            # Handle Pandas DataFrame
 
             if sampling_rate_hz == self.target_sampling_rate_hz:
                 # No need to resample if the sampling rates match
-                return self
+                self.transformed_data_ = data  # Assign the original data
+            else:
 
-            # Calculate the resampling factor as a float
-            resampling_factor = self.target_sampling_rate_hz / sampling_rate_hz
+                self.data = data.copy()  # Create a copy for consistency
+                # Calculate the resampling factor as a float
+                resampling_factor = self.target_sampling_rate_hz / sampling_rate_hz
 
-            resampled_data = signal.resample(data, int(len(data) * resampling_factor))
+                resampled_data = signal.resample(data, int(len(data) * resampling_factor))
 
-            # Create a DataFrame from the resampled data
-            resampled_df = pd.DataFrame(data=resampled_data, columns=data.columns)
+                # Create a DataFrame from the resampled data
+                self.transformed_data_ = pd.DataFrame(data=resampled_data, columns=data.columns)
 
-            # Update the 'transformed_data_' attribute with the resampled DataFrame
-            self.transformed_data_ = resampled_df
+        else:
+            # Handle other data types
+            if data is None:
+                raise ValueError("Parameter 'data' must be provided.")
+
+            # Assuming data is a type that can be directly resampled (e.g., NumPy array)
+            resampled_data = signal.resample(data, int(len(data) * self.target_sampling_rate_hz / sampling_rate_hz))
+            self.transformed_data_ = pd.DataFrame(data=resampled_data, columns=["acc_x", "acc_y"])
 
         return self
+
+
