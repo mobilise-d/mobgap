@@ -1,4 +1,5 @@
 """Base class for aggregators."""
+from collections.abc import Sequence
 from typing import Any
 
 import pandas as pd
@@ -9,7 +10,39 @@ from gaitlink._docutils import make_filldoc
 
 base_aggregator_docfiller = make_filldoc(
     {
-        # TODO
+        "other_parameters": """
+    data
+        The DMO data per walking bout passed to the ``aggregate`` method.
+    data_mask
+        A DataFrame with the same number of rows as ``data`` indicating the validity of every measure.
+        If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
+    groupby_columns
+        A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
+        Possible groupings are e.g. by participant, recording date, or trial.
+    """,
+        "aggregated_data_": """
+    aggregated_data_
+        A dataframe containing the aggregated results.
+        The index of the dataframe contains the ``groupby_columns``. Consequently, there is one row which
+        aggregation results for each group.
+    """,
+        "aggregate_short": """
+    Aggregate parameters across walking bouts.
+    """,
+        "detect_para": """
+    data
+       The DMO data per walking bout.
+    data_mask
+        A boolean DataFrame to exclude particular data points from the aggregation.
+    groupby_columns
+        Columns over which to perform the aggregations.
+    """,
+        "detect_return": """
+    Returns
+    -------
+    self
+        The instance of the class with the ``aggregated_data_`` attribute set to the aggregation results.
+    """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseAggregator`.",
 )
@@ -50,18 +83,18 @@ class BaseAggregator(Algorithm):
     # Other Parameters
     data: pd.DataFrame
     data_mask: pd.DataFrame
-    groupby_columns: list[str]
+    groupby_columns: Sequence[str]
 
     # results
     aggregated_data_: pd.DataFrame
 
     @base_aggregator_docfiller
-    def detect(
+    def aggregate(
         self,
         data: pd.DataFrame,
         *,
         data_mask: pd.DataFrame,
-        groupby_columns: list[str],
+        groupby_columns: Sequence[str],
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(aggregate_short)s.
