@@ -14,7 +14,9 @@ base_aggregator_docfiller = make_filldoc(
     data
         The DMO data per walking bout passed to the ``aggregate`` method.
     data_mask
-        A DataFrame with the same number of rows as ``data`` indicating the validity of every measure.
+        A boolean DataFrame with the same number of rows as ``data`` indicating the validity of every measure. Every
+        column of the data mask corresponds to a column of ``data`` and has the same name with the suffix "_flag"
+        attached.
         If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
     groupby_columns
         A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
