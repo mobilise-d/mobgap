@@ -3,37 +3,46 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from gaitlink.aggregation.base import BaseAggregator, base_aggregator_docfiller
 
-INPUT_COLUMNS = [
-    "duration",
-    "step_number",
-    "turn_number",
-    "stride_speed",
-    "stride_length",
-    "cadence",
-    "stride_duration",
-]
-
 
 # TODO: move these functions somewhere else?
-def _custom_quantile(x: float) -> float:
+def _custom_quantile(x: pd.Series) -> float:
     """Calculate the 90th percentile of the passed data."""
     return np.nanpercentile(x, 90)
 
 
-def _coefficient_of_variation(x: float) -> float:
+def _coefficient_of_variation(x: pd.Series) -> float:
     """Calculate variation of the passed data."""
     return x.std() / x.mean()
 
 
 @base_aggregator_docfiller
 class MobilisedAggregator(BaseAggregator):
-    """Todo: docs go here."""
+    """Implementation of the aggregation algorithm utilized in Mobilise-D.
 
-    _ALL_WB_AGGS: typing.ClassVar = {
+     Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(gsd_list_)s
+    """
+
+    INPUT_COLUMNS: typing.ClassVar[list[str]] = [
+        "duration",
+        "step_number",
+        "turn_number",
+        "stride_speed",
+        "stride_length",
+        "cadence",
+        "stride_duration",
+    ]
+
+    _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
         "walkdur_all_sum": ("duration", "sum"),
         "steps_all_sum": ("step_number", "sum"),
         "turns_all_sum": ("turn_number", "sum"),
@@ -99,8 +108,10 @@ class MobilisedAggregator(BaseAggregator):
         "walkdur_all_sum_d",
     ]
 
-    def __init__(self) -> None:
-        self.filtered_data = None
+    filtered_data_: pd.DataFrame
+
+    def __init__(self, groupby_columns: typing.Sequence[str] = ("subject_code", "visit_date")) -> None:
+        self.groupby_columns = groupby_columns
         super().__init__()
 
     def aggregate(
@@ -108,7 +119,7 @@ class MobilisedAggregator(BaseAggregator):
         data: pd.DataFrame,
         *,
         data_mask: pd.DataFrame,
-        groupby_columns: list[str] = ["subject_code", "visit_date"],
+        **_: Unpack[dict[str, typing.Any]],
     ) -> Self:
         """%(aggregate_short)s.
 
@@ -120,30 +131,32 @@ class MobilisedAggregator(BaseAggregator):
         """
         self.data = data
         self.data_mask = data_mask
-        self.groupby_columns = groupby_columns
-        self.filtered_data = self.data.copy()
+        self.filtered_data_ = self.data.copy()
+        groupby_columns = list(self.groupby_columns)
 
-        if not any(col in self.data.columns for col in INPUT_COLUMNS):
-            raise ValueError(f"None of the valid input columns {INPUT_COLUMNS} found in the passed dataframe.")
+        if not any(col in self.data.columns for col in self.INPUT_COLUMNS):
+            raise ValueError(f"None of the valid input columns {self.INPUT_COLUMNS} found in the passed dataframe.")
 
-        if not all(col in self.data.reset_index().columns for col in self.groupby_columns):
+        if not all(col in self.data.reset_index().columns for col in groupby_columns):
             raise ValueError(f"Not all groupby columns {self.groupby_columns} found in the passed dataframe.")
 
         if data_mask is not None:
             if self.data.shape[0] != self.data_mask.shape[0]:
                 raise ValueError("The passed data and data_mask do not have the same number of rows.")
 
-            for col in INPUT_COLUMNS:
+            for col in self.INPUT_COLUMNS:
                 flag_col = f"{col}_flag"
                 # set entries flagged as implausible to NaN
                 if all([col in self.data.columns, flag_col in self.data_mask.columns]):
-                    self.filtered_data = self._apply_data_mask_to_col(col, flag_col)
+                    self.filtered_data_ = self._apply_data_mask_to_col(col, flag_col)
                 # as last filtering step, delete all rows with implausible duration
                 if col == "duration":
-                    self.filtered_data = self._apply_duration_mask(self.filtered_data)
+                    self.filtered_data_ = self._apply_duration_mask(self.filtered_data_)
 
-        available_filters_and_aggs = self._select_aggregations()
-        self.aggregated_data_ = self._apply_aggregations(available_filters_and_aggs)
+        available_filters_and_aggs = self._select_aggregations(self.data.columns)
+        self.aggregated_data_ = self._apply_aggregations(
+            self.filtered_data_, groupby_columns, available_filters_and_aggs
+        )
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
         self.aggregated_data_ = self.aggregated_data_.round(3)
@@ -152,15 +165,17 @@ class MobilisedAggregator(BaseAggregator):
 
     def _apply_data_mask_to_col(self, col: str, flag_col: str) -> pd.DataFrame:
         if col in ["cadence", "stride_length"]:
-            self.filtered_data.loc[~self.data_mask[flag_col], "stride_speed"] = pd.NA
-        self.filtered_data.loc[~self.data_mask[flag_col], col] = pd.NA
-        return self.filtered_data
+            self.filtered_data_.loc[~self.data_mask[flag_col], "stride_speed"] = pd.NA
+        self.filtered_data_.loc[~self.data_mask[flag_col], col] = pd.NA
+        return self.filtered_data_
 
     @staticmethod
     def _apply_duration_mask(data: pd.DataFrame) -> pd.DataFrame:
         return data.dropna(subset=["duration"])
 
-    def _select_aggregations(self) -> list[tuple[str, dict[str, tuple[str, str]]]]:
+    def _select_aggregations(
+        self, data_columns: list[str]
+    ) -> list[tuple[str, dict[str, tuple[str, typing.Union[str, typing.Callable]]]]]:
         """Build list of filters and aggregations to apply.
 
         Available aggregations are selected based on the columns available in
@@ -168,7 +183,7 @@ class MobilisedAggregator(BaseAggregator):
         """
         available_filters_and_aggs = []
         for filt, aggs in self._FILTERS_AND_AGGS:
-            if all([filt is not None, "duration" not in self.data.columns]):
+            if all([filt is not None, "duration" not in data_columns]):
                 warnings.warn(
                     f"Filter '{filt}' for walking bout length cannot be applied, "
                     "because the data does not contain a 'duration' column.",
@@ -177,36 +192,37 @@ class MobilisedAggregator(BaseAggregator):
                 continue
 
             # check if the property to aggregate is contained in data columns
-            available_aggs = {key: value for key, value in aggs.items() if value[0] in self.data.columns}
+            available_aggs = {key: value for key, value in aggs.items() if value[0] in data_columns}
             if available_aggs:
                 available_filters_and_aggs.append((filt, available_aggs))
         return available_filters_and_aggs
 
+    @staticmethod
     def _apply_aggregations(
-        self, available_filters_and_aggs: list[tuple[str, dict[str, tuple[str, str]]]]
+        filtered_data: pd.DataFrame,
+        groupby_columns: list[str],
+        available_filters_and_aggs: list[tuple[str, dict[str, tuple[str, typing.Union[str, typing.Callable]]]]],
     ) -> pd.DataFrame:
         """Apply filters and aggregations to the data."""
         aggregated_results = []
         for f, agg in available_filters_and_aggs:
-            aggregated_data = self.filtered_data.copy() if f is None else self.filtered_data.query(f).copy()
-            aggregated_results.append(aggregated_data.groupby(self.groupby_columns).agg(**agg))
+            aggregated_data = filtered_data.copy() if f is None else filtered_data.query(f).copy()
+            aggregated_results.append(aggregated_data.groupby(groupby_columns).agg(**agg))
         return pd.concat(aggregated_results, axis=1)
 
-    @staticmethod
-    def _fillna_count_columns(data: pd.DataFrame) -> pd.DataFrame:
+    def _fillna_count_columns(self, data: pd.DataFrame) -> pd.DataFrame:
         """Replace "NaN" values with 0.
 
         All "count" parameters are NaN, when no walking bouts of the respective duration are available in a group.
         We replace them with 0.
         """
-        count_columns = [col for col in MobilisedAggregator._COUNT_COLUMNS if col in data.columns]
+        count_columns = [col for col in self._COUNT_COLUMNS if col in data.columns]
         data.loc[:, count_columns] = data.loc[:, count_columns].fillna(0)
         return data.astype({c: "Int64" for c in count_columns})
 
-    @staticmethod
-    def _convert_units(data: pd.DataFrame) -> pd.DataFrame:
+    def _convert_units(self, data: pd.DataFrame) -> pd.DataFrame:
         """Convert the units of the aggregated data to the desired output units."""
-        for col, factor in MobilisedAggregator._UNIT_CONVERSIONS.items():
+        for col, factor in self._UNIT_CONVERSIONS.items():
             if col in data.columns:
                 data.loc[:, col] *= factor
         return data
