@@ -20,6 +20,11 @@ base_aggregator_docfiller = make_filldoc(
         A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
         Possible groupings are e.g. by participant, recording date, or trial.
     """,
+        "filtered_data_": """
+    filtered_data_
+        An updated version of ``data`` with the implausible entries removed based on ``data_mask``.
+        Depending on the implementation, the shape of ``filtered_data_`` might differ from ``data``.
+    """,
         "aggregated_data_": """
     aggregated_data_
         A dataframe containing the aggregated results.
@@ -71,6 +76,7 @@ class BaseAggregator(Algorithm):
     Attributes
     ----------
     %(aggregated_data_)
+    %(filtered_data_)
 
     Notes
     -----
@@ -87,6 +93,7 @@ class BaseAggregator(Algorithm):
 
     # results
     aggregated_data_: pd.DataFrame
+    filtered_data_: pd.DataFrame
 
     @base_aggregator_docfiller
     def aggregate(
@@ -94,7 +101,6 @@ class BaseAggregator(Algorithm):
         data: pd.DataFrame,
         *,
         data_mask: pd.DataFrame,
-        groupby_columns: Sequence[str],
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(aggregate_short)s.

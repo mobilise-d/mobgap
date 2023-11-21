@@ -148,7 +148,9 @@ class MobilisedAggregator(BaseAggregator):
                 flag_col = f"{col}_flag"
                 # set entries flagged as implausible to NaN
                 if all([col in self.data.columns, flag_col in self.data_mask.columns]):
-                    self.filtered_data_ = self._apply_data_mask_to_col(col, flag_col)
+                    self.filtered_data_ = self._apply_data_mask_to_col(
+                        self.filtered_data_, self.data_mask[flag_col], col
+                    )
                 # as last filtering step, delete all rows with implausible duration
                 if col == "duration":
                     self.filtered_data_ = self._apply_duration_mask(self.filtered_data_)
@@ -163,14 +165,17 @@ class MobilisedAggregator(BaseAggregator):
 
         return self
 
-    def _apply_data_mask_to_col(self, col: str, flag_col: str) -> pd.DataFrame:
+    @staticmethod
+    def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.Series, col: str) -> pd.DataFrame:
+        """Clean the data according to a column of the data mask."""
         if col in ["cadence", "stride_length"]:
-            self.filtered_data_.loc[~self.data_mask[flag_col], "stride_speed"] = pd.NA
-        self.filtered_data_.loc[~self.data_mask[flag_col], col] = pd.NA
-        return self.filtered_data_
+            data.loc[~mask_col, "stride_speed"] = pd.NA
+        data.loc[~mask_col] = pd.NA
+        return data
 
     @staticmethod
     def _apply_duration_mask(data: pd.DataFrame) -> pd.DataFrame:
+        """Remove rows with implausible duration."""
         return data.dropna(subset=["duration"])
 
     def _select_aggregations(
