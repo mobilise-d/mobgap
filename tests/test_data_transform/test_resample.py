@@ -98,7 +98,7 @@ class TestResample:
         real_data = df
 
         # Create a Resample instance with the target sampling rate
-        resampler = Resample(target_sampling_rate_hz=target_sampling_rate)
+        resampler = Resample(target_sampling_rate_hz=target_sampling_rate, attempt_index_resample=False)
 
         # Transform the real data
 
