@@ -1,4 +1,7 @@
-# Here's a quick implementation of the resample class
+"""
+Resampling data
+===============
+"""
 
 import matplotlib.pyplot as plt
 

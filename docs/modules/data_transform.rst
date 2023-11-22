@@ -19,6 +19,17 @@ Filter
     EpflDedriftFilter
     EpflDedriftedGaitFilter
 
+Transformations
++++++++++++++++
+.. currentmodule:: gaitlink.data_transform
+
+.. autosummary::
+   :toctree: generated/data_transform
+   :template: class.rst
+
+    Resample
+
+
 Utilities
 +++++++++
 
