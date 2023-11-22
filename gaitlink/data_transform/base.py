@@ -131,7 +131,7 @@ class BaseFilter(BaseTransformer):
         Parameters
         ----------
         data
-            A dataframe representing single sensor data.
+            The data represented either as a dataframe, a series, or a numpy array.
         sampling_rate_hz
             The sampling rate of the IMU data in Hz.
         kwargs

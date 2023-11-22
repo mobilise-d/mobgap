@@ -2,11 +2,10 @@ import pandas as pd
 import pytest
 from scipy.signal import resample
 from tpcp.testing import TestAlgorithmMixin
-from tpcp import get_results
+
 from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform._resample import Resample
-from numpydoc.docscrape import NumpyDocString
-import inspect
+from gaitlink.data_transform import Resample
+
 
 class TestMetaResample(TestAlgorithmMixin):
     ALGORITHM_CLASS = Resample
@@ -28,14 +27,16 @@ class TestMetaResample(TestAlgorithmMixin):
         return resampler
 
 
-# Unit Tests
 class TestResample:
     @pytest.mark.parametrize(
         "source_sampling_rate, target_sampling_rate", [(100.0, 100.0), (50.0, 100.0), (100.0, 50.0)]
     )
-    def test_resample_transform(self, source_sampling_rate, target_sampling_rate):
+    @pytest.mark.parametrize("attempt_index_resample", [True, False])
+    def test_resample_transform(self, source_sampling_rate, target_sampling_rate, attempt_index_resample):
         # Create a Resample instance with the target sampling rate
-        resampler = Resample(target_sampling_rate_hz=target_sampling_rate)
+        resampler = Resample(
+            target_sampling_rate_hz=target_sampling_rate, attempt_index_resample=attempt_index_resample
+        )
 
         # Create a sample DataFrame
         sample_data = pd.DataFrame({"acc_x": [1.0, 2.0, 3.0, 4.0], "acc_y": [0.5, 1.0, 1.5, 2.0]})
@@ -44,19 +45,20 @@ class TestResample:
         transformed_data = resampler.transform(sample_data, sampling_rate_hz=source_sampling_rate)
 
         # Check if 'transformed_data_' is not None
-        assert transformed_data.transformed_data_ is not None and not transformed_data.transformed_data_.empty
-
+        assert transformed_data.transformed_data_ is not None
 
         # Check if the transformed_data is not an empty DataFrame
         assert not transformed_data.transformed_data_.empty
 
         # Calculate the expected output using scipy.signal.resample
         resampling_factor = target_sampling_rate / source_sampling_rate
-        expected_output = pd.DataFrame(resample(sample_data, int(len(sample_data) * resampling_factor)))
+        if attempt_index_resample:
+            data, index = resample(sample_data, int(len(sample_data) * resampling_factor), t=sample_data.index)
+        else:
+            data = resample(sample_data, int(len(sample_data) * resampling_factor))
+            index = None
+        expected_output = pd.DataFrame(data, index=index)
         expected_output.columns = ["acc_x", "acc_y"]
-
-        print("Transformed Data Shape:", transformed_data.transformed_data_.shape)
-        print("Expected Output Shape:", expected_output.shape)
 
         # Compare the shapes of the transformed data with the expected output
         assert transformed_data.transformed_data_.shape == expected_output.shape
@@ -66,12 +68,9 @@ class TestResample:
 
         # Check if the transformed data is not the same object when source and target sampling rates are identical
         if source_sampling_rate == target_sampling_rate:
-            assert not transformed_data is sample_data
+            assert transformed_data is not sample_data
 
 
-
-
-# Regression Test
 class TestResampleRegression:
     @pytest.mark.parametrize("target_sampling_rate", [100.0, 200.0])
     def test_regression_test(self, target_sampling_rate):
@@ -94,8 +93,3 @@ class TestResampleRegression:
         expected_output.columns = ["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]
         # Check if the transformed data matches the expected output
         pd.testing.assert_frame_equal(transformed_data.transformed_data_, expected_output)
-
-
-# Run the tests
-if __name__ == "__main__":
-    pytest.main()

@@ -1,13 +1,11 @@
 # Here's a quick implementation of the resample class
 
+import matplotlib.pyplot as plt
+
 from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform._resample import Resample
+from gaitlink.data_transform import Resample
 
 # Now you can use the Resample class in this file
-
-import matplotlib.pyplot as plt
-from scipy import signal
-import pandas as pd
 
 # Load the data
 example_data = LabExampleDataset()
