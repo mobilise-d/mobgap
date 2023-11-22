@@ -70,8 +70,24 @@ class TestResample:
         if source_sampling_rate == target_sampling_rate:
             assert transformed_data is not sample_data
 
+    def test_warn_non_numeric_index(self):
+        input_data = pd.DataFrame({"column1": [1, 2, 3], "column2": [4, 5, 6]}, index=["a", "b", "c"])
 
-class TestResampleRegression:
+        resampler = Resample(target_sampling_rate_hz=100.0)
+
+        with pytest.warns(UserWarning):
+            resampler.transform(input_data, sampling_rate_hz=50.0)
+
+        assert resampler.transformed_data_.index.tolist() == [0, 1, 2, 3, 4, 5]
+
+    def test_error_if_no_sampling_rate(self):
+        input_data = pd.DataFrame({"column1": [1, 2, 3], "column2": [4, 5, 6]})
+
+        resampler = Resample(target_sampling_rate_hz=100.0)
+
+        with pytest.raises(ValueError):
+            resampler.transform(input_data)
+
     @pytest.mark.parametrize("target_sampling_rate", [100.0, 200.0])
     def test_regression_test(self, target_sampling_rate):
         example_data = LabExampleDataset()
