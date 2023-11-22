@@ -1,5 +1,5 @@
 import warnings
-from typing import Optional, Unpack, Any
+from typing import Any, Optional, Unpack
 
 import pandas as pd
 from pandas.core.dtypes.common import is_numeric_dtype
@@ -92,7 +92,8 @@ class Resample(BaseTransformer):
                 "You passed an object with an index. "
                 "However, the index is not Numeric. "
                 "Hence, we can not resample it."
-                "The index will be ignored during resampling."
+                "The index will be ignored during resampling.",
+                stacklevel=1,
             )
             index = None
 
