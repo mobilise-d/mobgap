@@ -57,7 +57,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from tpcp import Algorithm
-from typing_extensions import Unpack, Self
+from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform.base import BaseTransformer
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array

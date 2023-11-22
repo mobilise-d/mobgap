@@ -1,6 +1,6 @@
 """
 Gait Sequence Iterator
-======================
+======================.
 
 As part of most pipelines, we need to iterate over the gait sequences to apply all further algorithms to them
 individually.

@@ -1,6 +1,6 @@
 """
 GSD Iluz
-========
+========.
 
 This example shows how to use the GSD Iluz algorithm and some examples on how the results compare to the original
 matlab implementation.
@@ -50,6 +50,7 @@ def plot_gsd_outputs(data, **kwargs):
 # However, a good gait sequence detection algorithm should have high sensitivity (i.e. contain all the "WBs"
 # of the reference system).
 import json
+
 import pandas as pd
 
 from gaitlink import PACKAGE_ROOT

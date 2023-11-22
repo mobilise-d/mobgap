@@ -73,7 +73,7 @@ single_trial_with_reference.reference_parameters_
 # ++++++++++++++++++++
 # We can get the local path to the example data using :func:`~gaitlink.data.get_all_lab_example_data_paths`
 # and then use :func:`~gaitlink.data.load_mobilised_matlab_format` to load the data.
-from gaitlink.data import load_mobilised_matlab_format, get_all_lab_example_data_paths
+from gaitlink.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
 
 all_example_data_paths = get_all_lab_example_data_paths()
 list(all_example_data_paths.keys())

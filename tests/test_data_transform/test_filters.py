@@ -213,9 +213,6 @@ class TestFirFilter:
 
         b = firwin(order + 1, cutoff, fs=sampling_rate, pass_zero="lowpass", window=window)
 
-        if zero_phase:
-            reference = filtfilt(b, 1, data, axis=0)
-        else:
-            reference = lfilter(b, 1, data, axis=0)
+        reference = filtfilt(b, 1, data, axis=0) if zero_phase else lfilter(b, 1, data, axis=0)
 
         output_assertions(result, reference, data)

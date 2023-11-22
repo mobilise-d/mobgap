@@ -17,11 +17,10 @@ gaitmap = "^2.3.0"
 joblib = ">=1.3.2"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.10.0"
 poethepoet = "^0.22.0"
 pytest = "^7.4.0"
 pytest-cov = "^4.1.0"
-ruff = "^0.1.1"
+ruff = "^0.1.6"
 sphinx = "^7.2.6"
 sphinx-gallery = "^0.14.0"
 memory-profiler = "^0.61.0"
@@ -58,13 +57,15 @@ exclude = '''
 '''
 
 [tool.poe.tasks]
-_format_black = "black ."
-_format_ruff = "ruff . --fix-only --exit-zero"
-format = { sequence = ["_format_black", "_format_ruff", "_format_black"], help = "Format all files with Black and Ruff." }
+_format = "ruff format ."
+_auto_fix = "ruff . --fix-only --exit-zero"
+_auto_fix_unsafe = "ruff . --fix-only --exit-zero --unsafe-fixes"
+format = ["_auto_fix", "_format"]
+format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff gaitlink --fix", help = "Lint all files with ruff." }
 _lint_ci = "ruff gaitlink --output-format=github"
-_check_black = "black . --check"
-ci_check = { sequence = ["_check_black", "_lint_ci"], help = "Check all potential format and linting issues." }
+_check_format = "ruff format . --check"
+ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 docs_preview = { cmd = "python -m http.server --directory docs/_build/html", help = "Preview the built html docs." }

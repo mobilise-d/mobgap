@@ -101,8 +101,9 @@ ignore = [
     # To many arguments
     "PLR0913",
     # Class attribute shadows builtin
-    "A003"
-
+    "A003",
+    # Ignore because of formatting
+    "ISC001",
 ]
 
 
@@ -112,7 +113,6 @@ exclude = [
     "doc/temp/*.py",
     ".eggs/*.py",
     "example_data",
-    "examples"
 ]
 
 
