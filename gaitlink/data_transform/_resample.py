@@ -1,11 +1,11 @@
 import warnings
-from typing import Any, Optional, Unpack
+from typing import Any, Optional
 
 import pandas as pd
 from pandas.core.dtypes.common import is_numeric_dtype
 from scipy import signal
 from tpcp import clone
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform.base import BaseTransformer
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
