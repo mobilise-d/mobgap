@@ -21,7 +21,7 @@ class TestMetaResample(TestAlgorithmMixin):
         current_sampling_rate = 50.0  # For example purposes
 
         # Perform the resampling action using your Resample class
-        result = resampler.transform(input_data, sampling_rate_hz=current_sampling_rate)
+        resampler.transform(input_data, sampling_rate_hz=current_sampling_rate)
 
         # Return the Resample class instance with initial conditions
         return resampler
@@ -29,7 +29,7 @@ class TestMetaResample(TestAlgorithmMixin):
 
 class TestResample:
     @pytest.mark.parametrize(
-        "source_sampling_rate, target_sampling_rate", [(100.0, 100.0), (50.0, 100.0), (100.0, 50.0)]
+        ("source_sampling_rate", "target_sampling_rate"), [(100.0, 100.0), (50.0, 100.0), (100.0, 50.0)]
     )
     @pytest.mark.parametrize("attempt_index_resample", [True, False])
     def test_resample_transform(self, source_sampling_rate, target_sampling_rate, attempt_index_resample):
