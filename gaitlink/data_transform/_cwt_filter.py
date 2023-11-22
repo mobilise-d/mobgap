@@ -1,4 +1,4 @@
-from scipy.signal import cwt
+from scipy.signal import cwt, morlet
 from gaitlink.data_transform.base import BaseTransformer
 import numpy as np
 
@@ -30,9 +30,18 @@ class CwtFilter(BaseTransformer):
     """
 
     def __init__(self, wavelet: callable, width: float) -> None:
+        """
+        Parameters
+        ----------
+        wavelet : callable
+            Mother wavelet function.
+        width : float
+            Width parameter.
+        """
         self.wavelet = wavelet
         self.width = width
-        self.transformed_data_ = np.array([])  # Initialize transformed_data_ to an empty array
+        self.transformed_data_ = np.array([]) # Initialize transformed_data_ to an empty array
+        super().__init__()
 
     def transform(self, data: np.ndarray) -> "CwtFilter":
         """
@@ -54,6 +63,10 @@ class CwtFilter(BaseTransformer):
 
         self.data = data.copy()  # Create a copy for consistency
         # Apply Continuous Wavelet Transform
-        self.transformed_data_ = cwt(data, self.wavelet, widths=self.width, dtype=None, method='fft')
+        try:
+            self.transformed_data_ = cwt(data, self.wavelet, widths=self.width, dtype=None)
+        except TypeError:
+            # Handle the case where 'method' is not supported by the wavelet
+            self.transformed_data_ = cwt(data, self.wavelet, widths=self.width)
 
         return self
