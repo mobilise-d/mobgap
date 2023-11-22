@@ -1,49 +1,63 @@
-from typing import Optional
+import warnings
+from typing import Optional, Unpack, Any
 
 import pandas as pd
+from pandas.core.dtypes.common import is_numeric_dtype
 from scipy import signal
+from tpcp import clone
+from typing_extensions import Self
 
 from gaitlink.data_transform.base import BaseTransformer
+from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
 class Resample(BaseTransformer):
-    """
-    A class for resampling input data to a specified target sampling rate using signal processing techniques.
-    Derived from BaseTransformer for integration into gait analysis pipelines.
-
+    """Resample the input data to a specified target sampling rate using :func:`scipy.signal.resample`.
 
     Parameters
     ----------
-    target_sampling_rate_hz : float
+    target_sampling_rate_hz
         The target sampling rate in Hertz.
+        If the target sampling rate is equal to the sampling rate of the input data, no resampling is performed.
+    attempt_index_resample
+        Whether to attempt to resample the index of the input data.
+        This is only used if the input data is a DataFrame or Series with a numeric index.
+        In this case we assume that the index represents the time of the samples, and we try to resample it.
+        If the index is not numeric, we can not resample it and this parameter is ignored.
+        In case you index does not represent the time (either in actual time or samples), you should set this parameter
+        to False.
 
     Attributes
     ----------
-    transformed_data_ :
-        The transformed data after resampling.
+    transformed_data_
+        The resampled data
 
-    data : pd.DataFrame
-        The input data to be resampled.
+    Other Parameters
+    ----------------
+    data
+        The data represented either as a dataframe, a series, or a numpy array.
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
 
-    Methods
-    -------
-    transform(data, sampling_rate_hz)
-        Perform the resampling action on the input data.
     """
 
-    def __init__(self, target_sampling_rate_hz: float = 100.0) -> None:
-        self.target_sampling_rate_hz = target_sampling_rate_hz
-        self.transformed_data_ = pd.DataFrame()  # Initialize transformed_data_ to None
+    target_sampling_rate_hz: float
+    attempt_index_resample: bool
 
-    def transform(self, data: pd.DataFrame, sampling_rate_hz: Optional[float] = None) -> "Resample":
-        """
-        Resample the input data to the target sampling rate.
+    sampling_rate_hz: float
+
+    def __init__(self, target_sampling_rate_hz: float = 100.0, *, attempt_index_resample: bool = True) -> None:
+        self.target_sampling_rate_hz = target_sampling_rate_hz
+        self.attempt_index_resample = attempt_index_resample
+
+    def transform(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
+        """Resample the input data to the target sampling rate.
 
         Parameters
         ----------
-        data : pd.DataFrame
-            A dataframe representing single sensor data.
-        sampling_rate_hz : float
+        data
+            The data represented either as a dataframe, a series, or a numpy array.
+        sampling_rate_hz
             The sampling rate of the IMU data in Hz.
 
         Returns
@@ -54,38 +68,45 @@ class Resample(BaseTransformer):
         Raises
         ------
         ValueError
-            If sampling_rate_hz is None or data is None.
+            If sampling_rate_hz is None.
 
         """
         if sampling_rate_hz is None:
             raise ValueError("Parameter 'sampling_rate_hz' must be provided.")
 
-        if isinstance(data, pd.DataFrame):
-            # Handle Pandas DataFrame
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
 
-            if sampling_rate_hz == self.target_sampling_rate_hz:
-                # No need to resample if the sampling rates match
-                self.transformed_data_ = data  # Assign the original data
-            else:
+        if sampling_rate_hz == self.target_sampling_rate_hz:
+            # No need to resample if the sampling rates match
+            self.transformed_data_ = clone(data)  # clone effectively deep copies the data
 
-                self.data = data.copy()  # Create a copy for consistency
-                # Calculate the resampling factor as a float
-                resampling_factor = self.target_sampling_rate_hz / sampling_rate_hz
+        # This converts DataFrames, Series, or arrays all into a unified shaped np.ndarray
+        data_as_array, index, transformation_func = dflike_as_2d_array(data)
 
-                resampled_data = signal.resample(data, int(len(data) * resampling_factor))
+        if self.attempt_index_resample is False:
+            index = None
 
-                # Create a DataFrame from the resampled data
-                self.transformed_data_ = pd.DataFrame(data=resampled_data, columns=data.columns)
+        if index is not None and not is_numeric_dtype(index):
+            warnings.warn(
+                "You passed an object with an index. "
+                "However, the index is not Numeric. "
+                "Hence, we can not resample it."
+                "The index will be ignored during resampling."
+            )
+            index = None
 
+        resampling_factor = self.target_sampling_rate_hz / sampling_rate_hz
+        new_n_samples = int(len(data_as_array) * resampling_factor)
+
+        # If we don't have an index (i.e. when a np.array was passed), we don't need to resample the index
+        if index is None:
+            resampled_data = signal.resample(data, new_n_samples)
         else:
-            # Handle other data types
-            if data is None:
-                raise ValueError("Parameter 'data' must be provided.")
+            # Otherwise, we also try to resample the index
+            resampled_data, resampled_index = signal.resample(data, new_n_samples, t=index.to_numpy())
+            index = pd.Index(resampled_index, name=index.name)
 
-            # Assuming data is a type that can be directly resampled (e.g., NumPy array)
-            resampled_data = signal.resample(data, int(len(data) * self.target_sampling_rate_hz / sampling_rate_hz))
-            self.transformed_data_ = pd.DataFrame(data=resampled_data, columns=["acc_x", "acc_y"])
+        self.transformed_data_ = transformation_func(resampled_data, index)
 
         return self
-
-
