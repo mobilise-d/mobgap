@@ -23,3 +23,8 @@ def test_filter(snapshot):
     from examples.data_transform._02_filter import epfl_filter
 
     snapshot.assert_match(epfl_filter.filtered_data_, "filtered_data")
+
+
+def test_resample():
+    # For now we just check that the code runs without errors, as the example might need to be reworked
+    from examples.data_transform._03_resample import resampler  # noqa
