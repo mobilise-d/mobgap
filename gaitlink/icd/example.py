@@ -3,8 +3,7 @@ from gaitlink.data_transform._filter import EpflDedriftedGaitFilter
 from gaitlink.data_transform._filter import EpflGaitFilter
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from scipy.signal import filtfilt, cwt, ricker
-from scipy.io import loadmat
+from scipy.signal import cwt, ricker
 from scipy.integrate import cumtrapz
 from gaitlink.consts import GRAV_MS2
 import numpy as np
@@ -15,7 +14,7 @@ target_Test = "Test5"
 target_Trial = "Trial1"
 #%%
 # Functions
-def resampInterp(y, fs_initial, fs_final):
+def resamp_interp(y, fs_initial, fs_final):
     recordingTime = len(y)
     x = np.arange(1, recordingTime + 1)  # MATLAB uses 1-based indexing
     xq = np.arange(1, recordingTime + 1, fs_initial / fs_final)  # Create the new time vector
@@ -85,7 +84,7 @@ gs = accV.array[s:e+1].to_numpy()
 
 #%% Resampling
 # Resample gait sequence from 100 Hz to 40 Hz
-accV40 = resampInterp(gs,fs,algorithm_target_fs)
+accV40 = resamp_interp(gs,fs,algorithm_target_fs)
 #%% Filtering
 # Get the coefficients of the gait filter (just to perform padding)
 b,a = EpflGaitFilter().coefficients
