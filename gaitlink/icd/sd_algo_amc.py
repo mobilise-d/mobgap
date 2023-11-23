@@ -16,7 +16,7 @@ from gaitlink.data_transform._filter import EpflGaitFilter
 
 
 @base_icd_docfiller
-class SD_algo_AMC(BaseIcdDetector):
+class SdAlgoAMC(BaseIcdDetector):
     """Implementation of the ICD algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_
 
     The algorithm includes the following steps starting from vertical acceleration
@@ -90,7 +90,7 @@ class SD_algo_AMC(BaseIcdDetector):
         relevant_columns = ["acc_x"] # acc_x: vertical acceleration
         accV = data[relevant_columns]
         accV = accV.to_numpy() # pd.Series--> ndarray
-        def resampInterp(signal: np.ndarray, fs_initial: float, fs_final: float):
+        def resamp_interp(signal: np.ndarray, fs_initial: float, fs_final: float):
             recordingTime = len(signal)
             x = np.arange(1, recordingTime + 1)  # MATLAB uses 1-based indexing
             xq = np.arange(1, recordingTime + 1, fs_initial / fs_final)  # creates the new time vector
@@ -101,7 +101,7 @@ class SD_algo_AMC(BaseIcdDetector):
             yResamp = interp_func(xq) # performs interpolation
             return yResamp
 
-        accV40 = resampInterp(signal = accV, fs_initial = sampling_rate_hz, fs_final = self.target_sampling_rate_hz)
+        accV40 = resamp_interp(signal = accV, fs_initial = sampling_rate_hz, fs_final = self.target_sampling_rate_hz)
         # Get the coefficients of the gait filter (just to perform padding)
         # SHOULD I USE A FIXED LENGTH FOR PADDING (10000*102)
         b, a = EpflGaitFilter().coefficients
@@ -113,7 +113,7 @@ class SD_algo_AMC(BaseIcdDetector):
         # Remove the padding
         accV40_bpf_rmzp = accV40_bpf[len_padd - 1:-len_padd]
         # Cumulative integral
-        accVLPInt = cumtrapz(accV40_bpf_rmzp, initial=0) / target_sampling_rate_hz
+        accVLPInt = cumtrapz(accV40_bpf_rmzp, initial=0) / self.target_sampling_rate_hz
         # %% Continuous Wavelet Transform (CWT)
         accVLPIntCwt = cwt(accVLPInt, ricker, [6.4])
         # Remove the mean from accVLPIntCwt
@@ -148,7 +148,7 @@ class SD_algo_AMC(BaseIcdDetector):
         pks, ipks = MaxPeaksBetweenZC(x)
         # Filter negative peaks
         indx = np.where(pks < 0)[0].tolist()
-        ICs = np.array([ipks[i] for i in indx])
-        self.ICs_ = ICs.copy()
+        icd_list = np.array([ipks[i] for i in indx])
+        self.icd_list_ = icd_list.copy()
 
         return self
