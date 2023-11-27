@@ -123,6 +123,25 @@ class MobilisedTestData(NamedTuple):
     metadata: MobilisedMetadata
 
 
+class MobilisedUnits(NamedTuple):
+    """Representation of units in the Mobilised dataset
+
+    Parameters
+    ----------
+    acc
+        acceleration unit, default = ms^-2
+    gyr
+        gyroscope unit, default = deg/s
+    mag
+        magnetometer unit, default = uT
+
+    """
+
+    acc: str = "ms^-2"
+    gyr: str = "deg/s"
+    mag: str = "uT"
+
+
 def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
     """Load the participant metadata file (usually called infoForAlgo.mat).
 
@@ -401,6 +420,7 @@ class _GenericMobilisedDataset(Dataset):
     sensor_positions: Sequence[str]
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
+    _units: MobilisedUnits = MobilisedUnits()
 
     def __init__(
         self,
@@ -465,6 +485,10 @@ class _GenericMobilisedDataset(Dataset):
     @property
     def metadata(self) -> MobilisedMetadata:
         return self._load_selected_data("metadata").metadata
+
+    @property
+    def units(self):
+        return self._units
 
     @property
     def participant_metadata(self) -> dict[str, Any]:
