@@ -1,4 +1,5 @@
-from typing import Unpack, Any
+"""Base classes for all Cadence calculation methods."""
+from typing import Any, Unpack
 
 import pandas as pd
 from tpcp import Algorithm
@@ -8,6 +9,8 @@ from typing_extensions import Self
 class BaseCadenceCalculator(Algorithm):
     data: pd.DataFrame
     initial_contacts: pd.Series
+
+    cadence_per_sec_: pd.Series
 
     def calculate(
         self,
