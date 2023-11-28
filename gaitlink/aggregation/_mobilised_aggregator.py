@@ -87,7 +87,8 @@ class MobilisedAggregator(BaseAggregator):
         column of the data mask corresponds to a column of ``data`` and has the same name.
         If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
 
-        To exclude implausible data points from the input data, a ``data_mask`` can be passed to the ``aggregate`` method.
+        To exclude implausible data points from the input data, a ``data_mask`` can be passed to the ``aggregate``
+        method.
         The columns in data_mask are regarded if there exists a column in the input data with the same name.
         Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
             - "duration": The whole walking bout is not regarded for the aggregation.
@@ -218,13 +219,16 @@ class MobilisedAggregator(BaseAggregator):
                 raise ValueError("The passed data and data_mask do not have the same number of rows.")
 
             for col in self.INPUT_COLUMNS:
+                # remove walking bouts in the last filtering step
+                if col == "duration":
+                    continue
                 # set entries flagged as implausible to NaN
                 if all([col in self.data.columns, col in self.data_mask.columns]):
                     self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, self.data_mask[col], col)
-                # TODO move&test
-                # as last filtering step, delete all rows with implausible duration
-                if col == "duration":
-                    self.filtered_data_ = self._apply_duration_mask(self.filtered_data_)
+
+            # as last filtering step, delete all rows with implausible duration
+            if all(["duration" in self.data.columns, "duration" in self.data_mask.columns]):
+                self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, self.data_mask["duration"])
 
         available_filters_and_aggs = self._select_aggregations(self.data.columns)
         self.aggregated_data_ = self._apply_aggregations(
@@ -245,9 +249,9 @@ class MobilisedAggregator(BaseAggregator):
         return data
 
     @staticmethod
-    def _apply_duration_mask(data: pd.DataFrame) -> pd.DataFrame:
+    def _apply_duration_mask(data: pd.DataFrame, duration_mask: pd.Series) -> pd.DataFrame:
         """Remove rows with implausible duration."""
-        return data.dropna(subset=["duration"])
+        return data.loc[duration_mask]
 
     def _select_aggregations(
         self, data_columns: list[str]
