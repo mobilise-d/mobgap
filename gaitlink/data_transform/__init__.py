@@ -7,6 +7,7 @@ from gaitlink.data_transform._filter import (
     EpflDedriftFilter,
     EpflGaitFilter,
     FirFilter,
+    HampelFilter,
 )
 from gaitlink.data_transform._gaussian_filter import GaussianFilter
 from gaitlink.data_transform._padding import Crop, Pad
@@ -21,6 +22,7 @@ __all__ = [
     "chain_transformers",
     "ButterworthFilter",
     "FirFilter",
+    "HampelFilter",
     "Resample",
     "CwtFilter",
     "GaussianFilter",
