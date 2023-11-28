@@ -77,26 +77,26 @@ class MobilisedAggregator(BaseAggregator):
     one set of aggregation results is calculated per participant and recording date. This can however be adapted by
     passing a different list of ``groupby_columns``.
 
-    To exclude implausible data points from the input data, a ``data_mask`` can be passed to the ``aggregate`` method.
-    The columns in data_mask are regarded if there exists a column in the input data with the same name without the
-    "_flag" suffix. Note that depending on which DMO measure is flagged as implausible, different elimination steps are
-    applied:
-        - "duration_flag": The whole walking bout is not regarded for the aggregation.
-        - "step_number_flag": The corresponding "step_number" is not regarded.
-        - "turn_number_flag": The corresponding "turn_number" is not regarded.
-        - "stride_speed_flag": The corresponding "stride_speed" is not regarded.
-        - "stride_length_flag": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
-        - "cadence_flag": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
-        - "stride_duration_flag": The corresponding "stride_duration" is not regarded.
+
 
     Other Parameters
     ----------------
     %(other_parameters)s
     data_mask
         A boolean DataFrame with the same number of rows as ``data`` indicating the validity of every measure. Every
-        column of the data mask corresponds to a column of ``data`` and has the same name with the suffix "_flag"
-        attached.
+        column of the data mask corresponds to a column of ``data`` and has the same name.
         If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
+
+        To exclude implausible data points from the input data, a ``data_mask`` can be passed to the ``aggregate`` method.
+        The columns in data_mask are regarded if there exists a column in the input data with the same name.
+        Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
+            - "duration": The whole walking bout is not regarded for the aggregation.
+            - "step_number": The corresponding "step_number" is not regarded.
+            - "turn_number": The corresponding "turn_number" is not regarded.
+            - "stride_speed": The corresponding "stride_speed" is not regarded.
+            - "stride_length": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
+            - "cadence": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
+            - "stride_duration": The corresponding "stride_duration" is not regarded.
 
     Attributes
     ----------
@@ -218,12 +218,10 @@ class MobilisedAggregator(BaseAggregator):
                 raise ValueError("The passed data and data_mask do not have the same number of rows.")
 
             for col in self.INPUT_COLUMNS:
-                flag_col = f"{col}_flag"
                 # set entries flagged as implausible to NaN
-                if all([col in self.data.columns, flag_col in self.data_mask.columns]):
-                    self.filtered_data_ = self._apply_data_mask_to_col(
-                        self.filtered_data_, self.data_mask[flag_col], col
-                    )
+                if all([col in self.data.columns, col in self.data_mask.columns]):
+                    self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, self.data_mask[col], col)
+                # TODO move&test
                 # as last filtering step, delete all rows with implausible duration
                 if col == "duration":
                     self.filtered_data_ = self._apply_duration_mask(self.filtered_data_)
