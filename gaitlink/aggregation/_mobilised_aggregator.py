@@ -8,7 +8,6 @@ from typing_extensions import Self, Unpack
 from gaitlink.aggregation.base import BaseAggregator, base_aggregator_docfiller
 
 
-# TODO: move these functions somewhere else?
 def _custom_quantile(x: pd.Series) -> float:
     """Calculate the 90th percentile of the passed data."""
     return np.nanpercentile(x, 90)
@@ -180,7 +179,6 @@ class MobilisedAggregator(BaseAggregator):
 
     def __init__(self, groupby_columns: typing.Sequence[str] = ("subject_code", "visit_date")) -> None:
         self.groupby_columns = groupby_columns
-        super().__init__()
 
     def aggregate(
         self,
