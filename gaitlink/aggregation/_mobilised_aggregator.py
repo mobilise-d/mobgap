@@ -92,11 +92,18 @@ class MobilisedAggregator(BaseAggregator):
     Other Parameters
     ----------------
     %(other_parameters)s
+    data_mask
+        A boolean DataFrame with the same number of rows as ``data`` indicating the validity of every measure. Every
+        column of the data mask corresponds to a column of ``data`` and has the same name with the suffix "_flag"
+        attached.
+        If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
 
     Attributes
     ----------
     %(aggregated_data_)s
-    %(filtered_data_)s
+    filtered_data_
+        An updated version of ``data`` with the implausible entries removed based on ``data_mask``.
+        Depending on the implementation, the shape of ``filtered_data_`` might differ from ``data``.
     """
 
     INPUT_COLUMNS: typing.ClassVar[list[str]] = [
@@ -175,6 +182,7 @@ class MobilisedAggregator(BaseAggregator):
         "walkdur_all_sum_d",
     ]
 
+    data_mask: pd.DataFrame
     filtered_data_: pd.DataFrame
 
     def __init__(self, groupby_columns: typing.Sequence[str] = ("subject_code", "visit_date")) -> None:
@@ -183,7 +191,6 @@ class MobilisedAggregator(BaseAggregator):
     def aggregate(
         self,
         data: pd.DataFrame,
-        *,
         data_mask: pd.DataFrame,
         **_: Unpack[dict[str, typing.Any]],
     ) -> Self:
