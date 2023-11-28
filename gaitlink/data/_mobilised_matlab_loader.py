@@ -233,12 +233,13 @@ def load_mobilised_matlab_format(
         for test_name, test_data in data_per_test
     }
 
-    # Unit conversion
+    # Unit conversion of imu data, if available
     for test, data in data_per_test_dict.items():
-        for sensor_position in data.imu_data:
-            # Determine acc columns and convert to m/s-2
-            acc_columns = data_per_test_dict[test].imu_data[sensor_position].filter(like="acc", axis=1).columns
-            data_per_test_dict[test].imu_data[sensor_position][acc_columns] *= 9.81
+        if data.imu_data is not None:
+            for sensor_position in data.imu_data:
+                # Determine acc columns and convert to m/s-2
+                acc_columns = data_per_test_dict[test].imu_data[sensor_position].filter(like="acc", axis=1).columns
+                data_per_test_dict[test].imu_data[sensor_position][acc_columns] *= 9.81
 
     return data_per_test_dict
 
