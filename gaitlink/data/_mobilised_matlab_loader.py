@@ -124,7 +124,7 @@ class MobilisedTestData(NamedTuple):
 
 
 class MobilisedUnits(NamedTuple):
-    """Representation of units in the Mobilised dataset
+    """Representation of units in the Mobilised dataset.
 
     Parameters
     ----------
@@ -137,9 +137,9 @@ class MobilisedUnits(NamedTuple):
 
     """
 
-    acc: str = "ms^-2"
-    gyr: str = "deg/s"
-    mag: str = "uT"
+    ACC: str = "ms^-2"
+    GYR: str = "deg/s"
+    MAG: str = "uT"
 
 
 def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
@@ -420,7 +420,7 @@ class _GenericMobilisedDataset(Dataset):
     sensor_positions: Sequence[str]
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
-    _units: MobilisedUnits = MobilisedUnits()
+    units: MobilisedUnits = MobilisedUnits()
 
     def __init__(
         self,
@@ -486,9 +486,9 @@ class _GenericMobilisedDataset(Dataset):
     def metadata(self) -> MobilisedMetadata:
         return self._load_selected_data("metadata").metadata
 
-    @property
-    def units(self):
-        return self._units
+    # @property
+    # def units(self):
+    #     return self._units
 
     @property
     def participant_metadata(self) -> dict[str, Any]:
