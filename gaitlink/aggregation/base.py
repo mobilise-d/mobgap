@@ -12,7 +12,7 @@ base_aggregator_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
-        The DMO data per walking bout passed to the ``aggregate`` method. 
+        The DMO data per walking bout passed to the ``aggregate`` method.
     groupby_columns
         A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
         Possible groupings are e.g. by participant, recording date, or trial.
