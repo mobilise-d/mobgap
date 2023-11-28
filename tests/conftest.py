@@ -1,5 +1,9 @@
+import matplotlib
 import pytest
 from tpcp.testing import PyTestSnapshotTest
+
+# This is needed to avoid plots to open
+matplotlib.use("Agg")
 
 
 @pytest.fixture()

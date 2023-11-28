@@ -1,9 +1,3 @@
-# This is needed to avoid plots to open
-import matplotlib
-
-matplotlib.use("Agg")
-
-
 def test_gsd_iluz(snapshot):
     from examples.gsd._01_gsd_iluz import long_trial_output, long_trial_output_modified, short_trial_output
 

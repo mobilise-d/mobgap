@@ -1,10 +1,6 @@
-# This is needed to avoid plots to open
-import matplotlib
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
-
-matplotlib.use("Agg")
 
 
 def test_generic_data_transform():
