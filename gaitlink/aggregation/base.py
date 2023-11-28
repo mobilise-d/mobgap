@@ -12,20 +12,10 @@ base_aggregator_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
-        The DMO data per walking bout passed to the ``aggregate`` method.
-    data_mask
-        A boolean DataFrame with the same number of rows as ``data`` indicating the validity of every measure. Every
-        column of the data mask corresponds to a column of ``data`` and has the same name with the suffix "_flag"
-        attached.
-        If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
+        The DMO data per walking bout passed to the ``aggregate`` method. 
     groupby_columns
         A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
         Possible groupings are e.g. by participant, recording date, or trial.
-    """,
-        "filtered_data_": """
-    filtered_data_
-        An updated version of ``data`` with the implausible entries removed based on ``data_mask``.
-        Depending on the implementation, the shape of ``filtered_data_`` might differ from ``data``.
     """,
         "aggregated_data_": """
     aggregated_data_
@@ -39,8 +29,6 @@ base_aggregator_docfiller = make_filldoc(
         "detect_para": """
     data
        The DMO data per walking bout.
-    data_mask
-        A boolean DataFrame to exclude particular data points from the aggregation.
     groupby_columns
         Columns over which to perform the aggregations.
     """,
@@ -78,7 +66,6 @@ class BaseAggregator(Algorithm):
     Attributes
     ----------
     %(aggregated_data_)
-    %(filtered_data_)
 
     Notes
     -----
@@ -90,19 +77,15 @@ class BaseAggregator(Algorithm):
 
     # Other Parameters
     data: pd.DataFrame
-    data_mask: pd.DataFrame
     groupby_columns: Sequence[str]
 
     # results
     aggregated_data_: pd.DataFrame
-    filtered_data_: pd.DataFrame
 
     @base_aggregator_docfiller
     def aggregate(
         self,
         data: pd.DataFrame,
-        *,
-        data_mask: pd.DataFrame,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(aggregate_short)s.
