@@ -23,7 +23,7 @@ class Resample(BaseTransformer):
         Whether to attempt to resample the index of the input data.
         This is only used if the input data is a DataFrame or Series with a numeric index.
         In this case we assume that the index represents the time or the samples, and we try to resample it.
-        If the index is neither numeric nor a dateime objects, we can not resample it and this parameter is ignored.
+        If the index is neither numeric nor a datetime objects, we can not resample it and this parameter is ignored.
         In case you index does not represent the time (either in actual time or samples), you should set this parameter
         to False.
 
