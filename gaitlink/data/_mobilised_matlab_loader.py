@@ -219,7 +219,8 @@ def load_mobilised_matlab_format(
 
     data = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)
     data_per_test = _parse_until_test_level(data["data"], (sensor_test_level_marker, "Standards"))
-    return {
+
+    data_per_test_dict = {
         test_name: _process_test_data(
             test_data,
             test_name,
@@ -231,6 +232,15 @@ def load_mobilised_matlab_format(
         )
         for test_name, test_data in data_per_test
     }
+
+    # Unit conversion
+    for test, data in data_per_test_dict.items():
+        for sensor_position in data.imu_data:
+            # Determine acc columns and convert to m/s-2
+            acc_columns = data_per_test_dict[test].imu_data[sensor_position].filter(like="acc", axis=1).columns
+            data_per_test_dict[test].imu_data[sensor_position][acc_columns] *= 9.81
+
+    return data_per_test_dict
 
 
 def _parse_until_test_level(
@@ -362,9 +372,6 @@ def _parse_single_sensor_data(
                 column_names = [f"{sensor_type}_{axis}" for axis in ("x", "y", "z")]
             parsed_data.append(pd.DataFrame(getattr(sensor_data, sensor_type_mat), columns=column_names))
     parsed_data = pd.concat(parsed_data, axis=1)
-    # We convert acc data to m/s^2
-    if "acc" in sensor_types:
-        parsed_data[["acc_x", "acc_y", "acc_z"]] *= 9.81
 
     # Some sensors provide realtime timestamps.
     # If they are available, we load them as the index.
@@ -485,10 +492,6 @@ class _GenericMobilisedDataset(Dataset):
     @property
     def metadata(self) -> MobilisedMetadata:
         return self._load_selected_data("metadata").metadata
-
-    # @property
-    # def units(self):
-    #     return self._units
 
     @property
     def participant_metadata(self) -> dict[str, Any]:
