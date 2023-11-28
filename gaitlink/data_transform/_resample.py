@@ -2,7 +2,7 @@ import warnings
 from typing import Any, Optional
 
 import pandas as pd
-from pandas.core.dtypes.common import is_numeric_dtype
+from pandas.core.dtypes.common import is_datetime64_any_dtype, is_numeric_dtype
 from scipy import signal
 from tpcp import clone
 from typing_extensions import Self, Unpack
@@ -22,8 +22,8 @@ class Resample(BaseTransformer):
     attempt_index_resample
         Whether to attempt to resample the index of the input data.
         This is only used if the input data is a DataFrame or Series with a numeric index.
-        In this case we assume that the index represents the time of the samples, and we try to resample it.
-        If the index is not numeric, we can not resample it and this parameter is ignored.
+        In this case we assume that the index represents the time or the samples, and we try to resample it.
+        If the index is neither numeric nor a dateime objects, we can not resample it and this parameter is ignored.
         In case you index does not represent the time (either in actual time or samples), you should set this parameter
         to False.
 
@@ -87,13 +87,14 @@ class Resample(BaseTransformer):
         if self.attempt_index_resample is False:
             index = None
 
-        if index is not None and not is_numeric_dtype(index):
+        if index is not None and not (is_numeric_dtype(index) or is_datetime64_any_dtype(index)):
             warnings.warn(
                 "You passed an object with an index. "
-                "However, the index is not Numeric. "
+                "However, the index is not Numeric or a Datetime object. "
                 "Hence, we can not resample it."
-                "The index will be ignored during resampling.",
-                stacklevel=1,
+                "The index will be ignored during resampling.\n\n"
+                "You can silence this warning by setting `attempt_index_resample=False`.",
+                stacklevel=2,
             )
             index = None
 
