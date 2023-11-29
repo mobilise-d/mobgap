@@ -248,7 +248,6 @@ class TestHampelFilter:
             num_std = num_stds[i]
 
             python_filtered = HampelFilter(window_size, num_std).filter(data, sampling_rate_hz=100.0).filtered_data_
-
             # MATLAB output
             matlab_filtered = matlab_filtered_array[i, 0].flatten()
 

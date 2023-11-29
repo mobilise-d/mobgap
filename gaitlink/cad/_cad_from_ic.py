@@ -14,7 +14,7 @@ def _robust_ic_to_cad_per_sec(
     ics: pd.Series, sec_centers: np.ndarray, max_interp_gap_sec: int, hampel_filter: HampelFilter
 ) -> pd.Series:
     ics = ics.to_numpy()
-    if len(ics) < hampel_filter.window_size:
+    if len(ics) < hampel_filter.window_size_:
         raw_cad_per_sec = pd.Series(np.full(len(sec_centers), np.nan))
     else:
         step_time = np.diff(ics)
