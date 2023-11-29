@@ -1,5 +1,5 @@
-gaitlink.data: Helper functions for data loading and data management
-====================================================================
+Data loading and data management
+================================
 
 .. automodule:: gaitlink.data
     :no-members:
