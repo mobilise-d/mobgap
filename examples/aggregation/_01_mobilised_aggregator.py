@@ -13,14 +13,13 @@ This example shows how to use the :class:`.MobilisedAggregator` class to aggrega
 #
 # The input data for the aggregator is a :class:`pandas.DataFrame` with one row for every walking bout.
 # The columns contain the DMO parameters estimated for each walking bout, such as duration, stride length, etc.
-from pathlib import Path
 
 import pandas as pd
 
+from gaitlink import PACKAGE_ROOT
 from gaitlink.aggregation import MobilisedAggregator
 
-BASE_PATH = Path(__file__).parent.parent.parent
-DATA_PATH = BASE_PATH / "example_data/original_results/mobilised_aggregator"
+DATA_PATH = PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
 
 data = pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0)
 data.head()

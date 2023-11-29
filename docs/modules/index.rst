@@ -12,6 +12,7 @@ This is the API Reference for ``gaitlink``.
     pipeline
     gsd
     data_transform
+    aggregation
     data
     utils/index.rst
 
