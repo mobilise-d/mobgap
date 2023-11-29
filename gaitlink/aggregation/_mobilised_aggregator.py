@@ -109,6 +109,15 @@ class MobilisedAggregator(BaseAggregator):
     filtered_data_
         An updated version of ``data`` with the implausible entries removed based on ``data_mask``.
         Depending on the implementation, the shape of ``filtered_data_`` might differ from ``data``.
+
+    Notes
+    -----
+    The outputs of this aggregation algorithm are analogous to the outputs of the original Mobilise-D R-Script for
+    aggregation.
+    However, there can be small differences in the second/third decimal place range in the results. This is due to
+    different outputs of the quantile function in Python and R.
+    Furthermore, the parameter "strlen_30_var" is converted to cm for consistency, while it is in m in the original
+    R-Script.
     """
 
     INPUT_COLUMNS: typing.ClassVar[list[str]] = [

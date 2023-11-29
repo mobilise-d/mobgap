@@ -55,25 +55,26 @@ class TestMetaMobilisedAggregator(TestAlgorithmMixin):
 class TestMobilisedAggregator:
     """Tests for MobilisedAggregator."""
 
-    def test_reference_data(self, example_dmo_data, example_dmo_data_mask, example_dmo_reference):
-        agg = MobilisedAggregator().aggregate(example_dmo_data, data_mask=example_dmo_data_mask)
-        output = agg.aggregated_data_
-        assert_frame_equal(
-            output.drop(columns=["ws_30_max", "cadence_30_max"]),
-            example_dmo_reference.drop(columns=["ws_30_max", "cadence_30_max"]),
-            check_dtype=False,
-        )
+    # columns that show deviations from reference data because of differences in quantile calculation
+    quantile_columns = ["ws_30_max", "cadence_30_max"]
 
-    def test_incomplete_reference_data(
-        self, example_dmo_data_partial, example_dmo_data_mask, example_dmo_reference_partial
-    ):
-        agg = MobilisedAggregator().aggregate(example_dmo_data_partial, data_mask=example_dmo_data_mask)
+    @pytest.mark.parametrize(
+        ("data", "reference"),
+        [("example_dmo_data", "example_dmo_reference"), ("example_dmo_data_partial", "example_dmo_reference_partial")],
+    )
+    def test_reference_data(self, data, reference, example_dmo_data_mask, request):
+        data = request.getfixturevalue(data)
+        reference = request.getfixturevalue(reference)
+
+        agg = MobilisedAggregator().aggregate(data, data_mask=example_dmo_data_mask)
         output = agg.aggregated_data_
+
         assert_frame_equal(
-            output.drop(columns=["ws_30_max", "cadence_30_max"]),
-            example_dmo_reference_partial.drop(columns=["ws_30_max", "cadence_30_max"]),
+            output.drop(columns=self.quantile_columns),
+            reference.drop(columns=self.quantile_columns),
             check_dtype=False,
         )
+        assert_frame_equal(output[self.quantile_columns], reference[self.quantile_columns], atol=0.05)
 
     def test_reference_data_with_duration_mask(self, example_dmo_data, example_dmo_data_mask, example_dmo_reference):
         example_dmo_data_mask["duration"] = [True] * len(example_dmo_data_mask)
@@ -82,10 +83,11 @@ class TestMobilisedAggregator:
         )
         output = agg.aggregated_data_
         assert_frame_equal(
-            output.drop(columns=["ws_30_max", "cadence_30_max"]),
-            example_dmo_reference.drop(columns=["ws_30_max", "cadence_30_max"]),
+            output.drop(columns=self.quantile_columns),
+            example_dmo_reference.drop(columns=self.quantile_columns),
             check_dtype=False,
         )
+        assert_frame_equal(output[self.quantile_columns], example_dmo_reference[self.quantile_columns], atol=0.05)
 
     def test_raise_error_on_wrong_data(self):
         with pytest.raises(ValueError):
