@@ -13,9 +13,6 @@ base_aggregator_docfiller = make_filldoc(
         "other_parameters": """
     data
         The DMO data per walking bout passed to the ``aggregate`` method.
-    groupby_columns
-        A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
-        Possible groupings are e.g. by participant, recording date, or trial.
     """,
         "aggregated_data_": """
     aggregated_data_
@@ -26,13 +23,11 @@ base_aggregator_docfiller = make_filldoc(
         "aggregate_short": """
     Aggregate parameters across walking bouts.
     """,
-        "detect_para": """
+        "aggregate_para": """
     data
        The DMO data per walking bout.
-    groupby_columns
-        Columns over which to perform the aggregations.
     """,
-        "detect_return": """
+        "aggregate_return": """
     Returns
     -------
     self
@@ -45,18 +40,17 @@ base_aggregator_docfiller = make_filldoc(
 
 @base_aggregator_docfiller
 class BaseAggregator(Algorithm):
-    """
-    Base class for aggregators.
+    """Base class for aggregators.
 
     This base class should be used for all aggregation algorithms.
     Algorithms should implement the ``aggregate`` method, which will perform all relevant processing steps.
     The method should then return the instance of the class, with the ``aggregated_data_`` attribute set to the
     calculated aggregations.
 
-    We allow that subclasses specify further parameters for the detect methods (hence, this baseclass supports
+    We allow that subclasses specify further parameters for the aggregate methods (hence, this baseclass supports
     ``**kwargs``).
     However, you should only use them, if you really need them and apply active checks, that they are passed correctly.
-    In 99% of the time, you should add a new parameter to the algorithm itself, instead of adding a new parameter to
+    In 99%% of the time, you should add a new parameter to the algorithm itself, instead of adding a new parameter to
     the ``aggregate`` method.
 
     Other Parameters
@@ -65,7 +59,7 @@ class BaseAggregator(Algorithm):
 
     Attributes
     ----------
-    %(aggregated_data_)
+    %(aggregated_data_)s
 
     Notes
     -----

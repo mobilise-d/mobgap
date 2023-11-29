@@ -77,7 +77,11 @@ class MobilisedAggregator(BaseAggregator):
     one set of aggregation results is calculated per participant and recording date. This can however be adapted by
     passing a different list of ``groupby_columns``.
 
-
+    Parameters
+    ----------
+    groupby_columns
+        A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
+        Possible groupings are e.g. by participant, recording date, or trial.
 
     Other Parameters
     ----------------
@@ -189,6 +193,7 @@ class MobilisedAggregator(BaseAggregator):
     def __init__(self, groupby_columns: typing.Sequence[str] = ("subject_code", "visit_date")) -> None:
         self.groupby_columns = groupby_columns
 
+    @base_aggregator_docfiller
     def aggregate(
         self,
         data: pd.DataFrame,
