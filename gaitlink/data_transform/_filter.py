@@ -18,7 +18,7 @@ from gaitlink.data_transform.base import (
     fixed_filter_docfiller,
     scipy_filter_docfiller,
 )
-from gaitlink.utils.dtypes import DfLike
+from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
 @fixed_filter_docfiller
@@ -287,13 +287,16 @@ class HampelFilter(BaseFilter):
         self.window_size = window_size
         self.n_sigmas = n_sigmas
 
-    def filter(self, data: DfLike, **_: Unpack[dict[str, Any]]) -> Self:
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
         """Apply the Hampel filter to a time-series.
 
         Parameters
         ----------
         data
             The series to filter.
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is ignored, as the filter does not depend on the sampling rate.
 
         Returns
         -------
@@ -302,5 +305,14 @@ class HampelFilter(BaseFilter):
 
         """
         self.data = data
-        self.transformed_data_ = hampel_filter_vectorized(data, self.window_size, self.n_sigmas)
+        self.sampling_rate_hz = sampling_rate_hz
+
+        data, index, transformation_func = dflike_as_2d_array(data)
+
+        if data.shape[1] != 1:
+            raise ValueError("The Hampel filter only supports 1-dimensional data.")
+
+        transformed_data = hampel_filter_vectorized(data, self.window_size, self.n_sigmas)
+
+        self.transformed_data_ = transformation_func(transformed_data, index)
         return self
