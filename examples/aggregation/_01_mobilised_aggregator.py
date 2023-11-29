@@ -9,7 +9,7 @@ This example shows how to use the :class:`.MobilisedAggregator` class to aggrega
 # Loading some example data
 # -------------------------
 # .. note :: This data is randomly generated and not physiologically meaningful. However, it has the same structure as
-# any other typical input dataset for the :class:`.MobilisedAggregator`.
+#    any other typical input dataset for the :class:`.MobilisedAggregator`.
 #
 # The input data for the aggregator is a :class:`pandas.DataFrame` with one row for every walking bout.
 # The columns contain the DMO parameters estimated for each walking bout, such as duration, stride length, etc.
