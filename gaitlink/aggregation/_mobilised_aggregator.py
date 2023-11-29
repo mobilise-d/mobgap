@@ -169,22 +169,22 @@ class MobilisedAggregator(BaseAggregator):
 
     _UNIT_CONVERSIONS: typing.ClassVar = {
         "walkdur_all_sum": 1 / 3600,
-        "strlen_1030_avg_d": 100,
-        "strlen_30_avg_d": 100,
-        "strlen_30_var_d": 100,
+        "strlen_1030_avg": 100,
+        "strlen_30_avg": 100,
+        "strlen_30_var": 100,
     }
 
     _COUNT_COLUMNS: typing.ClassVar = [
-        "wb_10_sum_d",
-        "wb_30_sum_d",
-        "wb_60_sum_d",
-        "wb_all_sum_d",
-        "steps_all_sum_d",
-        "turns_all_sum_d",
+        "wb_10_sum",
+        "wb_30_sum",
+        "wb_60_sum",
+        "wb_all_sum",
+        "steps_all_sum",
+        "turns_all_sum",
     ]
 
     _ROUND_COLUMNS: typing.ClassVar = [
-        "walkdur_all_sum_d",
+        "walkdur_all_sum",
     ]
 
     data_mask: pd.DataFrame
@@ -197,7 +197,7 @@ class MobilisedAggregator(BaseAggregator):
     def aggregate(
         self,
         data: pd.DataFrame,
-        data_mask: pd.DataFrame,
+        data_mask: typing.Union[pd.DataFrame, None] = None,
         **_: Unpack[dict[str, typing.Any]],
     ) -> Self:
         """%(aggregate_short)s.
@@ -249,14 +249,14 @@ class MobilisedAggregator(BaseAggregator):
     def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.Series, col: str) -> pd.DataFrame:
         """Clean the data according to a column of the data mask."""
         if col in ["cadence", "stride_length"]:
-            data.loc[~mask_col, "stride_speed"] = pd.NA
-        data.loc[~mask_col] = pd.NA
+            data.loc[~mask_col.index, "stride_speed"] = pd.NA
+        data.loc[~mask_col.index, col] = pd.NA
         return data
 
     @staticmethod
     def _apply_duration_mask(data: pd.DataFrame, duration_mask: pd.Series) -> pd.DataFrame:
         """Remove rows with implausible duration."""
-        return data.loc[duration_mask]
+        return data.loc[duration_mask.index]
 
     def _select_aggregations(
         self, data_columns: list[str]
