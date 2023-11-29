@@ -1,5 +1,5 @@
-Gait Sequence Detection (GSD)
-=============================
+Pipelines
+=========
 
 .. automodule:: gaitlink.pipeline
     :no-members:

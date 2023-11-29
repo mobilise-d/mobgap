@@ -28,46 +28,57 @@ class MobilisedAggregator(BaseAggregator):
     The groups are defined as follows:
 
     - All walking bout [parameters with "all"], available parameters:
-        - Duration of all walking bouts in h ["walkdur_all_sum"]
-        - Number of steps in all walking bouts ["steps_all_sum"]
-        - Number of turns in all walking bouts ["turns_all_sum"]
-        - Number of walking bouts ["wb_all_sum"]
-        - Median duration of walking bouts in s ["wbdur_all_avg"]
-        - 90th percetile of duration of walking bouts in s ["wbdur_all_max"]
-        - Coefficient of variation in walking bout duration in s ["wbdur_all_var"]
-        - Average cadence of walking bouts in steps/min ["cadence_all_avg"]
-        - Average stride duration of walking bouts in s ["strdur_all_avg"]
-        - Coefficient of variation in cadence of walking bouts in steps/min ["cadence_all_var"]
-        - Coefficient of variation in stride duration of walking bouts in s ["strdur_all_var"]
+
+      - Duration of all walking bouts in h ["walkdur_all_sum"]
+      - Number of steps in all walking bouts ["steps_all_sum"]
+      - Number of turns in all walking bouts ["turns_all_sum"]
+      - Number of walking bouts ["wb_all_sum"]
+      - Median duration of walking bouts in s ["wbdur_all_avg"]
+      - 90th percetile of duration of walking bouts in s ["wbdur_all_max"]
+      - Coefficient of variation in walking bout duration in s ["wbdur_all_var"]
+      - Average cadence of walking bouts in steps/min ["cadence_all_avg"]
+      - Average stride duration of walking bouts in s ["strdur_all_avg"]
+      - Coefficient of variation in cadence of walking bouts in steps/min ["cadence_all_var"]
+      - Coefficient of variation in stride duration of walking bouts in s ["strdur_all_var"]
+
     - Walking bouts with duration between 10 and 30 seconds [parameters with "1030"], available parameters:
-        - Average stride speed of walking bouts in m/s ["ws_1030_avg"]
-        - Average stride length of walking bouts in cm ["strlen_1030_avg"]
+
+      - Average stride speed of walking bouts in m/s ["ws_1030_avg"]
+      - Average stride length of walking bouts in cm ["strlen_1030_avg"]
+
     - Walking bouts with duration longer than 10 seconds [parameters with "10"], available parameters:
-        - Number of walking bouts ["wb_10_sum"]
-        - 90th percentile of stride speed of walking bouts in m/s ["ws_10_max"]
+
+      - Number of walking bouts ["wb_10_sum"]
+      - 90th percentile of stride speed of walking bouts in m/s ["ws_10_max"]
+
     - Walking bouts with duration longer than 30 seconds [parameters with "30"], available parameters:
-        - Number of walking bouts ["wb_30_sum"]
-        - Average stride speed of walking bouts in m/s ["ws_30_avg"]
-        - Average stride length of walking bouts in cm ["strlen_30_avg"]
-        - Average cadence of walking bouts in steps/min ["cadence_30_avg"]
-        - Average stride duration of walking bouts in s ["strdur_30_avg"]
-        - 90th percentile of stride speed of walking bouts in m/s ["ws_30_max"]
-        - 90th percentile of cadence of walking bouts in steeps/min ["cadence_30_max"]
-        - Coefficient of variation in stride speed of walking bouts in m/s ["ws_30_var"]
-        - Coefficient of variation in stride length of walking bouts in cm ["strlen_30_var"]
+
+      - Number of walking bouts ["wb_30_sum"]
+      - Average stride speed of walking bouts in m/s ["ws_30_avg"]
+      - Average stride length of walking bouts in cm ["strlen_30_avg"]
+      - Average cadence of walking bouts in steps/min ["cadence_30_avg"]
+      - Average stride duration of walking bouts in s ["strdur_30_avg"]
+      - 90th percentile of stride speed of walking bouts in m/s ["ws_30_max"]
+      - 90th percentile of cadence of walking bouts in steeps/min ["cadence_30_max"]
+      - Coefficient of variation in stride speed of walking bouts in m/s ["ws_30_var"]
+      - Coefficient of variation in stride length of walking bouts in cm ["strlen_30_var"]
+
     - Walking bouts with duration longer than 60 seconds [parameters with "60"], available parameters:
-        - Number of walking bouts ["wb_60_sum"]
+
+      - Number of walking bouts ["wb_60_sum"]
 
     Every of the above mentioned parameters will be added to a distinct column in the aggregated data.
     Which of the parameters are calculated depends on the columns available in the input data. All parameters are
     calculated when all of the following columns are available:
-        - "duration",
-        - "step_number",
-        - "turn_number",
-        - "stride_speed",
-        - "stride_length",
-        - "cadence",
-        - "stride_duration"
+
+    - ``duration``
+    - ``step_number``
+    - ``turn_number``
+    - ``stride_speed``
+    - ``stride_length``
+    - ``cadence``
+    - ``stride_duration``
+
     Otherwise, only parameters for which the corresponding DMO data is provided are added to the aggregation results.
     For example, if the input data does not contain a "stride_length" column, the "strlen_1030_avg", "strlen_30_avg",
     "strlen_30_var" parameters are not calculated. Furthermore, if no "duration" is provided, only the "all"-parameters
@@ -82,6 +93,8 @@ class MobilisedAggregator(BaseAggregator):
     groupby_columns
         A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
         Possible groupings are e.g. by participant, recording date, or trial.
+        To generate daily aggregations (the default), the ``groupby_columns`` should contain the columns "subject_code"
+        and "visit_date".
 
     Other Parameters
     ----------------
@@ -95,13 +108,14 @@ class MobilisedAggregator(BaseAggregator):
         method.
         The columns in data_mask are regarded if there exists a column in the input data with the same name.
         Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
-            - "duration": The whole walking bout is not regarded for the aggregation.
-            - "step_number": The corresponding "step_number" is not regarded.
-            - "turn_number": The corresponding "turn_number" is not regarded.
-            - "stride_speed": The corresponding "stride_speed" is not regarded.
-            - "stride_length": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
-            - "cadence": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
-            - "stride_duration": The corresponding "stride_duration" is not regarded.
+
+        - "duration": The whole walking bout is not regarded for the aggregation.
+        - "step_number": The corresponding "step_number" is not regarded.
+        - "turn_number": The corresponding "turn_number" is not regarded.
+        - "stride_speed": The corresponding "stride_speed" is not regarded.
+        - "stride_length": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
+        - "cadence": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
+        - "stride_duration": The corresponding "stride_duration" is not regarded.
 
     Attributes
     ----------
