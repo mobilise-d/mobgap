@@ -1,11 +1,10 @@
 from importlib.resources import files
 from typing import Any, ClassVar, Literal, Optional, Union
 
+import numba
 import numpy as np
 import pandas as pd
-from scipy.ndimage import median_filter
 from scipy.signal import butter, firwin
-from scipy.stats import median_abs_deviation
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import inherit_docstring_from
@@ -223,39 +222,30 @@ class FirFilter(ScipyFilter):
         ), np.array([1])
 
 
-def hampel_filter_vectorized(data: np.ndarray, window_size: int, n_sigmas: float = 3.0) -> np.ndarray:
-    """Apply the Hampel filter to a time-series.
+@numba.jit(nopython=True)
+def _hampel_filter_numba(data: np.ndarray, k: int, n_sigma: float = 3.0) -> np.ndarray:
+    """Hampel filter implementation using Numba for performance optimization."""
+    n = len(data)
+    filtered_data = data.copy()
 
-    Parameters
-    ----------
-    data
-        The series to filter.
-    window_size
-        The size of the window to use for the median filter.
-        Must be an odd number.
-    n_sigmas
-        The number of standard deviations to use for the outlier detection.
+    gaussian_scale_factor = 1.4826
 
-    Returns
-    -------
-    The filtered series.
+    for i in range(n):
+        # Define the window range, truncating at the borders
+        start = max(0, i - k)
+        end = min(n, i + k + 1)
 
-    """
-    k = 1.4826  # Scale factor for Gaussian distribution
-    new_series = data.copy()
+        # Compute median and MAD in the window
+        window_data = data[start:end]
+        median = np.nanmedian(window_data)
+        mad = np.nanmedian(np.abs(window_data - median))
+        sigma = gaussian_scale_factor * mad  # Scale MAD to estimate standard deviation
 
-    # Create the median filtered series
-    median_series = median_filter(data, size=window_size, mode="reflect")
-    # Calculate the median absolute deviation with the corrected function
-    scaled_mad = k * median_filter(median_abs_deviation(data, scale="normal"), size=window_size, mode="reflect")
+        # Check if the data point is an outlier
+        if np.abs(data[i] - median) > n_sigma * sigma:
+            filtered_data[i] = median
 
-    # Detect outliers
-    outliers = np.abs(data - median_series) > n_sigmas * scaled_mad
-
-    # Replace outliers
-    new_series[outliers] = median_series[outliers]
-
-    return new_series
+    return filtered_data
 
 
 @base_filter_docfiller
@@ -264,9 +254,9 @@ class HampelFilter(BaseFilter):
 
     Parameters
     ----------
-    window_size
-        The size of the window to use for the median filter.
-        Must be an odd number.
+    half_window_size
+        The number of samples to the left and right of the current sample to use for the median filter.
+        The effective window size is ``2 * half_window_size + 1`` (see ``window_size_``).
     n_sigmas
         The number of standard deviations to use for the outlier detection.
 
@@ -277,15 +267,22 @@ class HampelFilter(BaseFilter):
     Attributes
     ----------
     %(results)s
+    window_size_
+        The effective window size of the filter.
 
     """
 
-    window_size: int
+    half_window_size: int
     n_sigmas: float
 
-    def __init__(self, window_size: int, n_sigmas: float = 3.0) -> None:
-        self.window_size = window_size
+    def __init__(self, half_window_size: int, n_sigmas: float = 3.0) -> None:
+        self.half_window_size = half_window_size
         self.n_sigmas = n_sigmas
+
+    @property
+    def window_size_(self) -> int:
+        """The effective window size of the filter."""
+        return 2 * self.half_window_size + 1
 
     def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
         """Apply the Hampel filter to a time-series.
@@ -312,7 +309,7 @@ class HampelFilter(BaseFilter):
         if data.shape[1] != 1:
             raise ValueError("The Hampel filter only supports 1-dimensional data.")
 
-        transformed_data = hampel_filter_vectorized(data, self.window_size, self.n_sigmas)
+        transformed_data = _hampel_filter_numba(data.flatten(), self.half_window_size, self.n_sigmas)
 
         self.transformed_data_ = transformation_func(transformed_data, index)
         return self
