@@ -16,6 +16,22 @@ Aggregator Classes
 
     MobilisedAggregator
 
+
+Base Classes
+++++++++++++
+.. automodule:: gaitlink.aggregation.base
+    :no-members:
+    :no-inherited-members:
+
+.. currentmodule:: gaitlink.aggregation.base
+
+.. autosummary::
+   :toctree: generated/aggregation
+   :template: class.rst
+
+    BaseAggregator
+
+
 Docu-helper
 -----------
 

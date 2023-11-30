@@ -1,6 +1,6 @@
 """
 GSD Iluz
-========.
+========
 
 This example shows how to use the GSD Iluz algorithm and some examples on how the results compare to the original
 matlab implementation.
