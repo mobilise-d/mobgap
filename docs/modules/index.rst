@@ -12,8 +12,9 @@ This is the API Reference for ``gaitlink``.
     pipeline
     gsd
     icd
-    data_transform
+    cad
     aggregation
+    data_transform
     data
     utils/index.rst
 

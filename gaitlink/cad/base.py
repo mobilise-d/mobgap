@@ -48,7 +48,7 @@ base_cad_docfiller = make_filldoc(
 
 
 @base_cad_docfiller
-class BaseCadenceCalculator(Algorithm):
+class BaseCadCalculator(Algorithm):
     """Base class for cadence calculation algorithms.
 
     This base class should be used for all cadence calculation algorithms.
@@ -106,4 +106,4 @@ class BaseCadenceCalculator(Algorithm):
         raise NotImplementedError
 
 
-__all__ = ["BaseCadenceCalculator", "base_cad_docfiller"]
+__all__ = ["BaseCadCalculator", "base_cad_docfiller"]
