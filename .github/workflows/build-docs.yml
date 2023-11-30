@@ -36,14 +36,17 @@ jobs:
         uses: actions/cache@v3
         if: github.event_name == 'pull_request'
         with:
-          path: docs/_build/
-          key: ${{ runner.os }}-docs-${{ github.sha }}
+          path: |
+            docs/_build/
+            docs/modules/generated/
+            docs/auto_examples/
+          key: pr-${{ github.event.pull_request.number }}-${{ runner.os }}-docs
       - name: Build Documentation
         run: |
           poetry run poe docs
 
       - name: Upload Documentation as Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: documentation
           path: docs/_build/html
