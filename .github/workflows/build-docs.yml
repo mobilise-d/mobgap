@@ -32,6 +32,12 @@ jobs:
         run: poetry install --no-interaction --no-root --all-extras
       - name: Install library
         run: poetry install --no-interaction --all-extras
+      - name: Cache Entire Build Directory
+        uses: actions/cache@v3
+        if: github.event_name == 'pull_request'
+        with:
+          path: docs/_build/
+          key: ${{ runner.os }}-docs-${{ github.sha }}
       - name: Build Documentation
         run: |
           poetry run poe docs
