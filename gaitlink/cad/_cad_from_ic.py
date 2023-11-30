@@ -104,12 +104,26 @@ def _robust_ic_to_cad_per_sec(
     # Average step time per second
     # TODO: Maybe shift the step time by half a step to get the step time at the center of the interval?
     sec_start_ends = np.vstack([sec_centers - 0.5, sec_centers + 0.5]).T
-    step_time_per_sec = interval_mean(ics[:-1], step_time_smooth, sec_start_ends)
+    step_time_per_sec = interval_mean(ics, step_time_smooth, sec_start_ends)
     # 2. Smoothing
-    step_time_per_sec_smooth = smoothing_filter.filter(step_time_per_sec).transformed_data_
+    step_time_per_sec_smooth = pd.Series(smoothing_filter.filter(step_time_per_sec).transformed_data_)
     # Interpolate missing values (only inside the recording and only if the gap is smaller than the specified maximum)
-    step_time_per_sec_smooth = pd.Series(step_time_per_sec_smooth).interpolate(
-        limit_area="inside", limit=max_interp_gap_sec
+    # This is not directly supported by Pandas (as the pandas ``limit`` parameter will interpolate the edges of larger
+    # gaps, but can not skip larger gaps) entirely.
+    # Instead, we need to segment the regions ourselves and use this as mask for the interpolation.
+    # This solution is taken from https://stackoverflow.com/questions/67128364
+    n_nan_mask = step_time_per_sec_smooth.notna()
+    n_nan_mask = n_nan_mask.ne(n_nan_mask.shift()).cumsum()
+    n_nan_mask = (
+        step_time_per_sec_smooth.groupby([n_nan_mask, step_time_per_sec_smooth.isna()])
+        .transform("size")
+        .where(step_time_per_sec_smooth.isna())
+    )
+
+    step_time_per_sec_smooth = (
+        pd.Series(step_time_per_sec_smooth)
+        .interpolate(method="linear", limit_area="inside")
+        .mask(n_nan_mask > max_interp_gap_sec)
     )
 
     # Final cadence calculation in 1/min
@@ -181,11 +195,12 @@ class CadFromIc(BaseCadenceCalculator):
         self.data = data
 
         initial_contacts = self._get_ics(data, initial_contacts, sampling_rate_hz)
-        n_secs = len(data) / sampling_rate_hz
-        sec_centers = np.linspace(0, n_secs, len(data), endpoint=False) + 0.5 / sampling_rate_hz
-
+        initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
+        n_secs = len(data) // sampling_rate_hz
+        sec_centers = np.arange(0, n_secs) + 0.5
+        # TODO: What index should the output cadence have?
         self.cadence_per_sec_ = _robust_ic_to_cad_per_sec(
-            initial_contacts, sec_centers, self.max_interpolation_gap_s, self.step_time_smoothing.clone()
+            initial_contacts_in_seconds, sec_centers, self.max_interpolation_gap_s, self.step_time_smoothing.clone()
         )
         return self
 
