@@ -1,10 +1,10 @@
 import warnings
-from typing import Any, Unpack
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from tpcp import cf
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import make_filldoc
 from gaitlink.cad.base import BaseCadenceCalculator, base_cad_docfiller
