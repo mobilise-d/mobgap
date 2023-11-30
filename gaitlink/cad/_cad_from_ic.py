@@ -7,7 +7,7 @@ from tpcp import cf
 from typing_extensions import Self, Unpack
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.cad.base import BaseCadenceCalculator, base_cad_docfiller
+from gaitlink.cad.base import BaseCadCalculator, base_cad_docfiller
 from gaitlink.data_transform import HampelFilter
 from gaitlink.data_transform.base import BaseFilter
 from gaitlink.utils.interpolation import interval_mean
@@ -131,7 +131,7 @@ def _robust_ic_to_cad_per_sec(
 
 
 @ic2cad_docfiller
-class CadFromIc(BaseCadenceCalculator):
+class CadFromIc(BaseCadCalculator):
     """Calculate cadence per second directly from initial contacts.
 
     This method will directly take the initial contacts provided in to the ``calculate`` method and calculate the
