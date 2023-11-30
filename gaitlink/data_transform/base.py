@@ -75,7 +75,8 @@ base_filter_docfiller = make_filldoc(
         Returns
         -------
         self
-            The instance of the class with the ``transformed_data_``/``filtered_data_`` attribute set to the filtered data.
+            The instance of the class with the ``transformed_data_``/``filtered_data_`` attribute set to the filtered
+            data.
         """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseFilter`.",
