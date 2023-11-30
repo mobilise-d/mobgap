@@ -3,16 +3,18 @@ from typing import Any, Unpack
 
 import numpy as np
 import pandas as pd
+from tpcp import cf
 from typing_extensions import Self
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.cad.base import BaseCadenceCalculator
+from gaitlink.cad.base import BaseCadenceCalculator, base_cad_docfiller
 from gaitlink.data_transform import HampelFilter
 from gaitlink.data_transform.base import BaseFilter
 from gaitlink.utils.interpolation import interval_mean
 
 ic2cad_docfiller = make_filldoc(
     {
+        **base_cad_docfiller._dict,
         "ic2cad_short": """
     This uses a robust outlier removal approach to deal with missing initial contacts.
     The output cadence is reported as the average for each 1 second bin within the data.
@@ -110,8 +112,8 @@ def _robust_ic_to_cad_per_sec(
         limit_area="inside", limit=max_interp_gap_sec
     )
 
-    # Final cadence calculation
-    return 1.0 / step_time_per_sec_smooth
+    # Final cadence calculation in 1/min
+    return 1.0 / step_time_per_sec_smooth * 60
 
 
 @ic2cad_docfiller
@@ -135,6 +137,14 @@ class CadFromIc(BaseCadenceCalculator):
     ----------
     %(ic2cad_common_paras)s
 
+    Attributes
+    ----------
+    %(cadence_per_sec_)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
     Notes
     -----
     %(ic2cad_notes)s
@@ -145,7 +155,7 @@ class CadFromIc(BaseCadenceCalculator):
     max_interpolation_gap_s: int
 
     def __init__(
-        self, *, step_time_smoothing: BaseFilter = HampelFilter(2, 3.0), max_interpolation_gap_s: int = 3
+        self, *, step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)), max_interpolation_gap_s: int = 3
     ) -> None:
         self.max_interpolation_gap_s = max_interpolation_gap_s
         self.step_time_smoothing = step_time_smoothing
@@ -158,21 +168,13 @@ class CadFromIc(BaseCadenceCalculator):
         sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        """Calculate cadence per second.
+        """%(calculate_short)s.
 
         Parameters
         ----------
-        data
-            The data represented as a dataframe.
-        initial_contacts
-            The initial contacts represented as a series.
-        sampling_rate_hz
-            The sampling rate of the IMU data in Hz.
+        %(calculate_para)s
 
-        Returns
-        -------
-        Self
-            The instance itself.
+        %(calculate_return)s
         """
         self.initial_contacts = initial_contacts
         self.sampling_rate_hz = sampling_rate_hz
@@ -197,7 +199,7 @@ class CadFromIc(BaseCadenceCalculator):
         if not initial_contacts.is_monotonic_increasing:
             raise ValueError("Initial contacts must be sorted in ascending order.")
         if initial_contacts.iloc[0] != 0 or initial_contacts.iloc[-1] != len(data):
-            raise warnings.warn(
+            warnings.warn(
                 "Usually we assume that gait sequences are cut to the first and last detected initial "
                 "contact. "
                 "This is not the case for the passed initial contacts and might lead to unexpected "
@@ -227,6 +229,20 @@ class CadFromIcDetector(CadFromIc):
         The IC detector used to detect the initial contacts.
     %(ic2cad_common_paras)s
 
+    Attributes
+    ----------
+    %(cadence_per_sec_)s
+    ic_detector_
+        The IC detector used to detect the initial contacts with the results attached.
+        This is only available after the ``detect`` method was called.
+    internal_initial_contacts_
+        The initial contacts detected by the ``ic_detector_``.
+        This is equivalent to ``ic_detector_.initial_contacts_``.
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
     Notes
     -----
     %(ic2cad_notes)s
@@ -243,7 +259,7 @@ class CadFromIcDetector(CadFromIc):
         self,
         ic_detector: None,
         *,
-        step_time_smoothing: BaseFilter = HampelFilter(2, 3.0),
+        step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
         max_interpolation_gap_s: int = 3,
         silence_ic_warning: bool = False,
     ) -> None:
