@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 class BaseCadenceCalculator(Algorithm):
     data: pd.DataFrame
+    sampling_rate_hz: float
     initial_contacts: pd.Series
 
     cadence_per_sec_: pd.Series
