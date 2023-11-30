@@ -222,7 +222,7 @@ class FirFilter(ScipyFilter):
         ), np.array([1])
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def _hampel_filter_numba(data: np.ndarray, k: int, n_sigma: float = 3.0) -> np.ndarray:
     """Hampel filter implementation using Numba for performance optimization."""
     n = len(data)
