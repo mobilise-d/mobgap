@@ -116,5 +116,10 @@ exclude = [
 ]
 
 
+[per-file-ignores]
+# https://github.com/astral-sh/ruff/issues/8925
+"examples/**/*.py" = ["D400"]
+
+
 [pydocstyle]
 convention = "numpy"
