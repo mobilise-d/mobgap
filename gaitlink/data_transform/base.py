@@ -39,47 +39,45 @@ class BaseTransformer(Algorithm):
         raise NotImplementedError()
 
 
-_base_filter_doc_replace = {
-    "results": """
-    transformed_data_
-        The filtered data.
-        The datatype matches the datatype of the passed data.
-    filtered_data_
-        Alias for ``transformed_data_``.
-    """,
-    "other_parameters": """
-    data
-        The raw data passed to the ``filter``/``transform`` method.
-        This can either be a dataframe, a series, or a numpy array.
-    sampling_rate_hz
-        The sampling rate of the IMU data in Hz passed to the ``filter``/``transform`` method.
-    """,
-    "filter_short": """
-    Filter the passed data.
-    """,
-    "filter_para": """
-    data
-        The raw data to be filtered.
-        This can either be a dataframe, a series, or a numpy array.
-    sampling_rate_hz
-        The sampling rate of the IMU data in Hz.
-    """,
-    "filter_kwargs": """
-    kwargs
-        Further keyword arguments for the filter.
-        They only exist in the base class to allow subclasses to add further parameters.
-        However, the base method itself does not use them.
-    """,
-    "filter_return": """
-    Returns
-    -------
-    self
-        The instance of the class with the ``transformed_data_``/``filtered_data_`` attribute set to the filtered data.
-    """,
-}
-
 base_filter_docfiller = make_filldoc(
-    _base_filter_doc_replace,
+    {
+        "results": """
+        transformed_data_
+            The filtered data.
+            The datatype matches the datatype of the passed data.
+        filtered_data_
+            Alias for ``transformed_data_``.
+        """,
+        "other_parameters": """
+        data
+            The raw data passed to the ``filter``/``transform`` method.
+            This can either be a dataframe, a series, or a numpy array.
+        sampling_rate_hz
+            The sampling rate of the IMU data in Hz passed to the ``filter``/``transform`` method.
+        """,
+        "filter_short": """
+        Filter the passed data.
+        """,
+        "filter_para": """
+        data
+            The raw data to be filtered.
+            This can either be a dataframe, a series, or a numpy array.
+        sampling_rate_hz
+            The sampling rate of the IMU data in Hz.
+        """,
+        "filter_kwargs": """
+        kwargs
+            Further keyword arguments for the filter.
+            They only exist in the base class to allow subclasses to add further parameters.
+            However, the base method itself does not use them.
+        """,
+        "filter_return": """
+        Returns
+        -------
+        self
+            The instance of the class with the ``transformed_data_``/``filtered_data_`` attribute set to the filtered data.
+        """,
+    },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseFilter`.",
 )
 
@@ -165,7 +163,7 @@ class BaseFilter(BaseTransformer):
 
 fixed_filter_docfiller = make_filldoc(
     {
-        **_base_filter_doc_replace,
+        **base_filter_docfiller._dict,
         "zero_phase": """
     zero_phase
         Whether to apply a zero-phase filter (i.e. forward and backward filtering) using :func:`scipy.signal.filtfilt`
@@ -277,7 +275,7 @@ class FixedFilter(BaseFilter):
 
 scipy_filter_docfiller = make_filldoc(
     {
-        **_base_filter_doc_replace,
+        **base_filter_docfiller._dict,
         "common_paras": """
     order
         The filter order.

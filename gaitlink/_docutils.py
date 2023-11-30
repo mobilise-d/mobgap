@@ -56,6 +56,7 @@ def make_filldoc(docdict: dict[str, str], *, doc_summary: Optional[str] = None) 
 
     """
     inner.__doc__ = full_doc
+    inner._dict = docdict
     return inner
 
 

@@ -15,3 +15,12 @@ Aggregator Classes
    :template: class.rst
 
     MobilisedAggregator
+
+Docu-helper
+-----------
+
+.. autosummary::
+   :toctree: generated/gsd
+   :template: func.rst
+
+    base_aggregator_docfiller
