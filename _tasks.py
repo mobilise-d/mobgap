@@ -15,7 +15,7 @@ def task_docs(clean=False):
         shutil.rmtree(str(HERE / "docs/_build"), ignore_errors=True)
         shutil.rmtree(str(HERE / "docs/auto_examples"), ignore_errors=True)
 
-    subprocess.run("sphinx-build -b html -j auto docs docs/_build/", shell=True, check=True)
+    subprocess.run("sphinx-build -j auto -d docs/_build docs docs/_build/html", shell=True, check=True)
 
 
 def update_version_strings(file_path, new_version):
