@@ -21,20 +21,23 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
             sampling_rate_hz=40.0,
         )
 
+# TODO: This class can only be tested once we have an IC detector implemented
+# class TestMetaCadFromIcDetector(TestAlgorithmMixin):
+#     __test__ = True
+#
+#     ALGORITHM_CLASS = CadFromIcDetector
+#
+#     @pytest.fixture()
+#     def after_action_instance(self):
+#         return self.ALGORITHM_CLASS().calculate(
+#             pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
+#             initial_contacts=pd.Series(np.arange(0, 100, 5)),
+#             sampling_rate_hz=40.0,
+#         )
 
-class TestMetaCadFromIcDetector(TestAlgorithmMixin):
-    __test__ = True
-
-    ALGORITHM_CLASS = CadFromIcDetector
-
-    @pytest.fixture()
-    def after_action_instance(self):
-        return self.ALGORITHM_CLASS().calculate(
-            pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
-            initial_contacts=pd.Series(np.arange(0, 100, 5)),
-            sampling_rate_hz=40.0,
-        )
-
+# TODO: - Tests with non-uniform data
+#       - Really test that we perform linear interpolation
+#       - Test the smoothing
 
 class TestCadFromIc:
     @pytest.mark.parametrize("sampling_rate_hz", [10.0, 20.0, 40.0])
@@ -145,6 +148,26 @@ class TestCadFromIc:
 
         assert len(cad.cadence_per_sec_) == len(data) // 40
         assert cad.cadence_per_sec_.isna().all()
+
+    @pytest.mark.parametrize("n_ics", [2, 3, 4])
+    def test_small_n_ics(self, n_ics):
+        """We test that things work with a small number of ICs.
+
+        This could likely trigger some edge cases in the code.
+        """
+        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        initial_contacts = pd.Series(np.arange(0, 100, 5))
+        # We only keep the first IC -> Not possible to calculate cadence
+        initial_contacts = initial_contacts.iloc[:n_ics]
+
+        with pytest.warns(UserWarning) as w:
+            cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
+
+        assert len(w) == 1
+
+        assert len(cad.cadence_per_sec_) == len(data) // 40
+        # We just test that not all values are NaN
+        assert not cad.cadence_per_sec_.isna().all()
 
     def test_raise_non_sorted_ics(self):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
