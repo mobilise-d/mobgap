@@ -66,13 +66,20 @@ ic2cad_docfiller = make_filldoc(
        This was done, to make sure that subsequent calculations don't need to deal with NaNs, but can easily mask issues
        in the ic-detection.
     """,
-        "smoothing_filter": """
+        "ic2cad_common_paras": """
     step_time_smoothing
         The filter used to smooth the step time.
         This is used to remove outliers in the step time/cadence (e.g. when initial contacts are not detected).
         The filter is applied twice, once to the raw step time and a second time on the interpolated step time values
         per second.
         We recommend to use a Hampel filter for this.
+    max_interpolation_gap_s
+        The maximum gap in seconds that is interpolated.
+        If the gap is larger than this value, the second is filled with NaNs.
+        We don't fill "gaps" at the start and end of the recording, as we assume that gait sequences are cut anyway
+        to start and end with a valid initial contact.
+    """,
+        "smoothing_filter": """
     """,
     },
     doc_summary="Decorator to fill the explanation of the ic to cad per second interpolation.",
@@ -126,7 +133,7 @@ class CadFromIc(BaseCadenceCalculator):
 
     Parameters
     ----------
-    %(smoothing_filter)s
+    %(ic2cad_common_paras)s
 
     Notes
     -----
@@ -184,7 +191,7 @@ class CadFromIc(BaseCadenceCalculator):
         self,
         data: pd.DataFrame,
         initial_contacts: pd.Series,
-        sampling_rate_hz: float,
+        sampling_rate_hz: float,  # noqa: ARG002
     ) -> pd.Series:
         """Calculate initial contacts from the data."""
         if not initial_contacts.is_monotonic_increasing:
@@ -201,7 +208,31 @@ class CadFromIc(BaseCadenceCalculator):
         return initial_contacts
 
 
+@ic2cad_docfiller
 class CadFromIcDetector(CadFromIc):
+    """Calculate cadence per second by detecting initial contacts using a provided IC detector.
+
+    .. warning :: This method ignores the passed initial contacts and recalculates them from the data using the passed
+       IC detector.
+       If you want to use the ICs passed to the ``calculate`` method, you should use the :class:`CadFromIc` class.
+
+    This method will first calculate the initial contacts using the passed IC detector and then calculate the cadence
+    per second from them.
+
+    %(ic2cad_short)s
+
+    Parameters
+    ----------
+    ic_detector
+        The IC detector used to detect the initial contacts.
+    %(ic2cad_common_paras)s
+
+    Notes
+    -----
+    %(ic2cad_notes)s
+
+    """
+
     # TODO: correct typing
     ic_detector: None
     silence_ic_warning: bool
@@ -210,24 +241,24 @@ class CadFromIcDetector(CadFromIc):
 
     def __init__(
         self,
-        ic_detector,
+        ic_detector: None,
         *,
         step_time_smoothing: BaseFilter = HampelFilter(2, 3.0),
         max_interpolation_gap_s: int = 3,
         silence_ic_warning: bool = False,
-    ):
+    ) -> None:
         self.ic_detector = ic_detector
         self.silence_ic_warning = silence_ic_warning
         super().__init__(step_time_smoothing=step_time_smoothing, max_interpolation_gap_s=max_interpolation_gap_s)
 
     @property
-    def internal_initial_contacts_(self):
+    def internal_initial_contacts_(self) -> pd.Series:
         return self.ic_detector_.initial_contacts_
 
     def _get_ics(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.Series,
+        initial_contacts: pd.Series,  # noqa: ARG002
         sampling_rate_hz: float,
     ) -> pd.Series:
         if not self.silence_ic_warning:
@@ -238,7 +269,7 @@ class CadFromIcDetector(CadFromIc):
                 "This warning is just a information to make sure you are fully aware of this. "
                 "If you want to silence this warning, you can pass ``silence_ic_warning=True`` during the "
                 "initialization of this class.",
-                stacklevel=3
+                stacklevel=3,
             )
 
         self.ic_detector_ = self.ic_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
