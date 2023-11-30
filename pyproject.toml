@@ -58,8 +58,8 @@ exclude = '''
 
 [tool.poe.tasks]
 _format = "ruff format ."
-_auto_fix = "ruff . --fix-only --exit-zero"
-_auto_fix_unsafe = "ruff . --fix-only --exit-zero --unsafe-fixes"
+_auto_fix = "ruff . --fix-only --show-fixes --exit-zero"
+_auto_fix_unsafe = "ruff . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_auto_fix", "_format"]
 format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff gaitlink --fix", help = "Lint all files with ruff." }
