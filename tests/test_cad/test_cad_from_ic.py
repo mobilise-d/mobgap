@@ -108,6 +108,7 @@ class TestCadFromIc:
         assert_series_equal(cadence, pd.Series(expected_output))
 
     def test_no_extrapolation(self):
+        # We also test the warning here
         sampling_rate_hz = 40.0
         fixed_step_size = 5
         n_samples = 300
@@ -116,8 +117,12 @@ class TestCadFromIc:
         # We remove ICs at the beginning and end
         initial_contacts = pd.Series(np.arange(2 * sampling_rate_hz, n_samples - 2 * sampling_rate_hz, fixed_step_size))
 
-        cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+        with pytest.warns(UserWarning) as w:
+            cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
         cadence = cad.cadence_per_sec_
+
+        assert len(w) == 1
+        assert "gait sequences are cut to the first and last detected initial" in str(w[0])
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -125,3 +130,29 @@ class TestCadFromIc:
         expected_output[-1] = np.nan
 
         assert_series_equal(cadence, pd.Series(expected_output))
+
+    def test_not_enough_ics(self):
+        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        initial_contacts = pd.Series(np.arange(0, 100, 5))
+        # We only keep the first IC -> Not possible to calculate cadence
+        initial_contacts = initial_contacts.iloc[:1]
+
+        with pytest.warns(UserWarning) as w:
+            cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
+
+        assert len(w) == 2
+        assert "Can not calculate cadence with only one or zero initial contacts" in str(w[1])
+
+        assert len(cad.cadence_per_sec_) == len(data) // 40
+        assert cad.cadence_per_sec_.isna().all()
+
+    def test_raise_non_sorted_ics(self):
+        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        initial_contacts = pd.Series(np.arange(0, 100, 5))
+        # We shuffle the ICs
+        initial_contacts = initial_contacts.sample(frac=1, random_state=2)
+
+        with pytest.raises(ValueError) as e:
+            CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
+
+        assert "Initial contacts must be sorted" in str(e.value)
