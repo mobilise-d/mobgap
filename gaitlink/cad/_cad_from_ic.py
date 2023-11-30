@@ -103,7 +103,6 @@ def _robust_ic_to_cad_per_sec(
     # 1. Smoothing
     step_time_smooth = smoothing_filter.filter(step_time).transformed_data_
     # Average step time per second
-    # TODO: Maybe shift the step time by half a step to get the step time at the center of the interval?
     sec_start_ends = np.vstack([sec_centers - 0.5, sec_centers + 0.5]).T
     step_time_per_sec = interval_mean(ics, step_time_smooth, sec_start_ends)
     # 2. Smoothing
@@ -175,6 +174,7 @@ class CadFromIc(BaseCadenceCalculator):
         self.max_interpolation_gap_s = max_interpolation_gap_s
         self.step_time_smoothing = step_time_smoothing
 
+    @ic2cad_docfiller
     def calculate(
         self,
         data: pd.DataFrame,
