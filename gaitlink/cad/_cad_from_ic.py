@@ -95,6 +95,7 @@ def _robust_ic_to_cad_per_sec(
     ics = ics.to_numpy()
     if len(ics) <= 1:
         # We can not calculate cadence with only one initial contact
+        warnings.warn("Can not calculate cadence with only one or zero initial contacts.", stacklevel=3)
         return pd.Series(np.full(len(sec_centers), np.nan))
     step_time = np.diff(ics)
     # We repeat the last step time to get the same number of step times as initial contacts

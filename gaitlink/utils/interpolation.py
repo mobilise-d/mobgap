@@ -1,4 +1,6 @@
 """Helper functions to perform interpolation and resampling tasks."""
+import warnings
+
 import numpy as np
 
 
@@ -43,7 +45,10 @@ def interval_mean(
     interval_end_indices = np.searchsorted(measurement_samples, interval_start_ends[:, 1], side="right")
 
     # We calculate the average over all measurements within the intervals
-    interval_means = np.array(
-        [np.nanmean(measurements[s:e]) for s, e in zip(interval_start_indices, interval_end_indices)]
-    )
+    # We suppress the RuntimeWarning for the case that there are no measurements within the interval
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        interval_means = np.array(
+            [np.nanmean(measurements[s:e]) for s, e in zip(interval_start_indices, interval_end_indices)]
+        )
     return interval_means
