@@ -151,7 +151,7 @@ class CadFromIc(BaseCadenceCalculator):
         sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        """Calculate cadence directly from initial contacts.
+        """Calculate cadence per second.
 
         Parameters
         ----------
@@ -167,15 +167,11 @@ class CadFromIc(BaseCadenceCalculator):
         Self
             The instance itself.
         """
-        if not initial_contacts.is_monotonic_increasing:
-            raise ValueError("Initial contacts must be sorted in ascending order.")
-        if initial_contacts.iloc[0] != 0 or initial_contacts.iloc[-1] != len(data):
-            raise warnings.warn("Usually we assume that gait sequences are cut to the first and last detected initial "
-                                "contact. "
-                                "This is not the case for the passed initial contacts and might lead to unexpected "
-                                "results in the cadence calculation. "
-                                "Specifically, you will get NaN values at the start and the end of the output.")
+        self.initial_contacts = initial_contacts
+        self.sampling_rate_hz = sampling_rate_hz
+        self.data = data
 
+        initial_contacts = self._get_ics(data, initial_contacts, sampling_rate_hz)
         n_secs = len(data) / sampling_rate_hz
         sec_centers = np.linspace(0, n_secs, len(data), endpoint=False) + 0.5 / sampling_rate_hz
 
@@ -184,56 +180,67 @@ class CadFromIc(BaseCadenceCalculator):
         )
         return self
 
+    def _get_ics(
+        self,
+        data: pd.DataFrame,
+        initial_contacts: pd.Series,
+        sampling_rate_hz: float,
+    ) -> pd.Series:
+        """Calculate initial contacts from the data."""
+        if not initial_contacts.is_monotonic_increasing:
+            raise ValueError("Initial contacts must be sorted in ascending order.")
+        if initial_contacts.iloc[0] != 0 or initial_contacts.iloc[-1] != len(data):
+            raise warnings.warn(
+                "Usually we assume that gait sequences are cut to the first and last detected initial "
+                "contact. "
+                "This is not the case for the passed initial contacts and might lead to unexpected "
+                "results in the cadence calculation. "
+                "Specifically, you will get NaN values at the start and the end of the output.",
+                stacklevel=3,
+            )
+        return initial_contacts
 
-# class CadFromIcDetector(BaseCadenceCalculator):
-#
-#     # TODO: correct typing
-#     ic_detector: None
-#     step_time_smoothing: HampelFilter
-#
-#     ic_detector_: None
-#
-#     def __init__(self, ic_detector, step_time_smoothing=HampelFilter(2, 3.0)):
-#         self.ic_detector = ic_detector
-#         self.step_time_smoothing = step_time_smoothing
-#
-#     @property
-#     def internal_initial_contacts_(self):
-#         return self.ic_detector_.initial_contacts_
-#
-#     def calculate(
-#         self,
-#         data: pd.DataFrame,
-#         initial_contacts: pd.Series,
-#         *,
-#         sampling_rate_hz: float,
-#         **kwargs: Unpack[dict[str, Any]],
-#     ) -> Self:
-#         """Calculate cadence directly from initial contacts.
-#
-#         Parameters
-#         ----------
-#         data
-#             The data represented as a dataframe.
-#         initial_contacts
-#             The initial contacts represented as a series.
-#             .. warning :: This method ignores the passed initial contacts and uses the internal IC detector instead.
-#         sampling_rate_hz
-#             The sampling rate of the IMU data in Hz.
-#
-#         Returns
-#         -------
-#         Self
-#             The instance itself.
-#         """
-#         self.ic_detector_ = self.ic_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
-#         new_initial_contacts = self.ic_detector_.initial_contacts_
-#
-#         n_secs = len(data) / sampling_rate_hz
-#         sec_centers = np.linspace(0, n_secs, len(data), endpoint=False) + 0.5 / sampling_rate_hz
-#
-#         self.cadence_per_sec_ = _robust_ic_to_cad_per_sec(
-#             new_initial_contacts.to_numpy(), sec_centers, self.step_time_smoothing.clone()
-#         )
-#
-#         return self
+
+class CadFromIcDetector(CadFromIc):
+    # TODO: correct typing
+    ic_detector: None
+    silence_ic_warning: bool
+
+    ic_detector_: None
+
+    def __init__(
+        self,
+        ic_detector,
+        *,
+        step_time_smoothing: BaseFilter = HampelFilter(2, 3.0),
+        max_interpolation_gap_s: int = 3,
+        silence_ic_warning: bool = False,
+    ):
+        self.ic_detector = ic_detector
+        self.silence_ic_warning = silence_ic_warning
+        super().__init__(step_time_smoothing=step_time_smoothing, max_interpolation_gap_s=max_interpolation_gap_s)
+
+    @property
+    def internal_initial_contacts_(self):
+        return self.ic_detector_.initial_contacts_
+
+    def _get_ics(
+        self,
+        data: pd.DataFrame,
+        initial_contacts: pd.Series,
+        sampling_rate_hz: float,
+    ) -> pd.Series:
+        if not self.silence_ic_warning:
+            warnings.warn(
+                "This method ignores the passed initial contacts and recalculates them from the data. "
+                "This way you can use a different IC detector for the cadence calculation than for the IC detection. "
+                "If you don't want this, you should use the CadFromIc class instead.\n\n"
+                "This warning is just a information to make sure you are fully aware of this. "
+                "If you want to silence this warning, you can pass ``silence_ic_warning=True`` during the "
+                "initialization of this class.",
+                stacklevel=3
+            )
+
+        self.ic_detector_ = self.ic_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
+        new_initial_contacts = self.ic_detector_.initial_contacts_
+        return new_initial_contacts
