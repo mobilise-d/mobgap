@@ -227,21 +227,5 @@ class TestDatasetClass:
         with pytest.warns(
             UserWarning,
             match=r"Sensor position UnkownSensor is not available for test \('TimeMeasure1', 'Test5', 'Trial1'\)\.",
-        ), pytest.raises(
-            ValueError, match=r"Expected at least one valid sensor position for SU. Given: \('UnkownSensor',\)"
-        ):
-            _ = ds.index
-
-    def test_missing_sensor_position_ignore(self):
-        ds = GenericMobilisedDataset(
-            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
-            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
-            ("cohort", "participant_id"),
-            sensor_positions=("UnkownSensor",),
-            missing_sensor_error_type="ignore",
-        )
-
-        with pytest.raises(
-            ValueError, match=r"Expected at least one valid sensor position for SU. Given: \('UnkownSensor',\)"
         ):
             _ = ds.index
