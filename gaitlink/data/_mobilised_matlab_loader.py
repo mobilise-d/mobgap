@@ -63,6 +63,8 @@ docfiller = make_filldoc(
         The metadata of the selected test.
     participant_metadata
         The participant metadata loaded from the `infoForAlgo.mat` file.
+    UNITS
+        (ClassVar) Units of the IMU data
     """,
         "dataset_see_also": """
     :class:`~tpcp.Dataset`
@@ -137,9 +139,9 @@ class MobilisedUnits(NamedTuple):
 
     """
 
-    ACC: str = "ms^-2"
-    GYR: str = "deg/s"
-    MAG: str = "uT"
+    acc: str = "ms^-2"
+    gyr: str = "deg/s"
+    mag: str = "uT"
 
 
 def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
@@ -237,9 +239,8 @@ def load_mobilised_matlab_format(
     for test, data in data_per_test_dict.items():
         if data.imu_data is not None:
             for sensor_position in data.imu_data:
-                # Determine acc columns and convert to m/s-2
-                acc_columns = data_per_test_dict[test].imu_data[sensor_position].filter(like="acc", axis=1).columns
-                data_per_test_dict[test].imu_data[sensor_position][acc_columns] *= 9.81
+                # Convert acc columns to m/s-2
+                data_per_test_dict[test].imu_data[sensor_position][["acc_x", "acc_y", "acc_z"]] *= 9.81
 
     return data_per_test_dict
 
@@ -428,7 +429,7 @@ class _GenericMobilisedDataset(Dataset):
     sensor_positions: Sequence[str]
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
-    units: MobilisedUnits = MobilisedUnits()
+    UNITS: ClassVar[MobilisedUnits] = MobilisedUnits()
 
     def __init__(
         self,
