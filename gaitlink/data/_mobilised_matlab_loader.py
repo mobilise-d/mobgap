@@ -287,19 +287,30 @@ def _process_test_data(  # noqa: C901, PLR0912
                 )
 
         if all_imu_data == {}:
-            raise ValueError(
+            error_message = (
                 f"Expected at least one valid sensor position for {raw_data_sensor}. Given: {sensor_positions}"
             )
+            if missing_sensor_error_type == "raise":
+                raise ValueError(error_message)
+            if missing_sensor_error_type == "warn":
+                warnings.warn(error_message, stacklevel=1)
 
         # In the data files the sampling rate for each sensor type is reported individually.
         # But in reality, we expect them all to have the same sampling rate.
         # We check that here to simplify the return data structure.
+        # If no sampling rate has been extracted, return None
         sampling_rate_values = set(sampling_rates.values())
-        if len(sampling_rate_values) != 1:
+
+        if len(sampling_rate_values) > 1:
             raise ValueError(
                 f"Expected all sensors across all positions to have the same sampling rate, but found {sampling_rates}"
             )
-        meta_data["sampling_rate_hz"] = sampling_rate_values.pop()
+
+        if sampling_rate_values:
+            meta_data["sampling_rate_hz"] = sampling_rate_values.pop()
+        else:
+            meta_data["sampling_rate_hz"] = None
+
     else:
         all_imu_data = None
         meta_data["sampling_rate_hz"] = None
