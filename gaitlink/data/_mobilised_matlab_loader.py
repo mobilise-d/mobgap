@@ -39,6 +39,10 @@ docfiller = make_filldoc(
 
     """,
         "general_dataset_args": """
+    reference_para_level
+        Whether to provide "wb" (walking bout) or "lwb" (level-walking bout) reference when loading
+        ``reference_parameters_``.
+        ``raw_reference_parameters_`` will always contain both in an unformatted way.
     groupby_cols
         Columns to group the data by. See :class:`~tpcp.Dataset` for details.
     subset_index
@@ -55,10 +59,15 @@ docfiller = make_filldoc(
         The raw IMU data.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
-    reference_parameters_
+    raw_reference_parameters_
         The raw reference parameters (if available).
         Check other attributes with a trailing underscore for the reference parameters converted into a more
         standardized format.
+    reference_parameters_
+        Parsed reference parameters.
+        This contains the reference parameters in a format that can be used as input and output to many of the gaitlink
+        algorithms.
+        See :func:`~gaitlink.data.parse_reference_parameters` for details.
     reference_sampling_rate_hz_
         The sampling rate of the reference data in Hz.
     metadata
@@ -842,6 +851,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         *,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
+        reference_para_level: Literal["wb", "lwb"] = "wb",
         sensor_positions: Sequence[str] = ("LowerBack",),
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
         missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
@@ -855,6 +865,7 @@ class GenericMobilisedDataset(_GenericMobilisedDataset):
         super().__init__(
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
+            reference_para_level=reference_para_level,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
             memory=memory,
