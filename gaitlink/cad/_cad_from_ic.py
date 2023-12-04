@@ -89,7 +89,7 @@ ic2cad_docfiller = make_filldoc(
 
 
 def _robust_ic_to_cad_per_sec(
-    ics: pd.Series, sec_centers: np.ndarray, max_interp_gap_sec: int, smoothing_filter: BaseFilter
+    ics: pd.Series, sec_centers: np.ndarray, max_interpolation_gap_s: int, smoothing_filter: BaseFilter
 ) -> pd.Series:
     """Calculate cadence per second from initial contacts."""
     ics = ics.to_numpy()
@@ -100,8 +100,56 @@ def _robust_ic_to_cad_per_sec(
     step_time = np.diff(ics)
     # We repeat the last step time to get the same number of step times as initial contacts
     step_time = np.append(step_time, step_time[-1])
+    step_time_per_sec_smooth = _robust_step_para_to_sec(
+        ics,
+        step_time,
+        sec_centers,
+        max_interpolation_gap_s,
+        smoothing_filter,
+    )
+
+    # Final cadence calculation in 1/min
+    return pd.Series(1.0 / step_time_per_sec_smooth * 60)
+
+
+def _robust_step_para_to_sec(
+    ics: np.ndarray,
+    step_para: np.ndarray,
+    sec_centers: np.ndarray,
+    max_interpolation_gap_s: float,
+    smoothing_filter: BaseFilter = HampelFilter(2, 3.0),
+) -> np.ndarray:
+    """Interpolate a per-step parameter to a per-second parameter.
+
+    This will first smooth the per-step parameter and then interpolate it to a per-second parameter.
+    The per-second parameters are then "gap-filled" by linear interpolation.
+    The final per-second parameter is then smoothed again.
+
+    Parameters
+    ----------
+    ics
+        The initial contacts in samples marking the start of each step
+    step_para
+        The per-step parameter.
+        Must have the same length as ``ics``.
+        For the interpolation, we assume that the position the "step_para" is measured at is the start of the step.
+    sec_centers
+        The center of each second expected in the final output.
+        That should be provided in samples
+    max_interpolation_gap_s
+        The maximum gap in seconds that is interpolated.
+        If the gap is larger than this value, the second is filled with NaNs.
+        We don't fill "gaps" at the start and end of the recording, as we assume that gait sequences are cut anyway
+        to start and end with a valid initial contact.
+    smoothing_filter
+        The filter used to smooth the per-step parameter.
+        The filter is applied twice, once to the raw step time and a second time on the interpolated step time values
+        per second.
+        We recommend to use a Hampel filter for this.
+
+    """
     # 1. Smoothing
-    step_time_smooth = smoothing_filter.filter(step_time).transformed_data_
+    step_time_smooth = smoothing_filter.filter(step_para).transformed_data_
     # Average step time per second
     sec_start_ends = np.vstack([sec_centers - 0.5, sec_centers + 0.5]).T
     step_time_per_sec = interval_mean(ics, step_time_smooth, sec_start_ends)
@@ -119,15 +167,12 @@ def _robust_ic_to_cad_per_sec(
         .transform("size")
         .where(step_time_per_sec_smooth.isna())
     )
-
     step_time_per_sec_smooth = (
         pd.Series(step_time_per_sec_smooth)
         .interpolate(method="linear", limit_area="inside")
-        .mask(n_nan_mask > max_interp_gap_sec)
+        .mask(n_nan_mask > max_interpolation_gap_s)
     )
-
-    # Final cadence calculation in 1/min
-    return 1.0 / step_time_per_sec_smooth * 60
+    return step_time_per_sec_smooth.to_numpy()
 
 
 @ic2cad_docfiller
