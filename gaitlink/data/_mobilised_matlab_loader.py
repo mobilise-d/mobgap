@@ -485,6 +485,7 @@ def parse_reference_parameters(
 
     - The reference start-end values for each stride for the INDIP system are provided in samples, not in seconds.
       This is handled here, and independent of the reference system, we correctly convert all values into samples.
+    - Drop duplicate ICs and strides.
 
     Parameters
     ----------
@@ -547,7 +548,7 @@ def parse_reference_parameters(
     ics = pd.DataFrame.from_dict({"ic": ics, "lr_label": lr_labels})
 
     ics_is_na = ics["ic"].isna()
-    ics = ics[~ics_is_na]
+    ics = ics[~ics_is_na].drop_duplicates()
     ics["ic"] = (ics["ic"] * ref_sampling_rate_hz).round().astype(int)
     ics.index.name = "ic_id"
 
