@@ -103,6 +103,12 @@ def robust_step_para_to_sec(
         The method used to interpolate the per-step parameter to a per-second parameter.
 
     """
+    if len(ics) != len(step_para):
+        raise ValueError("The number of initial contacts and step parameters must be equal.")
+
+    if len(ics) == 0:
+        return np.full(len(sec_centers), np.nan)
+
     # 1. Smoothing
     step_time_smooth = smoothing_filter.filter(step_para).transformed_data_
     # Average step time per second
