@@ -4,13 +4,17 @@ from gaitlink.data._mobilised_matlab_loader import (
     GenericMobilisedDataset,
     MobilisedMetadata,
     MobilisedTestData,
+    ParsedReferenceData,
     load_mobilised_matlab_format,
     load_mobilised_participant_metadata_file,
+    parse_reference_parameters,
 )
 
 __all__ = [
     "load_mobilised_matlab_format",
     "load_mobilised_participant_metadata_file",
+    "parse_reference_parameters",
+    "ParsedReferenceData",
     "MobilisedTestData",
     "MobilisedMetadata",
     "get_all_lab_example_data_paths",

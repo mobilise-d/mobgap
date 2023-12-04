@@ -56,7 +56,9 @@ docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     reference_parameters_
-        The reference parameters (if available).
+        The raw reference parameters (if available).
+        Check other attributes with a trailing underscore for the reference parameters converted into a more
+        standardized format.
     reference_sampling_rate_hz_
         The sampling rate of the reference data in Hz.
     metadata
@@ -108,7 +110,7 @@ class MobilisedTestData(NamedTuple):
         The raw IMU data.
         This is a dictionary mapping the sensor position to the loaded data.
         In most cases, only "LowerBack" is available.
-    reference_parameters
+    raw_reference_parameters
         The reference parameters (if available).
         This will depend on the reference system used loaded.
         The parameter only represents the data of one system.
@@ -120,8 +122,7 @@ class MobilisedTestData(NamedTuple):
     """
 
     imu_data: Optional[dict[str, pd.DataFrame]]
-    # TODO: Update Any typing once I understand the data better.
-    reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
+    raw_reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
     metadata: MobilisedMetadata
 
 
@@ -369,7 +370,7 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
         meta_data["reference_sampling_rate_hz"] = None
 
     return MobilisedTestData(
-        imu_data=all_imu_data, reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data)
+        imu_data=all_imu_data, raw_reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data)
     )
 
 
@@ -419,6 +420,110 @@ def cached_load_current(selected_file: PathLike, loader_function: Callable[[Path
     return loader_function(selected_file)
 
 
+def _ensure_is_list(value: Any) -> list:
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    if not isinstance(value, list):
+        return [value]
+    return value
+
+
+class ParsedReferenceData(NamedTuple):
+    walking_bouts: pd.DataFrame
+    initial_contacts: pd.DataFrame
+    turn_parameters: pd.DataFrame
+    stride_parameters: pd.DataFrame
+
+
+def parse_reference_parameters(
+    ref_data: list[dict[str, Union[str, float, int, np.ndarray]]], ref_sampling_rate_hz: float
+) -> ParsedReferenceData:
+    """Parse the reference data (stored per WB) into the per recording data structures used in gaitlink.
+
+    .. note :: This expects the reference for only onw of the WB levels as input (i.e. `reference_data["wb"]` not
+        `reference_data`).
+
+    This does the following:
+    - Using the wb start and end values to build a list of reference gait sequences.
+    - All values are converted from seconds to samples since the start of the recording
+
+    """
+    gait_sequences = []
+    ics = []
+    lr_labels = []
+    turn_paras = []
+    stride_paras = []
+
+    for wb in ref_data:
+        gait_sequences.append([wb["Start"], wb["End"]])
+        ics.extend(_ensure_is_list(wb["InitialContact_Event"]))
+        lr_labels.extend(_ensure_is_list(wb["InitialContact_LeftRight"]))
+        turn_paras.append(
+            pd.DataFrame.from_dict(
+                {
+                    "start": _ensure_is_list(wb["Turn_Start"]),
+                    "end": _ensure_is_list(wb["Turn_End"]),
+                    "duration_s": _ensure_is_list(wb["Turn_Duration"]),
+                    "angle_deg": _ensure_is_list(wb["Turn_Angle"]),
+                }
+            )
+        )
+        starts, ends = zip(*_ensure_is_list(wb["Stride_InitialContacts"]))
+        stride_paras.append(
+            pd.DataFrame.from_dict(
+                {
+                    "start": starts,
+                    "end": ends,
+                    "duration_s": _ensure_is_list(wb["Stride_Duration"]),
+                    "length_m": _ensure_is_list(wb["Stride_Length"]),
+                    "speed_ms": _ensure_is_list(wb["Stride_Speed"]),
+                    "stance_time_s": _ensure_is_list(wb["Stance_Duration"]),
+                    "swing_time_s": _ensure_is_list(wb["Swing_Duration"]),
+                }
+            )
+        )
+
+    gait_sequences = pd.DataFrame(gait_sequences, columns=["start", "end"])
+    gait_sequences = (gait_sequences * ref_sampling_rate_hz).round().astype(int)
+    gait_sequences.index.name = "gs_id"
+
+    ics = pd.DataFrame.from_dict({"ic": ics, "lr_label": lr_labels})
+
+    ics_is_na = ics["ic"].isna()
+    ics = ics[~ics_is_na]
+    ics["ic"] = (ics["ic"] * ref_sampling_rate_hz).round().astype(int)
+    ics.index.name = "ic_id"
+
+    turn_paras = pd.concat(turn_paras, ignore_index=True)
+    turn_paras.index.name = "turn_id"
+
+    stride_paras = pd.concat(stride_paras, ignore_index=True)
+    stride_ics_is_na = stride_paras[["start", "end"]].isna().any(axis=1)
+    stride_paras = stride_paras[~stride_ics_is_na]
+    # Note: For the INDIP system it seems like start and end are provided in samples already and not in seconds.
+    #       I am not sure what the correct behavior is, but we try to handle it to avoid confusion on the user side.
+    #       Unfortuantely, there is no 100% reliable way to detect this, so we just check if the values are in the IC
+    #       list (which seems to be provided in time in all ref systems I have seen).
+    #
+    # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
+    # parameters are also in seconds not in samples.
+    if not stride_paras["start"].isin(ics["ic"]).all():
+        stride_paras[["start", "end"]] = (stride_paras[["start", "end"]] * ref_sampling_rate_hz).round().astype(int)
+        # We check again, just to be sure and if they are still not there, we throw an error.
+        if not stride_paras["start"].isin(ics["ic"]).all():
+            raise ValueError(
+                "There seems to be a mismatch between the provided stride parameters and the provided initial "
+                "contacts of the reference system. "
+                "At least some of the ICs marking the start of a stride are not found in the dedicated IC list."
+            )
+
+    # We also get the correct LR-label for the stride parameters from the ICs.
+    stride_paras["lr_label"] = ics.set_index("ic")["lr_label"][stride_paras["start"]].to_numpy()
+    stride_paras.index.name = "s_id"
+
+    return ParsedReferenceData(gait_sequences, ics, turn_paras, stride_paras)
+
+
 @docfiller
 class _GenericMobilisedDataset(Dataset):
     """Common base class for Datasets based on the Mobilise-D matlab format.
@@ -437,6 +542,7 @@ class _GenericMobilisedDataset(Dataset):
 
     raw_data_sensor: Literal["SU", "INDIP", "INDIP2"]
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
+    reference_para_level: Literal["wb", "lwb"]
     sensor_positions: Sequence[str]
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
@@ -447,6 +553,7 @@ class _GenericMobilisedDataset(Dataset):
         *,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
+        reference_para_level: Literal["wb", "lwb"] = "wb",
         sensor_positions: Sequence[str] = ("LowerBack",),
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
         missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
@@ -456,6 +563,7 @@ class _GenericMobilisedDataset(Dataset):
     ) -> None:
         self.raw_data_sensor = raw_data_sensor
         self.reference_system = reference_system
+        self.reference_para_level = reference_para_level
         self.sensor_positions = sensor_positions
         self.sensor_types = sensor_types
         self.memory = memory
@@ -491,8 +599,20 @@ class _GenericMobilisedDataset(Dataset):
         return self._load_selected_data("data").imu_data
 
     @property
-    def reference_parameters_(self) -> MobilisedTestData.reference_parameters:
-        return self._load_selected_data("reference_parameters_").reference_parameters
+    def raw_reference_parameters_(self) -> MobilisedTestData.raw_reference_parameters:
+        if self.reference_system is None:
+            raise ValueError(
+                "The raw_reference_parameters_ and all attributes that depend on it are only available, if a reference "
+                "system is specified. "
+                "Specify a reference system when creating the dataset object."
+            )
+        return self._load_selected_data("reference_parameters_").raw_reference_parameters
+
+    @property
+    def reference_parameters_(self) -> ParsedReferenceData:
+        return parse_reference_parameters(
+            self.raw_reference_parameters_[self.reference_para_level], self.reference_sampling_rate_hz_
+        )
 
     @property
     def sampling_rate_hz(self) -> float:
