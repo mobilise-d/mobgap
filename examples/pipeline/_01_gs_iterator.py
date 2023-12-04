@@ -20,14 +20,9 @@ import pandas as pd
 
 from gaitlink.data import LabExampleDataset
 
-
-def load_reference_gs(datapoint):
-    return datapoint.reference_parameters_.walking_bouts
-
-
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
-long_trial_gs = load_reference_gs(long_trial)
+long_trial_gs = long_trial.reference_parameters_.walking_bouts
 
 long_trial_gs
 
