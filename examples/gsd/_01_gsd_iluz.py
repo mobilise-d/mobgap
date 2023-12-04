@@ -78,12 +78,7 @@ def load_matlab_output(datapoint):
 
 
 def load_reference(datapoint):
-    return (
-        pd.DataFrame.from_records(
-            [{"start": wb["Start"], "end": wb["End"]} for wb in datapoint.reference_parameters_["wb"]]
-        )
-        * datapoint.sampling_rate_hz
-    )
+    return datapoint.reference_parameters_.walking_bouts
 
 
 # %%
