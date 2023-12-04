@@ -17,7 +17,7 @@ def example_data_path():
 
 @pytest.fixture()
 def example_missing_data_path():
-    potential_paths = (PACKAGE_ROOT.parent / "example_data/data/lab_missing_sensor").rglob("data.mat")
+    potential_paths = (PACKAGE_ROOT.parent / "tests" / "test_data" / "data" / "lab_missing_sensor").rglob("data.mat")
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}[("HA", "001")]
 
 
