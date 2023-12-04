@@ -1,3 +1,4 @@
+import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 
@@ -57,7 +58,7 @@ def test_simple_file_loading(example_data_path, recwarn, snapshot):
         snapshot.assert_match(snapshot_data, name)
 
         # By default, there should be no reference parameter
-        assert test_data.reference_parameters is None
+        assert test_data.raw_reference_parameters is None
         assert test_data.metadata.reference_sampling_rate_hz is None
 
 
@@ -78,7 +79,7 @@ def test_load_only_reference(example_data_path, recwarn):
         assert test_data.imu_data is None
         assert test_data.metadata.sampling_rate_hz is None
 
-        assert test_data.reference_parameters is not None
+        assert test_data.raw_reference_parameters is not None
         assert test_data.metadata.reference_sampling_rate_hz == 100
 
 
@@ -91,12 +92,12 @@ def test_reference_system_loading(example_data_path):
     number_of_tests_with_reference = 0
 
     for _name, test_data in data.items():
-        if test_data.reference_parameters is not None:
+        if test_data.raw_reference_parameters is not None:
             number_of_tests_with_reference += 1
 
             assert test_data.metadata.reference_sampling_rate_hz == 100
-            assert set(test_data.reference_parameters.keys()) == {"lwb", "wb"}
-            for _key, value in test_data.reference_parameters.items():
+            assert set(test_data.raw_reference_parameters.keys()) == {"lwb", "wb"}
+            for _key, value in test_data.raw_reference_parameters.items():
                 assert isinstance(value, list)
                 assert len(value) > 0
                 for wb in value:
@@ -135,12 +136,14 @@ class TestDatasetClass:
 
         assert ds.index.columns.tolist() == ["cohort", "participant_id", "time_measure", "test", "trial"]
 
-    def test_loaded_data(self, example_data_path):
+    @pytest.mark.parametrize("reference_para_level", ["wb", "lwb"])
+    def test_loaded_data(self, example_data_path, reference_para_level):
         ds = GenericMobilisedDataset(
             example_data_path / "data.mat",
             GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
             None,
             reference_system="INDIP",
+            reference_para_level=reference_para_level,
         )
 
         manually_data = load_mobilised_matlab_format(example_data_path / "data.mat", reference_system="INDIP")
@@ -148,6 +151,7 @@ class TestDatasetClass:
         assert list(ds.index.itertuples(index=False)) == list(manually_data.keys())
 
         for test_ds, test in zip(ds, manually_data.values()):
+            test_ds: GenericMobilisedDataset
             assert test_ds.metadata == test.metadata
             assert test_ds.sampling_rate_hz == test.metadata.sampling_rate_hz
             assert test_ds.reference_sampling_rate_hz_ == test.metadata.reference_sampling_rate_hz
@@ -156,11 +160,25 @@ class TestDatasetClass:
                 assert_frame_equal(test_ds.data[sensor], test.imu_data[sensor])
             # It is a little hard to compare the entire reference parameters, as they are a list of dicts
             # We just compare the length and the first entry
-            for wb_type in test_ds.reference_parameters_:
-                assert len(test_ds.reference_parameters_[wb_type]) == len(test.reference_parameters[wb_type])
+            for wb_type in test_ds.raw_reference_parameters_:
+                assert len(test_ds.raw_reference_parameters_[wb_type]) == len(test.raw_reference_parameters[wb_type])
                 assert (
-                    test_ds.reference_parameters_[wb_type][0]["Start"] == test.reference_parameters[wb_type][0]["Start"]
+                    test_ds.raw_reference_parameters_[wb_type][0]["Start"]
+                    == test.raw_reference_parameters[wb_type][0]["Start"]
                 )
+
+            # For the parsed reference parameter, we compare that some basic values are the same in the raw and parsed
+            ref_paras = test_ds.reference_parameters_
+            ref_gs = ref_paras.walking_bouts
+            assert len(ref_gs) == len(test.raw_reference_parameters[reference_para_level])
+            assert len(ref_paras.initial_contacts) == len(
+                pd.concat(
+                    [
+                        pd.Series(wb["InitialContact_Event"])
+                        for wb in test.raw_reference_parameters[reference_para_level]
+                    ]
+                ).dropna()
+            )
 
     def test_duplicated_metadata(self):
         ds = GenericMobilisedDataset(
