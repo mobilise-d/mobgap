@@ -237,7 +237,7 @@ def _parse_until_test_level(
             )
 
 
-def _process_test_data(  # noqa: C901, PLR0912
+def _process_test_data(  # noqa: C901, PLR0912, PLR0915
     test_data: sio.matlab.mat_struct,
     test_name: tuple[str, ...],
     *,
