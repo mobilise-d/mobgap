@@ -26,6 +26,7 @@ Load Functions
    :template: function.rst
 
     load_mobilised_matlab_format
+    parse_reference_parameters
 
 Datatypes
 +++++++++
@@ -36,6 +37,7 @@ Datatypes
 
     MobilisedTestData
     MobilisedMetadata
+    ParsedReferenceData
 
 Example Data
 ------------
