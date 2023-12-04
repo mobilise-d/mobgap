@@ -1,0 +1,33 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"turn_id",
+                "type":"integer"
+            },
+            {
+                "name":"start",
+                "type":"number"
+            },
+            {
+                "name":"end",
+                "type":"number"
+            },
+            {
+                "name":"duration_s",
+                "type":"number"
+            },
+            {
+                "name":"angle_deg",
+                "type":"number"
+            }
+        ],
+        "primaryKey":[
+            "turn_id"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+
+    ]
+}

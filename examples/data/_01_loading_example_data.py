@@ -65,7 +65,29 @@ example_data_with_reference = LabExampleDataset(reference_system="Stereophoto")
 single_trial_with_reference = example_data_with_reference.get_subset(
     cohort="HA", participant_id="002", test="Test5", trial="Trial2"
 )
-single_trial_with_reference.reference_parameters_
+single_trial_with_reference.raw_reference_parameters_
+
+# %%
+# The data you can see above is the "raw" reference data.
+# Including both the information for walking bouts and level-walking bouts.
+# To access the data in format that can be directly compared to the output of the gaitlink algorithms or used as input
+# to algorithms further down the processing pipeline, you can use the ``reference_parameters_`` attribute.
+# If the data is extracted from the normal walking bouts or the level walking bouts is controlled by the
+# ``reference_para_level`` parameter of the Dataset class (default is ``wb``).
+ref_paras = single_trial_with_reference.reference_parameters_
+
+# %%
+# This attribute contains the data for the outputs of the various steps of the processing pipeline.
+ref_paras.walking_bouts
+
+# %%
+ref_paras.initial_contacts
+
+# %%
+ref_paras.turn_parameters
+
+# %%
+ref_paras.stride_parameters
 
 
 # %%
@@ -111,8 +133,20 @@ data_with_reference = load_mobilised_matlab_format(example_participant_path / "d
 
 # %%
 # The returned :class:`~gaitlink.data.MobilisedTestData` objects now contain the reference parameters.
-data_with_reference[test_list[2]].reference_parameters
+raw_reference_data = data_with_reference[test_list[2]].raw_reference_parameters
 
 # %%
 # And metadata about the reference system is available as well.
-data_with_reference[test_list[0]].metadata.reference_sampling_rate_hz
+ref_sampling_rate_hz = data_with_reference[test_list[2]].metadata.reference_sampling_rate_hz
+ref_sampling_rate_hz
+
+# %%
+# To parse the reference data into better data structures, we can use the
+# :func:`~gaitlink.data.parse_reference_parameters` function.
+from gaitlink.data import parse_reference_parameters
+
+ref_paras_functional = parse_reference_parameters(raw_reference_data["wb"], ref_sampling_rate_hz)
+
+# %%
+# They have the same structure the reference parameters of the Dataset class.
+ref_paras_functional
