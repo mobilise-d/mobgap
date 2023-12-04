@@ -3,7 +3,7 @@
         "fields":[
             {
                 "name":"index",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"N-Samples",
@@ -17,27 +17,27 @@
     },
     "data":[
         {
-            "index":"gs_0",
+            "index": 0,
             "N-Samples":748
         },
         {
-            "index":"gs_1",
+            "index": 1,
             "N-Samples":1014
         },
         {
-            "index":"gs_2",
+            "index": 2,
             "N-Samples":903
         },
         {
-            "index":"gs_3",
+            "index": 3,
             "N-Samples":2295
         },
         {
-            "index":"gs_4",
+            "index": 4,
             "N-Samples":830
         },
         {
-            "index":"gs_5",
+            "index": 5,
             "N-Samples":750
         }
     ]

@@ -22,19 +22,7 @@ from gaitlink.data import LabExampleDataset
 
 
 def load_reference_gs(datapoint):
-    return (
-        (
-            pd.DataFrame.from_records(
-                [
-                    {"start": wb["Start"], "end": wb["End"], "gs_id": f"gs_{i}"}
-                    for i, wb in enumerate(datapoint.reference_parameters_["wb"])
-                ]
-            ).set_index("gs_id")
-            * datapoint.sampling_rate_hz
-        )
-        .round()
-        .astype(int)
-    )
+    return datapoint.reference_parameters_.walking_bouts
 
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
