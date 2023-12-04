@@ -5,7 +5,6 @@ from pandas._testing import assert_series_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.cad import CadFromIc
-from gaitlink.cad._cad_from_ic import CadFromIcDetector
 
 
 class TestMetaCadFromIc(TestAlgorithmMixin):
@@ -20,6 +19,7 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
             initial_contacts=pd.Series(np.arange(0, 100, 5)),
             sampling_rate_hz=40.0,
         )
+
 
 # TODO: This class can only be tested once we have an IC detector implemented
 # class TestMetaCadFromIcDetector(TestAlgorithmMixin):
@@ -38,6 +38,7 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
 # TODO: - Tests with non-uniform data
 #       - Really test that we perform linear interpolation
 #       - Test the smoothing
+
 
 class TestCadFromIc:
     @pytest.mark.parametrize("sampling_rate_hz", [10.0, 20.0, 40.0])
