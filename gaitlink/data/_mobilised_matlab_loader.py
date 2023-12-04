@@ -438,6 +438,23 @@ def _ensure_is_list(value: Any) -> list:
 
 
 class ParsedReferenceData(NamedTuple):
+    """Parsed reference parameters.
+
+    All start/end values are provided in samples since the start of the recording.
+
+    Attributes
+    ----------
+    walking_bouts
+        A dataframe with the start and end of each walking bout in samples.
+    initial_contacts
+        A dataframe with the initial contacts in samples and the corresponding left/right label.
+    turn_parameters
+        A dataframe with the start, end, angle and other parameters of each turn.
+    stride_parameters
+        A dataframe with the start, end, duration and other parameters of each stride.
+
+    """
+
     walking_bouts: pd.DataFrame
     initial_contacts: pd.DataFrame
     turn_parameters: pd.DataFrame
@@ -453,8 +470,39 @@ def parse_reference_parameters(
         `reference_data`).
 
     This does the following:
+
     - Using the wb start and end values to build a list of reference gait sequences.
-    - All values are converted from seconds to samples since the start of the recording
+    - Concatenate all initial contacts into a single list.
+    - Concatenate all turn parameters into a single list.
+    - Concatenate all stride parameters into a single list.
+    - All time values are converted from seconds to samples since the start of the recording
+    - Further, we drop all strides and ICs that have a NaN value, as this has no meaning outside the context of the
+      reference system.
+      However, all strides that have NaNs for other parameters are kept.
+
+    This function is also the place to fix some of the inconsistencies in the reference data format.
+    Things that are currently fixed here:
+
+    - The reference start-end values for each stride for the INDIP system are provided in samples, not in seconds.
+      This is handled here, and independent of the reference system, we correctly convert all values into samples.
+
+    Parameters
+    ----------
+    ref_data
+        The raw reference data for one of the WB levels.
+    ref_sampling_rate_hz
+        The sampling rate of the reference data in Hz.
+
+    Returns
+    -------
+    ParsedReferenceData
+        A named tuple with the parsed reference data.
+        See :class:`~ParsedReferenceData` for details.
+
+    See Also
+    --------
+    ParsedReferenceData
+        The output data structure.
 
     """
     gait_sequences = []
