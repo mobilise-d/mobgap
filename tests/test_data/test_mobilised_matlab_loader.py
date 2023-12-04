@@ -15,6 +15,12 @@ def example_data_path():
     return get_all_lab_example_data_paths()[("HA", "001")]
 
 
+@pytest.fixture()
+def example_missing_data_path():
+    potential_paths = (PACKAGE_ROOT.parent / "example_data/data/lab_missing_sensor").rglob("data.mat")
+    return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}[("HA", "001")]
+
+
 def test_simple_file_loading(example_data_path, recwarn, snapshot):
     data = load_mobilised_matlab_format(example_data_path / "data.mat")
 
@@ -229,3 +235,46 @@ class TestDatasetClass:
             match=r"Sensor position UnkownSensor is not available for test \('TimeMeasure1', 'Test5', 'Trial1'\)\.",
         ):
             _ = ds.index
+
+    def test_error_missing_sensor_default(self, example_missing_data_path):
+        """Test missing sensor data for default setting"""
+        # Test default loading
+        with pytest.raises(
+            ValueError,
+            match=r"Sensor position LowerBack is not available for test \('TimeMeasure1', 'Test11', 'Trial1'\).",
+        ):
+            _ = load_mobilised_matlab_format(example_missing_data_path / "data.mat", sensor_positions=("LowerBack",))
+
+    def test_error_missing_sensor_warn(self, example_missing_data_path):
+        """Test missing sensor data for missing_sensor_error_type='warn'"""
+        with pytest.warns(Warning) as record:
+            result = load_mobilised_matlab_format(
+                example_missing_data_path / "data.mat",
+                sensor_positions=("LowerBack",),
+                missing_sensor_error_type="warn",
+            )
+
+        assert len(record) == 2
+
+        assert issubclass(record[0].category, UserWarning)
+        assert (
+            str(record[0].message)
+            == "Sensor position LowerBack is not available for test ('TimeMeasure1', 'Test11', 'Trial1')."
+        )
+
+        assert issubclass(record[1].category, UserWarning)
+        assert str(record[1].message) == "Expected at least one valid sensor position for SU. Given: ('LowerBack',)"
+
+        assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
+        assert result[("TimeMeasure1", "Test11", "Trial1")].metadata.sampling_rate_hz is None
+
+    def test_error_missing_sensor_ignore(self, example_missing_data_path):
+        """Test missing sensor data for missing_sensor_error_type='ignore'. No Warning should be emitted"""
+        result = load_mobilised_matlab_format(
+            example_missing_data_path / "data.mat",
+            sensor_positions=("LowerBack",),
+            missing_sensor_error_type="warn",
+        )
+
+        assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
+        assert result[("TimeMeasure1", "Test11", "Trial1")].metadata.sampling_rate_hz is None
