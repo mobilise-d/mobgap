@@ -74,6 +74,13 @@ cad_from_ic.calculate(data_in_gs, reference_ic["ic"], sampling_rate_hz=short_tri
 cad_from_ic.cadence_per_sec_
 
 # %%
+# To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
+# reference system.
+reference_cad = reference_gs["avg_cadence_spm"].loc[gs_id]
+print(f"Average stride cadence from reference: {reference_cad:.2f} steps/min")
+print(f"Calculated average per-sec cadence: {cad_from_ic.cadence_per_sec_.mean():.2f} steps/min")
+
+# %%
 # Note that if we would have breaks in the gait sequence, the method would try to interpolate the cadence values for
 # short breaks, but would provide NaNs for longer breaks.
 # This is controlled by the ``max_interpolation_gap_s`` parameter.
