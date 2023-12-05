@@ -27,6 +27,9 @@ def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[str, pd
        The gait-sequence-id (i.e. the index from the gs-dataframe).
     pd.DataFrame
         The data of a single gait-sequence.
+        Note, that we don't change the index of the data.
+        If the data was using an index that started at the beginning of the recording, the index of the individual
+        sequences will still be relative to the beginning of the recording.
 
     """
     for gs in gs_list.itertuples(index=True, name="gs"):
