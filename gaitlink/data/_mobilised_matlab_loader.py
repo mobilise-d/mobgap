@@ -68,6 +68,10 @@ docfiller = make_filldoc(
         This contains the reference parameters in a format that can be used as input and output to many of the gaitlink
         algorithms.
         See :func:`~gaitlink.data.parse_reference_parameters` for details.
+    reference_parameters_relative_to_wb_
+        Parsed reference parameters, where all values are relative to the start of each WB.
+        This is the same as `reference_parameters_`, but the :func:`~gaitlink.data.parse_reference_parameters`
+        is called with ``relative_to_wb=True`` internally.
     reference_sampling_rate_hz_
         The sampling rate of the reference data in Hz.
     metadata
@@ -462,7 +466,10 @@ class ReferenceData(NamedTuple):
 
 
 def parse_reference_parameters(
-    ref_data: list[dict[str, Union[str, float, int, np.ndarray]]], ref_sampling_rate_hz: float
+    ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
+    ref_sampling_rate_hz: float,
+    *,
+    relative_to_wb: bool = False,
 ) -> ReferenceData:
     """Parse the reference data (stored per WB) into the per recording data structures used in gaitlink.
 
@@ -493,6 +500,10 @@ def parse_reference_parameters(
         The raw reference data for one of the WB levels.
     ref_sampling_rate_hz
         The sampling rate of the reference data in Hz.
+    relative_to_wb
+        Whether to convert all values to be relative to the start of each individual WB.
+        This will of course not affect the WB start and end values, but all other values (events, strides, ...) will be
+        converted.
 
     Returns
     -------
@@ -506,20 +517,29 @@ def parse_reference_parameters(
         The output data structure.
 
     """
-    gait_sequences = []
+    walking_bouts = []
     ics = []
-    lr_labels = []
     turn_paras = []
     stride_paras = []
 
-    for wb in ref_data:
-        gait_sequences.append([wb["Start"], wb["End"]])
-        ics.extend(_ensure_is_list(wb["InitialContact_Event"]))
-        lr_labels.extend(_ensure_is_list(wb["InitialContact_LeftRight"]))
+    for wb_id, wb in enumerate(ref_data, start=1):
+        walking_bouts.append([wb_id, wb["Start"], wb["End"]])
+        ic_vals = _ensure_is_list(wb["InitialContact_Event"])
+        ics.append(
+            pd.DataFrame.from_dict(
+                {
+                    "wb_id": [wb_id] * len(ic_vals),
+                    "ic": ic_vals,
+                    "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
+                }
+            )
+        )
+        turn_starts = _ensure_is_list(wb["Turn_Start"])
         turn_paras.append(
             pd.DataFrame.from_dict(
                 {
-                    "start": _ensure_is_list(wb["Turn_Start"]),
+                    "wb_id": [wb_id] * len(turn_starts),
+                    "start": turn_starts,
                     "end": _ensure_is_list(wb["Turn_End"]),
                     "duration_s": _ensure_is_list(wb["Turn_Duration"]),
                     "angle_deg": _ensure_is_list(wb["Turn_Angle"]),
@@ -530,6 +550,7 @@ def parse_reference_parameters(
         stride_paras.append(
             pd.DataFrame.from_dict(
                 {
+                    "wb_id": [wb_id] * len(starts),
                     "start": starts,
                     "end": ends,
                     "duration_s": _ensure_is_list(wb["Stride_Duration"]),
@@ -541,19 +562,19 @@ def parse_reference_parameters(
             )
         )
 
-    gait_sequences = pd.DataFrame(gait_sequences, columns=["start", "end"])
-    gait_sequences = (gait_sequences * ref_sampling_rate_hz).round().astype(int)
-    gait_sequences.index.name = "gs_id"
+    walking_bouts = pd.DataFrame(walking_bouts, columns=["wb_id", "start", "end"]).set_index("wb_id")
+    walking_bouts = (walking_bouts * ref_sampling_rate_hz).round().astype(int)
 
-    ics = pd.DataFrame.from_dict({"ic": ics, "lr_label": lr_labels})
-
+    ics = pd.concat(ics, ignore_index=True)
     ics_is_na = ics["ic"].isna()
     ics = ics[~ics_is_na].drop_duplicates()
     ics["ic"] = (ics["ic"] * ref_sampling_rate_hz).round().astype(int)
     ics.index.name = "ic_id"
+    ics = ics.reset_index().set_index(["wb_id", "ic_id"])
 
     turn_paras = pd.concat(turn_paras, ignore_index=True)
     turn_paras.index.name = "turn_id"
+    turn_paras = turn_paras.reset_index().set_index(["wb_id", "turn_id"])
 
     stride_paras = pd.concat(stride_paras, ignore_index=True)
     stride_ics_is_na = stride_paras[["start", "end"]].isna().any(axis=1)
@@ -578,8 +599,52 @@ def parse_reference_parameters(
     # We also get the correct LR-label for the stride parameters from the ICs.
     stride_paras["lr_label"] = ics.set_index("ic")["lr_label"][stride_paras["start"]].to_numpy()
     stride_paras.index.name = "s_id"
+    stride_paras = stride_paras.reset_index().set_index(["wb_id", "s_id"])
 
-    return ReferenceData(gait_sequences, ics, turn_paras, stride_paras)
+    if relative_to_wb is True:
+        ics = _relative_to_gs(ics, walking_bouts, "wb_id", columns_to_cut=["ic"])
+        turn_paras = _relative_to_gs(turn_paras, walking_bouts, "wb_id", columns_to_cut=["start", "end"])
+        stride_paras = _relative_to_gs(stride_paras, walking_bouts, "wb_id", columns_to_cut=["start", "end"])
+
+    return ReferenceData(walking_bouts, ics, turn_paras, stride_paras)
+
+
+def _relative_to_gs(
+    event_data: pd.DataFrame, gait_sequences: pd.DataFrame, gs_index_col: str, *, columns_to_cut: Sequence[str]
+) -> pd.DataFrame:
+    """Convert the start and end values or event values to values relative to the start of GSs or WBs.
+
+    Note, that this assumes that the input data already has an index level indicating to which GS/WB the entry belongs
+    to.
+    It does not check if events are actually within the provided GSs/WBs.
+
+    Parameters
+    ----------
+    event_data
+        The event data to convert.
+        This can be any dataframe with a multi-index, where at least one level is the GS/WB level
+        (specified by ``gs_index_col``).
+    gait_sequences
+        The gait sequences to use for the conversion.
+        The index values must match the index values provided in the ``gs_index_col`` of the event_data.
+    gs_index_col
+        The name of the index level in the ``event_data`` that contains the GS/WB index.
+    columns_to_cut
+        The columns to convert.
+        This must be a subset of the columns in the ``event_data``.
+        For each of the columns we simply subtract the start value of the corresponding GS/WB.
+        Make sure that the units of the columns match the units of the GS/WB start values.
+
+    Returns
+    -------
+    event_data
+        A copy of the event data with the converted values.
+
+    """
+    value_to_subtract = gait_sequences["start"].loc[event_data.index.get_level_values(gs_index_col)].to_numpy()
+    event_data = event_data.copy()
+    event_data[columns_to_cut] -= value_to_subtract
+    return event_data
 
 
 @docfiller
@@ -669,7 +734,17 @@ class _GenericMobilisedDataset(Dataset):
     @property
     def reference_parameters_(self) -> ReferenceData:
         return parse_reference_parameters(
-            self.raw_reference_parameters_[self.reference_para_level], self.reference_sampling_rate_hz_
+            self.raw_reference_parameters_[self.reference_para_level],
+            self.reference_sampling_rate_hz_,
+            relative_to_wb=False,
+        )
+
+    @property
+    def reference_parameters_relative_to_wb_(self) -> ReferenceData:
+        return parse_reference_parameters(
+            self.raw_reference_parameters_[self.reference_para_level],
+            self.reference_sampling_rate_hz_,
+            relative_to_wb=True,
         )
 
     @property
