@@ -643,7 +643,7 @@ def _relative_to_gs(
     """
     value_to_subtract = gait_sequences["start"].loc[event_data.index.get_level_values(gs_index_col)].to_numpy()
     event_data = event_data.copy()
-    event_data[columns_to_cut] -= value_to_subtract
+    event_data[columns_to_cut] = event_data[columns_to_cut].sub(value_to_subtract, axis=0)
     return event_data
 
 
