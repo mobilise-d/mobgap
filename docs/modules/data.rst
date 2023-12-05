@@ -37,7 +37,7 @@ Datatypes
 
     MobilisedTestData
     MobilisedMetadata
-    ParsedReferenceData
+    ReferenceData
 
 Example Data
 ------------

@@ -437,7 +437,7 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
-class ParsedReferenceData(NamedTuple):
+class ReferenceData(NamedTuple):
     """Parsed reference parameters.
 
     All start/end values are provided in samples since the start of the recording.
@@ -463,7 +463,7 @@ class ParsedReferenceData(NamedTuple):
 
 def parse_reference_parameters(
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]], ref_sampling_rate_hz: float
-) -> ParsedReferenceData:
+) -> ReferenceData:
     """Parse the reference data (stored per WB) into the per recording data structures used in gaitlink.
 
     .. note :: This expects the reference for only onw of the WB levels as input (i.e. `reference_data["wb"]` not
@@ -496,9 +496,9 @@ def parse_reference_parameters(
 
     Returns
     -------
-    ParsedReferenceData
+    ReferenceData
         A named tuple with the parsed reference data.
-        See :class:`~ParsedReferenceData` for details.
+        See :class:`~ReferenceData` for details.
 
     See Also
     --------
@@ -560,7 +560,7 @@ def parse_reference_parameters(
     stride_paras = stride_paras[~stride_ics_is_na]
     # Note: For the INDIP system it seems like start and end are provided in samples already and not in seconds.
     #       I am not sure what the correct behavior is, but we try to handle it to avoid confusion on the user side.
-    #       Unfortuantely, there is no 100% reliable way to detect this, so we just check if the values are in the IC
+    #       Unfortunately, there is no 100% reliable way to detect this, so we just check if the values are in the IC
     #       list (which seems to be provided in time in all ref systems I have seen).
     #
     # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
@@ -579,7 +579,7 @@ def parse_reference_parameters(
     stride_paras["lr_label"] = ics.set_index("ic")["lr_label"][stride_paras["start"]].to_numpy()
     stride_paras.index.name = "s_id"
 
-    return ParsedReferenceData(gait_sequences, ics, turn_paras, stride_paras)
+    return ReferenceData(gait_sequences, ics, turn_paras, stride_paras)
 
 
 @docfiller
@@ -667,7 +667,7 @@ class _GenericMobilisedDataset(Dataset):
         return self._load_selected_data("reference_parameters_").raw_reference_parameters
 
     @property
-    def reference_parameters_(self) -> ParsedReferenceData:
+    def reference_parameters_(self) -> ReferenceData:
         return parse_reference_parameters(
             self.raw_reference_parameters_[self.reference_para_level], self.reference_sampling_rate_hz_
         )
