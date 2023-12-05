@@ -523,7 +523,21 @@ def parse_reference_parameters(
     stride_paras = []
 
     for wb_id, wb in enumerate(ref_data, start=1):
-        walking_bouts.append([wb_id, wb["Start"], wb["End"]])
+        walking_bouts.append(
+            {
+                "wb_id": wb_id,
+                "start": wb["Start"],
+                "end": wb["End"],
+                "n_strides": int(wb["NumberStrides"]),
+                "duration_s": wb["Duration"],
+                "length_m": wb["Length"],
+                "avg_speed_mps": wb["WalkingSpeed"],
+                "avg_cadence_spm": wb["Cadence"],
+                "avg_stride_length_m": wb["AverageStrideLength"],
+                "termination_reason": wb["TerminationReason"],
+            }
+        )
+
         ic_vals = _ensure_is_list(wb["InitialContact_Event"])
         ics.append(
             pd.DataFrame.from_dict(
@@ -555,15 +569,15 @@ def parse_reference_parameters(
                     "end": ends,
                     "duration_s": _ensure_is_list(wb["Stride_Duration"]),
                     "length_m": _ensure_is_list(wb["Stride_Length"]),
-                    "speed_ms": _ensure_is_list(wb["Stride_Speed"]),
+                    "speed_mps": _ensure_is_list(wb["Stride_Speed"]),
                     "stance_time_s": _ensure_is_list(wb["Stance_Duration"]),
                     "swing_time_s": _ensure_is_list(wb["Swing_Duration"]),
                 }
             )
         )
 
-    walking_bouts = pd.DataFrame(walking_bouts, columns=["wb_id", "start", "end"]).set_index("wb_id")
-    walking_bouts = (walking_bouts * ref_sampling_rate_hz).round().astype(int)
+    walking_bouts = pd.DataFrame.from_records(walking_bouts).set_index("wb_id")
+    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * ref_sampling_rate_hz).round().astype(int)
 
     ics = pd.concat(ics, ignore_index=True)
     ics_is_na = ics["ic"].isna()
