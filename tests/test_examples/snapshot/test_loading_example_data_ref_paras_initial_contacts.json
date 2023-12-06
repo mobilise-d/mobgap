@@ -2,6 +2,10 @@
     "schema":{
         "fields":[
             {
+                "name":"wb_id",
+                "type":"integer"
+            },
+            {
                 "name":"ic_id",
                 "type":"integer"
             },
@@ -15,37 +19,44 @@
             }
         ],
         "primaryKey":[
+            "wb_id",
             "ic_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
+            "wb_id":1,
             "ic_id":0,
             "ic":228,
             "lr_label":"Left"
         },
         {
+            "wb_id":1,
             "ic_id":1,
             "ic":296,
             "lr_label":"Right"
         },
         {
+            "wb_id":1,
             "ic_id":2,
             "ic":356,
             "lr_label":"Left"
         },
         {
+            "wb_id":1,
             "ic_id":3,
             "ic":414,
             "lr_label":"Right"
         },
         {
+            "wb_id":1,
             "ic_id":4,
             "ic":472,
             "lr_label":"Left"
         },
         {
+            "wb_id":1,
             "ic_id":5,
             "ic":539,
             "lr_label":"Right"

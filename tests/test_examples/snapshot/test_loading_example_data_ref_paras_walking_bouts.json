@@ -2,7 +2,7 @@
     "schema":{
         "fields":[
             {
-                "name":"gs_id",
+                "name":"wb_id",
                 "type":"integer"
             },
             {
@@ -12,18 +12,53 @@
             {
                 "name":"end",
                 "type":"integer"
+            },
+            {
+                "name":"n_strides",
+                "type":"integer"
+            },
+            {
+                "name":"duration_s",
+                "type":"number"
+            },
+            {
+                "name":"length_m",
+                "type":"number"
+            },
+            {
+                "name":"avg_speed_mps",
+                "type":"number"
+            },
+            {
+                "name":"avg_cadence_spm",
+                "type":"number"
+            },
+            {
+                "name":"avg_stride_length_m",
+                "type":"number"
+            },
+            {
+                "name":"termination_reason",
+                "type":"string"
             }
         ],
         "primaryKey":[
-            "gs_id"
+            "wb_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "gs_id":0,
+            "wb_id":1,
             "start":228,
-            "end":539
+            "end":539,
+            "n_strides":4,
+            "duration_s":3.11,
+            "length_m":4.1137068158,
+            "avg_speed_mps":1.372701035,
+            "avg_cadence_spm":98.7232977791,
+            "avg_stride_length_m":1.6696087036,
+            "termination_reason":"Pause"
         }
     ]
 }
