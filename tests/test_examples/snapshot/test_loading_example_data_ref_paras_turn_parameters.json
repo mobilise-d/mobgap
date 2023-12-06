@@ -2,6 +2,10 @@
     "schema":{
         "fields":[
             {
+                "name":"wb_id",
+                "type":"number"
+            },
+            {
                 "name":"turn_id",
                 "type":"integer"
             },
@@ -23,6 +27,7 @@
             }
         ],
         "primaryKey":[
+            "wb_id",
             "turn_id"
         ],
         "pandas_version":"1.4.0"
