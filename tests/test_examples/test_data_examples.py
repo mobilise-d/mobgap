@@ -1,3 +1,6 @@
+from pandas._testing import assert_frame_equal
+
+
 def test_loading_example_data(snapshot):
     from examples.data._01_loading_example_data import (
         data_with_reference,
@@ -17,3 +20,10 @@ def test_loading_example_data(snapshot):
     assert len(data_with_reference[test_list[2]].raw_reference_parameters["wb"]) == 3
     for k, p in ref_paras._asdict().items():
         snapshot.assert_match(p, f"ref_paras_{k}")
+
+
+def test_reference_data_usage():
+    from examples.data._02_working_with_ref_data import gs_iterator, ref_ics
+
+    for r, (wb_id, exp) in zip(gs_iterator.initial_contacts_, ref_ics.groupby("wb_id")):
+        assert_frame_equal(r, exp.loc[wb_id])

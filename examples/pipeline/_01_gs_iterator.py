@@ -1,4 +1,6 @@
 """
+.. _gs_iterator:
+
 Gait Sequence Iterator
 ======================.
 
