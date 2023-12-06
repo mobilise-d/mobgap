@@ -1,10 +1,12 @@
 import warnings
 from itertools import groupby
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
+from typing_extensions import Unpack, Self
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter
 from gaitlink.gsd.base import BaseGsdDetector
@@ -209,6 +211,7 @@ def pack_results(periods, peaks):
 
     mid_swing = np.concatenate(mid_swing).sort()
 
+    from gaitmap.utils.array_handling import merge_intervals
     # check to see if any two consecutive detected walking periods are overlapped; if yes, join them. (This should not normally happen though!)
     i = 0
     while i < n - 1:
@@ -229,11 +232,15 @@ def pack_results(periods, peaks):
 
 ########################################################################################################################
 class GsdLowBackAcc(BaseGsdDetector):
+
     def __init__(self, savgol_order: int = 7):
         # TODO: This still does nothing
         self.savgol_order = savgol_order
 
-    def detect(self, data, sampling_rate_hz, **kwargs):
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
         gsd_output = gsd_low_back_acc(data[["acc_x", "acc_y", "acc_z"]], sampling_rate_hz, plot_results=True)
         gsd_output = (
             pd.DataFrame(gsd_output).rename(columns={"Start": "start", "End": "end"}).drop(columns="fs").astype(int)
@@ -409,9 +416,9 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
         for j in range(n):
             GSD_Output["Start"].append((walk["start"][j]) * (fs / algorithm_target_fs))
             GSD_Output["End"].append((walk["end"][j]) * (fs / algorithm_target_fs))
-            GSD_Output["fs"].append(fs)
+            # GSD_Output["fs"].append(fs)
     else:
-        print("No gait sequence(s) detected")
+        warnings.warn("No gait sequence(s) detected")
 
     # Plot if plot_results==True
     if plot_results:
