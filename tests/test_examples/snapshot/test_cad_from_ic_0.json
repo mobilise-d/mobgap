@@ -1,0 +1,36 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"index",
+                "type":"integer"
+            },
+            {
+                "name":"cadence_per_sec",
+                "type":"number"
+            }
+        ],
+        "primaryKey":[
+            "index"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "index":0,
+            "cadence_per_sec":101.6949152542
+        },
+        {
+            "index":1,
+            "cadence_per_sec":107.1428571429
+        },
+        {
+            "index":2,
+            "cadence_per_sec":104.347826087
+        },
+        {
+            "index":3,
+            "cadence_per_sec":96.7741935484
+        }
+    ]
+}
