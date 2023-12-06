@@ -467,8 +467,9 @@ class ReferenceData(NamedTuple):
 
 def parse_reference_parameters(
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
-    ref_sampling_rate_hz: float,
     *,
+    ref_sampling_rate_hz: float,
+    data_sampling_rate_hz: float,
     relative_to_wb: bool = False,
 ) -> ReferenceData:
     """Parse the reference data (stored per WB) into the per recording data structures used in gaitlink.
@@ -482,7 +483,7 @@ def parse_reference_parameters(
     - Concatenate all initial contacts into a single list.
     - Concatenate all turn parameters into a single list.
     - Concatenate all stride parameters into a single list.
-    - All time values are converted from seconds to samples since the start of the recording
+    - All time values are converted from seconds to samples of the single sensor system since the start of the recording
     - Further, we drop all strides and ICs that have a NaN value, as this has no meaning outside the context of the
       reference system.
       However, all strides that have NaNs for other parameters are kept.
@@ -500,6 +501,11 @@ def parse_reference_parameters(
         The raw reference data for one of the WB levels.
     ref_sampling_rate_hz
         The sampling rate of the reference data in Hz.
+        This is required to convert the values that are provided in samples of the reference system into samples of the
+        single sensor system.
+    data_sampling_rate_hz
+        The sampling rate of the raw data in Hz.
+        This is used to convert values that are provided in seconds into samples.
     relative_to_wb
         Whether to convert all values to be relative to the start of each individual WB.
         This will of course not affect the WB start and end values, but all other values (events, strides, ...) will be
@@ -577,12 +583,12 @@ def parse_reference_parameters(
         )
 
     walking_bouts = pd.DataFrame.from_records(walking_bouts).set_index("wb_id")
-    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * ref_sampling_rate_hz).round().astype(int)
+    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
 
     ics = pd.concat(ics, ignore_index=True)
     ics_is_na = ics["ic"].isna()
     ics = ics[~ics_is_na].drop_duplicates()
-    ics["ic"] = (ics["ic"] * ref_sampling_rate_hz).round().astype(int)
+    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype(int)
     ics.index.name = "ic_id"
     ics = ics.reset_index().set_index(["wb_id", "ic_id"])
 
@@ -598,10 +604,19 @@ def parse_reference_parameters(
     #       Unfortunately, there is no 100% reliable way to detect this, so we just check if the values are in the IC
     #       list (which seems to be provided in time in all ref systems I have seen).
     #
+    # If we assume the values are in samples of the reference system, than we attempt to convert them to samples of the
+    # single sensor system.
+    # For the INDIP system, that shouldn't matter, as the sampling rates are the same, but hey you can never be too
+    # safe.
+    assume_stride_paras_in_samples = (
+        (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype(int)
+    )
     # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
     # parameters are also in seconds not in samples.
-    if not stride_paras["start"].isin(ics["ic"]).all():
-        stride_paras[["start", "end"]] = (stride_paras[["start", "end"]] * ref_sampling_rate_hz).round().astype(int)
+    if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
+        stride_paras[["start", "end"]] = (
+            (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
+        )
         # We check again, just to be sure and if they are still not there, we throw an error.
         if not stride_paras["start"].isin(ics["ic"]).all():
             raise ValueError(
@@ -609,6 +624,10 @@ def parse_reference_parameters(
                 "contacts of the reference system. "
                 "At least some of the ICs marking the start of a stride are not found in the dedicated IC list."
             )
+    else:
+        stride_paras[["start", "end"]] = (
+            (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype(int)
+        )
 
     # We also get the correct LR-label for the stride parameters from the ICs.
     stride_paras["lr_label"] = ics.set_index("ic")["lr_label"][stride_paras["start"]].to_numpy()
@@ -749,7 +768,8 @@ class _GenericMobilisedDataset(Dataset):
     def reference_parameters_(self) -> ReferenceData:
         return parse_reference_parameters(
             self.raw_reference_parameters_[self.reference_para_level],
-            self.reference_sampling_rate_hz_,
+            data_sampling_rate_hz=self.sampling_rate_hz,
+            ref_sampling_rate_hz=self.reference_sampling_rate_hz_,
             relative_to_wb=False,
         )
 
@@ -757,7 +777,8 @@ class _GenericMobilisedDataset(Dataset):
     def reference_parameters_relative_to_wb_(self) -> ReferenceData:
         return parse_reference_parameters(
             self.raw_reference_parameters_[self.reference_para_level],
-            self.reference_sampling_rate_hz_,
+            data_sampling_rate_hz=self.sampling_rate_hz,
+            ref_sampling_rate_hz=self.reference_sampling_rate_hz_,
             relative_to_wb=True,
         )
 

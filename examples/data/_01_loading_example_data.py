@@ -129,15 +129,17 @@ test_11_data.metadata
 # We only load the calculated parameters.
 #
 # The available reference systems will depend on the data.
+
 data_with_reference = load_mobilised_matlab_format(example_participant_path / "data.mat", reference_system="INDIP")
+selected_test = data_with_reference[test_list[2]]
 
 # %%
 # The returned :class:`~gaitlink.data.MobilisedTestData` objects now contain the reference parameters.
-raw_reference_data = data_with_reference[test_list[2]].raw_reference_parameters
+raw_reference_data = selected_test.raw_reference_parameters
 
 # %%
 # And metadata about the reference system is available as well.
-ref_sampling_rate_hz = data_with_reference[test_list[2]].metadata.reference_sampling_rate_hz
+ref_sampling_rate_hz = selected_test.metadata.reference_sampling_rate_hz
 ref_sampling_rate_hz
 
 # %%
@@ -145,7 +147,11 @@ ref_sampling_rate_hz
 # :func:`~gaitlink.data.parse_reference_parameters` function.
 from gaitlink.data import parse_reference_parameters
 
-ref_paras_functional = parse_reference_parameters(raw_reference_data["wb"], ref_sampling_rate_hz)
+data_sampling_rate_hz = selected_test.metadata.sampling_rate_hz
+
+ref_paras_functional = parse_reference_parameters(
+    raw_reference_data["wb"], data_sampling_rate_hz=data_sampling_rate_hz, ref_sampling_rate_hz=ref_sampling_rate_hz
+)
 
 # %%
 # They have the same structure the reference parameters of the Dataset class.
