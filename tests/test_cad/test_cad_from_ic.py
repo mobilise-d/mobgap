@@ -58,7 +58,10 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         assert len(cadence) == len(data) // sampling_rate_hz
-        assert_series_equal(cadence, pd.Series(np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60))
+        assert_series_equal(
+            cadence,
+            pd.Series(np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60, name="cadence_per_sec"),
+        )
 
     def test_large_gap_no_interpolation(self):
         sampling_rate_hz = 40.0
@@ -85,7 +88,7 @@ class TestCadFromIc:
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         expected_output[1:3] = np.nan
 
-        assert_series_equal(cadence, pd.Series(expected_output))
+        assert_series_equal(cadence, pd.Series(expected_output, name="cadence_per_sec"))
 
     def test_small_gap_interpolation(self):
         sampling_rate_hz = 40.0
@@ -113,7 +116,7 @@ class TestCadFromIc:
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
-        assert_series_equal(cadence, pd.Series(expected_output))
+        assert_series_equal(cadence, pd.Series(expected_output, name="cadence_per_sec"))
 
     def test_no_extrapolation(self):
         # We also test the warning here
@@ -137,7 +140,7 @@ class TestCadFromIc:
         expected_output[0] = np.nan
         expected_output[-1] = np.nan
 
-        assert_series_equal(cadence, pd.Series(expected_output))
+        assert_series_equal(cadence, pd.Series(expected_output, name="cadence_per_sec"))
 
     def test_not_enough_ics(self):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
