@@ -1,4 +1,4 @@
-""" Example_GSD Implementation"""
+"""Example_GSD Implementation"""
 import pandas as pd
 
 from gaitlink.data import LabExampleDataset
