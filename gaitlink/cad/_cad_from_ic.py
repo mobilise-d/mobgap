@@ -109,7 +109,7 @@ def _robust_ic_to_cad_per_sec(
     )
 
     # Final cadence calculation in 1/min
-    return pd.Series(1.0 / step_time_per_sec_smooth * 60)
+    return pd.Series(1.0 / step_time_per_sec_smooth * 60, dtype=float, name="cadence_per_sec")
 
 
 @ic2cad_docfiller
