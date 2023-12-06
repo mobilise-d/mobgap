@@ -88,4 +88,3 @@ print(f"Calculated average per-sec cadence: {cad_from_ic.cadence_per_sec_.mean()
 # CadFromIcDetector
 # -----------------
 # TODO: Can only be demonstrated, when we have a different IC detection algorithm.
-
