@@ -2,7 +2,7 @@
 import pandas as pd
 
 from gaitlink.data import LabExampleDataset
-from gaitlink.gsd_b.gsd_b import GSD_LowBackAcc
+from gaitlink.gsd import GsdLowBackAcc
 
 # Load data
 data_all = LabExampleDataset()  # Data is in m/s2
@@ -19,7 +19,7 @@ fs = long_trial.sampling_rate_hz
 plot_results = True
 
 # Run GSD_LowBackAcc
-gsd_output = GSD_LowBackAcc(acc, fs, plot_results)
+gsd_output = GsdLowBackAcc(acc, fs, plot_results)
 
 gsd_output = pd.DataFrame(gsd_output).rename(columns={"Start": "start", "End": "end"}).drop(columns="fs").astype(int)
 print(gsd_output)

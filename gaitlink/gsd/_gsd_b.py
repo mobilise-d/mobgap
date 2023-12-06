@@ -230,7 +230,7 @@ def pack_results(periods, peaks):
 
 ########################################################################################################################
 
-def GSD_LowBackAcc(acc, fs, plot_results=True):
+def GsdLowBackAcc(acc, fs, plot_results=True):
     """
 
     :param acc:
