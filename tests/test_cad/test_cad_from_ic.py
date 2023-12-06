@@ -1,3 +1,5 @@
+from dataclasses import make_dataclass
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,6 +7,8 @@ from pandas._testing import assert_series_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.cad import CadFromIc
+from gaitlink.data import LabExampleDataset
+from gaitlink.pipeline import GsIterator
 
 
 class TestMetaCadFromIc(TestAlgorithmMixin):
@@ -180,3 +184,31 @@ class TestCadFromIc:
             CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
 
         assert "Initial contacts must be sorted" in str(e.value)
+
+    def test_regression_on_longer_data(self, snapshot):
+        dp = LabExampleDataset(reference_system="INDIP").get_subset(
+            cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+        )
+
+        results = make_dataclass("Results", [("cadence", pd.Series)])
+        gs_iterator = GsIterator(
+            results,
+            aggregations=[
+                (
+                    "cadence",
+                    lambda ins, outs: pd.concat({i[0]: o for i, o in zip(ins, outs)}, names=["gs_id", "time_s"]),
+                )
+            ],
+        )
+
+        for (gs_id, data), r in gs_iterator.iterate(
+            dp.data["LowerBack"], dp.reference_parameters_relative_to_wb_.walking_bouts
+        ):
+            cad = CadFromIc().calculate(
+                data,
+                dp.reference_parameters_relative_to_wb_.initial_contacts.loc[gs_id, "ic"],
+                sampling_rate_hz=dp.sampling_rate_hz,
+            )
+            r.cadence = cad.cadence_per_sec_
+
+        snapshot.assert_match(gs_iterator.cadence_.to_frame())
