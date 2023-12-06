@@ -3,9 +3,11 @@ from itertools import groupby
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter
+from gaitlink.gsd.base import BaseGsdDetector
 
 
 def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
@@ -52,7 +54,7 @@ def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
             threshold = 0.1 * np.mean(env[i : i + DURATION])
             h = h + 1
         elif np.mean(env[i : i + DURATION]) < threshold_sig:
-                noise = np.mean(env[i : i + DURATION])
+            noise = np.mean(env[i : i + DURATION])
         else:
             if noise_buff.any():
                 noise = np.mean(noise_buff)
@@ -226,9 +228,22 @@ def pack_results(periods, peaks):
 
 
 ########################################################################################################################
+class GsdLowBackAcc(BaseGsdDetector):
+    def __init__(self, savgol_order: int = 7):
+        # TODO: This still does nothing
+        self.savgol_order = savgol_order
+
+    def detect(self, data, sampling_rate_hz, **kwargs):
+        gsd_output = gsd_low_back_acc(data[["acc_x", "acc_y", "acc_z"]], sampling_rate_hz, plot_results=True)
+        gsd_output = (
+            pd.DataFrame(gsd_output).rename(columns={"Start": "start", "End": "end"}).drop(columns="fs").astype(int)
+        )
+        self.gsd_list_ = gsd_output
+
+        return self
 
 
-def GsdLowBackAcc(acc, fs, plot_results=True):
+def gsd_low_back_acc(acc, fs, plot_results=True):
     """
 
     :param acc:
