@@ -14,3 +14,9 @@ def test_gsd_iluz(snapshot):
     snapshot.assert_match(categorized_intervals.fp_intervals, "fp_intervals")
     snapshot.assert_match(categorized_intervals.fn_intervals, "fn_intervals")
     snapshot.assert_match(matches, "matches")
+
+
+def test_gsd_b(snapshot):
+    from examples.gsd._02_gsd_b import gsd_output
+
+    snapshot.assert_match(gsd_output, "gsd_output")

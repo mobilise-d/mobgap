@@ -369,8 +369,8 @@ def GSD_LowBackAcc(acc, fs, plot_results=True):
 
         n = np.max(len(walk['start']))
         for j in range(n):
-            GSD_Output['Start'].append((walk['start'][j]) / algorithm_target_fs)
-            GSD_Output['End'].append((walk['end'][j]) / algorithm_target_fs)
+            GSD_Output['Start'].append((walk['start'][j]) * ( fs / algorithm_target_fs))
+            GSD_Output['End'].append((walk['end'][j]) * ( fs / algorithm_target_fs))
             GSD_Output['fs'].append(fs)
     else:
         print('No gait sequence(s) detected')
