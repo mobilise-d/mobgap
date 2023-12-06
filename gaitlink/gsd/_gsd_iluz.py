@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -12,8 +12,6 @@ from gaitlink.data_transform import FirFilter
 from gaitlink.data_transform.base import BaseFilter
 from gaitlink.gsd.base import BaseGsdDetector, base_gsd_docfiller
 from gaitlink.utils.array_handling import sliding_window_view
-
-# TODO: Some parameter renaming might be in order
 
 
 @base_gsd_docfiller
@@ -105,7 +103,7 @@ class GsdIluz(BaseGsdDetector):
     .. [2] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/GSDA/Library/GSD_Iluz.m
     """
 
-    pre_filter: Optional[BaseFilter]
+    pre_filter: BaseFilter
     window_length_s: float
     window_overlap: float
     std_activity_threshold: float
@@ -120,7 +118,7 @@ class GsdIluz(BaseGsdDetector):
     def __init__(
         self,
         *,
-        pre_filter: Optional[BaseFilter] = cf(FirFilter(order=200, cutoff_freq_hz=(0.5, 3), filter_type="bandpass")),
+        pre_filter: BaseFilter = cf(FirFilter(order=200, cutoff_freq_hz=(0.5, 3), filter_type="bandpass")),
         window_length_s: float = 3,
         window_overlap: float = 0.5,
         std_activity_threshold: float = 0.01 * GRAV_MS2,
