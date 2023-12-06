@@ -226,6 +226,11 @@ class CadFromIcDetector(CadFromIc):
     ic_detector
         The IC detector used to detect the initial contacts.
     %(ic2cad_common_paras)s
+    silence_ic_warning
+        By default the method warns you, that it ignores the passed initial contacts and recalculates them from the
+        data using the passed IC detector.
+        We do that, as it is likely that users forget about this and might be surprised by the results.
+        If you are aware of this and want to silence this warning, you can pass ``silence_ic_warning=True``.
 
     Attributes
     ----------
@@ -279,7 +284,7 @@ class CadFromIcDetector(CadFromIc):
             warnings.warn(
                 "This method ignores the passed initial contacts and recalculates them from the data. "
                 "This way you can use a different IC detector for the cadence calculation than for the IC detection. "
-                "If you don't want this, you should use the CadFromIc class instead.\n\n"
+                "If you don't want this, you should use the `CadFromIc` class instead.\n\n"
                 "This warning is just a information to make sure you are fully aware of this. "
                 "If you want to silence this warning, you can pass ``silence_ic_warning=True`` during the "
                 "initialization of this class.",
