@@ -614,9 +614,7 @@ def parse_reference_parameters(
     # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
     # parameters are also in seconds not in samples.
     if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
-        stride_paras[["start", "end"]] = (
-            (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
-        )
+        stride_paras[["start", "end"]] = (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
         # We check again, just to be sure and if they are still not there, we throw an error.
         if not stride_paras["start"].isin(ics["ic"]).all():
             raise ValueError(

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
@@ -8,6 +9,7 @@ from gaitlink.data import (
     get_all_lab_example_data_paths,
     load_mobilised_matlab_format,
     load_mobilised_participant_metadata_file,
+    parse_reference_parameters,
 )
 
 
@@ -119,6 +121,73 @@ def test_load_participant_metadata(example_data_path):
     assert t1_metadata["SensorType_SU"] == "MM+"
 
 
+@pytest.mark.parametrize("ref_system", ["INDIP", "Stereophoto"])
+@pytest.mark.parametrize("reference_para_level", ["wb", "lwb"])
+@pytest.mark.parametrize("relative_to_wb", [True, False])
+def test_parse_reference_data_has_correct_output(ref_system, example_data_path, reference_para_level, relative_to_wb):
+    data = load_mobilised_matlab_format(example_data_path / "data.mat", reference_system=ref_system)
+
+    for v in data.values():
+        raw_ref_paras = v.raw_reference_parameters[reference_para_level]
+        parsed_data = parse_reference_parameters(
+            raw_ref_paras, data_sampling_rate_hz=100, ref_sampling_rate_hz=100, relative_to_wb=relative_to_wb
+        )
+
+        # All outputs are dfs:
+        assert isinstance(parsed_data.turn_parameters, pd.DataFrame)
+        assert isinstance(parsed_data.walking_bouts, pd.DataFrame)
+        assert isinstance(parsed_data.initial_contacts, pd.DataFrame)
+        assert isinstance(parsed_data.stride_parameters, pd.DataFrame)
+        # For all paraemters, the first index name should be "wb_id"
+        assert parsed_data.turn_parameters.index.names[0] == "wb_id"
+        assert parsed_data.walking_bouts.index.names[0] == "wb_id"
+        assert parsed_data.initial_contacts.index.names[0] == "wb_id"
+        assert parsed_data.stride_parameters.index.names[0] == "wb_id"
+
+        assert len(parsed_data.walking_bouts) == len(raw_ref_paras)
+        assert len(parsed_data.initial_contacts) == len(
+            pd.concat([pd.Series(wb["InitialContact_Event"]) for wb in raw_ref_paras]).dropna()
+        )
+
+        if relative_to_wb is True:
+            assert parsed_data.initial_contacts.iloc[0]["ic"] == 0
+            assert parsed_data.stride_parameters.iloc[0]["start"] == 0
+        else:
+            assert parsed_data.initial_contacts.iloc[0]["ic"] != 0
+            assert parsed_data.stride_parameters.iloc[0]["start"] != 0
+
+
+def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
+    data = load_mobilised_matlab_format(example_data_path / "data.mat", reference_system="INDIP")
+
+    raw_ref_paras = next(iter(data.values())).raw_reference_parameters["wb"]
+
+    # With 100 Hz
+    parsed_data_100 = parse_reference_parameters(
+        raw_ref_paras, data_sampling_rate_hz=100, ref_sampling_rate_hz=100, relative_to_wb=True
+    )
+    # With 50 Hz
+    parsed_data_50 = parse_reference_parameters(
+        raw_ref_paras, data_sampling_rate_hz=50, ref_sampling_rate_hz=100, relative_to_wb=True
+    )
+
+    # We can not test for direct equivalence, because of rounding within the methods.
+    # But we can test that there is rougly a factor of two between the two outputs
+    assert (
+        parsed_data_50.initial_contacts["ic"] - np.ceil(parsed_data_100.initial_contacts["ic"] / 2).astype(int) <= 1
+    ).all()
+    assert (
+        parsed_data_50.turn_parameters["start"] - np.ceil(parsed_data_100.turn_parameters["start"] / 2).astype(int) <= 1
+    ).all()
+    assert (
+        parsed_data_50.stride_parameters["start"] - np.ceil(parsed_data_100.stride_parameters["start"] / 2).astype(int)
+        <= 1
+    ).all()
+    assert (
+        parsed_data_50.walking_bouts["start"] - np.ceil(parsed_data_100.walking_bouts["start"] / 2).astype(int) <= 1
+    ).all()
+
+
 class TestDatasetClass:
     def test_index_creation(self, example_data_path):
         ds = GenericMobilisedDataset(
@@ -169,16 +238,18 @@ class TestDatasetClass:
 
             # For the parsed reference parameter, we compare that some basic values are the same in the raw and parsed
             ref_paras = test_ds.reference_parameters_
-            ref_gs = ref_paras.walking_bouts
-            assert len(ref_gs) == len(test.raw_reference_parameters[reference_para_level])
-            assert len(ref_paras.initial_contacts) == len(
-                pd.concat(
-                    [
-                        pd.Series(wb["InitialContact_Event"])
-                        for wb in test.raw_reference_parameters[reference_para_level]
-                    ]
-                ).dropna()
-            )
+            rel_ref_paras = test_ds.reference_parameters_relative_to_wb_
+            for p in (ref_paras, rel_ref_paras):
+                ref_gs = p.walking_bouts
+                assert len(ref_gs) == len(test.raw_reference_parameters[reference_para_level])
+                assert len(p.initial_contacts) == len(
+                    pd.concat(
+                        [
+                            pd.Series(wb["InitialContact_Event"])
+                            for wb in test.raw_reference_parameters[reference_para_level]
+                        ]
+                    ).dropna()
+                )
 
     def test_duplicated_metadata(self):
         ds = GenericMobilisedDataset(
