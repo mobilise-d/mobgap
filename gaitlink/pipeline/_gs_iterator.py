@@ -60,6 +60,7 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) ->
 
         to_concat = {}
         for gs, o in zip(sequences, outputs):
+            o = o.copy()
             if not isinstance(o, pd.DataFrame):
                 raise TypeError(f"Expected dataframe for this aggregator, but got {type(o)}")
             if fix_gs_offset_cols:
@@ -104,15 +105,33 @@ class GsIterator(BaseTypedIterator, Generic[DataclassT]):
     ----------
     data_type
         A dataclass that defines the result type you expect from each iteration.
+        By default, this is ``GsIterator.DEFAULT_DATA_TYPE``, which should handle all typical results of a gait analysis
+        pipeline.
     aggregations
         An optional list of aggregations to apply to the results.
         This has the form ``[(result_name, aggregation_function), ...]``.
         If a result-name is in the list, the aggregation will be applied to it, when accessing the respective result
         attribute (i.e. ``{result_name}_``).
         If no aggregation is defined for a result, a simple list of all results will be returned.
+        By default, this is ``GsIterator.DEFAULT_AGGREGATIONS``.
     NULL_VALUE
         (Class attribute) The value that is used to initialize the result dataclass and will remain in the results, if
         no result was for a specific attribute in one or more iterations.
+    DEFAULT_AGGREGATORS
+        (Class attribute) The default aggregators that can be used to aggregate the results.
+        They can be used to create custom aggregations for custom results.
+    DEFAULT_DATA_TYPE
+        (Class attribute) The default dataclass that is used to define the expected results.
+        This should handle all typical results of a gait analysis
+        pipeline.
+        Specifically, it supports the following attributes:
+
+        - ``initial_contacts`` (pd.DataFrame with a column called ``ic``): The initial contacts for each gait-sequence.
+        - ``cadence`` (pd.DataFrame): The cadence values within each gait-sequence.
+        - ``stride_length`` (pd.DataFrame): The stride length values within each gait-sequence.
+        - ``gait_speed`` (pd.DataFrame): The gait speed values within each gait-sequence.
+    DEFAULT_AGGREGATIONS
+        The default aggregations that are used to aggregate the results of the ``DEFAULT_DATA_TYPE``.
 
     Attributes
     ----------
