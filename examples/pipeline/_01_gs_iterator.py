@@ -13,6 +13,7 @@ We provide two ways of iterating.
 The first one, only handles the iteration and does not aggregate the results.
 The second approach attempts to also support you in aggregating the results.
 """
+import numpy as np
 
 # %%
 # Getting Some Example Data
@@ -33,13 +34,21 @@ long_trial_gs
 # ---------------------------
 # We provide the :func:`~gaitlink.pipeline.iter_gs` function to iterate over the gait sequences.
 # It simply takes the data and the gait sequence list and cuts the data accordingly to iterate over it.
+# The function yields the gait sequence information as tuple (i.e. the "row" of the gs dataframe as namedtuple) and the
+# data for each iteration.
+# Note that the index of the data is not changed.
+# Hence we recommend using `iloc` to access the data (`iloc[0]` will return the first sample of the gait sequence).
+#
 # Using our example data and gs, we can iterate over the data as follows:
 from gaitlink.pipeline import iter_gs
 
-for gs_id, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
-    print("Gait Sequence: ", gs_id)
-    print("Expected N-samples in gs: ", long_trial_gs.loc[gs_id].end - long_trial_gs.loc[gs_id].start)
+for gs, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
+    # Note that the key to access the id is called "wb_id" here, as we loaded the WB from the reference system.
+    # If this is an "actual" gait sequences, as calculated by one of the GSD algorithms, the key would be "gs_id".
+    print("Gait Sequence: ", gs.wb_id)
+    print("Expected N-samples in gs: ", gs.end - gs.start)
     print("N-samples in gs: ", len(data))
+    print("First sample of gs: ", data.iloc[0])
 
 # %%
 # You can see that this way it is pretty easy to iterate over the data.
@@ -54,11 +63,81 @@ for gs_id, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
 # .. note:: Learn more about the general approach of using :class:`~tpcp.misc.TypedIterator` classes in this
 #           `tpcp example <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_04_typed_iterator.html>`__.
 #
-# The class based interface requires a little bit more setup, but allows to easily aggregate results.
+# Compared to the functional interface, the class interface attempts to also solve the problem of collecting the
+# and aggregating results that you produce per GS.
+# In a typical pipeline you might want to calculate the initial contacts, cadence, stride length, and gait speed for
+# each gait sequence.
+# With the class based interface, you can easily collect all of these results and then aggregate them into one
+# predefined data structure.
+#
+# The class based interface can be used in two ways.
+# First in the "default" configuration, which is set up to work with the typical calculations and results that you would
+# expect from a typical processing pipeline.
+# And second, in a custom way, where you need to define expected "results" per iteration yourself.
+#
+# The simple case
+# ---------------
+# The simple case basically no more setup as the functional interface.
+# However, it assumes that your results are a subset of initial contacts, cadence, stride length, and gait speed, and
+# that all of them are stored in the expected gaitlink datatypes (aka pandas dataframes).
+# The iterator will then automatically aggregate the results the dataframes per iteration into one combined dataframe,
+# handling the sample offsets of the gait sequences for you.
+#
+# Below we will show how this works, by "simulating" the calculation of some initial contacts and cadence.
+#
+# We start by setting up an iterator object.
+# We can leave everything at the default values, as we do not need any custom aggregation functions.
+from gaitlink.pipeline import GsIterator
+
+iterator = GsIterator()
+
+# %%
+# The default result datatype per iteration is defined as follows:
+iterator.DEFAULT_DATA_TYPE
+
+# %%
+# This means you are only allowed to use the available attributes.
+# But, you don't need to specify all of them.
+# Below we will only "calculate" the initial contacts and cadence.
+#
+# In each iteration the iterator will give us a tuple of the gait sequence information, the data for the iteration, and
+# a new empty result object.
+
+for (gs, data), result in iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
+    # Now we can just "calculate" the initial contacts and set it on the result object.
+    result.initial_contacts = pd.DataFrame(np.arange(0, len(data), 100), columns=["ic"]).rename_axis(index="ic_id")
+    # For cadence, we just set a dummy value to the wb_id for each 1 second bout of the data.
+    result.cadence = pd.DataFrame(
+        [gs.wb_id] * int(len(data) // long_trial.sampling_rate_hz), columns=["cadence"]
+    ).rename_axis(index="time")
+
+# %%
+# After the iteration, we can access the aggregated results by inspecting the attributes we used with a trailing
+# underscore (`result.initial_contacts` -> `iterator.initial_contacts_`).
+iterator.initial_contacts_
+
+# %%
+# We can see that we only get a single dataframe with all the results.
+# And all ICs are offset, so that they are relative to the start of the recording and not the start of the gait
+# sequence anymore.
+#
+# For the cadence value, we see that no adjustment was made, as the cadence value is not a "time" value per sample.
+iterator.cadence_
+
+
+# %%
+# But what to do, if you don't want to use the default result datatype?
+#
+# Custom Results
+# --------------
+#
+# This requires a little bit more setup.
 # First we need to decide what results we expect.
 # This is done by defining a dataclass that represents the results.
 #
-# Here we only expect two dummy results, but you can add as many as you want.
+# Here we create a new dataclass that only expect two dummy results, but you can add as many as you want.
+# You could also subclass the default dataclass and just add the additional results.
+#
 # The first result here is ``n_samples`` which is just a dummy results indicating the number of samples the data has.
 # The second result is ``filtered_data`` (we will just add some dummy data here).
 # This is expected to be a pd.DataFrame to demonstrate that you can also return more complex results.
@@ -76,7 +155,10 @@ class ResultType:
 # The list of these instances will be available as the `raw_results_` attribute of the iterator.
 #
 # We can also decide to aggregate the results.
-# In this case, it might be nice to turn the ``n_samples`` into a pandas series with the gs identifier as index.
+# We provide some default aggregations functions (see ``GsIterator.DEFAULT_AGGREGATORS``), that you could use.
+# However, here we will create our own aggregation function.
+#
+# It might be nice to turn the ``n_samples`` into a pandas series with the gs identifier as index.
 # For this we define an aggregation function that expects the list of inputs and the list of results as inputs.
 
 
