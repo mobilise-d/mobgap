@@ -1,5 +1,5 @@
 """
-.. _gs_iterator:
+.. _gs_iterator_example:
 
 Gait Sequence Iterator
 ======================.
