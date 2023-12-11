@@ -23,7 +23,7 @@ def test_loading_example_data(snapshot):
 
 
 def test_reference_data_usage():
-    from examples.data._02_working_with_ref_data import gs_iterator, ref_ics
+    from examples.data._02_working_with_ref_data import gs_iterator, ref_data
 
-    for r, (wb_id, exp) in zip(gs_iterator.initial_contacts_, ref_ics.groupby("wb_id")):
-        assert_frame_equal(r, exp.loc[wb_id])
+    # The final ics should be equivalent to the non-relative ref data, as we add the GS offset during aggregation
+    assert_frame_equal(gs_iterator.initial_contacts_, ref_data.initial_contacts)
