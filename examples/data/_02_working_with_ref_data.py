@@ -5,7 +5,7 @@ Working with reference data
 Often you want to test an algorithmic stepo in isolation or validate the output of an algorithm.
 In both cases, you need reference data - either as input or as a comparison.
 
-As explained in the `data example <data_loading_example_>`_, reference data that is stored in .mat files can be easily
+As explained in the `data example <data_loading_example>`_, reference data that is stored in .mat files can be easily
 loaded using the existing tooling.
 
 In this example, we will go into more detail about common patterns of using this reference data.
@@ -51,7 +51,7 @@ ref_ics = ref_data.initial_contacts
 ref_ics
 # %%
 # Now we can use the :func:`~gaitlink.pipeline.GsIterator` to iterate over the data.
-# Check out the `gs_iterator example <gs_iterator_>`_ for more information.
+# Check out the `gs_iterator example <gs_iterator_example>`_ for more information.
 # But basically, we need a data-class to define the results we expect, and then we can simply iterate over the data.
 from dataclasses import make_dataclass
 
