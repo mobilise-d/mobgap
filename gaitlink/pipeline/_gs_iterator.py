@@ -41,10 +41,35 @@ def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[str, pd
 
 @dataclass
 class FullPipelinePerGsResult:
+    """Default expected result type for the gait-sequence iterator.
+
+    When using the :class:`~gaitlink.pipeline.GsIterator` with the default configuration, an instance of this dataclass
+    will be created for each gait-sequence.
+
+    Each value is expected to be a dataframe.
+
+    Attributes
+    ----------
+    initial_contacts
+        The initial contacts for each gait-sequence.
+        This is a dataframe with a column called ``ic``.
+        The values of this ic-column are expected to be samples relative to the start of the gait-sequence.
+    cadence
+        The cadence values within each gait-sequence.
+        This dataframe has no further requirements relevant for the iterator.
+    stride_length
+        The stride length values within each gait-sequence.
+        This dataframe has no further requirements relevant for the iterator.
+    gait_speed
+        The gait speed values within each gait-sequence.
+        This dataframe has no further requirements relevant for the iterator.
+
+    """
+
     initial_contacts: pd.DataFrame
-    cadence: pd.Series
-    stride_length: pd.Series
-    gait_speed: pd.Series
+    cadence: pd.DataFrame
+    stride_length: pd.DataFrame
+    gait_speed: pd.DataFrame
 
 
 _inputs_type: TypeAlias = tuple[tuple, pd.DataFrame]
