@@ -81,7 +81,7 @@ GS = pd.DataFrame.from_records(GS)
 #Cadence detection algorithm
 algs = ['Shin_Imp', 'HKLee_Imp']
 if len(GS) > 1:
-    CAD = CADENCE(DATA, fs, GS, 'Shin_Imp')
+    CAD = CADENCE(DATA, fs, GS, 'HKLee_Imp')
     GS = CAD
 
 else:

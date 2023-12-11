@@ -53,7 +53,7 @@ def CADENCE(DATA, fs, GS, algs):
                 #cadinx[0] = 1
 
                 #test just to run the algo
-                IC_HKLee_improved = hklee_algo_improved(chosenacc, fs, 'all')
+                IC_HKLee_improved = hklee_algo_improved(chosenacc, fs, 'norm')
                 if len(IC_HKLee_improved) < len(cadmat):
                     cadmat = cadmat[:len(IC_HKLee_improved)]
                     cadmat[:, 1] = IC_HKLee_improved[:totalDur]
@@ -67,7 +67,7 @@ def CADENCE(DATA, fs, GS, algs):
 
                 #test just to run the algo
                 try:
-                    IC_Shin_improved = shin_algo_improved(chosenacc, fs, 'all')
+                    IC_Shin_improved = shin_algo_improved(chosenacc, fs, 'norm')
                     if len(IC_Shin_improved) < len(cadmat):
                         cadmat = cadmat[:len(IC_Shin_improved)]
                         cadmat[:, 1] = IC_Shin_improved[:totalDur]
@@ -111,5 +111,4 @@ def CADENCE(DATA, fs, GS, algs):
             output_cadence.append(output_cadence_dict)
             #print(f"Completed loop iteration {i + 1}")
             #print(output_cadence_dict)
-    print(output_cadence)
     return output_cadence

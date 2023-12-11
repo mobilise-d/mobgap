@@ -1,6 +1,8 @@
 import os
 
 import numpy as np
+from gaitmap.data_transform import Resample
+
 from gaitlink.CADB_CADC.zerocros import zerocros
 from scipy.signal import savgol_filter, cwt, ricker
 from scipy.ndimage import gaussian_filter
@@ -10,25 +12,29 @@ from gaitlink.data_transform import EpflDedriftedGaitFilter
 from resampInterp import resampInterp
 
 
-def shin_algo_improved(imu_acc, fs, data='all'):
+def shin_algo_improved(imu_acc, fs, data='norm'):
 
-    # Check if 'data' is provided, if not, set it to the default 'all' (all axes of accelerometry)
+    # Check if 'data' is provided, if not, set it to the default 'norm' (all axes of accelerometry)
     if not data or len(data) == 0:
-        data = 'all'
+        data = 'norm'
 
     acc = imu_acc
 
     if 'x' in data:
         accN = acc.flatten()
-    elif 'all' in data:
+
+    elif 'norm' in data:
         accN = np.sqrt(acc[:, 0] ** 2 + acc[:, 1] ** 2 + acc[:, 2] ** 2)
 
     IC = []
     IC_lowSNR = []
 
     # Resample to 40Hz to process with filters
-    algorithm_target_fs = 40
-    accN40 = resampInterp(accN, fs, algorithm_target_fs)
+    current_sampling_rate = fs
+    target_sampling_rate = 40
+    resampler = Resample(target_sampling_rate)
+    resampler.transform(data=accN, sampling_rate_hz=current_sampling_rate)
+    accN40 = resampler.transformed_data_
 
     # FIR filter TODO: update coefficients from import function
 
@@ -53,7 +59,6 @@ def shin_algo_improved(imu_acc, fs, data='all'):
     accN_filt1 = savgol_filter(accN40_zp.squeeze(), window_length=21, polyorder=7)
     # 2
     filter = EpflDedriftedGaitFilter()
-    #print(filter)
     accN_filt2 = filter.filter(accN_filt1, sampling_rate_hz = 40).filtered_data_
     # 3
     accN_filt3 = cwt(accN_filt1.squeeze(), ricker, [10])
@@ -87,9 +92,12 @@ def shin_algo_improved(imu_acc, fs, data='all'):
     #IC_lowSNR = np.round(IC_lowSNR)
     #IC = IC_lowSNR / fs_new # in seconds
 
-    # Resample to 100Hz for IC detection
-    fs_new = 100
-    accN_MultiFilt_rmp100 = resampInterp(accN_MultiFilt_rmp, algorithm_target_fs, fs_new);
+    # Resample to 100Hz for consistency with the original data (for ICD) or to 50 for consistency with original paper
+    current_sampling_rate = 40
+    target_sampling_rate = 100
+    resampler = Resample(target_sampling_rate)
+    resampler.transform(data=accN_MultiFilt_rmp, sampling_rate_hz=current_sampling_rate)
+    accN_MultiFilt_rmp100 = resampler.transformed_data_
 
     # Initial contacts timings (heel strike events) detected as positive slopes zero-crossing in sample 120
     IC_lowSNR = zerocros(accN_MultiFilt_rmp100, 'p')

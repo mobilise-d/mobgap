@@ -13,13 +13,15 @@ from gaitlink.data._mobilised_matlab_loader import GenericMobilisedDataset
 #data=x chooses only the vertical acceleration, data=all chooses all axes
 def InitialContactDetection(Accelerometer, fs, GS, algs, data='x'):
 
-    # Check if 'data' is provided, if not, set it to the default 'all' (all axes of accelerometry)
+    # Check if 'data' is provided, if not, set it to the default 'x' (all axes of accelerometry)
     if not data or len(data) == 0:
-        data = 'all'
+        data = 'x'
+
+    chosen_data = data # Store the data so no need to call it again
 
     if 'x' in data:
         Accelerometer = Accelerometer[:, 0:1]
-    elif 'all' in m:
+    elif 'norm' in data:
         Accelerometer = Accelerometer
 
 
@@ -35,11 +37,11 @@ def InitialContactDetection(Accelerometer, fs, GS, algs, data='x'):
             chosenacc = Accelerometer[startvec[i]:stopvec[i], :]
 
             if 'HKLee_Imp' in algs:  # 1
-                IC_HKLee_improved = hklee_algo_improved(chosenacc, fs, 'x')
+                IC_HKLee_improved = hklee_algo_improved(chosenacc, fs, chosen_data)
                 SD_Output['IC'].append(IC_HKLee_improved)
 
             if 'Shin_Imp' in algs:  # 2
-                IC_Shin_improved = shin_algo_improved(chosenacc, fs, 'x')
+                IC_Shin_improved = shin_algo_improved(chosenacc, fs, chosen_data)
                 SD_Output['IC'].append(IC_Shin_improved)
 
             SD_Output['Start'].append(startvec[i])
@@ -49,4 +51,5 @@ def InitialContactDetection(Accelerometer, fs, GS, algs, data='x'):
         print("GS is empty.")
         SD_Output = {}
 
+    print(SD_Output)
     return SD_Output
