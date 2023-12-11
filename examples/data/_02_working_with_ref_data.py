@@ -22,7 +22,6 @@ This can be achieved using the :func:`~gaitlink.pipeline.GsIterator`
 
 But first, we need to load some example data.
 """
-import pandas as pd
 
 from gaitlink.data import LabExampleDataset
 
@@ -33,37 +32,49 @@ data
 
 # %%
 # Then we load the reference data.
-# There are two versions availabele:
+# There are two versions available:
 # One version where all values are provided relative to the start of the recording and one version where the values are
 # provided relative to the start of the respective GS/WB.
-# As we want to use the reference data as input to an algorithm on a GS level, we use the version relative to the start
-# of the GS/WB.
-#
-# .. note:: The start and end values of reference WB are of course still relative to the start of the recording.
+# Below we can see the first version, here both the walking bouts and the initial contacts (and other parameters) are
+# provided relative to the start of the recording.
 ref_data = datapoint.reference_parameters_
-ref_walking_bouts = ref_data.walking_bouts
+ref_data.walking_bouts
 
 # %%
-# When we look at for example the reference initial contacts, we can see that they are provided relative to the start
-# of the GS/WB.
-# Further, the first index level is the GS/WB id.
-ref_ics = ref_data.initial_contacts
-ref_ics
+ref_data.initial_contacts
+
+# %%
+# However, as we want to use the reference data as input to an algorithm on a GS level, we use the version that provides
+# values relative to the start of the GS/WB.
+#
+# The start and end values of reference WB are of course still relative to the start of the recording.
+ref_data_rel = datapoint.reference_parameters_relative_to_wb_
+ref_walking_bouts = ref_data_rel.walking_bouts
+ref_walking_bouts
+
+# %%
+# But the ICs time-samples are now relative to the start of the respective GS/WB.
+ref_ics_rel = ref_data_rel.initial_contacts
+ref_ics_rel.loc[1]  # First WB
+
+# %%
+ref_ics_rel.loc[2]  # Second WB
+
 # %%
 # Now we can use the :func:`~gaitlink.pipeline.GsIterator` to iterate over the data.
 # Check out the `gs_iterator example <gs_iterator_example>`_ for more information.
-# But basically, we need a data-class to define the results we expect, and then we can simply iterate over the data.
-from dataclasses import make_dataclass
-
 from gaitlink.pipeline import GsIterator
 
-# TODO: Update once we make the defaults for the iterator more convenient for these standard usecases
+gs_iterator = GsIterator()
 
-expected_results = make_dataclass("expected_results", [("initial_contacts", pd.Series)])
-gs_iterator = GsIterator(expected_results)
+# For most use-cases, the default configuration of the :class:`~gaitlink.pipeline.GsIterator` should be sufficient.
+# This allows you to specify the following results:
+gs_iterator.DEFAULT_DATA_TYPE
 
 # %%
-# The iterator provides us the cut data and the id of the respective GS/WB per iteration.
+# If you want to change the default behaviour, you can create a custom dataclass (check the example linked above)
+#
+# The iterator provides us the cut data and an object representing all information of the respective GS/WB.
 # The latter can be used to index other aspects of the reference data.
 for (wb, data_per_wb), result in gs_iterator.iterate(data, ref_walking_bouts):
     print("GS/WB id: ", wb.wb_id)
@@ -71,17 +82,13 @@ for (wb, data_per_wb), result in gs_iterator.iterate(data, ref_walking_bouts):
     print("N-samples in wb: ", len(data_per_wb))
 
     # We can use the wb.wb_id to get the reference initial contacts that belong to this GS/WB
-    ics_per_wb = ref_ics.loc[wb.wb_id]
+    ics_per_wb = ref_ics_rel.loc[wb.wb_id]
     # These could be used in some algorithm.
     # Here we will just store them in the results.
     result.initial_contacts = ics_per_wb
 
 # %%
-# Inspecting the results, we can see that the initial contacts are stored as expected, and we get the correct dataframe
-# per GS (compare to the output from above).
-# The results are list of with one entry per iteration.
+# The iterator will also conveniently aggregate the results for us.
+# You can see that the initial contacts are now stored in a single dataframe and the values are transformed back to be
+# relative to the start of the recording and not the GS anymore.
 gs_iterator.initial_contacts_
-
-# %%
-# For better comparison, let's just have a look at the first entry.
-gs_iterator.initial_contacts_.iloc[0]

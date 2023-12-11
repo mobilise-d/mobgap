@@ -67,13 +67,14 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) ->
         If you don't want to fix any columns, you can set this to an empty list.
 
     """
+
     def aggregate_df(inputs: list[_inputs_type], outputs: list[pd.DataFrame]) -> pd.DataFrame:
         sequences, _ = zip(*inputs)
         iter_index_name = sequences[0]._fields[0]
 
         to_concat = {}
         for gs, o in zip(sequences, outputs):
-            o = o.copy()
+            o = o.copy()  # noqa: PLW2901
             if not isinstance(o, pd.DataFrame):
                 raise TypeError(f"Expected dataframe for this aggregator, but got {type(o)}")
             if fix_gs_offset_cols:
@@ -163,7 +164,7 @@ class GsIterator(BaseTypedIterator, Generic[DataclassT]):
 
     DEFAULT_DATA_TYPE = FullPipelinePerGsResult
 
-    class DEFAULT_AGGREGATORS:
+    class DEFAULT_AGGREGATORS:  # noqa: N801
         """Available aggregators for the gait-sequence iterator.
 
         Note, that all of them are constructors for aggregators, as they have some configuration options.

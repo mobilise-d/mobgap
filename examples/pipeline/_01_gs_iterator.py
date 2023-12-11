@@ -2,7 +2,7 @@
 .. _gs_iterator_example:
 
 Gait Sequence Iterator
-======================.
+======================
 
 As part of most pipelines, we need to iterate over the gait sequences to apply all further algorithms to them
 individually.
@@ -12,13 +12,12 @@ Hence, we provide some helpers for that.
 We provide two ways of iterating.
 The first one, only handles the iteration and does not aggregate the results.
 The second approach attempts to also support you in aggregating the results.
+
+Getting Some Example Data
+-------------------------
+
 """
 import numpy as np
-
-# %%
-# Getting Some Example Data
-# -------------------------
-# TODO: Simplify that once we have better loading methods
 import pandas as pd
 
 from gaitlink.data import LabExampleDataset
@@ -48,7 +47,7 @@ for gs, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
     print("Gait Sequence: ", gs.wb_id)
     print("Expected N-samples in gs: ", gs.end - gs.start)
     print("N-samples in gs: ", len(data))
-    print("First sample of gs: ", data.iloc[0])
+    print("First sample of gs:\n", data.iloc[0], end="\n\n")
 
 # %%
 # You can see that this way it is pretty easy to iterate over the data.
@@ -93,7 +92,11 @@ iterator = GsIterator()
 
 # %%
 # The default result datatype per iteration is defined as follows:
-iterator.DEFAULT_DATA_TYPE
+import inspect
+
+from IPython.core.display_functions import display
+
+display(inspect.getsource(iterator.DEFAULT_DATA_TYPE))
 
 # %%
 # This means you are only allowed to use the available attributes.
