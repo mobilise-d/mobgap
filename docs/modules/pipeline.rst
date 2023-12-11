@@ -27,4 +27,23 @@ Gait Sequence Iteration
 
     iter_gs
 
+Aggregation Functions
+~~~~~~~~~~~~~~~~~~~~~
+.. currentmodule:: gaitlink.pipeline
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: func.rst
+
+    create_aggregate_df
+
+Datatypes
+~~~~~~~~~
+.. currentmodule:: gaitlink.pipeline
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: class.rst
+
+    FullPipelinePerGsResult
 

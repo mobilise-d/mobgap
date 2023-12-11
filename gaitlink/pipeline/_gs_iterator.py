@@ -54,6 +54,19 @@ _aggregator_type: TypeAlias = Callable[[list[_inputs_type], list[pd.DataFrame]],
 
 
 def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) -> _aggregator_type[pd.DataFrame]:
+    """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
+
+    The aggregator will also fix the offset of the given columns by adding the start value of the gait-sequence.
+    This way the final dataframe will have all sample based time-values relative to the start of the recording.
+
+    Parameters
+    ----------
+    fix_gs_offset_cols
+        The columns that should be adapted to be relative to the start of the recording.
+        By default, this is ``("start", "end")``.
+        If you don't want to fix any columns, you can set this to an empty list.
+
+    """
     def aggregate_df(inputs: list[_inputs_type], outputs: list[pd.DataFrame]) -> pd.DataFrame:
         sequences, _ = zip(*inputs)
         iter_index_name = sequences[0]._fields[0]
@@ -71,24 +84,6 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) ->
         return pd.concat(to_concat, names=[iter_index_name, *outputs[0].index.names])
 
     return aggregate_df
-
-
-@dataclass
-class Aggregators:
-    """Available aggregators for the gait-sequence iterator.
-
-    Note, that all of them are constructors for aggregators, as they have some configuration options.
-    To use them as aggregators, you need to call them with the desired configuration.
-
-    Examples
-    --------
-    >>> from gaitlink.pipeline import GsIterator
-    >>> my_aggregation = [("my_result", GsIterator.DEFAULT_AGGREGATORS.create_aggregate_df(["my_col"]))]
-    >>> iterator = GsIterator(aggregations=my_aggregation)
-
-    """
-
-    create_aggregate_df: Callable[[list, list], pd.DataFrame] = create_aggregate_df
 
 
 class GsIterator(BaseTypedIterator, Generic[DataclassT]):
@@ -166,9 +161,23 @@ class GsIterator(BaseTypedIterator, Generic[DataclassT]):
         ("gait_speed", create_aggregate_df()),
     ]
 
-    DEFAULT_AGGREGATORS = Aggregators()
-
     DEFAULT_DATA_TYPE = FullPipelinePerGsResult
+
+    class DEFAULT_AGGREGATORS:
+        """Available aggregators for the gait-sequence iterator.
+
+        Note, that all of them are constructors for aggregators, as they have some configuration options.
+        To use them as aggregators, you need to call them with the desired configuration.
+
+        Examples
+        --------
+        >>> from gaitlink.pipeline import GsIterator
+        >>> my_aggregation = [("my_result", GsIterator.DEFAULT_AGGREGATORS.create_aggregate_df(["my_col"]))]
+        >>> iterator = GsIterator(aggregations=my_aggregation)
+
+        """
+
+        create_aggregate_df = create_aggregate_df
 
     def __init__(
         self,
