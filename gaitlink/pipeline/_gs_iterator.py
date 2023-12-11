@@ -74,9 +74,9 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) ->
 
         to_concat = {}
         for gs, o in zip(sequences, outputs):
-            o = o.copy()  # noqa: PLW2901
             if not isinstance(o, pd.DataFrame):
                 raise TypeError(f"Expected dataframe for this aggregator, but got {type(o)}")
+            o = o.copy()  # noqa: PLW2901
             if fix_gs_offset_cols:
                 cols_to_fix = set(fix_gs_offset_cols).intersection(o.columns)
                 o[list(cols_to_fix)] += gs.start
