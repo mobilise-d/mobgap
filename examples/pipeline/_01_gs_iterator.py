@@ -166,8 +166,8 @@ class ResultType:
 
 
 def aggregate_n_samples(inputs, results):
-    gs_ids, _ = zip(*inputs)
-    return pd.Series(results, index=gs_ids, name="N-Samples")
+    gait_sequences, _ = zip(*inputs)
+    return pd.Series(results, index=[gs.wb_id for gs in gait_sequences], name="N-Samples")
 
 
 aggregations = [("n_samples", aggregate_n_samples)]
@@ -176,13 +176,13 @@ aggregations = [("n_samples", aggregate_n_samples)]
 # Now we can create an instance of the iterator.
 from gaitlink.pipeline import GsIterator
 
-iterator = GsIterator(ResultType, aggregations=aggregations)
+custom_iterator = GsIterator(ResultType, aggregations=aggregations)
 
 # %%
 # Iterating over the iterator now provides us the row from the gait sequence list (which we ignore here), the data for
 # each iteration, and the empty result object, we can fill up each iteration.
 
-for (_, data), result in iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
+for (_, data), result in custom_iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
     # We just calculate the length, but you can image any other calculation here.
     # Then we just set the result.
     result.n_samples = len(data)
@@ -191,8 +191,8 @@ for (_, data), result in iterator.iterate(long_trial.data["LowerBack"], long_tri
 
 # %%
 # Then we can easily inspect the aggregated results.
-iterator.n_samples_
+custom_iterator.n_samples_
 
 # %%
 # For the filtered data, we did not apply any aggregation and hence just get a list of all results.
-iterator.filtered_data_
+custom_iterator.filtered_data_
