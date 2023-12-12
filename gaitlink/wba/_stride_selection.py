@@ -78,7 +78,7 @@ class StrideSelection(Algorithm):
     def exclusion_reasons_(self) -> pd.DataFrame:
         return self._exclusion_reasons[self._exclusion_reasons["rule_name"].notna()]
 
-    def filter(self, stride_list: pd.DataFrame) -> Self:  # noqa: A003
+    def filter(self, stride_list: pd.DataFrame) -> Self:
         """Filter the stride list.
 
         Parameters
