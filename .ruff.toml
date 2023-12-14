@@ -123,3 +123,6 @@ exclude = [
 
 [pydocstyle]
 convention = "numpy"
+
+[format]
+docstring-code-format = true
