@@ -1,5 +1,5 @@
 import uuid
-from typing import ClassVar, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -96,14 +96,17 @@ class WbAssembly(Algorithm):
     termination_reasons_: dict[str, tuple[str, BaseWbCriteria]]
     exclusion_reasons_: dict[str, tuple[str, BaseWbCriteria]]
 
-    PREDEFINED_RULES: ClassVar[dict[str, list[tuple[str, BaseWbCriteria]]]] = {
-        "mobilise_wb": [
-            ("min_strides", NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3)),
-            ("max_break", MaxBreakCriteria(max_break=3)),
-        ],
-    }
+    class PREDEFINED_RULES:
+        mobilise_wb = {
+            "rules": [
+                ("min_strides", NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3)),
+                ("max_break", MaxBreakCriteria(max_break=3)),
+            ]
+        }
 
-    def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]] = cf(PREDEFINED_RULES["mobilise_wb"])) -> None:
+    def __init__(
+        self, rules: Optional[list[tuple[str, BaseWbCriteria]]] = cf(PREDEFINED_RULES.mobilise_wb["rules"])
+    ) -> None:
         self.rules = rules
 
     @property
