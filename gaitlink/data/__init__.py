@@ -9,10 +9,12 @@ from gaitlink.data._mobilised_matlab_loader import (
     load_mobilised_participant_metadata_file,
     parse_reference_parameters,
 )
+from gaitlink.data._mobilsed_weartime_loader import load_weartime_from_daily_mcroberts_report
 
 __all__ = [
     "load_mobilised_matlab_format",
     "load_mobilised_participant_metadata_file",
+    "load_weartime_from_daily_mcroberts_report",
     "parse_reference_parameters",
     "ReferenceData",
     "MobilisedTestData",
@@ -21,3 +23,4 @@ __all__ = [
     "GenericMobilisedDataset",
     "LabExampleDataset",
 ]
+
