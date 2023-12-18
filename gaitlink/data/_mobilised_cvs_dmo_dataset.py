@@ -169,7 +169,7 @@ def _load_dmo_data(
         "initialcontact_event_number": "n_steps",
         "turn_number_so": "n_turns",
         "averagecadence": "cadence_spm",
-        "averagestridespeed": "gait_velocity_mps",
+        "averagestridespeed": "walking_speed_mps",
         "averagestridelength": "stride_length_m",
         "averagestrideduration": "stride_duration_s",
     }

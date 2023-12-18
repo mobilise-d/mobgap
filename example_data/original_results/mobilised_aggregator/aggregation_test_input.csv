@@ -1,4 +1,4 @@
-subject_code,duration,step_number,cadence,stride_speed,stride_length,stride_duration,turn_number,visit_date
+participant_id,duration_s,n_steps,cadence_spm,walking_speed_mps,stride_length_m,stride_duration_s,n_turns,measurement_date
 12345,4.74702,8,99.821882,1.160788,2.518849,1.586747,0,2023-01-01
 12345,5.131504,7,101.16429,2.57881,1.572425,1.465365,0,2023-01-01
 12345,8.52727,12,86.535273,1.600436,1.663046,2.560916,2,2023-01-01

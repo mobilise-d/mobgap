@@ -29,6 +29,7 @@ data.head()
 # dimensions as the input data.
 # The data mask indicates which DMOs of the input data should be used for the aggregation (marked as True) and which
 # should be ignored (marked as False).
+# TODO: Fix the format of the data mask to actually match the index of the input data
 data_mask = pd.read_csv(DATA_PATH / "aggregation_test_data_mask.csv", index_col=0)
 data_mask.head()
 
