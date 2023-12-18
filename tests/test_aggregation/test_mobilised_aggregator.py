@@ -104,7 +104,7 @@ class TestMobilisedAggregator:
 
     def test_raise_error_on_wrong_groupby(self, example_dmo_data):
         with pytest.raises(ValueError):
-            MobilisedAggregator(groupby_columns=["do", "not", "exist"]).aggregate(example_dmo_data)
+            MobilisedAggregator(groupby=["do", "not", "exist"]).aggregate(example_dmo_data)
 
     def test_raise_error_on_wrong_data_mask(self, example_dmo_data, dummy_dmo_data_mask):
         with pytest.raises(ValueError):

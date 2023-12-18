@@ -40,7 +40,7 @@ data_mask.head()
 # walking bouts from one participant, or over all walking bouts per participant and day, week, or other criteria.
 # The data is grouped using additional columns in the input data, which are not used for the aggregation itself.
 # In this example, the data is grouped by participant (`subject_code`) and day (`visit_date`).
-agg = MobilisedAggregator(groupby_columns=["subject_code", "visit_date"])
+agg = MobilisedAggregator(groupby=["subject_code", "visit_date"])
 agg.aggregate(data, data_mask=data_mask)
 
 # %%
