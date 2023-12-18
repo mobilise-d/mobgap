@@ -277,7 +277,7 @@ class MobilisedCvsDmoDataset(Dataset):
 
     @property
     def visit_type(self):
-        return self.dmo_export_path.split("-")[1]
+        return self.dmo_export_path.split("-")[1].upper()
 
     def _get_participant_site_metadata(self) -> pd.DataFrame:
         return staggered_cache(_load_site_pid_map, self.memory, 1)(
@@ -401,13 +401,17 @@ class MobilisedCvsDmoDataset(Dataset):
         is_full_dataset = len(data.index.to_frame()[["participant_id", "measurement_date"]].drop_duplicates()) == len(
             self.index
         )
-        if is_full_dataset:
-            # Short circuit, if we have the full dataset, as this is a typical usecase and likely much faster.
-            return data
-        # That was the fastest version I found so far, but this is still slow as hell, if you have a large number of
-        # participants still in the dataset....
-        query_index = pd.MultiIndex.from_frame(self.index.drop("visit_type", axis=1))
-        return data.reset_index("wb_id").loc[query_index].set_index("wb_id", append=True)
+        # Short circuit, if we have the full dataset, as this is a typical usecase and likely much faster.
+        if not is_full_dataset:
+            # That was the fastest version I found so far, but this is still slow as hell, if you have a large number of
+            # participants still in the dataset....
+            query_index = pd.MultiIndex.from_frame(self.index.drop("visit_type", axis=1))
+            data = data.reset_index("wb_id").loc[query_index]
+        return (
+            data.assign(visit_type=self.visit_type)
+            .reset_index()
+            .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
+        )
 
     @property
     def data(self):
@@ -415,7 +419,7 @@ class MobilisedCvsDmoDataset(Dataset):
         return self._extract_relevant_data(dmo_data)
 
     @property
-    def data_flags(self):
+    def data_mask(self):
         _, dmo_flag_data = self._get_dmo_data()
         return self._extract_relevant_data(dmo_flag_data)
 
