@@ -84,24 +84,31 @@ class MobilisedAggregator(BaseAggregator):
     "strlen_30_var" parameters are not calculated. Furthermore, if no "duration" is provided, only the "all"-parameters
     without duration filter will be calculated.
 
-    The aggregation parameters are calculated for every unique group of the ``groupby_columns``. Per default,
+    The aggregation parameters are calculated for every unique group of the ``groupby``. Per default,
     one set of aggregation results is calculated per participant and recording date. This can however be adapted by
-    passing a different list of ``groupby_columns``.
+    passing a different list of ``groupby``.
 
     Parameters
     ----------
-    groupby_columns
+    groupby
         A list of columns to group the data by. Based on the resulting groups, the aggregations are calculated.
         Possible groupings are e.g. by participant, recording date, or trial.
-        To generate daily aggregations (the default), the ``groupby_columns`` should contain the columns "subject_code"
+        To generate daily aggregations (the default), the ``groupby`` should contain the columns "subject_code"
         and "visit_date".
+    unique_wb_id_column
+        The name of the column (or index level) containing a unique identifier for every walking bout.
+        The id does not have to be unique globally, but only within the groups defined by ``groupby``.
+        Aka ``data.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
 
     Other Parameters
     ----------------
     %(other_parameters)s
     data_mask
-        A boolean DataFrame with the same number of rows as ``data`` indicating the validity of every measure. Every
-        column of the data mask corresponds to a column of ``data`` and has the same name.
+        A boolean DataFrame with the same shape the ``data`` indicating the validity of every measure.
+        Like the data, the data_mask must have the ``groupby`` and the ``unique_wb_id_column`` as either as index or
+        column available.
+        After setting all of them as index, the index must be idential to the data.
+        Every column of the data mask corresponds to a column of ``data`` and has the same name.
         If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
 
         To exclude implausible data points from the input data, a ``data_mask`` can be passed to the ``aggregate``
@@ -210,7 +217,7 @@ class MobilisedAggregator(BaseAggregator):
         "walkdur_all_sum",
     ]
 
-    groupby_columns: typing.Sequence[str]
+    groupby: typing.Sequence[str]
     unique_wb_id_column: str
 
     data_mask: pd.DataFrame
@@ -219,11 +226,11 @@ class MobilisedAggregator(BaseAggregator):
 
     def __init__(
         self,
-        groupby_columns: typing.Sequence[str] = ("visit_type", "participant_id", "measurement_date"),
+        groupby: typing.Sequence[str] = ("visit_type", "participant_id", "measurement_date"),
         *,
         unique_wb_id_column: str = "wb_id",
     ) -> None:
-        self.groupby_columns = groupby_columns
+        self.groupby = groupby
         self.unique_wb_id_column = unique_wb_id_column
 
     @base_aggregator_docfiller
@@ -244,29 +251,29 @@ class MobilisedAggregator(BaseAggregator):
         self.data = data
         self.data_mask = data_mask
         self.filtered_data_ = self.data.copy()
-        groupby_columns = list(self.groupby_columns)
+        groupby = list(self.groupby)
 
         if not any(col in self.data.columns for col in self.INPUT_COLUMNS):
             raise ValueError(f"None of the valid input columns {self.INPUT_COLUMNS} found in the passed dataframe.")
 
-        if not all(col in self.data.reset_index().columns for col in groupby_columns):
-            raise ValueError(f"Not all groupby columns {self.groupby_columns} found in the passed dataframe.")
+        if not all(col in self.data.reset_index().columns for col in groupby):
+            raise ValueError(f"Not all groupby columns {self.groupby} found in the passed dataframe.")
 
-        data_correct_index = data.reset_index().set_index([*groupby_columns, self.unique_wb_id_column]).sort_index()
+        data_correct_index = data.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
 
         if not data_correct_index.index.is_unique:
             raise ValueError(
                 # TODO: Better error messages
-                f"The passed data contains multiple entries for the same groupby columns {groupby_columns}. "
+                f"The passed data contains multiple entries for the same groupby columns {groupby}. "
                 "Make sure that the passed data is unique for every groupby column combination."
             )
 
         if data_mask is not None:
-            data_mask = data_mask.reset_index().set_index([*groupby_columns, self.unique_wb_id_column]).sort_index()
+            data_mask = data_mask.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
 
             if not data.index.equals(data_mask.index):
                 raise ValueError(
-                    f"The datamask seems to be missing some data indices. "
+                    "The datamask seems to be missing some data indices. "
                     "The datamask must have exactly the same indices as the data after grouping."
                 )
 
@@ -285,9 +292,7 @@ class MobilisedAggregator(BaseAggregator):
                 self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, data_mask["duration_s"])
 
         available_filters_and_aggs = self._select_aggregations(data_correct_index.columns)
-        self.aggregated_data_ = self._apply_aggregations(
-            self.filtered_data_, groupby_columns, available_filters_and_aggs
-        )
+        self.aggregated_data_ = self._apply_aggregations(self.filtered_data_, groupby, available_filters_and_aggs)
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
         self.aggregated_data_ = self.aggregated_data_.round(3)
@@ -335,14 +340,14 @@ class MobilisedAggregator(BaseAggregator):
     @staticmethod
     def _apply_aggregations(
         filtered_data: pd.DataFrame,
-        groupby_columns: list[str],
+        groupby: list[str],
         available_filters_and_aggs: list[tuple[str, dict[str, tuple[str, typing.Union[str, typing.Callable]]]]],
     ) -> pd.DataFrame:
         """Apply filters and aggregations to the data."""
         aggregated_results = []
         for f, agg in available_filters_and_aggs:
             aggregated_data = filtered_data.copy() if f is None else filtered_data.query(f).copy()
-            aggregated_results.append(aggregated_data.groupby(groupby_columns).agg(**agg))
+            aggregated_results.append(aggregated_data.groupby(groupby).agg(**agg))
         return pd.concat(aggregated_results, axis=1)
 
     def _fillna_count_columns(self, data: pd.DataFrame) -> pd.DataFrame:
