@@ -71,13 +71,13 @@ class MobilisedAggregator(BaseAggregator):
     Which of the parameters are calculated depends on the columns available in the input data. All parameters are
     calculated when all of the following columns are available:
 
-    - ``duration``
-    - ``step_number``
-    - ``turn_number``
-    - ``stride_speed``
-    - ``stride_length``
-    - ``cadence``
-    - ``stride_duration``
+    - ``duration_s``
+    - ``n_steps``
+    - ``n_turns``
+    - ``walking_speed_mps``
+    - ``stride_length_m``
+    - ``cadence_spm``
+    - ``stride_duration_s``
 
     Otherwise, only parameters for which the corresponding DMO data is provided are added to the aggregation results.
     For example, if the input data does not contain a "stride_length" column, the "strlen_1030_avg", "strlen_30_avg",
@@ -109,13 +109,13 @@ class MobilisedAggregator(BaseAggregator):
         The columns in data_mask are regarded if there exists a column in the input data with the same name.
         Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
 
-        - "duration": The whole walking bout is not regarded for the aggregation.
-        - "step_number": The corresponding "step_number" is not regarded.
-        - "turn_number": The corresponding "turn_number" is not regarded.
-        - "stride_speed": The corresponding "stride_speed" is not regarded.
-        - "stride_length": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
-        - "cadence": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
-        - "stride_duration": The corresponding "stride_duration" is not regarded.
+        - "duration_s": The whole walking bout is not considered for the aggregation.
+        - "n_steps": The corresponding "n_steps" is not regarded.
+        - "n_turns": The corresponding "turn_number" is not regarded.
+        - "walking_speed_mps": The corresponding "stride_speed" is not regarded.
+        - "stride_length_m": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
+        - "cadence_spm": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
+        - "stride_duration_s": The corresponding "stride_duration" is not regarded.
 
     Attributes
     ----------
@@ -135,59 +135,59 @@ class MobilisedAggregator(BaseAggregator):
     """
 
     INPUT_COLUMNS: typing.ClassVar[list[str]] = [
-        "duration",
-        "step_number",
-        "turn_number",
-        "stride_speed",
-        "stride_length",
-        "cadence",
-        "stride_duration",
+        "stride_duration_s",
+        "n_steps",
+        "n_turns",
+        "walking_speed_mps",
+        "stride_length_m",
+        "cadence_spm",
+        "stride_duration_s",
     ]
 
     _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
-        "walkdur_all_sum": ("duration", "sum"),
-        "steps_all_sum": ("step_number", "sum"),
-        "turns_all_sum": ("turn_number", "sum"),
-        "wb_all_sum": ("duration", "count"),
-        "wbdur_all_avg": ("duration", "median"),
-        "wbdur_all_max": ("duration", _custom_quantile),
-        "wbdur_all_var": ("duration", _coefficient_of_variation),
-        "cadence_all_avg": ("cadence", "mean"),
-        "strdur_all_avg": ("stride_duration", "mean"),
-        "cadence_all_var": ("cadence", _coefficient_of_variation),
-        "strdur_all_var": ("stride_duration", _coefficient_of_variation),
+        "walkdur_all_sum": ("duration_s", "sum"),
+        "steps_all_sum": ("n_steps", "sum"),
+        "turns_all_sum": ("n_turns", "sum"),
+        "wb_all_sum": ("duration_s", "count"),
+        "wbdur_all_avg": ("duration_s", "median"),
+        "wbdur_all_max": ("duration_s", _custom_quantile),
+        "wbdur_all_var": ("duration_s", _coefficient_of_variation),
+        "cadence_all_avg": ("cadence_spm", "mean"),
+        "strdur_all_avg": ("stride_duration_s", "mean"),
+        "cadence_all_var": ("cadence_spm", _coefficient_of_variation),
+        "strdur_all_var": ("stride_duration_s", _coefficient_of_variation),
     }
 
     _TEN_THIRTY_WB_AGGS: typing.ClassVar = {
-        "ws_1030_avg": ("stride_speed", "mean"),
-        "strlen_1030_avg": ("stride_length", "mean"),
+        "ws_1030_avg": ("walking_speed_mps", "mean"),
+        "strlen_1030_avg": ("stride_length_m", "mean"),
     }
 
     _TEN_WB_AGGS: typing.ClassVar = {
-        "wb_10_sum": ("duration", "count"),
-        "ws_10_max": ("stride_speed", _custom_quantile),
+        "wb_10_sum": ("duration_s", "count"),
+        "ws_10_max": ("walking_speed_mps", _custom_quantile),
     }
 
     _THIRTY_WB_AGGS: typing.ClassVar = {
-        "wb_30_sum": ("duration", "count"),
-        "ws_30_avg": ("stride_speed", "mean"),
-        "strlen_30_avg": ("stride_length", "mean"),
-        "cadence_30_avg": ("cadence", "mean"),
-        "strdur_30_avg": ("stride_duration", "mean"),
-        "ws_30_max": ("stride_speed", _custom_quantile),
-        "cadence_30_max": ("cadence", _custom_quantile),
-        "ws_30_var": ("stride_speed", _coefficient_of_variation),
-        "strlen_30_var": ("stride_length", _coefficient_of_variation),
+        "wb_30_sum": ("duration_s", "count"),
+        "ws_30_avg": ("walking_speed_mps", "mean"),
+        "strlen_30_avg": ("stride_length_m", "mean"),
+        "cadence_30_avg": ("cadence_spm", "mean"),
+        "strdur_30_avg": ("stride_duration_s", "mean"),
+        "ws_30_max": ("walking_speed_mps", _custom_quantile),
+        "cadence_30_max": ("cadence_spm", _custom_quantile),
+        "ws_30_var": ("walking_speed_mps", _coefficient_of_variation),
+        "strlen_30_var": ("stride_length_m", _coefficient_of_variation),
     }
 
-    _SIXTY_WB_AGGS: typing.ClassVar = {"wb_60_sum": ("duration", "count")}
+    _SIXTY_WB_AGGS: typing.ClassVar = {"wb_60_sum": ("duration_s", "count")}
 
     _FILTERS_AND_AGGS: typing.ClassVar = [
         (None, _ALL_WB_AGGS),
-        ("duration > 10 & duration <= 30", _TEN_THIRTY_WB_AGGS),
-        ("duration > 10", _TEN_WB_AGGS),
-        ("duration > 30", _THIRTY_WB_AGGS),
-        ("duration > 60", _SIXTY_WB_AGGS),
+        ("duration_s > 10 & duration_s <= 30", _TEN_THIRTY_WB_AGGS),
+        ("duration_s > 10", _TEN_WB_AGGS),
+        ("duration_s > 30", _THIRTY_WB_AGGS),
+        ("duration_s > 60", _SIXTY_WB_AGGS),
     ]
 
     _UNIT_CONVERSIONS: typing.ClassVar = {
@@ -213,7 +213,7 @@ class MobilisedAggregator(BaseAggregator):
     data_mask: pd.DataFrame
     filtered_data_: pd.DataFrame
 
-    def __init__(self, groupby_columns: typing.Sequence[str] = ("subject_code", "visit_date")) -> None:
+    def __init__(self, groupby_columns: typing.Sequence[str] = ("participant_id", "measurement_date")) -> None:
         self.groupby_columns = groupby_columns
 
     @base_aggregator_docfiller
@@ -235,6 +235,8 @@ class MobilisedAggregator(BaseAggregator):
         self.data_mask = data_mask
         self.filtered_data_ = self.data.copy()
         groupby_columns = list(self.groupby_columns)
+        # TODO: Align index of data an mask to ensure that all rows exist in both dataframes and the correct rows are
+        #      removed in the filtering step
 
         if not any(col in self.data.columns for col in self.INPUT_COLUMNS):
             raise ValueError(f"None of the valid input columns {self.INPUT_COLUMNS} found in the passed dataframe.")
@@ -248,15 +250,15 @@ class MobilisedAggregator(BaseAggregator):
 
             for col in self.INPUT_COLUMNS:
                 # remove walking bouts in the last filtering step
-                if col == "duration":
+                if col == "duration_s":
                     continue
                 # set entries flagged as implausible to NaN
                 if all([col in self.data.columns, col in self.data_mask.columns]):
                     self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, self.data_mask[col], col)
 
             # as last filtering step, delete all rows with implausible duration
-            if all(["duration" in self.data.columns, "duration" in self.data_mask.columns]):
-                self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, self.data_mask["duration"])
+            if all(["duration_s" in self.data.columns, "duration_s" in self.data_mask.columns]):
+                self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, self.data_mask["duration_s"])
 
         available_filters_and_aggs = self._select_aggregations(self.data.columns)
         self.aggregated_data_ = self._apply_aggregations(
@@ -271,8 +273,8 @@ class MobilisedAggregator(BaseAggregator):
     @staticmethod
     def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.Series, col: str) -> pd.DataFrame:
         """Clean the data according to a column of the data mask."""
-        if col in ["cadence", "stride_length"]:
-            data.loc[~mask_col.index, "stride_speed"] = pd.NA
+        if col in ["cadence_spm", "stride_length_m"]:
+            data.loc[~mask_col.index, "stride_length_m"] = pd.NA
         data.loc[~mask_col.index, col] = pd.NA
         return data
 
@@ -291,7 +293,7 @@ class MobilisedAggregator(BaseAggregator):
         """
         available_filters_and_aggs = []
         for filt, aggs in self._FILTERS_AND_AGGS:
-            if all([filt is not None, "duration" not in data_columns]):
+            if all([filt is not None, "duration_s" not in data_columns]):
                 warnings.warn(
                     f"Filter '{filt}' for walking bout length cannot be applied, "
                     "because the data does not contain a 'duration' column.",

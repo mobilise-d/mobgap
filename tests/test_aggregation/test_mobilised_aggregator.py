@@ -29,7 +29,7 @@ def example_dmo_reference():
 
 @pytest.fixture()
 def example_dmo_data_partial():
-    drop_columns = ["step_number", "turn_number"]
+    drop_columns = ["n_steps", "n_turns"]
     return pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0).drop(columns=drop_columns)
 
 
@@ -103,7 +103,7 @@ class TestMobilisedAggregator:
 
     def test_raise_warning_on_missing_duration_column(self, example_dmo_data):
         with pytest.warns(UserWarning):
-            MobilisedAggregator().aggregate(example_dmo_data.drop(columns=["duration"]))
+            MobilisedAggregator().aggregate(example_dmo_data.drop(columns=["duration_s"]))
 
     def test_input_not_modified(self, example_dmo_data, example_dmo_data_mask):
         data = example_dmo_data.copy()
