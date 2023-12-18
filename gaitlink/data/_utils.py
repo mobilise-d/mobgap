@@ -15,8 +15,6 @@ def staggered_cache(
 ):
     """A staggered cache that first uses a joblib memory cache and then a lru cache."""
     paras_hash = custom_hash((function, joblib_memory, lru_cache_maxsize))
-    global _GLOBAL_CACHE
-
     if paras_hash in _GLOBAL_CACHE:
         return _GLOBAL_CACHE[paras_hash]
 
