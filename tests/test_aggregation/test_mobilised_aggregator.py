@@ -86,17 +86,12 @@ class TestMobilisedAggregator:
 
     def test_reference_data_with_duration_mask(self, example_dmo_data, dummy_dmo_data_mask, example_dmo_reference):
         dummy_dmo_data_mask = dummy_dmo_data_mask.copy()
+        # If all durations are false, all data should be dropped
         dummy_dmo_data_mask.loc[:, "duration_s"] = False
         agg = MobilisedAggregator().aggregate(
             example_dmo_data, data_mask=dummy_dmo_data_mask, duration_mask=dummy_dmo_data_mask
         )
-        output = agg.aggregated_data_
-        assert_frame_equal(
-            output.drop(columns=self.quantile_columns),
-            example_dmo_reference.drop(columns=self.quantile_columns),
-            check_dtype=False,
-        )
-        assert_frame_equal(output[self.quantile_columns], example_dmo_reference[self.quantile_columns], atol=0.05)
+        assert (agg.aggregated_data_["wb_all_sum"] == 0).all()
 
     def test_raise_error_on_wrong_data(self):
         with pytest.raises(ValueError):

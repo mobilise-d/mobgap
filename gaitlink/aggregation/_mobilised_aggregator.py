@@ -120,8 +120,8 @@ class MobilisedAggregator(BaseAggregator):
         - "n_steps": The corresponding "n_steps" is not regarded.
         - "n_turns": The corresponding "turn_number" is not regarded.
         - "walking_speed_mps": The corresponding "stride_speed" is not regarded.
-        - "stride_length_m": The corresponding "stride_length" AND the corresponding "stride_speed" are not regarded.
-        - "cadence_spm": The corresponding "cadence" AND the corresponding "stride_speed" are not regarded.
+        - "stride_length_m": The corresponding "stride_length" AND the corresponding "walking_speed_mps" are not regarded.
+        - "cadence_spm": The corresponding "cadence" AND the corresponding "walking_speed_mps" are not regarded.
         - "stride_duration_s": The corresponding "stride_duration" is not regarded.
 
     Attributes
@@ -152,10 +152,9 @@ class MobilisedAggregator(BaseAggregator):
     ]
 
     _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
-        "walkdur_all_sum": ("duration_s", "sum"),
+        "wb_all_sum": ("duration_s", "count"),        "walkdur_all_sum": ("duration_s", "sum"),
         "steps_all_sum": ("n_steps", "sum"),
         "turns_all_sum": ("n_turns", "sum"),
-        "wb_all_sum": ("duration_s", "count"),
         "wbdur_all_avg": ("duration_s", "median"),
         "wbdur_all_max": ("duration_s", _custom_quantile),
         "wbdur_all_var": ("duration_s", _coefficient_of_variation),
@@ -166,6 +165,7 @@ class MobilisedAggregator(BaseAggregator):
     }
 
     _TEN_THIRTY_WB_AGGS: typing.ClassVar = {
+        "wb_1030_sum": ("duration_s", "count"),
         "ws_1030_avg": ("walking_speed_mps", "mean"),
         "strlen_1030_avg": ("stride_length_m", "mean"),
     }
@@ -250,7 +250,6 @@ class MobilisedAggregator(BaseAggregator):
         """
         self.data = data
         self.data_mask = data_mask
-        self.filtered_data_ = self.data.copy()
         groupby = list(self.groupby)
 
         if not any(col in self.data.columns for col in self.INPUT_COLUMNS):
@@ -279,17 +278,24 @@ class MobilisedAggregator(BaseAggregator):
 
             data_mask = data_mask.reindex(data_correct_index.index)
 
-            for col in self.INPUT_COLUMNS:
-                # remove walking bouts in the last filtering step
-                if col == "duration_s":
-                    continue
-                # set entries flagged as implausible to NaN
-                if col in data_correct_index.columns and col in data_mask.columns:
-                    self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, data_mask, col)
-
-            # as last filtering step, delete all rows with implausible duration
-            if all(["duration_s" in data_correct_index.columns, "duration_s" in data_mask.columns]):
-                self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, data_mask["duration_s"])
+            # We remove all individual elements from the data that are flagged as implausible in the data mask.
+            self.filtered_data_ = data_correct_index.where(data_mask)
+            # And then we need to consider some special cases:
+            if "duration_s" in data_correct_index.columns and "duration_s" in data_mask.columns:
+                # If the duration is implausible, we need to remove the whole walking bout
+                self.filtered_data_ = self.filtered_data_.where(data_mask["duration_s"])
+            if "walking_speed_mps" in data_correct_index.columns:
+                walking_speed_filter = pd.Series(True, index=data_correct_index.index)
+                # Walking speed is also implausible, if stride length or cadence are implausible
+                if "stride_length_m" in data_mask.columns:
+                    walking_speed_filter &= data_mask["stride_length_m"]
+                if "cadence_spm" in data_mask.columns:
+                    walking_speed_filter &= data_mask["cadence_spm"]
+                self.filtered_data_.loc[:, "walking_speed_mps"] = self.filtered_data_.loc[:, "walking_speed_mps"].where(
+                    walking_speed_filter
+                )
+        else:
+            self.filtered_data_ = data_correct_index.copy()
 
         available_filters_and_aggs = self._select_aggregations(data_correct_index.columns)
         self.aggregated_data_ = self._apply_aggregations(self.filtered_data_, groupby, available_filters_and_aggs)
@@ -298,20 +304,6 @@ class MobilisedAggregator(BaseAggregator):
         self.aggregated_data_ = self.aggregated_data_.round(3)
 
         return self
-
-    @staticmethod
-    def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.DataFrame, col: str) -> pd.DataFrame:
-        """Clean the data according to a column of the data mask."""
-        if col == "cadence_spm":
-            # If cadence is implausible, stride speed is also implausible
-            data.loc[~mask_col[col], "stride_length_m"] = pd.NA
-        data.loc[~mask_col[col], col] = pd.NA
-        return data
-
-    @staticmethod
-    def _apply_duration_mask(data: pd.DataFrame, duration_mask: pd.Series) -> pd.DataFrame:
-        """Remove rows with implausible duration."""
-        return data.loc[duration_mask.index]
 
     def _select_aggregations(
         self, data_columns: list[str]
@@ -346,7 +338,7 @@ class MobilisedAggregator(BaseAggregator):
         """Apply filters and aggregations to the data."""
         aggregated_results = []
         for f, agg in available_filters_and_aggs:
-            aggregated_data = filtered_data.copy() if f is None else filtered_data.query(f).copy()
+            aggregated_data = filtered_data if f is None else filtered_data.query(f)
             aggregated_results.append(aggregated_data.groupby(groupby).agg(**agg))
         return pd.concat(aggregated_results, axis=1)
 
