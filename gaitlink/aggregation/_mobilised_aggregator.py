@@ -210,11 +210,21 @@ class MobilisedAggregator(BaseAggregator):
         "walkdur_all_sum",
     ]
 
+    groupby_columns: typing.Sequence[str]
+    unique_wb_id_column: str
+
     data_mask: pd.DataFrame
+
     filtered_data_: pd.DataFrame
 
-    def __init__(self, groupby_columns: typing.Sequence[str] = ("visit_type", "participant_id", "measurement_date")) -> None:
+    def __init__(
+        self,
+        groupby_columns: typing.Sequence[str] = ("visit_type", "participant_id", "measurement_date"),
+        *,
+        unique_wb_id_column: str = "wb_id",
+    ) -> None:
         self.groupby_columns = groupby_columns
+        self.unique_wb_id_column = unique_wb_id_column
 
     @base_aggregator_docfiller
     def aggregate(
@@ -236,40 +246,45 @@ class MobilisedAggregator(BaseAggregator):
         self.filtered_data_ = self.data.copy()
         groupby_columns = list(self.groupby_columns)
 
-        # TODO: Align index of data an mask to ensure that all rows exist in both dataframes and the correct rows are
-        #      removed in the filtering step
-
         if not any(col in self.data.columns for col in self.INPUT_COLUMNS):
             raise ValueError(f"None of the valid input columns {self.INPUT_COLUMNS} found in the passed dataframe.")
 
         if not all(col in self.data.reset_index().columns for col in groupby_columns):
             raise ValueError(f"Not all groupby columns {self.groupby_columns} found in the passed dataframe.")
 
+        data_correct_index = data.reset_index().set_index([*groupby_columns, self.unique_wb_id_column]).sort_index()
+
+        if not data_correct_index.index.is_unique:
+            raise ValueError(
+                # TODO: Better error messages
+                f"The passed data contains multiple entries for the same groupby columns {groupby_columns}. "
+                "Make sure that the passed data is unique for every groupby column combination."
+            )
+
         if data_mask is not None:
-            try:
-                data_mask = data_mask.loc[self.data.index]
-            except KeyError as e:
+            data_mask = data_mask.reset_index().set_index([*groupby_columns, self.unique_wb_id_column]).sort_index()
+
+            if not data.index.equals(data_mask.index):
                 raise ValueError(
                     f"The datamask seems to be missing some data indices. "
-                    "The datamask must have exactly the same indices as the data."
-                ) from e
+                    "The datamask must have exactly the same indices as the data after grouping."
+                )
 
-            if self.data.shape[0] != self.data_mask.shape[0]:
-                raise ValueError("The passed data and data_mask do not have the same number of rows.")
+            data_mask = data_mask.reindex(data_correct_index.index)
 
             for col in self.INPUT_COLUMNS:
                 # remove walking bouts in the last filtering step
                 if col == "duration_s":
                     continue
                 # set entries flagged as implausible to NaN
-                if all([col in self.data.columns, col in data_mask.columns]):
+                if col in data_correct_index.columns and col in data_mask.columns:
                     self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, data_mask, col)
 
             # as last filtering step, delete all rows with implausible duration
-            if all(["duration_s" in self.data.columns, "duration_s" in self.data_mask.columns]):
-                self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, self.data_mask["duration_s"])
+            if all(["duration_s" in data_correct_index.columns, "duration_s" in data_mask.columns]):
+                self.filtered_data_ = self._apply_duration_mask(self.filtered_data_, data_mask["duration_s"])
 
-        available_filters_and_aggs = self._select_aggregations(self.data.columns)
+        available_filters_and_aggs = self._select_aggregations(data_correct_index.columns)
         self.aggregated_data_ = self._apply_aggregations(
             self.filtered_data_, groupby_columns, available_filters_and_aggs
         )
@@ -280,7 +295,7 @@ class MobilisedAggregator(BaseAggregator):
         return self
 
     @staticmethod
-    def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.Series, col: str) -> pd.DataFrame:
+    def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.DataFrame, col: str) -> pd.DataFrame:
         """Clean the data according to a column of the data mask."""
         if col == "cadence_spm":
             # If cadence is implausible, stride speed is also implausible
