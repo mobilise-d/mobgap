@@ -154,13 +154,25 @@ def _load_dmo_data(
     timezone_per_subject = timezone_per_subject.obj
 
     dmos = [
+        "duration",
+        "initialcontact_event_number",
+        "turn_number_so",
         "averagecadence",
         "averagestridespeed",
         "averagestridelength",
         "averagestrideduration",
-        "duration",
     ]
     dmos_flag = [f"{dmo}_flag" for dmo in dmos]
+
+    dmo_rename_dict = {
+        "duration": "duration_s",
+        "initialcontact_event_number": "n_steps",
+        "turn_number_so": "n_turns",
+        "averagecadence": "cadence_spm",
+        "averagestridespeed": "gait_velocity_mps",
+        "averagestridelength": "stride_length_m",
+        "averagestrideduration": "stride_duration_s",
+    }
 
     dmo_data = (
         pd.read_csv(dmo_path)[
@@ -168,8 +180,6 @@ def _load_dmo_data(
                 "participantid",
                 "wb_id",
                 "visit_date",
-                "initialcontact_event_number",
-                "turn_number_so",
                 "wbday",
                 *dmos,
                 *dmos_flag,
@@ -196,8 +206,8 @@ def _load_dmo_data(
         .set_index(["participant_id", "measurement_date", "wb_id"])
         .sort_index()
     )
-    dmo_flag_data = dmo_data[dmos_flag].rename(columns=lambda c: c.replace("_flag", ""))
-    dmo_data = dmo_data.drop(dmos_flag, axis=1)
+    dmo_flag_data = dmo_data[dmos_flag].rename(columns=lambda c: c.replace("_flag", "")).rename(columns=dmo_rename_dict)
+    dmo_data = dmo_data.drop(dmos_flag, axis=1).rename(columns=dmo_rename_dict)
 
     return dmo_data, dmo_flag_data
 
