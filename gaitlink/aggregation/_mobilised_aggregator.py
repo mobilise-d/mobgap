@@ -213,7 +213,7 @@ class MobilisedAggregator(BaseAggregator):
     data_mask: pd.DataFrame
     filtered_data_: pd.DataFrame
 
-    def __init__(self, groupby_columns: typing.Sequence[str] = ("participant_id", "measurement_date")) -> None:
+    def __init__(self, groupby_columns: typing.Sequence[str] = ("visit_type", "participant_id", "measurement_date")) -> None:
         self.groupby_columns = groupby_columns
 
     @base_aggregator_docfiller
@@ -235,6 +235,7 @@ class MobilisedAggregator(BaseAggregator):
         self.data_mask = data_mask
         self.filtered_data_ = self.data.copy()
         groupby_columns = list(self.groupby_columns)
+
         # TODO: Align index of data an mask to ensure that all rows exist in both dataframes and the correct rows are
         #      removed in the filtering step
 
@@ -245,6 +246,14 @@ class MobilisedAggregator(BaseAggregator):
             raise ValueError(f"Not all groupby columns {self.groupby_columns} found in the passed dataframe.")
 
         if data_mask is not None:
+            try:
+                data_mask = data_mask.loc[self.data.index]
+            except KeyError as e:
+                raise ValueError(
+                    f"The datamask seems to be missing some data indices. "
+                    "The datamask must have exactly the same indices as the data."
+                ) from e
+
             if self.data.shape[0] != self.data_mask.shape[0]:
                 raise ValueError("The passed data and data_mask do not have the same number of rows.")
 
@@ -253,8 +262,8 @@ class MobilisedAggregator(BaseAggregator):
                 if col == "duration_s":
                     continue
                 # set entries flagged as implausible to NaN
-                if all([col in self.data.columns, col in self.data_mask.columns]):
-                    self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, self.data_mask[col], col)
+                if all([col in self.data.columns, col in data_mask.columns]):
+                    self.filtered_data_ = self._apply_data_mask_to_col(self.filtered_data_, data_mask, col)
 
             # as last filtering step, delete all rows with implausible duration
             if all(["duration_s" in self.data.columns, "duration_s" in self.data_mask.columns]):
@@ -273,9 +282,10 @@ class MobilisedAggregator(BaseAggregator):
     @staticmethod
     def _apply_data_mask_to_col(data: pd.DataFrame, mask_col: pd.Series, col: str) -> pd.DataFrame:
         """Clean the data according to a column of the data mask."""
-        if col in ["cadence_spm", "stride_length_m"]:
-            data.loc[~mask_col.index, "stride_length_m"] = pd.NA
-        data.loc[~mask_col.index, col] = pd.NA
+        if col == "cadence_spm":
+            # If cadence is implausible, stride speed is also implausible
+            data.loc[~mask_col[col], "stride_length_m"] = pd.NA
+        data.loc[~mask_col[col], col] = pd.NA
         return data
 
     @staticmethod
