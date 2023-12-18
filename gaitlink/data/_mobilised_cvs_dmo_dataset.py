@@ -86,7 +86,7 @@ def _create_index(
     dmo_path: Path, site_pid_map_path: Path, timezones: UniversalHashableWrapper[dict[SITE_CODES, str]], memory: Memory
 ) -> pd.DataFrame:
     site_data = staggered_cache(_load_site_pid_map, memory, 1)(site_pid_map_path=site_pid_map_path, timezones=timezones)
-    dmo_data = staggered_cache(_load_dmo_data, memory, 1)(
+    dmo_data, _ = staggered_cache(_load_dmo_data, memory, 1)(
         dmo_path=dmo_path, timezone_per_subject=UniversalHashableWrapper(site_data)
     )
 
@@ -141,16 +141,26 @@ def _load_pid_mid_map(compliance_report: Path) -> pd.DataFrame:
     )
 
 
-def _load_dmo_data(dmo_path: Path, timezone_per_subject: UniversalHashableWrapper[pd.DataFrame]) -> pd.DataFrame:
+def _load_dmo_data(
+    dmo_path: Path, timezone_per_subject: UniversalHashableWrapper[pd.DataFrame]
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     warnings.warn(
         "Initial data loading. This might take a while! But, don't worry, we cache the loaded results.\n\n"
         "If you are seeing this message multiple times, you might want to consider using a joblib memory by "
         "passing ``memory=Memory('some/cache/path)`` to the dataset constructor to cache the index creation"
         "between script executions.",
-        stacklevel=3,
+        stacklevel=1,
     )
-    # TODO: Extract flag-data separately
     timezone_per_subject = timezone_per_subject.obj
+
+    dmos = [
+        "averagecadence",
+        "averagestridespeed",
+        "averagestridelength",
+        "averagestrideduration",
+        "duration",
+    ]
+    dmos_flag = [f"{dmo}_flag" for dmo in dmos]
 
     dmo_data = (
         pd.read_csv(dmo_path)[
@@ -158,14 +168,11 @@ def _load_dmo_data(dmo_path: Path, timezone_per_subject: UniversalHashableWrappe
                 "participantid",
                 "wb_id",
                 "visit_date",
-                "duration",
                 "initialcontact_event_number",
-                "averagecadence",
-                "averagestridespeed",
-                "averagestridelength",
-                "averagestrideduration",
                 "turn_number_so",
                 "wbday",
+                *dmos,
+                *dmos_flag,
             ]
         ]
         .rename(columns={"participantid": "participant_id"})
@@ -189,7 +196,10 @@ def _load_dmo_data(dmo_path: Path, timezone_per_subject: UniversalHashableWrappe
         .set_index(["participant_id", "measurement_date", "wb_id"])
         .sort_index()
     )
-    return dmo_data
+    dmo_flag_data = dmo_data[dmos_flag].rename(columns=lambda c: c.replace("_flag", ""))
+    dmo_data = dmo_data.drop(dmos_flag, axis=1)
+
+    return dmo_data, dmo_flag_data
 
 
 class MobilisedCvsDmoDataset(Dataset):
@@ -375,21 +385,29 @@ class MobilisedCvsDmoDataset(Dataset):
             timezone_per_subject=UniversalHashableWrapper(self._get_participant_site_metadata()),
         )
 
-    @property
-    def data(self):
-        dmo_data = self._get_dmo_data()
+    def _extract_relevant_data(self, data: pd.DataFrame) -> pd.DataFrame:
         # TODO: replace this with the official tpcp check once released
         #       (https://github.com/mad-lab-fau/tpcp/issues/104)
-        is_full_dataset = len(
-            dmo_data.index.to_frame()[["participant_id", "measurement_date"]].drop_duplicates()
-        ) == len(self.index)
+        is_full_dataset = len(data.index.to_frame()[["participant_id", "measurement_date"]].drop_duplicates()) == len(
+            self.index
+        )
         if is_full_dataset:
             # Short circuit, if we have the full dataset, as this is a typical usecase and likely much faster.
-            return dmo_data
+            return data
         # That was the fastest version I found so far, but this is still slow as hell, if you have a large number of
         # participants still in the dataset....
         query_index = pd.MultiIndex.from_frame(self.index.drop("visit_type", axis=1))
-        return dmo_data.reset_index("wb_id").loc[query_index].set_index("wb_id", append=True)
+        return data.reset_index("wb_id").loc[query_index].set_index("wb_id", append=True)
+
+    @property
+    def data(self):
+        dmo_data, _ = self._get_dmo_data()
+        return self._extract_relevant_data(dmo_data)
+
+    @property
+    def data_flags(self):
+        _, dmo_flag_data = self._get_dmo_data()
+        return self._extract_relevant_data(dmo_flag_data)
 
     @property
     def measurement_site(self) -> SITE_CODES:
