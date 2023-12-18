@@ -255,7 +255,7 @@ class MobilisedCvsDmoDataset(Dataset):
     memory: Memory
 
     TIME_ZONES: ClassVar[dict[SITE_CODES, str]] = TIME_ZONES
-    WEARTIME_REPORT_CACHE_FILE_NAME: ClassVar[str] = "daily_weartime.csv"
+    WEARTIME_REPORT_CACHE_FILE_NAME: ClassVar[str] = "daily_weartime_pre_computed.csv"
 
     def __init__(
         self,
@@ -286,11 +286,6 @@ class MobilisedCvsDmoDataset(Dataset):
         )
 
     def _get_pid_mid_map(self) -> pd.DataFrame:
-        if self.weartime_reports_base_path is None:
-            raise ValueError(
-                "The `weartime_reports_base_path` must be provided to load any weartime related features. "
-            )
-
         try:
             pid_mid_map_path = next(Path(self.weartime_reports_base_path).glob("CVS-wear-compliance-*.xlsx"))
         except StopIteration as e:
@@ -301,7 +296,12 @@ class MobilisedCvsDmoDataset(Dataset):
             ) from e
         return _load_pid_mid_map(pid_mid_map_path)
 
-    def _get_daily_weartime(self) -> pd.DataFrame:
+    @property
+    def weartime_daily(self) -> pd.DataFrame:
+        if self.weartime_reports_base_path is None:
+            raise ValueError(
+                "The `weartime_reports_base_path` must be provided to load any weartime related features. "
+            )
         if self.pre_compute_daily_weartime is True:
             wear_time = self._get_precomputed_daily_weartime()
         else:
@@ -310,7 +310,7 @@ class MobilisedCvsDmoDataset(Dataset):
             try:
                 relevant_mid = (
                     self._get_pid_mid_map()
-                    .xs(self.visit_type.upper(), level="visit_type")
+                    .xs(self.visit_type, level="visit_type")
                     .loc[self.index["participant_id"].unique()]
                 )
             except KeyError as e:
@@ -335,16 +335,16 @@ class MobilisedCvsDmoDataset(Dataset):
         # We merge the weartime report with the dataset index to get NaNs for all participants that don't have any
         # weartime data, but are still in the dataset.
         return (
-            self.index.merge(wear_time, on=["participant_id", "visit_date"], how="left")
-            .set_index(["visit_type", "participant_id", "visit_date"])
-            .drop(["measurement_id", "visit_type"], axis=1)
+            self.index.merge(wear_time, on=["visit_type", "participant_id", "measurement_date"], how="left")
+            .drop(["measurement_id"], axis=1)
+            # TODO: For some reason we sometimes get duplicate indices in the weartime, as multiple weartime reports
+            #       exist for some participants.
+            #       We drop them for now, but this should be investigated further.
+            .drop_duplicates()
+            .set_index(["visit_type", "participant_id", "measurement_date"])
         )
 
     def _get_precomputed_daily_weartime(self) -> pd.DataFrame:
-        if self.weartime_reports_base_path is None:
-            raise ValueError(
-                "The `weartime_reports_base_path` must be provided to load any weartime related features. "
-            )
         try:
             return pd.read_csv(Path(self.weartime_reports_base_path) / self.WEARTIME_REPORT_CACHE_FILE_NAME)
         except FileNotFoundError:
@@ -381,7 +381,7 @@ class MobilisedCvsDmoDataset(Dataset):
         results = (
             pd.concat(dict(results), names=["measurement_id", "measurement_date"])
             .reset_index()
-            .astype({"visit_date": "string", "measurement_id": int})
+            .astype({"measurement_date": "string", "measurement_id": int})
         )
 
         # Finally we will merge the results with the pid_mid_map to get the correct participant id.
