@@ -98,20 +98,20 @@ class MobilisedAggregator(BaseAggregator):
     unique_wb_id_column
         The name of the column (or index level) containing a unique identifier for every walking bout.
         The id does not have to be unique globally, but only within the groups defined by ``groupby``.
-        Aka ``data.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
+        Aka ``wb_dmos.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
 
     Other Parameters
     ----------------
     %(other_parameters)s
-    data_mask
-        A boolean DataFrame with the same shape the ``data`` indicating the validity of every measure.
+    wb_dmos_mask
+        A boolean DataFrame with the same shape the ``wb_dmos`` indicating the validity of every measure.
         Like the data, the data_mask must have the ``groupby`` and the ``unique_wb_id_column`` as either as index or
         column available.
         After setting all of them as index, the index must be idential to the data.
-        Every column of the data mask corresponds to a column of ``data`` and has the same name.
+        Every column of the data mask corresponds to a column of ``wb_dmos`` and has the same name.
         If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
 
-        To exclude implausible data points from the input data, a ``data_mask`` can be passed to the ``aggregate``
+        To exclude implausible data points from the input data, a ``wb_dmos_mask`` can be passed to the ``aggregate``
         method.
         The columns in data_mask are regarded if there exists a column in the input data with the same name.
         Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
@@ -120,16 +120,18 @@ class MobilisedAggregator(BaseAggregator):
         - "n_steps": The corresponding "n_steps" is not regarded.
         - "n_turns": The corresponding "turn_number" is not regarded.
         - "walking_speed_mps": The corresponding "stride_speed" is not regarded.
-        - "stride_length_m": The corresponding "stride_length" AND the corresponding "walking_speed_mps" are not regarded.
+        - "stride_length_m": The corresponding "stride_length" AND the corresponding "walking_speed_mps" are not
+          regarded.
         - "cadence_spm": The corresponding "cadence" AND the corresponding "walking_speed_mps" are not regarded.
         - "stride_duration_s": The corresponding "stride_duration" is not regarded.
 
     Attributes
     ----------
     %(aggregated_data_)s
-    filtered_data_
+    filtered_wb_dmos_
         An updated version of ``data`` with the implausible entries removed based on ``data_mask``.
-        Depending on the implementation, the shape of ``filtered_data_`` might differ from ``data``.
+        Depending on the implementation, the shape of ``filtered_wb_dmos_`` might differ from ``data``.
+        In all cases, ``filtered_wb_dmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
 
     Notes
     -----
@@ -152,7 +154,8 @@ class MobilisedAggregator(BaseAggregator):
     ]
 
     _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
-        "wb_all_sum": ("duration_s", "count"),        "walkdur_all_sum": ("duration_s", "sum"),
+        "wb_all_sum": ("duration_s", "count"),
+        "walkdur_all_sum": ("duration_s", "sum"),
         "steps_all_sum": ("n_steps", "sum"),
         "turns_all_sum": ("n_turns", "sum"),
         "wbdur_all_avg": ("duration_s", "median"),
@@ -220,9 +223,9 @@ class MobilisedAggregator(BaseAggregator):
     groupby: typing.Sequence[str]
     unique_wb_id_column: str
 
-    data_mask: pd.DataFrame
+    wb_dmos_mask: pd.DataFrame
 
-    filtered_data_: pd.DataFrame
+    filtered_wb_dmos_: pd.DataFrame
 
     def __init__(
         self,
@@ -236,8 +239,9 @@ class MobilisedAggregator(BaseAggregator):
     @base_aggregator_docfiller
     def aggregate(
         self,
-        data: pd.DataFrame,
-        data_mask: typing.Union[pd.DataFrame, None] = None,
+        wb_dmos: pd.DataFrame,
+        *,
+        wb_dmos_mask: typing.Union[pd.DataFrame, None] = None,
         **_: Unpack[dict[str, typing.Any]],
     ) -> Self:
         """%(aggregate_short)s.
@@ -248,17 +252,17 @@ class MobilisedAggregator(BaseAggregator):
 
         %(aggregate_return)s
         """
-        self.data = data
-        self.data_mask = data_mask
+        self.wb_dmos = wb_dmos
+        self.wb_dmos_mask = wb_dmos_mask
         groupby = list(self.groupby)
 
-        if not any(col in self.data.columns for col in self.INPUT_COLUMNS):
+        if not any(col in self.wb_dmos.columns for col in self.INPUT_COLUMNS):
             raise ValueError(f"None of the valid input columns {self.INPUT_COLUMNS} found in the passed dataframe.")
 
-        if not all(col in self.data.reset_index().columns for col in groupby):
+        if not all(col in self.wb_dmos.reset_index().columns for col in groupby):
             raise ValueError(f"Not all groupby columns {self.groupby} found in the passed dataframe.")
 
-        data_correct_index = data.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
+        data_correct_index = wb_dmos.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
 
         if not data_correct_index.index.is_unique:
             raise ValueError(
@@ -267,38 +271,38 @@ class MobilisedAggregator(BaseAggregator):
                 "Make sure that the passed data is unique for every groupby column combination."
             )
 
-        if data_mask is not None:
-            data_mask = data_mask.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
+        if wb_dmos_mask is not None:
+            wb_dmos_mask = wb_dmos_mask.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
 
-            if not data.index.equals(data_mask.index):
+            if not wb_dmos.index.equals(wb_dmos_mask.index):
                 raise ValueError(
                     "The datamask seems to be missing some data indices. "
                     "The datamask must have exactly the same indices as the data after grouping."
                 )
 
-            data_mask = data_mask.reindex(data_correct_index.index)
+            wb_dmos_mask = wb_dmos_mask.reindex(data_correct_index.index)
 
             # We remove all individual elements from the data that are flagged as implausible in the data mask.
-            self.filtered_data_ = data_correct_index.where(data_mask)
+            self.filtered_wb_dmos_ = data_correct_index.where(wb_dmos_mask)
             # And then we need to consider some special cases:
-            if "duration_s" in data_correct_index.columns and "duration_s" in data_mask.columns:
+            if "duration_s" in data_correct_index.columns and "duration_s" in wb_dmos_mask.columns:
                 # If the duration is implausible, we need to remove the whole walking bout
-                self.filtered_data_ = self.filtered_data_.where(data_mask["duration_s"])
+                self.filtered_wb_dmos_ = self.filtered_wb_dmos_.where(wb_dmos_mask["duration_s"])
             if "walking_speed_mps" in data_correct_index.columns:
                 walking_speed_filter = pd.Series(True, index=data_correct_index.index)
                 # Walking speed is also implausible, if stride length or cadence are implausible
-                if "stride_length_m" in data_mask.columns:
-                    walking_speed_filter &= data_mask["stride_length_m"]
-                if "cadence_spm" in data_mask.columns:
-                    walking_speed_filter &= data_mask["cadence_spm"]
-                self.filtered_data_.loc[:, "walking_speed_mps"] = self.filtered_data_.loc[:, "walking_speed_mps"].where(
-                    walking_speed_filter
-                )
+                if "stride_length_m" in wb_dmos_mask.columns:
+                    walking_speed_filter &= wb_dmos_mask["stride_length_m"]
+                if "cadence_spm" in wb_dmos_mask.columns:
+                    walking_speed_filter &= wb_dmos_mask["cadence_spm"]
+                self.filtered_wb_dmos_.loc[:, "walking_speed_mps"] = self.filtered_wb_dmos_.loc[
+                    :, "walking_speed_mps"
+                ].where(walking_speed_filter)
         else:
-            self.filtered_data_ = data_correct_index.copy()
+            self.filtered_wb_dmos_ = data_correct_index.copy()
 
         available_filters_and_aggs = self._select_aggregations(data_correct_index.columns)
-        self.aggregated_data_ = self._apply_aggregations(self.filtered_data_, groupby, available_filters_and_aggs)
+        self.aggregated_data_ = self._apply_aggregations(self.filtered_wb_dmos_, groupby, available_filters_and_aggs)
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
         self.aggregated_data_ = self.aggregated_data_.round(3)
