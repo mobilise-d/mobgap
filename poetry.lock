@@ -2395,19 +2395,19 @@ files = [
 
 [[package]]
 name = "tpcp"
-version = "0.27.0"
+version = "0.29.0"
 description = "Pipeline and Dataset helpers for complex algorithm evaluation."
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "tpcp-0.27.0-py3-none-any.whl", hash = "sha256:692b1f32c6f55b1e687792a1f12886f2b22b2f16f1ca1e604152a50b19cbbc69"},
-    {file = "tpcp-0.27.0.tar.gz", hash = "sha256:a4fa4b21bea112217e57172924e2c52eecdd53c6f5d2c2159e30c81523943037"},
+    {file = "tpcp-0.29.0-py3-none-any.whl", hash = "sha256:5538fd97a98debcecf28a67c149b828ac1bfbea1d5a732608abced9567f66457"},
+    {file = "tpcp-0.29.0.tar.gz", hash = "sha256:4a5e01647567196b90f2d70b1efa6546c8077763c8883ca8f755a2bb3fc28df2"},
 ]
 
 [package.dependencies]
 joblib = ">=1.3"
 numpy = ">=1.0"
-pandas = ">=1.4"
+pandas = ">=1.3"
 scikit-learn = ">=1.3"
 tqdm = ">=4.62.3"
 typing-extensions = ">=4.1.1"
@@ -2520,4 +2520,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "ceda3558a84f937617e87032f2b8571d3ab2b14b853a8b11d913ac37ccd1e11f"
+content-hash = "86c16fc0082e4e3822682c6b006fe523c943f1158572f9fa901f3a74ea073900"
