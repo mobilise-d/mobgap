@@ -122,7 +122,7 @@ def _load_dmo_data(dmo_path: Path, timezone_per_subject: pd.DataFrame) -> tuple[
     warnings.warn(
         "Initial data loading. This might take a while! But, don't worry, we cache the loaded results.\n\n"
         "If you are seeing this message multiple times, you might want to consider using a joblib memory by "
-        "passing ``memory=Memory('some/cache/path)`` to the dataset constructor to cache the index creation"
+        "passing ``memory=Memory('some/cache/path)`` to the dataset constructor to cache the index creation "
         "between script executions.",
         stacklevel=1,
     )
