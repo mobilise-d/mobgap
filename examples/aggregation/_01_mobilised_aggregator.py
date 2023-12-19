@@ -41,7 +41,7 @@ data_mask.head()
 # The data is grouped using additional columns in the input data, which are not used for the aggregation itself.
 # In this example, the data is grouped by participant (`subject_code`) and day (`visit_date`).
 agg = MobilisedAggregator(groupby=["subject_code", "visit_date"])
-agg.aggregate(data, data_mask=data_mask)
+agg.aggregate(data, wb_dmos_mask=data_mask)
 
 # %%
 # The resulting :class:`pandas.DataFrame` containing the aggregated data contains one row for every group.
