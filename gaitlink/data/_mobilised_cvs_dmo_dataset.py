@@ -63,19 +63,16 @@ TIME_ZONES: dict[SITE_CODES, str] = {
 
 
 def _create_index(
-    dmo_path: Path, site_pid_map_path: Path, timezones: dict[SITE_CODES, str], memory: Memory
+    dmo_path: Path, site_pid_map_path: Path, timezones: dict[SITE_CODES, str], memory: Memory, visit_type: str
 ) -> pd.DataFrame:
     cache = hybrid_cache(memory, 1)
     site_data = cache(_load_site_pid_map)(site_pid_map_path=site_pid_map_path, timezones=timezones)
-    dmo_data, _ = cache(_load_dmo_data)(dmo_path=dmo_path, timezone_per_subject=site_data)
-
-    visit_type = dmo_path.name.split("-")[1].upper()
+    dmo_data, _ = cache(_load_dmo_data)(dmo_path=dmo_path, timezone_per_subject=site_data, visit_type=visit_type)
 
     return (
-        dmo_data.index.to_frame()[["participant_id", "measurement_date"]]
+        dmo_data.index.to_frame()[["visit_type", "participant_id", "measurement_date"]]
         .drop_duplicates()
         .reset_index(drop=True)
-        .assign(visit_type=visit_type)
         .astype({"participant_id": "string", "measurement_date": "string"})[
             ["visit_type", "participant_id", "measurement_date"]
         ]
@@ -118,7 +115,9 @@ def _load_pid_mid_map(compliance_report: Path) -> pd.DataFrame:
     )
 
 
-def _load_dmo_data(dmo_path: Path, timezone_per_subject: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _load_dmo_data(
+    dmo_path: Path, timezone_per_subject: pd.DataFrame, visit_type: str
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     warnings.warn(
         "Initial data loading. This might take a while! But, don't worry, we cache the loaded results.\n\n"
         "If you are seeing this message multiple times, you might want to consider using a joblib memory by "
@@ -158,9 +157,10 @@ def _load_dmo_data(dmo_path: Path, timezone_per_subject: pd.DataFrame) -> tuple[
                 "wbday",
                 *dmos,
                 *dmos_flag,
+                "visit_number",
             ]
         ]
-        .rename(columns={"participantid": "participant_id"})
+        .rename(columns={"participantid": "participant_id", "visit_number": "visit_type"})
         .assign(visit_date_utc=lambda df_: pd.to_datetime(df_["visit_date"], unit="s", utc=True))
         .drop("visit_date", axis=1)
         .merge(timezone_per_subject, left_on="participant_id", right_index=True, how="left")
@@ -178,9 +178,18 @@ def _load_dmo_data(dmo_path: Path, timezone_per_subject: pd.DataFrame) -> tuple[
                 "participant_id": "string",
             }
         )
-        .set_index(["participant_id", "measurement_date", "wb_id"])
+        .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
         .sort_index()
     )
+
+    if len(visit_types := dmo_data.index.get_level_values("visit_type").unique().to_list()) != 1:
+        warnings.warn(
+            "The visit_type is not unique. This should not happen! The data contains the following types: "
+            f"{visit_types}. It should only contain data from {visit_type}. "
+            "We will drop all data that does not match the expected visit_type."
+        )
+        dmo_data = dmo_data.loc[[visit_type]]
+
     dmo_flag_data = dmo_data[dmos_flag].rename(columns=lambda c: c.replace("_flag", "")).rename(columns=dmo_rename_dict)
     dmo_data = dmo_data.drop(dmos_flag, axis=1).rename(columns=dmo_rename_dict)
 
@@ -368,6 +377,7 @@ class MobilisedCvsDmoDataset(Dataset):
         return hybrid_cache(self.memory, 1)(_load_dmo_data)(
             dmo_path=Path(self.dmo_export_path),
             timezone_per_subject=self._get_participant_site_metadata(),
+            visit_type=self.visit_type,
         )
 
     def _extract_relevant_data(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -380,13 +390,9 @@ class MobilisedCvsDmoDataset(Dataset):
         if not is_full_dataset:
             # That was the fastest version I found so far, but this is still slow as hell, if you have a large number of
             # participants still in the dataset....
-            query_index = pd.MultiIndex.from_frame(self.index.drop("visit_type", axis=1))
+            query_index = pd.MultiIndex.from_frame(self.index)
             data = data.reset_index("wb_id").loc[query_index]
-        return (
-            data.assign(visit_type=self.visit_type)
-            .reset_index()
-            .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
-        )
+        return data.reset_index().set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
 
     @property
     def data(self):
@@ -418,4 +424,5 @@ class MobilisedCvsDmoDataset(Dataset):
             Path(self.site_pid_map_path),
             self.TIME_ZONES,
             memory=self.memory,
+            visit_type=self.visit_type,
         )
