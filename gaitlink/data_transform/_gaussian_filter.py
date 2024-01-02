@@ -23,10 +23,7 @@ class GaussianFilter(BaseTransformer):
     data : np.ndarray
         The input data (assumed to be a NumPy array).
 
-    Methods
-    -------
-    transform(data)
-        Perform the blurring action on the input data.
+
     """
 
     def __init__(self, sigma: float = 1.0) -> None:
