@@ -36,3 +36,13 @@ plt.colorbar(label="Magnitude")
 
 plt.tight_layout()
 plt.show()
+
+
+
+# We can also try the implementation of the code this way:
+# wavelet_func = morlet
+# width_param = 5.0
+# cwt_filter = CwtFilter(wavelet_func, width_param)
+#
+# # Now run the test
+# cwt_filter.test_transform()

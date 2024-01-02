@@ -2,11 +2,13 @@ from typing import Optional
 
 import pandas as pd
 from scipy.signal import savgol_filter
-
+from typing_extensions import  Self
 from gaitlink.data_transform.base import BaseTransformer
 
 
 class SavgolFilter(BaseTransformer):
+    transformed_data_: pd.DataFrame  # Class-level type hint for transformed_data_
+
     def __init__(self, window_length: int = 5, polyorder: int = 2) -> None:
         """
         Initialize the SavgolFilter with specified parameters.
@@ -20,10 +22,9 @@ class SavgolFilter(BaseTransformer):
         """
         self.window_length = window_length
         self.polyorder = polyorder
-        self.transformed_data_ = pd.DataFrame()  # Initialize transformed_data_ to None
+        self.transformed_data_ = pd.DataFrame()  # Initialize transformed_data_ to an empty DataFrame
 
-
-    def transform(self, data: pd.DataFrame) -> "SavgolFilter":
+    def transform(self, data: pd.DataFrame) -> Self:
         """
         Apply the Savitzky-Golay filter to smoothen the input data.
 
