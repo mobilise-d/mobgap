@@ -25,6 +25,9 @@ class GsdValidator:
     tp_intervals_: pd.DataFrame
     fp_intervals_: pd.DataFrame
     fn_intervals_: pd.DataFrame
+    tp_samples_: int
+    fp_samples_: int
+    fn_samples_: int
 
     def __init__(self, gap_size=0):
         self.gap_size = gap_size  # TODO should we use this?
@@ -43,7 +46,13 @@ class GsdValidator:
         self.gsd_list_detected = gsd_list_detected
         self.gsd_list_reference = gsd_list_reference
         self.tp_intervals_, self.fp_intervals_, self.fn_intervals_ = self._categorize_intervals()
+        self.tp_samples_, self.fp_samples_, self.fn_samples_ = (
+            self._count_samples_in_intervals(self.tp_intervals_),
+            self._count_samples_in_intervals(self.fp_intervals_),
+            self._count_samples_in_intervals(self.fn_intervals_),
+        )
         # self.matches_ = self._find_matches_with_min_overlap()
+        return self
 
     def _categorize_intervals(self):
         # Create Interval Trees
@@ -80,11 +89,21 @@ class GsdValidator:
                 fn_intervals.extend(fn_matches)
 
         # Convert lists to DataFrames
-        tp_intervals = pd.DataFrame(tp_intervals, columns=["start", "end"])
-        fp_intervals = pd.DataFrame(fp_intervals, columns=["start", "end"])
-        fn_intervals = pd.DataFrame(fn_intervals, columns=["start", "end"])
+        tp_intervals = pd.DataFrame(self._sort_intervals(tp_intervals), columns=["start", "end"])
+        fp_intervals = pd.DataFrame(self._sort_intervals(fp_intervals), columns=["start", "end"])
+        fn_intervals = pd.DataFrame(self._sort_intervals(fn_intervals), columns=["start", "end"])
 
         return tp_intervals, fp_intervals, fn_intervals
+
+    @staticmethod
+    def _sort_intervals(intervals: list[list[int]]) -> Sequence[list[int]]:
+        if len(intervals) == 0:
+            return intervals
+        return np.sort(intervals, axis=0, kind="stable")
+
+    @staticmethod
+    def _count_samples_in_intervals(intervals: pd.DataFrame) -> int:
+        return (intervals["end"] - intervals["start"]).sum()
 
     @staticmethod
     def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Interval) -> list[list[int]]:
