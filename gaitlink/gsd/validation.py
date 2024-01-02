@@ -1,3 +1,8 @@
+"""Class to validate gait sequence detection results."""
+from collections.abc import Sequence
+from typing import Self
+
+import numpy as np
 import pandas as pd
 from intervaltree import IntervalTree
 from intervaltree.interval import Interval
@@ -5,6 +10,8 @@ from intervaltree.interval import Interval
 
 class GsdValidator:
     """
+    Assess gait sequence detector performance by comparing the detected gait sequences to a reference.
+
     Parameters
     ----------
     gap_size : int
@@ -29,11 +36,13 @@ class GsdValidator:
     fp_samples_: int
     fn_samples_: int
 
-    def __init__(self, gap_size=0):
+    def __init__(self, gap_size: int = 0) -> None:
         self.gap_size = gap_size  # TODO should we use this?
 
-    def validate(self, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame):
+    def validate(self, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> Self:
         """
+        Validate detected gait sequence intervals against a reference.
+
         Parameters
         ----------
         gsd_list_detected: pd.DataFrame
@@ -54,7 +63,7 @@ class GsdValidator:
         # self.matches_ = self._find_matches_with_min_overlap()
         return self
 
-    def _categorize_intervals(self):
+    def _categorize_intervals(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         # Create Interval Trees
         reference_tree = IntervalTree.from_tuples(self.gsd_list_reference.values)
         detected_tree = IntervalTree.from_tuples(self.gsd_list_detected.values)
@@ -71,7 +80,7 @@ class GsdValidator:
                 fp_matches = self._get_false_matches_from_overlap_data(overlaps, interval)
                 fp_intervals.extend(fp_matches)
 
-                for i, overlap in enumerate(overlaps):
+                for overlap in overlaps:
                     start = max(interval.begin, overlap.begin)
                     end = min(interval.end, overlap.end)
                     tp_intervals.append([start, end])
@@ -127,6 +136,7 @@ class GsdValidator:
                 if next_el and interval.end > next_el.begin:
                     # skip because this will be handled by the next iteration
                     continue
+                    # fn_end = next_el.begin
                 f_intervals.append([overlap.end, fn_end])
 
         return f_intervals
@@ -169,7 +179,8 @@ class GsdValidator:
                     # Then calculate the relative overlap
                     relative_overlap_interval = absolute_overlap / (interval[1] - interval[0])
                     relative_overlap_match = absolute_overlap / (match[1] - match[0])
-                    if relative_overlap_interval >= self.interval_overlap_threshold and relative_overlap_match >= self.match_overlap_threshold:
+                    if relative_overlap_interval >= self.interval_overlap_threshold and relative_overlap_match
+                    >= self.match_overlap_threshold:
                         final_matches.append((match[0], match[1]))
                         break
                 else:
@@ -179,19 +190,3 @@ class GsdValidator:
 
         return final_matches
         """
-
-    def print_results(self):
-        print("True Positives:\n\n", self.tp_intervals_)
-        print("\nFalse Positives:\n\n", self.fp_intervals_)
-        print("\nFalse Negatives:\n\n", self.fn_intervals_)
-        print("-" * 30)
-
-
-if __name__ == "__main__":
-    detected = pd.DataFrame([[2, 4], [5, 7]], columns=["start", "end"])
-    reference = pd.DataFrame([[1, 8]], columns=["start", "end"])
-    validator = GsdValidator()
-    validator.validate(detected, reference)
-    validator.print_results()
-    validator.validate(reference, detected)
-    validator.print_results()
