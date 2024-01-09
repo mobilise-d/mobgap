@@ -104,5 +104,6 @@ def shin_algo_improved(imu_acc, fs, data='norm'):
     IC_lowSNR = IC_lowSNR[0]
     IC_lowSNR = np.round(IC_lowSNR)
     IC = IC_lowSNR  # in sample
+   #IC = IC / target_sampling_rate  # in seconds
 
     return IC

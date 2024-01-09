@@ -12,16 +12,22 @@ from gaitlink.data._mobilised_matlab_loader import GenericMobilisedDataset
 
 #Load data
 example_data = LabExampleDataset(reference_system = "INDIP")
-ha_example_data = example_data.get_subset(cohort="MS")
+ha_example_data = example_data.get_subset(cohort="HA")
 single_test = ha_example_data.get_subset(participant_id="001", test="Test11", trial="Trial1")
 imu_data = single_test.data["LowerBack"]
 imu_acc = imu_data.filter(like="acc")
 imu_gyr = imu_data.filter(like="gyr")
 fs = single_test.sampling_rate_hz
 
+
+# m/s2 to g
+# imu_acc = pd.DataFrame(imu_acc)
+# imu_acc = imu_acc/9.81
+
 GS = single_test.reference_parameters_['wb']
 GS = [{"Start": r["Start"], "End": r["End"]} for r in GS]
 GS = pd.DataFrame.from_records(GS)
+
 
 DATA = np.concatenate((imu_acc, imu_gyr), axis=1)
 

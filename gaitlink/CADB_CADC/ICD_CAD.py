@@ -36,6 +36,7 @@ def InitialContactDetection(Accelerometer, fs, GS, algs, data='x'):
             stopvec[i] = int(np.floor(GS['End'][i] * fs))
             chosenacc = Accelerometer[startvec[i]:stopvec[i], :]
 
+
             if 'HKLee_Imp' in algs:  # 1
                 IC_HKLee_improved = hklee_algo_improved(chosenacc, fs, chosen_data)
                 SD_Output['IC'].append(IC_HKLee_improved)

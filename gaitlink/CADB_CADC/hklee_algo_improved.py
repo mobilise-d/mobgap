@@ -4,7 +4,6 @@ from scipy.signal import savgol_filter, cwt, ricker
 from scipy.ndimage import label, binary_closing, binary_opening, gaussian_filter, grey_closing, grey_opening
 from gaitmap.utils.array_handling import bool_array_to_start_end_array
 import csv
-
 from gaitlink.data_transform import EpflDedriftedGaitFilter
 from resampInterp import resampInterp
 
@@ -81,7 +80,7 @@ def hklee_algo_improved(imu_acc, fs, data='norm'):
 
     # Resample to 100Hz for consistency with the original data (for ICD) or to 120 for consistency with original paper
     current_sampling_rate = 40
-    target_sampling_rate = 100
+    target_sampling_rate = 120
     resampler = Resample(target_sampling_rate)
     resampler.transform(data=accN_MultiFilt_rmp, sampling_rate_hz=current_sampling_rate)
     accN_MultiFilt_rmp120 = resampler.transformed_data_
@@ -100,7 +99,7 @@ def hklee_algo_improved(imu_acc, fs, data='norm'):
 
     if np.any(R > 0):
         idx = bool_array_to_start_end_array(R > 0)
-        IC_lowSNR = np.zeros(len(idx), dtype=int)
+        IC_lowSNR = np.zeros(len(idx), dtype=float)
         for j in range(len(idx)):
             start_idx, end_idx = idx[j, 0], idx[j, 1]
             values_within_range = R[start_idx:end_idx + 1]
@@ -110,8 +109,7 @@ def hklee_algo_improved(imu_acc, fs, data='norm'):
             IC_lowSNR[j] = imax
 
 
-        # IC in seconds
-    IC = IC_lowSNR
+    IC = IC_lowSNR #seconds
     #IC = IC_lowSNR / target_sampling_rate
 
     return IC
