@@ -18,7 +18,7 @@ class CategorizedIntervals(NamedTuple):
 
 def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> CategorizedIntervals:
     """
-    Validate detected gait sequence intervals against a reference.
+    Validate detected gait sequence intervals against a reference on a sample-wise level.
 
     Each sample from the detected interval list is categorized as true positive (TP),
     false positive (FP) or false negative (FN).
