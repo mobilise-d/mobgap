@@ -1,6 +1,7 @@
 """Class to validate gait sequence detection results."""
 from typing import NamedTuple
 
+import numpy as np
 import pandas as pd
 from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
@@ -42,7 +43,7 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     # check if input is a dataframe with two columns
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
-    if gsd_list_detected.shape[1] >= 2 or gsd_list_reference.shape[1] >= 2:
+    if gsd_list_detected.shape[1] < 2 or gsd_list_reference.shape[1] < 2:
         raise ValueError(
             "`gsd_list_detected` and `gsd_list_reference` must have at least two columns, with the first column "
             "containing the start and the second column containing the end indices of the gait sequences."
@@ -81,10 +82,17 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
             fn_matches = _get_false_matches_from_overlap_data(overlaps, interval)
             fn_intervals.extend(fn_matches)
 
-    # Convert lists to DataFrames
-    tp_intervals = pd.DataFrame(merge_intervals(tp_intervals), columns=["start", "end"])
-    fp_intervals = pd.DataFrame(merge_intervals(fp_intervals), columns=["start", "end"])
-    fn_intervals = pd.DataFrame(merge_intervals(fn_intervals), columns=["start", "end"])
+    # Sort intervals in result lists if not empty
+    if not len(tp_intervals) == 0:
+        tp_intervals = merge_intervals(np.array(tp_intervals))
+    if not len(fp_intervals) == 0:
+        fp_intervals = merge_intervals(np.array(fp_intervals))
+    if not len(fn_intervals) == 0:
+        fn_intervals = merge_intervals(np.array(fn_intervals))
+    # convert results to pandas DataFrame
+    tp_intervals = pd.DataFrame(tp_intervals, columns=["start", "end"])
+    fp_intervals = pd.DataFrame(fp_intervals, columns=["start", "end"])
+    fn_intervals = pd.DataFrame(fn_intervals, columns=["start", "end"])
 
     result = CategorizedIntervals(tp_intervals=tp_intervals, fp_intervals=fp_intervals, fn_intervals=fn_intervals)
 
@@ -116,7 +124,6 @@ def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Int
             f_intervals.append([overlap.end, fn_end])
 
     return f_intervals
-
 
 def find_matches_with_min_overlap(
     gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, overlap_threshold: float = 0.8

@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 
-from gaitlink.gsd.validation import GsdValidator
+from gaitlink.gsd.validation import categorize_intervals
 
 
 @pytest.fixture()
@@ -96,21 +96,16 @@ class TestGsdValidation:
         self._assert_equal_tp_fp_fn(intervals_example, intervals_example_shifted, overlap, fp_overlap, fn_overlap)
         self._assert_equal_tp_fp_fn(intervals_example_shifted, intervals_example, overlap, fn_overlap, fp_overlap)
 
-    def test_count_samples(self, intervals_example_as_df):
-        num_samples_interval = 4
-        num_samples = GsdValidator()._count_samples_in_intervals(intervals_example_as_df)
-        assert num_samples == num_samples_interval
-
     @staticmethod
     def _assert_equal_tp_fp_fn(detected, reference, expected_tp, expected_fp, expected_fn):
-        v = GsdValidator().validate(pd.DataFrame(detected), pd.DataFrame(reference))
+        result = categorize_intervals(pd.DataFrame(detected), pd.DataFrame(reference))
         expected_tp = pd.DataFrame(expected_tp, columns=["start", "end"])
         expected_fp = pd.DataFrame(expected_fp, columns=["start", "end"])
         expected_fn = pd.DataFrame(expected_fn, columns=["start", "end"])
 
-        tp = v.tp_intervals_
-        fp = v.fp_intervals_
-        fn = v.fn_intervals_
+        tp = result.tp_intervals
+        fp = result.fp_intervals
+        fn = result.fn_intervals
 
         assert_frame_equal(tp, expected_tp)
         assert_frame_equal(fp, expected_fp)
