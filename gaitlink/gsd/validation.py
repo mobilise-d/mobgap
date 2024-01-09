@@ -117,52 +117,78 @@ def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Int
 
     return f_intervals
 
+
+def find_matches_with_min_overlap(
+    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, overlap_threshold: float = 0.8
+) -> pd.DataFrame:
     """
-    def _find_matches_with_min_overlap(self) -> Sequence[Tuple[int, int]]:
-      '''
-      Find all matches of interval_seq_query in interval_seq with at least overlap_threshold overlap.
+    Find all matches of `gsd_list_detected` in `gsd_list_reference` with at least overlap_threshold overlap.
 
-        Note, that the threshold is enforced in both directions!
-        The overlap region must cover at least the threshold value of both matched intervals.
+    Note, that the threshold is enforced in both directions. That means, that the relative overlap of the detected gait
+    sequence with respect to the overall length of the detected interval AND to the overall length of the matched
+    reference interval must be at least `overlap_threshold`.
 
-        Note, we assume that `interval_seq` has no overlaps, but we don't enforce it!
+    Note, we assume that `gsd_list_detected` has no overlaps, but we don't enforce it!
 
-      interval_overlap_threshold: float
-            The minimum relative overlap between a gait sequence in the input and reference to be considered a match.
-            Must be larger than 0 and smaller than or equal to 1.
-        match_overlap_threshold: float
-            The minimum percentage of a detected gait sequence that needs to overlap with a reference sequence to be
-            considered a match.
-            Must be larger than 0 and smaller than or equal to 1.
-        '''
-        if self.interval_overlap_threshold <= 0.5:
-            raise ValueError(
-                "overlap_threshold must be greater than 0.5."
-                "Otherwise multiple matches between intervals "
-                "are possible."
-            )
-        if self.interval_overlap_threshold > 1:
-            raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
-        tree = IntervalTree.from_tuples(self.gsd_list_reference.values)
+    Parameters
+    ----------
+    gsd_list_detected: pd.DataFrame
+       Each row contains a detected gait sequence interval as output from the GSD algorithms.
+       The respective start index is stored in the first and the stop index in the second column.
+       Furthermore, the id of the respective gait sequence can be provided in the third column.
+    gsd_list_reference: pd.DataFrame
+       Gold standard to validate the detected gait sequences against.
+       Should have the same format as `gsd_list_detected`.
+    overlap_threshold: float
+        The minimum relative overlap between a detected sequence and its reference with respect to the length of both
+         intervals.
+        Must be larger than 0.5 and smaller than or equal to 1.
 
-        final_matches = []
-        for interval in self.gsd_list.values:
-            matches = tree[interval[0]: interval[1]]
-            if len(matches) > 0:
-                for match in matches:
-                    # First calculate the absolute overlap
-                    absolute_overlap = match.overlap_size(interval[0], interval[1])
-                    # Then calculate the relative overlap
-                    relative_overlap_interval = absolute_overlap / (interval[1] - interval[0])
-                    relative_overlap_match = absolute_overlap / (match[1] - match[0])
-                    if relative_overlap_interval >= self.interval_overlap_threshold and relative_overlap_match
-                    >= self.match_overlap_threshold:
-                        final_matches.append((match[0], match[1]))
-                        break
-                else:
-                    final_matches.append(None)
-            else:
-                final_matches.append(None)
+    Returns
+    -------
+    pandas.DataFrame
+        A dataframe containing the intervals from `gsd_list_detected` that overlap with `gsd_list_reference` with the
+        specified minimum overlap. The dataframe contains the start and end indices of the intervals as well as the
+        gait sequence ids, if provided.
+    """
+    # check if input is a dataframe with two columns
+    if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
+        raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
+    if (
+        gsd_list_detected.shape[1] < 2
+        or gsd_list_reference.shape[1] < 2
+        or gsd_list_detected.shape[1] != gsd_list_reference.shape[1]
+    ):
+        raise ValueError(
+            "`gsd_list_detected` and `gsd_list_reference` must have at least two columns as well as the same number of "
+            "columns, with the first column containing the start and the second column containing the end indices of "
+            "the gait sequences."
+        )
+    if overlap_threshold <= 0.5:
+        raise ValueError(
+            "overlap_threshold must be greater than 0.5."
+            "Otherwise multiple matches between intervals "
+            "are possible."
+        )
+    if overlap_threshold > 1:
+        raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
+    tree = IntervalTree.from_tuples(gsd_list_reference.values)
 
-        return final_matches
-        """
+    output_columns = ["start", "end"] if gsd_list_detected.shape[1] == 2 else ["start", "end", "gsd_id"]
+    final_matches = []
+
+    for interval in gsd_list_detected.to_numpy():
+        matches = tree[interval[0] : interval[1]]
+        if len(matches) > 0:
+            for match in matches:
+                # First calculate the absolute overlap
+                absolute_overlap = match.overlap_size(interval[0], interval[1])
+                # Then calculate the relative overlap
+                relative_overlap_interval = absolute_overlap / (interval[1] - interval[0])
+                relative_overlap_match = absolute_overlap / (match[1] - match[0])
+                if relative_overlap_interval >= overlap_threshold and relative_overlap_match >= overlap_threshold:
+                    final_matches.append(match[:3])
+                    break
+
+    final_matches = pd.DataFrame(final_matches, columns=output_columns)
+    return final_matches
