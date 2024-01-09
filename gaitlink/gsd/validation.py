@@ -179,12 +179,12 @@ def find_matches_with_min_overlap(
         )
     if overlap_threshold > 1:
         raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
-    tree = IntervalTree.from_tuples(gsd_list_reference.values)
+    tree = IntervalTree.from_tuples(gsd_list_detected.values)
 
-    output_columns = ["start", "end"] if gsd_list_detected.shape[1] == 2 else ["start", "end", "gsd_id"]
+    output_columns = ["start", "end"] if gsd_list_detected.shape[1] == 2 else ["start", "end", "id"]
     final_matches = []
 
-    for interval in gsd_list_detected.to_numpy():
+    for interval in gsd_list_reference.to_numpy():
         matches = tree[interval[0] : interval[1]]
         if len(matches) > 0:
             for match in matches:
@@ -194,7 +194,8 @@ def find_matches_with_min_overlap(
                 relative_overlap_interval = absolute_overlap / (interval[1] - interval[0])
                 relative_overlap_match = absolute_overlap / (match[1] - match[0])
                 if relative_overlap_interval >= overlap_threshold and relative_overlap_match >= overlap_threshold:
-                    final_matches.append(match[:3])
+                    to_append = list(match)[:3] if gsd_list_detected.shape[1] > 2 else list(match)[:2]
+                    final_matches.append(to_append)
                     break
 
     final_matches = pd.DataFrame(final_matches, columns=output_columns)
