@@ -39,6 +39,17 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     CategorizedIntervals
         A NamedTuple containing the three result dataframes `tp_intervals`,
         `fp_intervals` and `fn_intervals` as attributes.
+
+    Examples
+    --------
+    >>> from gaitlink.gsd.validation import categorize_intervals
+    >>> detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
+    >>> reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
+    >>> result = categorize_intervals(detected, reference)
+    >>> result.tp_intervals
+       start  end
+    0      0   10
+    1     20   25
     """
     # check if input is a dataframe with two columns
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
@@ -157,6 +168,15 @@ def find_matches_with_min_overlap(
         A dataframe containing the intervals from `gsd_list_detected` that overlap with `gsd_list_reference` with the
         specified minimum overlap. The dataframe contains the start and end indices of the intervals as well as the
         gait sequence ids, if provided.
+
+    Examples
+    --------
+    >>> from gaitlink.gsd.validation import find_matches_with_min_overlap
+    >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"])
+    >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"])
+    >>> result = find_matches_with_min_overlap(detected, reference)
+       start  end  id
+    0      0   10   0
     """
     # check if input is a dataframe with two columns
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
