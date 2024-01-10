@@ -48,15 +48,19 @@ def load_weartime_from_daily_mcroberts_report(path: Path, waking_hours: tuple[fl
     )
     per_min_report["visit_date"] = per_min_report["interval_starttime"].dt.date
     per_min_report = per_min_report.set_index("interval_starttime")
-    result = per_min_report.groupby("visit_date").agg(
-        total_worn_h=("DUR_total_worn", "sum"),
-        total_worn_during_waking_h=(
-            "DUR_total_worn",
-            lambda x: x[
-                (x.index.time >= datetime.fromtimestamp(waking_hours_as_seconds[0]).time())
-                & (x.index.time < datetime.fromtimestamp(waking_hours_as_seconds[1]).time())
-            ].sum(),
-        ),
+    result = (
+        per_min_report.groupby("visit_date")
+        .agg(
+            total_worn_h=("DUR_total_worn", "sum"),
+            total_worn_during_waking_h=(
+                "DUR_total_worn",
+                lambda x: x[
+                    (x.index.time >= datetime.fromtimestamp(waking_hours_as_seconds[0]).time())
+                    & (x.index.time < datetime.fromtimestamp(waking_hours_as_seconds[1]).time())
+                ].sum(),
+            ),
+        )
+        .fillna(0)
     )
 
     return result / 3600

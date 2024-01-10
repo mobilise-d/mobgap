@@ -1,3 +1,4 @@
+import multiprocessing
 import warnings
 from functools import lru_cache
 from pathlib import Path
@@ -100,13 +101,13 @@ def _load_pid_mid_map(compliance_report: Path) -> pd.DataFrame:
         .assign(
             visit_type=lambda df_: df_["visit_type"].replace(
                 {
-                    "Baseline Visit – daily mobility": "T1",
-                    "Follow-up (T2) – daily mobility": "T2",
-                    "Follow-up (T3) – daily mobility": "T3",
-                    "Follow-up (T4) – daily mobility": "T4",
-                    "Follow-up (T5) – daily mobility": "T5",
-                    "Follow-up (T6) – daily mobility": "T6",
-                    "Unscheduled Visit (--) – daily mobility": "UV",
+                    "Baseline Visit – daily mobility": "T1",  # noqa: RUF001
+                    "Follow-up (T2) – daily mobility": "T2",  # noqa: RUF001
+                    "Follow-up (T3) – daily mobility": "T3",  # noqa: RUF001
+                    "Follow-up (T4) – daily mobility": "T4",  # noqa: RUF001
+                    "Follow-up (T5) – daily mobility": "T5",  # noqa: RUF001
+                    "Follow-up (T6) – daily mobility": "T6",  # noqa: RUF001
+                    "Unscheduled Visit (--) – daily mobility": "UV",  # noqa: RUF001
                 }
             )
         )
@@ -125,7 +126,6 @@ def _load_dmo_data(
         "between script executions.",
         stacklevel=1,
     )
-    timezone_per_subject = timezone_per_subject
 
     dmos = [
         "duration",
@@ -184,9 +184,12 @@ def _load_dmo_data(
 
     if len(visit_types := dmo_data.index.get_level_values("visit_type").unique().to_list()) != 1:
         warnings.warn(
-            "The visit_type is not unique. This should not happen! The data contains the following types: "
-            f"{visit_types}. It should only contain data from {visit_type}. "
-            "We will drop all data that does not match the expected visit_type."
+            "The visit_type is not unique."
+            f"This should not happen! The data contains the following types: {visit_types}. "
+            f"It should only contain data from {visit_type}. "
+            "We will drop all data that does not match the expected visit_type. "
+            "Please check your data and make sure that you are using the correct data file.",
+            stacklevel=2,
         )
         dmo_data = dmo_data.loc[[visit_type]]
 
@@ -260,7 +263,7 @@ class MobilisedCvsDmoDataset(Dataset):
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     @property
-    def visit_type(self):
+    def visit_type(self) -> str:
         return self.dmo_export_path.split("-")[1].upper()
 
     def _get_participant_site_metadata(self) -> pd.DataFrame:
@@ -313,20 +316,27 @@ class MobilisedCvsDmoDataset(Dataset):
                     non_available.append(mid.measurement_id)
                 warnings.warn(
                     f"Could not find the wear-time data for the following measurement ids {non_available}. "
-                    f"This corresponds to ({len(non_available)} out of {len(relevant_mid)}) participants. "
+                    f"This corresponds to ({len(non_available)} out of {len(relevant_mid)}) participants.",
+                    stacklevel=1,
                 )
             wear_time = self._calculate_daily_weartime(files)
         # We merge the weartime report with the dataset index to get NaNs for all participants that don't have any
         # weartime data, but are still in the dataset.
-        return (
-            self.index.merge(wear_time, on=["visit_type", "participant_id", "measurement_date"], how="left")
-            .drop(["measurement_id"], axis=1)
-            # TODO: For some reason we sometimes get duplicate indices in the weartime, as multiple weartime reports
-            #       exist for some participants.
-            #       We drop them for now, but this should be investigated further.
-            .drop_duplicates()
-            .set_index(["visit_type", "participant_id", "measurement_date"])
-        )
+        wear_time = self.index.merge(
+            wear_time, on=["visit_type", "participant_id", "measurement_date"], how="left"
+        ).drop(["measurement_id"], axis=1)
+
+        if wear_time.duplicated().any():
+            warnings.warn(
+                "The weartime report contains duplicate indices. "
+                "This indicates that multiple weartime reports exist for the same participant. "
+                "This should not happen! We will drop all duplicate indices for now (keeping the first one). "
+                "You should investigate this further!",
+                stacklevel=2,
+            )
+            wear_time = wear_time.drop_duplicates()
+
+        return wear_time.set_index(["visit_type", "participant_id", "measurement_date"])
 
     def _get_precomputed_daily_weartime(self) -> pd.DataFrame:
         try:
@@ -335,19 +345,22 @@ class MobilisedCvsDmoDataset(Dataset):
             pass
 
         warnings.warn(
-            "Could not find the pre-computed daily weartime file. Computing it now. " "This might take a while!"
+            "Could not find the pre-computed daily weartime file. Computing it now. This might take a while!",
+            stacklevel=2,
         )
 
         files = list(Path(self.weartime_reports_base_path).glob("*_minute.csv"))
         results = self._calculate_daily_weartime(files)
 
         file_path = Path(self.weartime_reports_base_path) / self.WEARTIME_REPORT_CACHE_FILE_NAME
-        warnings.warn("Finished computing the daily weartime. Now saving the results to disk at:" f"{file_path}.")
+        warnings.warn(
+            "Finished computing the daily weartime. Now saving the results to disk at:" f"{file_path}.", stacklevel=2
+        )
         results.to_csv(file_path)
         return results
 
     def _calculate_daily_weartime(self, filelist: list[Path]) -> pd.DataFrame:
-        def process_single_file(path):
+        def process_single_file(path: Path) -> tuple[str, pd.DataFrame]:
             p_id = path.name.split("_")[-2]
             result = load_weartime_from_daily_mcroberts_report(path)
             return p_id, result
@@ -373,7 +386,7 @@ class MobilisedCvsDmoDataset(Dataset):
         results = results.merge(pid_mid_map, on=["measurement_id"]).set_index(["participant_id", "measurement_date"])
         return results
 
-    def _get_dmo_data(self):
+    def _get_dmo_data(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         return hybrid_cache(self.memory, 1)(_load_dmo_data)(
             dmo_path=Path(self.dmo_export_path),
             timezone_per_subject=self._get_participant_site_metadata(),
@@ -395,12 +408,12 @@ class MobilisedCvsDmoDataset(Dataset):
         return data.reset_index().set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
 
     @property
-    def data(self):
+    def data(self) -> pd.DataFrame:
         dmo_data, _ = self._get_dmo_data()
         return self._extract_relevant_data(dmo_data)
 
     @property
-    def data_mask(self):
+    def data_mask(self) -> pd.DataFrame:
         _, dmo_flag_data = self._get_dmo_data()
         return self._extract_relevant_data(dmo_flag_data)
 
@@ -419,6 +432,17 @@ class MobilisedCvsDmoDataset(Dataset):
         return self._get_participant_site_metadata().loc[p_id, "timezone"]
 
     def create_index(self) -> pd.DataFrame:
+        if multiprocessing.parent_process() is None:
+            warnings.warn(
+                "The `MobilisedCvsDmoDataset` class still lacks extensive testing and might not load all data "
+                "as expected. "
+                "It was only tested manually on the DMO data of the T1 study using the newest available McRoberts "
+                "format for weartime reports available in Dec. 2023. "
+                "If you encounter any issues, please report them on GitHub: ",
+                UserWarning,
+                stacklevel=2,
+            )
+
         return hybrid_cache(self.memory, 1)(_create_index)(
             Path(self.dmo_export_path),
             Path(self.site_pid_map_path),
