@@ -87,6 +87,7 @@ def _load_site_pid_map(site_pid_map_path: Path, timezones: dict[SITE_CODES, str]
         pd.read_csv(site_pid_map_path)[["Local.Participant", "Participant.Site"]]
         .rename(columns={"Local.Participant": "participant_id", "Participant.Site": "site"})
         .join(timezones_df, on="site")
+        .astype({"participant_id": "string", "site": "string", "timezone": "string"})
         .set_index("participant_id")
     )
     return site_data
@@ -161,6 +162,12 @@ def _load_dmo_data(
             ]
         ]
         .rename(columns={"participantid": "participant_id", "visit_number": "visit_type"})
+        .astype(
+            {
+                "wb_id": "string",
+                "participant_id": "string",
+            }
+        )
         .assign(visit_date_utc=lambda df_: pd.to_datetime(df_["visit_date"], unit="s", utc=True))
         .drop("visit_date", axis=1)
         .merge(timezone_per_subject, left_on="participant_id", right_index=True, how="left")
@@ -172,15 +179,19 @@ def _load_dmo_data(
         .astype(
             {
                 "measurement_date": "string",
-                "wb_id": "string",
                 "site": "string",
                 "timezone": "string",
-                "participant_id": "string",
             }
         )
         .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
         .sort_index()
     )
+
+    if dmo_data["timezone"].isna().any():
+        raise ValueError(
+            "For one or more visits either no valid site or no valid timezone for the respective site could be "
+            "identified."
+        )
 
     if len(visit_types := dmo_data.index.get_level_values("visit_type").unique().to_list()) != 1:
         warnings.warn(
@@ -270,7 +281,7 @@ class MobilisedCvsDmoDataset(Dataset):
         This is determined by the visit type in the filename of the dmo export file.
 
         """
-        return self.dmo_path.split("-")[1].upper()
+        return str(self.dmo_path.name).split("-")[1].upper()
 
     def _get_participant_site_metadata(self) -> pd.DataFrame:
         return hybrid_cache(self.memory, 1)(_load_site_pid_map)(
@@ -297,7 +308,7 @@ class MobilisedCvsDmoDataset(Dataset):
         """The daily weartime per participant.
 
         This is calculated from the minute to minute weartime reports provided by McRoberts.
-        This is optional and you might not have access to the weartime reports.
+        This is optional, and you might not have access to the weartime reports.
         """
         if self.weartime_reports_base_path is None:
             raise ValueError(
@@ -431,25 +442,46 @@ class MobilisedCvsDmoDataset(Dataset):
 
     @property
     def data(self) -> pd.DataFrame:
+        """The DMO data per WB.
+
+        This will provide a df with all DMOs, where each row corresponds to a single WB.
+        The df will include the data of all participants and days currently selected in the index of the dataset.
+        """
         dmo_data, _ = self._get_dmo_data()
         return self._extract_relevant_data(dmo_data)
 
     @property
     def data_mask(self) -> pd.DataFrame:
+        """The DMO data mask per WB.
+
+        A "true"/"false" flag for each individual DMO.
+        A "false" indicates that the specific DMO value might potentially be incorrect.
+        These flags are determined using some expert defined thresholds for likely valid ranges of DMOs.
+
+        The shaoe of the flags-df is identical to the shape of the DMO data-df, so that they can be directly overlayed.
+        """
         _, dmo_flag_data = self._get_dmo_data()
         return self._extract_relevant_data(dmo_flag_data)
 
     @property
     def measurement_site(self) -> SITE_CODES:
-        self.assert_is_single(None, "measurement_site")
-        p_id, _ = self.group_label
+        """The measurement site of the dataset.
+
+        This can only be accessed if the dataset only contains data from a single participant.
+        """
+        self.assert_is_single(["visit_type", "participant_id"], "measurement_site")
+        p_id = self.group_labels[0].participant_id
 
         return self._get_participant_site_metadata().loc[p_id, "site"]
 
     @property
     def timezone(self) -> str:
-        self.assert_is_single(None, "timezone")
-        p_id, _ = self.group_label
+        """The timezone of the measurement site.
+
+        This can only be accessed if the dataset only contains data from a single participant.
+        """
+        self.assert_is_single(["visit_type", "participant_id"], "timezone")
+        p_id = self.group_labels[0].participant_id
 
         return self._get_participant_site_metadata().loc[p_id, "timezone"]
 
