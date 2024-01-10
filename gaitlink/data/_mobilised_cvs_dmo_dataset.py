@@ -124,7 +124,7 @@ def _load_dmo_data(
         "If you are seeing this message multiple times, you might want to consider using a joblib memory by "
         "passing ``memory=Memory('some/cache/path)`` to the dataset constructor to cache the index creation "
         "between script executions.",
-        stacklevel=1,
+        stacklevel=2,
     )
 
     dmos = [
@@ -184,7 +184,7 @@ def _load_dmo_data(
 
     if len(visit_types := dmo_data.index.get_level_values("visit_type").unique().to_list()) != 1:
         warnings.warn(
-            "The visit_type is not unique."
+            "The visit_type is not unique. "
             f"This should not happen! The data contains the following types: {visit_types}. "
             f"It should only contain data from {visit_type}. "
             "We will drop all data that does not match the expected visit_type. "
@@ -210,7 +210,7 @@ class MobilisedCvsDmoDataset(Dataset):
 
     Parameters
     ----------
-    dmo_export_path
+    dmo_path
         The path to the calculated DMO data export.
         This should be the path to the approx. 1 Gb csv file with all the DMOs.
         Note, that we only support DMO files including the data of a single visit (e.g. T1, T2, ...) at a time.
@@ -234,7 +234,7 @@ class MobilisedCvsDmoDataset(Dataset):
 
     """
 
-    dmo_export_path: Union[str, Path]
+    dmo_path: Union[str, Path]
     site_pid_map_path: Union[str, Path]
     weartime_reports_base_path: Union[str, Path]
     pre_compute_daily_weartime: bool
@@ -246,7 +246,7 @@ class MobilisedCvsDmoDataset(Dataset):
 
     def __init__(
         self,
-        dmo_export_path: Union[str, Path],
+        dmo_path: Union[str, Path],
         site_pid_map_path: Union[str, Path],
         *,
         weartime_reports_base_path: Optional[Union[str, Path]] = None,
@@ -255,7 +255,7 @@ class MobilisedCvsDmoDataset(Dataset):
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
-        self.dmo_export_path = dmo_export_path
+        self.dmo_path = dmo_path
         self.site_pid_map_path = site_pid_map_path
         self.weartime_reports_base_path = weartime_reports_base_path
         self.pre_compute_daily_weartime = pre_compute_daily_weartime
@@ -264,7 +264,13 @@ class MobilisedCvsDmoDataset(Dataset):
 
     @property
     def visit_type(self) -> str:
-        return self.dmo_export_path.split("-")[1].upper()
+        """The visit type (T1 - TN) of the dataset.
+
+        Each dataset instance can only load data from a single visit type.
+        This is determined by the visit type in the filename of the dmo export file.
+
+        """
+        return self.dmo_path.split("-")[1].upper()
 
     def _get_participant_site_metadata(self) -> pd.DataFrame:
         return hybrid_cache(self.memory, 1)(_load_site_pid_map)(
@@ -272,19 +278,27 @@ class MobilisedCvsDmoDataset(Dataset):
             timezones=self.TIME_ZONES,
         )
 
-    def _get_pid_mid_map(self) -> pd.DataFrame:
+    @property
+    def _compliance_file_path(self) -> Path:
         try:
-            pid_mid_map_path = next(Path(self.weartime_reports_base_path).glob("CVS-wear-compliance-*.xlsx"))
+            return next(Path(self.weartime_reports_base_path).glob("CVS-wear-compliance-*.xlsx"))
         except StopIteration as e:
             raise FileNotFoundError(
                 "Could not find the wear-time compliance report. "
                 "Please make sure that the file is named `CVS-wear-complicance-*.xlsx` and located in the following "
                 f"folder {self.weartime_reports_base_path}."
             ) from e
-        return _load_pid_mid_map(pid_mid_map_path)
+
+    def _get_pid_mid_map(self) -> pd.DataFrame:
+        return _load_pid_mid_map(self._compliance_file_path)
 
     @property
     def weartime_daily(self) -> pd.DataFrame:
+        """The daily weartime per participant.
+
+        This is calculated from the minute to minute weartime reports provided by McRoberts.
+        This is optional and you might not have access to the weartime reports.
+        """
         if self.weartime_reports_base_path is None:
             raise ValueError(
                 "The `weartime_reports_base_path` must be provided to load any weartime related features. "
@@ -301,11 +315,11 @@ class MobilisedCvsDmoDataset(Dataset):
                     .loc[self.index["participant_id"].unique()]
                 )
             except KeyError as e:
-                compliance_file = next(Path(self.weartime_reports_base_path).glob("CVS-wear-compliance-*.xlsx"))
                 raise KeyError(
                     "It looks like you are trying to access the weartime for a participant that does not have any "
                     "weartime data. "
-                    f"Check the compliance report {compliance_file} to see which participants have data available. "
+                    f"Check the compliance report {self._compliance_file_path} to see which participants have data "
+                    "available."
                 ) from e
             files = []
             non_available = []
@@ -330,7 +344,8 @@ class MobilisedCvsDmoDataset(Dataset):
             warnings.warn(
                 "The weartime report contains duplicate indices. "
                 "This indicates that multiple weartime reports exist for the same participant. "
-                "This should not happen! We will drop all duplicate indices for now (keeping the first one). "
+                "This should not happen! "
+                "We will drop all duplicate indices for now (keeping the first one). "
                 "You should investigate this further!",
                 stacklevel=2,
             )
@@ -360,6 +375,13 @@ class MobilisedCvsDmoDataset(Dataset):
         return results
 
     def _calculate_daily_weartime(self, filelist: list[Path]) -> pd.DataFrame:
+        if len(filelist) == 0:
+            raise FileNotFoundError(
+                "Could not find any wear-time reports. "
+                "Please make sure that the files are named `*_minute.csv` and located in the following "
+                f"folder: {self.weartime_reports_base_path}."
+            )
+
         def process_single_file(path: Path) -> tuple[str, pd.DataFrame]:
             p_id = path.name.split("_")[-2]
             result = load_weartime_from_daily_mcroberts_report(path)
@@ -388,7 +410,7 @@ class MobilisedCvsDmoDataset(Dataset):
 
     def _get_dmo_data(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         return hybrid_cache(self.memory, 1)(_load_dmo_data)(
-            dmo_path=Path(self.dmo_export_path),
+            dmo_path=Path(self.dmo_path),
             timezone_per_subject=self._get_participant_site_metadata(),
             visit_type=self.visit_type,
         )
@@ -444,7 +466,7 @@ class MobilisedCvsDmoDataset(Dataset):
             )
 
         return hybrid_cache(self.memory, 1)(_create_index)(
-            Path(self.dmo_export_path),
+            Path(self.dmo_path),
             Path(self.site_pid_map_path),
             self.TIME_ZONES,
             memory=self.memory,
