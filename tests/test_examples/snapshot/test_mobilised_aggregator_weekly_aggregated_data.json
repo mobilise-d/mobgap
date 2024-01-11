@@ -6,8 +6,13 @@
                 "type":"integer"
             },
             {
-                "name":"subject_code",
+                "name":"participant_id",
                 "type":"integer"
+            },
+            {
+                "name":"wb_all_sum",
+                "type":"number",
+                "extDtype":"Float64"
             },
             {
                 "name":"walkdur_all_sum",
@@ -20,11 +25,6 @@
             },
             {
                 "name":"turns_all_sum",
-                "type":"number",
-                "extDtype":"Float64"
-            },
-            {
-                "name":"wb_all_sum",
                 "type":"number",
                 "extDtype":"Float64"
             },
@@ -54,6 +54,10 @@
             },
             {
                 "name":"strdur_all_var",
+                "type":"number"
+            },
+            {
+                "name":"wb_1030_sum",
                 "type":"number"
             },
             {
@@ -124,11 +128,11 @@
     "data":[
         {
             "index":0,
-            "subject_code":12345,
+            "participant_id":12345,
+            "wb_all_sum":2378.0,
             "walkdur_all_sum":10.534,
             "steps_all_sum":59320.0,
             "turns_all_sum":3012.0,
-            "wb_all_sum":2378.0,
             "wbdur_all_avg":8.859,
             "wbdur_all_max":26.927,
             "wbdur_all_var":2.275,
@@ -136,6 +140,7 @@
             "strdur_all_avg":2.25,
             "cadence_all_var":0.127,
             "strdur_all_var":0.269,
+            "wb_1030_sum":844.0,
             "ws_1030_avg":1.786,
             "strlen_1030_avg":194.883,
             "wb_10_sum":1029.0,
