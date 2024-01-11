@@ -2,12 +2,21 @@
     "schema":{
         "fields":[
             {
-                "name":"subject_code",
+                "name":"visit_type",
+                "type":"string"
+            },
+            {
+                "name":"participant_id",
                 "type":"integer"
             },
             {
-                "name":"visit_date",
+                "name":"measurement_date",
                 "type":"string"
+            },
+            {
+                "name":"wb_all_sum",
+                "type":"integer",
+                "extDtype":"Int64"
             },
             {
                 "name":"walkdur_all_sum",
@@ -20,11 +29,6 @@
             },
             {
                 "name":"turns_all_sum",
-                "type":"integer",
-                "extDtype":"Int64"
-            },
-            {
-                "name":"wb_all_sum",
                 "type":"integer",
                 "extDtype":"Int64"
             },
@@ -55,6 +59,10 @@
             {
                 "name":"strdur_all_var",
                 "type":"number"
+            },
+            {
+                "name":"wb_1030_sum",
+                "type":"integer"
             },
             {
                 "name":"ws_1030_avg",
@@ -117,19 +125,21 @@
             }
         ],
         "primaryKey":[
-            "subject_code",
-            "visit_date"
+            "visit_type",
+            "participant_id",
+            "measurement_date"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "subject_code":12345,
-            "visit_date":"2023-01-01",
+            "visit_type":"T1",
+            "participant_id":12345,
+            "measurement_date":"2023-01-01",
+            "wb_all_sum":2378,
             "walkdur_all_sum":10.534,
             "steps_all_sum":59320,
             "turns_all_sum":3012,
-            "wb_all_sum":2378,
             "wbdur_all_avg":8.859,
             "wbdur_all_max":26.927,
             "wbdur_all_var":2.275,
@@ -137,6 +147,7 @@
             "strdur_all_avg":2.25,
             "cadence_all_var":0.127,
             "strdur_all_var":0.269,
+            "wb_1030_sum":844,
             "ws_1030_avg":1.786,
             "strlen_1030_avg":194.883,
             "wb_10_sum":1029,
