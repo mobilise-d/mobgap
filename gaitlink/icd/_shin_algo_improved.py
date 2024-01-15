@@ -9,7 +9,6 @@ from scipy.signal import cwt, ricker, savgol_filter
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.icd._utils import zerocros
 from gaitlink.icd.base import BaseIcdDetector
 
 
@@ -53,16 +52,18 @@ def _shin_algo_improved(imu_acc, sampling_rate_hz, axis: Literal["x", "y", "z", 
     # We need to intitialize the filter once to get the number of coefficients to calculate the padding.
     # This is not ideal, but works for now.
     # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
-    #  correctly anyway.
+    #  correctly anyway. -> filtfilt uses padding automatically and savgol allows to actiavte padding, put uses the
+    #  default mode (polyinomal interpolation) might be suffiecent anyway, cwt might have some edeeffects, but usually
+    #  nothing to worry about.
     n_coefficients = len(EpflGaitFilter().coefficients[0])
 
     # Padding to cope with short data
     len_pad = 4 * n_coefficients
     accN40_zp = np.pad(accN40, (len_pad, len_pad), "wrap")
 
-    # TODO: change number on files below
     # Filters
     # 1
+    # TODO (future): Replace svagol and cwt with class implementation to easily expose parameters.
     accN_filt1 = savgol_filter(accN40_zp.squeeze(), window_length=21, polyorder=7)
     # 2
     filter = EpflDedriftedGaitFilter()
@@ -98,8 +99,52 @@ def _shin_algo_improved(imu_acc, sampling_rate_hz, axis: Literal["x", "y", "z", 
     accN_MultiFilt_rmp100 = resampler.transformed_data_
 
     # Initial contacts timings (heel strike events) detected as positive slopes zero-crossing in sample 120
-    IC_lowSNR = zerocros(accN_MultiFilt_rmp100, "p")
-    IC_lowSNR = IC_lowSNR[0]
-    IC_lowSNR = np.round(IC_lowSNR)
-
+    IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp100, "negative_to_positive")
     return IC_lowSNR
+
+
+def find_zero_crossings(
+    signal: np.ndarray, mode: Literal["positive_to_negative", "negative_to_positive", "both"] = "both"
+) -> np.ndarray:
+    """
+    Find zero crossings in a signal.
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        A numpy array of the signal values.
+    mode : str, optional
+        A string specifying the type of zero crossings to detect.
+        Can be 'positive_to_negative', 'negative_to_positive', or 'both'.
+        The default is 'both'.
+
+    Returns
+    -------
+    np.ndarray
+        A numpy array containing the indices where zero crossings occur.
+
+    Raises
+    ------
+    ValueError
+        If the mode is not one of the specified options.
+
+    Examples
+    --------
+    >>> signal = np.array([1, -1, 1, -1, 1])
+    >>> find_zero_crossings(signal, mode='both')
+    array([0, 1, 2, 3])
+    """
+    # Compute differences between consecutive elements
+    diffs = np.diff(signal)
+
+    # Find indices where sign changes
+    crossings = np.where(np.diff(np.sign(diffs)))[0]
+
+    if mode == "positive_to_negative":
+        return crossings[signal[crossings] > 0]
+    elif mode == "negative_to_positive":
+        return crossings[signal[crossings] < 0]
+    elif mode == "both":
+        return crossings
+    else:
+        raise ValueError("Invalid mode. Choose 'positive_to_negative', 'negative_to_positive', or 'both'.")
