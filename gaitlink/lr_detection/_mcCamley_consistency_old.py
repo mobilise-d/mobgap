@@ -1,5 +1,5 @@
 import numpy as np
-from gaitlink.lr_detection._utils import _butter_lowpass_filter, find_extrema_in_radius
+from gaitlink.lr_detection._utils_old import _butter_lowpass_filter, find_extrema_in_radius
 
 
 def identify_left_right_ullrich(gyr_yaw,

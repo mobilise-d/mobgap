@@ -1,6 +1,6 @@
 """Algorithms for left/right foot detection for a single IMU sensor placed on the lower back."""
 
-from gaitlink.lr_detection._lr_detect import LR_detector
+from gaitlink.lr_detection._lr_detect_old import LR_detector
 
 __all__ = ["LR_detector"]
 

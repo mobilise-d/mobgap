@@ -9,8 +9,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn import metrics
 
-from _utils import _butter_bandpass_filter, _butter_lowpass_filter
-from _ml_param_grid import ParamGrid
+from gaitlink.lr_detection._utils_old import _butter_bandpass_filter, _butter_lowpass_filter
+from gaitlink.lr_detection._ml_param_grid_old import ParamGrid
 
 from gaitlink.lr_detection.base import BaseLRDetector, base_lr_detector_docfiller
 
@@ -34,6 +34,7 @@ class LR_detector(BaseLRDetector):
         self.approach = approach
     
     # TODO: think of better names for these variables...
+        
     @base_lr_detector_docfiller
     def predict(self,
                imu_data: pd.DataFrame,

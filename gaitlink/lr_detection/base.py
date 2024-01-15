@@ -29,7 +29,7 @@ class BaseLRDetector(Algorithm):
     
     # other_parameters
     imu_data: pd.DataFrame
-    event_list: list
+    ic_list: list
     reference_data: bool
     
     # results
@@ -41,7 +41,7 @@ class BaseLRDetector(Algorithm):
     @base_lr_detector_docfiller
     def predict(self, 
                imu_data: pd.DataFrame,
-               event_list: list,
+               ic_list: list,
                reference_data: bool,
                **kwargs: Any
                ) -> Self:
