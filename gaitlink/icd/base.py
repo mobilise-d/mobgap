@@ -15,7 +15,7 @@ base_icd_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``detect`` method.
     """,
-        "ics_": """
+        "ic_list_": """
     ic_list_
         A pandas dataframe with the indices of the detected initial contacts in the input data.
     """,

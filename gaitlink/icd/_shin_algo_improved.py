@@ -24,7 +24,11 @@ class IcdShinImproved(BaseIcdDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        signal = norm(data.to_numpy(), axis=1) if self.axis == "norm" else data[self.axis].to_numpy()
+        signal = (
+            norm(data[["acc_x", "acc_y", "acc_z"]].to_numpy(), axis=1)
+            if self.axis == "norm"
+            else data[f"acc_{self.axis}"].to_numpy()
+        )
 
         # Resample to 40Hz to process with filters
         resampler = Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
@@ -81,7 +85,7 @@ class IcdShinImproved(BaseIcdDetector):
         # Initial contacts timings (heel strike events) detected as positive slopes zero-crossing in sample 120
         IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp100, "negative_to_positive")
 
-        self.ic_list_ = pd.DataFrame({"ics": IC_lowSNR})
+        self.ic_list_ = pd.DataFrame({"ic": IC_lowSNR})
 
         return self
 
