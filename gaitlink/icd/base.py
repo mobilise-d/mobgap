@@ -15,13 +15,12 @@ base_icd_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``detect`` method.
     """,
-        "ICs_": """
-    ICs_
-        A numpy ndarray specifying the detected initial contacts.
-        The ndarray contains argument .
+        "ics_": """
+    ic_list_
+        A pandas dataframe with the indices of the detected initial contacts in the input data.
     """,
         "detect_short": """
-    Detect gait sequences in the passed data
+    Detect Initial contacts in the passed data.
     """,
         "detect_para": """
     data
@@ -33,7 +32,7 @@ base_icd_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``icd_list_`` attribute set to the detected gait sequences.
+        The instance of the class with the ``icd_list_`` attribute set to the detected initial contacts.
     """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseIcdDetector`.",
@@ -46,7 +45,7 @@ class BaseIcdDetector(Algorithm):
 
     This base class should be used for all initial contacts detection algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, with the ``ICs_`` attribute set to the detected
+    The method should then return the instance of the class, with the ``ic_list_`` attribute set to the detected
     initial contacts.
     Further, the detect method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
@@ -62,7 +61,7 @@ class BaseIcdDetector(Algorithm):
 
     Attributes
     ----------
-    %(gsd_list_)s
+    %(ic_list_)s
 
     Notes
     -----
@@ -77,7 +76,7 @@ class BaseIcdDetector(Algorithm):
     sampling_rate_hz: float
 
     # results
-    gsd_list_: pd.DataFrame
+    ic_list_: pd.DataFrame
 
     @base_icd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
