@@ -18,6 +18,7 @@ base_icd_docfiller = make_filldoc(
         "ic_list_": """
     ic_list_
         A pandas dataframe with the indices of the detected initial contacts in the input data.
+        It only has one column, ``ic``, which contains the indices of the detected initial contacts.
     """,
         "detect_short": """
     Detect Initial contacts in the passed data.
@@ -65,7 +66,7 @@ class BaseIcdDetector(Algorithm):
 
     Notes
     -----
-    You can use the :func:`~base_gsd_docfiller` decorator to fill common parts of the docstring for your subclass.
+    You can use the :func:`~base_icd_docfiller` decorator to fill common parts of the docstring for your subclass.
     See the source of this class for an example.
     """
 

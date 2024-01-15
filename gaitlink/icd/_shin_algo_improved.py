@@ -9,10 +9,23 @@ from scipy.signal import cwt, ricker, savgol_filter
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.icd.base import BaseIcdDetector
+from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
 
 
+@base_icd_docfiller
 class IcdShinImproved(BaseIcdDetector):
+    """
+
+    Attributes
+    ----------
+    %(ic_list_)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    """
+
     axis: Literal["x", "y", "z", "norm"]
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
@@ -20,9 +33,21 @@ class IcdShinImproved(BaseIcdDetector):
     def __init__(self, axis: Literal["x", "y", "z", "norm"] = "norm") -> None:
         self.axis = axis
 
+    @base_icd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        """ %(detect_short)s.
+
+        Parameters
+        ----------
+        %(detect_para)s
+
+        %(detect_return)s
+        """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+
+        if self.axis not in ["x", "y", "z", "norm"]:
+            raise ValueError("Invalid axis. Choose 'x', 'y', 'z', or 'norm'.")
 
         signal = (
             norm(data[["acc_x", "acc_y", "acc_z"]].to_numpy(), axis=1)
@@ -53,10 +78,9 @@ class IcdShinImproved(BaseIcdDetector):
         accN_filt1 = savgol_filter(signal_downsampled_padded.squeeze(), window_length=21, polyorder=7)
         # 2
         filter = EpflDedriftedGaitFilter()
-        # TODO: Why is the output not used?
         accN_filt2 = filter.filter(accN_filt1, sampling_rate_hz=40).filtered_data_
         # 3
-        accN_filt3 = cwt(accN_filt1.squeeze(), ricker, [10])
+        accN_filt3 = cwt(accN_filt2.squeeze(), ricker, [10])
         # 4
         accN_filt4 = savgol_filter(accN_filt3.squeeze(), window_length=11, polyorder=5)
         # 5
@@ -83,7 +107,7 @@ class IcdShinImproved(BaseIcdDetector):
         accN_MultiFilt_rmp100 = resampler.transformed_data_
 
         # Initial contacts timings (heel strike events) detected as positive slopes zero-crossing in sample 120
-        IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp100, "negative_to_positive")
+        IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp100, "positive_to_negative")
 
         self.ic_list_ = pd.DataFrame({"ic": IC_lowSNR})
 
