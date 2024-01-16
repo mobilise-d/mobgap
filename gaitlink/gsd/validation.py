@@ -20,6 +20,8 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     """
     Validate detected gait sequence intervals against a reference on a sample-wise level.
 
+    The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
+    start and end indices of the respective gait sequences.
     Each sample from the detected interval list is categorized as true positive (TP),
     false positive (FP) or false negative (FN).
     The results are concatenated into three result dataframes `tp_intervals`, `fp_intervals` and `fn_intervals`,
@@ -54,11 +56,9 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     # check if input is a dataframe with two columns
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
-    if gsd_list_detected.shape[1] < 2 or gsd_list_reference.shape[1] < 2:
-        raise ValueError(
-            "`gsd_list_detected` and `gsd_list_reference` must have at least two columns, with the first column "
-            "containing the start and the second column containing the end indices of the gait sequences."
-        )
+    # check if start and end columns are present
+    if not all(key in gsd_list_detected.columns for key in ["start", "end"]) and not all(key in gsd_list_reference.columns for key in ["start", "end"]):
+        raise ValueError("`gsd_list_detected` must have columns named 'start' and 'end'.")
 
     # Create Interval Trees
     reference_tree = IntervalTree.from_tuples(gsd_list_reference.values)
@@ -141,6 +141,9 @@ def find_matches_with_min_overlap(
 ) -> pd.DataFrame:
     """
     Find all matches of `gsd_list_detected` in `gsd_list_reference` with at least overlap_threshold overlap.
+    The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
+    start and end indices of the respective gait sequences.
+    As index, a range index or a column of unique identifiers for each gait sequence can be provided.
 
     Note, that the threshold is enforced in both directions. That means, that the relative overlap of the detected gait
     sequence with respect to the overall length of the detected interval AND to the overall length of the matched
@@ -181,16 +184,12 @@ def find_matches_with_min_overlap(
     # check if input is a dataframe with two columns
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
-    if (
-        gsd_list_detected.shape[1] < 2
-        or gsd_list_reference.shape[1] < 2
-        or gsd_list_detected.shape[1] != gsd_list_reference.shape[1]
-    ):
-        raise ValueError(
-            "`gsd_list_detected` and `gsd_list_reference` must have at least two columns as well as the same number of "
-            "columns, with the first column containing the start and the second column containing the end indices of "
-            "the gait sequences."
-        )
+
+    # check if start and end columns are present
+    if not all(key in gsd_list_detected.columns for key in ["start", "end"]) or not all(
+            key in gsd_list_reference.columns for key in ["start", "end"]):
+        raise ValueError("`gsd_list_detected` must have columns named 'start' and 'end'.")
+
     if overlap_threshold <= 0.5:
         raise ValueError(
             "overlap_threshold must be greater than 0.5."
@@ -205,7 +204,7 @@ def find_matches_with_min_overlap(
     final_matches = []
 
     for interval in gsd_list_reference.to_numpy():
-        matches = tree[interval[0] : interval[1]]
+        matches = tree[interval[0]: interval[1]]
         if len(matches) > 0:
             for match in matches:
                 # First calculate the absolute overlap
