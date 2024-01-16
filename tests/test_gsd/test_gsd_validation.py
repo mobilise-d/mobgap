@@ -18,7 +18,7 @@ def intervals_example_more_samples():
 
 @pytest.fixture()
 def intervals_example_with_id(intervals_example):
-    return pd.DataFrame([[1, 3, 0], [5, 7, 1]], columns=["start", "end", "id"])
+    return pd.DataFrame([[1, 3, 0], [5, 7, 1]], columns=["start", "end", "id"]).set_index("id")
 
 
 class TestCategorizeIntervals:
@@ -125,7 +125,9 @@ class TestCategorizeIntervals:
 
     @staticmethod
     def _assert_equal_tp_fp_fn(detected, reference, expected_tp, expected_fp, expected_fn):
-        result = categorize_intervals(pd.DataFrame(detected, columns=["start", "end"]), pd.DataFrame(reference, columns=["start", "end"]))
+        result = categorize_intervals(
+            pd.DataFrame(detected, columns=["start", "end"]), pd.DataFrame(reference, columns=["start", "end"])
+        )
         expected_tp = pd.DataFrame(expected_tp, columns=["start", "end"])
         expected_fp = pd.DataFrame(expected_fp, columns=["start", "end"])
         expected_fn = pd.DataFrame(expected_fn, columns=["start", "end"])
@@ -155,11 +157,22 @@ class TestMatchIntervals:
     def test_raise_value_error_invalid_overlap(self, intervals_example_with_id, min_overlap):
         with pytest.raises(ValueError):
             find_matches_with_min_overlap(
-                self._to_interval_df(intervals_example_with_id), self._to_interval_df(intervals_example_with_id), min_overlap
+                self._to_interval_df(intervals_example_with_id),
+                self._to_interval_df(intervals_example_with_id),
+                min_overlap,
             )
 
+    def test_raise_value_error_invalid_index(self, intervals_example):
+        index_not_unique = pd.DataFrame(intervals_example)
+        index_not_unique["id"] = ["id"] * len(intervals_example)
+        index_not_unique = index_not_unique.set_index("id")
+        with pytest.raises(ValueError):
+            find_matches_with_min_overlap(index_not_unique, index_not_unique, 1)
+
     def test_validation_all_tp(self, intervals_example):
-        output = find_matches_with_min_overlap(self._to_interval_df(intervals_example),self._to_interval_df(intervals_example), 1)
+        output = find_matches_with_min_overlap(
+            self._to_interval_df(intervals_example), self._to_interval_df(intervals_example), 1
+        )
         assert_array_equal(output.to_numpy(), intervals_example)
 
     def test_validation_all_tp_with_id(self, intervals_example_with_id):
@@ -211,12 +224,16 @@ class TestMatchIntervals:
         intervals_partial_overlap_with_example = [[2, 6], [7, 11]]  # overlapping regions are [[2, 5], [8, 11]]
 
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_example_more_samples), self._to_interval_df(intervals_partial_overlap_with_example), 0.6
+            self._to_interval_df(intervals_example_more_samples),
+            self._to_interval_df(intervals_partial_overlap_with_example),
+            0.6,
         )
         assert_array_equal(output.to_numpy(), intervals_example_more_samples)
 
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_partial_overlap_with_example), self._to_interval_df(intervals_example_more_samples), 0.6
+            self._to_interval_df(intervals_partial_overlap_with_example),
+            self._to_interval_df(intervals_example_more_samples),
+            0.6,
         )
         assert_array_equal(output.to_numpy(), intervals_partial_overlap_with_example)
 
@@ -224,36 +241,48 @@ class TestMatchIntervals:
         intervals_partial_overlap_with_example = [[2, 5], [8, 11]]  # overlapping regions are [[2, 5], [8, 11]]
 
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_example_more_samples), self._to_interval_df(intervals_partial_overlap_with_example), 0.6
+            self._to_interval_df(intervals_example_more_samples),
+            self._to_interval_df(intervals_partial_overlap_with_example),
+            0.6,
         )
         assert_array_equal(output.to_numpy(), intervals_example_more_samples)
 
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_partial_overlap_with_example), self._to_interval_df(intervals_example_more_samples), 0.6
+            self._to_interval_df(intervals_partial_overlap_with_example),
+            self._to_interval_df(intervals_example_more_samples),
+            0.6,
         )
         assert_array_equal(output.to_numpy(), intervals_partial_overlap_with_example)
 
     def test_several_intervals_overlap_one(self, intervals_example_more_samples):
         interval_several_overlaps_with_example = [[0, 9]]  # overlapping regions are [[0, 5], [8, 9]]
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_example_more_samples), self._to_interval_df(interval_several_overlaps_with_example), 5 / 9
+            self._to_interval_df(intervals_example_more_samples),
+            self._to_interval_df(interval_several_overlaps_with_example),
+            5 / 9,
         )
         assert_array_equal(output.to_numpy(), [intervals_example_more_samples[0]])
 
         output = find_matches_with_min_overlap(
-            self._to_interval_df(interval_several_overlaps_with_example), self._to_interval_df(intervals_example_more_samples), 5 / 9
+            self._to_interval_df(interval_several_overlaps_with_example),
+            self._to_interval_df(intervals_example_more_samples),
+            5 / 9,
         )
         assert_array_equal(output.to_numpy(), interval_several_overlaps_with_example)
 
     def test_several_intervals_overlap_several(self, intervals_example_more_samples):
         intervals_several_overlaps_with_example = [[0, 9], [9, 12]]  # overlapping regions are [[0, 5], [8, 9], [9, 12]]
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_example_more_samples), self._to_interval_df(intervals_several_overlaps_with_example), 5 / 9
+            self._to_interval_df(intervals_example_more_samples),
+            self._to_interval_df(intervals_several_overlaps_with_example),
+            5 / 9,
         )
         assert_array_equal(output.to_numpy(), intervals_example_more_samples)
 
         output = find_matches_with_min_overlap(
-            self._to_interval_df(intervals_several_overlaps_with_example), self._to_interval_df(intervals_example_more_samples), 5 / 9
+            self._to_interval_df(intervals_several_overlaps_with_example),
+            self._to_interval_df(intervals_example_more_samples),
+            5 / 9,
         )
         assert_array_equal(output.to_numpy(), intervals_several_overlaps_with_example)
 
