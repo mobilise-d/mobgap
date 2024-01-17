@@ -130,8 +130,7 @@ class MobilisedAggregator(BaseAggregator):
     %(aggregated_data_)s
     filtered_wb_dmos_
         An updated version of ``wb_dmos`` with the implausible entries removed based on ``wb_dmos_mask``.
-        Depending on the implementation, the shape of ``filtered_wb_dmos_`` might differ from ``wb_dmos``.
-        In all cases, ``filtered_wb_dmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
+        ``filtered_wb_dmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
 
     Notes
     -----
