@@ -67,9 +67,9 @@ class MobilisedAggregator(BaseAggregator):
 
       - Number of walking bouts ["wb_60_sum"]
 
-    Every of the above mentioned parameters will be added to a distinct column in the aggregated data.
+    Every of the above-mentioned parameters will be added to a distinct column in the aggregated data.
     Which of the parameters are calculated depends on the columns available in the input data. All parameters are
-    calculated when all of the following columns are available:
+    calculated when all the following columns are available:
 
     - ``duration_s``
     - ``n_steps``
@@ -105,32 +105,32 @@ class MobilisedAggregator(BaseAggregator):
     %(other_parameters)s
     wb_dmos_mask
         A boolean DataFrame with the same shape the ``wb_dmos`` indicating the validity of every measure.
-        Like the data, the data_mask must have the ``groupby`` and the ``unique_wb_id_column`` as either as index or
-        column available.
-        After setting all of them as index, the index must be idential to the data.
+        Like the data, the ``wb_dmos_mask`` must have the ``groupby`` and the ``unique_wb_id_column`` as either as index
+        or column available.
+        After setting all of them as index, the index must be identical to the data.
         Every column of the data mask corresponds to a column of ``wb_dmos`` and has the same name.
         If an entry is ``False``, the corresponding measure is implausible and should be ignored for the aggregations.
 
         To exclude implausible data points from the input data, a ``wb_dmos_mask`` can be passed to the ``aggregate``
         method.
-        The columns in data_mask are regarded if there exists a column in the input data with the same name.
+        The columns in ``wb_dmos_mask`` are regarded if there exists a column in the input data with the same name.
         Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
 
         - "duration_s": The whole walking bout is not considered for the aggregation.
         - "n_steps": The corresponding "n_steps" is not regarded.
-        - "n_turns": The corresponding "turn_number" is not regarded.
-        - "walking_speed_mps": The corresponding "stride_speed" is not regarded.
-        - "stride_length_m": The corresponding "stride_length" AND the corresponding "walking_speed_mps" are not
+        - "n_turns": The corresponding "n_turns" is not regarded.
+        - "walking_speed_mps": The corresponding "walking_speed_mps" is not regarded.
+        - "stride_length_m": The corresponding "stride_length_m" AND the corresponding "walking_speed_mps" are not
           regarded.
-        - "cadence_spm": The corresponding "cadence" AND the corresponding "walking_speed_mps" are not regarded.
-        - "stride_duration_s": The corresponding "stride_duration" is not regarded.
+        - "cadence_spm": The corresponding "cadence_spm" AND the corresponding "walking_speed_mps" are not regarded.
+        - "stride_duration_s": The corresponding "stride_duration_s" is not regarded.
 
     Attributes
     ----------
     %(aggregated_data_)s
     filtered_wb_dmos_
-        An updated version of ``data`` with the implausible entries removed based on ``data_mask``.
-        Depending on the implementation, the shape of ``filtered_wb_dmos_`` might differ from ``data``.
+        An updated version of ``wb_dmos`` with the implausible entries removed based on ``wb_dmos_mask``.
+        Depending on the implementation, the shape of ``filtered_wb_dmos_`` might differ from ``wb_dmos``.
         In all cases, ``filtered_wb_dmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
 
     Notes
@@ -266,9 +266,9 @@ class MobilisedAggregator(BaseAggregator):
 
         if not data_correct_index.index.is_unique:
             raise ValueError(
-                # TODO: Better error messages
                 f"The passed data contains multiple entries for the same groupby columns {groupby}. "
-                "Make sure that the passed data is unique for every groupby column combination."
+                "Make sure that the passed data in `unique_wb_id_column` is unique for every groupby column "
+                "combination."
             )
 
         if wb_dmos_mask is not None:
@@ -276,8 +276,8 @@ class MobilisedAggregator(BaseAggregator):
 
             if not wb_dmos.index.equals(wb_dmos_mask.index):
                 raise ValueError(
-                    "The datamask seems to be missing some data indices. "
-                    "The datamask must have exactly the same indices as the data after grouping."
+                    "The data mask seems to be missing some data indices. "
+                    "`wb_dmos_mask` must have exactly the same indices as `wb_dmos` after grouping."
                 )
 
             wb_dmos_mask = wb_dmos_mask.reindex(data_correct_index.index)
@@ -322,7 +322,7 @@ class MobilisedAggregator(BaseAggregator):
             if all([filt is not None, "duration_s" not in data_columns]):
                 warnings.warn(
                     f"Filter '{filt}' for walking bout length cannot be applied, "
-                    "because the data does not contain a 'duration' column.",
+                    "because the data does not contain a 'duration_s' column.",
                     stacklevel=2,
                 )
                 continue
