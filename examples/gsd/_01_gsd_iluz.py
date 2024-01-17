@@ -160,3 +160,39 @@ fig, _ = plot_gsd_outputs(
     python_modified=long_trial_output_modified.gsd_list_,
 )
 fig.show()
+
+# %%
+# Validation of algorithm output against a reference
+# --------------------------------------------------
+# Let's quantify how the Python output compares to the reference labels.
+# To do this, we use the `categorize_intervals` function to compare detected gait sequences to reference labels
+# sample by sample.
+
+from gaitlink.gsd.validation import categorize_intervals
+
+categorized_intervals = categorize_intervals(long_trial_output.gsd_list_, long_trial_reference_parameters)
+
+# %%
+# The function returns a Named Tuple with the following fields: tp_intervals`, `fp_intervals` and `fn_intervals`.
+# Consequently, we can access all intervals that were correctly detected (`tp_intervals`), all intervals that were
+# falsely detected as gait sequences (`fp_intervals`) and all intervals that were gait sequences but not detected
+# as such (`fn_intervals`). From this data, performance metrics such as sensitivity and precision can be calculated.
+
+print("True Positives:\n\n", categorized_intervals.tp_intervals)
+print("\nFalse Positives:\n\n", categorized_intervals.fp_intervals)
+print("\nFalse Negatives:\n\n", categorized_intervals.fn_intervals)
+
+# %%
+# Another useful function for validation is `find_matches_with_min_overlap`. It returns all intervals from the Python
+# output that overlap with the reference gait sequences by at least a given amount.
+# We can see that with an overlap threshold of 0.7 (70%%), three of the five detected gait sequences are considered as
+# matches with the reference gait sequences.
+# The remaining ones either contain too many false positive and/or false negative samples.
+
+from gaitlink.gsd.validation import find_matches_with_min_overlap
+
+matches = find_matches_with_min_overlap(
+    long_trial_output.gsd_list_, long_trial_reference_parameters, overlap_threshold=0.7
+)
+
+print("Matches:\n\n", matches)
