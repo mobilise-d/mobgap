@@ -1,9 +1,10 @@
 """
-Loading DMO data
-================
+Loading Digital Mobility Outcome (DMO) data
+===========================================
 
 Besides raw data, gaitlink also has utilities to load pre-calculated DMO data in the format published by Mobilise-D.
-Specifically, this is the data of the TVS and the individual CVS visits.
+Specifically, this is the data of the TVS (=technical validation study) and the
+individual CVS (=clinical validation study) visits.
 For each CVS visit data is available as a single CSV file, which contains the DMO data for all walking bouts of all
 participants.
 
