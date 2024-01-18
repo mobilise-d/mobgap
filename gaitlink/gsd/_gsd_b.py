@@ -1,5 +1,4 @@
 import warnings
-from collections import namedtuple
 from itertools import groupby
 from typing import Any
 
@@ -8,9 +7,9 @@ import numpy as np
 import pandas as pd
 import scipy
 from gaitmap.utils.array_handling import merge_intervals
-from typing_extensions import Unpack, Self
+from typing_extensions import Self, Unpack
 
-from gaitlink.data_transform import EpflDedriftedGaitFilter
+from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
 from gaitlink.gsd.base import BaseGsdDetector
 
 
@@ -71,21 +70,21 @@ def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
             threshold_sig = noise + 0.50 * (abs(threshold - noise))
         thr_buff[i] = threshold_sig
 
-    return [alarm, env]
+    return alarm, env
 
 
-import numpy as np
-
-def find_min_max(signal: np.ndarray, threshold: float) -> tuple:
+def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
     """
     Identify the indices of local minima and maxima in a 1D numpy array (signal),
     where the values are beyond a specified threshold.
 
-    Parameters:
+    Parameters
+    ----------
     signal (np.ndarray): A 1D numpy array representing the signal.
     threshold (float): A threshold value to filter the minima and maxima.
 
-    Returns:
+    Returns
+    -------
     tuple: Two arrays containing the indices of local minima and maxima, respectively.
     """
     signal = signal.squeeze()
@@ -99,7 +98,6 @@ def find_min_max(signal: np.ndarray, threshold: float) -> tuple:
     maxima = maxima[signal[maxima] > threshold]
 
     return minima, maxima
-
 
 
 def find_pulse_trains(x):
@@ -146,7 +144,7 @@ def Intersect(a, b):
     na = len(a)
     nb = len(b)
 
-    c = np.zeros(shape=(nb, 2))
+    c = np.zeros(shape=(max(na, nb), 2))
 
     if na == 0 or nb == 0:
         warnings.warn("a or b is empty, returning empty c")
@@ -210,36 +208,75 @@ class GsdLowBackAcc(BaseGsdDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        gsd_output = gsd_low_back_acc(data[["acc_x", "acc_y", "acc_z"]], sampling_rate_hz, plot_results=True)
+        gsd_output = gsd_low_back_acc(data[["acc_x", "acc_y", "acc_z"]].to_numpy(), sampling_rate_hz, plot_results=True)
         self.gsd_list_ = gsd_output
 
         return self
 
 
-def gsd_low_back_acc(acc, fs, plot_results=True):
+class NoActivePeriodsDetectedError(Exception):
+    pass
+
+
+def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
+    # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
+    alarm, _ = hilbert_envelop(
+        signal, sampling_rate_hz, True, sampling_rate_hz
+    )  # NOTE: This has been edited from the original MATLAB version to remove perceived error
+    walkLowBack = np.array([])
+
+    if not np.any(alarm):  # If hilbert_envelope fails to detect 'active' try version [1]
+        raise NoActivePeriodsDetectedError()
+
+    len_alarm = [
+        len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)
+    ]  # Length of each consecutive stretch of nonzero values in alarm
+    end_alarm = np.cumsum(len_alarm)
+    start_alarm = np.concatenate([np.array([0]), end_alarm[:-1]])
+    alarmed = [
+        v for v, s in groupby(alarm, key=lambda x: x > 0)
+    ]  # Whether each consecutive stretch of nonzero values in alarm is alarmed
+
+    for s, e, a in zip(start_alarm, end_alarm, alarmed):  # Iterate through the consecutive periods
+        if a:  # If alarmed
+            if e - s <= 3 * sampling_rate_hz:  # If the length of the alarm period is too short
+                alarm[s:e] = 0  # Replace this section of alarm with zeros
+            else:
+                walkLowBack = np.concatenate([walkLowBack, signal[s - 1 : e - 1]])
+
+    if walkLowBack.size == 0:
+        raise NoActivePeriodsDetectedError()
+
+    peaks_p, _ = scipy.signal.find_peaks(walkLowBack)
+    peaks_n, _ = scipy.signal.find_peaks(-walkLowBack)
+    pksp, pksn = walkLowBack[peaks_p], -walkLowBack[peaks_n]
+    pks = np.concatenate([pksp[pksp > 0], pksn[pksn > 0]])
+    return np.percentile(pks, 5)  # data adaptive threshold
+
+
+def gsd_low_back_acc(acc: np.ndarray, sampling_rate_hz, plot_results=True):
     """
 
     :param acc:
-    :param fs:
+    :param sampling_rate_hz:
     :param plot_results:
     :return GSD_Output:
     """
-    algorithm_target_fs = 40  # Sampling rate required for the algorithm
+    ALGORITHM_TARGET_SAMPLING_RATE_HZ = 40  # Sampling rate required for the algorithm
 
     # Signal vector magnitude
-    accN = np.sqrt(
-        np.square(acc.iloc[:, 0].to_numpy())
-        + np.square(acc.iloc[:, 1].to_numpy())
-        + np.square(acc.iloc[:, 2].to_numpy())
-    )
+    acc_norm = np.linalg.norm(acc, axis=1)
 
     # Resample to algorithm_target_fs
-    accN_resampled = scipy.signal.resample(accN, int(np.round(len(accN) / fs * algorithm_target_fs)))
-    # plt.plot(accN_resampled)
+    acc_norm_resampled = (
+        Resample(ALGORITHM_TARGET_SAMPLING_RATE_HZ)
+        .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
+        .transformed_data_
+    )
     # NOTE: accN_resampled is slightly different in length and values to accN40 in MATLAB, plots look ok though
 
     # Filter to enhance the acceleration signal, when low SNR, impaired, asymmetric and slow gait
-    acc_filtered = scipy.signal.savgol_filter(accN_resampled, polyorder=7, window_length=21)
+    acc_filtered = scipy.signal.savgol_filter(acc_norm_resampled, polyorder=7, window_length=21)
     acc_filtered = EpflDedriftedGaitFilter().filter(acc_filtered, sampling_rate_hz=40).filtered_data_
     # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
     #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
@@ -261,53 +298,23 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
     acc_filtered = scipy.ndimage.gaussian_filter(
         acc_filtered.squeeze(), 2
     )  # NOTE: sigma = windowWidth / 5, windowWidth = 10 (from MATLAB)
-    """plt.figure()
-    plt.plot(acc_filtered.T)"""
 
-    sigDetActv = acc_filtered
+    FALLBACK_THRESHOLD = 0.15
 
-    # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
-    [alarm, _] = hilbert_envelop(
-        sigDetActv, algorithm_target_fs, True, algorithm_target_fs
-    )  # NOTE: This has been edited from the original MATLAB version to remove perceived error
-    walkLowBack = np.array([])
+    try:
+        active_peak_threshold = find_active_period_peak_threshold(acc_filtered, ALGORITHM_TARGET_SAMPLING_RATE_HZ)
+        signal = acc_filtered
+    except NoActivePeriodsDetectedError:
+        # If we don't find the active periods, use a fallback threshold and use
+        # a less filtered signal for further processing, for which we can better predict the threshold.
+        warnings.warn("No active periods detected, using fallback threshold")
+        active_peak_threshold = FALLBACK_THRESHOLD
+        signal = acc_filtered4
 
-    if alarm.any():  # If any alarms detected
-        len_alarm = [
-            len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)
-        ]  # Length of each consecutive stretch of nonzero values in alarm
-        end_alarm = np.cumsum(len_alarm)
-        start_alarm = np.concatenate([np.array([0]), end_alarm[:-1]])
-        alarmed = [
-            v for v, s in groupby(alarm, key=lambda x: x > 0)
-        ]  # Whether each consecutive stretch of nonzero values in alarm is alarmed
+    # Find extrema in signal that might represent steps
+    min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
 
-        for s, e, a in zip(start_alarm, end_alarm, alarmed):  # Iterate through the consecutive periods
-            if a:  # If alarmed
-                if e - s <= 3 * algorithm_target_fs:  # If the length of the alarm period is too short
-                    alarm[s:e] = 0  # Replace this section of alarm with zeros
-                else:
-                    walkLowBack = np.concatenate([walkLowBack, sigDetActv[s - 1 : e - 1]])
-
-        if walkLowBack.size != 0:
-            peaks_p, _ = scipy.signal.find_peaks(walkLowBack)
-            peaks_n, _ = scipy.signal.find_peaks(-walkLowBack)
-            pksp, pksn = walkLowBack[peaks_p], -walkLowBack[peaks_n]
-            pks = np.concatenate([pksp[pksp > 0], pksn[pksn > 0]])
-            th = np.percentile(pks, 5)  # data adaptive threshold
-            f = sigDetActv
-
-        else:  # If hilbert_envelope fails to detect 'active' try version [1]
-            th = 0.15
-            f = acc_filtered4
-
-    else:  # If hilbert_envelope fails to detect 'active' try version [1]
-        th = 0.15
-        f = acc_filtered4
-
-    # mid - swing detection
-    min_peaks, max_peaks= find_min_max(f, th)
-
+    # Combine steps detected by the maxima and minima
     MIN_N_STEPS = 5
 
     gs_from_max = find_pulse_trains(max_peaks)
@@ -315,12 +322,12 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
     gs_from_max = gs_from_max[gs_from_max[:, 2] >= MIN_N_STEPS]
     gs_from_min = gs_from_min[gs_from_min[:, 2] >= MIN_N_STEPS]
 
-    combined_final = Intersect(gs_from_max[:, :2], gs_from_min[:, :2])
+    combined_final = Intersect(gs_from_max[:, :2], gs_from_min[:, :2])  # Combine the gs from the maxima and minima
 
-    if combined_final.size == 0:
-        return pd.DataFrame(columns=["start", "end"]).astype(int)
+    if combined_final.size == 0:  # Check if no gs detected
+        return pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df, if no gs
 
-    # Find all max_peaks withing each final gs
+    # Find all max_peaks withing each final gait sequence (GS)
     steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
     n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
     mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
@@ -329,19 +336,20 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
     combined_final[:, 0] = np.fix(combined_final[:, 0] - 0.75 * mean_step_times)
     combined_final[:, 1] = np.fix(combined_final[:, 1] + 0.75 * mean_step_times)
 
-    # Filter again by Number steps
+    # Filter again by number of steps, remove any gs with too few steps
     combined_final = combined_final[n_steps_per_gs >= MIN_N_STEPS]
 
-    if combined_final.size == 0:
-        return pd.DataFrame(columns=["start", "end"]).astype(int)
+    if combined_final.size == 0:  # Check if all gs removed
+        return pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
 
+    # Merge gs if time (in seconds) between consecutive gs is less than MAX_GAP_S
     MAX_GAP_S = 3
-    combined_final = merge_intervals(combined_final, algorithm_target_fs * MAX_GAP_S)
+    combined_final = merge_intervals(combined_final, ALGORITHM_TARGET_SAMPLING_RATE_HZ * MAX_GAP_S)
 
     # Convert back to original sampling rate
-    combined_final = combined_final * fs / algorithm_target_fs
+    combined_final = combined_final * sampling_rate_hz / ALGORITHM_TARGET_SAMPLING_RATE_HZ
 
-    # Cap the start and the end of the signal using clip
+    # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
     combined_final = np.clip(combined_final, 0, len(acc))
 
     return pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
