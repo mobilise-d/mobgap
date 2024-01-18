@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from gaitlink.data_transform.base import BaseTransformer
-
+from typing_extensions import Self
 
 
 class GaussianFilter(BaseTransformer):
@@ -30,7 +30,7 @@ class GaussianFilter(BaseTransformer):
         self.sigma = sigma
         self.transformed_data_ = np.array([])  # Initialize transformed_data_ to an empty array
 
-    def transform(self, data: np.ndarray) -> "GaussianFilter":
+    def transform(self, data: np.ndarray) -> Self:
         """
         Apply the Gaussian filter to blur the input data.
 
@@ -50,6 +50,7 @@ class GaussianFilter(BaseTransformer):
 
         self.data = data.copy()  # Create a copy for consistency
         # Apply Gaussian filter
-        self.transformed_data_ = gaussian_filter(data, sigma=self.sigma, output=None, mode='reflect', cval=0.0, truncate=4.0)
+        self.transformed_data_ = gaussian_filter(data, sigma=self.sigma, output=None, mode='reflect', cval=0.0,
+                                                 truncate=4.0)
 
         return self

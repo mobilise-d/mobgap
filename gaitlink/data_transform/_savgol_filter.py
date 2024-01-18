@@ -1,8 +1,6 @@
-from typing import Optional
-
 import pandas as pd
 from scipy.signal import savgol_filter
-from typing_extensions import  Self
+from typing_extensions import Self
 from gaitlink.data_transform.base import BaseTransformer
 
 
