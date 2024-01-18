@@ -1,4 +1,5 @@
 import warnings
+from collections import namedtuple
 from itertools import groupby
 from typing import Any
 
@@ -6,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
+from gaitmap.utils.array_handling import merge_intervals
 from typing_extensions import Unpack, Self
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter
@@ -124,14 +126,7 @@ def find_pulse_trains(x):
         else:
             end[-1] = x[-1]
 
-    return {"start": np.array(start), "steps": np.array(steps), "end": np.array(end)}
-
-
-def convert_wto_set(w):
-    s = np.zeros((len(w["start"]), 2))
-    s[:, 0] = w["start"]
-    s[:, 1] = w["end"]
-    return s
+    return np.array([start, end, steps]).T
 
 
 def Intersect(a, b):
@@ -192,47 +187,8 @@ def Intersect(a, b):
     return c
 
 
-def pack_results(periods, peaks):
-    n = len(periods)
-    w = {"start": periods[:, 0], "end": periods[:, 1], "steps": np.zeros(n), "mid_swing": []}
-    mid_swing = []
-
-    for i in range(n):
-        steps = peaks[np.logical_and(peaks >= w["start"][i], peaks <= w["end"][i])]
-        w["steps"][i] = len(steps)
-        w["mid_swing"].append(steps)
-        mid_swing.append(steps)
-
-        # Increase the duration of reported walking periods by half a step_time before the first and after the last step
-        if len(steps) > 2:
-            step_time = np.mean(np.diff(steps))
-            w["start"][i] = np.fix(w["start"][i] - 1.5 * step_time / 2)
-            w["end"][i] = np.fix(w["end"][i] + 1.5 * step_time / 2)
-
-    mid_swing = np.concatenate(mid_swing).sort()
-
-    from gaitmap.utils.array_handling import merge_intervals
-    # check to see if any two consecutive detected walking periods are overlapped; if yes, join them. (This should not normally happen though!)
-    i = 0
-    while i < n - 1:
-        if w["end"][i] >= w["start"][i + 1]:
-            w["end"][i] = w["end"][i + 1]
-            w["steps"][i] = w["steps"][i] + w["steps"][i + 1]
-            w["mid_swing"][i] = ["mid_swing"][i] + w["mid_swing"][i + 1]
-            w["start"][i + 1] = []
-            w["end"][i + 1] = []
-            w["steps"][i + 1] = []
-            w["mid_swing"][i + 1] = []
-            n = n - 1
-        else:
-            i = i + 1
-
-    return w, mid_swing
-
-
 ########################################################################################################################
 class GsdLowBackAcc(BaseGsdDetector):
-
     def __init__(self, savgol_order: int = 7):
         # TODO: This still does nothing
         self.savgol_order = savgol_order
@@ -242,9 +198,6 @@ class GsdLowBackAcc(BaseGsdDetector):
         self.sampling_rate_hz = sampling_rate_hz
 
         gsd_output = gsd_low_back_acc(data[["acc_x", "acc_y", "acc_z"]], sampling_rate_hz, plot_results=True)
-        gsd_output = (
-            pd.DataFrame(gsd_output).rename(columns={"Start": "start", "End": "end"}).drop(columns="fs").astype(int)
-        )
         self.gsd_list_ = gsd_output
 
         return self
@@ -258,7 +211,6 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
     :param plot_results:
     :return GSD_Output:
     """
-    GSD_Output = {"Start": [], "End": [], "fs": []}
     algorithm_target_fs = 40  # Sampling rate required for the algorithm
 
     # Signal vector magnitude
@@ -343,89 +295,40 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
     # mid - swing detection
     [min_peaks, max_peaks] = FindMinMax(f, th)
 
-    t1 = find_pulse_trains(max_peaks)
-    # Only keep walking bouts longer than 4 steps
-    t1["start"] = np.array([start for step, start in zip(t1["steps"], t1["start"]) if step > 4])
-    t1["end"] = np.array([start for step, start in zip(t1["steps"], t1["end"]) if step > 4])
-    t1["steps"] = np.array([x for x in t1["steps"] if x > 4])
+    MIN_N_STEPS = 5
 
-    t2 = find_pulse_trains(min_peaks)
-    # Only keep walking bouts longer than 4 steps
-    t2["start"] = np.array([start for step, start in zip(t2["steps"], t2["start"]) if step > 4])
-    t2["end"] = np.array([start for step, start in zip(t2["steps"], t2["end"]) if step > 4])
-    t2["steps"] = np.array([x for x in t2["steps"] if x > 4])
+    gs_from_max = find_pulse_trains(max_peaks)
+    gs_from_min = find_pulse_trains(min_peaks)
+    gs_from_max = gs_from_max[gs_from_max[:, 2] >= MIN_N_STEPS]
+    gs_from_min = gs_from_min[gs_from_min[:, 2] >= MIN_N_STEPS]
 
-    t_final = Intersect(convert_wto_set(t1), convert_wto_set(t2))
+    combined_final = Intersect(gs_from_max[:, :2], gs_from_min[:, :2])
 
-    if t_final.any():
-        [w, mid_swing] = pack_results(t_final, max_peaks)
+    if combined_final.size == 0:
+        return pd.DataFrame(columns=["start", "end"]).astype(int)
 
-        if not w["mid_swing"]:
-            w["start"][0] = np.max([1, w["start"][0]])
-            w["end"][-1] = np.min([w["end"][-1], len(sigDetActv)])
-    else:
-        w = {}
-        MidSwing = []
+    # Find all max_peaks withing each final gs
+    steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
+    n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
+    mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
 
-    n = np.max([len(x) for x in w.values()])
-    w_new = {"start": [], "end": []}
-    for j in range(n):
-        if w["steps"][j] >= 5:
-            w_new["start"].append(w["start"][j])
-            w_new["end"].append(w["end"][j])
+    # Pad each gs by 0.75*step_time before and after
+    combined_final[:, 0] = np.fix(combined_final[:, 0] - 0.75 * mean_step_times)
+    combined_final[:, 1] = np.fix(combined_final[:, 1] + 0.75 * mean_step_times)
 
-    walkLabel = np.zeros(len(sigDetActv))
-    n = np.max([len(x) for x in w_new.values()])
-    for j in range(n):
-        walkLabel[int(w_new["start"][j]) : int(w_new["end"][j])] = np.ones(int(w_new["end"][j] - w_new["start"][j]))
+    # Filter again by Number steps
+    combined_final = combined_final[n_steps_per_gs >= MIN_N_STEPS]
 
-    # Merge walking bouts if break less than 3 seconds
-    len_noWk = [
-        len(list(s)) for v, s in groupby(walkLabel, key=lambda x: x == 0)
-    ]  # Length of each consecutive stretch of nonzero values in alarm
-    end_noWk = np.cumsum(len_noWk)
-    start_noWk = np.concatenate([np.array([0]), end_noWk[:-1]])
-    noWk = [
-        v for v, s in groupby(walkLabel, key=lambda x: x == 0)
-    ]  # Whether each consecutive stretch of nonzero values in alarm is alarmed
-    start_noWk = start_noWk[noWk]
-    end_noWk = end_noWk[noWk]
-    if np.size(start_noWk) != 0:  # If there are periods of non-walking
-        for start, end in zip(start_noWk, end_noWk):
-            if end - start <= algorithm_target_fs * 3:
-                walkLabel[start:end] = np.ones(end - start)  # Merge if non-walking period is too short
+    if combined_final.size == 0:
+        return pd.DataFrame(columns=["start", "end"]).astype(int)
 
-    walk = {"start": [], "end": []}
-    if np.size(np.where(walkLabel == 1)) != 0:
-        len_walk = [
-            len(list(s)) for v, s in groupby(walkLabel, key=lambda x: x == 1)
-        ]  # Length of each consecutive stretch of nonzero values in alarm
-        end_walk = np.cumsum(len_walk)
-        start_walk = np.concatenate([np.array([0]), end_walk[:-1]])
-        if_walk = [
-            v for v, s in groupby(walkLabel, key=lambda x: x == 1)
-        ]  # Whether each consecutive stretch of nonzero values in alarm is alarmed
-        start_walk = start_walk[if_walk]
-        end_walk = end_walk[if_walk]
-        if np.size(start_walk) != 0:
-            for start, end in zip(start_walk, end_walk):
-                walk["start"].append(start)
-                walk["end"].append(end)
+    MAX_GAP_S = 3
+    combined_final = merge_intervals(combined_final, algorithm_target_fs * MAX_GAP_S)
 
-        n = np.max(len(walk["start"]))
-        for j in range(n):
-            GSD_Output["Start"].append((walk["start"][j]) * (fs / algorithm_target_fs))
-            GSD_Output["End"].append((walk["end"][j]) * (fs / algorithm_target_fs))
-            # GSD_Output["fs"].append(fs)
-    else:
-        warnings.warn("No gait sequence(s) detected")
+    # Convert back to original sampling rate
+    combined_final = combined_final * fs / algorithm_target_fs
 
-    # Plot if plot_results==True
-    if plot_results:
-        plt.figure()
-        plt.plot(sigDetActv, label="Filtered accNorm")
-        plt.plot(walkLabel * 9.81, label="Walking")
-        plt.legend()
-        plt.xlabel("Samples (40Hz)")
+    # Cap the start and the end of the signal using clip
+    combined_final = np.clip(combined_final, 0, len(acc))
 
-    return GSD_Output
+    return pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)

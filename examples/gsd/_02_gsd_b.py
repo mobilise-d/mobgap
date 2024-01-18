@@ -15,6 +15,6 @@ imu_data = long_trial.data["LowerBack"]
 fs = long_trial.sampling_rate_hz
 
 # Run GSD_LowBackAcc
-gsd_output = GsdLowBackAcc().detect(imu_data, fs).gsd_list_
+gsd_output = GsdLowBackAcc().detect(imu_data, sampling_rate_hz=fs).gsd_list_
 
 print(gsd_output)
