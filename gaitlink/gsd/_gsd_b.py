@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from gaitmap.utils.array_handling import merge_intervals
+from intervaltree import IntervalTree
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
@@ -17,9 +18,6 @@ def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
     """NOTE: This has been edited from the original MATLAB version to remove perceived error"""
     # Calculate the analytical signal and get the envelope
     amplitude_envelope = np.abs(scipy.signal.hilbert(y))
-    """plt.figure()
-    plt.plot(y.T)
-    plt.plot(amplitude_envelope.T)"""
 
     # Take the moving average of analytical signal
     env = np.convolve(
@@ -101,7 +99,6 @@ def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
 
 
 def find_pulse_trains(x):
-    w = {}
     walkflag = 0
     THD = 3.5 * 40
     n = 0
@@ -140,69 +137,40 @@ def find_pulse_trains(x):
     return np.array([start, end, steps]).T
 
 
-def Intersect(a, b):
-    na = len(a)
-    nb = len(b)
+def find_intersections(intervals_a: list[tuple[int, int]], intervals_b: list[tuple[int, int]]) -> np.ndarray:
+    """Find the intersections between two sets of intervals.
 
-    c = np.zeros(shape=(max(na, nb), 2))
+    Parameters
+    ----------
+    intervals_a : list of tuple of int
+        The first list of intervals. Each interval is represented as a tuple of two integers.
+    intervals_b : list of tuple of int
+        The second list of intervals. Each interval is represented as a tuple of two integers.
 
-    if na == 0 or nb == 0:
-        warnings.warn("a or b is empty, returning empty c")
-        return c
+    Returns
+    -------
+    np.ndarray
+        An array of intervals that are the intersections of the intervals in `intervals_a` and `intervals_b`.
+        Each interval is represented as a list of two integers.
 
-    k = 0
-    ia = 0
-    ib = 0
-    state = 3
+    """    # Create Interval Trees
+    intervals_a_tree = IntervalTree.from_tuples(intervals_a)
+    intervals_b_tree = IntervalTree.from_tuples(intervals_b)
 
-    while ia <= na - 1 and ib <= nb - 1:
-        if state == 1:
-            if a[ia, 1] < b[ib, 0]:
-                ia = ia + 1
-                state = 3
-            elif a[ia, 1] < b[ib, 1]:
-                c[k, 0] = b[ib, 0]
-                c[k, 1] = a[ia, 1]
-                k = k + 1
-                ia = ia + 1
-                state = 2
-            else:
-                c[k, :] = b[ib, :]
-                k = k + 1
-                ib = ib + 1
+    overlap_intervals = []
 
-        elif state == 2:
-            if b[ib, 1] < a[ia, 0]:
-                ib = ib + 1
-                state = 3
-            elif b[ib, 1] < a[ia, 1]:
-                c[k, 0] = a[ia, 0]
-                c[k, 1] = b[ib, 1]
-                k = k + 1
-                ib = ib + 1
-                state = 1
-            else:
-                c[k, :] = a[ia, :]
-                k = k + 1
-                ia = ia + 1
+    # Calculate TP and FP
+    for interval in intervals_b_tree:
+        overlaps = sorted(intervals_a_tree.overlap(interval.begin, interval.end))
+        if overlaps:
+            for overlap in overlaps:
+                start = max(interval.begin, overlap.begin)
+                end = min(interval.end, overlap.end)
+                overlap_intervals.append([start, end])
 
-        elif state == 3:
-            if a[ia, 0] < b[ib, 0]:
-                state = 1
-            else:
-                state = 2
+    return merge_intervals(np.array(overlap_intervals)) if len(overlap_intervals) != 0 else np.array([])
 
-    if (~c.any(axis=1)).any():
-        raise ValueError("c has a row of zeros")
-
-    return c
-
-
-########################################################################################################################
 class GsdLowBackAcc(BaseGsdDetector):
-    def __init__(self, savgol_order: int = 7):
-        # TODO: This still does nothing
-        self.savgol_order = savgol_order
 
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         self.data = data
@@ -322,7 +290,9 @@ def gsd_low_back_acc(acc: np.ndarray, sampling_rate_hz, plot_results=True):
     gs_from_max = gs_from_max[gs_from_max[:, 2] >= MIN_N_STEPS]
     gs_from_min = gs_from_min[gs_from_min[:, 2] >= MIN_N_STEPS]
 
-    combined_final = Intersect(gs_from_max[:, :2], gs_from_min[:, :2])  # Combine the gs from the maxima and minima
+    combined_final = find_intersections(
+        gs_from_max[:, :2], gs_from_min[:, :2]
+    )  # Combine the gs from the maxima and minima
 
     if combined_final.size == 0:  # Check if no gs detected
         return pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df, if no gs
