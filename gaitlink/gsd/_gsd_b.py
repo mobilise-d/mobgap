@@ -2,7 +2,6 @@ import warnings
 from itertools import groupby
 from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
@@ -15,20 +14,39 @@ from gaitlink.gsd.base import BaseGsdDetector
 
 
 class GsdLowBackAcc(BaseGsdDetector):
+    min_n_steps: int
+    active_signal_fallback_threshold: float
+    max_gap_s: float
+    # TODO: Padding is in multiples of the average step time of the respective gait sequence.
+    padding: float
+
+    _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
+
+    def __init__(
+        self,
+        *,
+        min_n_steps: int = 5,
+        active_signal_fallback_threshold: float = 0.15,
+        max_gap_s: float = 3,
+        padding: float = 0.75,
+    ):
+        self.min_n_steps = min_n_steps
+        self.active_signal_fallback_threshold = active_signal_fallback_threshold
+        self.max_gap_s = max_gap_s
+        self.padding = padding
+
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
         acc = data[["acc_x", "acc_y", "acc_z"]].to_numpy()
 
-        ALGORITHM_TARGET_SAMPLING_RATE_HZ = 40  # Sampling rate required for the algorithm
-
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
         # Resample to algorithm_target_fs
         acc_norm_resampled = (
-            Resample(ALGORITHM_TARGET_SAMPLING_RATE_HZ)
+            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
             .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
             .transformed_data_
         )
@@ -39,9 +57,10 @@ class GsdLowBackAcc(BaseGsdDetector):
         acc_filtered = EpflDedriftedGaitFilter().filter(acc_filtered, sampling_rate_hz=40).filtered_data_
         # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
-        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker wavelet
-        #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to two
-        #   languages initialise their wavelets), giving the line below
+        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+        #   wavelet.
+        #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
+        #   two languages initialise their wavelets), giving the line below
         acc_filtered = scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7])
         acc_filtered4 = scipy.signal.savgol_filter(acc_filtered, 11, 5)
         acc_filtered = scipy.signal.cwt(acc_filtered4.squeeze(), scipy.signal.ricker, [7])  # See NOTE above
@@ -58,35 +77,34 @@ class GsdLowBackAcc(BaseGsdDetector):
             acc_filtered.squeeze(), 2
         )  # NOTE: sigma = windowWidth / 5, windowWidth = 10 (from MATLAB)
 
-        FALLBACK_THRESHOLD = 0.15
-
         try:
-            active_peak_threshold = find_active_period_peak_threshold(acc_filtered, ALGORITHM_TARGET_SAMPLING_RATE_HZ)
+            active_peak_threshold = find_active_period_peak_threshold(
+                acc_filtered, self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+            )
             signal = acc_filtered
         except NoActivePeriodsDetectedError:
             # If we don't find the active periods, use a fallback threshold and use
             # a less filtered signal for further processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold")
-            active_peak_threshold = FALLBACK_THRESHOLD
+            active_peak_threshold = self.active_signal_fallback_threshold
             signal = acc_filtered4
 
         # Find extrema in signal that might represent steps
         min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
 
         # Combine steps detected by the maxima and minima
-        MIN_N_STEPS = 5
-
         gs_from_max = find_pulse_trains(max_peaks)
         gs_from_min = find_pulse_trains(min_peaks)
-        gs_from_max = gs_from_max[gs_from_max[:, 2] >= MIN_N_STEPS]
-        gs_from_min = gs_from_min[gs_from_min[:, 2] >= MIN_N_STEPS]
+        gs_from_max = gs_from_max[gs_from_max[:, 2] >= self.min_n_steps]
+        gs_from_min = gs_from_min[gs_from_min[:, 2] >= self.min_n_steps]
 
         combined_final = find_intersections(
             gs_from_max[:, :2], gs_from_min[:, :2]
         )  # Combine the gs from the maxima and minima
 
-        if combined_final.size == 0:  # Check if no gs detected
-            return pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df, if no gs
+        if combined_final.size == 0:  # Check if all gs removed
+            self.gsd_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            return self
 
         # Find all max_peaks withing each final gait sequence (GS)
         steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
@@ -94,31 +112,33 @@ class GsdLowBackAcc(BaseGsdDetector):
         mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
 
         # Pad each gs by 0.75*step_time before and after
-        combined_final[:, 0] = np.fix(combined_final[:, 0] - 0.75 * mean_step_times)
-        combined_final[:, 1] = np.fix(combined_final[:, 1] + 0.75 * mean_step_times)
+        combined_final[:, 0] = np.fix(combined_final[:, 0] - self.padding * mean_step_times)
+        combined_final[:, 1] = np.fix(combined_final[:, 1] + self.padding * mean_step_times)
 
         # Filter again by number of steps, remove any gs with too few steps
-        combined_final = combined_final[n_steps_per_gs >= MIN_N_STEPS]
+        combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
 
         if combined_final.size == 0:  # Check if all gs removed
-            return pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            self.gsd_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            return self
 
-        # Merge gs if time (in seconds) between consecutive gs is less than MAX_GAP_S
-        MAX_GAP_S = 3
-        combined_final = merge_intervals(combined_final, ALGORITHM_TARGET_SAMPLING_RATE_HZ * MAX_GAP_S)
+        # Merge gs if time (in seconds) between consecutive gs is smaller than max_gap_s
+        combined_final = merge_intervals(
+            combined_final, int(np.round(self._INTERNAL_FILTER_SAMPLING_RATE_HZ * self.max_gap_s))
+        )
 
         # Convert back to original sampling rate
-        combined_final = combined_final * sampling_rate_hz / ALGORITHM_TARGET_SAMPLING_RATE_HZ
+        combined_final = combined_final * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
 
         # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
         combined_final = np.clip(combined_final, 0, len(acc))
 
-        self.gsd_list_ =  pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
+        self.gsd_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
 
         return self
 
 
-def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
+def hilbert_envelop(y, Smooth_window, DURATION):
     """NOTE: This has been edited from the original MATLAB version to remove perceived error"""
     # Calculate the analytical signal and get the envelope
     amplitude_envelope = np.abs(scipy.signal.hilbert(y))
@@ -127,52 +147,41 @@ def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
     env = np.convolve(
         amplitude_envelope, np.ones(Smooth_window) / Smooth_window, "same"
     )  # Smooth  NOTE: Original matlab code used mode 'full', meaning the length of convolution was different to env, this has been fixed here
-    env = env - np.mean(env)  # Get rid of offset
-    env = env / np.max(env)  # Normalize
+    env -= np.mean(env)  # Get rid of offset
+    env /= np.max(env)  # Normalize
 
-    """ Threshold the signal """
-    # Input the threshold if needed
-    if not threshold_style:
-        f = plt.figure()
-        plt.plot(env)
-        plt.title("Select a threshold on the graph")
-        threshold_sig = input("What threshold have you selected?\n")
-        print("You have selected: ", threshold_sig)
-        plt.close(f)
-    else:
-        # Threshold style
-        threshold_sig = 4 * np.nanmean(env)
-    noise = np.mean(env) * (1 / 3)  # Noise level
+    threshold_sig = 4 * np.nanmean(env)
+    noise = np.mean(env) / 3  # Noise level
     threshold = np.mean(env)  # Signal level
+    update_threshold = False
 
     # Initialize Buffers
-    thresh_buff = np.zeros(len(env) - DURATION + 1)
     noise_buff = np.zeros(len(env) - DURATION + 1)
-    thr_buff = np.zeros(len(env) + 1)
-    h = 1
-    alarm = np.zeros(len(env) + 1)
+    active = np.zeros(len(env) + 1)
 
-    for i in range(len(thresh_buff)):
+    # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
+    #       We should test that out once we have a proper evaluation pipeline.
+    for i in range(len(env) - DURATION + 1):
         # Update threshold 10% of the maximum peaks found
-        if (env[i : i + DURATION] > threshold_sig).all():
-            alarm[i] = max(env)
-            threshold = 0.1 * np.mean(env[i : i + DURATION])
-            h = h + 1
-        elif np.mean(env[i : i + DURATION]) < threshold_sig:
-            noise = np.mean(env[i : i + DURATION])
+        window = env[i : i + DURATION]
+        if (window > threshold_sig).all():
+            active[i] = max(env)
+            threshold = 0.1 * np.mean(window)
+            update_threshold = True
+        elif np.mean(window) < threshold_sig:
+            noise = np.mean(window)
+        elif noise_buff.any():
+            noise = np.mean(noise_buff)
         else:
-            if noise_buff.any():
-                noise = np.mean(noise_buff)
+            raise ValueError("Error in threshold update")
 
-        thresh_buff[i] = threshold
         noise_buff[i] = noise
 
         # Update threshold
-        if h > 1:
+        if update_threshold:
             threshold_sig = noise + 0.50 * (abs(threshold - noise))
-        thr_buff[i] = threshold_sig
 
-    return alarm, env
+    return active, env
 
 
 def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
@@ -241,14 +250,14 @@ def find_pulse_trains(x):
     return np.array([start, end, steps]).T
 
 
-def find_intersections(intervals_a: list[tuple[int, int]], intervals_b: list[tuple[int, int]]) -> np.ndarray:
+def find_intersections(intervals_a: np.ndarray, intervals_b: np.ndarray) -> np.ndarray:
     """Find the intersections between two sets of intervals.
 
     Parameters
     ----------
-    intervals_a : list of tuple of int
+    intervals_a
         The first list of intervals. Each interval is represented as a tuple of two integers.
-    intervals_b : list of tuple of int
+    intervals_b
         The second list of intervals. Each interval is represented as a tuple of two integers.
 
     Returns
@@ -282,13 +291,14 @@ class NoActivePeriodsDetectedError(Exception):
 def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
     # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
     alarm, _ = hilbert_envelop(
-        signal, sampling_rate_hz, True, sampling_rate_hz
+        signal, sampling_rate_hz, sampling_rate_hz
     )  # NOTE: This has been edited from the original MATLAB version to remove perceived error
     walkLowBack = np.array([])
 
-    if not np.any(alarm):  # If hilbert_envelope fails to detect 'active' try version [1]
+    if not np.any(alarm):
         raise NoActivePeriodsDetectedError()
 
+    # TODO: What does all of this do?
     len_alarm = [
         len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)
     ]  # Length of each consecutive stretch of nonzero values in alarm

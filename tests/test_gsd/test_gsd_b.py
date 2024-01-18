@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from gaitlink.gsd._gsd_b import find_intersections
 
