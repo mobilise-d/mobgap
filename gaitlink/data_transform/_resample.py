@@ -99,7 +99,7 @@ class Resample(BaseTransformer):
             index = None
 
         resampling_factor = self.target_sampling_rate_hz / sampling_rate_hz
-        new_n_samples = int(len(data_as_array) * resampling_factor)
+        new_n_samples = int(round(len(data_as_array) * resampling_factor))
 
         # If we don't have an index (i.e. when a np.array was passed), we don't need to resample the index
         if index is None:
