@@ -1,31 +1,54 @@
 import numpy as np
 from scipy.signal import butter, filtfilt
 
-def _butter_bandpass_filter(signal: np.ndarray,
-                            lower_bound: float,
-                            upper_bound: float,
-                            sampling_rate_hz: float,
-                            order = 4) -> np.ndarray:
-    """
-    This utility function creates and applies a Butterworth lowpass filter.
-    """
-    nyq = 0.5 * sampling_rate_hz
-    normal_lower_bound = lower_bound / nyq
-    normal_upper_bound = upper_bound / nyq
-    b, a = butter(order, [normal_lower_bound, normal_upper_bound], btype = "bandpass", analog = False)
-    y = filtfilt(b, a, signal)
-    return y
 
-def _butter_lowpass_filter(signal: np.ndarray,
-                           cutoff: float,
-                           sampling_rate_hz: float,
-                           order = 4) -> np.ndarray:
-    """Create and apply butterworth lowpass filter."""
-    nyq = 0.5 * sampling_rate_hz
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype = "low", analog = False)
-    y = filtfilt(b, a, signal)
-    return y
+# TODO: Here you can have the reference data extractor.
+def extract_ref_data(datapoint):
+
+    imu_data = datapoint.data["LowerBack"]
+    ref_walking_bouts = datapoint.reference_parameters_.walking_bouts
+    ref_ics = datapoint.reference_parameters_.initial_contacts
+
+    data_list = []
+    ic_list = []
+    label_list = []
+
+    for gs in range(len(ref_walking_bouts)):
+        gs_start = ref_walking_bouts.iloc[gs].start
+        gs_end = ref_walking_bouts.iloc[gs].end
+        
+        data_list.append(imu_data.iloc[gs_start : gs_end].reset_index(drop = True))
+        ic_list.append(ref_ics.loc[ref_ics.index.get_level_values('wb_id') == gs + 1, ['ic']].reset_index(drop = True) - gs_start) 
+        label_list.append(ref_ics.loc[ref_ics.index.get_level_values('wb_id') == gs + 1, ['lr_label']].reset_index(drop = True))
+    
+    return data_list, ic_list, label_list
+
+
+# def _butter_bandpass_filter(signal: np.ndarray,
+#                             lower_bound: float,
+#                             upper_bound: float,
+#                             sampling_rate_hz: float,
+#                             order = 4) -> np.ndarray:
+#     """
+#     This utility function creates and applies a Butterworth lowpass filter.
+#     """
+#     nyq = 0.5 * sampling_rate_hz
+#     normal_lower_bound = lower_bound / nyq
+#     normal_upper_bound = upper_bound / nyq
+#     b, a = butter(order, [normal_lower_bound, normal_upper_bound], btype = "bandpass", analog = False)
+#     y = filtfilt(b, a, signal)
+#     return y
+
+# def _butter_lowpass_filter(signal: np.ndarray,
+#                            cutoff: float,
+#                            sampling_rate_hz: float,
+#                            order = 4) -> np.ndarray:
+#     """Create and apply butterworth lowpass filter."""
+#     nyq = 0.5 * sampling_rate_hz
+#     normal_cutoff = cutoff / nyq
+#     b, a = butter(order, normal_cutoff, btype = "low", analog = False)
+#     y = filtfilt(b, a, signal)
+#     return y
 
 
 def find_extrema_in_radius(data: np.ndarray,

@@ -52,8 +52,6 @@ class McCamleyLRDetection(BaseLRDetector):
         ----------------
         ic_left_right
         """
-        # TODO: you might want to 
-        
         # # check for types of data, do not allow convenience conversions.
         # if not isinstance(data, pd.DataFrame):
         #     raise TypeError("data must be a pandas DataFrame")
