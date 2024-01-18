@@ -1,3 +1,7 @@
+"""
+Continuous Wavelet Transform (CWT) Example
+"""
+
 from scipy.signal import ricker
 import numpy as np
 from gaitlink.data import LabExampleDataset
@@ -20,14 +24,10 @@ cwt_filter = CwtFilter(wavelet=wavelet, width=width)
 # Transform the data using CwtFilter
 transformed_data = cwt_filter.transform(df, widths=[width])
 
-
 # Access the transformed data
-# transformed_data = cwt_filter.transformed_data_
-
-
 print(transformed_data.data)
 
-
+# Plot the original and transformed data
 plt.figure(figsize=(12, 4))
 plt.subplot(1, 2, 1)
 plt.plot(df.index, df.values, label='Original Data')

@@ -1,3 +1,8 @@
+"""
+Gaussian Filter data
+===============
+"""
+
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from gaitlink.data_transform import GaussianFilter  # Update the import path accordingly

@@ -1,3 +1,8 @@
+"""
+Savgol Filter data
+===============
+"""
+
 import pandas as pd
 from scipy.signal import savgol_filter
 from typing_extensions import Self
