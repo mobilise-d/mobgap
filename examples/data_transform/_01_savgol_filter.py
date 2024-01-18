@@ -1,3 +1,8 @@
+"""
+Savitzky-Golay Filter Example
+===============
+"""
+
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform._savgol_filter import SavgolFilter
 import pandas as pd
