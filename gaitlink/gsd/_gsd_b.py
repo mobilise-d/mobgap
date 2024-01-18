@@ -74,19 +74,32 @@ def hilbert_envelop(y, Smooth_window, threshold_style, DURATION):
     return [alarm, env]
 
 
-def FindMinMax(s, thr):
-    s = s.squeeze()
-    d = np.diff(s)
-    f = np.nonzero(d[1:] * d[:-1] <= 0)[0]
-    f = f + 1
+import numpy as np
 
-    mi = f[d[f] >= 0]
-    ma = f[d[f] < 0]
+def find_min_max(signal: np.ndarray, threshold: float) -> tuple:
+    """
+    Identify the indices of local minima and maxima in a 1D numpy array (signal),
+    where the values are beyond a specified threshold.
 
-    ma = ma[s[ma] > thr]
-    mi = mi[s[mi] < -thr]
+    Parameters:
+    signal (np.ndarray): A 1D numpy array representing the signal.
+    threshold (float): A threshold value to filter the minima and maxima.
 
-    return mi, ma
+    Returns:
+    tuple: Two arrays containing the indices of local minima and maxima, respectively.
+    """
+    signal = signal.squeeze()
+    diff = np.diff(signal)
+    extrema_indices = np.nonzero(diff[1:] * diff[:-1] <= 0)[0] + 1
+
+    minima = extrema_indices[diff[extrema_indices] >= 0]
+    maxima = extrema_indices[diff[extrema_indices] < 0]
+
+    minima = minima[signal[minima] < -threshold]
+    maxima = maxima[signal[maxima] > threshold]
+
+    return minima, maxima
+
 
 
 def find_pulse_trains(x):
@@ -293,7 +306,7 @@ def gsd_low_back_acc(acc, fs, plot_results=True):
         f = acc_filtered4
 
     # mid - swing detection
-    [min_peaks, max_peaks] = FindMinMax(f, th)
+    min_peaks, max_peaks= find_min_max(f, th)
 
     MIN_N_STEPS = 5
 
