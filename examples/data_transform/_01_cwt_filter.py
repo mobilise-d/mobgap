@@ -1,48 +1,52 @@
-from scipy.signal import morlet
-from gaitlink.data_transform._cwt_filter import CwtFilter
+from scipy.signal import ricker
 import numpy as np
+from gaitlink.data import LabExampleDataset
 import matplotlib.pyplot as plt
-# Generate some example data (replace this with your actual data)
-x = np.linspace(0, 1, 1000)
-y = np.sin(2 * np.pi * 5 * x)  # Example sine wave
+from gaitlink.data_transform import CwtFilter
 
-# Create an instance of the CwtFilter with the morlet wavelet
-cwt_filter = CwtFilter(wavelet=morlet, width=np.arange(1, 31))
+# Load example data
+example_data = LabExampleDataset()
+ha_example_data = example_data.get_subset(cohort="HA")
+single_test = ha_example_data.get_subset(participant_id="002", test="Test11", trial="Trial1")
+df = single_test.data["LowerBack"]
 
-# Perform the CWT operation by calling the transform method
-cwt_result = cwt_filter.transform(y)
+# Define your wavelet function and width
+wavelet = ricker
+width = 10.0
+
+# Create an instance of CwtFilter
+cwt_filter = CwtFilter(wavelet=wavelet, width=width)
+
+# Transform the data using CwtFilter
+transformed_data = cwt_filter.transform(df, widths=[width])
+
 
 # Access the transformed data
-transformed_data = cwt_result.transformed_data_
-
-# Plot the original and transformed data
+# transformed_data = cwt_filter.transformed_data_
 
 
-plt.figure(figsize=(10, 6))
+print(transformed_data.data)
 
-plt.subplot(2, 1, 1)
-plt.plot(x, y, label="Original Data")
-plt.title("Original Data")
-plt.xlabel("Time")
-plt.ylabel("Amplitude")
+
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.plot(df.index, df.values, label='Original Data')
+plt.title('Original Data')
+plt.xlabel('Time')
+plt.ylabel('Signal Value')
 plt.legend()
 
-plt.subplot(2, 1, 2)
-plt.imshow(np.abs(transformed_data), aspect='auto', extent=[0, 1, 1, 31], cmap='jet', origin='lower')
-plt.title("Continuous Wavelet Transform")
-plt.xlabel("Time")
-plt.ylabel("Scale")
-plt.colorbar(label="Magnitude")
+# Plot the transformed data
+plt.subplot(1, 2, 2)
+num_scales = transformed_data.data.shape[0]  # Assuming the first dimension is scales
+time_points = df.index.to_numpy()
+
+plt.imshow(np.abs(transformed_data.data), aspect='auto', extent=[time_points[0], time_points[-1], 0, num_scales],
+           cmap='PRGn', origin='lower')
+plt.title('CWT Transformed Data')
+plt.xlabel('Time')
+plt.ylabel('Scale')
+plt.colorbar(label='Magnitude')
 
 plt.tight_layout()
 plt.show()
-
-
-
-# We can also try the implementation of the code this way:
-# wavelet_func = morlet
-# width_param = 5.0
-# cwt_filter = CwtFilter(wavelet_func, width_param)
-#
-# # Now run the test
-# cwt_filter.test_transform()

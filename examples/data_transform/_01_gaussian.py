@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from gaitlink.data_transform._gaussian_filter import GaussianFilter  # Update the import path accordingly
+from gaitlink.data_transform import GaussianFilter  # Update the import path accordingly
 
 # Example usage
 # Assume you have some multidimensional data stored in a NumPy array 'your_data'
