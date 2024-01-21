@@ -4,6 +4,7 @@ from scipy.signal import morlet
 from tpcp.testing import TestAlgorithmMixin
 from gaitlink.data_transform._cwt_filter import CwtFilter
 
+
 class TestMetaCwtFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = CwtFilter
     __test__ = True
@@ -18,7 +19,7 @@ class TestMetaCwtFilter(TestAlgorithmMixin):
         input_data = np.array([1.0, 2.0, 3.0, 4.0])
 
         # Perform the Continuous Wavelet Transform using your CwtFilter class
-        result = cwt_filter_instance.transform(input_data)
+        result = cwt_filter_instance.transform(input_data, widths=[1, 2, 3])
 
         # Return the CwtFilter class instance with initial conditions
         return cwt_filter_instance
