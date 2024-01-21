@@ -1,12 +1,14 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter
-from gaitlink.data_transform.base import BaseTransformer
 from typing_extensions import Self
+
+from gaitlink.data_transform.base import BaseTransformer
 
 
 class GaussianFilter(BaseTransformer):
     """
     A class for applying Gaussian filter to blur images or multidimensional data.
+
     Derived from BaseTransformer for integration into gait analysis pipelines.
 
 
@@ -50,7 +52,7 @@ class GaussianFilter(BaseTransformer):
 
         self.data = data.copy()  # Create a copy for consistency
         # Apply Gaussian filter
-        self.transformed_data_ = gaussian_filter(data, sigma=self.sigma, output=None, mode='reflect', cval=0.0,
+        self.transformed_data_ = gaussian_filter(data, sigma=self.sigma, output=None, mode="reflect", cval=0.0,
                                                  truncate=4.0)
 
         return self

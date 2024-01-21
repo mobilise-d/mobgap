@@ -36,7 +36,7 @@ axs[0].legend()
 
 # Plot the smoothed 'acc' data
 smoothed_acc_data_df.filter(like="acc").plot(ax=axs[1], label="Smoothed Data")
-axs[1].set_title("Smoothed Data")
+axs[1].set_title("Smoothened Data")
 axs[1].legend()
 
 plt.show()
