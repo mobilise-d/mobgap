@@ -27,8 +27,12 @@ class CwtFilter(BaseTransformer):
     transformed_data_ :
         The data after applying Continuous Wavelet Transform.
 
-    data : np.ndarray
+    Other Parameters
+    ----------------
+    `data : np.ndarray
         The input data (assumed to be a NumPy array).
+    `back_transform_func : callable or None
+        Placeholder for the back-transform function.
     """
 
     def __init__(self, wavelet: callable, width: float) -> None:
@@ -48,7 +52,7 @@ class CwtFilter(BaseTransformer):
         self.transformed_data_ = np.array([])  # Initialize transformed_data_ to an empty array
         self.back_transform_func = None  # Placeholder for the back-transform function
 
-    def transform(self, data: DfLike, widths: Union[list[float], None] = None) -> Self:
+    def transform(self, data: DfLike, widths: Union[list[float], None] = None, back_transform_func = None) -> Self:
         """
         Apply Continuous Wavelet Transform to analyze the input data.
 
@@ -56,6 +60,10 @@ class CwtFilter(BaseTransformer):
         ----------
         data : DfLike
             Input data representing a signal.
+        widths : Union[list[float], None]
+            Width parameter for the transform.
+        back_transform_func : callable or None, optional
+            Placeholder for the back-transform function.
 
         Returns
         -------
@@ -66,6 +74,8 @@ class CwtFilter(BaseTransformer):
         """
         if data is None:
             raise ValueError("Parameter 'data' must be provided.")
+        if widths is None:
+            raise ValueError("Parameter 'widths' must be provided for the transform.")
 
         # Assign data without modification
         self.data = data
@@ -84,6 +94,9 @@ class CwtFilter(BaseTransformer):
             # Use a default dtype compatible with the expected output
             self.transformed_data_ = cwt(df_data_transposed, self.wavelet, widths=widths)
 
+        except ValueError as ve:
+            # Handle ValueError (e.g., invalid data or wavelet parameters)
+            raise ValueError(f"Error during Continuous Wavelet Transform: {ve}")
 
 
         except TypeError:
@@ -93,5 +106,17 @@ class CwtFilter(BaseTransformer):
 
         return self
 
+    def back_transform(self) -> DfLike:
+        """
+        Apply a back-transform to return a copy of the original data.
 
+        Returns
+        -------
+        DfLike
+            A copy of the original data.
+        """
+        if not self.data.any():
+            raise ValueError("No original data available. Perform the transformation before calling back_transform.")
 
+        # Return a copy of the original data
+        return np.copy(self.data)
