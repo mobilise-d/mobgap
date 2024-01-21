@@ -1,6 +1,7 @@
 import pandas as pd
 from scipy.signal import savgol_filter
 from typing_extensions import Self
+
 from gaitlink.data_transform.base import BaseTransformer
 
 
@@ -41,6 +42,7 @@ class SavgolFilter(BaseTransformer):
 
         self.data = data.copy()  # Create a copy for consistency
         # Apply Savitzky-Golay filter
-        self.transformed_data_ = savgol_filter(data, window_length=self.window_length, polyorder=self.polyorder, mode='mirror')
+        self.transformed_data_ = savgol_filter(data, window_length=self.window_length,
+                                polyorder=self.polyorder, mode="mirror")
 
         return self

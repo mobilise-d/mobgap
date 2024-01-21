@@ -1,15 +1,18 @@
-from scipy.signal import cwt, ricker
-from gaitlink.data_transform.base import BaseTransformer
+
+from typing import Union
+
 import numpy as np
-from gaitlink.utils.dtypes import dflike_as_2d_array, DfLike
+from scipy.signal import cwt
 from typing_extensions import Self
-from gaitlink.data import LabExampleDataset
-import matplotlib.pyplot as plt
+
+from gaitlink.data_transform.base import BaseTransformer
+from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
 class CwtFilter(BaseTransformer):
     """
     A class for applying Continuous Wavelet Transform (CWT) for signal analysis.
+
     Derived from BaseTransformer for integration into gait analysis pipelines.
 
     Parameters
@@ -28,8 +31,10 @@ class CwtFilter(BaseTransformer):
         The input data (assumed to be a NumPy array).
     """
 
-    def __init__(self, wavelet, width) -> None:
+    def __init__(self, wavelet: callable, width: float) -> None:
         """
+        Initialize the function.
+
         Parameters
         ----------
         wavelet : callable
@@ -43,7 +48,7 @@ class CwtFilter(BaseTransformer):
         self.transformed_data_ = np.array([])  # Initialize transformed_data_ to an empty array
         self.back_transform_func = None  # Placeholder for the back-transform function
 
-    def transform(self, data: DfLike, widths: list[float] = None) -> Self:
+    def transform(self, data: DfLike, widths: Union[list[float], None] = None) -> Self:
         """
         Apply Continuous Wavelet Transform to analyze the input data.
 
@@ -81,11 +86,10 @@ class CwtFilter(BaseTransformer):
 
 
 
-        except TypeError as E:
+        except TypeError:
             # Handle the case where 'dtype' is not supported by the wavelet
             self.transformed_data_ = cwt(df_data_transposed, self.wavelet, widths=widths)
             # Catching TypeError when 'dtype' is not supported by the wavelet.
-            pass
 
         return self
 

@@ -2,7 +2,7 @@ import multiprocessing
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import ClassVar, Literal, Optional, TypeAlias, Union
+from typing import ClassVar, Literal, Optional, Union
 
 import pandas as pd
 from joblib import Memory, Parallel, delayed
@@ -12,7 +12,7 @@ from tqdm.auto import tqdm
 
 from gaitlink.data._mobilsed_weartime_loader import load_weartime_from_daily_mcroberts_report
 
-SITE_CODES: TypeAlias = Literal[
+SITE_CODES: type = Literal[
     "CAU",
     "CHUM",
     "ICL",
