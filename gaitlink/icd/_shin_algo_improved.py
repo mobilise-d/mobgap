@@ -1,5 +1,4 @@
 from typing import Any, Literal
-
 import numpy as np
 import pandas as pd
 from gaitmap.data_transform import Resample
@@ -7,22 +6,67 @@ from numpy.linalg import norm
 from scipy.ndimage import gaussian_filter
 from scipy.signal import cwt, ricker, savgol_filter
 from typing_extensions import Self, Unpack
-
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
+from gaitlink.ICD.base import BaseIcdDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
 class IcdShinImproved(BaseIcdDetector):
     """
+    This algorithm is designed to detect initial contacts from accelerometry signals [1, 2]. Once walking bouts are identified
+    in a separate stage, this algorithm utilizes the accelerometry signals recorded during these walking bouts to
+    calculate and pinpoint initial contacts within each bout. The process involves multiple stages, including signal
+    processing, filtering, and zero-crossing detection, as outlined in the class documentation and references provided
+
+    This is based on the implementation published as part of the mobilised project [3].
+    However, this implementation deviates from the original implementation in some places.
+    For details, see the notes section and the examples.
+
+    Parameters
+    ----------
+    :param axis : str, optional
+        selecting which part of the accelerometry signal to be used. Can be 'x', 'y', 'z', or 'norm'.
+
+    :param signal : np.ndarray
+        A numpy array of the signal values.
+
+    :param mode : str
+        A string specifying the type of zero crossings to detect.
+        Can be 'positive_to_negative', 'negative_to_positive', or 'both'.
+        The default is 'both'.
+
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
 
     Attributes
     ----------
     %(ic_list_)s
 
-    Other Parameters
-    ----------------
-    %(other_parameters)s
+    Notes
+    -----
+    Points of deviation from the original implementation and their reasons:
+    1) Structural differences: here we calculate ICs separately using the Shin algorithm,
+    those ICs will be used to calculate cadence separately. On matlab, cadence is calculated
+    in the same function as the ICs.
+    2) Configurable accelerometry signal: on matlab, all axes are used to calculate ICs, here we provide
+    the option to select which axis to use. Despite the fact that the Shin algorithm on matlab uses all axes,
+    here we provide the option of selecting a single axis because other contact detection algorithms use only the
+    horizontal axis.
+    3) Despite all filter giving identical results in python and matlab, gaussian_filter exhibits some small differences
+    4) All parameters are expressed in the units used in gaitlink, as opposed to matlab.
+      Specifically, we use m/s^2 instead of g.
+
+    References
+    ----------
+    [1] Shin, Seung Hyuck, and Chan Gook Park. "Adaptive step length estimation algorithm
+    using optimal parameters and movement status awareness." Medical engineering & physics 33.9 (2011): 1064-1071.
+
+    [2] Paraschiv-Ionescu, A. et al. "Real-world speed estimation using single trunk IMU:
+    methodological challenges for impaired gait patterns". IEEE EMBC (2020): 4596-4599
+
+    [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/CADB_CADC/Library/Shin_algo_improved.m
 
     """
 
@@ -35,12 +79,13 @@ class IcdShinImproved(BaseIcdDetector):
 
     @base_icd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
-        """ %(detect_short)s.
+        """ %(detect_short)s
 
         Parameters
         ----------
         %(detect_para)s
 
+        -------
         %(detect_return)s
         """
         self.data = data
@@ -122,9 +167,9 @@ def find_zero_crossings(
 
     Parameters
     ----------
-    signal : np.ndarray
+    :param signal : np.ndarray
         A numpy array of the signal values.
-    mode : str, optional
+    :param mode : str, optional
         A string specifying the type of zero crossings to detect.
         Can be 'positive_to_negative', 'negative_to_positive', or 'both'.
         The default is 'both'.
