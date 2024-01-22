@@ -4,7 +4,6 @@ import pytest
 from tpcp.testing import TestAlgorithmMixin
 from gaitlink.ICD import find_zero_crossings
 
-
 class Testfind_zero_crossing:
     __test__ = True
 
