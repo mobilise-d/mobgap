@@ -71,7 +71,7 @@ algo_with_custom_pathological_params.get_params()
 # %%
 # Depending on the specific case, we can also use one of the predefined parameters as default values for the
 # constructor.
-# We can use the :func:`~tpcp.misc.set_defaults` to do this easily.
+# We can use the :func:`tpcp.misc.set_defaults` function to do this easily.
 from tpcp.misc import set_defaults
 
 
@@ -97,8 +97,8 @@ algo = MyAlgorithm()
 algo.get_params()
 
 # %%
-# Loading parameters from a file
-# ------------------------------
+# Loading parameters from a file (or other source)
+# ------------------------------------------------
 # Sometimes, we have a lot of parameters, that we don't want to hardcode in the source code, or we want to include
 # objects in the parameters that can not be easily hardcoded (e.g. a trained machine learning model).
 #
@@ -108,6 +108,7 @@ algo.get_params()
 #
 # Let's assume our algorithm has an additional parameter ``model`` that takes an optional pre-trained ML model.
 # We will provide different versions of predefined parameters, that use different models.
+#
 # For the example, we will not actually load a model, but just use a string.
 from tpcp.misc import classproperty
 
