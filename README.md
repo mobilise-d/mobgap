@@ -44,8 +44,7 @@ The package is designed to be used in two modes:
    > Gait parameters were obtained using the Mobilise-D algorithm pipeline [1, 2] in its official implementation
    > provided with the gaitlink Python library version {insert version you used}.
 
-   [1]: https://doi.org/10.1038/s41598-024-51766-5
-   [2]: https://doi.org/10.1186/s12984-023-01198-5
+
 
    When appropriate, include the link to the gaitlink library as a footnote or as a "online resource" in the reference
    list.
@@ -60,6 +59,21 @@ The package is designed to be used in two modes:
    > The algorithm pipeline was implemented based on {name of Pipeline class} available as part of the gaitlink Python
    > library version {insert version you used} with the following modifications:
    > {insert modifications you made}.
+   
+   [1]: https://doi.org/10.1038/s41598-024-51766-5
+   [2]: https://doi.org/10.1186/s12984-023-01198-5
+   
+   ```
+   [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in 
+   multiple conditions with a wearable device. Sci Rep 14, 1754 (2024). 
+   https://doi.org/10.1038/s41598-024-51766-5
+   
+   [2] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology? 
+   Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78 (2023). 
+   https://doi.org/10.1186/s12984-023-01198-5
+   ```
+   
+   
 
 2. Usage of individual algorithms:
 
