@@ -36,7 +36,7 @@ The package is designed to be used in two modes:
    These pipelines were validated as part of the Technical Validation Study of Mobilise-D and are the **recommended**
    way to obtain gait parameters according to the Mobilise-D algorithms.
    Depending on the clinical cohort and the amount of gait impairment, we recommend different pipelines.
-   When using the pipelines in the recommended way, you can expect error ranges as reported in [1].
+   When using the pipelines in the recommended way, you can expect error ranges as reported in [[1]].
    Outside, this recommended use case, we cannot guarantee the correctness of the results.
 
    If you are using the pipelines in this way, we recommend to cite [[1]] and [[2]] as follows:
@@ -55,7 +55,7 @@ The package is designed to be used in two modes:
 
    In the latter case, we recommend the following citation:
 
-   > Gait parameters were obtained using an approach inspired by Mobilise-D algorithm pipeline [1, 2].
+   > Gait parameters were obtained using an approach inspired by Mobilise-D algorithm pipeline [[1], [2]].
    > The algorithm pipeline was implemented based on {name of Pipeline class} available as part of the gaitlink Python
    > library version {insert version you used} with the following modifications:
    > {insert modifications you made}.
@@ -72,8 +72,6 @@ The package is designed to be used in two modes:
    Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78 (2023). 
    https://doi.org/10.1186/s12984-023-01198-5
    ```
-   
-   
 
 2. Usage of individual algorithms:
 
@@ -93,6 +91,29 @@ The package is designed to be used in two modes:
    When appropriate, include the link to the gaitlink library as a footnote or as a "online resource" in the reference
    list.
 
-## License
+## License and Usage of Names
 
-## Working with Algorithms
+The library was developed as part of the Mobilise-D project under the lead of the Friedrich-Alexander-Universität 
+Erlangen-Nürnberg (FAU).
+The original copyright lies with the Machine Learning and Data Analytics Lab
+([MAD Lab](https://www.mad.tf.fau.de/)) at the FAU.
+For any legal inquiries regarding copyright, contact 
+[Björn Eskofier](https://www.mad.tf.fau.de/person/bjoern-eskofier/).
+Copyright of any community contributions remains with the respective code authors.
+
+The gaitlink library is licensed under an Apache 2.0 license.
+This means it is free to use for any purpose (including commercial use), but you have to include the license text
+in any distribution of the code.
+See the [LICENSE](LICENSE.txt) file for the full license text.
+
+Please note that this software comes with no warranty, all code is provided as is.
+In particular, we do not guarantee any correctness of the results, algorithmic performance or any other properties
+of the software.
+This software is not a medical product nor licensed for medical use.
+
+Neither the name "Mobilise-D" nor "gaitlink" are registered trademarks.
+However, we ask you to use the names appropriately when working with this software.
+Ideally, we recommend to use the names as described in the usage recommendation above and not use the name 
+"Mobilise-D algorithm pipeline" for any custom pipelines or pipelines with modified parameters.
+If in doubt, feel free ask using the [Github issue tracker](https://github.com/mobilise-d/gaitlink/issues) or 
+the Github discussions.
