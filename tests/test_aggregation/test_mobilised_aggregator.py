@@ -14,29 +14,37 @@ DATA_PATH = BASE_PATH / "example_data/original_results/mobilised_aggregator"
 
 @pytest.fixture()
 def example_dmo_data():
-    return pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0)
-
-
-@pytest.fixture()
-def example_dmo_data_mask():
-    return pd.read_csv(DATA_PATH / "aggregation_test_data_mask.csv", index_col=0)
+    return (
+        pd.read_csv(DATA_PATH / "aggregation_test_input.csv")
+        .astype({"measurement_date": "string", "visit_type": "string", "participant_id": "string"})
+        .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
+    )
 
 
 @pytest.fixture()
 def example_dmo_reference():
-    return pd.read_csv(DATA_PATH / "aggregation_test_reference.csv", index_col=[0, 1])
+    return (
+        pd.read_csv(DATA_PATH / "aggregation_test_reference.csv")
+        .astype({"measurement_date": "string", "visit_type": "string", "participant_id": "string"})
+        .set_index(["visit_type", "participant_id", "measurement_date"])
+    )
 
 
 @pytest.fixture()
-def example_dmo_data_partial():
-    drop_columns = ["step_number", "turn_number"]
-    return pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0).drop(columns=drop_columns)
+def dummy_dmo_data_mask(example_dmo_data):
+    return example_dmo_data.astype(bool)
 
 
 @pytest.fixture()
-def example_dmo_reference_partial():
+def example_dmo_data_partial(example_dmo_data):
+    drop_columns = ["n_steps", "n_turns"]
+    return example_dmo_data.drop(columns=drop_columns)
+
+
+@pytest.fixture()
+def example_dmo_reference_partial(example_dmo_reference):
     drop_columns = ["steps_all_sum", "turns_all_sum"]
-    return pd.read_csv(DATA_PATH / "aggregation_test_reference.csv", index_col=[0, 1]).drop(columns=drop_columns)
+    return example_dmo_reference.drop(columns=drop_columns)
 
 
 class TestMetaMobilisedAggregator(TestAlgorithmMixin):
@@ -48,7 +56,7 @@ class TestMetaMobilisedAggregator(TestAlgorithmMixin):
     def after_action_instance(self, example_dmo_data):
         return self.ALGORITHM_CLASS().aggregate(
             example_dmo_data.iloc[:10],
-            data_mask=None,
+            wb_dmos_mask=None,
         )
 
 
@@ -62,12 +70,12 @@ class TestMobilisedAggregator:
         ("data", "reference"),
         [("example_dmo_data", "example_dmo_reference"), ("example_dmo_data_partial", "example_dmo_reference_partial")],
     )
-    def test_reference_data(self, data, reference, example_dmo_data_mask, request):
+    def test_reference_data(self, data, reference, request):
         data = request.getfixturevalue(data)
-        reference = request.getfixturevalue(reference)
+        reference = request.getfixturevalue(reference).sort_index(axis=1)
 
-        agg = MobilisedAggregator().aggregate(data, data_mask=example_dmo_data_mask)
-        output = agg.aggregated_data_
+        agg = MobilisedAggregator().aggregate(data)
+        output = agg.aggregated_data_.sort_index(axis=1)
 
         assert_frame_equal(
             output.drop(columns=self.quantile_columns),
@@ -76,18 +84,15 @@ class TestMobilisedAggregator:
         )
         assert_frame_equal(output[self.quantile_columns], reference[self.quantile_columns], atol=0.05)
 
-    def test_reference_data_with_duration_mask(self, example_dmo_data, example_dmo_data_mask, example_dmo_reference):
-        example_dmo_data_mask["duration"] = [True] * len(example_dmo_data_mask)
-        agg = MobilisedAggregator().aggregate(
-            example_dmo_data, data_mask=example_dmo_data_mask, duration_mask=example_dmo_data_mask
-        )
-        output = agg.aggregated_data_
-        assert_frame_equal(
-            output.drop(columns=self.quantile_columns),
-            example_dmo_reference.drop(columns=self.quantile_columns),
-            check_dtype=False,
-        )
-        assert_frame_equal(output[self.quantile_columns], example_dmo_reference[self.quantile_columns], atol=0.05)
+    def test_reference_data_with_duration_mask(self, example_dmo_data, dummy_dmo_data_mask, example_dmo_reference):
+        dummy_dmo_data_mask = dummy_dmo_data_mask.copy()
+        # If all durations are false, all data should be dropped
+        dummy_dmo_data_mask.loc[:, "duration_s"] = False
+        agg = MobilisedAggregator().aggregate(example_dmo_data, wb_dmos_mask=dummy_dmo_data_mask)
+        assert (agg.aggregated_data_["wb_all_sum"] == 0).all()
+        # Check for some columns that they are all none
+        for col in ["wbdur_all_avg", "wbdur_all_var", "strdur_30_avg", "ws_30_var"]:
+            assert agg.aggregated_data_[col].isna().all()
 
     def test_raise_error_on_wrong_data(self):
         with pytest.raises(ValueError):
@@ -95,22 +100,22 @@ class TestMobilisedAggregator:
 
     def test_raise_error_on_wrong_groupby(self, example_dmo_data):
         with pytest.raises(ValueError):
-            MobilisedAggregator(groupby_columns=["do", "not", "exist"]).aggregate(example_dmo_data)
+            MobilisedAggregator(groupby=["do", "not", "exist"]).aggregate(example_dmo_data)
 
-    def test_raise_error_on_wrong_data_mask(self, example_dmo_data, example_dmo_data_mask):
+    def test_raise_error_on_wrong_data_mask(self, example_dmo_data, dummy_dmo_data_mask):
         with pytest.raises(ValueError):
-            MobilisedAggregator().aggregate(example_dmo_data, data_mask=example_dmo_data_mask.iloc[:10])
+            MobilisedAggregator().aggregate(example_dmo_data, wb_dmos_mask=dummy_dmo_data_mask.iloc[:10])
 
     def test_raise_warning_on_missing_duration_column(self, example_dmo_data):
         with pytest.warns(UserWarning):
-            MobilisedAggregator().aggregate(example_dmo_data.drop(columns=["duration"]))
+            MobilisedAggregator().aggregate(example_dmo_data.drop(columns=["duration_s"]))
 
-    def test_input_not_modified(self, example_dmo_data, example_dmo_data_mask):
+    def test_input_not_modified(self, example_dmo_data, dummy_dmo_data_mask):
         data = example_dmo_data.copy()
-        data_mask = example_dmo_data_mask.copy()
-        agg = MobilisedAggregator().aggregate(data, data_mask=data_mask)
+        data_mask = dummy_dmo_data_mask.copy()
+        agg = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask)
         # check that no rows were dropped
-        assert data.shape == agg.filtered_data_.shape
+        assert data.shape == agg.filtered_wb_dmos_.shape
         # check that input data is still the same
-        assert_frame_equal(data, agg.data)
-        assert_frame_equal(data_mask, agg.data_mask)
+        assert_frame_equal(data, agg.wb_dmos)
+        assert_frame_equal(data_mask, agg.wb_dmos_mask)

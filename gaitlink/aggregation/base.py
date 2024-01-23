@@ -1,5 +1,4 @@
 """Base class for aggregators."""
-from collections.abc import Sequence
 from typing import Any
 
 import pandas as pd
@@ -11,7 +10,7 @@ from gaitlink._docutils import make_filldoc
 base_aggregator_docfiller = make_filldoc(
     {
         "other_parameters": """
-    data
+    wb_dmos
         The DMO data per walking bout passed to the ``aggregate`` method.
     """,
         "aggregated_data_": """
@@ -24,8 +23,12 @@ base_aggregator_docfiller = make_filldoc(
     Aggregate parameters across walking bouts.
     """,
         "aggregate_para": """
-    data
+    wb_dmos
        The DMO data per walking bout.
+       This is a dataframe with one row for every walking bout and one column for every DMO parameter.
+       This should further have relevant metadata (i.e. ``participant_id``, ``visit_date``, ``wb_id``) as columns or
+       indices.
+       The specific requirements depend on the aggregation algorithm.
     """,
         "aggregate_return": """
     Returns
@@ -70,8 +73,7 @@ class BaseAggregator(Algorithm):
     _action_methods = ("aggregate",)
 
     # Other Parameters
-    data: pd.DataFrame
-    groupby_columns: Sequence[str]
+    wb_dmos: pd.DataFrame
 
     # results
     aggregated_data_: pd.DataFrame
@@ -79,7 +81,7 @@ class BaseAggregator(Algorithm):
     @base_aggregator_docfiller
     def aggregate(
         self,
-        data: pd.DataFrame,
+        wb_dmos: pd.DataFrame,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(aggregate_short)s.
