@@ -39,9 +39,9 @@ The package is designed to be used in two modes:
    When using the pipelines in the recommended way, you can expect error ranges as reported in [1].
    Outside, this recommended use case, we cannot guarantee the correctness of the results.
 
-   If you are using the pipelines in this way, we recommend to cite [1] and [2] as follows:
+   If you are using the pipelines in this way, we recommend to cite [[1]] and [[2]] as follows:
 
-   > Gait parameters were obtained using the Mobilise-D algorithm pipeline [1, 2] in its official implementation
+   > Gait parameters were obtained using the Mobilise-D algorithm pipeline [[1], [2]] in its official implementation
    > provided with the gaitlink Python library version {insert version you used}.
 
 
