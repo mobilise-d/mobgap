@@ -175,6 +175,7 @@ sphinx_gallery_conf = {
             "../examples/aggregation",
             "../examples/pipeline",
             "../examples/data_transform",
+            "../examples/dev_guides",
         ]
     ),
     "within_subsection_order": FileNameSortKey,
