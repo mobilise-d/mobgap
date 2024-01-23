@@ -67,6 +67,18 @@ class TestCategorizeIntervals:
             intervals_partial_overlap_with_example, intervals_example, overlap, no_overlap_2, no_overlap_1
         )
 
+    def test_partial_and_complete_overlap(self, intervals_example):
+        interval_partial_and_complete_overlap_with_example = [[1, 3], [4, 6]]
+        overlap = [[1, 3], [5, 6]]
+        no_overlap_1 = [[6, 7]]
+        no_overlap_2 = [[4, 5]]
+        self._assert_equal_tp_fp_fn(
+            intervals_example, interval_partial_and_complete_overlap_with_example, overlap, no_overlap_1, no_overlap_2
+        )
+        self._assert_equal_tp_fp_fn(
+            interval_partial_and_complete_overlap_with_example, intervals_example, overlap, no_overlap_2, no_overlap_1
+        )
+
     def test_partial_overlap_one(self, intervals_example):
         interval_partial_overlap_with_example = [[2, 4]]
         overlap = [[2, 3]]
