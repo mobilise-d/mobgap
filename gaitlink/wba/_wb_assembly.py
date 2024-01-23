@@ -1,9 +1,10 @@
 import uuid
-from typing import Optional
+from typing import ClassVar, Optional
 
 import numpy as np
 import pandas as pd
 from tpcp import Algorithm, cf
+from tpcp.misc import set_defaults
 from typing_extensions import Self
 
 from gaitlink.wba._wb_criteria import MaxBreakCriteria, NStridesCriteria
@@ -96,17 +97,16 @@ class WbAssembly(Algorithm):
     termination_reasons_: dict[str, tuple[str, BaseWbCriteria]]
     exclusion_reasons_: dict[str, tuple[str, BaseWbCriteria]]
 
-    class PREDEFINED_RULES:
-        mobilise_wb = {
+    class PredefinedParameters:
+        mobilise_wb: ClassVar = {
             "rules": [
                 ("min_strides", NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3)),
                 ("max_break", MaxBreakCriteria(max_break=3)),
             ]
         }
 
-    def __init__(
-        self, rules: Optional[list[tuple[str, BaseWbCriteria]]] = cf(PREDEFINED_RULES.mobilise_wb["rules"])
-    ) -> None:
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_wb.values()})
+    def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]]) -> None:
         self.rules = rules
 
     @property
