@@ -199,11 +199,11 @@ class MobilisedAggregator(BaseAggregator):
         ("duration_s > 60", _SIXTY_WB_AGGS),
     ]
 
+    # TODO: Make that configurable somehow, as we should unify the units across the whole package
     _UNIT_CONVERSIONS: typing.ClassVar = {
         "walkdur_all_sum": 1 / 3600,
         "strlen_1030_avg": 100,
         "strlen_30_avg": 100,
-        "strlen_30_var": 100,
     }
 
     _COUNT_COLUMNS: typing.ClassVar = [
