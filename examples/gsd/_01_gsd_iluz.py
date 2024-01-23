@@ -176,7 +176,12 @@ categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_tr
 # The function returns a Named Tuple with the following fields: tp_intervals`, `fp_intervals` and `fn_intervals`.
 # Consequently, we can access all intervals that were correctly detected (`tp_intervals`), all intervals that were
 # falsely detected as gait sequences (`fp_intervals`) and all intervals that were gait sequences but not detected
-# as such (`fn_intervals`). From this data, performance metrics such as sensitivity and precision can be calculated.
+# as such (`fn_intervals`).
+# These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
+# categorizing correctly detected samples (`tp_intervals`), falsely detected samples (`fp_intervals`), and samples
+# from the reference gsd list that were not detected (`fn_intervals`).
+# Note that the true negative intervals are not explicitly returned, but can be inferred from the other intervals,
+# as everything between them is considered as true negative.
 
 print("True Positives:\n\n", categorized_intervals.tp_intervals)
 print("\nFalse Positives:\n\n", categorized_intervals.fp_intervals)

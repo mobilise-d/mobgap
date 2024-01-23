@@ -7,6 +7,8 @@ from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 
+__all__ = ["categorize_intervals", "find_matches_with_min_overlap", "CategorizedIntervals"]
+
 
 class CategorizedIntervals(NamedTuple):
     """Helper class to store the results of the sample-wise validation."""
@@ -31,7 +33,7 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     ----------
     gsd_list_detected: pd.DataFrame
        Each row contains a detected gait sequence interval as output from the GSD algorithms.
-       The respective start index is stored in the first and the stop index in the second column.
+       The respective start index is stored in a column named `start` and the stop index in a column named `end`.
     gsd_list_reference: pd.DataFrame
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
@@ -57,10 +59,12 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
     # check if start and end columns are present
-    if not all(key in gsd_list_detected.columns for key in ["start", "end"]) and not all(
-        key in gsd_list_reference.columns for key in ["start", "end"]
-    ):
-        raise ValueError("`gsd_list_detected` must have columns named 'start' and 'end'.")
+    try:
+        _, _ = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
+    except KeyError as e:
+        raise ValueError(
+            "`gsd_list_detected` and `gsd_list_reference` must have columns named 'start' and 'end'."
+        ) from e
 
     # Create Interval Trees
     reference_tree = IntervalTree.from_tuples(gsd_list_reference[["start", "end"]].to_numpy())
@@ -191,10 +195,12 @@ def find_matches_with_min_overlap(
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
 
     # check if start and end columns are present
-    if not all(key in gsd_list_detected.columns for key in ["start", "end"]) or not all(
-        key in gsd_list_reference.columns for key in ["start", "end"]
-    ):
-        raise ValueError("`gsd_list_detected` must have columns named 'start' and 'end'.")
+    try:
+        _, _ = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
+    except KeyError as e:
+        raise ValueError(
+            "`gsd_list_detected` and `gsd_list_reference` must have columns named 'start' and 'end'."
+        ) from e
 
     # check if index is unique
     if not gsd_list_detected.index.is_unique:
