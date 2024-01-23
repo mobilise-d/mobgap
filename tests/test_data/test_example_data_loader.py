@@ -13,7 +13,7 @@ def test_get_lab_example_data_path():
     assert all((p / "infoForAlgo.mat").is_file() for p in paths.values())
 
     example_path = paths[("HA", "002")]
-    assert PROJECT_ROOT / "example_data/" / "data" / "lab" / "HA" / "002" == example_path
+    assert example_path == PROJECT_ROOT / "example_data/" / "data" / "lab" / "HA" / "002"
 
 
 class TestLabExampleDataset:

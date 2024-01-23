@@ -111,6 +111,7 @@ algo.get_params()
 # For the example, we will not actually load a model, but just use a string.
 from tpcp.misc import classproperty
 
+
 class MyAlgorithm(tpcp.Algorithm):
     param1: float
     param2: str
