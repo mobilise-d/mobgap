@@ -147,15 +147,10 @@ class IcdShinImproved(BaseIcdDetector):
         accN_filt8 = gaussian_filter(accN_filt7.squeeze(), 3)
         accN_MultiFilt_rmp = accN_filt8[len_pad:-len_pad]
 
-        # TODO (for future): Upsampling here does not seem that "smart". Maybe better to detect zero crossing in low
-        #                    freq and then upsample results. Should be much more efficient.
-        # Resample to 100Hz for consistency with the original data (for ICD)
-        resampler = Resample(sampling_rate_hz)
-        resampler.transform(data=accN_MultiFilt_rmp, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-        accN_MultiFilt_rmp100 = resampler.transformed_data_
+        IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp, "positive_to_negative")
 
-        # Initial contacts timings (heel strike events) detected as positive slopes zero-crossing in sample 120
-        IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp100, "positive_to_negative")
+        # Upsample initial contacts to original sampling rate
+        IC_lowSNR = np.round(IC_lowSNR * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).astype(int)
 
         self.ic_list_ = pd.DataFrame({"ic": IC_lowSNR})
 
@@ -167,6 +162,9 @@ def find_zero_crossings(
 ) -> np.ndarray:
     """
     Find zero crossings in a signal.
+
+    Note, that the return values are floating point indices, as we use linear interpolation to refine the position of
+    the zero crossing.
 
     Parameters
     ----------
@@ -199,11 +197,16 @@ def find_zero_crossings(
     # Find indices where sign changes
     crossings = np.where(np.diff(np.sign(diffs)))[0]
 
+    # Refine the position of the 0 crossing by linear interpolation and identify the real floating point index
+    # of the 0 crossing.
+    # We will upsample the values later, so returning the floating point index makes sense
+    refined_crossings = crossings + (-diffs[crossings] / (signal[crossings + 1] - signal[crossings])).astype(float)
+
     if mode == "positive_to_negative":
-        return crossings[signal[crossings] > 0]
+        return refined_crossings[signal[crossings] > 0]
     elif mode == "negative_to_positive":
-        return crossings[signal[crossings] < 0]
+        return refined_crossings[signal[crossings] < 0]
     elif mode == "both":
-        return crossings
+        return refined_crossings
     else:
         raise ValueError("Invalid mode. Choose 'positive_to_negative', 'negative_to_positive', or 'both'.")
