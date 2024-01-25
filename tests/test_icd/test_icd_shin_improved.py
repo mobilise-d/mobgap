@@ -17,8 +17,8 @@ class TestMetaShinImproved(TestAlgorithmMixin):
             pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"]), sampling_rate_hz=40.0
         )
 
-class TestShinImprovedUnit:
 
+class TestShinImprovedUnit:
     def test_invalid_axis_parameter(self):
         with pytest.raises(ValueError):
             IcdShinImproved(axis="invalid").detect(pd.DataFrame(), sampling_rate_hz=100)
@@ -29,7 +29,7 @@ class TestnoICsDetected:
         data = pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"])
         output = IcdShinImproved(axis="x")
         output.detect(data, sampling_rate_hz=40.0)
-        output_ic = output.ic_list_['ic']
+        output_ic = output.ic_list_["ic"]
         empty_output = {}
         assert output_ic.to_dict() == empty_output
 

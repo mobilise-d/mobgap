@@ -1,4 +1,5 @@
 from typing import Any, Literal
+
 import numpy as np
 import pandas as pd
 from gaitmap.data_transform import Resample
@@ -6,19 +7,20 @@ from numpy.linalg import norm
 from scipy.ndimage import gaussian_filter
 from scipy.signal import cwt, ricker, savgol_filter
 from typing_extensions import Self, Unpack
+
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.ICD.base import BaseIcdDetector, base_icd_docfiller
+from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
 class IcdShinImproved(BaseIcdDetector):
     """
-    This algorithm is designed to detect initial contacts from accelerometry signals [1, 2]. Once walking bouts are identified
+    This algorithm is designed to detect initial contacts from accelerometry signals [1]_, [2]_. Once walking bouts are identified
     in a separate stage, this algorithm utilizes the accelerometry signals recorded during these walking bouts to
     calculate and pinpoint initial contacts within each bout. The process involves multiple stages, including signal
     processing, filtering, and zero-crossing detection, as outlined in the class documentation and references provided
 
-    This is based on the implementation published as part of the mobilised project [3].
+    This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
 
@@ -47,26 +49,26 @@ class IcdShinImproved(BaseIcdDetector):
     Notes
     -----
     Points of deviation from the original implementation and their reasons:
-    1) Structural differences: here we calculate ICs separately using the Shin algorithm,
-    those ICs will be used to calculate cadence separately. On matlab, cadence is calculated
-    in the same function as the ICs.
-    2) Configurable accelerometry signal: on matlab, all axes are used to calculate ICs, here we provide
-    the option to select which axis to use. Despite the fact that the Shin algorithm on matlab uses all axes,
-    here we provide the option of selecting a single axis because other contact detection algorithms use only the
-    horizontal axis.
-    3) Despite all filter giving identical results in python and matlab, gaussian_filter exhibits some small differences
-    4) All parameters are expressed in the units used in gaitlink, as opposed to matlab.
+
+    - Configurable accelerometry signal: on matlab, all axes are used to calculate ICs, here we provide
+      the option to select which axis to use. Despite the fact that the Shin algorithm on matlab uses all axes,
+      here we provide the option of selecting a single axis because other contact detection algorithms use only the
+      horizontal axis.
+    - We use a different down and upsampling method, which should be "more" correct from a signal theory perspective,
+      but will yield slightly different results.
+    - The matlab code upsamples to 50 Hz before the final detection of 0-crossings.
+      We upsample to the original sampling rate of the data to avoid introducing yet another sampling rate/constant
+    - For CWT and gaussian filter, the actual parameter we pass to the respective functions differ from the matlab
+      implementation, as the two languages use different implementations of the functions.
+      However, the similarity of the output was visually confirmed.
+    - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
       Specifically, we use m/s^2 instead of g.
 
-    References
-    ----------
-    [1] Shin, Seung Hyuck, and Chan Gook Park. "Adaptive step length estimation algorithm
+    .. [1] Shin, Seung Hyuck, and Chan Gook Park. "Adaptive step length estimation algorithm
     using optimal parameters and movement status awareness." Medical engineering & physics 33.9 (2011): 1064-1071.
-
-    [2] Paraschiv-Ionescu, A. et al. "Real-world speed estimation using single trunk IMU:
+    .. [2] Paraschiv-Ionescu, A. et al. "Real-world speed estimation using single trunk IMU:
     methodological challenges for impaired gait patterns". IEEE EMBC (2020): 4596-4599
-
-    [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/CADB_CADC/Library/Shin_algo_improved.m
+    .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/CADB_CADC/Library/Shin_algo_improved.m
 
     """
 
@@ -79,7 +81,7 @@ class IcdShinImproved(BaseIcdDetector):
 
     @base_icd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
-        """ %(detect_short)s
+        """%(detect_short)s
 
         Parameters
         ----------
@@ -123,25 +125,26 @@ class IcdShinImproved(BaseIcdDetector):
         accN_filt1 = savgol_filter(signal_downsampled_padded.squeeze(), window_length=21, polyorder=7)
         # 2
         filter = EpflDedriftedGaitFilter()
-        accN_filt2 = filter.filter(accN_filt1, sampling_rate_hz=40).filtered_data_
+        accN_filt2 = filter.filter(accN_filt1, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ).filtered_data_
         # 3
-        accN_filt3 = cwt(accN_filt2.squeeze(), ricker, [10])
+        # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
+        #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
+        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+        #   wavelet.
+        #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
+        #   two languages initialise their wavelets), giving the line below
+        accN_filt3 = cwt(accN_filt2.squeeze(), ricker, [7])
         # 4
         accN_filt4 = savgol_filter(accN_filt3.squeeze(), window_length=11, polyorder=5)
         # 5
-        accN_filt5 = cwt(accN_filt4.squeeze(), ricker, [10])
+        accN_filt5 = cwt(accN_filt4.squeeze(), ricker, [7])
+        # Compared to matlab the python gauss filter needs the matlab window with divided by 5
         # 6
-        windowWidth = 10
-        sigma = windowWidth / 5
-        accN_filt6 = gaussian_filter(accN_filt5.squeeze(), sigma)
+        accN_filt6 = gaussian_filter(accN_filt5.squeeze(), 2)
         # 7
-        windowWidth = 10
-        sigma = windowWidth / 5
-        accN_filt7 = gaussian_filter(accN_filt6.squeeze(), sigma)
+        accN_filt7 = gaussian_filter(accN_filt6.squeeze(), 2)
         # 8
-        windowWidth = 15
-        sigma = windowWidth / 5
-        accN_filt8 = gaussian_filter(accN_filt7.squeeze(), sigma)
+        accN_filt8 = gaussian_filter(accN_filt7.squeeze(), 3)
         accN_MultiFilt_rmp = accN_filt8[len_pad:-len_pad]
 
         # TODO (for future): Upsampling here does not seem that "smart". Maybe better to detect zero crossing in low
