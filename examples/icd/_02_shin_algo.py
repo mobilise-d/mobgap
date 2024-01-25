@@ -51,8 +51,9 @@ detected_ics
 # Matlab Outputs
 # --------------
 # To check if the algorithm was implemented correctly, we compare the results to the matlab implementation.
-from gaitlink import PACKAGE_ROOT
 import json
+
+from gaitlink import PACKAGE_ROOT
 
 
 def load_matlab_output(datapoint):
