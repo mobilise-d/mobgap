@@ -45,6 +45,7 @@ class IcdIonescu(BaseIcdDetector):
 
     Attributes
     ----------
+    %(icd_list_)s
 
     Notes
     -----
@@ -86,6 +87,7 @@ class IcdIonescu(BaseIcdDetector):
 
         """
         self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
 
         # 0. SELECT RELEVANT COLUMNS
         # For the ICD algorithm only vertical acceleration (i.e. x-component) is required.

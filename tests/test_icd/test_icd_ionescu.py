@@ -47,4 +47,4 @@ class TestIcdIonescu:
         output = IcdIonescu().detect(data, sampling_rate_hz=100.0).icd_list_
 
         assert len(output) == 1
-        assert set(output.name) == "ic"
+        assert output.name == "ic"
