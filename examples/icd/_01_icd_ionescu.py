@@ -66,7 +66,7 @@ def load_matlab_output(datapoint):
     p = datapoint.group_label
     with (
         PACKAGE_ROOT.parent
-        / f"example_data/original_results/icd_shin_improved/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
+        / f"example_data/original_results/icd_ionescu/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
     ).open() as f:
         original_results = json.load(f)["SD_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["SD"]
 
@@ -90,7 +90,7 @@ imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
 plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="icd_ionescu_py")
-plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="shin_algo_matlab")
+plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="icd_ionescu_matlab")
 plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()
