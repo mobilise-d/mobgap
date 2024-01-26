@@ -43,7 +43,7 @@ class TestShinImprovedRegression:
             ref_walk_bouts = datapoint.reference_parameters_.walking_bouts
         except:
             pytest.skip("No reference parameters available.")
-        sampling_rate_hz = single_test.sampling_rate_hz
+        sampling_rate_hz = datapoint.sampling_rate_hz
 
         iterator = GsIterator()
 
