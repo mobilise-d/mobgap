@@ -97,7 +97,7 @@ class IcdIonescu(BaseIcdDetector):
         signal_downsampled = (
             Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
             .transform(data=acc_v, sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_
+            .transformed_data_.squeeze()
         )
         # 2. BAND-PASS FILTERING
         # Padding for short data: this is required because the length of the input vector must be greater
@@ -117,7 +117,7 @@ class IcdIonescu(BaseIcdDetector):
         # 3. CUMULATIVE INTEGRAL
         acc_v_lp_int = cumtrapz(acc_v_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         # 4. CONTINUOUS WAVELET TRANSFORM (CWT)
-        acc_v_lp_int_cwt = cwt(
+        acc_v_lp_int_cwt, _ = cwt(
             acc_v_lp_int.squeeze(),
             [self.cwt_width],
             "gaus2",
@@ -134,9 +134,15 @@ class IcdIonescu(BaseIcdDetector):
         # Consider indices of the first and last elements of the input dataframe as ICs
         # icd_array = np.concatenate([np.array([1]),icd_array,np.array([data.shape[0]])])
         # TODO: Do we need the +1 here?
-        icd_array = (icd_array + 1) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        detected_ics = icd_array + 1
         # OUTPUT: first and last element of the gsd are considered ICs by default
-        self.icd_list_ = pd.DataFrame({"ic": icd_array}).rename_axis(index="ic_id")
+        detected_ics = pd.DataFrame({"ic": detected_ics}).rename_axis(index="ic_id")
+
+        detected_ics_upsampeled = (
+            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
+        )
+        self.ic_list_ = detected_ics_upsampeled
+
         return self
 
 
