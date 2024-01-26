@@ -1,5 +1,6 @@
 from typing import Any, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pywt import cwt
@@ -10,6 +11,7 @@ from typing_extensions import Self, Unpack
 from gaitlink.consts import GRAV_MS2
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter, Resample
 from gaitlink.data_transform.base import BaseFilter, BaseTransformer
+from gaitlink.icd._utils import find_zero_crossings
 from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
 
 
@@ -123,39 +125,42 @@ class IcdIonescu(BaseIcdDetector):
             "gaus2",
             sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
         )
+        acc_v_lp_int_cwt = acc_v_lp_int_cwt.squeeze()
         # Remove the mean from accVLPIntCwt
-        acc_v_lp_int_cwt = acc_v_lp_int_cwt - acc_v_lp_int_cwt.mean()
-        # 5. INTRA-ZERO-CROSSINGS PEAK DETECTION
-        x = acc_v_lp_int_cwt.squeeze()
-        # Detect the maximum peaks between the zero crossings
-        pks, ipks = max_peaks_between_zc(x)
-        # Filter negative peaks
-        icd_array = np.array(ipks)[pks < 0]
-        # Consider indices of the first and last elements of the input dataframe as ICs
-        # icd_array = np.concatenate([np.array([1]),icd_array,np.array([data.shape[0]])])
-        # TODO: Do we need the +1 here?
-        detected_ics = icd_array + 1
-        # OUTPUT: first and last element of the gsd are considered ICs by default
-        detected_ics = pd.DataFrame({"ic": detected_ics}).rename_axis(index="ic_id")
+        acc_v_lp_int_cwt -= acc_v_lp_int_cwt.mean()
 
-        detected_ics_upsampeled = (
+        # 5. INTRA-ZERO-CROSSINGS PEAK DETECTION
+        # Detect the extrema between the zero crossings
+        zero_crossings = find_zero_crossings(acc_v_lp_int_cwt, "both", refine=False).astype(int)
+
+        if len(zero_crossings) == 0:
+            # No zero crossings detected, so we can't detect any ICs.
+            self.ic_list_ = pd.DataFrame({"ic": []}).rename_axis(index="ic_id").astype(int)
+            return self
+
+        # We are then looking for minimas between the zero crossings.
+        # Minimas can only happen between a positive to negative zero crossing and a negative to positive zero crossing.
+        bool_map = acc_v_lp_int_cwt[zero_crossings] >= 0
+        # As the func returns the value before the 0 crossing, we need to add 1 to the indices to be able to correctly
+        # select the range between the zero crossings.
+        pos_to_neg = zero_crossings[bool_map] + 1
+        neg_to_pos = zero_crossings[~bool_map] + 1
+        # If the first zero crossing is a negative to positive zero crossing, we need to remove it.
+        if not bool_map[0]:
+            neg_to_pos = neg_to_pos[1:]
+
+        icd_array = np.array(
+            [
+                np.argmin(acc_v_lp_int_cwt[start:end]) + start
+                for start, end in zip(pos_to_neg, neg_to_pos)
+            ]
+        ).astype(int)
+        # OUTPUT: first and last element of the gsd are considered ICs by default
+        detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="ic_id")
+
+        detected_ics_unsampled = (
             (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
         )
-        self.ic_list_ = detected_ics_upsampeled
+        self.ic_list_ = detected_ics_unsampled
 
         return self
-
-
-def max_peaks_between_zc(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    # Peaks and their locations between zero-crossings of array x
-    #
-    # Find zero crossing locations
-    # TODO: This might not handle cases well, where the value is exactly zero
-    ix = np.asarray(np.abs(np.diff(np.sign(x))) == 2).nonzero()[0] + 1
-    n_zcs = len(ix) - 1  # Number of zero-crossings minus 1
-    # Find the indices of maximum values between zero crossings. Code considers L separate intervals between the L+1
-    # zero crossings and returns the index of the peak in each interval
-    ipks = np.array([np.argmax(np.abs(x[ix[i] : ix[i + 1]])) + ix[i] for i in range(n_zcs)]).astype(int)
-    # Get the signed peaks
-    pks = x[ipks]
-    return pks, ipks
