@@ -10,6 +10,8 @@ from gaitlink._docutils import make_filldoc
 from gaitlink.cad.base import BaseCadCalculator, base_cad_docfiller
 from gaitlink.data_transform import HampelFilter
 from gaitlink.data_transform.base import BaseFilter
+from gaitlink.icd import IcdShinImproved
+from gaitlink.icd.base import BaseIcDetector
 from gaitlink.utils.interpolation import robust_step_para_to_sec
 
 ic2cad_docfiller = make_filldoc(
@@ -160,7 +162,7 @@ class CadFromIc(BaseCadCalculator):
     def calculate(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.Series,
+        initial_contacts: pd.DataFrame,
         *,
         sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
@@ -177,26 +179,34 @@ class CadFromIc(BaseCadCalculator):
         self.sampling_rate_hz = sampling_rate_hz
         self.data = data
 
-        initial_contacts = self._get_ics(data, initial_contacts, sampling_rate_hz)
+        initial_contacts = self._get_ics(data, initial_contacts, sampling_rate_hz)["ic"]
         initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
         n_secs = len(data) // sampling_rate_hz
         sec_centers = np.arange(0, n_secs) + 0.5
         # TODO: What index should the output cadence have?
-        self.cadence_per_sec_ = _robust_ic_to_cad_per_sec(
-            initial_contacts_in_seconds, sec_centers, self.max_interpolation_gap_s, self.step_time_smoothing.clone()
-        )
+        self.cadence_per_sec_ = pd.DataFrame(
+            {
+                "cad_spm": _robust_ic_to_cad_per_sec(
+                    initial_contacts_in_seconds,
+                    sec_centers,
+                    self.max_interpolation_gap_s,
+                    self.step_time_smoothing.clone(),
+                )
+            }
+        ).rename_axis(index="time_s")
         return self
 
     def _get_ics(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.Series,
+        initial_contacts: pd.DataFrame,
         sampling_rate_hz: float,  # noqa: ARG002
-    ) -> pd.Series:
+    ) -> pd.DataFrame:
         """Calculate initial contacts from the data."""
-        if not initial_contacts.is_monotonic_increasing:
+        ic_series = initial_contacts["ic"]
+        if not ic_series.is_monotonic_increasing:
             raise ValueError("Initial contacts must be sorted in ascending order.")
-        if initial_contacts.iloc[0] != 0 or initial_contacts.iloc[-1] != len(data):
+        if ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data):
             warnings.warn(
                 "Usually we assume that gait sequences are cut to the first and last detected initial "
                 "contact. "
@@ -253,14 +263,14 @@ class CadFromIcDetector(CadFromIc):
     """
 
     # TODO: correct typing
-    ic_detector: None
+    ic_detector: BaseIcDetector
     silence_ic_warning: bool
 
-    ic_detector_: None
+    ic_detector_: BaseIcDetector
 
     def __init__(
         self,
-        ic_detector: BaseIcDetector,
+        ic_detector: BaseIcDetector = cf(IcdShinImproved()),
         *,
         step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
         max_interpolation_gap_s: int = 3,
@@ -271,15 +281,15 @@ class CadFromIcDetector(CadFromIc):
         super().__init__(step_time_smoothing=step_time_smoothing, max_interpolation_gap_s=max_interpolation_gap_s)
 
     @property
-    def internal_initial_contacts_(self) -> pd.Series:
-        return self.ic_detector_.initial_contacts_
+    def internal_ic_list_(self) -> pd.DataFrame:
+        return self.ic_detector_.ic_list_
 
     def _get_ics(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.Series,  # noqa: ARG002
+        initial_contacts: pd.DataFrame,  # noqa: ARG002
         sampling_rate_hz: float,
-    ) -> pd.Series:
+    ) -> pd.DataFrame:
         if not self.silence_ic_warning:
             warnings.warn(
                 "This method ignores the passed initial contacts and recalculates them from the data. "
@@ -292,5 +302,4 @@ class CadFromIcDetector(CadFromIc):
             )
 
         self.ic_detector_ = self.ic_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
-        new_initial_contacts = self.ic_detector_.initial_contacts_
-        return new_initial_contacts
+        return self.internal_ic_list_

@@ -65,9 +65,9 @@ cad_from_ic = CadFromIc()
 
 gs_id = reference_gs.index[0]
 data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
-ics_in_gs = reference_ic["ic"].loc[gs_id]
+ics_in_gs = reference_ic[["ic"]].loc[gs_id]
 
-cad_from_ic.calculate(data_in_gs, reference_ic["ic"], sampling_rate_hz=short_trial.sampling_rate_hz)
+cad_from_ic.calculate(data_in_gs, ics_in_gs, sampling_rate_hz=short_trial.sampling_rate_hz)
 
 # %%
 # We get an output that contains the cadence for each second of the gaits sequence.
@@ -77,8 +77,9 @@ cad_from_ic.cadence_per_sec_
 # To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
 # reference system.
 reference_cad = reference_gs["avg_cadence_spm"].loc[gs_id]
+cad_from_ic_avg_cad = cad_from_ic.cadence_per_sec_["cad_spm"].mean()
 print(f"Average stride cadence from reference: {reference_cad:.2f} steps/min")
-print(f"Calculated average per-sec cadence: {cad_from_ic.cadence_per_sec_.mean():.2f} steps/min")
+print(f"Calculated average per-sec cadence: {cad_from_ic_avg_cad:.2f} steps/min")
 
 # %%
 # Note that if we would have breaks in the gait sequence, the method would try to interpolate the cadence values for
@@ -91,3 +92,30 @@ from gaitlink.cad import CadFromIcDetector
 from gaitlink.icd import IcdShinImproved
 
 cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
+
+# %%
+# Now we can call the ``calculate`` method with the same data as before.
+# Note, that we are still passing the initial contacts from the "previous" calculation step to fulfull the API.
+# However, internally the algorithm will ignore the provided ICs and rerun the IC detection using the provided IC
+# detector.
+cad_from_ic_detector.calculate(data_in_gs, initial_contacts=ics_in_gs, sampling_rate_hz=short_trial.sampling_rate_hz)
+
+# %%
+# We get the same output as before.
+cad_from_ic_detector.cadence_per_sec_
+
+# %%
+# But we can also access the detected initial contacts.
+cad_from_ic_detector.internal_ic_list_
+
+# %%
+# Or the entire detector object.
+cad_from_ic_detector.ic_detector_
+
+# %%
+# To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
+# reference system.
+cad_from_ic_detector_avg_cad = cad_from_ic_detector.cadence_per_sec_["cad_spm"].mean()
+print(f"Average stride cadence from reference: {reference_cad:.2f} steps/min")
+print(f"Calculated average per-sec cadence (CadFromIC): {cad_from_ic_avg_cad:.2f} steps/min")
+print(f"Calculated average per-sec cadence (CadFromIcDetector): {cad_from_ic_detector_avg_cad:.2f} steps/min")
