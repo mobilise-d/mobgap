@@ -24,13 +24,12 @@ example_data = LabExampleDataset(reference_system="INDIP", reference_para_level=
 
 single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
 imu_data = single_test.data["LowerBack"]
-
-# importing the start and end of each walking bout identified from the INDIP system (ground truth)
 reference_wbs = single_test.reference_parameters_.walking_bouts
 
 sampling_rate_hz = single_test.sampling_rate_hz
 ref_ics = single_test.reference_parameters_.initial_contacts
 
+reference_wbs
 # %%
 # Applying the algorithm
 # ----------------------
@@ -69,9 +68,9 @@ def load_matlab_output(datapoint):
 
     ics = {}
     for i, gs in enumerate(original_results):
-        ics[i] = pd.DataFrame({"ic": gs["IC"]})
+        ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="ic_id")
 
-    return (pd.concat(ics) * datapoint.sampling_rate_hz).astype(int)
+    return (pd.concat(ics, names=["wb_id", ics[0].index.name]) * datapoint.sampling_rate_hz).astype(int)
 
 
 detected_ics_matlab = load_matlab_output(single_test)
@@ -80,19 +79,23 @@ detected_ics_matlab
 # Plotting the results
 # --------------------
 # With that we can compare the python, matlab and ground truth results.
+# We zoom in into one of the gait sequences to better see the output.
+#
+# We can make a couple of main observations:
+#
+# 1. The python version finds the same ICs as the matlab version, but wil a small shift to the left (around 5-10
+#    samples/50-100 ms).
+#    This is likely due to some differences in the downsampling process.
+# 2. Compared to the ground truth reference, both versions detect the IC too early most of the time.
+# 3. Both algorithms can not detect the first IC of the gait sequence.
+#    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
+#    Hence, there are not samples before that point the algorithm can use to detect the IC.
 
-# Updated the plot to show the ICs for each walking bout in files with multiple bouts
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
 plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="shin_algo_py")
 plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="shin_algo_matlab")
-plt.xlim(3800, 4750)
+plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()
-
-# %%
-# We can see that the python version finds one IC for each IC of the matlab version.
-# However, it is delayed by a couple of samples.
-# The full reason of that is not clear, but it is likely due to the differences in indexing and small differences in
-# how we perform down and up sampling.

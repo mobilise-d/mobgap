@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 from gaitmap.data_transform import Resample
 from numpy.linalg import norm
+from pywt import cwt
 from scipy.ndimage import gaussian_filter
-from scipy.signal import cwt, ricker, savgol_filter
+from scipy.signal import savgol_filter
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
@@ -14,11 +15,12 @@ from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
 
 @base_icd_docfiller
 class IcdShinImproved(BaseIcdDetector):
-    """
-    This algorithm is designed to detect initial contacts from accelerometry signals [1]_, [2]_. Once walking bouts are identified
-    in a separate stage, this algorithm utilizes the accelerometry signals recorded during these walking bouts to
-    calculate and pinpoint initial contacts within each bout. The process involves multiple stages, including signal
-    processing, filtering, and zero-crossing detection, as outlined in the class documentation and references provided
+    """Detect initial contacts using the Shin [1]_ algorithm, with improvements by Ionescu et al. [2]_.
+
+    This algorithm is designed to detect initial contacts from accelerometer signals within a gait sequence.
+    The algorithm filters the accelerometer signal down to its primary frequency components and then detects zero
+    crossings in the filtered signal.
+    These are interpreted as initial contacts.
 
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
@@ -45,24 +47,37 @@ class IcdShinImproved(BaseIcdDetector):
     Attributes
     ----------
     %(ic_list_)s
+    final_filtered_signal_
+        The downsampled signal after all filter steps.
+        This might be useful for debugging.
+    ic_list_internal_
+        The initial contacts detected on the downsampled signal, before upsampling to the original sampling rate.
+        This can be useful for debugging in combination with the `final_filtered_signal_` attribute.
+
 
     Notes
     -----
     Points of deviation from the original implementation and their reasons:
 
-    - Configurable accelerometry signal: on matlab, all axes are used to calculate ICs, here we provide
+    - Configurable accelerometer signal: on matlab, all axes are used to calculate ICs, here we provide
       the option to select which axis to use. Despite the fact that the Shin algorithm on matlab uses all axes,
       here we provide the option of selecting a single axis because other contact detection algorithms use only the
       horizontal axis.
-    - We use a different down and upsampling method, which should be "more" correct from a signal theory perspective,
+    - We use a different downsampling method, which should be "more" correct from a signal theory perspective,
       but will yield slightly different results.
     - The matlab code upsamples to 50 Hz before the final detection of 0-crossings.
-      We upsample to the original sampling rate of the data to avoid introducing yet another sampling rate/constant
+      We skip the upsampling of the filtered signal and perform the 0-crossing detection on the downsampled signal.
+      To compensate for the "loss of accuracy" due to the downsampling, we use linear interpolation to determine the
+      exact position of the 0-crossing, even when it occurs between two samples.
+      We then project the interpolated index back to the original sampling rate.
     - For CWT and gaussian filter, the actual parameter we pass to the respective functions differ from the matlab
       implementation, as the two languages use different implementations of the functions.
       However, the similarity of the output was visually confirmed.
     - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
       Specifically, we use m/s^2 instead of g.
+    - Some early testing indicates, that the python version finds all ICs 5-10 samples earlier than the matlab version.
+      However, this seems to be a relatively consistent offset.
+      Hence, it might be possible to shift/tune this in the future.
 
     .. [1] Shin, Seung Hyuck, and Chan Gook Park. "Adaptive step length estimation algorithm
     using optimal parameters and movement status awareness." Medical engineering & physics 33.9 (2011): 1064-1071.
@@ -76,12 +91,15 @@ class IcdShinImproved(BaseIcdDetector):
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
+    final_filtered_signal_: np.ndarray
+    ic_list_internal_: pd.DataFrame
+
     def __init__(self, axis: Literal["x", "y", "z", "norm"] = "norm") -> None:
         self.axis = axis
 
     @base_icd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
-        """%(detect_short)s
+        """%(detect_short)s.
 
         Parameters
         ----------
@@ -103,9 +121,11 @@ class IcdShinImproved(BaseIcdDetector):
         )
 
         # Resample to 40Hz to process with filters
-        resampler = Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-        resampler.transform(data=signal, sampling_rate_hz=sampling_rate_hz)
-        signal_downsampled = resampler.transformed_data_
+        signal_downsampled = (
+            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
+            .transform(data=signal, sampling_rate_hz=sampling_rate_hz)
+            .transformed_data_
+        )
 
         # We need to intitialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
@@ -122,10 +142,13 @@ class IcdShinImproved(BaseIcdDetector):
         # Filters
         # 1
         # TODO (future): Replace svagol and cwt with class implementation to easily expose parameters.
-        accN_filt1 = savgol_filter(signal_downsampled_padded.squeeze(), window_length=21, polyorder=7)
+        tmp_sig_1 = savgol_filter(signal_downsampled_padded.squeeze(), window_length=21, polyorder=7)
         # 2
-        filter = EpflDedriftedGaitFilter()
-        accN_filt2 = filter.filter(accN_filt1, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ).filtered_data_
+        tmp_sig_2 = (
+            EpflDedriftedGaitFilter()
+            .filter(tmp_sig_1, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
+            .filtered_data_
+        )
         # 3
         # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
@@ -133,26 +156,36 @@ class IcdShinImproved(BaseIcdDetector):
         #   wavelet.
         #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
         #   two languages initialise their wavelets), giving the line below
-        accN_filt3 = cwt(accN_filt2.squeeze(), ricker, [7])
+        RICKER_WIDTH = 10
+        tmp_sig_3, _ = cwt(
+            tmp_sig_2.squeeze(), [RICKER_WIDTH], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        )
         # 4
-        accN_filt4 = savgol_filter(accN_filt3.squeeze(), window_length=11, polyorder=5)
+        tmp_sig_4 = savgol_filter(tmp_sig_3.squeeze(), window_length=11, polyorder=5)
         # 5
-        accN_filt5 = cwt(accN_filt4.squeeze(), ricker, [7])
+        tmp_sig_5, _ = cwt(
+            tmp_sig_4.squeeze(), [RICKER_WIDTH], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        )
         # Compared to matlab the python gauss filter needs the matlab window with divided by 5
-        # 6
-        accN_filt6 = gaussian_filter(accN_filt5.squeeze(), 2)
-        # 7
-        accN_filt7 = gaussian_filter(accN_filt6.squeeze(), 2)
-        # 8
-        accN_filt8 = gaussian_filter(accN_filt7.squeeze(), 3)
-        accN_MultiFilt_rmp = accN_filt8[len_pad:-len_pad]
+        tmp_sig_6 = tmp_sig_5
+        for sigma in [2, 2, 3]:
+            tmp_sig_6 = gaussian_filter(tmp_sig_6.squeeze(), sigma)
+        # Remove padding
+        final_filtered = tmp_sig_6[len_pad:-len_pad]
 
-        IC_lowSNR = find_zero_crossings(accN_MultiFilt_rmp, "positive_to_negative")
+        self.final_filtered_signal_ = final_filtered
+
+        detected_ics = find_zero_crossings(final_filtered, "negative_to_positive")
+        detected_ics = pd.DataFrame({"ic": detected_ics}).rename_axis(index="ic_id")
+
+        self.ic_list_internal_ = detected_ics
 
         # Upsample initial contacts to original sampling rate
-        IC_lowSNR = np.round(IC_lowSNR * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).astype(int)
+        detected_ics_upsampeled = (
+            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
+        )
 
-        self.ic_list_ = pd.DataFrame({"ic": IC_lowSNR})
+        self.ic_list_ = detected_ics_upsampeled
 
         return self
 
@@ -190,23 +223,41 @@ def find_zero_crossings(
     >>> signal = np.array([1, -1, 1, -1, 1])
     >>> find_zero_crossings(signal, mode="both")
     array([0, 1, 2, 3])
-    """
-    # Compute differences between consecutive elements
-    diffs = np.diff(signal)
 
-    # Find indices where sign changes
-    crossings = np.where(np.diff(np.sign(diffs)))[0]
+    Notes
+    -----
+    Under the hood we use :func:`numpy.sign` to find the indices where the sign of the signal changes.
+    This function returns `-1 if x < 0, 0 if x==0, 1 if x > 0`.
+    We change the output of the function to be `1 if x >= 0, -1 if x < 0`.
+    This should handle cases where the value of the data becomes 0 for a couple of cases and then changes sign again.
+    Note, that this might result in some unexpected behaviour, when the signal comes from negative values and then
+    becomes 0 for a couple of samples and then negative again.
+    This will be treated as two 0 crossings.
+    However, if the same happens with positive values, no 0 crossing will be detected.
+    With "real" data, this should not be a problem, but it is important to keep in mind.
+
+    """
+    sign = np.sign(signal)
+    # We change the cases where the signal is 0 to be considered as positive.
+    sign[sign == 0] = 1
+
+    # Find indices where sign changes (this is the index before the 0 crossing)
+    crossings = np.where(np.abs(np.diff(sign)))[0]
+
+    if mode == "positive_to_negative":
+        crossings = crossings[signal[crossings] > 0]
+    elif mode == "negative_to_positive":
+        crossings = crossings[signal[crossings] < 0]
+    elif mode == "both":
+        pass
+    else:
+        raise ValueError("Invalid mode. Choose 'positive_to_negative', 'negative_to_positive', or 'both'.")
 
     # Refine the position of the 0 crossing by linear interpolation and identify the real floating point index
     # of the 0 crossing.
-    # We will upsample the values later, so returning the floating point index makes sense
-    refined_crossings = crossings + (-diffs[crossings] / (signal[crossings + 1] - signal[crossings])).astype(float)
+    # Basically, we assume the real 0 crossing to be the index and the index + 1.
+    # We compare the "absolute" value of the value at index and index + 1, to figure out how close to index the real
+    # zero crossing is.
+    refined_crossings = crossings + np.abs(signal[crossings] / (signal[crossings] - signal[crossings + 1]))
 
-    if mode == "positive_to_negative":
-        return refined_crossings[signal[crossings] > 0]
-    elif mode == "negative_to_positive":
-        return refined_crossings[signal[crossings] < 0]
-    elif mode == "both":
-        return refined_crossings
-    else:
-        raise ValueError("Invalid mode. Choose 'positive_to_negative', 'negative_to_positive', or 'both'.")
+    return refined_crossings
