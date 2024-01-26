@@ -148,15 +148,15 @@ class IcdShinImproved(BaseIcdDetector):
         #   wavelet.
         #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
         #   two languages initialise their wavelets), giving the line below
-        RICKER_WIDTH = 10
+        ricker_width = 10
         tmp_sig_3, _ = cwt(
-            tmp_sig_2.squeeze(), [RICKER_WIDTH], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+            tmp_sig_2.squeeze(), [ricker_width], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         )
         # 4
         tmp_sig_4 = savgol_filter(tmp_sig_3.squeeze(), window_length=11, polyorder=5)
         # 5
         tmp_sig_5, _ = cwt(
-            tmp_sig_4.squeeze(), [RICKER_WIDTH], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+            tmp_sig_4.squeeze(), [ricker_width], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         )
         # Compared to matlab the python gauss filter needs the matlab window with divided by 5
         tmp_sig_6 = tmp_sig_5
