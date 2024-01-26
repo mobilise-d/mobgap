@@ -91,7 +91,7 @@ short_trial_output = GsdIluz().detect(short_trial.data["LowerBack"], sampling_ra
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
-print("\nPython Output:\n\n", short_trial_output.gsd_list_)
+print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # %%
 # When we plot the output, we can see that the python version is a little more sensitive than the matlab version.
 # It includes a section of the signal before the region classified as WB by the reference system.
@@ -101,7 +101,7 @@ fig, ax = plot_gsd_outputs(
     short_trial.data["LowerBack"],
     reference=short_trial_reference_parameters,
     matlab=short_trial_matlab_output,
-    python=short_trial_output.gsd_list_,
+    python=short_trial_output.gs_list_,
 )
 fig.show()
 
@@ -118,7 +118,7 @@ long_trial_output = GsdIluz().detect(long_trial.data["LowerBack"], sampling_rate
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nMatlab Output:\n\n", long_trial_matlab_output)
-print("\nPython Output:\n\n", long_trial_output.gsd_list_)
+print("\nPython Output:\n\n", long_trial_output.gs_list_)
 
 # %%
 # When we plot the output, we can see again that the python version is more sensitive.
@@ -128,7 +128,7 @@ fig, _ = plot_gsd_outputs(
     long_trial.data["LowerBack"],
     reference=long_trial_reference_parameters,
     matlab=long_trial_matlab_output,
-    python=long_trial_output.gsd_list_,
+    python=long_trial_output.gs_list_,
 )
 fig.show()
 
@@ -150,14 +150,14 @@ long_trial_output_modified = GsdIluz(window_length_s=5, window_overlap=0.8).dete
 )
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
-print("\nPython Output:\n\n", long_trial_output.gsd_list_)
-print("\nPython Output Modified:\n\n", long_trial_output_modified.gsd_list_)
+print("\nPython Output:\n\n", long_trial_output.gs_list_)
+print("\nPython Output Modified:\n\n", long_trial_output_modified.gs_list_)
 
 fig, _ = plot_gsd_outputs(
     long_trial.data["LowerBack"],
     reference=long_trial_reference_parameters,
-    python=long_trial_output.gsd_list_,
-    python_modified=long_trial_output_modified.gsd_list_,
+    python=long_trial_output.gs_list_,
+    python_modified=long_trial_output_modified.gs_list_,
 )
 fig.show()
 
@@ -170,7 +170,7 @@ fig.show()
 
 from gaitlink.gsd.validation import categorize_intervals
 
-categorized_intervals = categorize_intervals(long_trial_output.gsd_list_, long_trial_reference_parameters)
+categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_trial_reference_parameters)
 
 # %%
 # The function returns a Named Tuple with the following fields: tp_intervals`, `fp_intervals` and `fn_intervals`.
@@ -192,7 +192,7 @@ print("\nFalse Negatives:\n\n", categorized_intervals.fn_intervals)
 from gaitlink.gsd.validation import find_matches_with_min_overlap
 
 matches = find_matches_with_min_overlap(
-    long_trial_output.gsd_list_, long_trial_reference_parameters, overlap_threshold=0.7
+    long_trial_output.gs_list_, long_trial_reference_parameters, overlap_threshold=0.7
 )
 
 print("Matches:\n\n", matches)

@@ -28,7 +28,7 @@ Base Classes
    :toctree: generated/gsd
    :template: class.rst
 
-    BaseGsdDetector
+    BaseGsDetector
 
 Docu-helper
 -----------

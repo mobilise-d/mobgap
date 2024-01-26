@@ -10,11 +10,11 @@ from typing_extensions import Self, Unpack
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter, Resample
 from gaitlink.data_transform.base import BaseFilter
 from gaitlink.icd._utils import find_zero_crossings
-from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
+from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
-class IcdIonescu(BaseIcdDetector):
+class IcdIonescu(BaseIcDetector):
     """Implementation of the ICD algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_.
 
     The algorithm includes the following steps starting from vertical acceleration

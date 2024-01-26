@@ -7,9 +7,9 @@ def test_gsd_iluz(snapshot):
         short_trial_output,
     )
 
-    snapshot.assert_match(long_trial_output.gsd_list_, "long_trial_output")
-    snapshot.assert_match(long_trial_output_modified.gsd_list_, "long_trial_output_modified")
-    snapshot.assert_match(short_trial_output.gsd_list_, "short_trial_output")
+    snapshot.assert_match(long_trial_output.gs_list_, "long_trial_output")
+    snapshot.assert_match(long_trial_output_modified.gs_list_, "long_trial_output_modified")
+    snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
     snapshot.assert_match(categorized_intervals.tp_intervals, "tp_intervals")
     snapshot.assert_match(categorized_intervals.fp_intervals, "fp_intervals")
     snapshot.assert_match(categorized_intervals.fn_intervals, "fn_intervals")

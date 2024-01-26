@@ -29,7 +29,7 @@ Base Classes
    :toctree: generated/icd
    :template: class.rst
 
-    BaseIcdDetector
+    BaseIcDetector
 
 Docu-helper
 -----------

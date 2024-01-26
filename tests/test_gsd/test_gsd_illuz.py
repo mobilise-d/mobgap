@@ -32,7 +32,7 @@ class TestGsdIluz:
     def test_no_gsds(self):
         data = pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"])
 
-        output = GsdIluz().detect(data, sampling_rate_hz=40.0).gsd_list_
+        output = GsdIluz().detect(data, sampling_rate_hz=40.0).gs_list_
 
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end"]))
 
@@ -43,7 +43,7 @@ class TestGsdIluz:
             .data["LowerBack"]
         )
 
-        output = GsdIluz().detect(data, sampling_rate_hz=100.0).gsd_list_
+        output = GsdIluz().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert len(output) == 1
         assert set(output.columns) == {"start", "end"}

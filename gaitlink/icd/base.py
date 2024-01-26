@@ -45,8 +45,8 @@ base_icd_docfiller = make_filldoc(
 
 
 @base_icd_docfiller
-class BaseIcdDetector(Algorithm):
-    """Base class for ICD detectors.
+class BaseIcDetector(Algorithm):
+    """Base class for IC-detectors.
 
     This base class should be used for all initial contacts detection algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
@@ -95,4 +95,4 @@ class BaseIcdDetector(Algorithm):
         raise NotImplementedError
 
 
-__all__ = ["BaseIcdDetector", "base_icd_docfiller"]
+__all__ = ["BaseIcDetector", "base_icd_docfiller"]

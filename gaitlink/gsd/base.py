@@ -15,8 +15,8 @@ base_gsd_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``detect`` method.
     """,
-        "gsd_list_": """
-    gsd_list_
+        "gs_list_": """
+    gs_list_
         A dataframe specifying the detected gait sequences.
         The dataframe has a ``start`` and ``end`` column, specifying the start and end index of the gait sequence.
         The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
@@ -34,7 +34,7 @@ base_gsd_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``gsd_list_`` attribute set to the detected gait sequences.
+        The instance of the class with the ``gs_list_`` attribute set to the detected gait sequences.
     """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseGsdDetector`.",
@@ -42,12 +42,12 @@ base_gsd_docfiller = make_filldoc(
 
 
 @base_gsd_docfiller
-class BaseGsdDetector(Algorithm):
-    """Base class for GSD detectors.
+class BaseGsDetector(Algorithm):
+    """Base class for GS-detectors.
 
     This base class should be used for all gait sequence detection algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, with the ``gsd_list_`` attribute set to the detected
+    The method should then return the instance of the class, with the ``gs_list_`` attribute set to the detected
     gait sequences.
     Further, the detect method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
@@ -64,7 +64,7 @@ class BaseGsdDetector(Algorithm):
 
     Attributes
     ----------
-    %(gsd_list_)s
+    %(gs_list_)s
 
     Notes
     -----
@@ -80,7 +80,7 @@ class BaseGsdDetector(Algorithm):
     sampling_rate_hz: float
 
     # results
-    gsd_list_: pd.DataFrame
+    gs_list_: pd.DataFrame
 
     @base_gsd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
@@ -95,4 +95,4 @@ class BaseGsdDetector(Algorithm):
         raise NotImplementedError
 
 
-__all__ = ["BaseGsdDetector", "base_gsd_docfiller"]
+__all__ = ["BaseGsDetector", "base_gsd_docfiller"]
