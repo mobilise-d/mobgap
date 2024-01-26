@@ -72,9 +72,9 @@ class IcdShinImproved(BaseIcdDetector):
       Hence, it might be possible to shift/tune this in the future.
 
     .. [1] Shin, Seung Hyuck, and Chan Gook Park. "Adaptive step length estimation algorithm
-    using optimal parameters and movement status awareness." Medical engineering & physics 33.9 (2011): 1064-1071.
+       using optimal parameters and movement status awareness." Medical engineering & physics 33.9 (2011): 1064-1071.
     .. [2] Paraschiv-Ionescu, A. et al. "Real-world speed estimation using single trunk IMU:
-    methodological challenges for impaired gait patterns". IEEE EMBC (2020): 4596-4599
+       methodological challenges for impaired gait patterns". IEEE EMBC (2020): 4596-4599
     .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/CADB_CADC/Library/Shin_algo_improved.m
 
     """
@@ -93,12 +93,14 @@ class IcdShinImproved(BaseIcdDetector):
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         """%(detect_short)s.
 
+        %(detect_info)s
+
         Parameters
         ----------
         %(detect_para)s
 
-        -------
         %(detect_return)s
+
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
