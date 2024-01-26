@@ -48,9 +48,7 @@ class TestShinImprovedRegression:
         iterator = GsIterator()
 
         for (gs, data), result in iterator.iterate(data, ref_walk_bouts):
-            result.initial_contacts = (
-                IcdShinImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
-            )
+            result.initial_contacts = IcdShinImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
         detected_ics = iterator.initial_contacts_
         snapshot.assert_match(detected_ics, str(datapoint.group_label))
