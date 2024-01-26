@@ -28,17 +28,9 @@ class IcdShinImproved(BaseIcdDetector):
 
     Parameters
     ----------
-    :param axis : str, optional
-        selecting which part of the accelerometry signal to be used. Can be 'x', 'y', 'z', or 'norm'.
-
-    :param signal : np.ndarray
-        A numpy array of the signal values.
-
-    :param mode : str
-        A string specifying the type of zero crossings to detect.
-        Can be 'positive_to_negative', 'negative_to_positive', or 'both'.
-        The default is 'both'.
-
+    axis
+        selecting which part of the accelerometer signal to be used. Can be 'x', 'y', 'z', or 'norm'.
+        The default is 'norm', which is also the default in the original implementation.
 
     Other Parameters
     ----------------
