@@ -7,7 +7,6 @@ from scipy.integrate import cumtrapz
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
-from gaitlink.consts import GRAV_MS2
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter, Resample
 from gaitlink.data_transform.base import BaseFilter, BaseTransformer
 from gaitlink.icd._utils import find_zero_crossings
@@ -91,8 +90,7 @@ class IcdIonescu(BaseIcdDetector):
         # For the ICD algorithm only vertical acceleration (i.e. x-component) is required.
         relevant_columns = ["acc_x"]  # acc_x: vertical acceleration
         acc_v = data[relevant_columns]
-        acc_v = acc_v.to_numpy()  # pd.Series--> ndarray
-        acc_v = acc_v / GRAV_MS2  # GRAV_MS2 = 9.81: [m/s^2]--> [g]
+        acc_v = acc_v.to_numpy()
 
         # 1. RESAMPLING
         signal_downsampled = (
