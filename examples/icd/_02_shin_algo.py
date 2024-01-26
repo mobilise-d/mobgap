@@ -16,7 +16,8 @@ from gaitlink.icd import IcdShinImproved
 # %%
 # Loading data
 # ------------
-# .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+# .. note:: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+#
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP output for initial contacts ("ic") as ground truth.
 
@@ -87,7 +88,8 @@ detected_ics_matlab
 # 2. Compared to the ground truth reference, both versions detect the IC too early most of the time.
 # 3. Both algorithms can not detect the first IC of the gait sequence.
 #    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
-#    Hence, there are not samples before that point the algorithm can use to detect the IC.
+#    Hence, there are no samples before that point the algorithm can use to detect the IC.
+#
 
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
