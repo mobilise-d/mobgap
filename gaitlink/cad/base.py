@@ -81,16 +81,16 @@ class BaseCadCalculator(Algorithm):
 
     data: pd.DataFrame
     sampling_rate_hz: float
-    initial_contacts: pd.Series
+    initial_contacts: pd.DataFrame
 
-    cadence_per_sec_: pd.Series
+    cadence_per_sec_: pd.DataFrame
 
     _action_methods = ("calculate",)
 
     def calculate(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.Series,
+        initial_contacts: pd.DataFrame,
         *,
         sampling_rate_hz: float,
         **kwargs: Unpack[dict[str, Any]],
