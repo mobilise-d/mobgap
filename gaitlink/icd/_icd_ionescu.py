@@ -130,33 +130,34 @@ class IcdIonescu(BaseIcdDetector):
 
         # 5. INTRA-ZERO-CROSSINGS PEAK DETECTION
         # Detect the extrema between the zero crossings
-        zero_crossings = find_zero_crossings(acc_v_lp_int_cwt, "both", refine=False).astype(int)
+        icd_array = _find_minima_between_zero_crossings(acc_v_lp_int_cwt)
 
-        if len(zero_crossings) == 0:
-            # No zero crossings detected, so we can't detect any ICs.
-            self.ic_list_ = pd.DataFrame({"ic": []}).rename_axis(index="ic_id").astype(int)
-            return self
-
-        # We are then looking for minimas between the zero crossings.
-        # Minimas can only happen between a positive to negative zero crossing and a negative to positive zero crossing.
-        bool_map = acc_v_lp_int_cwt[zero_crossings] >= 0
-        # As the func returns the value before the 0 crossing, we need to add 1 to the indices to be able to correctly
-        # select the range between the zero crossings.
-        pos_to_neg = zero_crossings[bool_map] + 1
-        neg_to_pos = zero_crossings[~bool_map] + 1
-        # If the first zero crossing is a negative to positive zero crossing, we need to remove it.
-        if not bool_map[0]:
-            neg_to_pos = neg_to_pos[1:]
-
-        icd_array = np.array(
-            [np.argmin(acc_v_lp_int_cwt[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]
-        ).astype(int)
-        # OUTPUT: first and last element of the gsd are considered ICs by default
         detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="ic_id")
-
         detected_ics_unsampled = (
             (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
         )
         self.ic_list_ = detected_ics_unsampled
 
         return self
+
+
+def _find_minima_between_zero_crossings(signal: np.ndarray) -> np.ndarray:
+    zero_crossings = find_zero_crossings(signal, "both", refine=False).astype(int)
+
+    if len(zero_crossings) == 0:
+        return np.array([])
+
+    # We are then looking for minimas between the zero crossings.
+    # Minimas can only happen between a positive to negative zero crossing and a negative to positive zero crossing.
+    bool_map = signal[zero_crossings] >= 0
+    # As the func returns the value before the 0 crossing, we need to add 1 to the indices to be able to correctly
+    # select the range between the zero crossings.
+    pos_to_neg = zero_crossings[bool_map] + 1
+    neg_to_pos = zero_crossings[~bool_map] + 1
+    # If the first zero crossing is a negative to positive zero crossing, we need to remove it.
+    if not bool_map[0]:
+        neg_to_pos = neg_to_pos[1:]
+
+    minima = np.array([np.argmin(signal[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]).astype(int)
+
+    return minima
