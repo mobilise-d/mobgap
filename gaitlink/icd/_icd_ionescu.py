@@ -155,7 +155,7 @@ def max_peaks_between_zc(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     n_zcs = len(ix) - 1  # Number of zero-crossings minus 1
     # Find the indices of maximum values between zero crossings. Code considers L separate intervals between the L+1
     # zero crossings and returns the index of the peak in each interval
-    ipks = np.array([np.argmax(np.abs(x[ix[i] : ix[i + 1]])) + ix[i] for i in range(n_zcs)])
+    ipks = np.array([np.argmax(np.abs(x[ix[i] : ix[i + 1]])) + ix[i] for i in range(n_zcs)]).astype(int)
     # Get the signed peaks
     pks = x[ipks]
     return pks, ipks
