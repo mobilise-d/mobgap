@@ -69,6 +69,8 @@ short_trial_reference_parameters = load_reference(short_trial)
 
 fs = short_trial.sampling_rate_hz  # sampling rate (Hz)
 # if the first sample is t = 0 s --> we don't need to subtract -1 to the gait sequenced
+# TODO: Update to new format
+# TODO: Check start and end of gait sequence -1 required or not?
 s = round(short_trial.reference_parameters_["lwb"][0]["Start"] * fs) - 1  # start of gait sequence (samples)
 e = round(short_trial.reference_parameters_["lwb"][0]["End"] * fs) - 1  # end of gait sequence (samples)
 gs = short_trial.data["LowerBack"][s : e + 1]  # imu data during gait sequence

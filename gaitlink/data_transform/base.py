@@ -2,7 +2,6 @@
 from typing import Any, ClassVar, Literal, Optional, Union
 
 import numpy as np
-import pandas as pd
 from scipy.signal import filtfilt, lfilter, sosfilt, sosfiltfilt
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
@@ -146,7 +145,7 @@ class BaseFilter(BaseTransformer):
 
     @base_filter_docfiller
     def filter(
-        self, data: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
     ) -> Self:
         """%(filter_short)s.
 
