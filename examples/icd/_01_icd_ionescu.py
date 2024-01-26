@@ -1,6 +1,6 @@
 """
 ICD Ionescu
-========.
+===========
 
 This example shows how to use the ICD Ionescu algorithm and how its results compare to the original
 matlab implementation.
@@ -85,7 +85,17 @@ detected_ics_matlab
 # %%
 # Plotting the results
 # --------------------
-
+# With that we can compare the python, matlab and ground truth results.
+# We zoom in into one of the gait sequences to better see the output.
+# We can make a couple of main observations:
+#
+# 1. The python version finds the same ICs as the matlab version, but wil a small shift to the left (around 2-5
+#    samples/20-50 ms).
+#    This is likely due to some differences in the downsampling process.
+# 2. Compared to the ground truth reference, both versions detect the IC too early most of the time.
+# 3. Both algorithms can not detect the first IC of the gait sequence.
+#    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
+#    Hence, there are not samples before that point the algorithm can use to detect the IC.
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
@@ -94,45 +104,3 @@ plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["
 plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()
-
-
-# fs = single_test.sampling_rate_hz  # sampling rate (Hz)
-# # if the first sample is t = 0 s --> we don't need to subtract -1 to the gait sequenced
-# # TODO: Update to new format
-# # TODO: Check start and end of gait sequence -1 required or not?
-# s = round(single_test.reference_parameters_["lwb"][0]["Start"] * fs) - 1  # start of gait sequence (samples)
-# e = round(single_test.reference_parameters_["lwb"][0]["End"] * fs) - 1  # end of gait sequence (samples)
-# gs = single_test.data["LowerBack"][s : e + 1]  # imu data during gait sequence
-# single_test_output = IcdIonescu().detect(gs, sampling_rate_hz=fs)  # output of ICDs
-# ICs_from_start = (
-#     single_test.reference_parameters_["lwb"][0]["Start"] + single_test_output.icd_list_
-# )  # ICs (s) from the start of the Trial
-# print("Reference Parameters:\n\n", single_test_reference_parameters)
-# print("\nMatlab Output:\n\n", single_test_matlab_output)
-# print("\nPython Output:\n\n", single_test_output.icd_list_)
-#
-# # %% Plot and comparison with Matlab
-# IC_matlab_seconds = [x for x in single_test_matlab_output["ics"][0]]
-# IC_matlab_samples = [round(x * fs) for x in single_test_matlab_output["ics"][0]]
-# IC_INDIP_seconds = [x / fs for x in single_test_reference_parameters["ICs"][0]]
-# IC_INDIP_samples = [round(x) for x in single_test_reference_parameters["ICs"][0]]
-#
-# # do two pics--> one general and one more zoomed-in
-# accV = single_test.data["LowerBack"]["acc_x"]
-# plt.close()
-# fig, ax = plt.subplots()
-# t = np.arange(1 / fs, (len(accV) + 1) / fs, 1 / fs, dtype=float)
-# ax.plot(t, accV)
-# ax.plot(ICs_from_start, accV.array[(ICs_from_start * fs).astype(int)].to_numpy(), "ro", label="Python")
-# ax.plot(IC_matlab_seconds, accV.array[IC_matlab_samples], "b*", label="Matlab")
-# ax.plot(IC_INDIP_seconds, accV.array[IC_INDIP_samples], "k+", label="INDIP")
-# ax.fill_betweenx(np.arange(min(accV) - 1, max(accV) + 1, 0.01), s / fs, e / fs, facecolor="green", alpha=0.2)
-# plt.xlabel("Time (s)")
-# plt.ylabel("Vertical Acceleration (m/s^2)")
-# plt.title("IC detection: HA002 - Test 5 - Trial 2")
-# plt.legend(loc="upper left")
-# plt.show()
-
-# %%
-# When we plot the output, we can see that both algorithm implementations ignore
-# the ICs given by the first and the last element of the gait sequence

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ from tpcp import cf
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter, Resample
-from gaitlink.data_transform.base import BaseFilter, BaseTransformer
+from gaitlink.data_transform.base import BaseFilter
 from gaitlink.icd._utils import find_zero_crossings
 from gaitlink.icd.base import BaseIcdDetector, base_icd_docfiller
 
@@ -19,12 +19,14 @@ class IcdIonescu(BaseIcdDetector):
 
     The algorithm includes the following steps starting from vertical acceleration
     of the lower-back during a gait sequence:
+
     1. Resampling: 100 Hz --> 40 Hz
     2. Band-pass filtering --> lower cut-off: 0.15 Hz; higher cut-off: 3.14 Hz
     3. Cumulative integral --> cumulative trapezoidal integration
     4. Continuous Wavelet Transform (CWT) --> Ricker wavelet
     5. Zero crossings detection
     6. Detect peaks between zero crossings --> negative peaks = ICs
+
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
@@ -48,33 +50,35 @@ class IcdIonescu(BaseIcdDetector):
     -----
     Points of deviation from the original implementation and their reasons:
 
-    - The default value of the width of the cwt scale is lowered from 9 to 6.4. This method produces similar but
-      different results. However, based on some testing, this parameter did not seem to have a big impact on the
-      results, anyway.
+    - We use a different downsampling method, which should be "more" correct from a signal theory perspective,
+      but will yield slightly different results.
+    - We use a slightly different approach when it comes to the detection of the peaks between the zero crossings.
+      However, the results of this step are identical to the matlab implementation.
 
     .. [1] J. McCamley, M. Donati, E. Grimpampi, C. Mazzà, "An enhanced estimate of initial contact and final contact
-    instants of time using lower trunk inertial sensor data", Gait & Posture, vol. 36, no. 2, pp. 316-318, 2012.
+       instants of time using lower trunk inertial sensor data", Gait & Posture, vol. 36, no. 2, pp. 316-318, 2012.
     .. [2] A. Paraschiv-Ionescu, A. Soltani and K. Aminian, "Real-world speed estimation using single trunk IMU:
-    methodological challenges for impaired gait patterns," 2020 42nd Annual International Conference of the IEEE
-    Engineering in Medicine & Biology Society (EMBC), Montreal, QC, Canada, 2020, pp. 4596-4599,
-    doi: 10.1109/EMBC44109.2020.9176281.
+       methodological challenges for impaired gait patterns," 2020 42nd Annual International Conference of the IEEE
+       Engineering in Medicine & Biology Society (EMBC), Montreal, QC, Canada, 2020, pp. 4596-4599,
+       doi: 10.1109/EMBC44109.2020.9176281.
     .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/ICDA/Library/SD_algo_AMC.m
+
     """
 
-    pre_filter: Optional[BaseFilter]
-    resampler: Optional[BaseTransformer]
+    pre_filter: BaseFilter
+    cwt_width: float
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
-    def __init__(
-        self, *, pre_filter: Optional[BaseFilter] = cf(EpflDedriftedGaitFilter()), cwt_width: float = 9.0
-    ) -> None:
+    def __init__(self, *, pre_filter: BaseFilter = cf(EpflDedriftedGaitFilter()), cwt_width: float = 9.0) -> None:
         self.pre_filter = pre_filter
         self.cwt_width = cwt_width
 
     @base_icd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         """%(detect_short)s.
+
+        %(detect_info)s
 
         Parameters
         ----------

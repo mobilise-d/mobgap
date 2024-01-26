@@ -21,7 +21,7 @@ base_icd_docfiller = make_filldoc(
         It only has one column, ``ic``, which contains the indices of the detected initial contacts.
     """,
         "detect_short": """
-    Detect Initial contacts in the passed data.
+    Detect Initial contacts in the passed data
     """,
         "detect_info": """
     We expect the data to be a single gait sequence.

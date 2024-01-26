@@ -15,6 +15,7 @@ Algorithms
    :template: class.rst
 
     IcdShinImproved
+    IcdIonescu
 
 Base Classes
 ++++++++++++
