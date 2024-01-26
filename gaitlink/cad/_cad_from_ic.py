@@ -260,7 +260,7 @@ class CadFromIcDetector(CadFromIc):
 
     def __init__(
         self,
-        ic_detector: None,
+        ic_detector: BaseIcDetector,
         *,
         step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
         max_interpolation_gap_s: int = 3,

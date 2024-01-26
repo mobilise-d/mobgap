@@ -87,4 +87,7 @@ print(f"Calculated average per-sec cadence: {cad_from_ic.cadence_per_sec_.mean()
 #
 # CadFromIcDetector
 # -----------------
-# TODO: Can only be demonstrated, when we have a different IC detection algorithm.
+from gaitlink.cad import CadFromIcDetector
+from gaitlink.icd import IcdShinImproved
+
+cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
