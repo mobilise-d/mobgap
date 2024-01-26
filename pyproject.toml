@@ -17,6 +17,7 @@ gaitmap = "^2.3.0"
 joblib = ">=1.3.2"
 openpyxl = "^3.1.2"
 intervaltree = "^3.1.0"
+pywavelets = "^1.5.0"
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.22.0"
