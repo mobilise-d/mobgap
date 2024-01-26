@@ -3,7 +3,6 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from examples.data._01_loading_example_data import single_test
 from gaitlink.data import LabExampleDataset
 from gaitlink.icd import IcdShinImproved
 from gaitlink.pipeline import GsIterator

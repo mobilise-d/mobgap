@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
-from pandas.testing import assert_series_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.data import LabExampleDataset
@@ -69,4 +68,3 @@ class TestIcdIonescuRegression:
 
         detected_ics = iterator.initial_contacts_
         snapshot.assert_match(detected_ics, str(datapoint.group_label))
-

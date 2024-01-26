@@ -1,6 +1,5 @@
 from typing import Any, Optional
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pywt import cwt
@@ -150,10 +149,7 @@ class IcdIonescu(BaseIcdDetector):
             neg_to_pos = neg_to_pos[1:]
 
         icd_array = np.array(
-            [
-                np.argmin(acc_v_lp_int_cwt[start:end]) + start
-                for start, end in zip(pos_to_neg, neg_to_pos)
-            ]
+            [np.argmin(acc_v_lp_int_cwt[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]
         ).astype(int)
         # OUTPUT: first and last element of the gsd are considered ICs by default
         detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="ic_id")
