@@ -611,7 +611,7 @@ def parse_reference_parameters(
     # We also get the correct LR-label for the stride parameters from the ICs.
     ic_duplicate_as_nan = ics.copy()
     # We set the values to Nan first and then drop one of the duplicates.
-    ic_duplicate_as_nan[ics["ic"].duplicated(keep=False)] = pd.NA
+    ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
     ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
     if ic_duplicate_as_nan["lr_label"].isna().any():
         warnings.warn(
