@@ -55,16 +55,7 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     0      0   10
     1     20   25
     """
-    # check if input is a dataframe with two columns
-    if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
-        raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
-    # check if start and end columns are present
-    try:
-        _, _ = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
-    except KeyError as e:
-        raise ValueError(
-            "`gsd_list_detected` and `gsd_list_reference` must have columns named 'start' and 'end'."
-        ) from e
+    _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
     # Create Interval Trees
     reference_tree = IntervalTree.from_tuples(gsd_list_reference[["start", "end"]].to_numpy())
@@ -112,7 +103,18 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
 
     result = CategorizedIntervals(tp_intervals=tp_intervals, fp_intervals=fp_intervals, fn_intervals=fn_intervals)
 
-    return result
+
+def _check_input_sanity(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> None:
+    # check if input is a dataframe with two columns
+    if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
+        raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
+    # check if start and end columns are present
+    try:
+        _, _ = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
+    except KeyError as e:
+        raise ValueError(
+            "`gsd_list_detected` and `gsd_list_reference` must have columns named 'start' and 'end'."
+        ) from e
 
 
 def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Interval) -> list[list[int]]:
@@ -190,21 +192,11 @@ def find_matches_with_min_overlap(
     id
     0      0   10
     """
-    # check if input is a dataframe with two columns
-    if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
-        raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
-
-    # check if start and end columns are present
-    try:
-        _, _ = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
-    except KeyError as e:
-        raise ValueError(
-            "`gsd_list_detected` and `gsd_list_reference` must have columns named 'start' and 'end'."
-        ) from e
+    _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
     # check if index is unique
     if not gsd_list_detected.index.is_unique:
-        raise ValueError("`gsd_list_detected` must have a unique index to .")
+        raise ValueError("`gsd_list_detected` must have a unique index.")
 
     if overlap_threshold <= 0.5:
         raise ValueError(
