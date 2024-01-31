@@ -1,11 +1,15 @@
 """Class to validate gait sequence detection results."""
-from typing import Any, Union, Unpack
+from typing import Any, Union
 
-import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
 from intervaltree.interval import Interval
+from matplotlib.axes import Axes
+from typing_extensions import Unpack
+
+__all__ = ["categorize_intervals", "find_matches_with_min_overlap"]
 
 __all__ = ["categorize_intervals", "find_matches_with_min_overlap", "CategorizedIntervals"]
 
@@ -226,3 +230,34 @@ def find_matches_with_min_overlap(
 
     final_matches = pd.DataFrame(final_matches, columns=["start", "end", "id"]).set_index("id")
     return final_matches
+
+
+def plot_categorized_intervals(
+    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, categorized_intervals: pd.DataFrame
+) -> None:
+    """Plot the categorized intervals together with the detected and reference intervals."""
+    fig, ax = plt.subplots(figsize=(10, 3))
+    _plot_intervals_from_df(gsd_list_reference, 3, ax, color="orange")
+    _plot_intervals_from_df(gsd_list_detected, 2, ax, color="blue")
+    _plot_intervals_from_df(categorized_intervals.query("match_type == 'tp'"), 1, ax, color="green", label="TP")
+    _plot_intervals_from_df(categorized_intervals.query("match_type == 'fp'"), 1, ax, color="red", label="FP")
+    _plot_intervals_from_df(categorized_intervals.query("match_type == 'fn'"), 1, ax, color="purple", label="FN")
+    plt.yticks([1, 2, 3], ["Categorized", "Detected", "Reference"])
+    plt.ylim(0, 4)
+    plt.xlabel("Index")
+    leg = plt.legend(loc="upper right", bbox_to_anchor=(1, 1.2), ncol=3, frameon=False)
+    for handle in leg.legend_handles:
+        handle.set_linewidth(10)
+    plt.tight_layout()
+    plt.show()
+
+
+def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack[dict[str, Any]]) -> None:
+    label_set = False
+    for _, row in df.iterrows():
+        label = kwargs.pop("label", None)
+        if label and not label_set:
+            ax.hlines(y, row["start"], row["end"], lw=20, label=label, **kwargs)
+            label_set = True
+        else:
+            ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
