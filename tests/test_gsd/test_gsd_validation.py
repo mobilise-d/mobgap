@@ -144,13 +144,13 @@ class TestCategorizeIntervals:
         expected_fp = pd.DataFrame(expected_fp, columns=["start", "end"])
         expected_fn = pd.DataFrame(expected_fn, columns=["start", "end"])
 
-        tp = result.tp_intervals
-        fp = result.fp_intervals
-        fn = result.fn_intervals
+        tp = result.query("match_type == 'tp'").drop(columns=["match_type"]).reset_index(drop=True)
+        fp = result.query("match_type == 'fp'").drop(columns=["match_type"]).reset_index(drop=True)
+        fn = result.query("match_type == 'fn'").drop(columns=["match_type"]).reset_index(drop=True)
 
-        assert_frame_equal(tp, expected_tp)
-        assert_frame_equal(fp, expected_fp)
-        assert_frame_equal(fn, expected_fn)
+        assert_frame_equal(tp, expected_tp, check_dtype=False)
+        assert_frame_equal(fp, expected_fp, check_dtype=False)
+        assert_frame_equal(fn, expected_fn, check_dtype=False)
 
 
 class TestMatchIntervals:

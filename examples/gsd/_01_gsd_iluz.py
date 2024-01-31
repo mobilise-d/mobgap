@@ -173,13 +173,12 @@ from gaitlink.gsd.validation import categorize_intervals
 categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_trial_reference_parameters)
 
 # %%
-# The function returns a Named Tuple with the following fields: tp_intervals`, `fp_intervals` and `fn_intervals`.
-# Consequently, we can access all intervals that were correctly detected (`tp_intervals`), all intervals that were
-# falsely detected as gait sequences (`fp_intervals`) and all intervals that were gait sequences but not detected
-# as such (`fn_intervals`).
+# The function returns a DataFrame containing `start` and `end`  index of the resulting matched intervals together with
+# a `match_type` column that contains the type of match for each interval, i.e. `tp` for true positive, `fp` for false
+# positive, and `fn` for false negative.
 # These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
-# categorizing correctly detected samples (`tp_intervals`), falsely detected samples (`fp_intervals`), and samples
-# from the reference gsd list that were not detected (`fn_intervals`).
+# categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples
+# from the reference gsd list that were not detected (`fn`).
 # Note that the true negative intervals are not explicitly returned, but can be inferred from the other intervals,
 # as everything between them is considered as true negative.
 
