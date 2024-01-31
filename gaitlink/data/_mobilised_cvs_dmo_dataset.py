@@ -281,7 +281,7 @@ class MobilisedCvsDmoDataset(Dataset):
         This is determined by the visit type in the filename of the dmo export file.
 
         """
-        return str(self.dmo_path.name).split("-")[1].upper()
+        return str(Path(self.dmo_path).name).split("-")[1].upper()
 
     def _get_participant_site_metadata(self) -> pd.DataFrame:
         return hybrid_cache(self.memory, 1)(_load_site_pid_map)(
@@ -345,24 +345,30 @@ class MobilisedCvsDmoDataset(Dataset):
                     stacklevel=1,
                 )
             wear_time = self._calculate_daily_weartime(files)
+
+        # Ensure correct dtypes:
+        wear_time = wear_time.astype({"visit_type": "string", "participant_id": "string", "measurement_date": "string"})
+
         # We merge the weartime report with the dataset index to get NaNs for all participants that don't have any
         # weartime data, but are still in the dataset.
         wear_time = self.index.merge(
             wear_time, on=["visit_type", "participant_id", "measurement_date"], how="left"
         ).drop(["measurement_id"], axis=1)
 
-        if wear_time.duplicated().any():
+        wear_time = wear_time.set_index(["visit_type", "participant_id", "measurement_date"]).round(3)
+
+        if (wim := wear_time.index.to_frame().duplicated(keep="last")).any():
             warnings.warn(
                 "The weartime report contains duplicate indices. "
                 "This indicates that multiple weartime reports exist for the same participant. "
                 "This should not happen! "
-                "We will drop all duplicate indices for now (keeping the first one). "
+                "We will drop all duplicate indices for now (keeping the last one). "
                 "You should investigate this further!",
                 stacklevel=2,
             )
-            wear_time = wear_time.drop_duplicates()
+            wear_time = wear_time[~wim]
 
-        return wear_time.set_index(["visit_type", "participant_id", "measurement_date"])
+        return wear_time
 
     def _get_precomputed_daily_weartime(self) -> pd.DataFrame:
         try:
@@ -382,7 +388,7 @@ class MobilisedCvsDmoDataset(Dataset):
         warnings.warn(
             "Finished computing the daily weartime. Now saving the results to disk at:" f"{file_path}.", stacklevel=2
         )
-        results.to_csv(file_path)
+        results.to_csv(file_path, index=False)
         return results
 
     def _calculate_daily_weartime(self, filelist: list[Path]) -> pd.DataFrame:
@@ -392,6 +398,10 @@ class MobilisedCvsDmoDataset(Dataset):
                 "Please make sure that the files are named `*_minute.csv` and located in the following "
                 f"folder: {self.weartime_reports_base_path}."
             )
+
+        # Finally we will merge the results with the pid_mid_map to get the correct participant id.
+        # We already query that up here to fail early in case the file does not exist.
+        pid_mid_map = self._get_pid_mid_map().reset_index()
 
         def process_single_file(path: Path) -> tuple[str, pd.DataFrame]:
             p_id = path.name.split("_")[-2]
@@ -414,9 +424,7 @@ class MobilisedCvsDmoDataset(Dataset):
             .astype({"measurement_date": "string", "measurement_id": int})
         )
 
-        # Finally we will merge the results with the pid_mid_map to get the correct participant id.
-        pid_mid_map = self._get_pid_mid_map().reset_index()
-        results = results.merge(pid_mid_map, on=["measurement_id"]).set_index(["participant_id", "measurement_date"])
+        results = results.merge(pid_mid_map, on=["measurement_id"])
         return results
 
     def _get_dmo_data(self) -> tuple[pd.DataFrame, pd.DataFrame]:
