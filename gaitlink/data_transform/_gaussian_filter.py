@@ -1,7 +1,7 @@
 import numpy as np
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter1d
 from typing_extensions import Self
-
+from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 from gaitlink.data_transform.base import BaseTransformer
 
 
@@ -22,9 +22,10 @@ class GaussianFilter(BaseTransformer):
     transformed_data_ :
         The data after applying the Gaussian filter.
 
-    data : np.ndarray
-        The input data (assumed to be a NumPy array).
-
+    Other Parameters
+    ----------------
+    data
+        The input data
 
     """
 
@@ -50,9 +51,17 @@ class GaussianFilter(BaseTransformer):
         if data is None:
             raise ValueError("Parameter 'data' must be provided.")
 
-        self.data = data.copy()  # Create a copy for consistency
+        self.data = data
+
+        # Convert to 2D array using dflike_as_2d_array function
+        df_data, index, transformation_function = dflike_as_2d_array(data)
+
         # Apply Gaussian filter
-        self.transformed_data_ = gaussian_filter(data, sigma=self.sigma, output=None, mode="reflect", cval=0.0,
-                                                 truncate=4.0)
+        self.transformed_data_ = gaussian_filter1d(
+            df_data, sigma=self.sigma, axis=0, output=None, mode="reflect", cval=0.0, truncate=4.0
+        )
+
+        # Back transformation using the transformation function
+        self.transformed_data_ = transformation_function(self.transformed_data_, index)
 
         return self

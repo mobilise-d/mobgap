@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from scipy.signal import resample
 from tpcp.testing import TestAlgorithmMixin
-from tpcp import get_results
+
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import Resample
 

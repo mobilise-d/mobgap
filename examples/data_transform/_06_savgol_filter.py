@@ -3,10 +3,11 @@ Savitzky-Golay Filter Example
 ===============
 """
 
+import matplotlib.pyplot as plt
+import pandas as pd
+
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform._savgol_filter import SavgolFilter
-import pandas as pd
-import matplotlib.pyplot as plt
 
 # Load the data
 example_data = LabExampleDataset()
@@ -15,7 +16,7 @@ single_test = ha_example_data.get_subset(participant_id="002", test="Test11", tr
 df = single_test.data["LowerBack"]
 
 # Create an instance of the SavgolFilter class with your desired parameters
-savgol_filter = SavgolFilter(window_length=10, polyorder=2)
+savgol_filter = SavgolFilter(window_length=16, polyorder=4)
 
 # Perform the Savgol filtering operation by calling the transform method
 smoothed_data = savgol_filter.transform(df)

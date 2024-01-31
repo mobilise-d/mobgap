@@ -1,11 +1,14 @@
 """
 Continuous Wavelet Transform (CWT) Example
+===============
+
 """
 
-from scipy.signal import ricker
-import numpy as np
-from gaitlink.data import LabExampleDataset
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy.signal import ricker
+
+from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import CwtFilter
 
 # Load example data
@@ -30,10 +33,10 @@ print(transformed_data.data)
 # Plot the original and transformed data
 plt.figure(figsize=(12, 4))
 plt.subplot(1, 2, 1)
-plt.plot(df.index, df.values, label='Original Data')
-plt.title('Original Data')
-plt.xlabel('Time')
-plt.ylabel('Signal Value')
+plt.plot(df.index, df.values, label="Original Data")
+plt.title("Original Data")
+plt.xlabel("Time")
+plt.ylabel("Signal Value")
 plt.legend()
 
 # Plot the transformed data
@@ -41,12 +44,17 @@ plt.subplot(1, 2, 2)
 num_scales = transformed_data.data.shape[0]  # Assuming the first dimension is scales
 time_points = df.index.to_numpy()
 
-plt.imshow(np.abs(transformed_data.data), aspect='auto', extent=[time_points[0], time_points[-1], 0, num_scales],
-           cmap='PRGn', origin='lower')
-plt.title('CWT Transformed Data')
-plt.xlabel('Time')
-plt.ylabel('Scale')
-plt.colorbar(label='Magnitude')
+plt.imshow(
+    np.abs(transformed_data.data),
+    aspect="auto",
+    extent=[time_points[0], time_points[-1], 0, num_scales],
+    cmap="PRGn",
+    origin="lower",
+)
+plt.title("CWT Transformed Data")
+plt.xlabel("Time")
+plt.ylabel("Scale")
+plt.colorbar(label="Magnitude")
 
 plt.tight_layout()
 plt.show()

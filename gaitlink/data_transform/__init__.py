@@ -1,5 +1,5 @@
 """Filter and Data Transformation with a familiar algorithm interface."""
-from gaitlink.data_transform._cwt_filter import CwtFilter
+from gaitlink.data_transform._cwt import CwtFilter
 from gaitlink.data_transform._filter import (
     ButterworthFilter,
     EpflDedriftedGaitFilter,
@@ -22,6 +22,5 @@ __all__ = [
     "Resample",
     "CwtFilter",
     "GaussianFilter",
-    "SavgolFilter"
+    "SavgolFilter",
 ]
-
