@@ -16,25 +16,33 @@ However, to make using filters even more intuitive, they also support the `filte
 attribute, which are simply aliases for `transform` and `transformed_data_` respectively.
 All filters use :class:`~tpcp.data_transform.base.BaseFilter` as a base class, which implements these aliases.
 
-Below we show a simple example of how to apply the :class:`~gaitlink.data_transform.EpflDedriftedGaitFilter` to some data.
-This filter is used as part of the pre-processing of many of the gaitlink algorithms.
+Below we show two simple examples.
 
-We load some example data to apply the filter to.
-Note that the filter is designed to only work on 40 Hz data.
-Hence, we need to resample the data first.
+First, we show how to apply the :class:`~gaitlink.data_transform.EpflDedriftedGaitFilter` to some data and then
+we demonstrate a simple butterworth filter.
+
+We load some example data to apply the filters to.
+
 """
-import pandas as pd
-from scipy.signal import resample
-
 from gaitlink.data import LabExampleDataset
+from gaitlink.data_transform import Resample
 
 data_point = LabExampleDataset().get_subset(cohort="HA", participant_id="002", test="Test5", trial="Trial2")
 example_data = data_point.data["LowerBack"]
 sampling_rate_hz = data_point.sampling_rate_hz
 
+example_data
+
+# %%
+# EpflDedriftedGaitFilter
+# -----------------------
+# The EpflDedriftedGaitFilter is a filter that is specifically designed to remove drift from gait data.
+# However, it only works on data that is sampled at 40 Hz.
+# Hence, we need to resample the data first.
+
 # TODO: Update once a resample method is available
-example_data_resampled = pd.DataFrame(
-    resample(example_data, num=int(len(example_data) * 40 / sampling_rate_hz), axis=0), columns=example_data.columns
+example_data_resampled = (
+    Resample(target_sampling_rate_hz=40).transform(example_data, sampling_rate_hz=sampling_rate_hz).transformed_data_
 )
 example_data_resampled
 
@@ -55,6 +63,36 @@ import matplotlib.pyplot as plt
 
 example_data_resampled["gyr_y"].plot(label="Original data")
 epfl_filter.filtered_data_["gyr_y"].plot(label="Filtered data")
+plt.legend()
+
+plt.show()
+
+# %%
+# Butterworth filter
+# ------------------
+# The Butterworth filter is a generic filter that can be used to filter data.
+# However, its interface is identical to all other filter methods, making it easy to exchange filters.
+#
+# Most of the parameters of the filter are forwarded to the :func:`scipy.signal.butter` function.
+# See the documentation of that function for more information.
+#
+# Our implementation uses either :func:`scipy.signal.filtfilt` or :func:`scipy.signal.lfilter` depending on the
+# ``zero_phase`` parameter.
+# Here, we will use the default (``zero_phase=True``), which means that the filter is applied twice, once forward and
+# once backward.
+from gaitlink.data_transform import ButterworthFilter
+
+butterworth_filter = ButterworthFilter(order=4, cutoff_freq_hz=2.0, zero_phase=True)
+
+butterworth_filter.filter(example_data_resampled, sampling_rate_hz=40)
+
+filtered_data = butterworth_filter.filtered_data_
+filtered_data
+
+# %%
+# We can again plot the filtered data to see the effect of the filter.
+example_data_resampled["gyr_y"].plot(label="Original data")
+filtered_data["gyr_y"].plot(label="Filtered data")
 plt.legend()
 
 plt.show()
