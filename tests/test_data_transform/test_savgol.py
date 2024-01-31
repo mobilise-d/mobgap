@@ -5,7 +5,8 @@ from scipy.signal import savgol_filter
 from tpcp.testing import TestAlgorithmMixin
 from gaitlink.data_transform import SavgolFilter
 
-class TestSavgolFilter(TestAlgorithmMixin):
+
+class TestMetaSavgolFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = SavgolFilter
     __test__ = True
 
@@ -23,41 +24,30 @@ class TestSavgolFilter(TestAlgorithmMixin):
         # Return the SavgolFilter class instance with initial conditions
         return savgol_filter
 
+
+class TestSavgolFilter:
     def test_savgol_filter_transform(self):
         # Create a SavgolFilter instance with window_length and polyorder values
-        savgol_filter = self.ALGORITHM_CLASS(window_length=5, polyorder=2)
+        savgolfilter = SavgolFilter()
 
         # Create a sample DataFrame
-        sample_data = pd.DataFrame({"column1": [1.0, 2.0, 3.0], "column2": [4.0, 5.0, 6.0]})
+        # sample_data = pd.DataFrame({"column1": [1.0, 2.0, 3.0], "column2": [4.0, 5.0, 6.0]})
 
+        sample_data = np.array([[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]])
         # Perform the transformation
-        transformed_data = savgol_filter.transform(sample_data)
-
-        # Check if 'transformed_data_' is not None
-        assert transformed_data.transformed_data_ is not None
-
-        # Check if the transformed_data is not an empty DataFrame
-        assert not transformed_data.transformed_data_.empty
+        transformed_data = savgolfilter.transform(sample_data)
 
         # Calculate the expected output using transform method
-        expected_output = savgol_filter.transform(sample_data).transformed_data_
+        expected_output = savgol_filter(sample_data, window_length=5, polyorder=2, mode="mirror")
+
+        # Converting the data to Pandas Dataframe for easy comparison
+        expected_output_df = pd.DataFrame(expected_output)
+
+        # Convert the transformed data to a DataFrame
+        transformed_data_df = pd.DataFrame(transformed_data.transformed_data_)
 
         # Compare the shapes of the transformed data with the expected output
-        assert transformed_data.transformed_data_.shape == expected_output.shape
+        assert tuple(transformed_data_df.shape) == expected_output_df.shape
 
         # Compare the transformed data with the manually filtered data
-        pd.testing.assert_frame_equal(transformed_data.transformed_data_, expected_output)
-
-
-    def test_savgol_filter_empty_data(self):
-        # Create a SavgolFilter instance with window_length and polyorder values
-        savgol_filter = self.ALGORITHM_CLASS(window_length=5, polyorder=2)
-
-        # Create an empty DataFrame
-        data = pd.DataFrame()
-
-        # Attempt to transform with an empty DataFrame (expecting a ValueError)
-        with pytest.raises(ValueError, match="Parameter 'data' must be provided."):
-            savgol_filter.transform(data)
-
-
+        pd.testing.assert_frame_equal(transformed_data_df, expected_output_df)

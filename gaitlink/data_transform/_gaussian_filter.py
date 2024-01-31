@@ -31,7 +31,6 @@ class GaussianFilter(BaseTransformer):
 
     def __init__(self, sigma: float = 1.0) -> None:
         self.sigma = sigma
-        self.transformed_data_ = np.array([])  # Initialize transformed_data_ to an empty array
 
     def transform(self, data: np.ndarray) -> Self:
         """
@@ -48,8 +47,6 @@ class GaussianFilter(BaseTransformer):
             The instance of the transform with the blurred results attached.
 
         """
-        if data is None:
-            raise ValueError("Parameter 'data' must be provided.")
 
         self.data = data
 

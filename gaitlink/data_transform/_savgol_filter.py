@@ -46,7 +46,6 @@ class SavgolFilter(BaseTransformer):
         """
         self.window_length = window_length
         self.polyorder = polyorder
-        self.transformed_data_ = np.array([])  # Initialize transformed_data_ to an empty DataFrame
 
     def transform(self, data: pd.DataFrame) -> Self:
         """
@@ -62,8 +61,6 @@ class SavgolFilter(BaseTransformer):
         SavgolFilter
             The instance of the transform with the smoothed results attached.
         """
-        if data is None or len(data) == 0:
-            raise ValueError("Parameter 'data' must be provided.")
 
         self.data = data
 
