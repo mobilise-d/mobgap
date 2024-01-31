@@ -1,5 +1,5 @@
 """Class to validate gait sequence detection results."""
-from typing import NamedTuple
+from typing import Any, Union, Unpack
 
 import numpy as np
 import pandas as pd
@@ -24,10 +24,9 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
 
     The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
     start and end indices of the respective gait sequences.
-    Each sample from the detected interval list is categorized as true positive (TP),
-    false positive (FP) or false negative (FN).
-    The results are concatenated into three result dataframes `tp_intervals`, `fp_intervals` and `fn_intervals`,
-    which are returned as a NamedTuple.
+    Each sample from the detected interval list is categorized as true positive (tp),
+    false positive (fp) or false negative (fn).
+    The results are concatenated into intervals of tp, fp, and fn matches and returned as a DataFrame.
 
     Parameters
     ----------
@@ -40,9 +39,10 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
 
     Returns
     -------
-    CategorizedIntervals
-        A NamedTuple containing the three result dataframes `tp_intervals`,
-        `fp_intervals` and `fn_intervals` as attributes.
+    pd.DataFrame
+        A DataFrame containing the categorized intervals with their `start` and `end` index
+        and the respective `match_type`. Keep in mind that the intervals are not identical to the intervals
+        in `gsd_list_detected`, but are rather split into subsequences according to their match type with the reference.
 
     Examples
     --------
@@ -51,9 +51,11 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     >>> reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
     >>> result = categorize_intervals(detected, reference)
     >>> result.tp_intervals
-       start  end
-    0      0   10
-    1     20   25
+           start  end match_type
+    0      0   10         tp
+    1     15   20         fn
+    2     20   25         tp
+    3     25   30         fp
     """
     _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
@@ -90,18 +92,17 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
             fn_matches = _get_false_matches_from_overlap_data(overlaps, interval)
             fn_intervals.extend(fn_matches)
 
-    # convert results to pandas DataFrame
-    tp_intervals = pd.DataFrame(
-        merge_intervals(np.array(tp_intervals)) if len(tp_intervals) != 0 else tp_intervals, columns=["start", "end"]
-    )
-    fp_intervals = pd.DataFrame(
-        merge_intervals(np.array(fp_intervals)) if len(fp_intervals) != 0 else fp_intervals, columns=["start", "end"]
-    )
-    fn_intervals = pd.DataFrame(
-        merge_intervals(np.array(fn_intervals)) if len(fn_intervals) != 0 else fn_intervals, columns=["start", "end"]
-    )
+    # convert results to pandas DataFrame and add a match type column
+    tp_intervals = pd.DataFrame(tp_intervals, columns=["start", "end"])
+    tp_intervals["match_type"] = "tp"
+    fp_intervals = pd.DataFrame(fp_intervals, columns=["start", "end"])
+    fp_intervals["match_type"] = "fp"
+    fn_intervals = pd.DataFrame(fn_intervals, columns=["start", "end"])
+    fn_intervals["match_type"] = "fn"
 
-    result = CategorizedIntervals(tp_intervals=tp_intervals, fp_intervals=fp_intervals, fn_intervals=fn_intervals)
+    categorized_intervals = pd.concat([tp_intervals, fp_intervals, fn_intervals], ignore_index=True)
+    categorized_intervals = categorized_intervals.sort_values(by=["start", "end"], ignore_index=True)
+    return categorized_intervals
 
 
 def _check_input_sanity(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> None:
