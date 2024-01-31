@@ -19,42 +19,20 @@ df = single_test.data["LowerBack"]
 
 # Define your wavelet function and width
 wavelet = ricker
-width = 10.0
-
-# Create an instance of CwtFilter
-cwt_filter = CwtFilter(wavelet=wavelet, width=width)
+cwt_filter = CwtFilter(wavelet=wavelet)
 
 # Transform the data using CwtFilter
-transformed_data = cwt_filter.transform(df, widths=[width])
+cwt_filter.transform(df)
 
 # Access the transformed data
-print(transformed_data.data)
+transformed_data = cwt_filter.transformed_data_
+print(transformed_data)
 
-# Plot the original and transformed data
-plt.figure(figsize=(12, 4))
-plt.subplot(1, 2, 1)
-plt.plot(df.index, df.values, label="Original Data")
-plt.title("Original Data")
-plt.xlabel("Time")
-plt.ylabel("Signal Value")
-plt.legend()
 
-# Plot the transformed data
-plt.subplot(1, 2, 2)
-num_scales = transformed_data.data.shape[0]  # Assuming the first dimension is scales
-time_points = df.index.to_numpy()
-
-plt.imshow(
-    np.abs(transformed_data.data),
-    aspect="auto",
-    extent=[time_points[0], time_points[-1], 0, num_scales],
-    cmap="PRGn",
-    origin="lower",
-)
-plt.title("CWT Transformed Data")
-plt.xlabel("Time")
-plt.ylabel("Scale")
-plt.colorbar(label="Magnitude")
-
-plt.tight_layout()
+# Plot original and fitlered data together
+fig, ax = plt.subplots()
+df.reset_index(drop=True).plot(ax=ax)
+transformed_data.add_suffix("_filtered").reset_index(drop=True).plot(ax=ax)
+ax.set_xlim(0, 1000)
 plt.show()
+

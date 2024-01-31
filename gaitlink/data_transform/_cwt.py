@@ -65,8 +65,6 @@ class CwtFilter(BaseTransformer):
         self
             The instance of the transform with the CWT results attached.
         """
-        if len(data) == 0:
-            raise ValueError("Input data array cannot be empty.")
         if not isinstance(self.width, (int, float)):
             raise TypeError("Parameter 'width' must just be a single width for the wavelet, not a list of width as in "
                             "a full CWT.")

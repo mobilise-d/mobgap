@@ -46,14 +46,3 @@ class TestCwtFilter:
         assert cwt_filter.transformed_data_.shape == data.shape
 
 
-    def test_edge_case_empty_input(self):
-        # Test with an empty input array
-        wavelet = ricker
-        width = 10
-        cwt_filter = CwtFilter(wavelet=wavelet, width=width)
-        data = np.array([])
-
-        # Use pytest.raises to check for the specific exception
-        with pytest.raises(ValueError, match="Input data array cannot be empty."):
-            cwt_filter.transform(data)
-

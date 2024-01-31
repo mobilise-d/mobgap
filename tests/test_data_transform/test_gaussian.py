@@ -6,7 +6,7 @@ import numpy as np
 from gaitlink.data_transform import GaussianFilter
 
 
-class TestGaussianFilter(TestAlgorithmMixin):
+class TestMetaGaussianFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = GaussianFilter
     __test__ = True
 
@@ -24,6 +24,8 @@ class TestGaussianFilter(TestAlgorithmMixin):
         # Return the GaussianFilter class instance with initial conditions
         return gaussian_filter
 
+
+class Test_Gaussian_Filter:
     def test_gaussian_filter_transform(self):
         # Create a GaussianFilter instance with a sigma value
         gaussian_filter = GaussianFilter(sigma=1.0)
@@ -32,12 +34,6 @@ class TestGaussianFilter(TestAlgorithmMixin):
         sample_data = np.array([[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]])
         # Perform the transformation
         transformed_data = gaussian_filter.transform(sample_data)
-
-        # Check if 'transformed_data_' is not None
-        assert transformed_data.transformed_data_ is not None
-
-        # Check if the transformed_data is not an empty array
-        assert transformed_data.transformed_data_.size != 0
 
         # Calculate the expected output using scipy.ndimage.gaussian_filter1d
         expected_output = pd.DataFrame(gaussian_filter1d(sample_data, sigma=1.0, axis=0))
