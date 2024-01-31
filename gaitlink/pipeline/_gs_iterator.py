@@ -1,16 +1,30 @@
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, ClassVar, Generic, TypeVar
+from typing import Any, Callable, Generic, NamedTuple, TypeVar, Union, overload
 
 import pandas as pd
 from tpcp import cf
-from tpcp.misc import BaseTypedIterator
+from tpcp.misc import BaseTypedIterator, set_defaults
 from typing_extensions import TypeAlias
 
 DataclassT = TypeVar("DataclassT")
 
 
-def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[str, pd.DataFrame]]:
+class GaitSequence(NamedTuple):
+    start: int
+    end: int
+    gs_id: str
+
+
+class WalkingBout(NamedTuple):
+    start: int
+    end: int
+    wb_id: str
+
+
+def iter_gs(
+    data: pd.DataFrame, gs_list: pd.DataFrame
+) -> Iterator[tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]]:
     """Iterate over the data based on the given gait-sequences.
 
     This will yield a dataframe for each gait-sequence.
@@ -35,7 +49,10 @@ def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[str, pd
         sequences will still be relative to the beginning of the recording.
 
     """
-    for gs in gs_list.reset_index().itertuples(index=False, name="gs"):
+    # TODO: Add validation that we passed a valid gs_list
+    gs: Union[GaitSequence, WalkingBout]
+    tuple_name = "WalkingBout" if "wb_id" in gs_list.columns else "GaitSequence"
+    for gs in gs_list.reset_index().itertuples(index=False, name=tuple_name):
         yield gs, data.iloc[gs.start : gs.end]
 
 
@@ -50,11 +67,11 @@ class FullPipelinePerGsResult:
 
     Attributes
     ----------
-    initial_contacts
+    ic_list
         The initial contacts for each gait-sequence.
         This is a dataframe with a column called ``ic``.
         The values of this ic-column are expected to be samples relative to the start of the gait-sequence.
-    cadence
+    cad_per_sec
         The cadence values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
     stride_length
@@ -66,8 +83,8 @@ class FullPipelinePerGsResult:
 
     """
 
-    initial_contacts: pd.DataFrame
-    cadence: pd.DataFrame
+    ic_list: pd.DataFrame
+    cad_per_sec: pd.DataFrame
     stride_length: pd.DataFrame
     gait_speed: pd.DataFrame
 
@@ -112,7 +129,7 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) ->
     return aggregate_df
 
 
-class GsIterator(BaseTypedIterator, Generic[DataclassT]):
+class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
     """Iterator to split data into gait-sequences and iterate over them individually.
 
     This can be used to easily iterate over gait-sequences and apply algorithms to them, and then collect the results
@@ -177,17 +194,32 @@ class GsIterator(BaseTypedIterator, Generic[DataclassT]):
 
     """
 
-    DEFAULT_AGGREGATIONS: ClassVar[list[tuple[str, _aggregator_type[pd.DataFrame]]]] = [
-        ("initial_contacts", create_aggregate_df(["ic"])),
-        # TODO: It might be nice for the cadence, sl and gait_speed to actually shift the time values in the index.
-        #       However, our cadence time values are in seconds. This makes things tricky, as the aggregator would need
-        #       to know the sampling rate of the data.
-        ("cadence", create_aggregate_df()),
-        ("stride_length", create_aggregate_df()),
-        ("gait_speed", create_aggregate_df()),
-    ]
-
-    DEFAULT_DATA_TYPE = FullPipelinePerGsResult
+    class PredefinedParameters:
+        default_aggregation = {
+            "data_type": FullPipelinePerGsResult,
+            "aggregations": cf(
+                [
+                    ("initial_contacts", create_aggregate_df(["ic"])),
+                    # TODO: It might be nice for the cadence, sl and gait_speed to actually shift the time values in the index.
+                    #       However, our cadence time values are in seconds. This makes things tricky, as the aggregator would need
+                    #       to know the sampling rate of the data.
+                    ("cadence", create_aggregate_df()),
+                    ("stride_length", create_aggregate_df()),
+                    ("gait_speed", create_aggregate_df()),
+                ]
+            ),
+        }
+        default_aggregation_rel_to_gs = {
+            "data_type": FullPipelinePerGsResult,
+            "aggregations": cf(
+                [
+                    ("initial_contacts", create_aggregate_df([])),
+                    ("cadence", create_aggregate_df([])),
+                    ("stride_length", create_aggregate_df([])),
+                    ("gait_speed", create_aggregate_df([])),
+                ]
+            ),
+        }
 
     class DEFAULT_AGGREGATORS:  # noqa: N801
         """Available aggregators for the gait-sequence iterator.
@@ -205,16 +237,35 @@ class GsIterator(BaseTypedIterator, Generic[DataclassT]):
 
         create_aggregate_df = create_aggregate_df
 
+    # We provide this explicit overload, so that the type of the default value is correcttly inferred.
+    # This way there is not need to "bind" FullPipelinePerGsResult on init, when the defaults are used.
+    @overload
+    def __init__(
+        self: "GsIterator[FullPipelinePerGsResult]",
+        data_type: type[FullPipelinePerGsResult] = ...,
+        aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def __init__(
+        self: "GsIterator[DataclassT]",
+        data_type: type[DataclassT] = ...,
+        aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = ...,
+    ) -> None:
+        ...
+
+    @set_defaults(**PredefinedParameters.default_aggregation)
     def __init__(
         self,
-        data_type: type[DataclassT] = DEFAULT_DATA_TYPE,
-        aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = cf(DEFAULT_AGGREGATIONS),
+        data_type,
+        aggregations,
     ) -> None:
         super().__init__(data_type, aggregations)
 
     def iterate(
         self, data: pd.DataFrame, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[tuple[str, pd.DataFrame], DataclassT]]:
+    ) -> Iterator[tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
         """Iterate over the gait sequences one by one.
 
         Parameters
