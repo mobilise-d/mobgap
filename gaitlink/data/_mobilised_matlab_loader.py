@@ -609,7 +609,17 @@ def parse_reference_parameters(
         )
 
     # We also get the correct LR-label for the stride parameters from the ICs.
-    stride_paras["lr_label"] = ics.set_index("ic")["lr_label"][stride_paras["start"]].to_numpy()
+    lr_with_nan = ics.set_index("ic")["lr_label"]
+    lr_with_nan[ics["ic"].duplicated(keep=False)] = pd.NA
+    if lr_with_nan.isna().any():
+        warnings.warn(
+            "There were multiple ICs with the same index value, but different LR labels. "
+            "This is likely an issue with the reference system you should further investigate. "
+            "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
+            "However, both values still remain in the IC list.",
+            stacklevel=2
+        )
+    stride_paras["lr_label"] = lr_with_nan[stride_paras["start"]].to_numpy()
     stride_paras.index.name = "s_id"
     stride_paras = stride_paras.reset_index().set_index(["wb_id", "s_id"])
 
