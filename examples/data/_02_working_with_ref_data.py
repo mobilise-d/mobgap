@@ -85,10 +85,10 @@ for (wb, data_per_wb), result in gs_iterator.iterate(data, ref_walking_bouts):
     ics_per_wb = ref_ics_rel.loc[wb.wb_id]
     # These could be used in some algorithm.
     # Here we will just store them in the results.
-    result.initial_contacts = ics_per_wb
+    result.ic_list = ics_per_wb
 
 # %%
 # The iterator will also conveniently aggregate the results for us.
 # You can see that the initial contacts are now stored in a single dataframe and the values are transformed back to be
 # relative to the start of the recording and not the GS anymore.
-gs_iterator.initial_contacts_
+gs_iterator.results_.ic_list
