@@ -135,25 +135,25 @@ def test_parse_reference_data_has_correct_output(ref_system, example_data_path, 
 
         # All outputs are dfs:
         assert isinstance(parsed_data.turn_parameters, pd.DataFrame)
-        assert isinstance(parsed_data.walking_bouts, pd.DataFrame)
-        assert isinstance(parsed_data.initial_contacts, pd.DataFrame)
+        assert isinstance(parsed_data.wb_list, pd.DataFrame)
+        assert isinstance(parsed_data.ic_list, pd.DataFrame)
         assert isinstance(parsed_data.stride_parameters, pd.DataFrame)
         # For all paraemters, the first index name should be "wb_id"
         assert parsed_data.turn_parameters.index.names[0] == "wb_id"
-        assert parsed_data.walking_bouts.index.names[0] == "wb_id"
-        assert parsed_data.initial_contacts.index.names[0] == "wb_id"
+        assert parsed_data.wb_list.index.names[0] == "wb_id"
+        assert parsed_data.ic_list.index.names[0] == "wb_id"
         assert parsed_data.stride_parameters.index.names[0] == "wb_id"
 
-        assert len(parsed_data.walking_bouts) == len(raw_ref_paras)
-        assert len(parsed_data.initial_contacts) == len(
+        assert len(parsed_data.wb_list) == len(raw_ref_paras)
+        assert len(parsed_data.ic_list) == len(
             pd.concat([pd.Series(wb["InitialContact_Event"]) for wb in raw_ref_paras]).dropna()
         )
 
         if relative_to_wb is True:
-            assert parsed_data.initial_contacts.iloc[0]["ic"] == 0
+            assert parsed_data.ic_list.iloc[0]["ic"] == 0
             assert parsed_data.stride_parameters.iloc[0]["start"] == 0
         else:
-            assert parsed_data.initial_contacts.iloc[0]["ic"] != 0
+            assert parsed_data.ic_list.iloc[0]["ic"] != 0
             assert parsed_data.stride_parameters.iloc[0]["start"] != 0
 
 
@@ -174,7 +174,7 @@ def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
     # We can not test for direct equivalence, because of rounding within the methods.
     # But we can test that there is rougly a factor of two between the two outputs
     assert (
-        parsed_data_50.initial_contacts["ic"] - np.ceil(parsed_data_100.initial_contacts["ic"] / 2).astype(int) <= 1
+            parsed_data_50.ic_list["ic"] - np.ceil(parsed_data_100.ic_list["ic"] / 2).astype(int) <= 1
     ).all()
     assert (
         parsed_data_50.turn_parameters["start"] - np.ceil(parsed_data_100.turn_parameters["start"] / 2).astype(int) <= 1
@@ -184,7 +184,7 @@ def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
         <= 1
     ).all()
     assert (
-        parsed_data_50.walking_bouts["start"] - np.ceil(parsed_data_100.walking_bouts["start"] / 2).astype(int) <= 1
+            parsed_data_50.wb_list["start"] - np.ceil(parsed_data_100.wb_list["start"] / 2).astype(int) <= 1
     ).all()
 
 
@@ -240,9 +240,9 @@ class TestDatasetClass:
             ref_paras = test_ds.reference_parameters_
             rel_ref_paras = test_ds.reference_parameters_relative_to_wb_
             for p in (ref_paras, rel_ref_paras):
-                ref_gs = p.walking_bouts
+                ref_gs = p.wb_list
                 assert len(ref_gs) == len(test.raw_reference_parameters[reference_para_level])
-                assert len(p.initial_contacts) == len(
+                assert len(p.ic_list) == len(
                     pd.concat(
                         [
                             pd.Series(wb["InitialContact_Event"])

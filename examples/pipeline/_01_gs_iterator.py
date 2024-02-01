@@ -24,7 +24,7 @@ from gaitlink.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
-long_trial_gs = long_trial.reference_parameters_.walking_bouts
+long_trial_gs = long_trial.reference_parameters_.wb_list
 
 long_trial_gs
 
@@ -97,7 +97,7 @@ import inspect
 
 from IPython.core.display_functions import display
 
-display(inspect.getsource(iterator.DEFAULT_DATA_TYPE))
+display(inspect.getsource(iterator.data_type))
 
 # %%
 # This means you are only allowed to use the available attributes.

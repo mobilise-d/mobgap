@@ -26,7 +26,7 @@ def test_reference_data_usage():
     from examples.data._02_working_with_ref_data import gs_iterator, ref_data
 
     # The final ics should be equivalent to the non-relative ref data, as we add the GS offset during aggregation
-    assert_frame_equal(gs_iterator.initial_contacts_, ref_data.ic_list)
+    assert_frame_equal(gs_iterator.results_.ic_list, ref_data.ic_list)
 
 
 def test_dmo_data(snapshot):

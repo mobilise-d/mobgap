@@ -199,11 +199,11 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             "data_type": FullPipelinePerGsResult,
             "aggregations": cf(
                 [
-                    ("initial_contacts", create_aggregate_df(["ic"])),
+                    ("ic_list", create_aggregate_df(["ic"])),
                     # TODO: It might be nice for the cadence, sl and gait_speed to actually shift the time values in the index.
                     #       However, our cadence time values are in seconds. This makes things tricky, as the aggregator would need
                     #       to know the sampling rate of the data.
-                    ("cadence", create_aggregate_df()),
+                    ("cad_per_sec", create_aggregate_df()),
                     ("stride_length", create_aggregate_df()),
                     ("gait_speed", create_aggregate_df()),
                 ]
@@ -213,8 +213,8 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             "data_type": FullPipelinePerGsResult,
             "aggregations": cf(
                 [
-                    ("initial_contacts", create_aggregate_df([])),
-                    ("cadence", create_aggregate_df([])),
+                    ("ic_list", create_aggregate_df([])),
+                    ("cad_per_sec", create_aggregate_df([])),
                     ("stride_length", create_aggregate_df([])),
                     ("gait_speed", create_aggregate_df([])),
                 ]

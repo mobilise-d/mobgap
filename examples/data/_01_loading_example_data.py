@@ -78,10 +78,10 @@ ref_paras = single_trial_with_reference.reference_parameters_
 
 # %%
 # This attribute contains the data for the outputs of the various steps of the processing pipeline.
-ref_paras.walking_bouts
+ref_paras.wb_list
 
 # %%
-ref_paras.initial_contacts
+ref_paras.ic_list
 
 # %%
 ref_paras.turn_parameters

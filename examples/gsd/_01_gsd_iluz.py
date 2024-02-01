@@ -85,7 +85,7 @@ from gaitlink.gsd import GsdIluz
 
 short_trial = lab_example_data.get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")
 short_trial_matlab_output = load_matlab_output(short_trial)
-short_trial_reference_parameters = short_trial.reference_parameters_.walking_bouts
+short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
 short_trial_output = GsdIluz().detect(short_trial.data["LowerBack"], sampling_rate_hz=short_trial.sampling_rate_hz)
 
@@ -112,7 +112,7 @@ fig.show()
 # This is a more challenging scenario, as we expect multiple gait sequences.
 long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
 long_trial_matlab_output = load_matlab_output(long_trial)
-long_trial_reference_parameters = long_trial.reference_parameters_.walking_bouts
+long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
 long_trial_output = GsdIluz().detect(long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz)
 

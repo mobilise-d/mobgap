@@ -38,10 +38,10 @@ data
 # Below we can see the first version, here both the walking bouts and the initial contacts (and other parameters) are
 # provided relative to the start of the recording.
 ref_data = datapoint.reference_parameters_
-ref_data.walking_bouts
+ref_data.wb_list
 
 # %%
-ref_data.initial_contacts
+ref_data.ic_list
 
 # %%
 # However, as we want to use the reference data as input to an algorithm on a GS level, we use the version that provides
@@ -49,12 +49,12 @@ ref_data.initial_contacts
 #
 # The start and end values of reference WB are of course still relative to the start of the recording.
 ref_data_rel = datapoint.reference_parameters_relative_to_wb_
-ref_walking_bouts = ref_data_rel.walking_bouts
+ref_walking_bouts = ref_data_rel.wb_list
 ref_walking_bouts
 
 # %%
 # But the ICs time-samples are now relative to the start of the respective GS/WB.
-ref_ics_rel = ref_data_rel.initial_contacts
+ref_ics_rel = ref_data_rel.ic_list
 ref_ics_rel.loc[1]  # First WB
 
 # %%
@@ -69,7 +69,7 @@ gs_iterator = GsIterator()
 
 # For most use-cases, the default configuration of the :class:`~gaitlink.pipeline.GsIterator` should be sufficient.
 # This allows you to specify the following results:
-gs_iterator.DEFAULT_DATA_TYPE
+gs_iterator.data_type
 
 # %%
 # If you want to change the default behaviour, you can create a custom dataclass (check the example linked above)

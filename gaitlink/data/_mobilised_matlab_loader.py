@@ -429,9 +429,9 @@ class ReferenceData(NamedTuple):
 
     Attributes
     ----------
-    walking_bouts
+    wb_list
         A dataframe with the start and end of each walking bout in samples.
-    initial_contacts
+    ic_list
         A dataframe with the initial contacts in samples and the corresponding left/right label.
     turn_parameters
         A dataframe with the start, end, angle and other parameters of each turn.
@@ -440,8 +440,8 @@ class ReferenceData(NamedTuple):
 
     """
 
-    walking_bouts: pd.DataFrame
-    initial_contacts: pd.DataFrame
+    wb_list: pd.DataFrame
+    ic_list: pd.DataFrame
     turn_parameters: pd.DataFrame
     stride_parameters: pd.DataFrame
 
