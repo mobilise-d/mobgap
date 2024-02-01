@@ -1,36 +1,59 @@
 """
-Continuous Wavelet Transform (CWT) Example
-===============
+Continuous Wavelet Transform (CWT)
+==================================
 
+Continuous wavelet transform (CWT) is a time-frequency analysis method that can provide frequency information localized
+in both time and frequency.
+For this, wavelets of different scales, where each scale corresponds to a different frequency, are used to analyze the
+signal.
+When performing the CWT with just a single scale, the CWT becomes equivalent to a narrow bandpass filter, enhancing
+the frequency content of the signal around the scale of the wavelet.
+
+This approach is often used in time series analysis to enhance specific frequencies of interest.
+
+In this example we will show how to apply a CWT as such a filter to a time series.
 """
 
 import matplotlib.pyplot as plt
-from scipy.signal import ricker
 
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import CwtFilter
 
-# Load example data
+# %%
+# Loading some example data
+# -------------------------
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
-single_test = ha_example_data.get_subset(participant_id="002", test="Test11", trial="Trial1")
-df = single_test.data["LowerBack"]
+single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
+data = single_test.data["LowerBack"]
 
-# Define your wavelet function and width
-wavelet = ricker
-cwt_filter = CwtFilter(wavelet=wavelet)
+data.head()
 
-# Transform the data using CwtFilter
-cwt_filter.filter(df)
+# %%
+# Initializing the CWT filter
+# ---------------------------
+# This requires us to define the mother wavelet and the width of the wavelet.
+# We use the ``pywt`` package to provide the wavelets.
+cwt_filter = CwtFilter(wavelet="gaus2", center_frequency_hz=10)
 
-# Access the transformed data
-transformed_data = cwt_filter.filtered_data_
-print(transformed_data)
+# %%
+# Applying the CWT filter
+# -----------------------
+# We can apply the filter by calling the filter method and then access the filtered data via the ``filtered_data_``
+# attribute.
 
+cwt_filter.filter(data, sampling_rate_hz=single_test.sampling_rate_hz)
+filtered_data = cwt_filter.filtered_data_
+filtered_data.head()
 
-# Plot original and fitlered data together
-fig, ax = plt.subplots()
-df.reset_index(drop=True).plot(ax=ax)
-transformed_data.add_suffix("_filtered").reset_index(drop=True).plot(ax=ax)
-ax.set_xlim(0, 1000)
-plt.show()
+# %%
+# We will plot the filtered data together with the original data.
+fig, axs = plt.subplots(3, 1, sharex=True)
+for ax, col in zip(axs, ["gyr_x", "gyr_y", "gyr_z"]):
+    ax.set_title(col)
+    data[col].plot(ax=ax, label="Original")
+    filtered_data[col].plot(ax=ax, label="CWT-filtered")
+
+axs[0].set_xlim(data.index[300], data.index[500])
+axs[0].legend()
+fig.show()
