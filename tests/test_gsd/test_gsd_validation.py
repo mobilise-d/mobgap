@@ -3,7 +3,11 @@ import pytest
 from numpy.testing import assert_array_equal
 from pandas._testing import assert_frame_equal
 
-from gaitlink.gsd.validation import categorize_intervals, find_matches_with_min_overlap
+from gaitlink.gsd.validation import (
+    calculate_gsd_performance_metrics,
+    categorize_intervals,
+    find_matches_with_min_overlap,
+)
 
 
 @pytest.fixture()
@@ -301,3 +305,23 @@ class TestMatchIntervals:
     @staticmethod
     def _to_interval_df(array):
         return pd.DataFrame(array, columns=["start", "end"])
+
+
+class TestGsdPerformanceMetrics:
+    """Tests for calculate_gsd_performance_metrics method for gsd validation."""
+
+    def test_output(self, snapshot):
+        reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
+        detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
+        metrics = calculate_gsd_performance_metrics(detected, reference, 10, 100)
+        snapshot.assert_match(metrics, "metrics")
+
+    def test_output_no_matches(self, snapshot):
+        reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
+        detected = pd.DataFrame([[10, 15], [30, 35]], columns=["start", "end"])
+        metrics = calculate_gsd_performance_metrics(detected, reference, 10, 100)
+        snapshot.assert_match(metrics, "metrics_no_match")
+
+    def test_raise_wrong_num_samples(self, intervals_example_with_id):
+        with pytest.raises(ValueError):
+            calculate_gsd_performance_metrics(intervals_example_with_id, intervals_example_with_id, 10, n_samples=2)
