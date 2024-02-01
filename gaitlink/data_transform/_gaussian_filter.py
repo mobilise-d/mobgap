@@ -48,6 +48,7 @@ class GaussianFilter(BaseFilter):
 
         """
         self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
 
         # Convert to 2D array using dflike_as_2d_array function
         df_data, index, transformation_function = dflike_as_2d_array(data)
