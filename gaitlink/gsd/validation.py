@@ -53,8 +53,8 @@ def calculate_gsd_performance_metrics(
         - gs_duration_error_s: Difference between the detected and reference gait sequence duration in seconds.
         - gs_relative_duration_error: gs_duration_error_s divided by reference_gs_duration_s.
         - gs_absolute_duration_error_s: Absolute value of gs_duration_error_s.
-        - gs_duration_error_abs_rel: gs_absolute_duration_error_s divided by reference_gs_duration_s.
-        - gs_duration_error_abs_rel_log: np.log(1 + gs_duration_error_abs_rel)
+        - gs_absolute_relative_duration_error: gs_absolute_duration_error_s divided by reference_gs_duration_s.
+        - gs_absolute_relative_duration_error_log: np.log(1 + gs_duration_error_abs_rel)
         - detected_num_gs: Total number of detected gait sequences.
         - reference_num_gs: Total number of reference gait sequences.
         - num_gs_error: Difference between the detected and reference number of gait sequences.
@@ -136,8 +136,8 @@ def calculate_gsd_performance_metrics(
             "gs_duration_error_s": gs_duration_error_s,
             "gs_relative_duration_error": gs_relative_duration_error,
             "gs_absolute_duration_error_s": gs_absolute_duration_error_s,
-            "gs_duration_error_abs_rel": gs_absolute_relative_duration_error,
-            "gs_duration_error_abs_rel_log": gs_absolute_relative_duration_error_log,
+            "gs_absolute_relative_duration_error": gs_absolute_relative_duration_error,
+            "gs_absolute_relative_duration_error_log": gs_absolute_relative_duration_error_log,
             "detected_num_gs": detected_num_gs,
             "reference_num_gs": reference_num_gs,
             "num_gs_error": num_gs_error,
