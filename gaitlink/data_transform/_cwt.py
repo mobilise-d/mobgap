@@ -61,6 +61,7 @@ class CwtFilter(BaseFilter):
             )
         # Assign data without modification
         self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
 
         # Convert to 2D array using file_as_2d_array function from gait link.utils.dtypes
         df_data, index, transformation_function = dflike_as_2d_array(data)

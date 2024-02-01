@@ -14,7 +14,7 @@ class TestMetaGaussianFilter(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         # Creating an instance of your GaussianFilter class with some initial conditions
-        gaussian_filter = self.ALGORITHM_CLASS(sigma=1.0)
+        gaussian_filter = self.ALGORITHM_CLASS()
 
         # Use some random input data for the meta-test (actual values might not be important)
         input_data = pd.DataFrame({"column1": [1, 2, 3], "column2": [4, 5, 6]})

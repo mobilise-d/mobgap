@@ -9,6 +9,7 @@ from gaitlink.data_transform import SavgolFilter
 
 class TestMetaSavgolFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = SavgolFilter
+    ONLY_DEFAULT_PARAMS = False
     __test__ = True
 
     @pytest.fixture()
