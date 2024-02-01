@@ -1,8 +1,9 @@
+import numpy as np
 import pandas as pd
 import pytest
 from scipy.ndimage import gaussian_filter1d
 from tpcp.testing import TestAlgorithmMixin
-import numpy as np
+
 from gaitlink.data_transform import GaussianFilter
 
 

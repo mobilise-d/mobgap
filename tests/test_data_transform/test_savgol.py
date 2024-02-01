@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 from scipy.signal import savgol_filter
 from tpcp.testing import TestAlgorithmMixin
+
 from gaitlink.data_transform import SavgolFilter
 
 

@@ -19,10 +19,10 @@ df = single_test.data["LowerBack"]
 savgol_filter = SavgolFilter(window_length=16, polyorder=4)
 
 # Perform the Savgol filtering operation by calling the transform method
-smoothed_data = savgol_filter.transform(df)
+smoothed_data = savgol_filter.filter(df)
 
 # Access the smoothed data
-smoothed_acc_data = smoothed_data.transformed_data_  # Assuming transformed_data_ is a NumPy array
+smoothed_acc_data = smoothed_data.filtered_data_  # Assuming transformed_data_ is a NumPy array
 
 # Convert NumPy array to pandas DataFrame
 smoothed_acc_data_df = pd.DataFrame(smoothed_acc_data, columns=df.columns)

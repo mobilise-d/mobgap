@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from scipy.signal import cwt, morlet, ricker
+from scipy.signal import cwt, ricker
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.data_transform._cwt import CwtFilter
@@ -44,5 +44,3 @@ class TestCwtFilter:
         np.testing.assert_equal(cwt_filter.transformed_data_[:, 1], second_col.flatten())
 
         assert cwt_filter.transformed_data_.shape == data.shape
-
-
