@@ -126,7 +126,7 @@ class IcdShinImproved(BaseIcDetector):
             .transformed_data_
         )
 
-        # We need to intitialize the filter once to get the number of coefficients to calculate the padding.
+        # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
         # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
         #  correctly anyway. -> filtfilt uses padding automatically and savgol allows to actiavte padding, put uses the
@@ -143,18 +143,20 @@ class IcdShinImproved(BaseIcDetector):
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
         #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
         #   wavelet.
-        #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
-        #   two languages initialise their wavelets), giving the line below
-        cwt = CwtFilter(wavelet="gaus2", width=10)
+        #   This frequency this scale corresponds to depends on the sampling rate of the data.
+        #   As the gaitlink cwt method uses the center frequency instead of the scale, we need to calculate the
+        #   frequency that scale corresponds to at 40 Hz sampling rate.
+        #   Turns out that this is 1.2 Hz
+        cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
         filter_chain = [
             ("savgol_1", SavgolFilter(window_length=21, polyorder=7)),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
             ("cwt_1", cwt),
             ("savol_2", SavgolFilter(window_length=11, polyorder=5)),
             ("cwt_2", cwt),
-            ("gaussian", GaussianFilter(sigma=2)),
-            ("gaussian", GaussianFilter(sigma=2)),
-            ("gaussian", GaussianFilter(sigma=3)),
+            ("gaussian", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("gaussian", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("gaussian", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
         ]
 
         filtered_signal = chain_transformers(

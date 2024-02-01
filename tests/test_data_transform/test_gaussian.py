@@ -26,18 +26,18 @@ class TestMetaGaussianFilter(TestAlgorithmMixin):
         return gaussian_filter
 
 
-class Test_Gaussian_Filter:
+class TestGaussianFilter:
     def test_gaussian_filter_transform(self):
         # Create a GaussianFilter instance with a sigma value
-        gaussian_filter = GaussianFilter(sigma=1.0)
+        gaussian_filter = GaussianFilter(sigma_s=1.0)
 
         # Create a sample DataFrame
         sample_data = np.array([[1.0, 4.0], [2.0, 5.0], [3.0, 6.0]])
         # Perform the transformation
-        transformed_data = gaussian_filter.transform(sample_data)
+        transformed_data = gaussian_filter.transform(sample_data, sampling_rate_hz=100)
 
         # Calculate the expected output using scipy.ndimage.gaussian_filter1d
-        expected_output = pd.DataFrame(gaussian_filter1d(sample_data, sigma=1.0, axis=0))
+        expected_output = pd.DataFrame(gaussian_filter1d(sample_data, sigma=1.0 * 100, axis=0))
 
         # Compare the shapes of the transformed data with the expected output
         assert transformed_data.transformed_data_.shape == expected_output.shape
