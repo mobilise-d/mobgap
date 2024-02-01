@@ -24,10 +24,10 @@ example_data = LabExampleDataset(reference_system="INDIP", reference_para_level=
 
 single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
 imu_data = single_test.data["LowerBack"]
-reference_wbs = single_test.reference_parameters_.walking_bouts
+reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz
-ref_ics = single_test.reference_parameters_.initial_contacts
+ref_ics = single_test.reference_parameters_.ic_list
 
 reference_wbs
 # %%

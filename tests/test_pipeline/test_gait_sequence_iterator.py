@@ -84,7 +84,7 @@ class TestGsIterator:
             r.ic_list = pd.DataFrame({"ic": [0, s.end - s.start]}).rename_axis("s_id")
 
         assert_frame_equal(
-            iterator.initial_contacts_,
+            iterator.results_.ic_list,
             pd.DataFrame(
                 {"ic": [0, 5, 5, 10]},
                 index=pd.MultiIndex.from_tuples([("s1", 0), ("s1", 1), ("s2", 0), ("s2", 1)], names=["wb_id", "s_id"]),

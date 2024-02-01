@@ -18,7 +18,10 @@ def test_generic_data_transform():
 def test_filter(snapshot):
     from examples.data_transform._02_filter import epfl_filter
 
-    snapshot.assert_match(epfl_filter.filtered_data_, "filtered_data")
+    filtered_data = epfl_filter.filtered_data_
+    filtered_data.index = filtered_data.index.round("ms")
+
+    snapshot.assert_match(filtered_data, "filtered_data")
 
 
 def test_resample():

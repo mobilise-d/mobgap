@@ -40,7 +40,6 @@ example_data
 # However, it only works on data that is sampled at 40 Hz.
 # Hence, we need to resample the data first.
 
-# TODO: Update once a resample method is available
 example_data_resampled = (
     Resample(target_sampling_rate_hz=40).transform(example_data, sampling_rate_hz=sampling_rate_hz).transformed_data_
 )

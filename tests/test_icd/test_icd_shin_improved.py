@@ -39,7 +39,7 @@ class TestShinImprovedRegression:
     def test_example_lab_data(self, datapoint, snapshot):
         data = datapoint.data["LowerBack"]
         try:
-            ref_walk_bouts = datapoint.reference_parameters_.walking_bouts
+            ref_walk_bouts = datapoint.reference_parameters_.wb_list
         except:
             pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
@@ -49,5 +49,5 @@ class TestShinImprovedRegression:
         for (gs, data), result in iterator.iterate(data, ref_walk_bouts):
             result.ic_list = IcdShinImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
-        detected_ics = iterator.initial_contacts_
+        detected_ics = iterator.results_.ic_list
         snapshot.assert_match(detected_ics, str(datapoint.group_label))
