@@ -91,6 +91,12 @@ def calculate_gsd_performance_metrics(
     """
     categorized_intervals = categorize_intervals(gsd_list_detected, gsd_list_reference)
 
+    if n_samples and n_samples < max(gsd_list_reference["end"].max(), gsd_list_detected["end"].max()):
+        raise ValueError(
+            "The provided `n_samples` parameter is implausible. The number of samples must be larger than the highest "
+            "index in the detected and reference gait sequences."
+        )
+
     # estimate tp, fp, fn
     tp_samples = count_samples_in_match_intervals(categorized_intervals, match_type="tp")
     fp_samples = count_samples_in_match_intervals(categorized_intervals, match_type="fp")
@@ -393,10 +399,3 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
             label_set = True
         else:
             ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
-
-
-if __name__ == "__main__":
-    reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
-    detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
-    res = calculate_gsd_performance_metrics(detected, reference, 10, 100)
-    print(res)
