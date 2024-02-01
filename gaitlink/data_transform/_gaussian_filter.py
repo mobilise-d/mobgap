@@ -13,8 +13,9 @@ class GaussianFilter(BaseFilter):
 
     Parameters
     ----------
-    sigma
-        Standard deviation for the Gaussian kernel.
+    sigma_s
+        Standard deviation for the Gaussian kernel in seconds.
+        We use the sampling rate provided in the filter method to convert this to samples.
 
     Other Parameters
     ----------------
@@ -29,13 +30,18 @@ class GaussianFilter(BaseFilter):
     scipy.ndimage.gaussian_filter1d : The function that is used to apply the filter.
 
     """
+    sigma_s: float
 
-    def __init__(self, sigma: float = 1.0) -> None:
-        self.sigma = sigma
+    def __init__(self, sigma_s: float = 1.0) -> None:
+        self.sigma_s = sigma_s
 
     @base_filter_docfiller
     def filter(
-        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]  # noqa: ARG002
+        self,
+        data: DfLike,
+        *,
+        sampling_rate_hz: Optional[float] = None,
+        **kwargs: Unpack[dict[str, Any]],  # noqa: ARG002
     ) -> Self:
         """%(filter_short)s.
 
@@ -53,9 +59,11 @@ class GaussianFilter(BaseFilter):
         # Convert to 2D array using dflike_as_2d_array function
         df_data, index, transformation_function = dflike_as_2d_array(data)
 
+        sigma_samples = self.sigma_s * sampling_rate_hz
+
         # Apply Gaussian filter
         self.transformed_data_ = gaussian_filter1d(
-            df_data, sigma=self.sigma, axis=0, output=None, mode="reflect", cval=0.0, truncate=4.0
+            df_data, sigma=sigma_samples, axis=0, output=None, mode="reflect", cval=0.0, truncate=4.0
         )
 
         # Back transformation using the transformation function
