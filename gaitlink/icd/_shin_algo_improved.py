@@ -4,12 +4,16 @@ import numpy as np
 import pandas as pd
 from gaitmap.data_transform import Resample
 from numpy.linalg import norm
-from pywt import cwt
-from scipy.ndimage import gaussian_filter
-from scipy.signal import savgol_filter
 from typing_extensions import Self, Unpack
 
-from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
+from gaitlink.data_transform import (
+    CwtFilter,
+    EpflDedriftedGaitFilter,
+    EpflGaitFilter,
+    GaussianFilter,
+    SavgolFilter,
+    chain_transformers,
+)
 from gaitlink.icd._utils import find_zero_crossings
 from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
@@ -135,38 +139,30 @@ class IcdShinImproved(BaseIcDetector):
         signal_downsampled_padded = np.pad(signal_downsampled, (len_pad, len_pad), "wrap")
 
         # Filters
-        # 1
-        # TODO (future): Replace svagol and cwt with class implementation to easily expose parameters.
-        tmp_sig_1 = savgol_filter(signal_downsampled_padded.squeeze(), window_length=21, polyorder=7)
-        # 2
-        tmp_sig_2 = (
-            EpflDedriftedGaitFilter()
-            .filter(tmp_sig_1, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .filtered_data_
-        )
-        # 3
         # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
         #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
         #   wavelet.
         #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
         #   two languages initialise their wavelets), giving the line below
-        ricker_width = 10
-        tmp_sig_3, _ = cwt(
-            tmp_sig_2.squeeze(), [ricker_width], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        cwt = CwtFilter(wavelet="gaus2", width=10)
+        filter_chain = [
+            ("savgol_1", SavgolFilter(window_length=21, polyorder=7)),
+            ("epfl_gait_filter", EpflDedriftedGaitFilter()),
+            ("cwt_1", cwt),
+            ("savol_2", SavgolFilter(window_length=11, polyorder=5)),
+            ("cwt_2", cwt),
+            ("gaussian", GaussianFilter(sigma=2)),
+            ("gaussian", GaussianFilter(sigma=2)),
+            ("gaussian", GaussianFilter(sigma=3)),
+        ]
+
+        filtered_signal = chain_transformers(
+            signal_downsampled_padded, filter_chain, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         )
-        # 4
-        tmp_sig_4 = savgol_filter(tmp_sig_3.squeeze(), window_length=11, polyorder=5)
-        # 5
-        tmp_sig_5, _ = cwt(
-            tmp_sig_4.squeeze(), [ricker_width], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-        )
-        # Compared to matlab the python gauss filter needs the matlab window with divided by 5
-        tmp_sig_6 = tmp_sig_5
-        for sigma in [2, 2, 3]:
-            tmp_sig_6 = gaussian_filter(tmp_sig_6.squeeze(), sigma)
+
         # Remove padding
-        final_filtered = tmp_sig_6[len_pad:-len_pad]
+        final_filtered = filtered_signal[len_pad:-len_pad]
 
         self.final_filtered_signal_ = final_filtered
 

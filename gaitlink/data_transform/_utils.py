@@ -27,6 +27,8 @@ def chain_transformers(
         The transformed data.
 
     """
+    # TODO: At the moment, we don't have any way to handle transformers that change kwargs somehow.
+    #       For example the resampler would need to change the sampling_rate_hz in the kwargs for all subsequent steps.
     for name, transformer in transformers:
         try:
             data = transformer.clone().transform(data, **kwargs).transformed_data_
