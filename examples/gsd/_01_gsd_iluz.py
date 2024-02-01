@@ -179,12 +179,41 @@ categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_tr
 # These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
 # categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples
 # from the reference gsd list that were not detected (`fn`).
-# Note that the true negative intervals are not explicitly returned, but can be inferred from the other intervals,
-# as everything between them is considered as true negative.
+# Note that the true negative intervals are not explicitly returned, but can be inferred from the other intervals
+# (if the total length of the underlying recording is known), as everything between them is considered as true negative.
 
-print("True Positives:\n\n", categorized_intervals.tp_intervals)
-print("\nFalse Positives:\n\n", categorized_intervals.fp_intervals)
-print("\nFalse Negatives:\n\n", categorized_intervals.fn_intervals)
+print("Matched Intervals:\n\n", categorized_intervals)
+
+# %%
+# Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
+# and recall can be calculated.
+# For this purpose, the :func:`gaitlink.utils.evaluation.precision_recall_f1_score` function can be used.
+# It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
+# Furthermore, we provide similar functions for other metrics such as accuracy, specificity,
+# and negative predictive value.
+
+from gaitlink.utils.evaluation import precision_recall_f1_score
+
+prec_rec_f1_dict = precision_recall_f1_score(categorized_intervals)
+
+print("Performance Metrics:\n\n", prec_rec_f1_dict)
+
+# %%
+# To calculate not only a specific performance metric but the whole range of possible metrics that were utilized for
+# gait sequence detection in Mobilise-D, we can use the
+# :func:`gaitlink.gsd.validation.calculate_gsd_performance_metrics` function.
+# It returns a DataFrame containing all metrics for the specified detected and reference gait sequences.
+
+from gaitlink.gsd.validation import calculate_gsd_performance_metrics
+
+metrics_all = calculate_gsd_performance_metrics(
+    long_trial_output.gsd_list_,
+    long_trial_reference_parameters,
+    sampling_freq=long_trial.sampling_rate_hz,
+    n_samples=long_trial.data["LowerBack"].shape[0],
+)
+
+print("Performance Metrics:\n\n", metrics_all)
 
 # %%
 # Another useful function for validation is `find_matches_with_min_overlap`. It returns all intervals from the Python
