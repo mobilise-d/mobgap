@@ -1,10 +1,9 @@
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
-import numpy as np
-from scipy.signal import cwt, ricker
+from pywt import cwt
 from typing_extensions import Self, Unpack
 
-from gaitlink.data_transform.base import base_filter_docfiller, BaseFilter
+from gaitlink.data_transform.base import BaseFilter, base_filter_docfiller
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
@@ -20,6 +19,7 @@ class CwtFilter(BaseFilter):
     ----------
     wavelet
         Mother wavelet function.
+        Must be set to a string of one of the wavelets supported by ``pywt``.
     width
         Width parameter.
 
@@ -33,10 +33,10 @@ class CwtFilter(BaseFilter):
 
     See Also
     --------
-    scipy.signal.cwt : The function that is used to apply the filter.
+    pywt.cwt : The function that is used to apply the filter.
     """
 
-    def __init__(self, wavelet: Callable = ricker, width: float = 7) -> None:
+    def __init__(self, wavelet: str = "gaus2", width: float = 10) -> None:
         self.wavelet = wavelet
         self.width = width
 
@@ -59,18 +59,19 @@ class CwtFilter(BaseFilter):
                 "Parameter 'width' must just be a single width for the wavelet, not a list of width as in "
                 "a full CWT."
             )
+
+        if sampling_rate_hz is None:
+            raise ValueError("Parameter 'sampling_rate_hz' must be provided.")
+
         # Assign data without modification
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
         # Convert to 2D array using file_as_2d_array function from gait link.utils.dtypes
-        df_data, index, transformation_function = dflike_as_2d_array(data)
+        array_2d, index, transformation_function = dflike_as_2d_array(data)
 
         # Apply Continuous Wavelet Transform
-        output = np.empty(df_data.shape)
+        output, _ = cwt(array_2d, [self.width], wavelet=self.wavelet, sampling_period=1 / sampling_rate_hz, axis=0)
 
-        for i in range(df_data.shape[1]):
-            output[:, i] = cwt(df_data[:, i], self.wavelet, widths=[self.width])
-
-        self.transformed_data_ = transformation_function(output, index)
+        self.transformed_data_ = transformation_function(output[0], index)
         return self

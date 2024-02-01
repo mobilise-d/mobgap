@@ -434,5 +434,5 @@ __all__ = [
     "fixed_filter_docfiller",
     "ScipyFilter",
     "scipy_filter_docfiller",
-    "base_filter_docfiller"
+    "base_filter_docfiller",
 ]
