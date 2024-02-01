@@ -32,7 +32,7 @@ class SavgolFilter(BaseFilter):
 
     """
 
-    def __init__(self, window_length: int = 5, polyorder: int = 2) -> None:
+    def __init__(self, window_length: int, polyorder: int) -> None:
         self.window_length = window_length
         self.polyorder = polyorder
 
