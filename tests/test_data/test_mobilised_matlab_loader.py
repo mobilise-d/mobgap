@@ -173,9 +173,7 @@ def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
 
     # We can not test for direct equivalence, because of rounding within the methods.
     # But we can test that there is rougly a factor of two between the two outputs
-    assert (
-            parsed_data_50.ic_list["ic"] - np.ceil(parsed_data_100.ic_list["ic"] / 2).astype(int) <= 1
-    ).all()
+    assert (parsed_data_50.ic_list["ic"] - np.ceil(parsed_data_100.ic_list["ic"] / 2).astype(int) <= 1).all()
     assert (
         parsed_data_50.turn_parameters["start"] - np.ceil(parsed_data_100.turn_parameters["start"] / 2).astype(int) <= 1
     ).all()
@@ -183,9 +181,7 @@ def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
         parsed_data_50.stride_parameters["start"] - np.ceil(parsed_data_100.stride_parameters["start"] / 2).astype(int)
         <= 1
     ).all()
-    assert (
-            parsed_data_50.wb_list["start"] - np.ceil(parsed_data_100.wb_list["start"] / 2).astype(int) <= 1
-    ).all()
+    assert (parsed_data_50.wb_list["start"] - np.ceil(parsed_data_100.wb_list["start"] / 2).astype(int) <= 1).all()
 
 
 class TestDatasetClass:

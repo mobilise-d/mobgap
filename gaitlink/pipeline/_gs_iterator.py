@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, NamedTuple, TypeVar, Union, overload
+from typing import Any, Callable, ClassVar, Generic, NamedTuple, TypeVar, Union, overload
 
 import pandas as pd
 from tpcp import cf
@@ -155,21 +155,17 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
     NULL_VALUE
         (Class attribute) The value that is used to initialize the result dataclass and will remain in the results, if
         no result was for a specific attribute in one or more iterations.
-    DEFAULT_AGGREGATORS
-        (Class attribute) The default aggregators that can be used to aggregate the results.
-        They can be used to create custom aggregations for custom results.
-    DEFAULT_DATA_TYPE
-        (Class attribute) The default dataclass that is used to define the expected results.
-        This should handle all typical results of a gait analysis
-        pipeline.
-        Specifically, it supports the following attributes:
+    PredefinedParameters
+        (Class attribute) Predefined parameters that can be used depending on which aggregation you want to use.
+        In all provided cases the ``data_type`` is set to :class:`FullPipelinePerGsResult`.
+        This datatype provides the following attributes:
 
-        - ``initial_contacts`` (pd.DataFrame with a column called ``ic``): The initial contacts for each gait-sequence.
-        - ``cadence`` (pd.DataFrame): The cadence values within each gait-sequence.
+        - ``ic_list`` (pd.DataFrame with a column called ``ic``): The initial contacts for each gait-sequence.
+        - ``cad_per_sec`` (pd.DataFrame): The cadence values within each gait-sequence.
         - ``stride_length`` (pd.DataFrame): The stride length values within each gait-sequence.
         - ``gait_speed`` (pd.DataFrame): The gait speed values within each gait-sequence.
-    DEFAULT_AGGREGATIONS
-        The default aggregations that are used to aggregate the results of the ``DEFAULT_DATA_TYPE``.
+    DefaultAggregators
+        (Class attribute) Class that holds some aggregator functions that can be used to create custom aggregations.
 
     Attributes
     ----------
@@ -195,21 +191,36 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
     """
 
     class PredefinedParameters:
-        default_aggregation = {
+        """Predefined parameters for the gait-sequence iterator.
+
+        Attributes
+        ----------
+        default_aggregation
+            The default of the TypedIterator using the :class:`FullPipelinePerGsResult` as data_type and trying to
+            aggregate all results so that the time values in the final outputs are relative to the start of the
+            recording.
+        default_aggregation_rel_to_gs
+            Same as ``default_aggregation``, but the time values in the final outputs are relative to the start of the
+            respective gait-sequence (i.e. no modification of the time values is done).
+
+        """
+
+        default_aggregation: ClassVar[dict[str, Any]] = {
             "data_type": FullPipelinePerGsResult,
             "aggregations": cf(
                 [
                     ("ic_list", create_aggregate_df(["ic"])),
-                    # TODO: It might be nice for the cadence, sl and gait_speed to actually shift the time values in the index.
-                    #       However, our cadence time values are in seconds. This makes things tricky, as the aggregator would need
-                    #       to know the sampling rate of the data.
+                    # TODO: It might be nice for the cadence, sl and gait_speed to actually shift the time values in
+                    #       the index.
+                    #       However, our cadence time values are in seconds. This makes things tricky, as the aggregator
+                    #       would need to know the sampling rate of the data.
                     ("cad_per_sec", create_aggregate_df()),
                     ("stride_length", create_aggregate_df()),
                     ("gait_speed", create_aggregate_df()),
                 ]
             ),
         }
-        default_aggregation_rel_to_gs = {
+        default_aggregation_rel_to_gs: ClassVar[dict[str, Any]] = {
             "data_type": FullPipelinePerGsResult,
             "aggregations": cf(
                 [
@@ -221,7 +232,7 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             ),
         }
 
-    class DEFAULT_AGGREGATORS:  # noqa: N801
+    class DefaultAggregators:
         """Available aggregators for the gait-sequence iterator.
 
         Note, that all of them are constructors for aggregators, as they have some configuration options.
@@ -230,7 +241,7 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
         Examples
         --------
         >>> from gaitlink.pipeline import GsIterator
-        >>> my_aggregation = [("my_result", GsIterator.DEFAULT_AGGREGATORS.create_aggregate_df(["my_col"]))]
+        >>> my_aggregation = [("my_result", GsIterator.DefaultAggregators.create_aggregate_df(["my_col"]))]
         >>> iterator = GsIterator(aggregations=my_aggregation)
 
         """
