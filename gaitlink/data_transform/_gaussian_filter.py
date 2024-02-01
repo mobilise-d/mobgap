@@ -35,7 +35,7 @@ class GaussianFilter(BaseFilter):
 
     @base_filter_docfiller
     def filter(
-        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]  # noqa: ARG002
     ) -> Self:
         """%(filter_short)s.
 
