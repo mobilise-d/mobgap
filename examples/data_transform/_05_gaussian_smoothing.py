@@ -1,30 +1,40 @@
 """
-Gaussian Filter data
-===============
+Gaussian Smoothing
+==================
+A common low-pass filtering technique is Gaussian smoothing, which applies a Gaussian window to the data with a moving
+average.
+We provide a class based implementation of Gaussian smoothing in the :class:`GaussianFilter` class.
 """
 import matplotlib.pyplot as plt
 
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import GaussianFilter  # Update the import path accordingly
 
-# Example usage
+# %%
+# Loading some example data
+# -------------------------
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
-single_test = ha_example_data.get_subset(participant_id="002", test="Test11", trial="Trial1")
-df = single_test.data["LowerBack"]
+single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
+data = single_test.data["LowerBack"]
 
-# Assume you have some multidimensional data stored in a NumPy array 'your_data'
-# your_data = np.random.rand(10, 10, 10)  # Replace this with your actual data
+data.head()
 
-# Create an instance of the GaussianFilter class with a specified sigma value
-sigma_value = 1.0  # Replace this with your desired sigma value
-gaussian_filter_instance = GaussianFilter(sigma=sigma_value)
+# %%
+# Applying the Gaussian filter
+# ----------------------------
+# We need to specify the standard deviation of the Gaussian window.
+# Note, that we need to specify the standard deviation in seconds to make the parameters of the filter independent of
+# the sampling rate of the data.
+# It will be converted to samples internally.
+gaussian_filter = GaussianFilter(sigma_s=0.1)
+gaussian_filter.filter(data)
+smoothed_data = gaussian_filter.filtered_data_
 
-# Perform the blurring operation by calling the transform method
-blurred_data = gaussian_filter_instance.filter(df)
+smoothed_data.head()
 
-# Access the blurred data
-blurred_result = blurred_data.filtered_data_
+# %%
+
 
 # Compare the original and blurred data (you can use visualization tools suitable for your data)
 # For example, you can use matplotlib for 2D data

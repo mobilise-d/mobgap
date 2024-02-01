@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import Resample
 
-
 # %%
 # Loading some example data
 # -------------------------
@@ -53,6 +52,7 @@ resampled_gyr.head()
 # However, you could use the same method to upsample your data.
 fig, axs = plt.subplots(3, 1, sharex=True)
 for ax, col in zip(axs, resampled_gyr.columns):
+    ax.set_title(col)
     data[col].plot(ax=ax, label="Original", style=".")
     resampled_gyr[col].plot(ax=ax, label="Resampled", style=".")
 
