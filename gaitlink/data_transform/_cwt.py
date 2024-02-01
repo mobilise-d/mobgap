@@ -1,73 +1,64 @@
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import numpy as np
 from scipy.signal import cwt, ricker
 from typing_extensions import Self, Unpack
-from gaitlink.data_transform.base import BaseTransformer
+
+from gaitlink.data_transform.base import base_filter_docfiller, BaseFilter
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
-class CwtFilter(BaseTransformer):
-    """
-    A class for applying Continuous Wavelet Transform (CWT) for signal analysis.
+@base_filter_docfiller
+class CwtFilter(BaseFilter):
+    """Apply a Continuous Wavelet Transform (CWT) with a single fixed wavelet width as a filter.
 
     This is not a full CWT, but we limit ourself to a single width.
     Therefore, the output has the same dimensions as the input and this could be considered a 1-1 transformation of the
     data.
 
-    Derived from BaseTransformer for integration into gait analysis pipelines.
-
     Parameters
     ----------
-    wavelet : Callable
+    wavelet
         Mother wavelet function.
-    width : float
+    width
         Width parameter.
-
-    Attributes
-    ----------
-    transformed_data_
-        The data after applying Continuous Wavelet Transform.
 
     Other Parameters
     ----------------
-    data
-        The input data
+    %(other_parameters)s
 
+    Attributes
+    ----------
+    %(results)s
+
+    See Also
+    --------
+    scipy.signal.cwt : The function that is used to apply the filter.
     """
 
     def __init__(self, wavelet: Callable = ricker, width: float = 7) -> None:
-        """
-        Initialize the function.
-
-        Parameters
-        ----------
-        wavelet : Callable
-            Mother wavelet function.
-        width : float
-            Width parameter.
-        """
-
         self.wavelet = wavelet
         self.width = width
 
-    def transform(self, data: DfLike, **_: Unpack[dict[str, Any]]) -> Self:
-        """
-        Apply Continuous Wavelet Transform to analyze the input data.
+    @base_filter_docfiller
+    def filter(
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+    ) -> Self:
+        """%(filter_short)s.
 
         Parameters
         ----------
-        data : DfLike
-            Input data representing a signal.
+        %(filter_para)s
+        %(filter_kwargs)s
 
-        Returns
-        -------
-        self
-            The instance of the transform with the CWT results attached.
+        %(filter_return)s
+
         """
         if not isinstance(self.width, (int, float)):
-            raise TypeError("Parameter 'width' must just be a single width for the wavelet, not a list of width as in "
-                            "a full CWT.")
+            raise TypeError(
+                "Parameter 'width' must just be a single width for the wavelet, not a list of width as in "
+                "a full CWT."
+            )
         # Assign data without modification
         self.data = data
 

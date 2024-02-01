@@ -1,67 +1,55 @@
-import numpy as np
-import pandas as pd
+from typing import Any, Optional
+
 from scipy.signal import savgol_filter
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
+
+from gaitlink.data_transform.base import BaseFilter, base_filter_docfiller
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
-from gaitlink.data_transform.base import BaseTransformer
 
 
-class SavgolFilter(BaseTransformer):
-    """
-    A class for applying Savgol filter to reduce high frequency noise in a signal due to its smoothing properties
-
-    Derived from BaseTransformer for integration into gait analysis pipelines.
-
+@base_filter_docfiller
+class SavgolFilter(BaseFilter):
+    """Apply a Savgol filter to a time series.
 
     Parameters
     ----------
-    window_length :
+    window_length
         The length of the filter window.
-
-    polyorder :
+    polyorder
         Order of the polynomial used to fit the samples.
-
-    Attributes
-    ----------
-    transformed_data_ :
-        The data after applying the Savgol filter.
 
     Other Parameters
     ----------------
-    data
-        The input data
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(results)s
+
+    See Also
+    --------
+    scipy.signal.savgol_filter : The function that is used to apply the filter.
 
     """
 
     def __init__(self, window_length: int = 5, polyorder: int = 2) -> None:
-        """
-        Initialize the SavgolFilter with specified parameters.
-
-        Parameters
-        ----------
-        window_length : int, optional
-            The length of the filter window, by default 5.
-        polyorder : int, optional
-            The order of the polynomial to fit, by default 2.
-        """
         self.window_length = window_length
         self.polyorder = polyorder
 
-    def transform(self, data: pd.DataFrame) -> Self:
-        """
-        Apply the Savitzky-Golay filter to smoothen the input data.
+    @base_filter_docfiller
+    def filter(
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+    ) -> Self:
+        """%(filter_short)s.
 
         Parameters
         ----------
-        data : pd.DataFrame
-            A dataframe representing single sensor data.
+        %(filter_para)s
+        %(filter_kwargs)s
 
-        Returns
-        -------
-        SavgolFilter
-            The instance of the transform with the smoothed results attached.
+        %(filter_return)s
+
         """
-
         self.data = data
 
         # Convert to 2D array using dflike_as_2d_array function

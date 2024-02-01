@@ -5,7 +5,6 @@ Continuous Wavelet Transform (CWT) Example
 """
 
 import matplotlib.pyplot as plt
-import numpy as np
 from scipy.signal import ricker
 
 from gaitlink.data import LabExampleDataset
@@ -22,10 +21,10 @@ wavelet = ricker
 cwt_filter = CwtFilter(wavelet=wavelet)
 
 # Transform the data using CwtFilter
-cwt_filter.transform(df)
+cwt_filter.filter(df)
 
 # Access the transformed data
-transformed_data = cwt_filter.transformed_data_
+transformed_data = cwt_filter.filtered_data_
 print(transformed_data)
 
 
@@ -35,4 +34,3 @@ df.reset_index(drop=True).plot(ax=ax)
 transformed_data.add_suffix("_filtered").reset_index(drop=True).plot(ax=ax)
 ax.set_xlim(0, 1000)
 plt.show()
-

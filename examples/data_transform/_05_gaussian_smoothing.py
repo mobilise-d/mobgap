@@ -3,7 +3,7 @@ Gaussian Filter data
 ===============
 """
 import matplotlib.pyplot as plt
-import numpy as np
+
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import GaussianFilter  # Update the import path accordingly
 
@@ -21,10 +21,10 @@ sigma_value = 1.0  # Replace this with your desired sigma value
 gaussian_filter_instance = GaussianFilter(sigma=sigma_value)
 
 # Perform the blurring operation by calling the transform method
-blurred_data = gaussian_filter_instance.transform(df)
+blurred_data = gaussian_filter_instance.filter(df)
 
 # Access the blurred data
-blurred_result = blurred_data.transformed_data_
+blurred_result = blurred_data.filtered_data_
 
 # Compare the original and blurred data (you can use visualization tools suitable for your data)
 # For example, you can use matplotlib for 2D data
