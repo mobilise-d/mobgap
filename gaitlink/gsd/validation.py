@@ -2,27 +2,159 @@
 from typing import Any, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
 from typing_extensions import Unpack
 
-__all__ = ["categorize_intervals", "find_matches_with_min_overlap"]
+__all__ = [
+    "categorize_intervals",
+    "find_matches_with_min_overlap",
+    "calculate_gsd_performance_metrics",
+    "plot_categorized_intervals",
+]
 
-__all__ = ["categorize_intervals", "find_matches_with_min_overlap", "CategorizedIntervals"]
+from gaitlink.utils.evaluation import (
+    accuracy_score,
+    count_samples_in_intervals,
+    count_samples_in_match_intervals,
+    npv_score,
+    precision_recall_f1_score,
+    specificity_score,
+)
 
 
-class CategorizedIntervals(NamedTuple):
-    """Helper class to store the results of the sample-wise validation."""
+def calculate_gsd_performance_metrics(
+    gsd_list_detected: Union[pd.DataFrame, None],
+    gsd_list_reference: Union[pd.DataFrame, None],
+    sampling_freq: float,
+    n_samples: Union[int, None] = None,
+) -> pd.DataFrame:
+    """
+    Calculate performance metrics for gait sequence detection results.
 
-    tp_intervals: pd.DataFrame
-    fp_intervals: pd.DataFrame
-    fn_intervals: pd.DataFrame
+    The detected and reference dataframes are expected to have columns named "start" and "end" containing the
+    start and end indices of the respective gait sequences.
+
+    The following metrics are calculated:
+    - General metrics:
+        - tp_samples: Number of samples that are correctly detected as gait sequences.
+        - fp_samples: Number of samples that are falsely detected as gait sequences.
+        - fn_samples: Number of samples that are not detected as gait sequences.
+        - precision: Precision of the detected gait sequences.
+        - recall: Recall of the detected gait sequences.
+        - f1_score: F1 score of the detected gait sequences.
+        See the documentation of :func:`gaitlink.utils.evaluation.precision_recall_f1_score` for more details.
+    - Mobilised-specific metrics:
+        - reference_gs_duration_s: Total duration of the reference gait sequences in seconds.
+        - detected_gs_duration_s: Total duration of the detected gait sequences in seconds.
+        - gs_duration_error_s: Difference between the detected and reference gait sequence duration in seconds.
+        - gs_relative_duration_error: gs_duration_error_s divided by reference_gs_duration_s.
+        - gs_absolute_duration_error_s: Absolute value of gs_duration_error_s.
+        - gs_duration_error_abs_rel: gs_absolute_duration_error_s divided by reference_gs_duration_s.
+        - gs_duration_error_abs_rel_log: np.log(1 + gs_duration_error_abs_rel)
+        - detected_num_gs: Total number of detected gait sequences.
+        - reference_num_gs: Total number of reference gait sequences.
+        - num_gs_error: Difference between the detected and reference number of gait sequences.
+        - num_gs_relative_error: num_gs_error divided by reference_num_gs.
+        - num_gs_absolute_error: Absolute value of num_gs_error.
+        - num_gs_absolute_relative_error: num_gs_absolute_error divided by reference_num_gs.
+        - num_gs_absolute_relative_error_log: np.log(1 + num_gs_absolute_relative_error)
+
+    Further metrics are calculated if `n_samples` is provided and thus the number of true negatives can be estimated:
+    - tn_samples: Number of samples that are correctly not detected as gait sequences.
+    - specificity: Specificity of the detected gait sequences.
+    - accuracy: Accuracy of the detected gait sequences.
+    - npv: Negative predictive value of the detected gait sequences.
+    See the documentation of :func:`gaitlink.utils.evaluation.specificity_score`,
+    :func:`gaitlink.utils.evaluation.accuracy_score`, and :func:`gaitlink.utils.evaluation.npv_score` for more details.
 
 
-def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> CategorizedIntervals:
+    Parameters
+    ----------
+    gsd_list_detected: pd.DataFrame
+       Each row contains a detected gait sequence interval as output from the GSD algorithms.
+       The respective start index is stored in a column named `start` and the stop index in a column named `end`.
+    gsd_list_reference: pd.DataFrame
+       Gold standard to validate the detected gait sequences against.
+       Should have the same format as `gsd_list_detected`.
+    sampling_freq: float
+        Sampling frequency of the recording in Hz.
+    n_samples: int, optional
+        Number of samples in the analyzed recording.
+
+    Returns
+    -------
+    gsd_metrics: pd.DataFrame
+    """
+    categorized_intervals = categorize_intervals(gsd_list_detected, gsd_list_reference)
+
+    # estimate tp, fp, fn
+    tp_samples = count_samples_in_match_intervals(categorized_intervals, match_type="tp")
+    fp_samples = count_samples_in_match_intervals(categorized_intervals, match_type="fp")
+    fn_samples = count_samples_in_match_intervals(categorized_intervals, match_type="fn")
+
+    # estimate performance metrics
+    precision_recall_f1 = precision_recall_f1_score(categorized_intervals)
+
+    # estimate duration metrics
+    reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_freq
+    detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_freq
+    gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
+    gs_relative_duration_error = gs_duration_error_s / reference_gs_duration_s
+    gs_absolute_duration_error_s = abs(gs_duration_error_s)  # TODO is it necessary to report absolute values here?
+    gs_absolute_relative_duration_error = gs_absolute_duration_error_s / reference_gs_duration_s
+    gs_absolute_relative_duration_error_log = 1 + np.log(
+        1 + gs_absolute_relative_duration_error
+    )  # TODO should this be included? Is the 1 + ... a typo?
+
+    # estimate gs count metrics
+    detected_num_gs = len(gsd_list_detected)
+    reference_num_gs = len(gsd_list_reference)
+    num_gs_error = detected_num_gs - reference_num_gs
+    num_gs_relative_error = num_gs_error / reference_num_gs
+    num_gs_absolute_error = abs(num_gs_error)  # TODO is it necessary to report absolute values here?
+    num_gs_absolute_relative_error = num_gs_absolute_error / reference_num_gs
+    num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)  # TODO should this be included?
+
+    result = pd.DataFrame(
+        {
+            "tp_samples": tp_samples,
+            "fp_samples": fp_samples,
+            "fn_samples": fn_samples,
+            **precision_recall_f1,
+            "reference_gs_duration_s": reference_gs_duration_s,
+            "detected_gs_duration_s": detected_gs_duration_s,
+            "gs_duration_error_s": gs_duration_error_s,
+            "gs_relative_duration_error": gs_relative_duration_error,
+            "gs_absolute_duration_error_s": gs_absolute_duration_error_s,
+            "gs_duration_error_abs_rel": gs_absolute_relative_duration_error,
+            "gs_duration_error_abs_rel_log": gs_absolute_relative_duration_error_log,
+            "detected_num_gs": detected_num_gs,
+            "reference_num_gs": reference_num_gs,
+            "num_gs_error": num_gs_error,
+            "num_gs_relative_error": num_gs_relative_error,
+            "num_gs_absolute_error": num_gs_absolute_error,
+            "num_gs_absolute_relative_error": num_gs_absolute_relative_error,
+            "num_gs_absolute_relative_error_log": num_gs_absolute_relative_error_log,
+        },
+        index=[0],
+    )
+
+    # tn-dependent metrics
+    if n_samples is not None:
+        tn_samples = n_samples - tp_samples - fp_samples - fn_samples
+        result["tn_samples"] = tn_samples
+        result["specificity"] = specificity_score(categorized_intervals, tn_samples)
+        result["accuracy"] = accuracy_score(categorized_intervals, tn_samples)
+        result["npv"] = npv_score(categorized_intervals, tn_samples)
+
+    return result
+
+
+def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> pd.DataFrame:
     """
     Validate detected gait sequence intervals against a reference on a sample-wise level.
 
@@ -261,3 +393,10 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
             label_set = True
         else:
             ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
+
+
+if __name__ == "__main__":
+    reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
+    detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
+    res = calculate_gsd_performance_metrics(detected, reference, 10, 100)
+    print(res)
