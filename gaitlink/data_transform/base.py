@@ -37,6 +37,24 @@ class BaseTransformer(Algorithm):
         """
         raise NotImplementedError()
 
+    def _get_updated_chain_kwargs(self, **kwargs: Unpack[dict[str, Any]]) -> dict[str, Any]:
+        """Update the kwargs for the next transformer in the chain.
+
+        This method is used to update the kwargs for the next transformer in the chain.
+        This is only relevant in combination with the :func:`chain_transformers` function.
+
+        It allows a transformer to update the kwargs passed to the transform method (including the sampling rate) for
+        the next transformer in the chain.
+        A concrete usecase is the :class:`Resample` transformer, which provides an output with a different sampling rate
+        and hence needs to update the sampling rate for the next transformer in the chain.
+
+        This method is always ever called on instances that already have results attached.
+        So you can make use of results in the update process.
+
+        By default, this method does nothing and just returns the passed kwargs.
+        """
+        return kwargs
+
 
 base_filter_docfiller = make_filldoc(
     {

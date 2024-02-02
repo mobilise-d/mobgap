@@ -27,11 +27,12 @@ def chain_transformers(
         The transformed data.
 
     """
-    # TODO: At the moment, we don't have any way to handle transformers that change kwargs somehow.
-    #       For example the resampler would need to change the sampling_rate_hz in the kwargs for all subsequent steps.
     for name, transformer in transformers:
         try:
-            data = transformer.clone().transform(data, **kwargs).transformed_data_
+            transformer_with_results = transformer.transform(data, **kwargs)
+            data = transformer_with_results.transformed_data_
+            # We ask the transformer that was just use to potentially update the kwargs for the next transformer
+            kwargs = transformer_with_results._get_updated_chain_kwargs()
         except Exception as e:  # noqa: BLE001
             raise RuntimeError(
                 f"Error while applying transformer '{name}' in the transformer chain. "

@@ -112,3 +112,7 @@ class Resample(BaseTransformer):
         self.transformed_data_ = transformation_func(resampled_data, index)
 
         return self
+
+    def _get_updated_chain_kwargs(self, **kwargs: Unpack[dict[str, Any]]) -> dict[str, Any]:
+        """Update the chain kwargs with the target sampling rate for the next transformer."""
+        return {**kwargs, "sampling_rate_hz": self.target_sampling_rate_hz}
