@@ -148,11 +148,25 @@ class IcdShinImproved(BaseIcDetector):
         #   frequency that scale corresponds to at 40 Hz sampling rate.
         #   Turns out that this is 1.2 Hz
         cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
+        savgol_1_win_size_samples = 21
+        savgol_2_win_size_samples = 11
         filter_chain = [
-            ("savgol_1", SavgolFilter(window_length=21, polyorder=7)),
+            (
+                "savgol_1",
+                SavgolFilter(
+                    window_length_s=savgol_1_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+                    polyorder_rel=7 / savgol_1_win_size_samples,
+                ),
+            ),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
             ("cwt_1", cwt),
-            ("savol_2", SavgolFilter(window_length=11, polyorder=5)),
+            (
+                "savol_2",
+                SavgolFilter(
+                    window_length_s=savgol_2_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+                    polyorder_rel=5 / savgol_2_win_size_samples,
+                ),
+            ),
             ("cwt_2", cwt),
             ("gaussian", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
