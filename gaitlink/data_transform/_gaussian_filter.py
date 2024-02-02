@@ -1,7 +1,7 @@
-from typing import Any, Optional, Unpack
+from typing import Any, Optional
 
 from scipy.ndimage import gaussian_filter1d
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform.base import BaseFilter, base_filter_docfiller
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
