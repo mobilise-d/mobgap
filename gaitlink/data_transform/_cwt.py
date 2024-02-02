@@ -87,7 +87,7 @@ class CwtFilter(BaseFilter):
         self.sampling_rate_hz = sampling_rate_hz
 
         # Calculate the corresponding scale for the given frequency
-        self.scale_ = frequency2scale(self.wavelet, [self.center_frequency_hz]) * sampling_rate_hz
+        self.scale_ = frequency2scale(self.wavelet, [self.center_frequency_hz])[0] * sampling_rate_hz
 
         # Convert to 2D array using file_as_2d_array function from gait link.utils.dtypes
         array_2d, index, transformation_function = dflike_as_2d_array(data)

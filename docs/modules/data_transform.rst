@@ -15,6 +15,9 @@ Filter
 
     ButterworthFilter
     FirFilter
+    CwtFilter
+    SavgolFilter
+    GaussianFilter
     EpflGaitFilter
     EpflDedriftFilter
     EpflDedriftedGaitFilter
