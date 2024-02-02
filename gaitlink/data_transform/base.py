@@ -310,7 +310,7 @@ scipy_filter_docfiller = make_filldoc(
 class ScipyFilter(BaseFilter):
     """Base class for generic filters using the scipy filter functions.
 
-    Child-classes should specify `_FILTER_TYPE` as class var and inplement `_sos_filter_design` or `_ba_filter_design`
+    Child-classes should specify `_FILTER_TYPE` as class var and implement `_sos_filter_design` or `_ba_filter_design`
     depending on the `_FILTER_TYPE`.
 
     Parameters
