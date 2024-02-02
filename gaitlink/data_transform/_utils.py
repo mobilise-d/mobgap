@@ -31,11 +31,11 @@ def chain_transformers(
         try:
             transformer_with_results = transformer.transform(data, **kwargs)
             data = transformer_with_results.transformed_data_
-            # We ask the transformer that was just use to potentially update the kwargs for the next transformer
-            kwargs = transformer_with_results._get_updated_chain_kwargs()
         except Exception as e:  # noqa: BLE001
             raise RuntimeError(
                 f"Error while applying transformer '{name}' in the transformer chain. "
                 "Scroll up to see the full traceback of this error."
             ) from e
+        # We ask the transformer that was just use to potentially update the kwargs for the next transformer
+        kwargs = transformer_with_results._get_updated_chain_kwargs(**kwargs)
     return data

@@ -45,6 +45,20 @@ class TestChainTransformers:
 
         assert transformer_chain[raise_in_chain][0] in str(e.value)
 
+    def test_kwargs_forwarded(self):
+        class MultiplyBySamplingRate(BaseTransformer):
+            def transform(self, data, *, sampling_rate_hz=None, **kwargs):
+                self.transformed_data_ = data * sampling_rate_hz
+                return self
+
+        result = chain_transformers(
+            np.ones(10),
+            [("multiply1", MultiplyBySamplingRate()), ("multiply2", MultiplyBySamplingRate())],
+            sampling_rate_hz=100.0,
+        )
+
+        assert np.all(result == 100.0**2)
+
     @pytest.mark.parametrize("sampling_rate", [100.0, 50.0])
     def test_chain_with_resample(self, sampling_rate):
         """Resample updates the sampling rate for all subsequent transformers."""
