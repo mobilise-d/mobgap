@@ -138,8 +138,8 @@ class IcdShinImproved(BaseIcDetector):
         len_pad = 4 * n_coefficients
         signal_downsampled_padded = np.pad(signal_downsampled, (len_pad, len_pad), "wrap")
 
-        # Filters
-        # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
+        #   CWT - Filter
+        #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
         #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
         #   wavelet.
@@ -148,24 +148,34 @@ class IcdShinImproved(BaseIcDetector):
         #   frequency that scale corresponds to at 40 Hz sampling rate.
         #   Turns out that this is 1.2 Hz
         cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
+
+        # Savgol filters
+        # The original Matlab code useses two savgol filter in the chain.
+        # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
+        # sampling-rate independent units used for the parameters of our classes.
+        # The parameters from the matlab code are: (21, 7) and (11, 5)
         savgol_1_win_size_samples = 21
+        savgol_1 = SavgolFilter(
+            window_length_s=savgol_1_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=7 / savgol_1_win_size_samples,
+        )
         savgol_2_win_size_samples = 11
+        savgol_2 = SavgolFilter(
+            window_length_s=savgol_2_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=5 / savgol_2_win_size_samples,
+        )
+
+        # Now we buil;d everything together into one filter chain.
         filter_chain = [
             (
                 "savgol_1",
-                SavgolFilter(
-                    window_length_s=savgol_1_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
-                    polyorder_rel=7 / savgol_1_win_size_samples,
-                ),
+                savgol_1,
             ),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
             ("cwt_1", cwt),
             (
                 "savol_2",
-                SavgolFilter(
-                    window_length_s=savgol_2_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
-                    polyorder_rel=5 / savgol_2_win_size_samples,
-                ),
+                savgol_2,
             ),
             ("cwt_2", cwt),
             ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
