@@ -16,7 +16,7 @@ single_test = ha_example_data.get_subset(participant_id="002", test="Test11", tr
 df = single_test.data["LowerBack"]
 
 # Create an instance of the SavgolFilter class with your desired parameters
-savgol_filter = SavgolFilter(window_length=16, polyorder=4)
+savgol_filter = SavgolFilter(window_length_s=16, polyorder_rel=4)
 
 # Perform the Savgol filtering operation by calling the transform method
 smoothed_data = savgol_filter.filter(df)
