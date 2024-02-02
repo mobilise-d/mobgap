@@ -30,6 +30,7 @@ class GaussianFilter(BaseFilter):
     scipy.ndimage.gaussian_filter1d : The function that is used to apply the filter.
 
     """
+
     sigma_s: float
 
     def __init__(self, sigma_s: float = 1.0) -> None:
