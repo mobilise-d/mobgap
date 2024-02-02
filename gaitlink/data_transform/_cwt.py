@@ -93,9 +93,7 @@ class CwtFilter(BaseFilter):
         array_2d, index, transformation_function = dflike_as_2d_array(data)
 
         # Apply Continuous Wavelet Transform
-        output, _ = cwt(
-            array_2d, [self.scale_], wavelet=self.wavelet, axis=0
-        )
+        output, _ = cwt(array_2d, [self.scale_], wavelet=self.wavelet, axis=0)
 
         self.transformed_data_ = transformation_function(output[0], index)
         return self
