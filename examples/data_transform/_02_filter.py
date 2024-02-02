@@ -1,6 +1,6 @@
 """
-Filtering data
-==============
+General Filter Introduction
+===========================
 
 One of the most common data transformations is filtering.
 In gaitlink various types of filters are used to clean data and enhance signal features.

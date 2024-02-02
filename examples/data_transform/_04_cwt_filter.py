@@ -1,6 +1,6 @@
 """
-Continuous Wavelet Transform (CWT)
-==================================
+Continuous Wavelet Transform (CWT) - Filter
+===================================
 
 Continuous wavelet transform (CWT) is a time-frequency analysis method that can provide frequency information localized
 in both time and frequency.
@@ -32,8 +32,16 @@ data.head()
 # %%
 # Initializing the CWT filter
 # ---------------------------
-# This requires us to define the mother wavelet and the width of the wavelet.
+# This requires us to define the mother wavelet and the center frequency of the bandpass filter.
+# We specify the frequency rather than the scale, as the effect of the scale will be dependent on the sampling rate of
+# the data.
+#
+# To replicate a filter (i.e. old Matlab code) that uses the scale, you can use the following formula to convert the
+# scale to frequency:
+# ``f = pywt.scale2frequency(wavelet, scale)/sampling_period``
+#
 # We use the ``pywt`` package to provide the wavelets.
+# You can check `this page <https://pywavelets.readthedocs.io/en/latest/ref/wavelets.html>`_ for available wavelets.
 cwt_filter = CwtFilter(wavelet="gaus2", center_frequency_hz=10)
 
 # %%
@@ -45,6 +53,10 @@ cwt_filter = CwtFilter(wavelet="gaus2", center_frequency_hz=10)
 cwt_filter.filter(data, sampling_rate_hz=single_test.sampling_rate_hz)
 filtered_data = cwt_filter.filtered_data_
 filtered_data.head()
+
+# %%
+# We can also get the actual scale that was calculated from the center frequency.
+cwt_filter.scale_
 
 # %%
 # We will plot the filtered data together with the original data.

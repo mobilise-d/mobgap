@@ -11,6 +11,10 @@ from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 class GaussianFilter(BaseFilter):
     """Apply a Gaussian filter to along the time axis of a timeseries signal.
 
+    Note that we don't use the normal FIR filter approach here, but the Gaussian filter from scipy.ndimage.
+    This is done to better simulate the gaussian smoothing filter that was used in the original Matlab implementation
+    of some of the algorithms in the mobilised project.
+
     Parameters
     ----------
     sigma_s
@@ -24,6 +28,9 @@ class GaussianFilter(BaseFilter):
     Attributes
     ----------
     %(results)s
+    sigma_samples_
+        The standard deviation for the Gaussian kernel in samples as calculated from the provided sigma_s and the
+        sampling rate.
 
     See Also
     --------
@@ -32,6 +39,8 @@ class GaussianFilter(BaseFilter):
     """
 
     sigma_s: float
+
+    sigma_samples_: float
 
     def __init__(self, sigma_s: float = 1.0) -> None:
         self.sigma_s = sigma_s
@@ -57,14 +66,17 @@ class GaussianFilter(BaseFilter):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
+        if sampling_rate_hz is None:
+            raise ValueError("Parameter 'sampling_rate_hz' must be provided.")
+
         # Convert to 2D array using dflike_as_2d_array function
         df_data, index, transformation_function = dflike_as_2d_array(data)
 
-        sigma_samples = self.sigma_s * sampling_rate_hz
+        self.sigma_samples_ = self.sigma_s * sampling_rate_hz
 
         # Apply Gaussian filter
         self.transformed_data_ = gaussian_filter1d(
-            df_data, sigma=sigma_samples, axis=0, output=None, mode="reflect", cval=0.0, truncate=4.0
+            df_data, sigma=self.sigma_samples_, axis=0, output=None, mode="reflect", cval=0.0, truncate=4.0
         )
 
         # Back transformation using the transformation function

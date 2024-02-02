@@ -3,12 +3,13 @@ Gaussian Smoothing
 ==================
 A common low-pass filtering technique is Gaussian smoothing, which applies a Gaussian window to the data with a moving
 average.
-We provide a class based implementation of Gaussian smoothing in the :class:`GaussianFilter` class.
+We provide a class based implementation of Gaussian smoothing in the :class:`~gaitlink.data_transform.GaussianFilter`
+class.
 """
 import matplotlib.pyplot as plt
 
 from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import GaussianFilter  # Update the import path accordingly
+from gaitlink.data_transform import GaussianFilter
 
 # %%
 # Loading some example data
@@ -28,41 +29,24 @@ data.head()
 # the sampling rate of the data.
 # It will be converted to samples internally.
 gaussian_filter = GaussianFilter(sigma_s=0.1)
-gaussian_filter.filter(data)
-smoothed_data = gaussian_filter.filtered_data_
+gaussian_filter.filter(data, sampling_rate_hz=single_test.sampling_rate_hz)
+filtered_data = gaussian_filter.filtered_data_
 
-smoothed_data.head()
+filtered_data.head()
 
 # %%
+# We can also access the standard deviation in samples that was calculated from the provided sigma_s and the
+# sampling rate.
+gaussian_filter.sigma_samples_
 
+# %%
+# We will plot the filtered data together with the original data.
+fig, axs = plt.subplots(3, 1, sharex=True)
+for ax, col in zip(axs, ["gyr_x", "gyr_y", "gyr_z"]):
+    ax.set_title(col)
+    data[col].plot(ax=ax, label="Original")
+    filtered_data[col].plot(ax=ax, label="CWT-filtered")
 
-# Compare the original and blurred data (you can use visualization tools suitable for your data)
-# For example, you can use matplotlib for 2D data
-
-
-# Plot the original and blurred data
-# plt.figure(figsize=(10, 5))
-#
-# plt.subplot(1, 2, 1)
-# plt.imshow(df.values, cmap="viridis")
-# plt.title("Original Data")
-
-
-plt.figure(figsize=(12, 4))
-
-# Plotting the original data
-plt.subplot(1, 2, 1)
-plt.plot(df.index, df.values, label="Original Data")
-plt.title("Original Data")
-plt.xlabel("Time")
-plt.ylabel("Signal Value")
-plt.legend()
-
-# Plotting the blurred data
-plt.subplot(1, 2, 2)
-plt.plot(blurred_result.index, blurred_result.values, label="Blurred Data")
-plt.title("Blurred Data")
-plt.xlabel("Time")
-plt.ylabel("Signal Value")
-plt.legend()
-plt.show()
+axs[0].set_xlim(data.index[300], data.index[500])
+axs[0].legend()
+fig.show()

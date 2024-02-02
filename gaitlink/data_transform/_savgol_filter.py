@@ -87,7 +87,7 @@ class SavgolFilter(BaseFilter):
         df_data, index, transformation_function = dflike_as_2d_array(data)
 
         self.window_length_samples_ = int(np.round(self.window_length_s * self.sampling_rate_hz))
-        self.polyorder_ = int(np.round(self.window_length_samples_ * self.polyorder_rel))
+        self.polyorder_ = int(np.round(self.window_length_s * self.sampling_rate_hz * self.polyorder_rel))
 
         # Apply Savitzky-Golay filter
         self.transformed_data_ = savgol_filter(
