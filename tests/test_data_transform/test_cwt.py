@@ -38,8 +38,8 @@ class TestCwtFilter:
         cwt_filter.filter(data, sampling_rate_hz=100)
 
         # Compare to calling cwt directly
-        first_col, _ = cwt(data[:, 0], [scale], wavelet, sampling_period=1 / 100)
-        second_col, _ = cwt(data[:, 1], [scale], wavelet, sampling_period=1 / 100)
+        first_col, _ = cwt(data[:, 0], [scale], wavelet)
+        second_col, _ = cwt(data[:, 1], [scale], wavelet)
 
         np.testing.assert_equal(cwt_filter.transformed_data_[:, 0], first_col.flatten())
         np.testing.assert_equal(cwt_filter.transformed_data_[:, 1], second_col.flatten())
