@@ -65,14 +65,13 @@ class SavgolFilter(BaseFilter):
         data: DfLike,
         *,
         sampling_rate_hz: Optional[float] = None,
-        **kwargs: Unpack[dict[str, Any]],  # noqa: ARG002
+        **_: Unpack[dict[str, Any]],
     ) -> Self:
         """%(filter_short)s.
 
         Parameters
         ----------
         %(filter_para)s
-        %(filter_kwargs)s
 
         %(filter_return)s
 

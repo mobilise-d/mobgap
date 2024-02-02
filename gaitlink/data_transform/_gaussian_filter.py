@@ -46,19 +46,12 @@ class GaussianFilter(BaseFilter):
         self.sigma_s = sigma_s
 
     @base_filter_docfiller
-    def filter(
-        self,
-        data: DfLike,
-        *,
-        sampling_rate_hz: Optional[float] = None,
-        **kwargs: Unpack[dict[str, Any]],  # noqa: ARG002
-    ) -> Self:
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
         """%(filter_short)s.
 
         Parameters
         ----------
         %(filter_para)s
-        %(filter_kwargs)s
 
         %(filter_return)s
 
