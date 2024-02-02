@@ -20,7 +20,7 @@ class TestMetaGaussianFilter(TestAlgorithmMixin):
         input_data = pd.DataFrame({"column1": [1, 2, 3], "column2": [4, 5, 6]})
 
         # Perform the Gaussian filtering action using your GaussianFilter class
-        gaussian_filter.transform(input_data)
+        gaussian_filter.transform(input_data, sampling_rate_hz=100)
 
         # Return the GaussianFilter class instance with initial conditions
         return gaussian_filter
