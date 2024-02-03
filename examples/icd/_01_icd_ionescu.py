@@ -1,8 +1,8 @@
 """
-ICD Ionescu
+icd Ionescu
 ===========
 
-This example shows how to use the ICD Ionescu algorithm and how its results compare to the original
+This example shows how to use the icd Ionescu algorithm and how its results compare to the original
 matlab implementation.
 
 """

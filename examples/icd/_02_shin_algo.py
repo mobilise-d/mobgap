@@ -44,7 +44,6 @@ for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
 
 detected_ics = iterator.results_.ic_list
 detected_ics
-
 # %%
 # Matlab Outputs
 # --------------

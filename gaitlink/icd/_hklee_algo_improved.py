@@ -11,7 +11,7 @@ from scipy.signal import savgol_filter
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.ICD.base import BaseIcDetector, base_icd_docfiller
+from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
@@ -173,7 +173,7 @@ class IcdHKLeeImproved(BaseIcDetector):
 
         self.final_filtered_signal_ = final_filtered
 
-        #Resample to 100Hz for consistency with the original data (for ICD) or to 120 for consistency with original paper
+        #Resample to 100Hz for consistency with the original data (for icd) or to 120 for consistency with original paper
         NEW_SAMPLING_RATE_HZ = 120
         signal_upsampled = (
             Resample(NEW_SAMPLING_RATE_HZ)

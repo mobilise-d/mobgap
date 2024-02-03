@@ -4,7 +4,7 @@ import pytest
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.data import LabExampleDataset
-from gaitlink.ICD._hklee_algo_improved import IcdHKLeeImproved
+from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
 from gaitlink.pipeline import GsIterator
 
 

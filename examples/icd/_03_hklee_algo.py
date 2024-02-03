@@ -10,7 +10,7 @@ matlab implementation.
 
 import pandas as pd
 from matplotlib import pyplot as plt
-from gaitlink.ICD._hklee_algo_improved import IcdHKLeeImproved
+from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
 from gaitlink.data import LabExampleDataset
 
 # %%
