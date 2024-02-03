@@ -15,7 +15,7 @@ from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
 @base_icd_docfiller
 class IcdIonescu(BaseIcDetector):
-    """Implementation of the ICD algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_.
+    """Implementation of the icd algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_.
 
     The algorithm includes the following steps starting from vertical acceleration
     of the lower-back during a gait sequence:
@@ -34,7 +34,7 @@ class IcdIonescu(BaseIcDetector):
     Parameters
     ----------
     pre_filter
-        A pre-processing filter to apply to the data before the ICD algorithm is applied.
+        A pre-processing filter to apply to the data before the icd algorithm is applied.
     cwt_width
         The width of the wavelet
 
@@ -91,7 +91,7 @@ class IcdIonescu(BaseIcDetector):
         self.sampling_rate_hz = sampling_rate_hz
 
         # 0. SELECT RELEVANT COLUMNS
-        # For the ICD algorithm only vertical acceleration (i.e. x-component) is required.
+        # For the icd algorithm only vertical acceleration (i.e. x-component) is required.
         relevant_columns = ["acc_x"]  # acc_x: vertical acceleration
         acc_v = data[relevant_columns]
         acc_v = acc_v.to_numpy()
