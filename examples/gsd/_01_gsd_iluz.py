@@ -85,13 +85,13 @@ from gaitlink.gsd import GsdIluz
 
 short_trial = lab_example_data.get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")
 short_trial_matlab_output = load_matlab_output(short_trial)
-short_trial_reference_parameters = short_trial.reference_parameters_.walking_bouts
+short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
 short_trial_output = GsdIluz().detect(short_trial.data["LowerBack"], sampling_rate_hz=short_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
-print("\nPython Output:\n\n", short_trial_output.gsd_list_)
+print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # %%
 # When we plot the output, we can see that the python version is a little more sensitive than the matlab version.
 # It includes a section of the signal before the region classified as WB by the reference system.
@@ -101,7 +101,7 @@ fig, ax = plot_gsd_outputs(
     short_trial.data["LowerBack"],
     reference=short_trial_reference_parameters,
     matlab=short_trial_matlab_output,
-    python=short_trial_output.gsd_list_,
+    python=short_trial_output.gs_list_,
 )
 fig.show()
 
@@ -112,13 +112,13 @@ fig.show()
 # This is a more challenging scenario, as we expect multiple gait sequences.
 long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
 long_trial_matlab_output = load_matlab_output(long_trial)
-long_trial_reference_parameters = long_trial.reference_parameters_.walking_bouts
+long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
 long_trial_output = GsdIluz().detect(long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nMatlab Output:\n\n", long_trial_matlab_output)
-print("\nPython Output:\n\n", long_trial_output.gsd_list_)
+print("\nPython Output:\n\n", long_trial_output.gs_list_)
 
 # %%
 # When we plot the output, we can see again that the python version is more sensitive.
@@ -128,7 +128,7 @@ fig, _ = plot_gsd_outputs(
     long_trial.data["LowerBack"],
     reference=long_trial_reference_parameters,
     matlab=long_trial_matlab_output,
-    python=long_trial_output.gsd_list_,
+    python=long_trial_output.gs_list_,
 )
 fig.show()
 
@@ -150,13 +150,49 @@ long_trial_output_modified = GsdIluz(window_length_s=5, window_overlap=0.8).dete
 )
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
-print("\nPython Output:\n\n", long_trial_output.gsd_list_)
-print("\nPython Output Modified:\n\n", long_trial_output_modified.gsd_list_)
+print("\nPython Output:\n\n", long_trial_output.gs_list_)
+print("\nPython Output Modified:\n\n", long_trial_output_modified.gs_list_)
 
 fig, _ = plot_gsd_outputs(
     long_trial.data["LowerBack"],
     reference=long_trial_reference_parameters,
-    python=long_trial_output.gsd_list_,
-    python_modified=long_trial_output_modified.gsd_list_,
+    python=long_trial_output.gs_list_,
+    python_modified=long_trial_output_modified.gs_list_,
 )
 fig.show()
+
+# %%
+# Validation of algorithm output against a reference
+# --------------------------------------------------
+# Let's quantify how the Python output compares to the reference labels.
+# To do this, we use the `categorize_intervals` function to compare detected gait sequences to reference labels
+# sample by sample.
+
+from gaitlink.gsd.validation import categorize_intervals
+
+categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_trial_reference_parameters)
+
+# %%
+# The function returns a Named Tuple with the following fields: tp_intervals`, `fp_intervals` and `fn_intervals`.
+# Consequently, we can access all intervals that were correctly detected (`tp_intervals`), all intervals that were
+# falsely detected as gait sequences (`fp_intervals`) and all intervals that were gait sequences but not detected
+# as such (`fn_intervals`). From this data, performance metrics such as sensitivity and precision can be calculated.
+
+print("True Positives:\n\n", categorized_intervals.tp_intervals)
+print("\nFalse Positives:\n\n", categorized_intervals.fp_intervals)
+print("\nFalse Negatives:\n\n", categorized_intervals.fn_intervals)
+
+# %%
+# Another useful function for validation is `find_matches_with_min_overlap`. It returns all intervals from the Python
+# output that overlap with the reference gait sequences by at least a given amount.
+# We can see that with an overlap threshold of 0.7 (70%%), three of the five detected gait sequences are considered as
+# matches with the reference gait sequences.
+# The remaining ones either contain too many false positive and/or false negative samples.
+
+from gaitlink.gsd.validation import find_matches_with_min_overlap
+
+matches = find_matches_with_min_overlap(
+    long_trial_output.gs_list_, long_trial_reference_parameters, overlap_threshold=0.7
+)
+
+print("Matches:\n\n", matches)

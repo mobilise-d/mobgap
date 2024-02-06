@@ -2,7 +2,6 @@
 from typing import Any, ClassVar, Literal, Optional, Union
 
 import numpy as np
-import pandas as pd
 from scipy.signal import filtfilt, lfilter, sosfilt, sosfiltfilt
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
@@ -37,6 +36,24 @@ class BaseTransformer(Algorithm):
 
         """
         raise NotImplementedError()
+
+    def _get_updated_chain_kwargs(self, **kwargs: Unpack[dict[str, Any]]) -> dict[str, Any]:
+        """Update the kwargs for the next transformer in the chain.
+
+        This method is used to update the kwargs for the next transformer in the chain.
+        This is only relevant in combination with the :func:`chain_transformers` function.
+
+        It allows a transformer to update the kwargs passed to the transform method (including the sampling rate) for
+        the next transformer in the chain.
+        A concrete usecase is the :class:`Resample` transformer, which provides an output with a different sampling rate
+        and hence needs to update the sampling rate for the next transformer in the chain.
+
+        This method is always ever called on instances that already have results attached.
+        So you can make use of results in the update process.
+
+        By default, this method does nothing and just returns the passed kwargs.
+        """
+        return kwargs
 
 
 base_filter_docfiller = make_filldoc(
@@ -146,7 +163,7 @@ class BaseFilter(BaseTransformer):
 
     @base_filter_docfiller
     def filter(
-        self, data: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
+        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
     ) -> Self:
         """%(filter_short)s.
 
@@ -156,7 +173,6 @@ class BaseFilter(BaseTransformer):
         %(filter_kwargs)s
 
         %(filter_return)s
-
 
         """
         raise NotImplementedError()
@@ -312,7 +328,7 @@ scipy_filter_docfiller = make_filldoc(
 class ScipyFilter(BaseFilter):
     """Base class for generic filters using the scipy filter functions.
 
-    Child-classes should specify `_FILTER_TYPE` as class var and inplement `_sos_filter_design` or `_ba_filter_design`
+    Child-classes should specify `_FILTER_TYPE` as class var and implement `_sos_filter_design` or `_ba_filter_design`
     depending on the `_FILTER_TYPE`.
 
     Parameters
@@ -436,4 +452,5 @@ __all__ = [
     "fixed_filter_docfiller",
     "ScipyFilter",
     "scipy_filter_docfiller",
+    "base_filter_docfiller",
 ]

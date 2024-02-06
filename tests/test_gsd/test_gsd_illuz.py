@@ -32,7 +32,7 @@ class TestGsdIluz:
     def test_no_gsds(self):
         data = pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"])
 
-        output = GsdIluz().detect(data, sampling_rate_hz=40.0).gsd_list_
+        output = GsdIluz().detect(data, sampling_rate_hz=40.0).gs_list_
 
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end"]))
 
@@ -43,7 +43,17 @@ class TestGsdIluz:
             .data["LowerBack"]
         )
 
-        output = GsdIluz().detect(data, sampling_rate_hz=100.0).gsd_list_
+        output = GsdIluz().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert len(output) == 1
         assert set(output.columns) == {"start", "end"}
+
+
+class TestGsdIluzRegression:
+    @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
+    def test_example_lab_data(self, datapoint, snapshot):
+        data = datapoint.data["LowerBack"]
+        sampling_rate_hz = datapoint.sampling_rate_hz
+
+        gs_list = GsdIluz().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
+        snapshot.assert_match(gs_list, str(datapoint.group_label))

@@ -28,7 +28,7 @@ Base Classes
    :toctree: generated/gsd
    :template: class.rst
 
-    BaseGsdDetector
+    BaseGsDetector
 
 Docu-helper
 -----------
@@ -38,4 +38,16 @@ Docu-helper
    :template: func.rst
 
     base_gsd_docfiller
+
+
+Validation
+++++++++++
+.. currentmodule:: gaitlink.gsd.validation
+
+.. autosummary::
+   :toctree: generated/gsd
+   :template: func.rst
+
+    categorize_intervals
+    find_matches_with_min_overlap
 

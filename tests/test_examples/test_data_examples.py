@@ -26,4 +26,17 @@ def test_reference_data_usage():
     from examples.data._02_working_with_ref_data import gs_iterator, ref_data
 
     # The final ics should be equivalent to the non-relative ref data, as we add the GS offset during aggregation
-    assert_frame_equal(gs_iterator.initial_contacts_, ref_data.initial_contacts)
+    assert_frame_equal(gs_iterator.results_.ic_list, ref_data.ic_list)
+
+
+def test_dmo_data(snapshot):
+    from examples.data._03_dmo_data import dataset, single_participant
+
+    assert len(dataset) == 14
+    assert len(single_participant) == 7
+    assert single_participant.data.shape == single_participant.data.shape == (2378, 11)
+
+    snapshot.assert_match(single_participant.data.head(), "single_participant_data")
+    snapshot.assert_match(single_participant.data_mask.head(), "single_participant_data_mask")
+
+    snapshot.assert_match(dataset.index, "dataset_index")

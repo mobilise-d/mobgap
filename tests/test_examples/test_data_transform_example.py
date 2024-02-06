@@ -16,11 +16,50 @@ def test_generic_data_transform():
 
 
 def test_filter(snapshot):
-    from examples.data_transform._02_filter import epfl_filter
+    from examples.data_transform._02_filter import butterworth_filter, epfl_filter
 
-    snapshot.assert_match(epfl_filter.filtered_data_, "filtered_data")
+    filtered_data = epfl_filter.filtered_data_
+    filtered_data.index = filtered_data.index.round("ms")
+
+    snapshot.assert_match(filtered_data, "epfl")
+
+    filtered_data = butterworth_filter.filtered_data_
+    filtered_data.index = filtered_data.index.round("ms")
+
+    snapshot.assert_match(filtered_data, "butterworth")
 
 
-def test_resample():
-    # For now we just check that the code runs without errors, as the example might need to be reworked
-    from examples.data_transform._03_resample import resampler  # noqa
+def test_resample(snapshot):
+    from examples.data_transform._03_resample import resampler
+
+    resampled_data = resampler.transformed_data_
+    resampled_data.index = resampled_data.index.round("ms")
+
+    snapshot.assert_match(resampled_data)
+
+
+def test_cwt_filter(snapshot):
+    from examples.data_transform._04_cwt_filter import cwt_filter
+
+    filtered_data = cwt_filter.transformed_data_
+    filtered_data.index = filtered_data.index.round("ms")
+
+    snapshot.assert_match(filtered_data)
+
+
+def test_gaussian_filter(snapshot):
+    from examples.data_transform._05_gaussian_smoothing import gaussian_filter
+
+    filtered_data = gaussian_filter.transformed_data_
+    filtered_data.index = filtered_data.index.round("ms")
+
+    snapshot.assert_match(filtered_data)
+
+
+def test_savgol_filter(snapshot):
+    from examples.data_transform._06_savgol_filter import savgol_filter
+
+    filtered_data = savgol_filter.transformed_data_
+    filtered_data.index = filtered_data.index.round("ms")
+
+    snapshot.assert_match(filtered_data)

@@ -429,9 +429,9 @@ class ReferenceData(NamedTuple):
 
     Attributes
     ----------
-    walking_bouts
+    wb_list
         A dataframe with the start and end of each walking bout in samples.
-    initial_contacts
+    ic_list
         A dataframe with the initial contacts in samples and the corresponding left/right label.
     turn_parameters
         A dataframe with the start, end, angle and other parameters of each turn.
@@ -440,8 +440,8 @@ class ReferenceData(NamedTuple):
 
     """
 
-    walking_bouts: pd.DataFrame
-    initial_contacts: pd.DataFrame
+    wb_list: pd.DataFrame
+    ic_list: pd.DataFrame
     turn_parameters: pd.DataFrame
     stride_parameters: pd.DataFrame
 
@@ -609,7 +609,19 @@ def parse_reference_parameters(
         )
 
     # We also get the correct LR-label for the stride parameters from the ICs.
-    stride_paras["lr_label"] = ics.set_index("ic")["lr_label"][stride_paras["start"]].to_numpy()
+    ic_duplicate_as_nan = ics.copy()
+    # We set the values to Nan first and then drop one of the duplicates.
+    ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
+    ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+    if ic_duplicate_as_nan["lr_label"].isna().any():
+        warnings.warn(
+            "There were multiple ICs with the same index value, but different LR labels. "
+            "This is likely an issue with the reference system you should further investigate. "
+            "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
+            "However, both values still remain in the IC list.",
+            stacklevel=2,
+        )
+    stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
     stride_paras.index.name = "s_id"
     stride_paras = stride_paras.reset_index().set_index(["wb_id", "s_id"])
 

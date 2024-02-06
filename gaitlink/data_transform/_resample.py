@@ -99,7 +99,7 @@ class Resample(BaseTransformer):
             index = None
 
         resampling_factor = self.target_sampling_rate_hz / sampling_rate_hz
-        new_n_samples = int(len(data_as_array) * resampling_factor)
+        new_n_samples = int(round(len(data_as_array) * resampling_factor))
 
         # If we don't have an index (i.e. when a np.array was passed), we don't need to resample the index
         if index is None:
@@ -112,3 +112,7 @@ class Resample(BaseTransformer):
         self.transformed_data_ = transformation_func(resampled_data, index)
 
         return self
+
+    def _get_updated_chain_kwargs(self, **kwargs: Unpack[dict[str, Any]]) -> dict[str, Any]:
+        """Update the chain kwargs with the target sampling rate for the next transformer."""
+        return {**kwargs, "sampling_rate_hz": self.target_sampling_rate_hz}

@@ -1,0 +1,29 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"index",
+                "type":"integer"
+            },
+            {
+                "name":"start",
+                "type":"integer"
+            },
+            {
+                "name":"end",
+                "type":"integer"
+            }
+        ],
+        "primaryKey":[
+            "index"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "index":0,
+            "start":300,
+            "end":1051
+        }
+    ]
+}
