@@ -9,3 +9,4 @@ Utility functions
     dtypes
     array_handling
     conversions
+    evaluation

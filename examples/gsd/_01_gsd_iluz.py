@@ -187,7 +187,7 @@ print("Matched Intervals:\n\n", categorized_intervals)
 # %%
 # Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
 # and recall can be calculated.
-# For this purpose, the :func:`gaitlink.utils.evaluation.precision_recall_f1_score` function can be used.
+# For this purpose, the :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` function can be used.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
 # Furthermore, we provide similar functions for other metrics such as accuracy, specificity,
 # and negative predictive value.
@@ -201,8 +201,11 @@ print("Performance Metrics:\n\n", prec_rec_f1_dict)
 # %%
 # To calculate not only a specific performance metric but the whole range of possible metrics that were utilized for
 # gait sequence detection in Mobilise-D, we can use the
-# :func:`gaitlink.gsd.validation.calculate_gsd_performance_metrics` function.
-# It returns a DataFrame containing all metrics for the specified detected and reference gait sequences.
+# :func:`~gaitlink.gsd.validation.calculate_gsd_performance_metrics` function.
+# It returns a DataFrame containing all metrics for the specified detected and reference gait sequences. To retrieve
+# the whole range of metrics, the length and the sampling frequency of the recording are required.
+# This is used to infer the number of true negative samples and derived metrics (e.g., accuracy and specificity), and
+# to calculate the duration errors (in seconds), respectively.
 
 from gaitlink.gsd.validation import calculate_gsd_performance_metrics
 
@@ -216,9 +219,9 @@ metrics_all = calculate_gsd_performance_metrics(
 print("Performance Metrics:\n\n", metrics_all)
 
 # %%
-# Another useful function for validation is `find_matches_with_min_overlap`. It returns all intervals from the Python
+# Another useful function for validation is :func:`~gaitlink.gsd.validation.find_matches_with_min_overlap`. It returns all intervals from the Python
 # output that overlap with the reference gait sequences by at least a given amount.
-# We can see that with an overlap threshold of 0.7 (70%%), three of the five detected gait sequences are considered as
+# We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
 # matches with the reference gait sequences.
 # The remaining ones either contain too many false positive and/or false negative samples.
 

@@ -48,6 +48,8 @@ Validation
    :toctree: generated/gsd
    :template: func.rst
 
+    calculate_gsd_performance_metrics
     categorize_intervals
     find_matches_with_min_overlap
+    plot_categorized_intervals
 

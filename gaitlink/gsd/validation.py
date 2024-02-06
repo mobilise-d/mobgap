@@ -39,37 +39,40 @@ def calculate_gsd_performance_metrics(
     start and end indices of the respective gait sequences.
 
     The following metrics are calculated:
+
     - General metrics:
-        - tp_samples: Number of samples that are correctly detected as gait sequences.
-        - fp_samples: Number of samples that are falsely detected as gait sequences.
-        - fn_samples: Number of samples that are not detected as gait sequences.
-        - precision: Precision of the detected gait sequences.
-        - recall: Recall of the detected gait sequences.
-        - f1_score: F1 score of the detected gait sequences.
-        See the documentation of :func:`gaitlink.utils.evaluation.precision_recall_f1_score` for more details.
+        - `tp_samples`: Number of samples that are correctly detected as gait sequences.
+        - `fp_samples`: Number of samples that are falsely detected as gait sequences.
+        - `fn_samples`: Number of samples that are not detected as gait sequences.
+        - `precision`: Precision of the detected gait sequences.
+        - `recall`: Recall of the detected gait sequences.
+        - `f1_score`: F1 score of the detected gait sequences.
+        See the documentation of :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` for more details.
+
     - Mobilised-specific metrics:
-        - reference_gs_duration_s: Total duration of the reference gait sequences in seconds.
-        - detected_gs_duration_s: Total duration of the detected gait sequences in seconds.
-        - gs_duration_error_s: Difference between the detected and reference gait sequence duration in seconds.
-        - gs_relative_duration_error: gs_duration_error_s divided by reference_gs_duration_s.
-        - gs_absolute_duration_error_s: Absolute value of gs_duration_error_s.
-        - gs_absolute_relative_duration_error: gs_absolute_duration_error_s divided by reference_gs_duration_s.
-        - gs_absolute_relative_duration_error_log: np.log(1 + gs_duration_error_abs_rel)
-        - detected_num_gs: Total number of detected gait sequences.
-        - reference_num_gs: Total number of reference gait sequences.
-        - num_gs_error: Difference between the detected and reference number of gait sequences.
-        - num_gs_relative_error: num_gs_error divided by reference_num_gs.
-        - num_gs_absolute_error: Absolute value of num_gs_error.
-        - num_gs_absolute_relative_error: num_gs_absolute_error divided by reference_num_gs.
-        - num_gs_absolute_relative_error_log: np.log(1 + num_gs_absolute_relative_error)
+        - `reference_gs_duration_s`: Total duration of the reference gait sequences in seconds.
+        - `detected_gs_duration_s`: Total duration of the detected gait sequences in seconds.
+        - `gs_duration_error_s`: Difference between the detected and reference gait sequence duration in seconds.
+        - `gs_relative_duration_error`: gs_duration_error_s divided by reference_gs_duration_s.
+        - `gs_absolute_duration_error_s`: Absolute value of gs_duration_error_s.
+        - `gs_absolute_relative_duration_error`: gs_absolute_duration_error_s divided by reference_gs_duration_s.
+        - `gs_absolute_relative_duration_error_log`: np.log(1 + gs_duration_error_abs_rel)
+        - `detected_num_gs`: Total number of detected gait sequences.
+        - `reference_num_gs`: Total number of reference gait sequences.
+        - `num_gs_error`: Difference between the detected and reference number of gait sequences.
+        - `num_gs_relative_error`: num_gs_error divided by reference_num_gs.
+        - `num_gs_absolute_error`: Absolute value of num_gs_error.
+        - `num_gs_absolute_relative_error`: num_gs_absolute_error divided by reference_num_gs.
+        - `num_gs_absolute_relative_error_log`: np.log(1 + num_gs_absolute_relative_error)
 
     Further metrics are calculated if `n_samples` is provided and thus the number of true negatives can be estimated:
-    - tn_samples: Number of samples that are correctly not detected as gait sequences.
-    - specificity: Specificity of the detected gait sequences.
-    - accuracy: Accuracy of the detected gait sequences.
-    - npv: Negative predictive value of the detected gait sequences.
-    See the documentation of :func:`gaitlink.utils.evaluation.specificity_score`,
-    :func:`gaitlink.utils.evaluation.accuracy_score`, and :func:`gaitlink.utils.evaluation.npv_score` for more details.
+
+    - `tn_samples`: Number of samples that are correctly not detected as gait sequences.
+    - `specificity`: Specificity of the detected gait sequences.
+    - `accuracy`: Accuracy of the detected gait sequences.
+    - `npv`: Negative predictive value of the detected gait sequences.
+    See the documentation of :func:`~gaitlink.utils.evaluation.specificity_score`,
+    :func:`~gaitlink.utils.evaluation.accuracy_score`, and :func:`~gaitlink.utils.evaluation.npv_score` for more details.
 
 
     Parameters
