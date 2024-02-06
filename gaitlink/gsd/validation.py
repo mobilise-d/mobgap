@@ -27,9 +27,9 @@ from gaitlink.utils.evaluation import (
 
 
 def calculate_gsd_performance_metrics(
-    gsd_list_detected: Union[pd.DataFrame, None],
-    gsd_list_reference: Union[pd.DataFrame, None],
-    sampling_freq: float,
+    gsd_list_detected: pd.DataFrame,
+    gsd_list_reference: pd.DataFrame,
+    sampling_rate_hz: float,
     n_samples: Union[int, None] = None,
 ) -> pd.DataFrame:
     """
@@ -72,7 +72,8 @@ def calculate_gsd_performance_metrics(
     - `accuracy`: Accuracy of the detected gait sequences.
     - `npv`: Negative predictive value of the detected gait sequences.
     See the documentation of :func:`~gaitlink.utils.evaluation.specificity_score`,
-    :func:`~gaitlink.utils.evaluation.accuracy_score`, and :func:`~gaitlink.utils.evaluation.npv_score` for more details.
+    :func:`~gaitlink.utils.evaluation.accuracy_score`,
+    and :func:`~gaitlink.utils.evaluation.npv_score` for more details.
 
 
     Parameters
@@ -83,7 +84,7 @@ def calculate_gsd_performance_metrics(
     gsd_list_reference: pd.DataFrame
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
-    sampling_freq: float
+    sampling_rate_hz: float
         Sampling frequency of the recording in Hz.
     n_samples: int, optional
         Number of samples in the analyzed recording.
@@ -109,8 +110,8 @@ def calculate_gsd_performance_metrics(
     precision_recall_f1 = precision_recall_f1_score(categorized_intervals)
 
     # estimate duration metrics
-    reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_freq
-    detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_freq
+    reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
+    detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
     gs_relative_duration_error = gs_duration_error_s / reference_gs_duration_s
     gs_absolute_duration_error_s = abs(gs_duration_error_s)  # TODO is it necessary to report absolute values here?

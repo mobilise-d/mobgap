@@ -212,7 +212,7 @@ from gaitlink.gsd.validation import calculate_gsd_performance_metrics
 metrics_all = calculate_gsd_performance_metrics(
     long_trial_output.gsd_list_,
     long_trial_reference_parameters,
-    sampling_freq=long_trial.sampling_rate_hz,
+    sampling_rate_hz=long_trial.sampling_rate_hz,
     n_samples=long_trial.data["LowerBack"].shape[0],
 )
 
