@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 
 from mobgap.data import LabExampleDataset
 from mobgap.icd import IcdShinImproved
+from mobgap.pipeline._gs_iterator import GaitSequence
 
 # %%
 # Loading data
@@ -41,7 +42,19 @@ from mobgap.pipeline import GsIterator
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    result.ic_list = IcdShinImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+    icd = IcdShinImproved()
+    icd.detect(data, sampling_rate_hz=sampling_rate_hz)
+    result.ic_list = icd.ic_list_
+    refined_gs = GaitSequence(gs.start + 40, gs.end - 40, "test")
+
+    with iterator.adjusted_gs(data, refined_gs) as refined_data:
+        result.cad_per_sec = pd.DataFrame()
+        result.stride_length = pd.DataFrame()
+
+    result.gait_speed = pd.DataFrame()
+
+print(iterator.input_overwrite_)
+
 
 detected_ics = iterator.results_.ic_list
 detected_ics

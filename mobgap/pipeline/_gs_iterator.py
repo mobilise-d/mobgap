@@ -1,5 +1,6 @@
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, fields, replace
 from typing import Any, Callable, ClassVar, Generic, NamedTuple, TypeVar, Union, overload
 
 import pandas as pd
@@ -330,4 +331,41 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             iteration.
 
         """
+        self.input_overwrite_ = {}
         yield from self._iterate(iter_gs(data, gs_list))
+
+    @contextmanager
+    def adjusted_gs(self, data: pd.DataFrame, new_gs: Union[GaitSequence, WalkingBout]) -> pd.DataFrame:
+        current_gs = self.inputs_[-1][0]
+        result_object = self._raw_results[-1]
+        gs_start_diff = new_gs.start - current_gs.start
+        gs_end_diff = new_gs.end - current_gs.end
+        current_non_empty_result = {
+            f.name: id(v) for f in fields(result_object) if (v := getattr(result_object, f.name)) is not self.NULL_VALUE
+        }
+        new_data = data.iloc[gs_start_diff:gs_end_diff]
+        yield new_data
+        # We don't allow changing values that were already set before the context manager.
+        if any(id(getattr(result_object, k)) != v for k, v in current_non_empty_result.items()):
+            raise ValueError("You are not allowed to change values that were already set before the context manager.")
+        after_non_empty_result_names = {
+            f.name for f in fields(result_object) if getattr(result_object, f.name) is not self.NULL_VALUE
+        }
+        before_non_empty_result_names = set(current_non_empty_result.keys())
+        new_result_names = after_non_empty_result_names - before_non_empty_result_names
+
+        # We store the information, with which gs the results were created.
+        for name in new_result_names:
+            self.input_overwrite_.setdefault(name, {})[current_gs] = (new_gs, new_data)
+        return
+
+    def _agg_result(self, name):
+        values = [getattr(r, name) for r in self.raw_results_]
+        input_overwrites = self.input_overwrite_.get(name, {})
+
+        inputs = [input_overwrites.get(i[0], i) for i in self.inputs_]
+        # if an aggregator is defined for the specific item, we apply it
+        aggregations = dict(self.aggregations)
+        if name in aggregations and all(v is not self.NULL_VALUE for v in values):
+            return aggregations[name](inputs, values)
+        return values
