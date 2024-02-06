@@ -2,7 +2,6 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
-from gaitmap.data_transform import Resample
 from numpy.linalg import norm
 from typing_extensions import Self, Unpack
 
@@ -13,7 +12,9 @@ from gaitlink.data_transform import (
     GaussianFilter,
     SavgolFilter,
     chain_transformers,
+    Resample,
 )
+from gaitlink.data_transform import Pad
 from gaitlink.icd._utils import find_zero_crossings
 from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
@@ -119,13 +120,6 @@ class IcdShinImproved(BaseIcDetector):
             else data[f"acc_{self.axis}"].to_numpy()
         )
 
-        # Resample to 40Hz to process with filters
-        signal_downsampled = (
-            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transform(data=signal, sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_
-        )
-
         # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
         # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
@@ -135,8 +129,8 @@ class IcdShinImproved(BaseIcDetector):
         n_coefficients = len(EpflGaitFilter().coefficients[0])
 
         # Padding to cope with short data
-        len_pad = 4 * n_coefficients
-        signal_downsampled_padded = np.pad(signal_downsampled, (len_pad, len_pad), "wrap")
+        len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        padding = Pad(pad_width_s=len_pad_s)
 
         #   CWT - Filter
         #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
@@ -165,8 +159,11 @@ class IcdShinImproved(BaseIcDetector):
             polyorder_rel=5 / savgol_2_win_size_samples,
         )
 
-        # Now we buil;d everything together into one filter chain.
+        # Now we build everything together into one filter chain.
         filter_chain = [
+            # Resample to 40Hz to process with filters
+            ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding", padding),
             (
                 "savgol_1",
                 savgol_1,
@@ -181,15 +178,12 @@ class IcdShinImproved(BaseIcDetector):
             ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_3", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding_remove", padding.get_inverse_transformer()),
         ]
 
-        filtered_signal = chain_transformers(
-            signal_downsampled_padded, filter_chain, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        final_filtered = chain_transformers(
+            signal, filter_chain, sampling_rate_hz=sampling_rate_hz
         )
-
-        # Remove padding
-        final_filtered = filtered_signal[len_pad:-len_pad]
-
         self.final_filtered_signal_ = final_filtered
 
         detected_ics = find_zero_crossings(final_filtered, "negative_to_positive")

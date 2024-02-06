@@ -8,6 +8,7 @@ from gaitlink.data_transform._filter import (
     FirFilter,
 )
 from gaitlink.data_transform._gaussian_filter import GaussianFilter
+from gaitlink.data_transform._padding import Cut, Pad
 from gaitlink.data_transform._resample import Resample
 from gaitlink.data_transform._savgol_filter import SavgolFilter
 from gaitlink.data_transform._utils import chain_transformers
@@ -23,4 +24,6 @@ __all__ = [
     "CwtFilter",
     "GaussianFilter",
     "SavgolFilter",
+    "Pad",
+    "Cut",
 ]
