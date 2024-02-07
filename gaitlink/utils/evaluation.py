@@ -317,7 +317,29 @@ def count_samples_in_intervals(intervals: pd.DataFrame) -> int:
         _ = intervals[["start", "end"]]
     except KeyError as e:
         raise ValueError("`intervals` must have columns named 'start' and 'end'.") from e
-    return int((intervals["end"] - intervals["start"]).sum())
+    # +1 because the end index is included
+    return int((intervals["end"] - intervals["start"] + 1).sum())
+
+
+def _estimate_number_tn_samples(matches_df: pd.DataFrame, n_overall_samples: Union[int, None], tn_warning: bool) -> int:
+    tn = count_samples_in_match_intervals(matches_df, "tn")
+    if tn > 0 and n_overall_samples is not None:
+        raise ValueError("If `matches_df` contains `tn` matches `n_overall_samples` must not be provided.")
+    if tn == 0 and n_overall_samples is None and tn_warning:
+        warnings.warn(
+            "`matches_df` does not contain `tn` matches. Thus, number of true negative samples is "
+            "assumed to be 0. If this is not the case, please provide `n_overall_samples`, so that the "
+            "number of true negatives can be derived.",
+            stacklevel=2,
+        )
+    if tn == 0 and n_overall_samples is not None:
+        tn = (
+            n_overall_samples
+            - count_samples_in_match_intervals(matches_df, "fp")
+            - count_samples_in_match_intervals(matches_df, "tp")
+            - count_samples_in_match_intervals(matches_df, "fn")
+        )
+    return tn
 
 
 def _calculate_score(a: float, b: float, *, zero_division: Literal["warn", 0, 1], caller_function_name: str) -> float:
