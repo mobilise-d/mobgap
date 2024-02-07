@@ -10,11 +10,11 @@ from gaitlink.data_transform import (
     EpflDedriftedGaitFilter,
     EpflGaitFilter,
     GaussianFilter,
+    Pad,
+    Resample,
     SavgolFilter,
     chain_transformers,
-    Resample,
 )
-from gaitlink.data_transform import Pad
 from gaitlink.icd._utils import find_zero_crossings
 from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
@@ -181,9 +181,7 @@ class IcdShinImproved(BaseIcDetector):
             ("padding_remove", padding.get_inverse_transformer()),
         ]
 
-        final_filtered = chain_transformers(
-            signal, filter_chain, sampling_rate_hz=sampling_rate_hz
-        )
+        final_filtered = chain_transformers(signal, filter_chain, sampling_rate_hz=sampling_rate_hz)
         self.final_filtered_signal_ = final_filtered
 
         detected_ics = find_zero_crossings(final_filtered, "negative_to_positive")
