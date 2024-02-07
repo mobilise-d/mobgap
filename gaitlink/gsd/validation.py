@@ -7,6 +7,7 @@ import pandas as pd
 from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from typing_extensions import Unpack
 
 __all__ = [
@@ -30,8 +31,8 @@ def calculate_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
-    n_samples: Union[int, None] = None,
-) -> pd.DataFrame:
+    n_overall_samples: Union[int, None] = None,
+) -> dict[str, float]:
     """
     Calculate performance metrics for gait sequence detection results.
 
@@ -86,16 +87,20 @@ def calculate_gsd_performance_metrics(
        Should have the same format as `gsd_list_detected`.
     sampling_rate_hz: float
         Sampling frequency of the recording in Hz.
-    n_samples: int, optional
+    n_overall_samples: int, optional
         Number of samples in the analyzed recording.
 
     Returns
     -------
-    gsd_metrics: pd.DataFrame
+    gsd_metrics: dict
     """
     categorized_intervals = categorize_intervals(gsd_list_detected, gsd_list_reference)
 
-    if n_samples and n_samples < max(gsd_list_reference["end"].max(), gsd_list_detected["end"].max()):
+    tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=n_overall_samples)
+    categorized_intervals = pd.concat([categorized_intervals, tn_intervals], ignore_index=True)
+    categorized_intervals = categorized_intervals.sort_values(by=["start", "end"], ignore_index=True)
+
+    if n_overall_samples and n_overall_samples < max(gsd_list_reference["end"].max(), gsd_list_detected["end"].max()):
         raise ValueError(
             "The provided `n_samples` parameter is implausible. The number of samples must be larger than the highest "
             "index in the detected and reference gait sequences."
@@ -129,37 +134,33 @@ def calculate_gsd_performance_metrics(
     num_gs_absolute_relative_error = num_gs_absolute_error / reference_num_gs
     num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)  # TODO should this be included?
 
-    result = pd.DataFrame(
-        {
-            "tp_samples": tp_samples,
-            "fp_samples": fp_samples,
-            "fn_samples": fn_samples,
-            **precision_recall_f1,
-            "reference_gs_duration_s": reference_gs_duration_s,
-            "detected_gs_duration_s": detected_gs_duration_s,
-            "gs_duration_error_s": gs_duration_error_s,
-            "gs_relative_duration_error": gs_relative_duration_error,
-            "gs_absolute_duration_error_s": gs_absolute_duration_error_s,
-            "gs_absolute_relative_duration_error": gs_absolute_relative_duration_error,
-            "gs_absolute_relative_duration_error_log": gs_absolute_relative_duration_error_log,
-            "detected_num_gs": detected_num_gs,
-            "reference_num_gs": reference_num_gs,
-            "num_gs_error": num_gs_error,
-            "num_gs_relative_error": num_gs_relative_error,
-            "num_gs_absolute_error": num_gs_absolute_error,
-            "num_gs_absolute_relative_error": num_gs_absolute_relative_error,
-            "num_gs_absolute_relative_error_log": num_gs_absolute_relative_error_log,
-        },
-        index=[0],
-    )
+    result = {
+        "tp_samples": tp_samples,
+        "fp_samples": fp_samples,
+        "fn_samples": fn_samples,
+        **precision_recall_f1,
+        "reference_gs_duration_s": reference_gs_duration_s,
+        "detected_gs_duration_s": detected_gs_duration_s,
+        "gs_duration_error_s": gs_duration_error_s,
+        "gs_relative_duration_error": gs_relative_duration_error,
+        "gs_absolute_duration_error_s": gs_absolute_duration_error_s,
+        "gs_absolute_relative_duration_error": gs_absolute_relative_duration_error,
+        "gs_absolute_relative_duration_error_log": gs_absolute_relative_duration_error_log,
+        "detected_num_gs": detected_num_gs,
+        "reference_num_gs": reference_num_gs,
+        "num_gs_error": num_gs_error,
+        "num_gs_relative_error": num_gs_relative_error,
+        "num_gs_absolute_error": num_gs_absolute_error,
+        "num_gs_absolute_relative_error": num_gs_absolute_relative_error,
+        "num_gs_absolute_relative_error_log": num_gs_absolute_relative_error_log,
+    }
 
     # tn-dependent metrics
-    if n_samples is not None:
-        tn_samples = n_samples - tp_samples - fp_samples - fn_samples
-        result["tn_samples"] = tn_samples
-        result["specificity"] = specificity_score(categorized_intervals, tn_samples)
-        result["accuracy"] = accuracy_score(categorized_intervals, tn_samples)
-        result["npv"] = npv_score(categorized_intervals, tn_samples)
+    if n_overall_samples is not None:
+        result["tn_samples"] = n_overall_samples
+        result["specificity"] = specificity_score(categorized_intervals)
+        result["accuracy"] = accuracy_score(categorized_intervals)
+        result["npv"] = npv_score(categorized_intervals)
 
     return result
 
@@ -203,11 +204,11 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     2     20   25         tp
     3     25   30         fp
     """
-    _check_input_sanity(gsd_list_detected, gsd_list_reference)
+    detected, reference = _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
     # Create Interval Trees
-    reference_tree = IntervalTree.from_tuples(gsd_list_reference[["start", "end"]].to_numpy())
-    detected_tree = IntervalTree.from_tuples(gsd_list_detected[["start", "end"]].to_numpy())
+    reference_tree = IntervalTree.from_tuples(reference.to_numpy())
+    detected_tree = IntervalTree.from_tuples(detected.to_numpy())
 
     # Prepare DataFrames for TP, FP, FN
     tp_intervals = []
@@ -251,17 +252,20 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     return categorized_intervals
 
 
-def _check_input_sanity(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> None:
+def _check_input_sanity(
+    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     # check if input is a dataframe with two columns
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
     # check if start and end columns are present
     try:
-        _, _ = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
+        detected, reference = gsd_list_detected[["start", "end"]], gsd_list_reference[["start", "end"]]
     except KeyError as e:
         raise ValueError(
             "`gsd_list_detected` and `gsd_list_reference` must have columns named 'start' and 'end'."
         ) from e
+    return detected, reference
 
 
 def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Interval) -> list[list[int]]:
@@ -339,7 +343,7 @@ def find_matches_with_min_overlap(
     id
     0      0   10
     """
-    _check_input_sanity(gsd_list_detected, gsd_list_reference)
+    detected, reference = _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
     # check if index is unique
     if not gsd_list_detected.index.is_unique:
@@ -354,10 +358,10 @@ def find_matches_with_min_overlap(
     if overlap_threshold > 1:
         raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
 
-    tree = IntervalTree.from_tuples(gsd_list_detected.reset_index(names="id")[["start", "end", "id"]].to_numpy())
+    tree = IntervalTree.from_tuples(detected.reset_index(names="id")[["start", "end", "id"]].to_numpy())
     final_matches = []
 
-    for _, interval in gsd_list_reference[["start", "end"]].iterrows():
+    for _, interval in reference[["start", "end"]].iterrows():
         matches = tree[interval["start"] : interval["end"]]
         if len(matches) > 0:
             for match in matches:
@@ -398,7 +402,7 @@ def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_samples: Union[int,
 
 def plot_categorized_intervals(
     gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, categorized_intervals: pd.DataFrame
-) -> None:
+) -> Figure:
     """Plot the categorized intervals together with the detected and reference intervals."""
     fig, ax = plt.subplots(figsize=(10, 3))
     _plot_intervals_from_df(gsd_list_reference, 3, ax, color="orange")
@@ -413,7 +417,7 @@ def plot_categorized_intervals(
     for handle in leg.legend_handles:
         handle.set_linewidth(10)
     plt.tight_layout()
-    plt.show()
+    return fig
 
 
 def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack[dict[str, Any]]) -> None:

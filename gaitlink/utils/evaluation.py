@@ -1,6 +1,6 @@
 """Module containing functions to calculate common performance metrics."""
 import warnings
-from typing import Literal
+from typing import Literal, Union
 
 import pandas as pd
 
@@ -39,8 +39,7 @@ def precision_recall_f1_score(
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative) or "tn" (true negative).
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
@@ -49,9 +48,9 @@ def precision_recall_f1_score(
     -------
     score_metrics : {"precision": precision, "recall": recall, "f1_score": f1_score}
     """
-    precisions = precision_score(matches_df.copy(), zero_division=zero_division)
-    recalls = recall_score(matches_df.copy(), zero_division=zero_division)
-    f1_scores = f1_score(matches_df.copy(), zero_division=zero_division)
+    precisions = precision_score(matches_df, zero_division=zero_division)
+    recalls = recall_score(matches_df, zero_division=zero_division)
+    f1_scores = f1_score(matches_df, zero_division=zero_division)
 
     return {
         "precision": precisions,
@@ -76,8 +75,7 @@ def precision_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative) or "tn" (true negative).
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
@@ -114,8 +112,7 @@ def recall_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative) or "tn" (true negative).
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
@@ -136,8 +133,13 @@ def recall_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 
     return output
 
 
-# TODO: at which point should the user specify the recording length/tn for the metrics requiring it?
-def specificity_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal["warn", 0, 1] = "warn") -> float:
+def specificity_score(
+    matches_df: pd.DataFrame,
+    *,
+    n_overall_samples: Union[int, None] = None,
+    zero_division: Literal["warn", 0, 1] = "warn",
+    tn_warning: bool = True,
+) -> float:
     """Compute the specificity.
 
     The specificity is the ratio tn / (tn + fp) where tn is the number of true negatives and fp the number of false
@@ -153,13 +155,18 @@ def specificity_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Liter
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
-    tn: int
-        Number of true negatives. Needs to be provided as an argument, as it can not be inferred from the matches_df.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative), or "tn" (true negative), if no segmented
+        counterpart exists. If the `matches_df` does not contain `tn` matches, the number of overall samples in the
+        recording needs to be provided as `n_overall_samples`.
+    n_overall_samples: Union[int, None]
+        Number of overall samples. Must be provided if the `matches_df` does not contain `tn` matches.
+        Needs to be kept as `None` if the `matches_df` contains `tn` matches.
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
+    tn_warning : bool, default=True
+       A warning is raised if `matches_df` does not contain `tn` matches and `n_overall_samples` is not provided.
+       Otherwise, warning is suppressed and tn is set to 0.
 
     Returns
     -------
@@ -168,6 +175,7 @@ def specificity_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Liter
     """
     if _input_is_gsd_matches_df(matches_df):
         fp = count_samples_in_match_intervals(matches_df, "fp")
+        tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     else:
         raise NotImplementedError("Only GSDs are supported as input at the moment.")
 
@@ -176,7 +184,13 @@ def specificity_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Liter
     return output
 
 
-def accuracy_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal["warn", 0, 1] = "warn") -> float:
+def accuracy_score(
+    matches_df: pd.DataFrame,
+    *,
+    n_overall_samples: Union[int, None] = None,
+    zero_division: Literal["warn", 0, 1] = "warn",
+    tn_warning: bool = True,
+) -> float:
     """Compute the specificity.
 
     The accuracy is the ratio (tp + tn) / (fp + fn + tp + tn) where tp is the number of true positives,
@@ -191,13 +205,18 @@ def accuracy_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal[
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
-    tn: int
-        Number of true negatives. Needs to be provided as an argument, as it can not be inferred from the matches_df.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative) or "tn" (true negative), if no segmented
+        counterpart exists. If the `matches_df` does not contain `tn` matches, the number of overall samples in the
+        recording needs to be provided as `n_overall_samples`.
+    n_overall_samples: Union[int, None]
+        Number of overall samples. Must be provided if the `matches_df` does not contain `tn` matches.
+        Needs to be kept as `None` if the `matches_df` contains `tn` matches.
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
+    tn_warning : bool, default=True
+       A warning is raised if `matches_df` does not contain `tn` matches and `n_overall_samples` is not provided.
+       Otherwise, warning is suppressed and tn is set to 0.
 
     Returns
     -------
@@ -208,6 +227,7 @@ def accuracy_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal[
         tp = count_samples_in_match_intervals(matches_df, "tp")
         fn = count_samples_in_match_intervals(matches_df, "fn")
         fp = count_samples_in_match_intervals(matches_df, "fp")
+        tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     else:
         raise NotImplementedError("Only GSDs are supported as input at the moment.")
 
@@ -216,7 +236,13 @@ def accuracy_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal[
     return output
 
 
-def npv_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal["warn", 0, 1] = "warn") -> float:
+def npv_score(
+    matches_df: pd.DataFrame,
+    *,
+    n_overall_samples: Union[int, None] = None,
+    zero_division: Literal["warn", 0, 1] = "warn",
+    tn_warning: bool = True,
+) -> float:
     """Compute the negative predictive value (NPV).
 
     The NPV is the ratio tn / (tn + fn) where tn is the number of true negatives and fn the number of false
@@ -231,13 +257,18 @@ def npv_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal["warn
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
-    tn: int
-        Number of true negatives. Needs to be provided as an argument, as it can not be inferred from the matches_df.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative), or "tn" (true negative), if no segmented
+        counterpart exists. If the `matches_df` does not contain `tn` matches, the number of overall samples in the
+        recording needs to be provided as `n_overall_samples`.
+    n_overall_samples: Union[int, None]
+        Number of overall samples. Must be provided if the `matches_df` does not contain `tn` matches.
+        Needs to be kept as `None` if the `matches_df` contains `tn` matches.
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
+    tn_warning : bool, default=True
+        A warning is raised if `matches_df` does not contain `tn` matches and `n_overall_samples` is not provided.
+        Otherwise, warning is suppressed and tn is set to 0.
 
     Returns
     -------
@@ -246,6 +277,7 @@ def npv_score(matches_df: pd.DataFrame, tn: int, *, zero_division: Literal["warn
     """
     if _input_is_gsd_matches_df(matches_df):
         fn = count_samples_in_match_intervals(matches_df, "fn")
+        tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     else:
         raise NotImplementedError("Only GSDs are supported as input at the moment.")
 
@@ -269,8 +301,7 @@ def f1_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] =
         A 3 column dataframe.
         # TODO: Describe the dataframe structure depending on the input type.
         The `match_type` column indicates the type of match:
-        "tp" (true positive), "fp" (false positives) or "fn" (false negative) if no segmented
-        counterpart exists.
+        "tp" (true positive), "fp" (false positives), "fn" (false negative) or "tn" (true negative).
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.
@@ -292,7 +323,7 @@ def f1_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] =
     return output
 
 
-def count_samples_in_match_intervals(match_df: pd.DataFrame, match_type: Literal["tp", "fp", "fn"]) -> int:
+def count_samples_in_match_intervals(match_df: pd.DataFrame, match_type: Literal["tp", "fp", "fn", "tn"]) -> int:
     """Count the number of samples in the intervals of the given match type.
 
     Parameters
@@ -300,7 +331,7 @@ def count_samples_in_match_intervals(match_df: pd.DataFrame, match_type: Literal
     match_df: pd.DataFrame
         A DataFrame containing the categorized intervals with their `start` and `end` index and the respective match
         type in a column named `match_type`.
-    match_type: Literal["tp", "fp", "fn"]
+    match_type: Literal["tp", "fp", "fn", "tn"]
         The match type to count the samples for.
     """
     try:
