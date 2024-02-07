@@ -9,6 +9,47 @@ from typing_extensions import Self, Unpack
 from gaitlink._docutils import make_filldoc
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
+base_transformer_docfiller = make_filldoc(
+    {
+        "results": """
+        transformed_data_
+            The transformed data.
+            The datatype matches the datatype of the passed data.
+        """,
+        "other_parameters": """
+        data
+            The raw data passed to the ``transform`` method.
+            This can either be a dataframe, a series, or a numpy array.
+        sampling_rate_hz
+            The sampling rate of the IMU data in Hz passed to the ``transform`` method.
+        """,
+        "transform_short": """
+        Transform the passed data.
+        """,
+        "transform_para": """
+        data
+            The raw data to be transformed.
+            This can either be a dataframe, a series, or a numpy array.
+        sampling_rate_hz
+            The sampling rate of the IMU data in Hz.
+        """,
+        "transform_kwargs": """
+        kwargs
+            Further keyword arguments for the filter.
+            They only exist in the base class to allow subclasses to add further parameters.
+            However, the base method itself does not use them.
+        """,
+        "filter_return": """
+        Returns
+        -------
+        self
+            The instance of the class with the ``transformed_data_`` attribute set to the filtered
+            data.
+        """,
+    },
+    doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseFilter`.",
+)
+
 
 class BaseTransformer(Algorithm):
     """Base class for all data transformers."""
@@ -453,4 +494,5 @@ __all__ = [
     "ScipyFilter",
     "scipy_filter_docfiller",
     "base_filter_docfiller",
+    "base_transformer_docfiller",
 ]
