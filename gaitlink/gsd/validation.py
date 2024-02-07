@@ -374,6 +374,28 @@ def find_matches_with_min_overlap(
     return final_matches
 
 
+def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_samples: Union[int, None]) -> pd.DataFrame:
+    """Add true negative intervals to the categorized intervals by inferring them from the other intervals."""
+    if n_samples is None:
+        return categorized_intervals
+
+    # add tn intervals
+    tn_intervals = []
+    for i, (start, _) in enumerate(categorized_intervals[["start", "end"]].itertuples(index=False)):
+        if i == 0:
+            if start > 0:
+                tn_intervals.append([0, start])
+        elif start > categorized_intervals.iloc[i - 1]["end"]:
+            tn_intervals.append([categorized_intervals.iloc[i - 1]["end"], start])
+
+    if categorized_intervals.iloc[-1]["end"] < n_samples - 1:
+        tn_intervals.append([categorized_intervals.iloc[-1]["end"], n_samples - 1])
+
+    tn_intervals = pd.DataFrame(tn_intervals, columns=["start", "end"])
+    tn_intervals["match_type"] = "tn"
+    return tn_intervals
+
+
 def plot_categorized_intervals(
     gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, categorized_intervals: pd.DataFrame
 ) -> None:
