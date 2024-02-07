@@ -1,9 +1,11 @@
-from typing import Union, Unpack, Any, Self, Optional
+import warnings
+from collections.abc import Sequence
+from typing import Any, Optional, Self, Union, Unpack
 
 import numpy as np
-import pandas as pd
 
 from gaitlink.data_transform.base import BaseTransformer
+from gaitlink.utils.conversions import as_samples
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
@@ -34,9 +36,9 @@ class Cut(BaseTransformer):
         data_as_array, index, transformation_func = dflike_as_2d_array(data)
 
         if index is not None:
-            index = index[cut_width_samples[0]:-cut_width_samples[1]]
+            index = index[cut_width_samples[0] : -cut_width_samples[1]]
 
-        self.transformed_data_ = transformation_func(data_as_array[cut_width_samples[0]:-cut_width_samples[1]], index)
+        self.transformed_data_ = transformation_func(data_as_array[cut_width_samples[0] : -cut_width_samples[1]], index)
 
         return self
 
@@ -55,19 +57,34 @@ class Pad(BaseTransformer):
         The value is converted to samples using the sampling rate of the data.
     mode
         Padding mode. See `numpy.pad` for more information.
+    constant_values
+        The constant value to use for padding in case mode is `constant`. See `numpy.pad` for more information.
+
+    Notes
+    -----
+    We don't yet support all padding modes.
+    Please open an issue if you need support for a specific mode.
 
     """
 
     pad_width_s: Union[float, tuple[float, float]]
     mode: str
+    constant_values: Union[float, Sequence[float]]
 
     sample_rate_hz: float
 
     pad_width_samples_: Union[int, tuple[int, int]]
 
-    def __init__(self, pad_width_s: Union[float, tuple[float, float]], mode: str = "wrap") -> None:
+    def __init__(
+        self,
+        pad_width_s: Union[float, tuple[float, float]],
+        *,
+        mode: str = "wrap",
+        constant_values: Union[float, Sequence[float]] = None,
+    ) -> None:
         self.pad_width_s = pad_width_s
         self.mode = mode
+        self.constant_values = constant_values
 
     def transform(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
         self.data = data
@@ -78,22 +95,30 @@ class Pad(BaseTransformer):
         if sampling_rate_hz is None:
             raise ValueError("The sampling rate must be provided.")
 
-        if isinstance(self.pad_width_s, tuple):
-            if not len(self.pad_width_s) == 2:
-                raise ValueError("If a tuple is given for the `pad_with_s` parameters , it must contain two values.")
+        if isinstance(self.pad_width_s, tuple) and len(self.pad_width_s) != 2:
+            raise ValueError("If a tuple is given for the `pad_with_s` parameters , it must contain two values.")
 
-            self.pad_width_samples_ = tuple(int(np.round(s * sampling_rate_hz)) for s in self.pad_width_s)
-            padding_as_tuple = self.pad_width_samples_
-        else:
-            tmp = int(np.round(self.pad_width_s * sampling_rate_hz))
-            self.pad_width_samples_ = tmp
-            padding_as_tuple = (tmp, tmp)
+        self.pad_width_samples_ = as_samples(self.pad_width_s, sampling_rate_hz)
+
+        padding_as_tuple = (
+            (self.pad_width_samples_, self.pad_width_samples_)
+            if isinstance(self.pad_width_samples_, int)
+            else self.pad_width_samples_
+        )
 
         data_as_array, index, transformation_func = dflike_as_2d_array(data)
 
-        padded_data = np.pad(data_as_array, (padding_as_tuple, (0, 0)), mode=self.mode)
+        padded_data = np.pad(
+            data_as_array, (padding_as_tuple, (0, 0)), mode=self.mode, constant_values=self.constant_values
+        )
 
-        # TODO: Handle the index properly
+        # TODO: Handle the index properly\
+        if index is not None:
+            warnings.warn(
+                "Padding does not yet handle the index properly. "
+                "We will ignore the index for now. "
+                "This means that the index of the transformed data will be new numeric index starting from 0."
+            )
         self.transformed_data_ = transformation_func(padded_data, None)
 
         return self
