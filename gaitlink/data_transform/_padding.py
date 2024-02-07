@@ -1,8 +1,9 @@
 import warnings
 from collections.abc import Sequence
-from typing import Any, Optional, Self, Union, Unpack
+from typing import Any, Optional, Union, Unpack
 
 import numpy as np
+from typing_extensions import Self
 
 from gaitlink.data_transform.base import BaseTransformer, base_transformer_docfiller
 from gaitlink.utils.conversions import as_samples
