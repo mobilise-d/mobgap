@@ -1,3 +1,4 @@
+"""Some basic conversion utilities."""
 from collections.abc import Sequence
 from typing import TypeVar, Union, overload
 
@@ -34,8 +35,7 @@ def as_samples(sec_value, sampling_rate_hz: float):
     """
     if isinstance(sec_value, (int, float)):
         return int(np.round(sec_value * sampling_rate_hz))
-    else:
-        return type(sec_value)(int(np.round(s * sampling_rate_hz)) for s in sec_value)
+    return type(sec_value)(int(np.round(s * sampling_rate_hz)) for s in sec_value)
 
 
 __all__ = ["as_samples"]
