@@ -16,17 +16,17 @@ from gaitlink.utils.evaluation import (
 
 def _create_dummy_matches_df(num_tp, num_fp, num_fn):
     tp_df = pd.DataFrame(
-        np.column_stack([np.repeat(0, num_tp), np.repeat(1, num_tp), np.repeat("tp", num_tp)]),
+        np.column_stack([np.repeat(0, num_tp), np.repeat(0, num_tp), np.repeat("tp", num_tp)]),
         columns=["start", "end", "match_type"],
     )
     tp_df[["start", "end"]] = tp_df[["start", "end"]].astype(int)
     fp_df = pd.DataFrame(
-        np.column_stack([np.repeat(0, num_fp), np.repeat(1, num_fp), np.repeat("fp", num_fp)]),
+        np.column_stack([np.repeat(0, num_fp), np.repeat(0, num_fp), np.repeat("fp", num_fp)]),
         columns=["start", "end", "match_type"],
     )
     fp_df[["start", "end"]] = fp_df[["start", "end"]].astype(int)
     fn_df = pd.DataFrame(
-        np.column_stack([np.repeat(0, num_fn), np.repeat(1, num_fn), np.repeat("fn", num_fn)]),
+        np.column_stack([np.repeat(0, num_fn), np.repeat(0, num_fn), np.repeat("fn", num_fn)]),
         columns=["start", "end", "match_type"],
     )
     fn_df[["start", "end"]] = fn_df[["start", "end"]].astype(int)
