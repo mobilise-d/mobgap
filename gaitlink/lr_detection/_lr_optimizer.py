@@ -34,6 +34,7 @@ class UllrichLROptimizer():
         Returns:
             dict: The results of the optimization.
         """
+
         self.optimization_results = GridSearchCV(self.pipeline,
                                     self.parameter_grid,
                                     scoring = scoring_function,
@@ -41,6 +42,7 @@ class UllrichLROptimizer():
                                     return_optimized = "accuracy").optimize(dataset)
 
         return self.optimization_results
+        # return self.pipeline, self.optimization_results
 
     
 
@@ -121,7 +123,9 @@ class LROptiPipeline(OptimizablePipeline):
                 pass
         
         # No cloning here -> we actually want to modify the object
-        
+        # this is also going to fit the model and the scaler to the training data.
         self.algo.self_optimize(all_gs_data, all_ics, all_labels)
+
+        # TODO: We should think of a better method to catch any scalers that were not fit to the training data before the optimizer is triggered.
 
         return self

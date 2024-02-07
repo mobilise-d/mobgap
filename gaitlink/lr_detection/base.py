@@ -65,8 +65,8 @@ class BaseLRDetector(Algorithm):
         raise NotImplementedError
 
 
-# TODO: Note that these models will need to be imported according to the groups of individuals they were trained on: HC, PD, MS, etc.
-
+# Deprecated
+# Note that these models will need to be imported according to the groups of individuals they were trained on: HC, PD, MS, etc.
 @base_lr_detector_docfiller
 class PretrainedModel(StrEnum):
     """
