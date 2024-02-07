@@ -66,7 +66,8 @@ def calculate_gsd_performance_metrics(
         - `num_gs_absolute_relative_error`: num_gs_absolute_error divided by reference_num_gs.
         - `num_gs_absolute_relative_error_log`: np.log(1 + num_gs_absolute_relative_error)
 
-    Further metrics are calculated if `n_samples` is provided and thus the number of true negatives can be estimated:
+    Further metrics are calculated if `n_overall_samples` is provided and thus
+    the number of true negatives can be estimated:
 
     - `tn_samples`: Number of samples that are correctly not detected as gait sequences.
     - `specificity`: Specificity of the detected gait sequences.
@@ -94,17 +95,9 @@ def calculate_gsd_performance_metrics(
     -------
     gsd_metrics: dict
     """
-    categorized_intervals = categorize_intervals(gsd_list_detected, gsd_list_reference)
-
-    tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=n_overall_samples)
-    categorized_intervals = pd.concat([categorized_intervals, tn_intervals], ignore_index=True)
-    categorized_intervals = categorized_intervals.sort_values(by=["start", "end"], ignore_index=True)
-
-    if n_overall_samples and n_overall_samples < max(gsd_list_reference["end"].max(), gsd_list_detected["end"].max()):
-        raise ValueError(
-            "The provided `n_samples` parameter is implausible. The number of samples must be larger than the highest "
-            "index in the detected and reference gait sequences."
-        )
+    categorized_intervals = categorize_intervals(
+        gsd_list_detected, gsd_list_reference, n_overall_samples=n_overall_samples
+    )
 
     # estimate tp, fp, fn
     tp_samples = count_samples_in_match_intervals(categorized_intervals, match_type="tp")
@@ -165,15 +158,17 @@ def calculate_gsd_performance_metrics(
     return result
 
 
-def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame) -> pd.DataFrame:
+def categorize_intervals(
+    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Union[int, None] = None
+) -> pd.DataFrame:
     """
     Validate detected gait sequence intervals against a reference on a sample-wise level.
 
     The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
     start and end indices of the respective gait sequences.
-    Each sample from the detected interval list is categorized as true positive (tp),
-    false positive (fp) or false negative (fn).
-    The results are concatenated into intervals of tp, fp, and fn matches and returned as a DataFrame.
+    Each sample from the detected interval list is categorized as true positive (tp), false positive (fp),
+    false negative (fn), or - if the total length of the recording is provided - true negative (tn).
+    The results are concatenated into intervals of tp, fp, fn, and tn matches and returned as a DataFrame.
 
     Parameters
     ----------
@@ -183,6 +178,8 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     gsd_list_reference: pd.DataFrame
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
+    n_overall_samples: int, optional
+        Number of samples in the analyzed recording. If provided, true negative intervals will be added to the result.
 
     Returns
     -------
@@ -193,7 +190,7 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
 
     Examples
     --------
-    >>> from gaitlink.gsd.validation import categorize_intervals
+    >>> from gaitlink.gsd.evaluation import categorize_intervals
     >>> detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
     >>> reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
     >>> result = categorize_intervals(detected, reference)
@@ -205,6 +202,12 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
     3     25   30         fp
     """
     detected, reference = _check_input_sanity(gsd_list_detected, gsd_list_reference)
+
+    if n_overall_samples and n_overall_samples < max(gsd_list_reference["end"].max(), gsd_list_detected["end"].max()):
+        raise ValueError(
+            "The provided `n_samples` parameter is implausible. The number of samples must be larger than the highest "
+            "index in the detected and reference gait sequences."
+        )
 
     # Create Interval Trees
     reference_tree = IntervalTree.from_tuples(reference.to_numpy())
@@ -249,6 +252,13 @@ def categorize_intervals(gsd_list_detected: pd.DataFrame, gsd_list_reference: pd
 
     categorized_intervals = pd.concat([tp_intervals, fp_intervals, fn_intervals], ignore_index=True)
     categorized_intervals = categorized_intervals.sort_values(by=["start", "end"], ignore_index=True)
+
+    # add tn intervals
+    if n_overall_samples is not None:
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_overall_samples=n_overall_samples)
+        categorized_intervals = pd.concat([categorized_intervals, tn_intervals], ignore_index=True)
+        categorized_intervals = categorized_intervals.sort_values(by=["start", "end"], ignore_index=True)
+
     return categorized_intervals
 
 
@@ -335,7 +345,7 @@ def find_matches_with_min_overlap(
 
     Examples
     --------
-    >>> from gaitlink.gsd.validation import find_matches_with_min_overlap
+    >>> from gaitlink.gsd.evaluation import find_matches_with_min_overlap
     >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> result = find_matches_with_min_overlap(detected, reference)
@@ -378,10 +388,14 @@ def find_matches_with_min_overlap(
     return final_matches
 
 
-def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_samples: Union[int, None]) -> pd.DataFrame:
-    """Add true negative intervals to the categorized intervals by inferring them from the other intervals."""
-    if n_samples is None:
-        return categorized_intervals
+def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Union[int, None]) -> pd.DataFrame:
+    """Add true negative intervals to the categorized intervals by inferring them from the other intervals.
+
+    This function requires sorted and non-overlapping intervals in `categorized_intervals`.
+    If `n_overall_samples` is not provided, an empty DataFrame is returned.
+    """
+    if n_overall_samples is None:
+        return pd.DataFrame(columns=["start", "end", "match_type"])
 
     # add tn intervals
     tn_intervals = []
@@ -392,8 +406,8 @@ def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_samples: Union[int,
         elif start > categorized_intervals.iloc[i - 1]["end"]:
             tn_intervals.append([categorized_intervals.iloc[i - 1]["end"], start])
 
-    if categorized_intervals.iloc[-1]["end"] < n_samples - 1:
-        tn_intervals.append([categorized_intervals.iloc[-1]["end"], n_samples - 1])
+    if categorized_intervals.iloc[-1]["end"] < n_overall_samples - 1:
+        tn_intervals.append([categorized_intervals.iloc[-1]["end"], n_overall_samples - 1])
 
     tn_intervals = pd.DataFrame(tn_intervals, columns=["start", "end"])
     tn_intervals["match_type"] = "tn"
