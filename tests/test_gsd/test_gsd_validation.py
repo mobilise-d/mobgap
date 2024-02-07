@@ -4,6 +4,7 @@ from numpy.testing import assert_array_equal
 from pandas._testing import assert_frame_equal
 
 from gaitlink.gsd.validation import (
+    _get_tn_intervals,
     calculate_gsd_performance_metrics,
     categorize_intervals,
     find_matches_with_min_overlap,
@@ -307,6 +308,40 @@ class TestMatchIntervals:
         return pd.DataFrame(array, columns=["start", "end"])
 
 
+class TestGetTnIntervals:
+    """Tests for get_tn_intervals method for gsd validation."""
+
+    def test_no_tn(self):
+        categorized_intervals = pd.DataFrame(
+            [[0, 1, "tp"], [1, 2, "fp"], [2, 4, "fn"]], columns=["start", "end", "match_type"]
+        )
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=5)
+        assert tn_intervals.empty
+
+    def test_start_tn(self):
+        categorized_intervals = pd.DataFrame([[1, 2, "fp"], [2, 4, "fn"]], columns=["start", "end", "match_type"])
+        tn_expected = pd.DataFrame([[0, 1, "tn"]], columns=["start", "end", "match_type"])
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=5)
+        assert_frame_equal(tn_intervals, tn_expected)
+
+    def test_end_tn(self):
+        categorized_intervals = pd.DataFrame([[0, 1, "tp"], [1, 2, "fp"]], columns=["start", "end", "match_type"])
+        tn_expected = pd.DataFrame([[2, 4, "tn"]], columns=["start", "end", "match_type"])
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=5)
+        assert_frame_equal(tn_intervals, tn_expected)
+
+    def test_several_tn(self):
+        categorized_intervals = pd.DataFrame(
+            [[1, 2, "fp"], [3, 4, "fn"], [7, 8, "fp"], [10, 12, "fn"]], columns=["start", "end", "match_type"]
+        )
+        tn_expected = pd.DataFrame(
+            [[0, 1, "tn"], [2, 3, "tn"], [4, 7, "tn"], [8, 10, "tn"], [12, 14, "tn"]],
+            columns=["start", "end", "match_type"],
+        )
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=15)
+        assert_frame_equal(tn_intervals, tn_expected)
+
+
 class TestGsdPerformanceMetrics:
     """Tests for calculate_gsd_performance_metrics method for gsd validation."""
 
@@ -314,14 +349,16 @@ class TestGsdPerformanceMetrics:
         reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
         detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
         metrics = calculate_gsd_performance_metrics(detected, reference, 10, 100)
-        snapshot.assert_match(metrics, "metrics")
+        snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
 
     def test_output_no_matches(self, snapshot):
         reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
         detected = pd.DataFrame([[10, 15], [30, 35]], columns=["start", "end"])
         metrics = calculate_gsd_performance_metrics(detected, reference, 10, 100)
-        snapshot.assert_match(metrics, "metrics_no_match")
+        snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics_no_match")
 
     def test_raise_wrong_num_samples(self, intervals_example_with_id):
         with pytest.raises(ValueError):
-            calculate_gsd_performance_metrics(intervals_example_with_id, intervals_example_with_id, 10, n_samples=2)
+            calculate_gsd_performance_metrics(
+                intervals_example_with_id, intervals_example_with_id, 10, n_overall_samples=2
+            )

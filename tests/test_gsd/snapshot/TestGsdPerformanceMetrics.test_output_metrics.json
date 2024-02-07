@@ -50,11 +50,11 @@
                 "type":"number"
             },
             {
-                "name":"gs_duration_error_abs_rel",
+                "name":"gs_absolute_relative_duration_error",
                 "type":"number"
             },
             {
-                "name":"gs_duration_error_abs_rel_log",
+                "name":"gs_absolute_relative_duration_error_log",
                 "type":"number"
             },
             {
@@ -110,19 +110,19 @@
     "data":[
         {
             "index":0,
-            "tp_samples":15,
-            "fp_samples":5,
-            "fn_samples":5,
-            "precision":0.75,
-            "recall":0.75,
-            "f1_score":0.75,
-            "reference_gs_duration_s":2.0,
-            "detected_gs_duration_s":2.0,
+            "tp_samples":17,
+            "fp_samples":6,
+            "fn_samples":6,
+            "precision":0.7391304348,
+            "recall":0.7391304348,
+            "f1_score":0.7391304348,
+            "reference_gs_duration_s":2.2,
+            "detected_gs_duration_s":2.2,
             "gs_duration_error_s":0.0,
             "gs_relative_duration_error":0.0,
             "gs_absolute_duration_error_s":0.0,
-            "gs_duration_error_abs_rel":0.0,
-            "gs_duration_error_abs_rel_log":1.0,
+            "gs_absolute_relative_duration_error":0.0,
+            "gs_absolute_relative_duration_error_log":1.0,
             "detected_num_gs":2,
             "reference_num_gs":2,
             "num_gs_error":0,
@@ -130,10 +130,10 @@
             "num_gs_absolute_error":0,
             "num_gs_absolute_relative_error":0.0,
             "num_gs_absolute_relative_error_log":0.0,
-            "tn_samples":75,
-            "specificity":0.9375,
-            "accuracy":0.9,
-            "npv":0.9375
+            "tn_samples":100,
+            "specificity":0.9268292683,
+            "accuracy":0.8857142857,
+            "npv":0.9268292683
         }
     ]
 }

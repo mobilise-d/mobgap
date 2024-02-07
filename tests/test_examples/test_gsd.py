@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def test_gsd_iluz(snapshot):
@@ -17,5 +18,5 @@ def test_gsd_iluz(snapshot):
     snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
     snapshot.assert_match(categorized_intervals, "categorized_intervals")
     snapshot.assert_match(np.array(list(prec_rec_f1_dict.values())), "prec_rec_f1_values")
-    snapshot.assert_match(metrics_all, "metrics_all")
+    snapshot.assert_match(pd.DataFrame(metrics_all, index=[0]), "metrics_all")
     snapshot.assert_match(matches, "matches")
