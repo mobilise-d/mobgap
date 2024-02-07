@@ -9,15 +9,15 @@ from gaitlink.utils.conversions import as_samples
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
-class Cut(BaseTransformer):
-    cut_width_s: Union[float, tuple[float, float]]
+class Crop(BaseTransformer):
+    crop_width_s: Union[float, tuple[float, float]]
 
     sampling_rate_hz: float
 
-    cut_width_samples_: Union[int, tuple[int, int]]
+    crop_width_samples_: Union[int, tuple[int, int]]
 
-    def __init__(self, cut_width_s: Union[float, tuple[float, float]]) -> None:
-        self.cut_width_s = cut_width_s
+    def __init__(self, crop_width_s: Union[float, tuple[float, float]]) -> None:
+        self.crop_width_s = crop_width_s
 
     def transform(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
         self.data = data
@@ -26,24 +26,24 @@ class Cut(BaseTransformer):
         if sampling_rate_hz is None:
             raise ValueError("The sampling rate must be provided.")
 
-        if isinstance(self.cut_width_s, tuple) and len(self.cut_width_s) != 2:
+        if isinstance(self.crop_width_s, tuple) and len(self.crop_width_s) != 2:
             raise ValueError("If a tuple is given for the `cut_with_s` parameters , it must contain two values.")
 
-        self.cut_width_samples_ = as_samples(self.cut_width_s, sampling_rate_hz)
+        self.crop_width_samples_ = as_samples(self.crop_width_s, sampling_rate_hz)
 
-        cut_width_as_tuple = (
-            (self.cut_width_samples_, self.cut_width_samples_)
-            if isinstance(self.cut_width_samples_, int)
-            else self.cut_width_samples_
+        crop_width_as_tuple = (
+            (self.crop_width_samples_, self.crop_width_samples_)
+            if isinstance(self.crop_width_samples_, int)
+            else self.crop_width_samples_
         )
 
         data_as_array, index, transformation_func = dflike_as_2d_array(data)
 
         if index is not None:
-            index = index[cut_width_as_tuple[0] : -cut_width_as_tuple[1]]
+            index = index[crop_width_as_tuple[0] : -crop_width_as_tuple[1]]
 
         self.transformed_data_ = transformation_func(
-            data_as_array[cut_width_as_tuple[0] : -cut_width_as_tuple[1]], index
+            data_as_array[crop_width_as_tuple[0] : -crop_width_as_tuple[1]], index
         )
 
         return self
@@ -129,6 +129,9 @@ class Pad(BaseTransformer):
 
         return self
 
-    def get_inverse_transformer(self) -> Cut:
-        """Get the inverse transformer for the padding."""
-        return Cut(cut_width_s=self.pad_width_s)
+    def get_inverse_transformer(self) -> Crop:
+        """Get the inverse transformer for the padding.
+
+        This returns a `Crop` transformer that can be used to crop the data back to its original size.
+        """
+        return Crop(crop_width_s=self.pad_width_s)
