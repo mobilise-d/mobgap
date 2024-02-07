@@ -5,6 +5,8 @@ from numpy.testing import assert_array_equal
 
 from gaitlink.utils.evaluation import (
     accuracy_score,
+    count_samples_in_intervals,
+    count_samples_in_match_intervals,
     f1_score,
     npv_score,
     precision_recall_f1_score,
@@ -94,44 +96,85 @@ class TestEvaluationScores:
     def test_specificity(self):
         matches_df = _create_dummy_matches_df(5, 5, 5)
 
-        specificity = specificity_score(matches_df, 5)
+        specificity = specificity_score(matches_df, n_overall_samples=20)
 
         assert_array_equal(specificity, 0.5)
 
     def test_perfect_specificity(self):
-        matches_df = _create_dummy_matches_df(0, 5, 5)
+        matches_df = _create_dummy_matches_df(0, 0, 5)
 
-        specificity = specificity_score(matches_df, 0)
+        specificity = specificity_score(matches_df, n_overall_samples=10)
 
         assert_array_equal(specificity, 1.0)
 
     def test_accuracy(self):
         matches_df = _create_dummy_matches_df(5, 5, 5)
 
-        accuracy = accuracy_score(matches_df, 5)
+        accuracy = accuracy_score(matches_df, n_overall_samples=20)
 
         assert_array_equal(accuracy, 0.5)
 
     def test_perfect_accuracy(self):
         matches_df = _create_dummy_matches_df(5, 0, 0)
 
-        accuracy = accuracy_score(matches_df, 5)
+        accuracy = accuracy_score(matches_df, n_overall_samples=5)
 
         assert_array_equal(accuracy, 1.0)
 
     def test_npv_score(self):
         matches_df = _create_dummy_matches_df(5, 5, 5)
 
-        npv = npv_score(matches_df, 5)
+        npv = npv_score(matches_df, n_overall_samples=20)
 
         assert_array_equal(npv, 0.5)
 
     def test_perfect_npv_score(self):
         matches_df = _create_dummy_matches_df(5, 5, 0)
 
-        npv = npv_score(matches_df, 5)
+        npv = npv_score(matches_df, n_overall_samples=15)
 
         assert_array_equal(npv, 1.0)
+
+
+class TestNumberSamplesLogic:
+    @pytest.mark.parametrize("fct", [specificity_score, accuracy_score, npv_score])
+    def test_warns_no_tn_no_n_samples(self, fct):
+        matches_df = _create_dummy_matches_df(5, 5, 5)
+        with pytest.warns():
+            fct(matches_df)
+
+    @pytest.mark.parametrize("fct", [specificity_score, accuracy_score, npv_score])
+    def test_no_warning_when_suppressed(self, fct):
+        matches_df = _create_dummy_matches_df(5, 5, 5)
+
+        with pytest.warns(None) as w:
+            fct(matches_df, tn_warning=False)
+        assert len(w) == 0
+
+        accuracy_score(matches_df, zero_division=0)
+        npv_score(matches_df, zero_division=0)
+
+        assert len(w) == 0
+
+    def test_raises_tn_and_n_samples(self):
+        matches_df = _create_dummy_matches_df(5, 5, 5)
+        matches_df = pd.concat(
+            [
+                matches_df,
+                pd.DataFrame(
+                    np.column_stack([np.repeat(0, 5), np.repeat(1, 5), np.repeat("tn", 5)]),
+                    columns=["start", "end", "match_type"],
+                ),
+            ]
+        )
+        matches_df[["start", "end"]] = matches_df[["start", "end"]].astype(int)
+
+        with pytest.raises(ValueError):
+            specificity_score(matches_df, n_overall_samples=20)
+        with pytest.raises(ValueError):
+            accuracy_score(matches_df, n_overall_samples=20)
+        with pytest.raises(ValueError):
+            npv_score(matches_df, n_overall_samples=20)
 
 
 class TestDivisionByZeroReturn:
@@ -150,25 +193,25 @@ class TestDivisionByZeroReturn:
             [precision_recall_f1_score, [0, 0, 0], None, "warn", 0],
             [precision_recall_f1_score, [0, 0, 0], None, 0, 0],
             [precision_recall_f1_score, [0, 0, 0], None, 1, 1],
-            [specificity_score, [0, 0, 5], 0, "warn", 0],
-            [specificity_score, [0, 0, 5], 0, 0, 0],
-            [specificity_score, [0, 0, 5], 0, 1, 1],
+            [specificity_score, [0, 0, 5], 5, "warn", 0],
+            [specificity_score, [0, 0, 5], 5, 0, 0],
+            [specificity_score, [0, 0, 5], 5, 1, 1],
             [accuracy_score, [0, 0, 0], 0, "warn", 0],
             [accuracy_score, [0, 0, 0], 0, 0, 0],
             [accuracy_score, [0, 0, 0], 0, 1, 1],
-            [npv_score, [0, 5, 0], 0, "warn", 0],
-            [npv_score, [0, 5, 0], 0, 0, 0],
-            [npv_score, [0, 5, 0], 0, 1, 1],
+            [npv_score, [0, 5, 0], 5, "warn", 0],
+            [npv_score, [0, 5, 0], 5, 0, 0],
+            [npv_score, [0, 5, 0], 5, 1, 1],
         ),
     )
     def make_methods(self, request):
-        self.func, self.arguments, self.tn, self.zero_division, self.expected_output = request.param
+        self.func, self.arguments, self.n_samples, self.zero_division, self.expected_output = request.param
 
     def test_division_by_zero_return(self):
         matches_df = _create_dummy_matches_df(*self.arguments)
 
-        if self.tn is not None:
-            eval_metrics = self.func(matches_df, self.tn, zero_division=self.zero_division)
+        if self.n_samples is not None:
+            eval_metrics = self.func(matches_df, n_overall_samples=self.n_samples, zero_division=self.zero_division)
         else:
             eval_metrics = self.func(matches_df, zero_division=self.zero_division)
 
@@ -186,18 +229,22 @@ class TestDivisionByZeroWarnings:
             [recall_score, [0, 5, 0], None, "warn", "calculating the recall score"],
             [f1_score, [0, 0, 0], None, "warn", "calculating the f1 score"],
             [precision_recall_f1_score, [0, 0, 0], None, "warn", "calculating the f1 score"],
-            [specificity_score, [0, 0, 5], 0, "warn", "calculating the specificity score"],
+            [specificity_score, [0, 0, 5], 5, "warn", "calculating the specificity score"],
             [accuracy_score, [0, 0, 0], 0, "warn", "calculating the accuracy score"],
-            [npv_score, [0, 5, 0], 0, "warn", "calculating the npv score"],
+            [npv_score, [0, 5, 0], 5, "warn", "calculating the npv score"],
         ),
     )
     def make_methods(self, request):
-        self.func, self.arguments, self.tn, self.zero_division, self.warning_message = request.param
+        self.func, self.arguments, self.n_samples, self.zero_division, self.warning_message = request.param
 
     def test_division_by_zero_warnings(self):
         with pytest.warns(UserWarning) as w:
-            if self.tn is not None:
-                self.func(_create_dummy_matches_df(*self.arguments), self.tn, zero_division=self.zero_division)
+            if self.n_samples is not None:
+                self.func(
+                    _create_dummy_matches_df(*self.arguments),
+                    n_overall_samples=self.n_samples,
+                    zero_division=self.zero_division,
+                )
             else:
                 self.func(_create_dummy_matches_df(*self.arguments), zero_division=self.zero_division)
 
@@ -217,23 +264,77 @@ class TestDivisionByZeroError:
             [f1_score, [0, 0, 0], None, 2],
             [precision_recall_f1_score, [0, 0, 0], None, ""],
             [precision_recall_f1_score, [0, 0, 0], None, 2],
-            [specificity_score, [0, 0, 5], 0, ""],
-            [specificity_score, [0, 0, 5], 0, 2],
+            [specificity_score, [0, 0, 5], 5, ""],
+            [specificity_score, [0, 0, 5], 5, 2],
             [accuracy_score, [0, 0, 0], 0, ""],
             [accuracy_score, [0, 0, 0], 0, 2],
-            [npv_score, [0, 5, 0], 0, ""],
-            [npv_score, [0, 5, 0], 0, 2],
+            [npv_score, [0, 5, 0], 5, ""],
+            [npv_score, [0, 5, 0], 5, 2],
         ),
     )
     def make_methods(self, request):
-        self.func, self.arguments, self.tn, self.zero_division = request.param
+        self.func, self.arguments, self.n_samples, self.zero_division = request.param
 
     def test_division_by_zero_warnings(self):
         with pytest.raises(ValueError) as e:
-            if self.tn is not None:
-                self.func(_create_dummy_matches_df(*self.arguments), self.tn, zero_division=self.zero_division)
+            if self.n_samples is not None:
+                self.func(
+                    _create_dummy_matches_df(*self.arguments),
+                    n_overall_samples=self.n_samples,
+                    zero_division=self.zero_division,
+                )
             else:
                 self.func(_create_dummy_matches_df(*self.arguments), zero_division=self.zero_division)
 
         # check that the message matches
         assert str(e.value) == '"zero_division" must be set to "warn", 0 or 1!'
+
+
+class TestCountSamples:
+    def test_count_samples_in_intervals(self):
+        intervals = pd.DataFrame({"start": [0, 2], "end": [1, 4]})
+        count = count_samples_in_intervals(intervals)
+
+        assert count == 5
+
+    def test_count_samples_in_intervals_empty(self):
+        intervals = pd.DataFrame(columns=["start", "end", "match_type"])
+        count = count_samples_in_match_intervals(intervals, "tp")
+
+        assert count == 0
+
+    def test_count_samples_in_intervals_invalid_input(self):
+        intervals = pd.DataFrame(columns=["start", "not_end"])
+        with pytest.raises(ValueError):
+            count_samples_in_intervals(intervals)
+
+    def test_count_samples_in_match_intervals(self):
+        intervals = pd.DataFrame(
+            {"start": [0, 1, 2, 3, 4], "end": [1, 2, 3, 4, 5], "match_type": ["tp", "fp", "fn", "tn", "tp"]}
+        )
+        tp_count = count_samples_in_match_intervals(intervals, "tp")
+        fp_count = count_samples_in_match_intervals(intervals, "fp")
+        fn_count = count_samples_in_match_intervals(intervals, "fn")
+        tn_count = count_samples_in_match_intervals(intervals, "tn")
+
+        assert tp_count == 4
+        assert fp_count == 2
+        assert fn_count == 2
+        assert tn_count == 2
+
+    def test_count_samples_in_match_intervals_empty(self):
+        intervals = pd.DataFrame(columns=["start", "end", "match_type"])
+        tp_count = count_samples_in_match_intervals(intervals, "tp")
+        fp_count = count_samples_in_match_intervals(intervals, "fp")
+        fn_count = count_samples_in_match_intervals(intervals, "fn")
+        tn_count = count_samples_in_match_intervals(intervals, "tn")
+
+        assert tp_count == 0
+        assert fp_count == 0
+        assert fn_count == 0
+        assert tn_count == 0
+
+    def test_count_samples_in_match_intervals_invalid_input(self):
+        intervals = pd.DataFrame(columns=["start", "end", "not_match_type"])
+        with pytest.raises(ValueError):
+            count_samples_in_match_intervals(intervals, "tp")

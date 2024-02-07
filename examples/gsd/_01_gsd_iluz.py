@@ -202,7 +202,7 @@ print("Performance Metrics:\n\n", prec_rec_f1_dict)
 # To calculate not only a specific performance metric but the whole range of possible metrics that were utilized for
 # gait sequence detection in Mobilise-D, we can use the
 # :func:`~gaitlink.gsd.validation.calculate_gsd_performance_metrics` function.
-# It returns a DataFrame containing all metrics for the specified detected and reference gait sequences. To retrieve
+# It returns a dictionary containing all metrics for the specified detected and reference gait sequences. To retrieve
 # the whole range of metrics, the length and the sampling frequency of the recording are required.
 # This is used to infer the number of true negative samples and derived metrics (e.g., accuracy and specificity), and
 # to calculate the duration errors (in seconds), respectively.
@@ -213,7 +213,7 @@ metrics_all = calculate_gsd_performance_metrics(
     long_trial_output.gsd_list_,
     long_trial_reference_parameters,
     sampling_rate_hz=long_trial.sampling_rate_hz,
-    n_samples=long_trial.data["LowerBack"].shape[0],
+    n_overall_samples=long_trial.data["LowerBack"].shape[0],
 )
 
 print("Performance Metrics:\n\n", metrics_all)
