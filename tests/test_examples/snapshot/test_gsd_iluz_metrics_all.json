@@ -50,11 +50,11 @@
                 "type":"number"
             },
             {
-                "name":"gs_duration_error_abs_rel",
+                "name":"gs_absolute_relative_duration_error",
                 "type":"number"
             },
             {
-                "name":"gs_duration_error_abs_rel_log",
+                "name":"gs_absolute_relative_duration_error_log",
                 "type":"number"
             },
             {
@@ -110,19 +110,19 @@
     "data":[
         {
             "index":0,
-            "tp_samples":4843,
-            "fp_samples":1762,
-            "fn_samples":1697,
-            "precision":0.7332323997,
-            "recall":0.7405198777,
-            "f1_score":0.736858121,
-            "reference_gs_duration_s":65.4,
-            "detected_gs_duration_s":66.05,
-            "gs_duration_error_s":0.65,
-            "gs_relative_duration_error":0.0099388379,
-            "gs_absolute_duration_error_s":0.65,
-            "gs_duration_error_abs_rel":0.0099388379,
-            "gs_duration_error_abs_rel_log":1.0098897725,
+            "tp_samples":4848,
+            "fp_samples":1769,
+            "fn_samples":1701,
+            "precision":0.7326583044,
+            "recall":0.7402656894,
+            "f1_score":0.7364423515,
+            "reference_gs_duration_s":65.46,
+            "detected_gs_duration_s":66.1,
+            "gs_duration_error_s":0.64,
+            "gs_relative_duration_error":0.009776963,
+            "gs_absolute_duration_error_s":0.64,
+            "gs_absolute_relative_duration_error":0.009776963,
+            "gs_absolute_relative_duration_error_log":1.0097294778,
             "detected_num_gs":5,
             "reference_num_gs":6,
             "num_gs_error":-1,
@@ -130,10 +130,10 @@
             "num_gs_absolute_error":1,
             "num_gs_absolute_relative_error":0.1666666667,
             "num_gs_absolute_relative_error_log":0.1541506798,
-            "tn_samples":14426,
-            "specificity":0.8911539412,
-            "accuracy":0.8478088701,
-            "npv":0.8947466352
+            "tn_samples":22728,
+            "specificity":0.8908092093,
+            "accuracy":0.8474725275,
+            "npv":0.8945639373
         }
     ]
 }
