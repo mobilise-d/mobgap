@@ -31,6 +31,8 @@ Transformations
    :template: class.rst
 
     Resample
+    Pad
+    Crop
 
 
 Utilities
