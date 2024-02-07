@@ -3,7 +3,7 @@ import pytest
 from numpy.testing import assert_array_equal
 from pandas._testing import assert_frame_equal
 
-from gaitlink.gsd.validation import (
+from gaitlink.gsd.evaluation import (
     _get_tn_intervals,
     calculate_gsd_performance_metrics,
     categorize_intervals,
@@ -315,19 +315,19 @@ class TestGetTnIntervals:
         categorized_intervals = pd.DataFrame(
             [[0, 1, "tp"], [1, 2, "fp"], [2, 4, "fn"]], columns=["start", "end", "match_type"]
         )
-        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=5)
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_overall_samples=5)
         assert tn_intervals.empty
 
     def test_start_tn(self):
         categorized_intervals = pd.DataFrame([[1, 2, "fp"], [2, 4, "fn"]], columns=["start", "end", "match_type"])
         tn_expected = pd.DataFrame([[0, 1, "tn"]], columns=["start", "end", "match_type"])
-        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=5)
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_overall_samples=5)
         assert_frame_equal(tn_intervals, tn_expected)
 
     def test_end_tn(self):
         categorized_intervals = pd.DataFrame([[0, 1, "tp"], [1, 2, "fp"]], columns=["start", "end", "match_type"])
         tn_expected = pd.DataFrame([[2, 4, "tn"]], columns=["start", "end", "match_type"])
-        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=5)
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_overall_samples=5)
         assert_frame_equal(tn_intervals, tn_expected)
 
     def test_several_tn(self):
@@ -338,7 +338,7 @@ class TestGetTnIntervals:
             [[0, 1, "tn"], [2, 3, "tn"], [4, 7, "tn"], [8, 10, "tn"], [12, 14, "tn"]],
             columns=["start", "end", "match_type"],
         )
-        tn_intervals = _get_tn_intervals(categorized_intervals, n_samples=15)
+        tn_intervals = _get_tn_intervals(categorized_intervals, n_overall_samples=15)
         assert_frame_equal(tn_intervals, tn_expected)
 
 

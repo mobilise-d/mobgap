@@ -168,7 +168,7 @@ fig.show()
 # To do this, we use the `categorize_intervals` function to compare detected gait sequences to reference labels
 # sample by sample.
 
-from gaitlink.gsd.validation import categorize_intervals
+from gaitlink.gsd.evaluation import categorize_intervals
 
 categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_trial_reference_parameters)
 
@@ -201,13 +201,13 @@ print("Performance Metrics:\n\n", prec_rec_f1_dict)
 # %%
 # To calculate not only a specific performance metric but the whole range of possible metrics that were utilized for
 # gait sequence detection in Mobilise-D, we can use the
-# :func:`~gaitlink.gsd.validation.calculate_gsd_performance_metrics` function.
+# :func:`~gaitlink.gsd.evaluation.calculate_gsd_performance_metrics` function.
 # It returns a dictionary containing all metrics for the specified detected and reference gait sequences. To retrieve
 # the whole range of metrics, the length and the sampling frequency of the recording are required.
 # This is used to infer the number of true negative samples and derived metrics (e.g., accuracy and specificity), and
 # to calculate the duration errors (in seconds), respectively.
 
-from gaitlink.gsd.validation import calculate_gsd_performance_metrics
+from gaitlink.gsd.evaluation import calculate_gsd_performance_metrics
 
 metrics_all = calculate_gsd_performance_metrics(
     long_trial_output.gsd_list_,
@@ -219,13 +219,13 @@ metrics_all = calculate_gsd_performance_metrics(
 print("Performance Metrics:\n\n", metrics_all)
 
 # %%
-# Another useful function for validation is :func:`~gaitlink.gsd.validation.find_matches_with_min_overlap`. It returns all intervals from the Python
+# Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`. It returns all intervals from the Python
 # output that overlap with the reference gait sequences by at least a given amount.
 # We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
 # matches with the reference gait sequences.
 # The remaining ones either contain too many false positive and/or false negative samples.
 
-from gaitlink.gsd.validation import find_matches_with_min_overlap
+from gaitlink.gsd.evaluation import find_matches_with_min_overlap
 
 matches = find_matches_with_min_overlap(
     long_trial_output.gs_list_, long_trial_reference_parameters, overlap_threshold=0.7
