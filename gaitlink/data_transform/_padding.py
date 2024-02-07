@@ -12,7 +12,9 @@ from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 class Cut(BaseTransformer):
     cut_width_s: Union[float, tuple[float, float]]
 
-    sample_rate_hz: float
+    sampling_rate_hz: float
+
+    cut_width_samples_: Union[int, tuple[int, int]]
 
     def __init__(self, cut_width_s: Union[float, tuple[float, float]]) -> None:
         self.cut_width_s = cut_width_s
@@ -24,21 +26,25 @@ class Cut(BaseTransformer):
         if sampling_rate_hz is None:
             raise ValueError("The sampling rate must be provided.")
 
-        if isinstance(self.cut_width_s, tuple):
-            if not len(self.cut_width_s) == 2:
-                raise ValueError("If a tuple is given for the `cut_width_s` parameters , it must contain two values.")
+        if isinstance(self.cut_width_s, tuple) and len(self.cut_width_s) != 2:
+            raise ValueError("If a tuple is given for the `cut_with_s` parameters , it must contain two values.")
 
-            cut_width_samples = tuple(int(np.round(s * sampling_rate_hz)) for s in self.cut_width_s)
-        else:
-            cut_width_samples = int(np.round(self.cut_width_s * sampling_rate_hz))
-            cut_width_samples = (cut_width_samples, cut_width_samples)
+        self.cut_width_samples_ = as_samples(self.cut_width_s, sampling_rate_hz)
+
+        cut_width_as_tuple = (
+            (self.cut_width_samples_, self.cut_width_samples_)
+            if isinstance(self.cut_width_samples_, int)
+            else self.cut_width_samples_
+        )
 
         data_as_array, index, transformation_func = dflike_as_2d_array(data)
 
         if index is not None:
-            index = index[cut_width_samples[0] : -cut_width_samples[1]]
+            index = index[cut_width_as_tuple[0] : -cut_width_as_tuple[1]]
 
-        self.transformed_data_ = transformation_func(data_as_array[cut_width_samples[0] : -cut_width_samples[1]], index)
+        self.transformed_data_ = transformation_func(
+            data_as_array[cut_width_as_tuple[0] : -cut_width_as_tuple[1]], index
+        )
 
         return self
 
@@ -71,7 +77,7 @@ class Pad(BaseTransformer):
     mode: str
     constant_values: Union[float, Sequence[float]]
 
-    sample_rate_hz: float
+    sampling_rate_hz: float
 
     pad_width_samples_: Union[int, tuple[int, int]]
 

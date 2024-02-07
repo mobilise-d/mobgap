@@ -1,10 +1,10 @@
 from typing import Any, Optional
 
-import numpy as np
 from scipy.signal import savgol_filter
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform.base import BaseFilter, base_filter_docfiller
+from gaitlink.utils.conversions import as_samples
 from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
 
 
@@ -85,8 +85,8 @@ class SavgolFilter(BaseFilter):
         # Convert to 2D array using dflike_as_2d_array function
         df_data, index, transformation_function = dflike_as_2d_array(data)
 
-        self.window_length_samples_ = int(np.round(self.window_length_s * self.sampling_rate_hz))
-        self.polyorder_ = int(np.round(self.window_length_s * self.sampling_rate_hz * self.polyorder_rel))
+        self.window_length_samples_ = as_samples(self.window_length_s, self.sampling_rate_hz)
+        self.polyorder_ = as_samples(self.window_length_s * self.polyorder_rel, self.sampling_rate_hz)
 
         # Apply Savitzky-Golay filter
         self.transformed_data_ = savgol_filter(
