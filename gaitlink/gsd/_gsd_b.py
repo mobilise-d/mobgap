@@ -103,7 +103,7 @@ class GsdLowBackAcc(BaseGsDetector):
         )  # Combine the gs from the maxima and minima
 
         if combined_final.size == 0:  # Check if all gs removed
-            self.gsd_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            self.gs_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
             return self
 
         # Find all max_peaks withing each final gait sequence (GS)
@@ -119,7 +119,7 @@ class GsdLowBackAcc(BaseGsDetector):
         combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
 
         if combined_final.size == 0:  # Check if all gs removed
-            self.gsd_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            self.gs_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
             return self
 
         # Merge gs if time (in seconds) between consecutive gs is smaller than max_gap_s
@@ -133,7 +133,7 @@ class GsdLowBackAcc(BaseGsDetector):
         # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
         combined_final = np.clip(combined_final, 0, len(acc))
 
-        self.gsd_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
+        self.gs_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
 
         return self
 
