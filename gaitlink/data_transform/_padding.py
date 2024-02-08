@@ -132,7 +132,7 @@ class Pad(BaseTransformer):
         self,
         pad_len_s: Union[float, tuple[float, float]],
         *,
-        mode: str = "wrap",
+        mode: str = "reflect",
         constant_values: Optional[Union[float, Sequence[float]]] = None,
     ) -> None:
         self.pad_len_s = pad_len_s

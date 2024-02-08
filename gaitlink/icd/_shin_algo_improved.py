@@ -130,7 +130,7 @@ class IcdShinImproved(BaseIcDetector):
 
         # Padding to cope with short data
         len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-        padding = Pad(pad_len_s=len_pad_s)
+        padding = Pad(pad_len_s=len_pad_s, mode="wrap")
 
         #   CWT - Filter
         #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
