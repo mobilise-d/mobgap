@@ -71,9 +71,9 @@ class Crop(BaseTransformer):
 
         data_as_array, index, transformation_func = dflike_as_2d_array(data)
 
-        if any(v > len(data_as_array) for v in crop_len_as_tuple):
+        if sum(crop_len_as_tuple) > len(data_as_array):
             raise ValueError(
-                "The crop len is larger than the data. "
+                "The combined crop len is larger than the data. "
                 f"crop len: {crop_len_as_tuple} > data length: {len(data_as_array)}"
             )
 
@@ -150,8 +150,6 @@ class Pad(BaseTransformer):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-
-        # TODO: Handle the index properly
 
         if sampling_rate_hz is None:
             raise ValueError("The sampling rate must be provided.")
