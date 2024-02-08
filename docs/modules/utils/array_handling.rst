@@ -11,7 +11,7 @@ Functions
 .. currentmodule:: gaitlink.utils.array_handling
 
 .. autosummary::
-   :toctree: ../generated/utils/dtypes
+   :toctree: ../generated/utils/array_handling
    :template: function.rst
 
     sliding_window_view
