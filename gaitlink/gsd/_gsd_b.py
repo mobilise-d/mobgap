@@ -10,10 +10,10 @@ from intervaltree import IntervalTree
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
-from gaitlink.gsd.base import BaseGsdDetector
+from gaitlink.gsd.base import BaseGsDetector
 
 
-class GsdLowBackAcc(BaseGsdDetector):
+class GsdLowBackAcc(BaseGsDetector):
     min_n_steps: int
     active_signal_fallback_threshold: float
     max_gap_s: float
@@ -266,7 +266,8 @@ def find_intersections(intervals_a: np.ndarray, intervals_b: np.ndarray) -> np.n
         An array of intervals that are the intersections of the intervals in `intervals_a` and `intervals_b`.
         Each interval is represented as a list of two integers.
 
-    """  # Create Interval Trees
+    """
+    # Create Interval Trees
     intervals_a_tree = IntervalTree.from_tuples(intervals_a)
     intervals_b_tree = IntervalTree.from_tuples(intervals_b)
 
