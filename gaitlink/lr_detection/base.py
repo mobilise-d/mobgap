@@ -23,9 +23,25 @@ from gaitlink._docutils import make_filldoc
 
 base_lr_detector_docfiller = make_filldoc(
     {
-        "other_parameters":
+        "detect_":
             """
-        data
+        Method used for detection of left and right steps in the provided gait data. Predictions are stored post-execution using the `ic_lr` attribute of the instance, i.e. self.ic_lr.
+
+        Parameters:
+        ---------------
+        data : pd.DataFrame
+            The gait data.
+        ic_list: pd.DataFrame
+            The initial contact list, zero-indexed relative to the start of the GS.
+        sampling_rate_hz : float
+            The sampling rate in Hz.
+
+        Returns:
+        ---------------
+        self: 
+            The instance of the class.
+
+        Predictions can be retrieved using self.ic_lr
             """,
     },
     doc_summary = "Decorator to fill common parts of the docstring for subclasses of :class: `BaseLRDetector`.",
@@ -34,72 +50,39 @@ base_lr_detector_docfiller = make_filldoc(
 @base_lr_detector_docfiller
 class BaseLRDetector(Algorithm):
     """
-    Base class for LR detectors.
+    Base class for L/R foot detectors.
     
     This base class should be used for all Left/Right foot detection algorithms.
     
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
+
+    The method should then return the instance of the class, with the ``ic_lr`` attribute set corresponding to the provided gait sequences.
+ 
     """
     _action_methods = ("detect",)
     
     # other_parameters
-    imu_data: pd.DataFrame
-    ic_list: list
-    reference_data: bool
+    data: list[pd.DataFrame]
+    ic_list: list[pd.DataFrame]
+    label_list: list[pd.DataFrame]
+    sampling_rate_hz: float
     
     # results
-    LR_list: pd.DataFrame
+    ic_lr: list[pd.DataFrame]
     
-    
-    # TODO: presumably, the sampling rate should be inherited?
-    
+        
     @base_lr_detector_docfiller
     def detect(self, 
-               imu_data: pd.DataFrame,
-               ic_list: pd.Series,
-               **kwargs: Any
+               data: list[pd.DataFrame],
+               ic_list: list[pd.DataFrame],
+               sampling_rate_hz: float,
+               **kwargs: Unpack[dict[str, Any]]
                ) -> Self:
         """
         Add docs here.
         """
         raise NotImplementedError
-
-
-# Deprecated
-# Note that these models will need to be imported according to the groups of individuals they were trained on: HC, PD, MS, etc.
-@base_lr_detector_docfiller
-class PretrainedModel(StrEnum):
-    """
-    Enum class for the pretrained models
-    """
-    svm_linear = "svm_linear"
-    svm_rbf = "svm_rbf"
-    knn = "knn"
-    rfc = "rfc"
-
-    @staticmethod
-    def load_pretrained_model(model_name):
-        if model_name == PretrainedModel.svm_linear:
-            base_dir = Path(os.getenv('MODEL_DIR', './pretrained_models'))
-            model_path = base_dir / 'msproject_ms_model.gz'
-            return joblib.load(model_path)
-        
-        # Note, these are not pretrained models, they are just some hyperparameters. They are here for convenience, since they were not available.
-        elif model_name == "svm_rbf":
-            return svm.SVC(kernel='rbf',
-                           C=100, gamma=0.001,
-                           probability=True)
-            
-        elif model_name == PretrainedModel.knn:
-            return neighbors.KNeighborsClassifier(n_neighbors = 5)
-        
-        elif model_name == PretrainedModel.rfc:
-            return RandomForestClassifier(n_estimators = 100,
-                                          max_depth = 2,
-                                          random_state = 0)
-        else:
-            raise NotImplementedError("The model specified is not supported yet.")
         
 
-__all__ = ["BaseLRDetector", "base_lr_detector_docfiller", "PretrainedModel"]
+__all__ = ["BaseLRDetector", "base_lr_detector_docfiller"]
     

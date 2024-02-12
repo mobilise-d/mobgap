@@ -4,6 +4,7 @@ from gaitlink.lr_detection._utils import extract_ref_data
 from gaitlink.lr_detection import UllrichLRDetection
 
 
+
 class UllrichLROptimizer():
     """
     This class is used to optimize the parameters of a UllrichLRDetection pipeline using GridSearchCV.
@@ -53,7 +54,7 @@ class LROptiPipeline(OptimizablePipeline):
     This class represents a pipeline for UllrichLRDetection that can be optimized.
     """
     algo__model: OptimizableParameter
-    algo_with_results_: UllrichLRDetection
+    algo_with_results_: list[UllrichLRDetection]
 
     def __init__(self, algo):
         """
@@ -63,6 +64,7 @@ class LROptiPipeline(OptimizablePipeline):
             algo (UllrichLRDetection): The algorithm to use in the pipeline.
         """
         self.algo = algo
+        
 
     @property
     def ic_lr_(self):
@@ -72,7 +74,9 @@ class LROptiPipeline(OptimizablePipeline):
         Returns:
             List of pd.DataFrame: The IC_LR results. <- THIS WILL NEED TO BE CHANGED.
         """
-        return self.algo_with_results_.ic_lr
+
+        # unpack the predictions from self.algo_with_results_
+        return [prediction_per_gs.ic_lr for prediction_per_gs in self.algo_with_results_]
     
     def run(self, datapoint):
         """
@@ -90,7 +94,10 @@ class LROptiPipeline(OptimizablePipeline):
         # We can use the extract_ref_data utility function for this.
         data_list, ic_list, _ = extract_ref_data(datapoint)
 
-        self.algo_with_results_ = self.algo.clone().detect(data_list, ic_list, sampling_rate_hz)
+        self.algo_with_results_ = []
+        # TODO: add a loop to handle multiple GS.
+        for gs in range(len(data_list)):
+            self.algo_with_results_.append(self.algo.clone().detect(data_list[gs], ic_list[gs], sampling_rate_hz))
         
         return self
     

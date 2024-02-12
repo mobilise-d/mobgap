@@ -2,7 +2,6 @@ import numpy as np
 from scipy.signal import butter, filtfilt
 
 
-# TODO: Here you can have the reference data extractor.
 def extract_ref_data(datapoint):
     """
     Extracts reference data from a given datapoint.
@@ -25,8 +24,6 @@ def extract_ref_data(datapoint):
     """
 
     imu_data = datapoint.data["LowerBack"]
-    # ref_walking_bouts = datapoint.reference_parameters_.walking_bouts
-    # ref_ics = datapoint.reference_parameters_.initial_contacts
     ref_walking_bouts = datapoint.reference_parameters_.wb_list
     ref_ics = datapoint.reference_parameters_.ic_list
 
@@ -44,7 +41,7 @@ def extract_ref_data(datapoint):
     
     return data_list, ic_list, label_list
 
-
+# Deprecated
 # def _butter_bandpass_filter(signal: np.ndarray,
 #                             lower_bound: float,
 #                             upper_bound: float,
@@ -72,6 +69,7 @@ def extract_ref_data(datapoint):
 #     return y
 
 
+# The following are utility functions for improving the robustness of the McCamley algo. However, these were not used in the TVS. Instead, they are provided here for further development.
 def find_extrema_in_radius(data: np.ndarray,
                            indices: np.ndarray,
                            radius_left: int,
