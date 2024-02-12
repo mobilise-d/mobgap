@@ -16,6 +16,21 @@ Aggregator Classes
 
     MobilisedAggregator
 
+Functions
++++++++++
+.. automodule:: gaitlink.aggregation.base
+    :no-members:
+    :no-inherited-members:
+
+.. currentmodule:: gaitlink.aggregation.base
+
+.. autosummary::
+   :toctree: generated/aggregation
+   :template: function.rst
+
+    apply_thresholds
+    get_mobilised_dmo_thresholds
+
 
 Base Classes
 ++++++++++++
