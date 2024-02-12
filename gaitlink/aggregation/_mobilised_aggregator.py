@@ -34,7 +34,7 @@ class MobilisedAggregator(BaseAggregator):
       - Number of turns in all walking bouts ["turns_all_sum"]
       - Number of walking bouts ["wb_all_sum"]
       - Median duration of walking bouts in s ["wbdur_all_avg"]
-      - 90th percetile of duration of walking bouts in s ["wbdur_all_max"]
+      - 90th percentile of duration of walking bouts in s ["wbdur_all_max"]
       - Coefficient of variation in walking bout duration in s ["wbdur_all_var"]
       - Average cadence of walking bouts in steps/min ["cadence_all_avg"]
       - Average stride duration of walking bouts in s ["strdur_all_avg"]
