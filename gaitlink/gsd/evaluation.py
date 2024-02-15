@@ -41,7 +41,8 @@ def calculate_gsd_performance_metrics(
         - `precision`: Precision of the detected gait sequences.
         - `recall`: Recall of the detected gait sequences.
         - `f1_score`: F1 score of the detected gait sequences.
-        See the documentation of :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` for more details.
+
+       See the documentation of :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` for more details.
 
     - Mobilised-specific metrics:
         - `reference_gs_duration_s`: Total duration of the reference gait sequences in seconds.
@@ -66,6 +67,7 @@ def calculate_gsd_performance_metrics(
     - `specificity`: Specificity of the detected gait sequences.
     - `accuracy`: Accuracy of the detected gait sequences.
     - `npv`: Negative predictive value of the detected gait sequences.
+
     See the documentation of :func:`~gaitlink.utils.evaluation.specificity_score`,
     :func:`~gaitlink.utils.evaluation.accuracy_score`,
     and :func:`~gaitlink.utils.evaluation.npv_score` for more details.
@@ -345,6 +347,7 @@ def find_matches_with_min_overlap(
        start  end
     id
     0      0   10
+
     """
     detected, reference = _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
