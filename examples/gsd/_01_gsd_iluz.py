@@ -210,7 +210,7 @@ print("Performance Metrics:\n\n", prec_rec_f1_dict)
 from gaitlink.gsd.evaluation import calculate_gsd_performance_metrics
 
 metrics_all = calculate_gsd_performance_metrics(
-    long_trial_output.gsd_list_,
+    long_trial_output.gs_list_,
     long_trial_reference_parameters,
     sampling_rate_hz=long_trial.sampling_rate_hz,
     n_overall_samples=long_trial.data["LowerBack"].shape[0],
