@@ -40,9 +40,9 @@ Docu-helper
     base_gsd_docfiller
 
 
-Validation
+Evaluation
 ++++++++++
-.. currentmodule:: gaitlink.gsd.validation
+.. currentmodule:: gaitlink.gsd.evaluation
 
 .. autosummary::
    :toctree: generated/gsd
