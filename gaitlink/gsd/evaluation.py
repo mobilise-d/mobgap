@@ -10,13 +10,6 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from typing_extensions import Unpack
 
-__all__ = [
-    "categorize_intervals",
-    "find_matches_with_min_overlap",
-    "calculate_gsd_performance_metrics",
-    "plot_categorized_intervals",
-]
-
 from gaitlink.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
@@ -112,20 +105,18 @@ def calculate_gsd_performance_metrics(
     detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
     gs_relative_duration_error = gs_duration_error_s / reference_gs_duration_s
-    gs_absolute_duration_error_s = abs(gs_duration_error_s)  # TODO is it necessary to report absolute values here?
+    gs_absolute_duration_error_s = abs(gs_duration_error_s)
     gs_absolute_relative_duration_error = gs_absolute_duration_error_s / reference_gs_duration_s
-    gs_absolute_relative_duration_error_log = 1 + np.log(
-        1 + gs_absolute_relative_duration_error
-    )  # TODO should this be included? Is the 1 + ... a typo?
+    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
 
     # estimate gs count metrics
     detected_num_gs = len(gsd_list_detected)
     reference_num_gs = len(gsd_list_reference)
     num_gs_error = detected_num_gs - reference_num_gs
     num_gs_relative_error = num_gs_error / reference_num_gs
-    num_gs_absolute_error = abs(num_gs_error)  # TODO is it necessary to report absolute values here?
+    num_gs_absolute_error = abs(num_gs_error)
     num_gs_absolute_relative_error = num_gs_absolute_error / reference_num_gs
-    num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)  # TODO should this be included?
+    num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)
 
     result = {
         "tp_samples": tp_samples,
@@ -151,6 +142,8 @@ def calculate_gsd_performance_metrics(
     # tn-dependent metrics
     if n_overall_samples is not None:
         result["tn_samples"] = n_overall_samples
+        # tn already included in categorized_intervals,
+        # thus no need to recalculate it by passing n_overall_samples as additional parameter
         result["specificity"] = specificity_score(categorized_intervals)
         result["accuracy"] = accuracy_score(categorized_intervals)
         result["npv"] = npv_score(categorized_intervals)
@@ -443,3 +436,11 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
             label_set = True
         else:
             ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
+
+
+__all__ = [
+    "categorize_intervals",
+    "find_matches_with_min_overlap",
+    "calculate_gsd_performance_metrics",
+    "plot_categorized_intervals",
+]
