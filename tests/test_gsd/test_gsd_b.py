@@ -1,6 +1,6 @@
 import numpy as np
 
-from gaitlink.gsd._gsd_b import find_intersections
+from gaitlink.gsd._gsd_pi import find_intersections
 
 
 class TestIntersect:

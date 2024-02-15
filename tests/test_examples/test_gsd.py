@@ -17,6 +17,6 @@ def test_gsd_iluz(snapshot):
 
 
 def test_gsd_b(snapshot):
-    from examples.gsd._02_gsd_b import gsd_output
+    from examples.gsd._02_gsd_pi import gsd_output
 
     snapshot.assert_match(gsd_output, "gsd_output")

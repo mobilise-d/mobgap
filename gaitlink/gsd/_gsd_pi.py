@@ -10,10 +10,113 @@ from intervaltree import IntervalTree
 from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
-from gaitlink.gsd.base import BaseGsDetector
+from gaitlink.gsd.base import BaseGsDetector, base_gsd_docfiller
 
 
-class GsdLowBackAcc(BaseGsDetector):
+@base_gsd_docfiller
+class GsdParaschivIonescu(BaseGsDetector):
+    """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
+
+        The Gait Sequence Detection toolbox contains code (MATLAB, R2018b) for detection of gait (walking) sequences
+        using body acceleration recorded with a triaxial accelerometer worn/fixed on the lower back (close to body
+        center of mass).
+
+        The algorithm was developed and validated using data recorded in patients with impaired mobility (Parkinson’s
+        disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
+
+        The algorithm detects the gait sequences based on identified steps. First, the norm of triaxial acceleration
+        signal is detrended and low-pass filtered (FIR, fc=3.2Hz). In order to enhance the step-related features (peaks
+        in acceleration signal) the obtained signal is further processed using continuous wavelet transform, Savitzky-
+        Golay filters and Gaussian-weighted moving average filters [1]_. The ‘active’ periods, potentially corresponding
+        to locomotion, are roughly detected and the statistical distribution of the amplitude of the peaks in these
+        active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
+        Consecutive steps are associated to gait sequences [1]_ [2]_.
+
+        Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original MATLAB code.
+
+
+        Parameters
+        ----------
+        pre_filter
+            A pre-processing filter to apply to the data before the GSD algorithm is applied.
+        window_length_s
+            The length of the window in seconds that is used to detect gait sequences.
+            Each window will be processed separately.
+        window_overlap
+            The overlap between two consecutive windows in percent.
+            For example, a value of 0.5 means that the windows will overlap by 50%%.
+        std_activity_threshold
+            The lower threshold for the standard deviation of the filtered acc_x data to be considered as activity.
+        mean_activity_threshold
+            A lower threshold applied to the mean of the mean-shifted raw gravity corrected acc_x data to be considered as
+            activity.
+        acc_v_standing_threshold
+            A lower threshold applied to the mean of the acc_v data in each window to detect standing/upright positions.
+            Only "standing" windows are considered for further processing.
+        step_detection_thresholds
+            The minimal peak height for the step detection.
+            This expects a tuple with two values, one for each axis (acc_x and acc_z).
+        sin_template_freq_hz
+            The frequency of the sin template used for the convolution.
+        allowed_steps_per_s
+            A tuple with two values, specifying the lower and upper bound for the number of steps per second.
+            This is converted in a minimum and maximum number of steps per window using the ``window_length_s`` parameter.
+        allowed_acc_v_change_per_window
+            The maximum change in the mean of the acc_v data between the first and the last second of the window in percent.
+            I.e. 0.1 means a maximum change of 10%%.
+            If this change is exceeded, the window is discarded, as we assume that the person changed their posture (i.e
+            from lying to standing).
+        min_gsd_duration_s
+            The minimum duration of a gait sequence in seconds.
+            This is applied after the gait sequences are detected.
+
+        Other Parameters
+        ----------------
+        %(other_parameters)s
+
+        Attributes
+        ----------
+        %(gs_list_)s
+
+        Notes
+        -----
+        Points of deviation from the original implementation and their reasons:
+
+        - The order of processing is changed.
+          In the original implementation, steps are detected early on in the pipeline and later further thresholds on the
+          raw signal are used to discard certain parts of the signal and non-gait.
+          We flip the order to reduce the number of windows we need to apply step detection to.
+          This is done, because the step detection process is the most expensive part of the algorithm.
+        - Instead of a custom peak detection algorithm, we use the scipy implementation (:func:`~scipy.signal.find_peaks`).
+          This method produces similar but different results.
+          Most notably, it does not have a maximal distance parameter.
+          However, based on some testing, this parameter did not seem to have a big impact on the results, anyway.
+          Overall, the scipy implementation seems to be more robust and detects less false positives
+          (i.e. less peaks overall)
+        - As the new find-peaks approach finds fewer peaks, we also change the threshold for the number of peaks per window.
+          The original implementation expects 3 peaks per 3-second window.
+          We use 0.5 steps per second as the lower bound, which means a minimum of 1.5/2 steps per 3-second window.
+        - Similarly, the original implementation uses different thresholds for the two signal axis.
+          I.e. different numbers of peaks are expected for the two axes.
+          As this is not mentioned anywhere in the paper, and using the same threshold for both axis did not seem to have a
+          negative impact on the results, we decided to use the same threshold for both axes to simplify the algorithm.
+        - All parameters and thresholds are converted the units used in gaitlink.
+          Specifically, we use m/s^2 instead of g.
+        - The original implementation used a check, that if the sum of the signal in the window is below the min-height
+          threshold no peaks are detected.
+          We assume that this is an error and use the max of the signal instead.
+
+        .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
+        methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
+        Engineering in Medicine & Biology Society (EMBC). IEEE, 2020.
+        .. [2] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
+        validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
+        rehabilitation 16.1 (2019): 1-11.
+        .. [3] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
+        S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
+        Mobilise-D consortium.
+        """
+
     min_n_steps: int
     active_signal_fallback_threshold: float
     max_gap_s: float
