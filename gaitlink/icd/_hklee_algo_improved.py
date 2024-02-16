@@ -9,7 +9,8 @@ from pywt import cwt
 from scipy.ndimage import gaussian_filter, grey_closing, grey_opening
 from scipy.signal import savgol_filter
 from typing_extensions import Self, Unpack
-
+from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
+from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 from gaitlink.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -20,8 +21,6 @@ from gaitlink.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
-from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
