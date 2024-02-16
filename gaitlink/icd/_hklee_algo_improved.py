@@ -10,6 +10,16 @@ from scipy.ndimage import gaussian_filter, grey_closing, grey_opening
 from scipy.signal import savgol_filter
 from typing_extensions import Self, Unpack
 
+from gaitlink.data_transform import (
+    CwtFilter,
+    EpflDedriftedGaitFilter,
+    EpflGaitFilter,
+    GaussianFilter,
+    Pad,
+    Resample,
+    SavgolFilter,
+    chain_transformers,
+)
 from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
 from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
@@ -86,6 +96,7 @@ class IcdHKLeeImproved(BaseIcDetector):
     axis: Literal["x", "y", "z", "norm"]
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
+    _UPSAMPLED_SAMPLING_RATE_HZ: int = 120
 
     final_filtered_signal_: np.ndarray
     ic_list_internal_: pd.DataFrame
@@ -118,14 +129,7 @@ class IcdHKLeeImproved(BaseIcDetector):
             else data[f"acc_{self.axis}"].to_numpy()
         )
 
-        # Resample to 40Hz to process with filters
-        signal_downsampled = (
-            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transform(data=signal, sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_
-        )
-
-        # We need to intitialize the filter once to get the number of coefficients to calculate the padding.
+        # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
         # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
         #  correctly anyway. -> filtfilt uses padding automatically and savgol allows to actiavte padding, put uses the
@@ -134,58 +138,67 @@ class IcdHKLeeImproved(BaseIcDetector):
         n_coefficients = len(EpflGaitFilter().coefficients[0])
 
         # Padding to cope with short data
-        len_pad = 4 * n_coefficients
-        signal_downsampled_padded = np.pad(signal_downsampled, (len_pad, len_pad), "wrap")
+        len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        padding = Pad(pad_len_s=len_pad_s, mode="wrap")
 
-        # Filters
-        # 1
-        # TODO (future): Replace svagol and cwt with class implementation to easily expose parameters.
-        tmp_sig_1 = savgol_filter(signal_downsampled_padded.squeeze(), window_length=21, polyorder=7)
-        # 2
-        tmp_sig_2 = (
-            EpflDedriftedGaitFilter()
-            .filter(tmp_sig_1, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .filtered_data_
-        )
-        # 3
-        # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
+        #   CWT - Filter
+        #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
         #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
         #   wavelet.
-        #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
-        #   two languages initialise their wavelets), giving the line below
-        ricker_width = 10
-        tmp_sig_3, _ = cwt(
-            tmp_sig_2.squeeze(), [ricker_width], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-        )
-        # 4
-        tmp_sig_4 = savgol_filter(tmp_sig_3.squeeze(), window_length=11, polyorder=5)
-        # 5
-        tmp_sig_5, _ = cwt(
-            tmp_sig_4.squeeze(), [ricker_width], "gaus2", sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-        )
-        # Compared to matlab the python gauss filter needs the matlab window with divided by 5
-        tmp_sig_6 = tmp_sig_5
-        for sigma in [2, 2, 3]:
-            tmp_sig_6 = gaussian_filter(tmp_sig_6.squeeze(), sigma)
-        # Remove padding
-        final_filtered = tmp_sig_6[len_pad:-len_pad]
+        #   This frequency this scale corresponds to depends on the sampling rate of the data.
+        #   As the gaitlink cwt method uses the center frequency instead of the scale, we need to calculate the
+        #   frequency that scale corresponds to at 40 Hz sampling rate.
+        #   Turns out that this is 1.2 Hz
+        cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
 
+        # Savgol filters
+        # The original Matlab code useses two savgol filter in the chain.
+        # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
+        # sampling-rate independent units used for the parameters of our classes.
+        # The parameters from the matlab code are: (21, 7) and (11, 5)
+        savgol_1_win_size_samples = 21
+        savgol_1 = SavgolFilter(
+            window_length_s=savgol_1_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=7 / savgol_1_win_size_samples,
+        )
+        savgol_2_win_size_samples = 11
+        savgol_2 = SavgolFilter(
+            window_length_s=savgol_2_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=5 / savgol_2_win_size_samples,
+        )
+
+        # Now we build everything together into one filter chain.
+        filter_chain = [
+            # Resample to 40Hz to process with filters
+            ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding", padding),
+            (
+                "savgol_1",
+                savgol_1,
+            ),
+            ("epfl_gait_filter", EpflDedriftedGaitFilter()),
+            ("cwt_1", cwt),
+            (
+                "savol_2",
+                savgol_2,
+            ),
+            ("cwt_2", cwt),
+            ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("gaussian_3", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding_remove", padding.get_inverse_transformer()),
+            ("resampling_up", Resample(self._UPSAMPLED_SAMPLING_RATE_HZ)),
+        ]
+
+        final_filtered = chain_transformers(signal, filter_chain, sampling_rate_hz=sampling_rate_hz)
         self.final_filtered_signal_ = final_filtered
-
-        #Resample to 100Hz for consistency with the original data (for icd) or to 120 for consistency with original paper
-        NEW_SAMPLING_RATE_HZ = 120
-        signal_upsampled = (
-            Resample(NEW_SAMPLING_RATE_HZ)
-            .transform(data=final_filtered, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transformed_data_
-        )
 
         # Apply morphological filters
         SE_closing = np.ones(32, dtype=int)
         SE_opening = np.ones(18, dtype=int)
 
-        C = grey_closing(signal_upsampled, structure=SE_closing)
+        C = grey_closing(self.final_filtered_signal_, structure=SE_closing)
         O = grey_opening(C, structure=SE_opening)
         R = C - O
 
@@ -208,7 +221,7 @@ class IcdHKLeeImproved(BaseIcDetector):
 
         # Downsample initial contacts to original sampling rate
         IC_downsampled = (
-            (detected_ics * sampling_rate_hz / NEW_SAMPLING_RATE_HZ).round().astype(int)
+            (detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
         )
 
         self.ic_list_ = IC_downsampled
