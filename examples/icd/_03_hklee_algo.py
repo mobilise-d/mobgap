@@ -58,7 +58,7 @@ def load_matlab_output(datapoint):
     p = datapoint.group_label
     with (
         PACKAGE_ROOT.parent
-        / f"example_data/original_results/icd_shin_improved/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
+        / f"example_data/original_results/icd_hklee_improved/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
     ).open() as f:
         original_results = json.load(f)["SD_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["SD"]
 
