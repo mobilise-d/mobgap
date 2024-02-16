@@ -42,7 +42,7 @@ iterator = GsIterator()
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     result.initial_contacts = IcdHKLeeImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
-detected_ics = iterator.initial_contacts_
+detected_ics = iterator.results_.ic_list
 
 detected_ics
 # %%
