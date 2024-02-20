@@ -158,7 +158,7 @@ def categorize_intervals(
     gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Union[int, None] = None
 ) -> pd.DataFrame:
     """
-    Validate detected gait sequence intervals against a reference on a sample-wise level.
+    Evaluate detected gait sequence intervals against a reference on a sample-wise level.
 
     The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
     start and end indices of the respective gait sequences.
@@ -261,7 +261,7 @@ def categorize_intervals(
 def _check_input_sanity(
     gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    # check if input is a dataframe with two columns
+    # check if inputs are dataframes
     if not isinstance(gsd_list_detected, pd.DataFrame) or not isinstance(gsd_list_reference, pd.DataFrame):
         raise TypeError("`gsd_list_detected` and `gsd_list_reference` must be of type `pandas.DataFrame`.")
     # check if start and end columns are present
