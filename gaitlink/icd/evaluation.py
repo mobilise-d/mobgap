@@ -1,64 +1,68 @@
-from typing import Union, Tuple
+"""Class to evaluate initial contact detection algorithms."""
+from typing import Union
 
 import numpy as np
 import pandas as pd
-
 from scipy.spatial import KDTree
 
 
 def evaluate_initial_contact_list(
     *,
-    reference_ic_list: pd.DataFrame,
-    detected_ic_list: pd.DataFrame,
-    tolerance: Union[int, float] = 0, # TODO: insert practical default value
-    detected_ic_list_postfix: str = "_detected",
-    reference_ic_list_postfix: str = "_reference",
+    ic_list_detected: pd.DataFrame,
+    ic_list_reference: pd.DataFrame,
+    tolerance: Union[int, float] = 0,  # TODO: insert practical default value
+    ic_list_detected_postfix: str = "_detected",
+    ic_list_reference_postfix: str = "_reference",
 ) -> pd.DataFrame:
-    f"""Find True Positives, False Positives and True Negatives by comparing an initial contact list with a reference.
+    """Evaluate an initial contact list against a reference contact-by-contact.
 
-    This compares an initial contact event list with a ground truth initial contact list and returns true positive,
+    This compares an initial contact dataframe with a ground truth initial contact dataframe and returns true positive,
     false positive and true negative matches.
-    The comparison is purely based on the index of each initial contact in the lists.
+    The comparison is purely based on the index of each initial contact.
     Two initial contacts are considered a positive match, if the difference between their indices is less than or equal
     to the threshold.
 
-    If multiple initial contacts of the initial contact list would match to a single ground truth initial contact
+    The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
+    resective initial contact.
+    As index, a range index or a column of unique identifiers for each initial contact can be provided.
+
+    If multiple detected initial contacts would match to a single ground truth initial contact
     (or vise-versa), only the initial contact with the lowest distance is considered an actual match.
     In case of multiple matches with the same distance, the first match will be considered.
 
     Parameters
     ----------
-    reference_ic_list
-        The ground truth initial contact list.
-    detected_ic_list
-        The list of detected initial contacts.
+    ic_list_detected
+        The dataframe of detected initial contacts.
+    ic_list_reference
+        The ground truth initial contact dataframe.
     tolerance
         The allowed tolerance between labels in samples.
         The comparison is done as `distance <= tolerance`.
-    detected_ic_list_postfix
+    ic_list_detected_postfix
         A postfix that will be appended to the index name of the initial contact list in the output.
-    reference_ic_list_postfix
+    ic_list_reference_postfix
         A postfix that will be appended to the index name of the reference list in the output.
 
     Returns
     -------
     matches
-        A 3 column dataframe with the column names `s_id{detected_ic_list_postfix}`, `s_id{reference_ic_list_postfix}` and
-        `match_type`.
-        Each row is a match containing the index value of the left and the right list, that belong together.
+        A 3 column dataframe with the column names `s_id{ic_list_detected_postfix}`, `s_id{ic_list_reference_postfix}`
+        and `match_type`.
+        Each row is a match containing the index value of the detected and the reference list, that belong together.
         The `match_type` column indicates the type of match.
-        For all initial contacts that have a match in the ground truth list, this will be "tp" (true positive).
+        For all initial contacts that have a match in the reference list, this will be "tp" (true positive).
         Initial contacts that do not have a match will be mapped to a NaN and the match-type will be "fp" (false
         positives)
-        All reference initial contacts that do not have a counterpart in the detected list 
+        All reference initial contacts that do not have a counterpart in the detected list
         are marked as "fn" (false negative).
 
     Examples
     --------
-    >>> ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
     >>> ic_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
+    >>> ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
     >>> matches = evaluate_initial_contact_list(
-    ...     reference_ic_list=ic_list_reference, detected_ic_list=ic_list_detected, tolerance=2
+    ...     ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference, tolerance=2
     ... )
     >>> matches
       ic_id_detected ic_id_reference match_type
@@ -69,43 +73,31 @@ def evaluate_initial_contact_list(
     4  NaN                 1         fn
     5  NaN                 3         fn
     """
-    # TODO: add input validation here
+    detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
 
-    if detected_ic_list_postfix == reference_ic_list_postfix:
+    if ic_list_detected_postfix == ic_list_reference_postfix:
         raise ValueError("The postfix for the left and the right initial contact list must be different.")
 
     if tolerance < 0:
         raise ValueError("The tolerance must be larger 0.")
 
-    match_cols = ["ic"]
-
-    if not (
-        set(match_cols).issubset(detected_ic_list.columns)
-        and set(match_cols).issubset(reference_ic_list.columns)
-    ):
-        raise ValueError(
-            f"One or more selected columns ({match_cols}) are missing in at least one of the provided "
-            f"initial contact lists"
-        )
-    # TODO: set correct index?
-
     left_indices, right_indices = _match_label_lists(
-        detected_ic_list[match_cols].to_numpy(),
-        reference_ic_list[match_cols].to_numpy(),
+        detected.to_numpy(),
+        reference.to_numpy(),
         tolerance=tolerance,
     )
 
-    detected_index_name = detected_ic_list.index.name + detected_ic_list_postfix
-    reference_index_name = reference_ic_list.index.name + reference_ic_list_postfix
+    detected_index_name = ic_list_detected.index.name + ic_list_detected_postfix
+    reference_index_name = ic_list_reference.index.name + ic_list_reference_postfix
 
-    matches_detected = pd.DataFrame(index=detected_ic_list.index.copy(), columns=[reference_index_name])
+    matches_detected = pd.DataFrame(index=ic_list_detected.index.copy(), columns=[reference_index_name])
     matches_detected.index.name = detected_index_name
 
-    matches_reference = pd.DataFrame(index=reference_ic_list.index.copy(), columns=[detected_index_name])
+    matches_reference = pd.DataFrame(index=ic_list_reference.index.copy(), columns=[detected_index_name])
     matches_reference.index.name = reference_index_name
 
-    ic_list_detected_idx = detected_ic_list.iloc[left_indices].index
-    ic_list_reference_idx = reference_ic_list.iloc[right_indices].index
+    ic_list_detected_idx = ic_list_detected.iloc[left_indices].index
+    ic_list_reference_idx = ic_list_reference.iloc[right_indices].index
 
     matches_detected.loc[ic_list_detected_idx, reference_index_name] = ic_list_reference_idx
     matches_reference.loc[ic_list_reference_idx, detected_index_name] = ic_list_detected_idx
@@ -120,8 +112,8 @@ def evaluate_initial_contact_list(
         .reset_index(drop=True)
     )
 
-    segmented_index_name = detected_ic_list.index.name + detected_ic_list_postfix
-    ground_truth_index_name = reference_ic_list.index.name + reference_ic_list_postfix
+    segmented_index_name = ic_list_detected.index.name + ic_list_detected_postfix
+    ground_truth_index_name = ic_list_reference.index.name + ic_list_reference_postfix
     matches.loc[~matches.isna().any(axis=1), "match_type"] = "tp"
     matches.loc[matches[ground_truth_index_name].isna(), "match_type"] = "fp"
     matches.loc[matches[segmented_index_name].isna(), "match_type"] = "fn"
@@ -131,7 +123,7 @@ def evaluate_initial_contact_list(
 
 def _match_label_lists(
     list_left: np.ndarray, list_right: np.ndarray, tolerance: Union[int, float]
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Find matches in two lists based on the distance between their vectors.
 
     Parameters
@@ -184,10 +176,32 @@ def _match_label_lists(
     return valid_matches[0], valid_matches[1]
 
 
-if __name__ == '__main__':
-    ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
-    ic_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
+def _check_input_sanity(
+    ic_list_detected: pd.DataFrame, ic_list_reference: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    # check if inputs are dataframes
+    if not isinstance(ic_list_detected, pd.DataFrame) or not isinstance(ic_list_reference, pd.DataFrame):
+        raise TypeError("`ic_list_detected` and `ic_list_reference` must be of type `pandas.DataFrame`.")
+    # check if `ic` column is present in both dataframes
+    try:
+        detected, reference = ic_list_detected[["ic"]], ic_list_reference[["ic"]]
+    except KeyError as e:
+        raise ValueError("Both `ic_list_detected` and `ic_list_reference` must have a column named `ic`.") from e
+    # check if indices are unique
+    if not ic_list_detected.index.is_unique or not ic_list_reference.index.is_unique:
+        raise ValueError("The indices of both `ic_list_detected` and `ic_list_reference` must be unique.")
+    # if index is a range index, rename it to "ic_id"
+    if ic_list_detected.index.name is None:
+        ic_list_detected.index.name = "ic_id"
+    if ic_list_reference.index.name is None:
+        ic_list_reference.index.name = "ic_id"
+    return detected, reference
+
+
+if __name__ == "__main__":
+    ic_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("ic_id")
+    ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("ic_id")
     matches = evaluate_initial_contact_list(
-        reference_ic_list=ic_list_reference, detected_ic_list=ic_list_detected, tolerance=2
+        ic_list_reference=ic_list_reference, ic_list_detected=ic_list_detected, tolerance=2
     )
     print(matches)
