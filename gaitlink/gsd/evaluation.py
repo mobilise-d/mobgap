@@ -26,7 +26,7 @@ def calculate_gsd_performance_metrics(
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
     n_overall_samples: Union[int, None] = None,
-) -> dict[str, float]:
+) -> dict[str, Union[float, int]]:
     """
     Calculate performance metrics for gait sequence detection results.
 
@@ -121,7 +121,7 @@ def calculate_gsd_performance_metrics(
     num_gs_absolute_relative_error = num_gs_absolute_error / reference_num_gs
     num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)
 
-    result = {
+    gsd_metrics = {
         "tp_samples": tp_samples,
         "fp_samples": fp_samples,
         "fn_samples": fn_samples,
@@ -144,14 +144,14 @@ def calculate_gsd_performance_metrics(
 
     # tn-dependent metrics
     if n_overall_samples is not None:
-        result["tn_samples"] = n_overall_samples
+        gsd_metrics["tn_samples"] = n_overall_samples
         # tn already included in categorized_intervals,
         # thus no need to recalculate it by passing n_overall_samples as additional parameter
-        result["specificity"] = specificity_score(categorized_intervals)
-        result["accuracy"] = accuracy_score(categorized_intervals)
-        result["npv"] = npv_score(categorized_intervals)
+        gsd_metrics["specificity"] = specificity_score(categorized_intervals)
+        gsd_metrics["accuracy"] = accuracy_score(categorized_intervals)
+        gsd_metrics["npv"] = npv_score(categorized_intervals)
 
-    return result
+    return gsd_metrics
 
 
 def categorize_intervals(
