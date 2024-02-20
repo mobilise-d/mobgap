@@ -3,18 +3,18 @@ from typing import Union, Tuple
 import numpy as np
 import pandas as pd
 
-from scipy.spatial import KDTree, minkowski_distance
+from scipy.spatial import KDTree
 
 
 def evaluate_initial_contact_list(
     *,
     reference_ic_list: pd.DataFrame,
     detected_ic_list: pd.DataFrame,
-    tolerance: Union[int, float] = 0,
+    tolerance: Union[int, float] = 0, # TODO: insert practical default value
     detected_ic_list_postfix: str = "_detected",
     reference_ic_list_postfix: str = "_reference",
 ) -> pd.DataFrame:
-    """Find True Positives, False Positives and True Negatives by comparing a segmented stride list with ground truth.
+    f"""Find True Positives, False Positives and True Negatives by comparing an initial contact list with a reference.
 
     This compares an initial contact event list with a ground truth initial contact list and returns true positive,
     false positive and true negative matches.
@@ -29,31 +29,29 @@ def evaluate_initial_contact_list(
     Parameters
     ----------
     reference_ic_list
-        The ground truth stride list.
+        The ground truth initial contact list.
     detected_ic_list
-        The list of segmented strides.
+        The list of detected initial contacts.
     tolerance
-        The allowed tolerance between labels.
-        Its unit depends on the units used in the stride lists.
+        The allowed tolerance between labels in samples.
         The comparison is done as `distance <= tolerance`.
     detected_ic_list_postfix
-        A postfix that will be appended to the index name of the segmented stride list in the output.
+        A postfix that will be appended to the index name of the initial contact list in the output.
     reference_ic_list_postfix
-        A postfix that will be appended to the index name of the ground truth in the output.
+        A postfix that will be appended to the index name of the reference list in the output.
 
     Returns
     -------
     matches
-        A 3 column dataframe with the column names `s_id{stride_list_postfix}`, `s_id{ground_truth_postfix}` and
+        A 3 column dataframe with the column names `s_id{detected_ic_list_postfix}`, `s_id{reference_ic_list_postfix}` and
         `match_type`.
         Each row is a match containing the index value of the left and the right list, that belong together.
         The `match_type` column indicates the type of match.
-        For all segmented strides that have a match in the ground truth list, this will be "tp" (true positive).
-        Segmented strides that do not have a match will be mapped to a NaN and the match-type will be "fp" (false
+        For all initial contacts that have a match in the ground truth list, this will be "tp" (true positive).
+        Initial contacts that do not have a match will be mapped to a NaN and the match-type will be "fp" (false
         positives)
-        All ground truth strides that do not have a segmented counterpart are marked as "fn" (false negative).
-        In case MultiSensorStrideLists were used as inputs, a dictionary of such dataframes is returned.
-
+        All reference initial contacts that do not have a counterpart in the detected list 
+        are marked as "fn" (false negative).
 
     Examples
     --------
@@ -74,7 +72,7 @@ def evaluate_initial_contact_list(
     # TODO: add input validation here
 
     if detected_ic_list_postfix == reference_ic_list_postfix:
-        raise ValueError("The postfix for the left and the right stride list must be different.")
+        raise ValueError("The postfix for the left and the right initial contact list must be different.")
 
     if tolerance < 0:
         raise ValueError("The tolerance must be larger 0.")
@@ -86,7 +84,8 @@ def evaluate_initial_contact_list(
         and set(match_cols).issubset(reference_ic_list.columns)
     ):
         raise ValueError(
-            f"One or more selected columns ({match_cols}) are missing in at least one of the provided stride lists"
+            f"One or more selected columns ({match_cols}) are missing in at least one of the provided "
+            f"initial contact lists"
         )
     # TODO: set correct index?
 
@@ -186,9 +185,9 @@ def _match_label_lists(
 
 
 if __name__ == '__main__':
-    stride_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
-    stride_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
+    ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
+    ic_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
     matches = evaluate_initial_contact_list(
-        reference_ic_list=stride_list_reference, detected_ic_list=stride_list_detected, tolerance=2
+        reference_ic_list=ic_list_reference, detected_ic_list=ic_list_detected, tolerance=2
     )
     print(matches)
