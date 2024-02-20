@@ -5,7 +5,7 @@ from gaitlink.gsd import GsdParaschivIonescu
 
 # Load data
 data_all = LabExampleDataset()  # Data is in m/s2
-long_trial = data_all.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
+long_trial = data_all.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
 
 
 imu_data = long_trial.data["LowerBack"]

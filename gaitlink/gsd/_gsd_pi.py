@@ -69,29 +69,6 @@ class GsdParaschivIonescu(BaseGsDetector):
         -----
         Points of deviation from the original implementation and their reasons:
 
-        - The order of processing is changed.
-          In the original implementation, steps are detected early on in the pipeline and later further thresholds on the
-          raw signal are used to discard certain parts of the signal and non-gait.
-          We flip the order to reduce the number of windows we need to apply step detection to.
-          This is done, because the step detection process is the most expensive part of the algorithm.
-        - Instead of a custom peak detection algorithm, we use the scipy implementation (:func:`~scipy.signal.find_peaks`).
-          This method produces similar but different results.
-          Most notably, it does not have a maximal distance parameter.
-          However, based on some testing, this parameter did not seem to have a big impact on the results, anyway.
-          Overall, the scipy implementation seems to be more robust and detects less false positives
-          (i.e. less peaks overall)
-        - As the new find-peaks approach finds fewer peaks, we also change the threshold for the number of peaks per window.
-          The original implementation expects 3 peaks per 3-second window.
-          We use 0.5 steps per second as the lower bound, which means a minimum of 1.5/2 steps per 3-second window.
-        - Similarly, the original implementation uses different thresholds for the two signal axis.
-          I.e. different numbers of peaks are expected for the two axes.
-          As this is not mentioned anywhere in the paper, and using the same threshold for both axis did not seem to have a
-          negative impact on the results, we decided to use the same threshold for both axes to simplify the algorithm.
-        - The original implementation used a check, that if the sum of the signal in the window is below the min-height
-          threshold no peaks are detected.
-          We assume that this is an error and use the max of the signal instead.
-
-
         - All parameters and thresholds are converted the units used in gaitlink.
           Specifically, we use m/s^2 instead of g.
         - For scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
@@ -101,7 +78,36 @@ class GsdParaschivIonescu(BaseGsDetector):
           how the two languages initialise their wavelets).
         - For scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), sigma=2):
           In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
-        - In hilbert_envelope, convolve function in MATLAB used mode 'full', meaning the length of convolution was different to env, this has been fixed here
+        - Included a try/except incase no active periods were detected. 
+        
+
+
+
+
+    `        - The order of processing is changed.
+              In the original implementation, steps are detected early on in the pipeline and later further thresholds on the
+              raw signal are used to discard certain parts of the signal and non-gait.
+              We flip the order to reduce the number of windows we need to apply step detection to.
+              This is done, because the step detection process is the most expensive part of the algorithm.
+            - Instead of a custom peak detection algorithm, we use the scipy implementation (:func:`~scipy.signal.find_peaks`).
+              This method produces similar but different results.
+              Most notably, it does not have a maximal distance parameter.
+              However, based on some testing, this parameter did not seem to have a big impact on the results, anyway.
+              Overall, the scipy implementation seems to be more robust and detects less false positives
+              (i.e. less peaks overall)
+            - As the new find-peaks approach finds fewer peaks, we also change the threshold for the number of peaks per window.
+              The original implementation expects 3 peaks per 3-second window.
+              We use 0.5 steps per second as the lower bound, which means a minimum of 1.5/2 steps per 3-second window.
+            - Similarly, the original implementation uses different thresholds for the two signal axis.
+              I.e. different numbers of peaks are expected for the two axes.
+              As this is not mentioned anywhere in the paper, and using the same threshold for both axis did not seem to have a
+              negative impact on the results, we decided to use the same threshold for both axes to simplify the algorithm.
+            - The original implementation used a check, that if the sum of the signal in the window is below the min-height
+              threshold no peaks are detected.
+              We assume that this is an error and use the max of the signal instead.`
+
+
+
 
 
         .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
@@ -146,7 +152,6 @@ class GsdParaschivIonescu(BaseGsDetector):
         acc_norm = np.linalg.norm(acc, axis=1)
 
         # Resample to algorithm_target_fs
-        # NOTE: accN_resampled is slightly different in length and values to accN40 in MATLAB, plots look ok though
         acc_norm_resampled = (
             Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
             .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
@@ -243,7 +248,7 @@ def hilbert_envelop(sig, smooth_window, duration):
 
     Returns
     -------
-    active (np.ndarray): A 1D binary numpy array where 1 represents active periods and 0 represents non-active periods
+    active (np.ndarray): A binary 1D numpy array, same length as sig, where 1 represents active periods and 0 represents non-active periods.
 
     .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review • Repository
     Archive. J. Open Source Softw. 2018, 3, 671
@@ -266,7 +271,9 @@ def hilbert_envelop(sig, smooth_window, duration):
 
     # Initialize Buffers
     noise_buff = np.zeros(len(env) - duration + 1)
-    active = np.zeros(len(env) + 1)
+    active = np.zeros(len(env))
+
+    # TODO: Check diff from matlab from this point
 
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
@@ -403,8 +410,7 @@ def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
     alarm = hilbert_envelop(
         signal, sampling_rate_hz, sampling_rate_hz
     )
-    walkLowBack = np.array([])
-
+    
     if not np.any(alarm):
         raise NoActivePeriodsDetectedError()
 
@@ -420,18 +426,19 @@ def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
         v for v, s in groupby(alarm, key=lambda x: x > 0)
     ]
 
+    walk = np.array([])  # Initialise detected periods of walking variable
     for s, e, a in zip(start_alarm, end_alarm, alarmed):  # Iterate through the consecutive periods
         if a:  # If alarmed
             if e - s <= 3 * sampling_rate_hz:  # If the length of the alarm period is too short
                 alarm[s:e] = 0  # Replace this section of alarm with zeros
             else:
-                walkLowBack = np.concatenate([walkLowBack, signal[s - 1: e - 1]])
+                walk = np.concatenate([walk, signal[s - 1: e - 1]])
 
-    if walkLowBack.size == 0:
+    if walk.size == 0:
         raise NoActivePeriodsDetectedError()
 
-    peaks_p, _ = scipy.signal.find_peaks(walkLowBack)
-    peaks_n, _ = scipy.signal.find_peaks(-walkLowBack)
-    pksp, pksn = walkLowBack[peaks_p], -walkLowBack[peaks_n]
+    peaks_p, _ = scipy.signal.find_peaks(walk)
+    peaks_n, _ = scipy.signal.find_peaks(-walk)
+    pksp, pksn = walk[peaks_p], -walk[peaks_n]
     pks = np.concatenate([pksp[pksp > 0], pksn[pksn > 0]])
     return np.percentile(pks, 5)  # Data adaptive threshold
