@@ -34,40 +34,25 @@ class GsdParaschivIonescu(BaseGsDetector):
 
         Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original MATLAB code.
 
+        Abbreviations:
+        gs = gait sequence
+
+        TODO: Changes from original matlab code
 
         Parameters
         ----------
-        pre_filter
-            A pre-processing filter to apply to the data before the GSD algorithm is applied.
-        window_length_s
-            The length of the window in seconds that is used to detect gait sequences.
-            Each window will be processed separately.
-        window_overlap
-            The overlap between two consecutive windows in percent.
-            For example, a value of 0.5 means that the windows will overlap by 50%%.
-        std_activity_threshold
-            The lower threshold for the standard deviation of the filtered acc_x data to be considered as activity.
-        mean_activity_threshold
-            A lower threshold applied to the mean of the mean-shifted raw gravity corrected acc_x data to be considered as
-            activity.
-        acc_v_standing_threshold
-            A lower threshold applied to the mean of the acc_v data in each window to detect standing/upright positions.
-            Only "standing" windows are considered for further processing.
-        step_detection_thresholds
-            The minimal peak height for the step detection.
-            This expects a tuple with two values, one for each axis (acc_x and acc_z).
-        sin_template_freq_hz
-            The frequency of the sin template used for the convolution.
-        allowed_steps_per_s
-            A tuple with two values, specifying the lower and upper bound for the number of steps per second.
-            This is converted in a minimum and maximum number of steps per window using the ``window_length_s`` parameter.
-        allowed_acc_v_change_per_window
-            The maximum change in the mean of the acc_v data between the first and the last second of the window in percent.
-            I.e. 0.1 means a maximum change of 10%%.
-            If this change is exceeded, the window is discarded, as we assume that the person changed their posture (i.e
-            from lying to standing).
-        min_gsd_duration_s
-            The minimum duration of a gait sequence in seconds.
+        min_n_steps
+            The minimum number of steps allowed in a gait sequence (walking bout).
+            Only walking bouts with equal or more detected steps are considered for further processing.
+        active_signal_fallback_threshold
+            An upper threshold applied to the filtered signal. Minima and maxima beyond this threshold are considered as
+            detected steps.
+        padding
+            A float multiplied by the mean of the step times to pad the start and end of the detected gait sequences.
+            The gait sequences are filtered again by number of steps after this padding, removing any gs with too few steps.
+        max_gap_s
+            Maximum time (in seconds) between consecutive gait sequences.
+            If a gap is smaller than max_gap_s, the two consecutive gait sequences are merged into one.
             This is applied after the gait sequences are detected.
 
         Other Parameters
@@ -77,6 +62,8 @@ class GsdParaschivIonescu(BaseGsDetector):
         Attributes
         ----------
         %(gs_list_)s
+            A dataframe containing the start and end times of the detected gait sequences.
+            Each row corresponds to a single gs.
 
         Notes
         -----
@@ -100,11 +87,22 @@ class GsdParaschivIonescu(BaseGsDetector):
           I.e. different numbers of peaks are expected for the two axes.
           As this is not mentioned anywhere in the paper, and using the same threshold for both axis did not seem to have a
           negative impact on the results, we decided to use the same threshold for both axes to simplify the algorithm.
-        - All parameters and thresholds are converted the units used in gaitlink.
-          Specifically, we use m/s^2 instead of g.
         - The original implementation used a check, that if the sum of the signal in the window is below the min-height
           threshold no peaks are detected.
           We assume that this is an error and use the max of the signal instead.
+
+
+        - All parameters and thresholds are converted the units used in gaitlink.
+          Specifically, we use m/s^2 instead of g.
+        - For scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
+          Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
+          which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+          wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
+          how the two languages initialise their wavelets).
+        - For scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), sigma=2):
+          In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
+        - In hilbert_envelope, convolve function in MATLAB used mode 'full', meaning the length of convolution was different to env, this has been fixed here
+
 
         .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
         methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
@@ -148,37 +146,23 @@ class GsdParaschivIonescu(BaseGsDetector):
         acc_norm = np.linalg.norm(acc, axis=1)
 
         # Resample to algorithm_target_fs
+        # NOTE: accN_resampled is slightly different in length and values to accN40 in MATLAB, plots look ok though
         acc_norm_resampled = (
             Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
             .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
             .transformed_data_
         )
-        # NOTE: accN_resampled is slightly different in length and values to accN40 in MATLAB, plots look ok though
 
         # Filter to enhance the acceleration signal, when low SNR, impaired, asymmetric and slow gait
-        acc_filtered = scipy.signal.savgol_filter(acc_norm_resampled, polyorder=7, window_length=21)
+        acc_filtered = scipy.signal.savgol_filter(acc_norm_resampled, polyorder=7, window_length=21)  # window_length and polyorder from MATLAB
         acc_filtered = EpflDedriftedGaitFilter().filter(acc_filtered, sampling_rate_hz=40).filtered_data_
-        # NOTE: Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
-        #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
-        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
-        #   wavelet.
-        #   In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to how to
-        #   two languages initialise their wavelets), giving the line below
-        acc_filtered = scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7])
-        acc_filtered4 = scipy.signal.savgol_filter(acc_filtered, 11, 5)
-        acc_filtered = scipy.signal.cwt(acc_filtered4.squeeze(), scipy.signal.ricker, [7])  # See NOTE above
-        acc_filtered = scipy.ndimage.gaussian_filter(
-            acc_filtered.squeeze(), 2
-        )  # NOTE: sigma = windowWidth / 5, windowWidth = 10 (from MATLAB)
-        acc_filtered = scipy.ndimage.gaussian_filter(
-            acc_filtered.squeeze(), 2
-        )  # NOTE: sigma = windowWidth / 5, windowWidth = 10 (from MATLAB)
-        acc_filtered = scipy.ndimage.gaussian_filter(
-            acc_filtered.squeeze(), 3
-        )  # NOTE: sigma = windowWidth / 5, windowWidth = 15 (from MATLAB)
-        acc_filtered = scipy.ndimage.gaussian_filter(
-            acc_filtered.squeeze(), 2
-        )  # NOTE: sigma = windowWidth / 5, windowWidth = 10 (from MATLAB)
+        acc_filtered = scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7])   # scale=[7] in python matches 10 in MATLAB
+        acc_filtered4 = scipy.signal.savgol_filter(acc_filtered, 11, 5)  # window_length and polyorder from MATLAB
+        acc_filtered = scipy.signal.cwt(acc_filtered4.squeeze(), scipy.signal.ricker, [7])  # scale=[7] in python matches 10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 3)  # windowWidth=15 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
 
         try:
             active_peak_threshold = find_active_period_peak_threshold(
@@ -186,8 +170,8 @@ class GsdParaschivIonescu(BaseGsDetector):
             )
             signal = acc_filtered
         except NoActivePeriodsDetectedError:
-            # If we don't find the active periods, use a fallback threshold and use
-            # a less filtered signal for further processing, for which we can better predict the threshold.
+            # If we don't find the active periods, use a fallback threshold and use a less filtered signal for further
+            # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold")
             active_peak_threshold = self.active_signal_fallback_threshold
             signal = acc_filtered4
@@ -201,20 +185,22 @@ class GsdParaschivIonescu(BaseGsDetector):
         gs_from_max = gs_from_max[gs_from_max[:, 2] >= self.min_n_steps]
         gs_from_min = gs_from_min[gs_from_min[:, 2] >= self.min_n_steps]
 
+        # Combine the gs from the maxima and minima
         combined_final = find_intersections(
             gs_from_max[:, :2], gs_from_min[:, :2]
-        )  # Combine the gs from the maxima and minima
+        )
 
-        if combined_final.size == 0:  # Check if all gs removed
+        # Check if all gs removed
+        if combined_final.size == 0:
             self.gs_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
             return self
 
-        # Find all max_peaks withing each final gait sequence (GS)
+        # Find all max_peaks withing each final gs
         steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
         n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
         mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
 
-        # Pad each gs by 0.75*step_time before and after
+        # Pad each gs by padding*mean_step_times before and after
         combined_final[:, 0] = np.fix(combined_final[:, 0] - self.padding * mean_step_times)
         combined_final[:, 1] = np.fix(combined_final[:, 1] + self.padding * mean_step_times)
 
@@ -236,20 +222,40 @@ class GsdParaschivIonescu(BaseGsDetector):
         # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
         combined_final = np.clip(combined_final, 0, len(acc))
 
+        # Compile the df
         self.gs_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
 
         return self
 
 
-def hilbert_envelop(y, Smooth_window, DURATION):
-    """NOTE: This has been edited from the original MATLAB version to remove perceived error"""
+def hilbert_envelop(sig, smooth_window, duration):
+    """
+    Calculates the analytical signal with the help of hilbert transform, takes the envelope and smooths the signal.
+    Finally, with the help of an adaptive threshold detects the activity of the signal where at least a minimum number
+    of samples with the length of duration samples should stay above the threshold. The threshold is a computation of
+    signal noise and activity level which is updated online.
+
+    Parameters
+    ----------
+    sig (np.ndarray): A 1D numpy array representing the signal.
+    smooth_window (int): This is the window length used for smoothing the input signal in terms of number of samples.
+    duration (int): Number of samples in the window used for updating the threshold.
+
+    Returns
+    -------
+    active (np.ndarray): A 1D binary numpy array where 1 represents active periods and 0 represents non-active periods
+
+    .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review • Repository
+    Archive. J. Open Source Softw. 2018, 3, 671
+    """
+
     # Calculate the analytical signal and get the envelope
-    amplitude_envelope = np.abs(scipy.signal.hilbert(y))
+    amplitude_envelope = np.abs(scipy.signal.hilbert(sig))
 
     # Take the moving average of analytical signal
     env = np.convolve(
-        amplitude_envelope, np.ones(Smooth_window) / Smooth_window, "same"
-    )  # Smooth  NOTE: Original matlab code used mode 'full', meaning the length of convolution was different to env, this has been fixed here
+        amplitude_envelope, np.ones(smooth_window) / smooth_window, "same"  # Smooth
+    )
     env -= np.mean(env)  # Get rid of offset
     env /= np.max(env)  # Normalize
 
@@ -259,14 +265,14 @@ def hilbert_envelop(y, Smooth_window, DURATION):
     update_threshold = False
 
     # Initialize Buffers
-    noise_buff = np.zeros(len(env) - DURATION + 1)
+    noise_buff = np.zeros(len(env) - duration + 1)
     active = np.zeros(len(env) + 1)
 
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
-    for i in range(len(env) - DURATION + 1):
+    for i in range(len(env) - duration + 1):
         # Update threshold 10% of the maximum peaks found
-        window = env[i : i + DURATION]
+        window = env[i: i + duration]
         if (window > threshold_sig).all():
             active[i] = max(env)
             threshold = 0.1 * np.mean(window)
@@ -284,7 +290,7 @@ def hilbert_envelop(y, Smooth_window, DURATION):
         if update_threshold:
             threshold_sig = noise + 0.50 * (abs(threshold - noise))
 
-    return active, env
+    return active
 
 
 def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
@@ -394,30 +400,32 @@ class NoActivePeriodsDetectedError(Exception):
 
 def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
     # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
-    alarm, _ = hilbert_envelop(
+    alarm = hilbert_envelop(
         signal, sampling_rate_hz, sampling_rate_hz
-    )  # NOTE: This has been edited from the original MATLAB version to remove perceived error
+    )
     walkLowBack = np.array([])
 
     if not np.any(alarm):
         raise NoActivePeriodsDetectedError()
 
     # TODO: What does all of this do?
+    # Length of each consecutive stretch of nonzero values in alarm
     len_alarm = [
         len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)
-    ]  # Length of each consecutive stretch of nonzero values in alarm
+    ]
     end_alarm = np.cumsum(len_alarm)
     start_alarm = np.concatenate([np.array([0]), end_alarm[:-1]])
+    # Whether each consecutive stretch of nonzero values in alarm is alarmed
     alarmed = [
         v for v, s in groupby(alarm, key=lambda x: x > 0)
-    ]  # Whether each consecutive stretch of nonzero values in alarm is alarmed
+    ]
 
     for s, e, a in zip(start_alarm, end_alarm, alarmed):  # Iterate through the consecutive periods
         if a:  # If alarmed
             if e - s <= 3 * sampling_rate_hz:  # If the length of the alarm period is too short
                 alarm[s:e] = 0  # Replace this section of alarm with zeros
             else:
-                walkLowBack = np.concatenate([walkLowBack, signal[s - 1 : e - 1]])
+                walkLowBack = np.concatenate([walkLowBack, signal[s - 1: e - 1]])
 
     if walkLowBack.size == 0:
         raise NoActivePeriodsDetectedError()
@@ -426,4 +434,4 @@ def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
     peaks_n, _ = scipy.signal.find_peaks(-walkLowBack)
     pksp, pksn = walkLowBack[peaks_p], -walkLowBack[peaks_n]
     pks = np.concatenate([pksp[pksp > 0], pksn[pksn > 0]])
-    return np.percentile(pks, 5)  # data adaptive threshold
+    return np.percentile(pks, 5)  # Data adaptive threshold
