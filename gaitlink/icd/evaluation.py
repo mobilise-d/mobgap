@@ -5,14 +5,72 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
 
+from gaitlink.utils.evaluation import precision_recall_f1_score
 
-def evaluate_initial_contact_list(
-    *,
+
+def calculate_icd_performance_metrics(
     ic_list_detected: pd.DataFrame,
     ic_list_reference: pd.DataFrame,
-    tolerance: Union[int, float] = 0,  # TODO: insert practical default value
-    ic_list_detected_postfix: str = "_detected",
-    ic_list_reference_postfix: str = "_reference",
+    tolerance: Union[int, float] = 0,
+) -> dict[str, Union[float, int]]:
+    """
+    Calculate performance metrics for initial contact detection results.
+
+    The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
+    resective initial contact.
+
+    The following metrics are calculated:
+
+    - tp_samples`: Number of samples that are correctly detected as initial contacts.
+    - `fp_samples`: Number of samples that are falsely detected as initial contacts.
+    - `fn_samples`: Number of samples that are not detected as initial contacts.
+    - `precision`: Precision of the detected initial contacts.
+    - `recall`: Recall of the detected initial contacts.
+    - `f1_score`: F1 score of the detected initial contacts.
+
+    See the documentation of :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` for more details about recall,
+    precision, and F1 score.
+
+    Parameters
+    ----------
+    ic_list_detected: pd.DataFrame
+        The dataframe of detected initial contacts.
+    ic_list_reference: pd.DataFrame
+        The ground truth initial contact dataframe.
+    tolerance: int or float, optional
+        The allowed tolerance between a detected and reference initial contact in samples for it to be considered a
+        true positive match.
+        The comparison is done as `distance <= tolerance`.
+
+    Returns
+    -------
+    icd_metrics: dict
+    """
+    evaluated_matches = evaluate_initial_contact_list(ic_list_detected, ic_list_reference, tolerance=tolerance)
+
+    # estimate tp, fp, fn
+    tp_samples = len(evaluated_matches[evaluated_matches["match_type"] == "tp"])
+    fp_samples = len(evaluated_matches[evaluated_matches["match_type"] == "fp"])
+    fn_samples = len(evaluated_matches[evaluated_matches["match_type"] == "fn"])
+
+    # estimate performance metrics
+    precision_recall_f1 = precision_recall_f1_score(evaluated_matches)
+
+    icd_metrics = {
+        "tp_samples": tp_samples,
+        "fp_samples": fp_samples,
+        "fn_samples": fn_samples,
+        **precision_recall_f1,
+    }
+
+    return icd_metrics
+
+
+def evaluate_initial_contact_list(
+    ic_list_detected: pd.DataFrame,
+    ic_list_reference: pd.DataFrame,
+    *,
+    tolerance: Union[int, float] = 0,  # TODO: insert practical default value?
 ) -> pd.DataFrame:
     """Evaluate an initial contact list against a reference contact-by-contact.
 
@@ -37,17 +95,14 @@ def evaluate_initial_contact_list(
     ic_list_reference
         The ground truth initial contact dataframe.
     tolerance
-        The allowed tolerance between labels in samples.
+        The allowed tolerance between a detected and reference initial contact in samples for it to be considered a
+        true positive match.
         The comparison is done as `distance <= tolerance`.
-    ic_list_detected_postfix
-        A postfix that will be appended to the index name of the initial contact list in the output.
-    ic_list_reference_postfix
-        A postfix that will be appended to the index name of the reference list in the output.
 
     Returns
     -------
     matches
-        A 3 column dataframe with the column names `s_id{ic_list_detected_postfix}`, `s_id{ic_list_reference_postfix}`
+        A 3 column dataframe with the column names `s_id_detected`, `s_id_reference`
         and `match_type`.
         Each row is a match containing the index value of the detected and the reference list, that belong together.
         The `match_type` column indicates the type of match.
@@ -59,12 +114,12 @@ def evaluate_initial_contact_list(
 
     Examples
     --------
-    >>> ic_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
-    >>> ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
-    >>> matches = evaluate_initial_contact_list(
-    ...     ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference, tolerance=2
+    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
+    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
+    >>> result = evaluate_initial_contact_list(
+    ...     ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance=2
     ... )
-    >>> matches
+    >>> result
       ic_id_detected ic_id_reference match_type
     0    0                 0         tp
     1    1               NaN         fp
@@ -75,9 +130,6 @@ def evaluate_initial_contact_list(
     """
     detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
 
-    if ic_list_detected_postfix == ic_list_reference_postfix:
-        raise ValueError("The postfix for the left and the right initial contact list must be different.")
-
     if tolerance < 0:
         raise ValueError("The tolerance must be larger 0.")
 
@@ -87,8 +139,8 @@ def evaluate_initial_contact_list(
         tolerance=tolerance,
     )
 
-    detected_index_name = ic_list_detected.index.name + ic_list_detected_postfix
-    reference_index_name = ic_list_reference.index.name + ic_list_reference_postfix
+    detected_index_name = ic_list_detected.index.name + "_detected"
+    reference_index_name = ic_list_reference.index.name + "_reference"
 
     matches_detected = pd.DataFrame(index=ic_list_detected.index.copy(), columns=[reference_index_name])
     matches_detected.index.name = detected_index_name
@@ -112,11 +164,9 @@ def evaluate_initial_contact_list(
         .reset_index(drop=True)
     )
 
-    segmented_index_name = ic_list_detected.index.name + ic_list_detected_postfix
-    ground_truth_index_name = ic_list_reference.index.name + ic_list_reference_postfix
     matches.loc[~matches.isna().any(axis=1), "match_type"] = "tp"
-    matches.loc[matches[ground_truth_index_name].isna(), "match_type"] = "fp"
-    matches.loc[matches[segmented_index_name].isna(), "match_type"] = "fn"
+    matches.loc[matches[reference_index_name].isna(), "match_type"] = "fp"
+    matches.loc[matches[detected_index_name].isna(), "match_type"] = "fn"
 
     return matches
 
