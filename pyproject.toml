@@ -38,27 +38,6 @@ numpydoc = "^1.6.0"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.black]
-line-length = 120
-target-version = ["py39", "py310", "py311"]
-exclude = '''
-(
-  /(
-      \.eggs         # exclude a few common directories in the
-    | \.git          # root of the project
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | docs
-    | build
-    | dist
-    | \.virtual_documents
-  )/
-)
-'''
-
 [tool.poe.tasks]
 _format = "ruff format ."
 _auto_fix = "ruff . --fix-only --show-fixes --exit-zero"
