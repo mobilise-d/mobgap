@@ -116,7 +116,10 @@ _aggregator_type: TypeAlias = Callable[[list[_inputs_type], list[pd.DataFrame]],
 
 
 def create_aggregate_df(
-    fix_gs_offset_cols: Sequence[str] = ("start", "end"), *, potential_index_names: Sequence[str] = ("wb_id", "gs_id")
+    fix_gs_offset_cols: Sequence[str] = ("start", "end"),
+    *,
+    fix_gs_offset_index: bool = False,
+    _potential_index_names: Sequence[str] = ("wb_id", "gs_id"),
 ) -> _aggregator_type[pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
@@ -129,15 +132,21 @@ def create_aggregate_df(
         The columns that should be adapted to be relative to the start of the recording.
         By default, this is ``("start", "end")``.
         If you don't want to fix any columns, you can set this to an empty list.
+    fix_gs_offset_index
+        If True, the index of the dataframes will be adapted to be relative to the start of the recording.
+        This only makes sense, if the index represents sample values relative to the start of the gs.
+    _potential_index_names
+        The potential names of the index columns.
+        This usually does not need to be changed.
 
     """
-    if len(potential_index_names) == 0:
+    if len(_potential_index_names) == 0:
         raise ValueError("You need to provide at least one potential index name.")
 
     def aggregate_df(inputs: list[_inputs_type], outputs: list[pd.DataFrame]) -> pd.DataFrame:
         sequences, _ = zip(*inputs)
 
-        for iter_index_name in potential_index_names:
+        for iter_index_name in _potential_index_names:
             if iter_index_name in sequences[0]._fields:
                 break
 
@@ -149,6 +158,8 @@ def create_aggregate_df(
             if fix_gs_offset_cols:
                 cols_to_fix = set(fix_gs_offset_cols).intersection(o.columns)
                 o[list(cols_to_fix)] += gs.start
+            if fix_gs_offset_index:
+                o.index += gs.start
             to_concat[gs[0]] = o
 
         return pd.concat(to_concat, names=[iter_index_name, *outputs[0].index.names])
@@ -241,7 +252,7 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
                     #       the index.
                     #       However, our cadence time values are in seconds. This makes things tricky, as the aggregator
                     #       would need to know the sampling rate of the data.
-                    ("cad_per_sec", create_aggregate_df()),
+                    ("cad_per_sec", create_aggregate_df([], fix_gs_offset_index=True)),
                     ("stride_length", create_aggregate_df()),
                     ("gait_speed", create_aggregate_df()),
                 ]
