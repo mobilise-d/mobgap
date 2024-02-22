@@ -115,7 +115,9 @@ T = TypeVar("T")
 _aggregator_type: TypeAlias = Callable[[list[_inputs_type], list[pd.DataFrame]], T]
 
 
-def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end"), *, potential_index_names: Sequence[str] = ("wb_id", "gs_id")) -> _aggregator_type[pd.DataFrame]:
+def create_aggregate_df(
+    fix_gs_offset_cols: Sequence[str] = ("start", "end"), *, potential_index_names: Sequence[str] = ("wb_id", "gs_id")
+) -> _aggregator_type[pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
     The aggregator will also fix the offset of the given columns by adding the start value of the gait-sequence.
@@ -131,7 +133,6 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end"), *,
     """
     if len(potential_index_names) == 0:
         raise ValueError("You need to provide at least one potential index name.")
-
 
     def aggregate_df(inputs: list[_inputs_type], outputs: list[pd.DataFrame]) -> pd.DataFrame:
         sequences, _ = zip(*inputs)
