@@ -20,8 +20,10 @@ base_cad_docfiller = make_filldoc(
         "cadence_per_sec_": """
     cadence_per_sec_
         The main output of the cadence calculation.
-        It provides a list of cadence values with one value per full second of the provided data.
-        The unit is ``1/min``.
+        It provides a DataFrame with the column ``cad_spm`` that contains the cadence values with one value per full
+        second of the provided data. The unit is ``1/min``.
+        The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
+        each second.
     """,
         "calculate_short": """
     Calculate cadence from the passed data and initial contacts.

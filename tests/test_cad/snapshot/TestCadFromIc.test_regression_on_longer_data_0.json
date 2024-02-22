@@ -2,209 +2,209 @@
     "schema":{
         "fields":[
             {
-                "name":"gs_id",
+                "name":"wb_id",
                 "type":"integer"
             },
             {
-                "name":"time_s",
+                "name":"sec_center_samples",
                 "type":"integer"
             },
             {
-                "name":"cadence_per_sec",
+                "name":"cad_spm",
                 "type":"number"
             }
         ],
         "primaryKey":[
-            "gs_id",
-            "time_s"
+            "wb_id",
+            "sec_center_samples"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "gs_id":1,
-            "time_s":0,
-            "cadence_per_sec":105.2631578947
+            "wb_id":1,
+            "sec_center_samples":683,
+            "cad_spm":105.2631578947
         },
         {
-            "gs_id":1,
-            "time_s":1,
-            "cadence_per_sec":106.1946902655
+            "wb_id":1,
+            "sec_center_samples":783,
+            "cad_spm":106.1946902655
         },
         {
-            "gs_id":1,
-            "time_s":2,
-            "cadence_per_sec":105.2631578947
+            "wb_id":1,
+            "sec_center_samples":883,
+            "cad_spm":105.2631578947
         },
         {
-            "gs_id":2,
-            "time_s":0,
-            "cadence_per_sec":97.5609756098
+            "wb_id":2,
+            "sec_center_samples":2915,
+            "cad_spm":97.5609756098
         },
         {
-            "gs_id":2,
-            "time_s":1,
-            "cadence_per_sec":91.6030534351
+            "wb_id":2,
+            "sec_center_samples":3015,
+            "cad_spm":91.6030534351
         },
         {
-            "gs_id":2,
-            "time_s":2,
-            "cadence_per_sec":91.6030534351
+            "wb_id":2,
+            "sec_center_samples":3115,
+            "cad_spm":91.6030534351
         },
         {
-            "gs_id":2,
-            "time_s":3,
-            "cadence_per_sec":null
+            "wb_id":2,
+            "sec_center_samples":3215,
+            "cad_spm":null
         },
         {
-            "gs_id":3,
-            "time_s":0,
-            "cadence_per_sec":94.4881889764
+            "wb_id":3,
+            "sec_center_samples":3904,
+            "cad_spm":94.4881889764
         },
         {
-            "gs_id":3,
-            "time_s":1,
-            "cadence_per_sec":89.552238806
+            "wb_id":3,
+            "sec_center_samples":4004,
+            "cad_spm":89.552238806
         },
         {
-            "gs_id":3,
-            "time_s":2,
-            "cadence_per_sec":91.6030534351
+            "wb_id":3,
+            "sec_center_samples":4104,
+            "cad_spm":91.6030534351
         },
         {
-            "gs_id":3,
-            "time_s":3,
-            "cadence_per_sec":89.552238806
+            "wb_id":3,
+            "sec_center_samples":4204,
+            "cad_spm":89.552238806
         },
         {
-            "gs_id":3,
-            "time_s":4,
-            "cadence_per_sec":67.4157303371
+            "wb_id":3,
+            "sec_center_samples":4304,
+            "cad_spm":67.4157303371
         },
         {
-            "gs_id":3,
-            "time_s":5,
-            "cadence_per_sec":100.0
+            "wb_id":3,
+            "sec_center_samples":4404,
+            "cad_spm":100.0
         },
         {
-            "gs_id":3,
-            "time_s":6,
-            "cadence_per_sec":81.0810810811
+            "wb_id":3,
+            "sec_center_samples":4504,
+            "cad_spm":81.0810810811
         },
         {
-            "gs_id":3,
-            "time_s":7,
-            "cadence_per_sec":90.9090909091
+            "wb_id":3,
+            "sec_center_samples":4604,
+            "cad_spm":90.9090909091
         },
         {
-            "gs_id":3,
-            "time_s":8,
-            "cadence_per_sec":96.7741935484
+            "wb_id":3,
+            "sec_center_samples":4704,
+            "cad_spm":96.7741935484
         },
         {
-            "gs_id":3,
-            "time_s":9,
-            "cadence_per_sec":120.0
+            "wb_id":3,
+            "sec_center_samples":4804,
+            "cad_spm":120.0
         },
         {
-            "gs_id":3,
-            "time_s":10,
-            "cadence_per_sec":117.6470588235
+            "wb_id":3,
+            "sec_center_samples":4904,
+            "cad_spm":117.6470588235
         },
         {
-            "gs_id":3,
-            "time_s":11,
-            "cadence_per_sec":117.6470588235
+            "wb_id":3,
+            "sec_center_samples":5004,
+            "cad_spm":117.6470588235
         },
         {
-            "gs_id":4,
-            "time_s":0,
-            "cadence_per_sec":80.5369127517
+            "wb_id":4,
+            "sec_center_samples":7692,
+            "cad_spm":80.5369127517
         },
         {
-            "gs_id":4,
-            "time_s":1,
-            "cadence_per_sec":96.7741935484
+            "wb_id":4,
+            "sec_center_samples":7792,
+            "cad_spm":96.7741935484
         },
         {
-            "gs_id":4,
-            "time_s":2,
-            "cadence_per_sec":121.2121212121
+            "wb_id":4,
+            "sec_center_samples":7892,
+            "cad_spm":121.2121212121
         },
         {
-            "gs_id":4,
-            "time_s":3,
-            "cadence_per_sec":113.2075471698
+            "wb_id":4,
+            "sec_center_samples":7992,
+            "cad_spm":113.2075471698
         },
         {
-            "gs_id":4,
-            "time_s":4,
-            "cadence_per_sec":97.5609756098
+            "wb_id":4,
+            "sec_center_samples":8092,
+            "cad_spm":97.5609756098
         },
         {
-            "gs_id":4,
-            "time_s":5,
-            "cadence_per_sec":103.4482758621
+            "wb_id":4,
+            "sec_center_samples":8192,
+            "cad_spm":103.4482758621
         },
         {
-            "gs_id":4,
-            "time_s":6,
-            "cadence_per_sec":100.0
+            "wb_id":4,
+            "sec_center_samples":8292,
+            "cad_spm":100.0
         },
         {
-            "gs_id":4,
-            "time_s":7,
-            "cadence_per_sec":91.6030534351
+            "wb_id":4,
+            "sec_center_samples":8392,
+            "cad_spm":91.6030534351
         },
         {
-            "gs_id":4,
-            "time_s":8,
-            "cadence_per_sec":82.1917808219
+            "wb_id":4,
+            "sec_center_samples":8492,
+            "cad_spm":82.1917808219
         },
         {
-            "gs_id":5,
-            "time_s":0,
-            "cadence_per_sec":90.9090909091
+            "wb_id":5,
+            "sec_center_samples":9502,
+            "cad_spm":90.9090909091
         },
         {
-            "gs_id":5,
-            "time_s":1,
-            "cadence_per_sec":96.7741935484
+            "wb_id":5,
+            "sec_center_samples":9602,
+            "cad_spm":96.7741935484
         },
         {
-            "gs_id":5,
-            "time_s":2,
-            "cadence_per_sec":88.2352941176
+            "wb_id":5,
+            "sec_center_samples":9702,
+            "cad_spm":88.2352941176
         },
         {
-            "gs_id":5,
-            "time_s":3,
-            "cadence_per_sec":86.9565217391
+            "wb_id":5,
+            "sec_center_samples":9802,
+            "cad_spm":86.9565217391
         },
         {
-            "gs_id":6,
-            "time_s":0,
-            "cadence_per_sec":100.8403361345
+            "wb_id":6,
+            "sec_center_samples":12040,
+            "cad_spm":100.8403361345
         },
         {
-            "gs_id":6,
-            "time_s":1,
-            "cadence_per_sec":107.1428571429
+            "wb_id":6,
+            "sec_center_samples":12140,
+            "cad_spm":107.1428571429
         },
         {
-            "gs_id":6,
-            "time_s":2,
-            "cadence_per_sec":104.347826087
+            "wb_id":6,
+            "sec_center_samples":12240,
+            "cad_spm":104.347826087
         },
         {
-            "gs_id":6,
-            "time_s":3,
-            "cadence_per_sec":104.347826087
+            "wb_id":6,
+            "sec_center_samples":12340,
+            "cad_spm":104.347826087
         },
         {
-            "gs_id":6,
-            "time_s":4,
-            "cadence_per_sec":null
+            "wb_id":6,
+            "sec_center_samples":12440,
+            "cad_spm":null
         }
     ]
 }
