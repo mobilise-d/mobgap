@@ -1,11 +1,20 @@
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
-from dataclasses import asdict, dataclass, fields, replace
-from typing import Any, Callable, ClassVar, Generic, NamedTuple, TypeVar, Union, overload
+from dataclasses import dataclass
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Generic,
+    NamedTuple,
+    TypeVar,
+    Union,
+    overload, Optional,
+)
 
 import pandas as pd
 from tpcp import cf
-from tpcp.misc import BaseTypedIterator, set_defaults
+from gaitlink.pipeline._overwrite_typed_iterator import BaseTypedIterator
+from tpcp.misc import set_defaults
 from typing_extensions import TypeAlias
 
 DataclassT = TypeVar("DataclassT")
@@ -144,7 +153,9 @@ def create_aggregate_df(
     if len(_potential_index_names) == 0:
         raise ValueError("You need to provide at least one potential index name.")
 
-    def aggregate_df(inputs: list[_inputs_type], outputs: list[pd.DataFrame]) -> pd.DataFrame:
+    def aggregate_df(
+        inputs: list[_inputs_type], outputs: list[pd.DataFrame]
+    ) -> pd.DataFrame:
         sequences, _ = zip(*inputs)
 
         for iter_index_name in _potential_index_names:
@@ -154,7 +165,9 @@ def create_aggregate_df(
         to_concat = {}
         for gs, o in zip(sequences, outputs):
             if not isinstance(o, pd.DataFrame):
-                raise TypeError(f"Expected dataframe for this aggregator, but got {type(o)}")
+                raise TypeError(
+                    f"Expected dataframe for this aggregator, but got {type(o)}"
+                )
             o = o.copy()  # noqa: PLW2901
             if fix_gs_offset_cols:
                 cols_to_fix = set(fix_gs_offset_cols).intersection(o.columns)
@@ -307,9 +320,16 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
     ) -> None:
         super().__init__(data_type, aggregations)
 
+    _sub_iteration: Optional[Union[WalkingBout, GaitSequence]] = None
+    _sub_results: dict[Union[WalkingBout, GaitSequence], list[DataclassT]]
+    _sub_inputs: dict[Union[WalkingBout, GaitSequence], list[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame]]]
+
+
     def iterate(
         self, data: pd.DataFrame, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
+    ) -> Iterator[
+        tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]
+    ]:
         """Iterate over the gait sequences one by one.
 
         Parameters
@@ -331,33 +351,41 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             iteration.
 
         """
-        self.input_overwrite_ = {}
         yield from self._iterate(iter_gs(data, gs_list))
 
-    @contextmanager
-    def adjusted_gs(self, data: pd.DataFrame, new_gs: Union[GaitSequence, WalkingBout]) -> pd.DataFrame:
-        current_gs = self.inputs_[-1][0]
-        result_object = self._raw_results[-1]
-        gs_start_diff = new_gs.start - current_gs.start
-        gs_end_diff = new_gs.end - current_gs.end
-        current_non_empty_result = {
-            f.name: id(v) for f in fields(result_object) if (v := getattr(result_object, f.name)) is not self.NULL_VALUE
-        }
-        new_data = data.iloc[gs_start_diff:gs_end_diff]
-        yield new_data
-        # We don't allow changing values that were already set before the context manager.
-        if any(id(getattr(result_object, k)) != v for k, v in current_non_empty_result.items()):
-            raise ValueError("You are not allowed to change values that were already set before the context manager.")
-        after_non_empty_result_names = {
-            f.name for f in fields(result_object) if getattr(result_object, f.name) is not self.NULL_VALUE
-        }
-        before_non_empty_result_names = set(current_non_empty_result.keys())
-        new_result_names = after_non_empty_result_names - before_non_empty_result_names
+    def iterate_subregions(self, gs_list: pd.DataFrame):
+        print(self.raw_results_)
+        if not hasattr(self, "_sub_results"):
+            self._sub_results = {}
+        if not hasattr(self, "_sub_inputs"):
+            self._sub_inputs = {}
+        self._sub_iteration = self._current_gs
+        yield from self.iterate(self._current_data, gs_list)
+        self._sub_iteration = None
 
-        # We store the information, with which gs the results were created.
-        for name in new_result_names:
-            self.input_overwrite_.setdefault(name, {})[current_gs] = (new_gs, new_data)
-        return
+    @property
+    def _current_data(self):
+        return self.inputs_[-1][1]
+
+    @property
+    def _current_gs(self):
+        return self.inputs_[-1][0]
+
+    @property
+    def _current_result(self):
+        return self._raw_results[-1]
+
+    def _report_new_result(self, result: DataclassT):
+        if self._sub_iteration:
+            self._sub_results.setdefault(self._sub_iteration, []).append(result)
+        else:
+            return super()._report_new_result(result)
+
+    def _report_new_input(self, input: T):
+        if self._sub_iteration:
+            self._sub_inputs.setdefault(self._sub_iteration, []).append(input)
+        else:
+            return super()._report_new_input(input)
 
     def _agg_result(self, name):
         values = [getattr(r, name) for r in self.raw_results_]

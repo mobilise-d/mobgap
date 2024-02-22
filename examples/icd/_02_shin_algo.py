@@ -45,15 +45,15 @@ for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     icd = IcdShinImproved()
     icd.detect(data, sampling_rate_hz=sampling_rate_hz)
     result.ic_list = icd.ic_list_
-    refined_gs = GaitSequence(gs.start + 40, gs.end - 40, "test")
+    refined_gs_list = pd.DataFrame({"start": [5], "end": [gs.end - gs.start - 5]})
 
-    with iterator.adjusted_gs(data, refined_gs) as refined_data:
-        result.cad_per_sec = pd.DataFrame()
-        result.stride_length = pd.DataFrame()
+    for (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
+        refined_result.cad_per_sec = pd.DataFrame()
+        refined_result.stride_length = pd.DataFrame()
 
     result.gait_speed = pd.DataFrame()
 
-print(iterator.input_overwrite_)
+print(iterator._sub_results)
 
 
 detected_ics = iterator.results_.ic_list
