@@ -236,7 +236,7 @@ class TestFirFilter:
 
 class TestHampelFilter:
     def test_matlab_equivalent(self):
-        mat_data = scipy.io.loadmat(HERE / "matlab_hampel_test_data.mat")
+        mat_data = scipy.io.loadmat(HERE / "hampel_filter_test_data/matlab_hampel_test_data.mat")
         data = mat_data["data"].flatten()
         matlab_filtered_array = mat_data["filteredDataArray"]
         window_sizes = mat_data["windowSizes"].flatten()
