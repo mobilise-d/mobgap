@@ -102,8 +102,9 @@ def evaluate_initial_contact_list(
     Returns
     -------
     matches
-        A 3 column dataframe with the column names `s_id_detected`, `s_id_reference`
-        and `match_type`.
+        A 3 column dataframe with the column names `{ic_list_detected.index.name}_detected`,
+        `{ic_list_reference.index.name}_reference`, and `match_type`. If the index of an input is unnamed,
+        it will be named as `ic_id`.
         Each row is a match containing the index value of the detected and the reference list, that belong together.
         The `match_type` column indicates the type of match.
         For all initial contacts that have a match in the reference list, this will be "tp" (true positive).
@@ -114,8 +115,8 @@ def evaluate_initial_contact_list(
 
     Examples
     --------
-    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("s_id")
-    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("s_id")
+    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("ic_id")
+    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("ic_id")
     >>> result = evaluate_initial_contact_list(
     ...     ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance=2
     ... )
@@ -131,7 +132,7 @@ def evaluate_initial_contact_list(
     detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
 
     if tolerance < 0:
-        raise ValueError("The tolerance must be larger 0.")
+        raise ValueError("The tolerance must be larger than 0.")
 
     left_indices, right_indices = _match_label_lists(
         detected.to_numpy(),
@@ -172,7 +173,7 @@ def evaluate_initial_contact_list(
 
 
 def _match_label_lists(
-    list_left: np.ndarray, list_right: np.ndarray, tolerance: Union[int, float]
+    list_left: np.ndarray, list_right: np.ndarray, tolerance: Union[int, float] = 0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Find matches in two lists based on the distance between their vectors.
 
@@ -201,6 +202,16 @@ def _match_label_lists(
     If an index in one list does have two equally close matches in the other list,
     only the first match will be returned.
     """
+    # reshape the input arrays to (n, 1) if from shape (n,)
+    if len(np.shape(list_left)) == 1:
+        list_left = np.array(list_left).reshape(-1, 1)
+    if len(np.shape(list_right)) == 1:
+        list_right = np.array(list_right).reshape(-1, 1)
+
+    # if one of the input has more than one dimension, raise an error
+    if np.shape(list_left)[1] != 1 or np.shape(list_right)[1] != 1:
+        raise ValueError("The input arrays must be 1-dimensional.")
+
     if len(list_left) == 0 or len(list_right) == 0:
         return np.array([]), np.array([])
 
@@ -211,7 +222,7 @@ def _match_label_lists(
     l_nearest_distance, l_nearest_neighbor = right_tree.query(list_left, workers=-1)
     _, r_nearest_neighbor = left_tree.query(list_right, workers=-1)
 
-    # Filter the once that are true one-to-one matches
+    # Filter the ones that are true one-to-one matches
     l_indices = np.arange(len(list_left))
     combined_indices = np.vstack([l_indices, l_nearest_neighbor]).T
     boolean_map = r_nearest_neighbor[l_nearest_neighbor] == l_indices
