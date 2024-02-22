@@ -6,7 +6,7 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.cad import CadFromIc
+from gaitlink.cad import CadFromIc, CadFromIcDetector
 from gaitlink.data import LabExampleDataset
 from gaitlink.pipeline import GsIterator
 
@@ -25,19 +25,19 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
         )
 
 
-# TODO: This class can only be tested once we have an IC detector implemented
-# class TestMetaCadFromIcDetector(TestAlgorithmMixin):
-#     __test__ = True
-#
-#     ALGORITHM_CLASS = CadFromIcDetector
-#
-#     @pytest.fixture()
-#     def after_action_instance(self):
-#         return self.ALGORITHM_CLASS().calculate(
-#             pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
-#             initial_contacts=pd.Series(np.arange(0, 100, 5)),
-#             sampling_rate_hz=40.0,
-#         )
+class TestMetaCadFromIcDetector(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = CadFromIcDetector
+
+    @pytest.fixture()
+    def after_action_instance(self):
+        return self.ALGORITHM_CLASS().calculate(
+            pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
+            initial_contacts=pd.DataFrame({"ic": np.arange(0, 100, 5)}),
+            sampling_rate_hz=40.0,
+        )
+
 
 # TODO: - Tests with non-uniform data
 #       - Really test that we perform linear interpolation
@@ -58,14 +58,16 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            name="sec_center_samples",
         ).astype(int)
 
         assert len(cadence) == len(data) // sampling_rate_hz
         assert_frame_equal(
             cadence,
             pd.DataFrame(
-                {"cad_spm": np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60}, index=expected_index
+                {"cad_spm": np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60},
+                index=expected_index,
             ),
         )
 
@@ -91,7 +93,8 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            name="sec_center_samples",
         ).astype(int)
 
         assert len(cadence) == len(data) // sampling_rate_hz
@@ -125,7 +128,8 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            name="sec_center_samples",
         ).astype(int)
 
         assert len(cadence) == len(data) // sampling_rate_hz
@@ -141,7 +145,13 @@ class TestCadFromIc:
         data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
         # We remove ICs at the beginning and end
         initial_contacts = pd.DataFrame(
-            {"ic": np.arange(2 * sampling_rate_hz, n_samples - 2 * sampling_rate_hz, fixed_step_size)}
+            {
+                "ic": np.arange(
+                    2 * sampling_rate_hz,
+                    n_samples - 2 * sampling_rate_hz,
+                    fixed_step_size,
+                )
+            }
         )
 
         with pytest.warns(UserWarning) as w:
@@ -157,7 +167,8 @@ class TestCadFromIc:
         expected_output[-1] = np.nan
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            name="sec_center_samples",
         ).astype(int)
 
         assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
@@ -215,7 +226,12 @@ class TestCadFromIc:
         results = make_dataclass("Results", [("cadence", pd.Series)])
         gs_iterator = GsIterator(
             results,
-            aggregations=[("cadence", GsIterator.DefaultAggregators.create_aggregate_df([], fix_gs_offset_index=True))],
+            aggregations=[
+                (
+                    "cadence",
+                    GsIterator.DefaultAggregators.create_aggregate_df([], fix_gs_offset_index=True),
+                )
+            ],
         )
 
         ref_data = dp.reference_parameters_relative_to_wb_
