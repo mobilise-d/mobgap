@@ -12,6 +12,7 @@ from gaitlink.data_transform import HampelFilter
 from gaitlink.data_transform.base import BaseFilter
 from gaitlink.icd import IcdShinImproved
 from gaitlink.icd.base import BaseIcDetector
+from gaitlink.utils.conversions import as_samples
 from gaitlink.utils.interpolation import robust_step_para_to_sec
 
 ic2cad_docfiller = make_filldoc(
@@ -92,13 +93,13 @@ ic2cad_docfiller = make_filldoc(
 
 def _robust_ic_to_cad_per_sec(
     ics: pd.Series, sec_centers: np.ndarray, max_interpolation_gap_s: int, smoothing_filter: BaseFilter
-) -> pd.Series:
+) -> np.ndarray:
     """Calculate cadence per second from initial contacts."""
     ics = ics.to_numpy()
     if len(ics) <= 1:
         # We can not calculate cadence with only one initial contact
         warnings.warn("Can not calculate cadence with only one or zero initial contacts.", stacklevel=3)
-        return pd.Series(np.full(len(sec_centers), np.nan))
+        return np.full(len(sec_centers), np.nan)
     step_time = np.diff(ics)
     # We repeat the last step time to get the same number of step times as initial contacts
     step_time = np.append(step_time, step_time[-1])
@@ -111,7 +112,7 @@ def _robust_ic_to_cad_per_sec(
     )
 
     # Final cadence calculation in 1/min
-    return pd.Series(1.0 / step_time_per_sec_smooth * 60, dtype=float, name="cadence_per_sec")
+    return 1.0 / step_time_per_sec_smooth * 60
 
 
 @ic2cad_docfiller
@@ -183,7 +184,6 @@ class CadFromIc(BaseCadCalculator):
         initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
         n_secs = len(data) // sampling_rate_hz
         sec_centers = np.arange(0, n_secs) + 0.5
-        # TODO: What index should the output cadence have?
         self.cadence_per_sec_ = pd.DataFrame(
             {
                 "cad_spm": _robust_ic_to_cad_per_sec(
@@ -192,8 +192,9 @@ class CadFromIc(BaseCadCalculator):
                     self.max_interpolation_gap_s,
                     self.step_time_smoothing.clone(),
                 )
-            }
-        ).rename_axis(index="time_s")
+            },
+            index=as_samples(sec_centers, sampling_rate_hz),
+        ).rename_axis(index="sec_center_samples")
         return self
 
     def _get_ics(
@@ -262,7 +263,6 @@ class CadFromIcDetector(CadFromIc):
 
     """
 
-    # TODO: correct typing
     ic_detector: BaseIcDetector
     silence_ic_warning: bool
 

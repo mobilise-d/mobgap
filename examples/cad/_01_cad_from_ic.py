@@ -48,11 +48,11 @@ short_trial: LabExampleDataset = lab_example_data.get_subset(
 # ---------
 # To demonstrate the usage of :class:`~gaitlink.algorithm.CadFromIc` we use the detected initial contacts from the
 # reference system as input.
-reference_ic = short_trial.reference_parameters_relative_to_wb_.initial_contacts
+reference_ic = short_trial.reference_parameters_relative_to_wb_.ic_list
 reference_ic
 
 # %%
-reference_gs = short_trial.reference_parameters_relative_to_wb_.walking_bouts
+reference_gs = short_trial.reference_parameters_relative_to_wb_.wb_list
 reference_gs
 
 # %%

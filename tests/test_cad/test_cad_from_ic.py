@@ -3,7 +3,7 @@ from dataclasses import make_dataclass
 import numpy as np
 import pandas as pd
 import pytest
-from pandas._testing import assert_series_equal
+from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from gaitlink.cad import CadFromIc
@@ -20,7 +20,7 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().calculate(
             pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
-            initial_contacts=pd.Series(np.arange(0, 100, 5)),
+            initial_contacts=pd.DataFrame({"ic": np.arange(0, 100, 5)}),
             sampling_rate_hz=40.0,
         )
 
@@ -51,16 +51,22 @@ class TestCadFromIc:
         n_samples = 100
 
         data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.Series(np.arange(0, n_samples + 1, fixed_step_size))
-        data = data.iloc[: initial_contacts.iloc[-1]]
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples + 1, fixed_step_size)})
+        data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
         cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
         cadence = cad.cadence_per_sec_
 
+        expected_index = pd.Index(
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+        ).astype(int)
+
         assert len(cadence) == len(data) // sampling_rate_hz
-        assert_series_equal(
+        assert_frame_equal(
             cadence,
-            pd.Series(np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60, name="cadence_per_sec"),
+            pd.DataFrame(
+                {"cad_spm": np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60}, index=expected_index
+            ),
         )
 
     def test_large_gap_no_interpolation(self):
@@ -69,7 +75,7 @@ class TestCadFromIc:
         n_samples = 300
 
         data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.Series(np.arange(0, n_samples, fixed_step_size))
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples, fixed_step_size)})
         max_gap_s = 1
 
         n_ics_to_drop = max_gap_s * 3 * sampling_rate_hz // fixed_step_size
@@ -77,18 +83,22 @@ class TestCadFromIc:
         # We introduce a gap in the data that is not covered by the initial contacts
         initial_contacts = initial_contacts.drop(initial_contacts.index[2 : 2 + int(n_ics_to_drop)])
 
-        data = data.iloc[: initial_contacts.iloc[-1]]
+        data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
         cad = CadFromIc(max_interpolation_gap_s=max_gap_s).calculate(
             data, initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
+        expected_index = pd.Index(
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+        ).astype(int)
+
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         expected_output[1:3] = np.nan
 
-        assert_series_equal(cadence, pd.Series(expected_output, name="cadence_per_sec"))
+        assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 
     def test_small_gap_interpolation(self):
         sampling_rate_hz = 40.0
@@ -96,7 +106,7 @@ class TestCadFromIc:
         n_samples = 300
 
         data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.Series(np.arange(0, n_samples, fixed_step_size))
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples, fixed_step_size)})
         max_gap_s = 6
 
         # We drop less than max_gap_s -> should get interpolated
@@ -107,16 +117,20 @@ class TestCadFromIc:
         # We introduce a gap in the data that is not covered by the initial contacts
         initial_contacts = initial_contacts.drop(initial_contacts.index[2 : 2 + int(n_ics_to_drop)])
 
-        data = data.iloc[: initial_contacts.iloc[-1]]
+        data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
         cad = CadFromIc(max_interpolation_gap_s=max_gap_s).calculate(
             data, initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
+        expected_index = pd.Index(
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+        ).astype(int)
+
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
-        assert_series_equal(cadence, pd.Series(expected_output, name="cadence_per_sec"))
+        assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 
     def test_no_extrapolation(self):
         # We also test the warning here
@@ -126,7 +140,9 @@ class TestCadFromIc:
 
         data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
         # We remove ICs at the beginning and end
-        initial_contacts = pd.Series(np.arange(2 * sampling_rate_hz, n_samples - 2 * sampling_rate_hz, fixed_step_size))
+        initial_contacts = pd.DataFrame(
+            {"ic": np.arange(2 * sampling_rate_hz, n_samples - 2 * sampling_rate_hz, fixed_step_size)}
+        )
 
         with pytest.warns(UserWarning) as w:
             cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
@@ -140,11 +156,15 @@ class TestCadFromIc:
         expected_output[0] = np.nan
         expected_output[-1] = np.nan
 
-        assert_series_equal(cadence, pd.Series(expected_output, name="cadence_per_sec"))
+        expected_index = pd.Index(
+            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz), name="sec_center_samples"
+        ).astype(int)
+
+        assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 
     def test_not_enough_ics(self):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.Series(np.arange(0, 100, 5))
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We only keep the first IC -> Not possible to calculate cadence
         initial_contacts = initial_contacts.iloc[:1]
 
@@ -155,7 +175,7 @@ class TestCadFromIc:
         assert "Can not calculate cadence with only one or zero initial contacts" in str(w[1])
 
         assert len(cad.cadence_per_sec_) == len(data) // 40
-        assert cad.cadence_per_sec_.isna().all()
+        assert cad.cadence_per_sec_["cad_spm"].isna().all()
 
     @pytest.mark.parametrize("n_ics", [2, 3, 4])
     def test_small_n_ics(self, n_ics):
@@ -164,8 +184,7 @@ class TestCadFromIc:
         This could likely trigger some edge cases in the code.
         """
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.Series(np.arange(0, 100, 5))
-        # We only keep the first IC -> Not possible to calculate cadence
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         initial_contacts = initial_contacts.iloc[:n_ics]
 
         with pytest.warns(UserWarning) as w:
@@ -175,11 +194,11 @@ class TestCadFromIc:
 
         assert len(cad.cadence_per_sec_) == len(data) // 40
         # We just test that not all values are NaN
-        assert not cad.cadence_per_sec_.isna().all()
+        assert not cad.cadence_per_sec_["cad_spm"].isna().all()
 
     def test_raise_non_sorted_ics(self):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.Series(np.arange(0, 100, 5))
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We shuffle the ICs
         initial_contacts = initial_contacts.sample(frac=1, random_state=2)
 
@@ -196,22 +215,17 @@ class TestCadFromIc:
         results = make_dataclass("Results", [("cadence", pd.Series)])
         gs_iterator = GsIterator(
             results,
-            aggregations=[
-                (
-                    "cadence",
-                    lambda ins, outs: pd.concat({i[0]: o for i, o in zip(ins, outs)}, names=["gs_id", "time_s"]),
-                )
-            ],
+            aggregations=[("cadence", GsIterator.DefaultAggregators.create_aggregate_df([], fix_gs_offset_index=True))],
         )
 
-        for (gs_id, data), r in gs_iterator.iterate(
-            dp.data["LowerBack"], dp.reference_parameters_relative_to_wb_.walking_bouts
-        ):
+        ref_data = dp.reference_parameters_relative_to_wb_
+
+        for (gs, data), r in gs_iterator.iterate(dp.data["LowerBack"], ref_data.wb_list):
             cad = CadFromIc().calculate(
                 data,
-                dp.reference_parameters_relative_to_wb_.initial_contacts.loc[gs_id, "ic"],
+                ref_data.ic_list.loc[gs.id],
                 sampling_rate_hz=dp.sampling_rate_hz,
             )
             r.cadence = cad.cadence_per_sec_
 
-        snapshot.assert_match(gs_iterator.cadence_.to_frame())
+        snapshot.assert_match(gs_iterator.cadence_)
