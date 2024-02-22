@@ -35,6 +35,7 @@ def _create_dummy_gsd_matches_df(num_tp, num_fp, num_fn):
 
     return pd.concat([tp_df, fp_df, fn_df])
 
+
 def _create_dummy_icd_matches_df(num_tp, num_fp, num_fn):
     tp_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_tp), np.repeat(0, num_tp), np.repeat("tp", num_tp)]),
@@ -221,6 +222,7 @@ class TestNumberSamplesLogic:
         with pytest.raises(ValueError):
             npv_score(matches_df, n_overall_samples=20)
 
+
 class TestUnsupportedInputError:
     @pytest.mark.parametrize("fct", [specificity_score, accuracy_score, npv_score])
     def test_unsupported_icd_metric_error(self, fct):
@@ -228,7 +230,18 @@ class TestUnsupportedInputError:
         with pytest.raises(ValueError):
             fct(matches_df)
 
-    @pytest.mark.parametrize("fct", [precision_score, recall_score, f1_score, precision_recall_f1_score, specificity_score, accuracy_score, npv_score])
+    @pytest.mark.parametrize(
+        "fct",
+        [
+            precision_score,
+            recall_score,
+            f1_score,
+            precision_recall_f1_score,
+            specificity_score,
+            accuracy_score,
+            npv_score,
+        ],
+    )
     def test_unsupported_input_error(self, fct):
         matches_df = pd.DataFrame(columns=["something", "something_else", "match_type"])
         with pytest.raises(NotImplementedError):
@@ -281,12 +294,11 @@ class TestDivisionByZeroReturn:
 
         # test return  for icd supported metrics
         if self.n_samples is None:
-
-            eval_metrics = self.func(_create_dummy_icd_matches_df(*self.arguments),zero_division=self.zero_division)
+            eval_metrics = self.func(_create_dummy_icd_matches_df(*self.arguments), zero_division=self.zero_division)
 
             assert_array_equal(
-               np.array(list(eval_metrics.values()) if isinstance(eval_metrics, dict) else eval_metrics),
-               self.expected_output,
+                np.array(list(eval_metrics.values()) if isinstance(eval_metrics, dict) else eval_metrics),
+                self.expected_output,
             )
 
 
