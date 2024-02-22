@@ -112,14 +112,18 @@ display(inspect.getsource(iterator.data_type))
 #
 # In each iteration the iterator will give us a tuple of the gait sequence information, the data for the iteration, and
 # a new empty result object.
+from gaitlink.utils.conversions import as_samples
 
 for (gs, data), result in iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
     # Now we can just "calculate" the initial contacts and set it on the result object.
     result.ic_list = pd.DataFrame(np.arange(0, len(data), 100), columns=["ic"]).rename_axis(index="ic_id")
     # For cadence, we just set a dummy value to the wb_id for each 1 second bout of the data.
+    n_seconds = int(len(data) // long_trial.sampling_rate_hz)
     result.cad_per_sec = pd.DataFrame(
-        [gs.id] * int(len(data) // long_trial.sampling_rate_hz), columns=["cadence"]
-    ).rename_axis(index="time")
+        [gs.id] * n_seconds,
+        columns=["cad_spm"],
+        index=as_samples(np.arange(0, n_seconds) + 0.5, long_trial.sampling_rate_hz),
+    ).rename_axis(index="sec_center_samples")
 
 # %%
 # After the iteration, we can access the aggregated results either using the `results_` property of the iterator
@@ -135,7 +139,9 @@ iterator.ic_list_
 # And all ICs are offset, so that they are relative to the start of the recording and not the start of the gait
 # sequence anymore.
 #
-# For the cadence value, we see that no adjustment was made, as the cadence value is not a "time" value per sample.
+# For the cadence value, the index represents the sample of the center of the second the cadence value belongs to.
+# This value was originally relative to the start of the GS.
+# We can see that in the aggregated results this is transformed back to be relative to the start of the recording.
 iterator.results_.cad_per_sec
 
 

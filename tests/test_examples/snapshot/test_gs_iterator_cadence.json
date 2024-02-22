@@ -6,335 +6,335 @@
                 "type":"integer"
             },
             {
-                "name":"time",
+                "name":"sec_center_samples",
                 "type":"integer"
             },
             {
-                "name":"cadence",
+                "name":"cad_spm",
                 "type":"integer"
             }
         ],
         "primaryKey":[
             "wb_id",
-            "time"
+            "sec_center_samples"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":1,
-            "time":0,
-            "cadence":1
+            "sec_center_samples":1070,
+            "cad_spm":1
         },
         {
             "wb_id":1,
-            "time":1,
-            "cadence":1
+            "sec_center_samples":1170,
+            "cad_spm":1
         },
         {
             "wb_id":1,
-            "time":2,
-            "cadence":1
+            "sec_center_samples":1270,
+            "cad_spm":1
         },
         {
             "wb_id":1,
-            "time":3,
-            "cadence":1
+            "sec_center_samples":1370,
+            "cad_spm":1
         },
         {
             "wb_id":1,
-            "time":4,
-            "cadence":1
+            "sec_center_samples":1470,
+            "cad_spm":1
         },
         {
             "wb_id":1,
-            "time":5,
-            "cadence":1
+            "sec_center_samples":1570,
+            "cad_spm":1
         },
         {
             "wb_id":1,
-            "time":6,
-            "cadence":1
+            "sec_center_samples":1670,
+            "cad_spm":1
         },
         {
             "wb_id":2,
-            "time":0,
-            "cadence":2
+            "sec_center_samples":4585,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":1,
-            "cadence":2
+            "sec_center_samples":4685,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":2,
-            "cadence":2
+            "sec_center_samples":4785,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":3,
-            "cadence":2
+            "sec_center_samples":4885,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":4,
-            "cadence":2
+            "sec_center_samples":4985,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":5,
-            "cadence":2
+            "sec_center_samples":5085,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":6,
-            "cadence":2
+            "sec_center_samples":5185,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":7,
-            "cadence":2
+            "sec_center_samples":5285,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":8,
-            "cadence":2
+            "sec_center_samples":5385,
+            "cad_spm":2
         },
         {
             "wb_id":2,
-            "time":9,
-            "cadence":2
+            "sec_center_samples":5485,
+            "cad_spm":2
         },
         {
             "wb_id":3,
-            "time":0,
-            "cadence":3
+            "sec_center_samples":9716,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":1,
-            "cadence":3
+            "sec_center_samples":9816,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":2,
-            "cadence":3
+            "sec_center_samples":9916,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":3,
-            "cadence":3
+            "sec_center_samples":10016,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":4,
-            "cadence":3
+            "sec_center_samples":10116,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":5,
-            "cadence":3
+            "sec_center_samples":10216,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":6,
-            "cadence":3
+            "sec_center_samples":10316,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":7,
-            "cadence":3
+            "sec_center_samples":10416,
+            "cad_spm":3
         },
         {
             "wb_id":3,
-            "time":8,
-            "cadence":3
+            "sec_center_samples":10516,
+            "cad_spm":3
         },
         {
             "wb_id":4,
-            "time":0,
-            "cadence":4
+            "sec_center_samples":12388,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":1,
-            "cadence":4
+            "sec_center_samples":12488,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":2,
-            "cadence":4
+            "sec_center_samples":12588,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":3,
-            "cadence":4
+            "sec_center_samples":12688,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":4,
-            "cadence":4
+            "sec_center_samples":12788,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":5,
-            "cadence":4
+            "sec_center_samples":12888,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":6,
-            "cadence":4
+            "sec_center_samples":12988,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":7,
-            "cadence":4
+            "sec_center_samples":13088,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":8,
-            "cadence":4
+            "sec_center_samples":13188,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":9,
-            "cadence":4
+            "sec_center_samples":13288,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":10,
-            "cadence":4
+            "sec_center_samples":13388,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":11,
-            "cadence":4
+            "sec_center_samples":13488,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":12,
-            "cadence":4
+            "sec_center_samples":13588,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":13,
-            "cadence":4
+            "sec_center_samples":13688,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":14,
-            "cadence":4
+            "sec_center_samples":13788,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":15,
-            "cadence":4
+            "sec_center_samples":13888,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":16,
-            "cadence":4
+            "sec_center_samples":13988,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":17,
-            "cadence":4
+            "sec_center_samples":14088,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":18,
-            "cadence":4
+            "sec_center_samples":14188,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":19,
-            "cadence":4
+            "sec_center_samples":14288,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":20,
-            "cadence":4
+            "sec_center_samples":14388,
+            "cad_spm":4
         },
         {
             "wb_id":4,
-            "time":21,
-            "cadence":4
+            "sec_center_samples":14488,
+            "cad_spm":4
         },
         {
             "wb_id":5,
-            "time":0,
-            "cadence":5
+            "sec_center_samples":20202,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":1,
-            "cadence":5
+            "sec_center_samples":20302,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":2,
-            "cadence":5
+            "sec_center_samples":20402,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":3,
-            "cadence":5
+            "sec_center_samples":20502,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":4,
-            "cadence":5
+            "sec_center_samples":20602,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":5,
-            "cadence":5
+            "sec_center_samples":20702,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":6,
-            "cadence":5
+            "sec_center_samples":20802,
+            "cad_spm":5
         },
         {
             "wb_id":5,
-            "time":7,
-            "cadence":5
+            "sec_center_samples":20902,
+            "cad_spm":5
         },
         {
             "wb_id":6,
-            "time":0,
-            "cadence":6
+            "sec_center_samples":21429,
+            "cad_spm":6
         },
         {
             "wb_id":6,
-            "time":1,
-            "cadence":6
+            "sec_center_samples":21529,
+            "cad_spm":6
         },
         {
             "wb_id":6,
-            "time":2,
-            "cadence":6
+            "sec_center_samples":21629,
+            "cad_spm":6
         },
         {
             "wb_id":6,
-            "time":3,
-            "cadence":6
+            "sec_center_samples":21729,
+            "cad_spm":6
         },
         {
             "wb_id":6,
-            "time":4,
-            "cadence":6
+            "sec_center_samples":21829,
+            "cad_spm":6
         },
         {
             "wb_id":6,
-            "time":5,
-            "cadence":6
+            "sec_center_samples":21929,
+            "cad_spm":6
         },
         {
             "wb_id":6,
-            "time":6,
-            "cadence":6
+            "sec_center_samples":22029,
+            "cad_spm":6
         }
     ]
 }
