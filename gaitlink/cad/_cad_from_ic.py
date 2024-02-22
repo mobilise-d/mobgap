@@ -249,7 +249,7 @@ class CadFromIcDetector(CadFromIc):
     ic_detector_
         The IC detector used to detect the initial contacts with the results attached.
         This is only available after the ``detect`` method was called.
-    internal_initial_contacts_
+    internal_ic_list_
         The initial contacts detected by the ``ic_detector_``.
         This is equivalent to ``ic_detector_.initial_contacts_``.
 
