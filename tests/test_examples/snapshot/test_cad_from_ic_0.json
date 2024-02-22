@@ -2,35 +2,35 @@
     "schema":{
         "fields":[
             {
-                "name":"index",
+                "name":"sec_center_samples",
                 "type":"integer"
             },
             {
-                "name":"cadence_per_sec",
+                "name":"cad_spm",
                 "type":"number"
             }
         ],
         "primaryKey":[
-            "index"
+            "sec_center_samples"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "index":0,
-            "cadence_per_sec":101.6949152542
+            "sec_center_samples":50,
+            "cad_spm":101.6949152542
         },
         {
-            "index":1,
-            "cadence_per_sec":107.1428571429
+            "sec_center_samples":150,
+            "cad_spm":107.1428571429
         },
         {
-            "index":2,
-            "cadence_per_sec":104.347826087
+            "sec_center_samples":250,
+            "cad_spm":104.347826087
         },
         {
-            "index":3,
-            "cadence_per_sec":96.7741935484
+            "sec_center_samples":350,
+            "cad_spm":96.7741935484
         }
     ]
 }
