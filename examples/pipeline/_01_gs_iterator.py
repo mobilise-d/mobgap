@@ -206,7 +206,7 @@ for (_, data), custom_result in custom_iterator.iterate(long_trial.data["LowerBa
     # We just calculate the length, but you can image any other calculation here.
     # Then we just set the result.
     custom_result.n_samples = len(data)
-    # For the "filtered" data we just substract 1 form the input
+    # For the "filtered" data we just subtract 1 form the input
     custom_result.filtered_data = data - 1
 
 # %%
