@@ -71,6 +71,7 @@ cad_from_ic.calculate(data_in_gs, ics_in_gs, sampling_rate_hz=short_trial.sampli
 
 # %%
 # We get an output that contains the cadence for each second of the gaits sequence.
+# The index represents the sample of the center of the second the cadence value belongs to.
 cad_from_ic.cadence_per_sec_
 
 # %%
@@ -88,6 +89,9 @@ print(f"Calculated average per-sec cadence: {cad_from_ic_avg_cad:.2f} steps/min"
 #
 # CadFromIcDetector
 # -----------------
+# For the ``CadFromIcDetector`` we need to supply an IC detection algorithm.
+# In this case we use the ``IcdShinImproved`` algorithm.
+# We could also use any other IC detection algorithm or adapt the parameters of the IC detection algorithm.
 from gaitlink.cad import CadFromIcDetector
 from gaitlink.icd import IcdShinImproved
 
@@ -101,7 +105,13 @@ cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
 cad_from_ic_detector.calculate(data_in_gs, initial_contacts=ics_in_gs, sampling_rate_hz=short_trial.sampling_rate_hz)
 
 # %%
-# We get the same output as before.
+# .. note:: By default the ``CadFromIcDetector`` will raise a warning to inform the user that the passed ICs are
+#           ignored.
+#           This is intentionally, as we assume first time users might be confused by that fact.
+#           If you are aware of this and want to get rid of the warning, you can set ``silence_ic_warning`` to
+#           True on the ``CadFromIcDetector`` object.
+#
+# We get the same output structure as before.
 cad_from_ic_detector.cadence_per_sec_
 
 # %%
