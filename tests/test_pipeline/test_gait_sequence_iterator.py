@@ -10,7 +10,7 @@ from gaitlink.pipeline import GsIterator, create_aggregate_df, iter_gs
 class TestGsIterationFunc:
     def test_simple(self):
         dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
-        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "s_id": ["s1", "s2"]}).set_index("s_id")
+        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "gs_id": ["s1", "s2"]}).set_index("gs_id")
 
         iterator = iter_gs(dummy_data, dummy_sections)
 
@@ -31,7 +31,7 @@ class TestGsIterator:
             s_id: str
 
         dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
-        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "s_id": ["s1", "s2"]}).set_index("s_id")
+        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "gs_id": ["s1", "s2"]}).set_index("gs_id")
 
         iterator = GsIterator(DummyResultType)
 
@@ -63,7 +63,7 @@ class TestGsIterator:
         aggregations = [("n_samples", lambda _, r: sum(r))]
 
         dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
-        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "s_id": ["s1", "s2"]}).set_index("s_id")
+        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "gs_id": ["s1", "s2"]}).set_index("gs_id")
 
         iterator = GsIterator(DummyResultType, aggregations=aggregations)
 

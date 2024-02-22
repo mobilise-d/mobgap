@@ -44,12 +44,17 @@ from gaitlink.pipeline import iter_gs
 for gs, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
     # Note that the key to access the id is called "wb_id" here, as we loaded the WB from the reference system.
     # If this is an "actual" gait sequences, as calculated by one of the GSD algorithms, the key would be "gs_id".
-    print("Gait Sequence: ", gs.wb_id)
+    print("Gait Sequence: ", gs)
     print("Expected N-samples in gs: ", gs.end - gs.start)
     print("N-samples in gs: ", len(data))
     print("First sample of gs:\n", data.iloc[0], end="\n\n")
 
 # %%
+# .. note:: The ``gs`` named-tuples returned by the iterator can either be of type ``GaitSequence`` or ``WalkingBout``.
+#           In both cases they contain the fields ``id``, ``start``, and ``end`` in this order.
+#           When using the named access the ``id`` field can also be accessed via the ``wb_id``/``gs_id`` field (
+#           depending on the type of the gait sequence).
+#
 # You can see that this way it is pretty easy to iterate over the data.
 # However, if you are planning to run calculations on the data, you need to aggregate the results yourself.
 # If you are planning to collect multiple pieces of results, this can become cumbersome.
@@ -112,7 +117,7 @@ for (gs, data), result in iterator.iterate(long_trial.data["LowerBack"], long_tr
     result.ic_list = pd.DataFrame(np.arange(0, len(data), 100), columns=["ic"]).rename_axis(index="ic_id")
     # For cadence, we just set a dummy value to the wb_id for each 1 second bout of the data.
     result.cad_per_sec = pd.DataFrame(
-        [gs.wb_id] * int(len(data) // long_trial.sampling_rate_hz), columns=["cadence"]
+        [gs.id] * int(len(data) // long_trial.sampling_rate_hz), columns=["cadence"]
     ).rename_axis(index="time")
 
 # %%
@@ -172,7 +177,7 @@ class ResultType:
 
 def aggregate_n_samples(inputs, results):
     gait_sequences, _ = zip(*inputs)
-    return pd.Series(results, index=[gs.wb_id for gs in gait_sequences], name="N-Samples")
+    return pd.Series(results, index=[gs.id for gs in gait_sequences], name="N-Samples")
 
 
 aggregations = [("n_samples", aggregate_n_samples)]

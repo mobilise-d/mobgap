@@ -77,12 +77,12 @@ gs_iterator.data_type
 # The iterator provides us the cut data and an object representing all information of the respective GS/WB.
 # The latter can be used to index other aspects of the reference data.
 for (wb, data_per_wb), result in gs_iterator.iterate(data, ref_walking_bouts):
-    print("GS/WB id: ", wb.wb_id)
-    print("Expected N-samples in wb: ", ref_walking_bouts.loc[wb.wb_id].end - ref_walking_bouts.loc[wb.wb_id].start)
+    print("GS/WB id: ", wb.id)
+    print("Expected N-samples in wb: ", ref_walking_bouts.loc[wb.id].end - ref_walking_bouts.loc[wb.id].start)
     print("N-samples in wb: ", len(data_per_wb))
 
-    # We can use the wb.wb_id to get the reference initial contacts that belong to this GS/WB
-    ics_per_wb = ref_ics_rel.loc[wb.wb_id]
+    # We can use the wb.id to get the reference initial contacts that belong to this GS/WB
+    ics_per_wb = ref_ics_rel.loc[wb.id]
     # These could be used in some algorithm.
     # Here we will just store them in the results.
     result.ic_list = ics_per_wb

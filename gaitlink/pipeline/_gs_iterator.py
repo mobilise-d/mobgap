@@ -11,15 +11,23 @@ DataclassT = TypeVar("DataclassT")
 
 
 class GaitSequence(NamedTuple):
+    gs_id: str
     start: int
     end: int
-    gs_id: str
+
+    @property
+    def id(self) -> str:
+        return self.gs_id
 
 
 class WalkingBout(NamedTuple):
+    wb_id: str
     start: int
     end: int
-    wb_id: str
+
+    @property
+    def id(self) -> str:
+        return self.wb_id
 
 
 def iter_gs(
@@ -40,8 +48,12 @@ def iter_gs(
 
     Yields
     ------
-    str
-       The gait-sequence-id (i.e. the index from the gs-dataframe).
+    Union[GaitSequence, WalkingBout]
+       A named tuple representing the gait-sequence or walking-bout.
+       Note, that only the start, end and id attributes are present.
+       If other columns are present in the gs_list, they will be ignored.
+       Independent of the "type" a unique id attribute is present, that represents either the ``gs_id`` or
+       the ``wb_id``.
     pd.DataFrame
         The data of a single gait-sequence.
         Note, that we don't change the index of the data.
@@ -51,9 +63,17 @@ def iter_gs(
     """
     # TODO: Add validation that we passed a valid gs_list
     gs: Union[GaitSequence, WalkingBout]
-    tuple_name = "WalkingBout" if "wb_id" in gs_list.columns else "GaitSequence"
-    for gs in gs_list.reset_index().itertuples(index=False, name=tuple_name):
-        yield gs, data.iloc[gs.start : gs.end]
+    gs_list = gs_list.reset_index()
+    if "wb_id" in gs_list.columns:
+        named_tuple = WalkingBout
+        index_col = "wb_id"
+    else:
+        named_tuple = GaitSequence
+        index_col = "gs_id"
+    relevant_cols = [index_col, "start", "end"]
+    for gs in gs_list[relevant_cols].itertuples(index=False):
+        # We explicitly cast GS to the right type to allow for `gs.id` to work.
+        yield named_tuple(*gs), data.iloc[gs.start : gs.end]
 
 
 @dataclass
@@ -95,7 +115,7 @@ T = TypeVar("T")
 _aggregator_type: TypeAlias = Callable[[list[_inputs_type], list[pd.DataFrame]], T]
 
 
-def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) -> _aggregator_type[pd.DataFrame]:
+def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end"), *, potential_index_names: Sequence[str] = ("wb_id", "gs_id")) -> _aggregator_type[pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
     The aggregator will also fix the offset of the given columns by adding the start value of the gait-sequence.
@@ -109,10 +129,16 @@ def create_aggregate_df(fix_gs_offset_cols: Sequence[str] = ("start", "end")) ->
         If you don't want to fix any columns, you can set this to an empty list.
 
     """
+    if len(potential_index_names) == 0:
+        raise ValueError("You need to provide at least one potential index name.")
+
 
     def aggregate_df(inputs: list[_inputs_type], outputs: list[pd.DataFrame]) -> pd.DataFrame:
         sequences, _ = zip(*inputs)
-        iter_index_name = sequences[0]._fields[0]
+
+        for iter_index_name in potential_index_names:
+            if iter_index_name in sequences[0]._fields:
+                break
 
         to_concat = {}
         for gs, o in zip(sequences, outputs):
