@@ -2,6 +2,7 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+
 from gaitmap.data_transform import Resample
 from gaitmap.utils.array_handling import bool_array_to_start_end_array
 from numpy.linalg import norm
@@ -205,6 +206,8 @@ class IcdHKLeeImproved(BaseIcDetector):
 
         if np.any(R > 0):
             idx = bool_array_to_start_end_array(R > 0)
+           # removing single non-zero values to be more consistent with the original implementation
+            idx = idx[idx[:, 1] - idx[:, 0] > 1]
             detected_ics = np.zeros(len(idx), dtype=float)
             for j in range(len(idx)):
                 start_idx, end_idx = idx[j, 0], idx[j, 1]
