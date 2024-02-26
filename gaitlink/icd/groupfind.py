@@ -32,7 +32,7 @@ def groupfind(bool_array: np.ndarray) -> np.ndarray:
     if len(bool_array) == 0:
         return np.array([])
 
-    nonzero = np.where(L)[0]  # Find non-zeros
+    nonzero = np.where(bool_array)[0]  # Find non-zeros
     endzero = np.where(np.diff(nonzero) > 1)[0]  # Find end of non-zero groups
     seq = np.zeros((len(endzero) + 1, 2), dtype=int)  # Initializing array (+1 because last sequence is not calculated))
     seq[:, 1] = nonzero[np.append(endzero, -1)]  # End
