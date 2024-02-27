@@ -40,3 +40,14 @@ Docu-helper
    :template: func.rst
 
     base_icd_docfiller
+
+Evaluation
+++++++++++
+.. currentmodule:: gaitlink.icd.evaluation
+
+.. autosummary::
+   :toctree: generated/icd
+   :template: func.rst
+
+    calculate_icd_performance_metrics
+    evaluate_initial_contact_list
