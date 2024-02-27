@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from gaitlink.icd.evaluation import _match_label_lists, evaluate_initial_contact_list
+from gaitlink.icd.evaluation import _match_label_lists, calculate_icd_performance_metrics, evaluate_initial_contact_list
 
 
 @pytest.fixture()
@@ -166,6 +166,41 @@ class TestEvaluateInitialContactList:
             matches.query("match_type == 'fn'")
         )
 
+    def test_input_range_index(self, create_ic_list_default):
+        ic_list_range_index = create_ic_list_default.reset_index()
+        matches = evaluate_initial_contact_list(ic_list_range_index, ic_list_range_index)
+        assert np.all(matches["match_type"] == "tp")
+        assert len(matches["match_type"] == "tp") == len(create_ic_list_default)
+        assert_array_equal(matches.columns.to_numpy(), ["ic_id_detected", "ic_id_reference", "match_type"])
+        assert matches.index.name is None
+        assert_array_equal(matches.index.to_numpy(), [0, 1, 2, 3])
+
+    def test_input_multiindex(self, create_ic_list_default):
+        ic_list_multiindex = create_ic_list_default.copy()
+        ic_list_multiindex.index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
+        )
+        matches = evaluate_initial_contact_list(ic_list_multiindex, ic_list_multiindex)
+        assert np.all(matches["match_type"] == "tp")
+        assert len(matches["match_type"] == "tp") == len(create_ic_list_default)
+        assert_array_equal(matches.columns.to_numpy(), ["ic_id_detected", "ic_id_reference", "match_type"])
+        assert matches.index.name is None
+        assert_array_equal(matches.index.to_numpy(), [0, 1, 2, 3])
+
+    def test_invalid_index_error(self, create_ic_list_default):
+        ic_list_wrong_index = create_ic_list_default.copy()
+        ic_list_wrong_index.index.name = "invalid"
+        with pytest.raises(ValueError):
+            evaluate_initial_contact_list(ic_list_wrong_index, ic_list_wrong_index)
+
+    def test_invalid_multiindex_error(self, create_ic_list_default):
+        ic_list_wrong_index = create_ic_list_default.copy()
+        ic_list_wrong_index.index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["invalid", "also_invalid"]
+        )
+        with pytest.raises(ValueError):
+            evaluate_initial_contact_list(ic_list_wrong_index, ic_list_wrong_index)
+
     def test_segmented_stride_list_no_match(self, create_ic_list_default):
         detected = self._create_ic_list([15, 15, 35, 45])
         matches = evaluate_initial_contact_list(detected, create_ic_list_default, tolerance=4)
@@ -202,3 +237,15 @@ class TestEvaluateInitialContactList:
         assert matches.query("match_type == 'fn'").empty
 
         assert len(reference) == len(matches.query("match_type == 'tp'"))
+
+
+class TestCalculateIcdMetrics:
+    # TODO: test possible input errors
+
+    def test_ic_list_input(self, snapshot):
+        ic_list_detected = pd.DataFrame([10, 20, 30, 40, 50], columns=["ic"]).rename_axis("ic_id")
+        ic_list_reference = pd.DataFrame([10, 20, 40, 50, 60], columns=["ic"]).rename_axis("ic_id")
+        metrics = calculate_icd_performance_metrics(
+            ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference
+        )
+        snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
