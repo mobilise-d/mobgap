@@ -104,3 +104,51 @@ plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["
 plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()
+
+# %%
+# Evaluation of the algorithm against a reference
+# --------------------------------------------------
+# Let's quantify how the Python output compares to the reference labels.
+# To do this, we use the :func:`~gaitlink.icd.evaluation.evaluate_initial_contact_list` function to compare the detected
+# ICs to the ground truth ICs. With the `tolerance` parameter, we can specify the maximum allowed deviation in samples.
+# Consequently, the tolerance parameter should be chosen with respect to the sampling rate of the data.
+# In this case, it is set to 20 samples, which corresponds to 200 ms.
+from gaitlink.icd.evaluation import evaluate_initial_contact_list
+
+matches_all_wb = []
+# We iterate over all walking bouts and perform the evaluation for each
+for wb_id, wb_detected in detected_ics.groupby("wb_id"):
+    wb_ref = ref_ics[ref_ics.index.get_level_values("wb_id") == wb_id][["ic"]]
+    matches = evaluate_initial_contact_list(wb_detected, wb_ref, tolerance=20)
+    # add wb_id to matches
+    matches["wb_id"] = wb_id
+    matches_all_wb.append(matches)
+matches = pd.concat(matches_all_wb).set_index("wb_id")
+# %%
+# The function returns a DataFrame containing the ID of the detected ICs (`"ic_id_detected"`) and the reference ICs
+# (`"ic_id_reference"`) that they match to. If there is no match for the respective IC, the IC ID is set to `NaN`.
+# The column `"match_type"` indicates the type of every match, i.e. `tp` for true positive, `fp` for false
+# positive, and `fn` for false negative.
+
+print("Matched Initial Contacts:\n\n", matches)
+
+# %%
+# Based on the tp, fp, and fn contacts, common performance metrics such as F1 score, precision,
+# and recall can be calculated.
+# For this purpose, the :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` function can be used.
+# It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
+from gaitlink.utils.evaluation import precision_recall_f1_score
+
+prec_rec_f1_dict = precision_recall_f1_score(matches)
+
+print("Performance Metrics:\n\n", prec_rec_f1_dict)
+
+# %%
+# To calculate the whole range of possible performance metrics in one go,
+# we can use the :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function.
+# It returns a dictionary containing all metrics for the specified detected and reference initial contact lists.
+from gaitlink.icd.evaluation import calculate_icd_performance_metrics
+
+metrics_all = calculate_icd_performance_metrics(matches=matches)
+
+print("Performance Metrics:\n\n", metrics_all)
