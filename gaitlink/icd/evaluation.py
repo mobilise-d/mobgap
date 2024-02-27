@@ -1,5 +1,5 @@
 """Class to evaluate initial contact detection algorithms."""
-from typing import Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -9,8 +9,10 @@ from gaitlink.utils.evaluation import precision_recall_f1_score
 
 
 def calculate_icd_performance_metrics(
-    ic_list_detected: pd.DataFrame,
-    ic_list_reference: pd.DataFrame,
+    *,
+    ic_list_detected: Optional[pd.DataFrame] = None,
+    ic_list_reference: Optional[pd.DataFrame] = None,
+    matches: Optional[pd.DataFrame] = None,
     tolerance: Union[int, float] = 0,
 ) -> dict[str, Union[float, int]]:
     """
@@ -18,6 +20,8 @@ def calculate_icd_performance_metrics(
 
     The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
     resective initial contact.
+    As index, a range index or a column of unique identifiers for each initial contact named "ic_id" can be provided.
+    If a multiindex is provided, only the "ic_id" level will be used for the comparison.
 
     The following metrics are calculated:
 
@@ -33,10 +37,16 @@ def calculate_icd_performance_metrics(
 
     Parameters
     ----------
-    ic_list_detected: pd.DataFrame
-        The dataframe of detected initial contacts.
-    ic_list_reference: pd.DataFrame
-        The ground truth initial contact dataframe.
+    ic_list_detected: pd.DataFrame, optional
+        The dataframe of detected initial contacts. If not provided, the `matches` parameter must be provided.
+        `ic_list_detected` and `matches` are mutually exclusive.
+    ic_list_reference: pd.DataFrame, optional
+        The ground truth initial contact dataframe. If not provided, the `matches` parameter must be provided.
+        `ic_list_reference` and `matches` are mutually exclusive.
+    matches: pd.DataFrame, optional
+        A dataframe containing the matches between detected and reference initial contacts as output
+        by :func:`~gaitlink.icd.evaluation.evaluate_initial_contact_list`.
+        If provided, `ic_list_detected` and `ic_list_reference` must not be provided.
     tolerance: int or float, optional
         The allowed tolerance between a detected and reference initial contact in samples for it to be considered a
         true positive match.
@@ -46,15 +56,23 @@ def calculate_icd_performance_metrics(
     -------
     icd_metrics: dict
     """
-    evaluated_matches = evaluate_initial_contact_list(ic_list_detected, ic_list_reference, tolerance=tolerance)
+    if all([ic_list_detected is None, ic_list_reference is None, matches is None]):
+        raise ValueError("Either `ic_list_detected` and `ic_list_reference` or `matches` must be provided.")
+    if all([isinstance(ic_list_reference, pd.DataFrame), isinstance(ic_list_reference, pd.DataFrame)]):
+        matches = evaluate_initial_contact_list(ic_list_detected, ic_list_reference, tolerance=tolerance)
+    if matches is None:
+        raise ValueError(
+            "Input data is incomplete. Please provide `ic_list_detected` and `ic_list_reference` or `matches`."
+        )
+    matches = _check_matches_sanity(matches)
 
     # estimate tp, fp, fn
-    tp_samples = len(evaluated_matches[evaluated_matches["match_type"] == "tp"])
-    fp_samples = len(evaluated_matches[evaluated_matches["match_type"] == "fp"])
-    fn_samples = len(evaluated_matches[evaluated_matches["match_type"] == "fn"])
+    tp_samples = len(matches[matches["match_type"] == "tp"])
+    fp_samples = len(matches[matches["match_type"] == "fp"])
+    fn_samples = len(matches[matches["match_type"] == "fn"])
 
     # estimate performance metrics
-    precision_recall_f1 = precision_recall_f1_score(evaluated_matches)
+    precision_recall_f1 = precision_recall_f1_score(matches)
 
     icd_metrics = {
         "tp_samples": tp_samples,
@@ -82,7 +100,9 @@ def evaluate_initial_contact_list(
 
     The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
     resective initial contact.
-    As index, a range index or a column of unique identifiers for each initial contact can be provided.
+    As index, a range index or a column of unique identifiers for each initial contact named "ic_id" can be provided.
+    If a multiindex is provided, only the "ic_id" level will be used for the comparison.
+
 
     If multiple detected initial contacts would match to a single ground truth initial contact
     (or vise-versa), only the initial contact with the lowest distance is considered an actual match.
@@ -130,6 +150,8 @@ def evaluate_initial_contact_list(
     5  NaN                 3         fn
     """
     detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
+    detected = _set_correct_index(detected, "detected")
+    reference = _set_correct_index(reference, "reference")
 
     if tolerance < 0:
         raise ValueError("The tolerance must be larger than 0.")
@@ -140,17 +162,17 @@ def evaluate_initial_contact_list(
         tolerance=tolerance,
     )
 
-    detected_index_name = ic_list_detected.index.name + "_detected"
-    reference_index_name = ic_list_reference.index.name + "_reference"
+    detected_index_name = detected.index.name + "_detected"
+    reference_index_name = reference.index.name + "_reference"
 
-    matches_detected = pd.DataFrame(index=ic_list_detected.index.copy(), columns=[reference_index_name])
+    matches_detected = pd.DataFrame(index=detected.index.copy(), columns=[reference_index_name])
     matches_detected.index.name = detected_index_name
 
-    matches_reference = pd.DataFrame(index=ic_list_reference.index.copy(), columns=[detected_index_name])
+    matches_reference = pd.DataFrame(index=reference.index.copy(), columns=[detected_index_name])
     matches_reference.index.name = reference_index_name
 
-    ic_list_detected_idx = ic_list_detected.iloc[left_indices].index
-    ic_list_reference_idx = ic_list_reference.iloc[right_indices].index
+    ic_list_detected_idx = detected.iloc[left_indices].index
+    ic_list_reference_idx = reference.iloc[right_indices].index
 
     matches_detected.loc[ic_list_detected_idx, reference_index_name] = ic_list_reference_idx
     matches_reference.loc[ic_list_reference_idx, detected_index_name] = ic_list_detected_idx
@@ -158,6 +180,14 @@ def evaluate_initial_contact_list(
     matches_detected = matches_detected.reset_index()
     matches_reference = matches_reference.reset_index()
 
+    """
+    matches = (
+        matches_detected.merge(matches_reference, left_index=True, right_index=True, how="outer")
+        .drop_duplicates()
+        .reset_index(drop=True)
+        .sort_values([detected_index_name, reference_index_name])
+    )
+    """
     matches = (
         pd.concat([matches_detected, matches_reference])
         .drop_duplicates()
@@ -237,6 +267,23 @@ def _match_label_lists(
     return valid_matches[0], valid_matches[1]
 
 
+def _check_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
+    # check if input is a dataframe
+    if not isinstance(matches, pd.DataFrame):
+        raise TypeError("`matches` must be of type `pandas.DataFrame`.")
+    # check for correct columns
+    try:
+        matches = matches[["ic_id_detected", "ic_id_reference", "match_type"]]
+    except KeyError as e:
+        raise ValueError(
+            "`matches` must have columns named `ic_id_detected`, `ic_id_reference`, and `match_type`."
+        ) from e
+    # check if `match_type` column contains only valid values
+    if not matches["match_type"].isin(["tp", "fp", "fn"]).all():
+        raise ValueError("`match_type` must contain only the values 'tp', 'fp', and 'fn'.")
+    return matches
+
+
 def _check_input_sanity(
     ic_list_detected: pd.DataFrame, ic_list_reference: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -248,21 +295,31 @@ def _check_input_sanity(
         detected, reference = ic_list_detected[["ic"]], ic_list_reference[["ic"]]
     except KeyError as e:
         raise ValueError("Both `ic_list_detected` and `ic_list_reference` must have a column named `ic`.") from e
-    # check if indices are unique
-    if not ic_list_detected.index.is_unique or not ic_list_reference.index.is_unique:
-        raise ValueError("The indices of both `ic_list_detected` and `ic_list_reference` must be unique.")
-    # if index is a range index, rename it to "ic_id"
-    if ic_list_detected.index.name is None:
-        ic_list_detected.index.name = "ic_id"
-    if ic_list_reference.index.name is None:
-        ic_list_reference.index.name = "ic_id"
     return detected, reference
 
 
-if __name__ == "__main__":
-    ic_list_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("ic_id")
-    ic_list_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("ic_id")
-    matches = evaluate_initial_contact_list(
-        ic_list_reference=ic_list_reference, ic_list_detected=ic_list_detected, tolerance=2
-    )
-    print(matches)
+def _set_correct_index(ic_list: pd.DataFrame, list_type: Literal["detected", "reference"]) -> pd.DataFrame:
+    # check if index is a multiindex and drop all levels but "ic_id"
+    if isinstance(ic_list.index, pd.MultiIndex):
+        # check if index level "ic_id" exists
+        if "ic_id" not in ic_list.index.names:
+            raise ValueError(
+                f"The index of `ic_list_{list_type}` must have a level named `ic_id`. "
+                "All other levels will be ignored."
+            )
+        # drop all levels but "ic_id"
+        ic_id_level = ic_list.index.names.index("ic_id")
+        # create range between 0 and length of ic_list without ic_id_level
+        ic_list = ic_list.reset_index(
+            level=[i for i in range(len(ic_list.index.levels)) if i != ic_id_level], drop=True
+        )
+    # if index is a range index, rename it to "ic_id"
+    if ic_list.index.name is None:
+        ic_list.index.name = "ic_id"
+    # check if index name is correct
+    if ic_list.index.name != "ic_id":
+        raise ValueError(f"The index of `ic_list_{list_type}` must be named `ic_id`.")
+    # check if indices are unique
+    if not ic_list.index.is_unique:
+        raise ValueError(f"The index of `ic_list_{list_type}` must be unique!")
+    return ic_list
