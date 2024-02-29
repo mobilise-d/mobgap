@@ -1,28 +1,28 @@
 import numpy as np
 
+
 def groupfind(bool_array: np.ndarray) -> np.ndarray:
-    """Finds sequences in a bool array which are TRUE/1 and converts those to start-end indices.
+    """Find sequences in a bool array which are TRUE/1 and converts those to start-end indices.
 
-        The end index is the last element of the True-region
+    The end index is the last element of the True-region
 
-        Parameters
-        ----------
-        bool_array : array with shape (n,)
-            boolean array with either 0/1, 0.0/1.0 or True/False elements
+    Parameters
+    ----------
+    bool_array : array with shape (n,)
+        boolean array with either 0/1, 0.0/1.0 or True/False elements
 
-        Returns
-        -------
-        array of [start, end] indices with shape (n,2)
+    Returns
+    -------
+    array of [start, end] indices with shape (n,2)
 
-        Examples
-        --------
-        >>> example_array = np.array([0,0,1,0,0,1,1,0,0,1,1,1,0,0,1,0])
-        >>> start_end_list = groupfind(example_array)
-        >>> start_end_list
-        array[[ 5  6]
-            [ 9 11]]
-        """
-
+    Examples
+    --------
+    >>> example_array = np.array([0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0])
+    >>> start_end_list = groupfind(example_array)
+    >>> start_end_list
+    array[[ 5  6]
+        [ 9 11]]
+    """
     if not isinstance(bool_array, np.ndarray):
         raise TypeError("Input must be a numpy array")
 
@@ -37,5 +37,5 @@ def groupfind(bool_array: np.ndarray) -> np.ndarray:
     seq = np.zeros((len(endzero) + 1, 2), dtype=int)  # Initializing array (+1 because last sequence is not calculated))
     seq[:, 1] = nonzero[np.append(endzero, -1)]  # End
     seq[:, 0] = nonzero[np.insert(endzero, 0, -1) + 1]  # Start
-    seq = seq[seq[:, 1] - seq[: ,0] != 0]
+    seq = seq[seq[:, 1] - seq[:, 0] != 0]
     return np.array(seq)

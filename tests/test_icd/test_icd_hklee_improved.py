@@ -33,6 +33,7 @@ class TestHKLeeImproved:
         empty_output = {}
         assert output_ic.to_dict() == empty_output
 
+
 class TestHKLeeImprovedRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
