@@ -1,5 +1,5 @@
 """
-icd Ionescu
+ICD Ionescu
 ===========
 
 This example shows how to use the icd Ionescu algorithm and how its results compare to the original
