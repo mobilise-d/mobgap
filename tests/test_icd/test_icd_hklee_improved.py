@@ -33,7 +33,7 @@ class TestHKLeeImproved:
         empty_output = {}
         assert output_ic.to_dict() == empty_output
 
-class TestShinImprovedRegression:
+class TestHKLeeImprovedRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
         data = datapoint.data["LowerBack"]
@@ -46,7 +46,7 @@ class TestShinImprovedRegression:
         iterator = GsIterator()
 
         for (gs, data), result in iterator.iterate(data, ref_walk_bouts):
-            result.initial_contacts = IcdHKLeeImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+            result.ic_list = IcdHKLeeImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
-        detected_ics = iterator.initial_contacts_
+        detected_ics = iterator.ic_list_
         snapshot.assert_match(detected_ics, str(datapoint.group_label))

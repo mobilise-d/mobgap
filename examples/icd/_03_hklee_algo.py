@@ -40,7 +40,7 @@ from gaitlink.pipeline import GsIterator
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    result.initial_contacts = IcdHKLeeImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+    result.ic_list = IcdHKLeeImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
 detected_ics = iterator.results_.ic_list
 
@@ -93,8 +93,8 @@ detected_ics_matlab
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
-#plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="hklee_algo_py")
+plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="hklee_algo_py")
 plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="hklee_algo_matlab")
-#plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
+plt.xlim(reference_wbs.iloc[0]["start"] - 50, reference_wbs.iloc[0]["end"] + 50)
 plt.legend()
 plt.show()
