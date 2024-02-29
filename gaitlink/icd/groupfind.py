@@ -1,9 +1,11 @@
+"""Contains the groupfind function for group finding in boolean arrays."""
 import numpy as np
 
 
 def groupfind(bool_array: np.ndarray) -> np.ndarray:
     """Find sequences in a bool array which are TRUE/1 and converts those to start-end indices.
 
+    At least 2 consecutive True elements are required to be considered a sequence.
     The end index is the last element of the True-region
 
     Parameters
