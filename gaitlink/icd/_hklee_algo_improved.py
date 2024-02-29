@@ -53,7 +53,8 @@ class IcdHKLeeImproved(BaseIcDetector):
     Attributes
     ----------
     %(ic_list_)s
-    final_filtered_signal_ (upsampled again in HKLee)
+    final_filtered_signal_
+        (upsampled again in HKLee)
         The downsampled signal after all filter steps.
         This might be useful for debugging.
     ic_list_internal_
@@ -202,17 +203,17 @@ class IcdHKLeeImproved(BaseIcDetector):
         O = grey_opening(C, structure=SE_opening)
         R = C - O
 
-        detected_ics = np.array([])
+        detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")
 
         if np.any(R > 0):
-            idx = bool_array_to_start_end_array(R > 0)
+            non_zero = bool_array_to_start_end_array(R > 0)
            # removing single non-zero values to be more consistent with the original implementation
-            idx = idx[idx[:, 1] - idx[:, 0] > 1]
-            detected_ics = np.zeros(len(idx), dtype=float)
-            for j in range(len(idx)):
-                start_idx, end_idx = idx[j, 0], idx[j, 1]
-                values_within_range = R[start_idx:end_idx + 1]
-                imax = start_idx + np.argmax(values_within_range)
+            non_zero = non_zero[non_zero[:, 1] - non_zero[:, 0] > 1]
+            detected_ics = np.zeros(len(non_zero), dtype=float)
+            for j in range(len(non_zero)):
+                start_non_zero, end_non_zero = non_zero[j, 0], non_zero[j, 1]
+                values_within_range = R[start_non_zero:end_non_zero + 1]
+                imax = start_non_zero + np.argmax(values_within_range)
 
                 # Assign the value to the NumPy array
                 detected_ics[j] = imax
