@@ -2,16 +2,11 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
-
-from gaitmap.data_transform import Resample
 from gaitmap.utils.array_handling import bool_array_to_start_end_array
 from numpy.linalg import norm
-from pywt import cwt
-from scipy.ndimage import gaussian_filter, grey_closing, grey_opening
-from scipy.signal import savgol_filter
+from scipy.ndimage import grey_closing, grey_opening
 from typing_extensions import Self, Unpack
-from gaitlink.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter
-from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
+
 from gaitlink.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -22,11 +17,11 @@ from gaitlink.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
+from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
 class IcdHKLeeImproved(BaseIcDetector):
-
     """Detect initial contacts using the HKLee [1]_ algorithm, with improvements by Ionescu et al. [2]_.
 
     This algorithm is designed to detect initial contacts from accelerometer signals within a gait sequence.
@@ -72,7 +67,8 @@ class IcdHKLeeImproved(BaseIcDetector):
       horizontal axis.
     - We use a different downsampling method, which should be "more" correct from a signal theory perspective,
       but will yield slightly different results.
-    - only in case the upsampling will be removed #The matlab code upsamples to 120 Hz before the final morphological operations.
+    - only in case the upsampling will be removed #The matlab code upsamples to 120 Hz before the
+      final morphological operations.
       #We skip the upsampling of the filtered signal and perform the morphological operations on the downsampled signal.
       #To compensate for the "loss of accuracy" due to the downsampling, we use linear interpolation to determine the
       #exact position of the 0-crossing, even when it occurs between two samples.
@@ -201,23 +197,23 @@ class IcdHKLeeImproved(BaseIcDetector):
         self.final_filtered_signal_ = final_filtered
 
         # Apply morphological filters
-        SE_closing = np.ones(32, dtype=int)
-        SE_opening = np.ones(18, dtype=int)
+        se_closing = np.ones(32, dtype=int)
+        se_opening = np.ones(18, dtype=int)
 
-        C = grey_closing(self.final_filtered_signal_, structure=SE_closing)
-        O = grey_opening(C, structure=SE_opening)
-        R = C - O
+        c = grey_closing(self.final_filtered_signal_, structure=se_closing)
+        o = grey_opening(c, structure=se_opening)
+        r = c - o
 
         detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")
 
-        if np.any(R > 0):
-            non_zero = bool_array_to_start_end_array(R > 0)
-           # removing single non-zero values to be more consistent with the original implementation
+        if np.any(r > 0):
+            non_zero = bool_array_to_start_end_array(r > 0)
+            # removing single non-zero values to be more consistent with the original implementation
             non_zero = non_zero[non_zero[:, 1] - non_zero[:, 0] > 1]
             detected_ics = np.zeros(len(non_zero), dtype=float)
             for j in range(len(non_zero)):
                 start_non_zero, end_non_zero = non_zero[j, 0], non_zero[j, 1]
-                values_within_range = R[start_non_zero:end_non_zero + 1]
+                values_within_range = r[start_non_zero : end_non_zero + 1]
                 imax = start_non_zero + np.argmax(values_within_range)
 
                 # Assign the value to the NumPy array
@@ -228,10 +224,8 @@ class IcdHKLeeImproved(BaseIcDetector):
         self.ic_list_internal_ = detected_ics
 
         # Downsample initial contacts to original sampling rate
-        IC_downsampled = (
-            (detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
-        )
+        ic_downsampled = (detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
 
-        self.ic_list_ = IC_downsampled
+        self.ic_list_ = ic_downsampled
 
         return self

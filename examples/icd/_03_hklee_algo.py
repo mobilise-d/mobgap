@@ -1,4 +1,3 @@
-
 """
 HKLee algo
 =========
@@ -10,8 +9,9 @@ matlab implementation.
 
 import pandas as pd
 from matplotlib import pyplot as plt
-from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
+
 from gaitlink.data import LabExampleDataset
+from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
 
 # %%
 # Loading data
