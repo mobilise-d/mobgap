@@ -86,6 +86,11 @@ class IcdHKLeeImproved(BaseIcDetector):
       #However, this seems to be a relatively consistent offset.
       #Hence, it might be possible to shift/tune this in the future.
 
+    Future work:
+    - The algorithm can be improved by increasing the threshold of the allowed non-zero values.
+      Currently, only single non-zero sequences are removed.
+      For example, we could include a threshold of the minimum duration (samples) of an initial contact.
+
     .. [1] Lee, H-K., et al. "Computational methods to detect step events for normal and pathological
         gait evaluation using accelerometer." Electronics letters 46.17 (2010): 1185-1187.
     .. [2] Paraschiv-Ionescu, A. et al. "Real-world speed estimation using single trunk IMU:
