@@ -2,5 +2,6 @@
 
 from gaitlink.icd._icd_ionescu import IcdIonescu
 from gaitlink.icd._shin_algo_improved import IcdShinImproved
+from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
 
-__all__ = ["IcdShinImproved", "IcdIonescu"]
+__all__ = ["IcdShinImproved", "IcdIonescu", "IcdHKLeeImproved"]
