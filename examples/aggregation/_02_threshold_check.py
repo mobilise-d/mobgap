@@ -38,8 +38,8 @@ thresholds
 # %%
 # Apply Thresholds
 # ----------------
-output_data = apply_thresholds(data, thresholds, cohort="CHF", height_m=1.75)
-output_data.head()
+data_mask = apply_thresholds(data, thresholds, cohort="CHF", height_m=1.75)
+data_mask.head()
 
 # %%
 # We can see that the output has exactly the same structure as the input data, but with boolean values indicating if

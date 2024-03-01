@@ -129,5 +129,3 @@ class TestMobilisedAggregator:
         agg_without_nan = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask)
 
         assert_frame_equal(agg_with_nan.aggregated_data_, agg_without_nan.aggregated_data_)
-
-
