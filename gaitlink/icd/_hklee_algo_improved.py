@@ -25,9 +25,9 @@ class IcdHKLeeImproved(BaseIcDetector):
     """Detect initial contacts using the HKLee [1]_ algorithm, with improvements by Ionescu et al. [2]_.
 
     This algorithm is designed to detect initial contacts from accelerometer signals within a gait sequence.
-    The algorithm filters the accelerometer signal down to its primary frequency components
-    and then employs morphological operations with closing and opening structural elements
-    to detect signal closings and openings, respectively.
+    The algorithm filters the accelerometer signal down to its primary frequency components and then employs
+    morphological operations with closing and opening structural elements to detect signal closings and openings,
+    respectively.
     Their difference is analyzed to identify instances where R is greater than 0.
     These regions are interpreted as initial contacts.
 
@@ -67,22 +67,14 @@ class IcdHKLeeImproved(BaseIcDetector):
       horizontal axis.
     - We use a different downsampling method, which should be "more" correct from a signal theory perspective,
       but will yield slightly different results.
-    - only in case the upsampling will be removed #The matlab code upsamples to 120 Hz before the
-      final morphological operations.
-      #We skip the upsampling of the filtered signal and perform the morphological operations on the downsampled signal.
-      #To compensate for the "loss of accuracy" due to the downsampling, we use linear interpolation to determine the
-      #exact position of the 0-crossing, even when it occurs between two samples.
-      #We then project the interpolated index back to the original sampling rate.
     - For CWT and gaussian filter, the actual parameter we pass to the respective functions differ from the matlab
       implementation, as the two languages use different implementations of the functions.
       However, the similarity of the output was visually confirmed.
     - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
       Specifically, we use m/s^2 instead of g.
-    - #Some early testing indicates, that the python version finds all ICs 5-10 samples earlier than the matlab version.
-      #However, this seems to be a relatively consistent offset.
-      #Hence, it might be possible to shift/tune this in the future.
 
     Future work:
+
     - The algorithm can be improved by increasing the threshold of the allowed non-zero values.
       Currently, only single non-zero sequences are removed.
       For example, we could include a threshold of the minimum duration (samples) of an initial contact.
