@@ -27,7 +27,9 @@ class TestDataThresholds:
         thresholds = get_mobilised_dmo_thresholds()
 
         # We naivly test the height by setting to a really large value which should result in all SL values being True
-        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1000, measurement_condition="free_living")
+        flags = apply_thresholds(
+            input_data, thresholds, cohort="HA", height_m=1000, measurement_condition="free_living"
+        )
 
         assert (flags["stride_length_m"] == True).all()
 
