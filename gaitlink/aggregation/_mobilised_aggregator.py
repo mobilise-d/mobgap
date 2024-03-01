@@ -248,6 +248,10 @@ class MobilisedAggregator(BaseAggregator):
         Parameters
         ----------
         %(aggregate_para)s
+        wb_dmos_mask
+            A boolean DataFrame with the same shape the ``wb_dmos`` indicating the validity of every measure.
+            If the DataFrame contains a ``NaN`` value, this is interpreted as ``True``, assuming no checks were applied
+            to this value and the corresponding measure is regarded as plausible.
 
         %(aggregate_return)s
         """
@@ -271,7 +275,13 @@ class MobilisedAggregator(BaseAggregator):
             )
 
         if wb_dmos_mask is not None:
-            wb_dmos_mask = wb_dmos_mask.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
+            wb_dmos_mask = (
+                wb_dmos_mask.fillna(True)
+                .infer_objects(copy=False)
+                .reset_index()
+                .set_index([*groupby, self.unique_wb_id_column])
+                .sort_index()
+            )
 
             if not wb_dmos.index.equals(wb_dmos_mask.index):
                 raise ValueError(

@@ -1,4 +1,7 @@
 """
+
+.. _mobilised_aggregator_example:
+
 Mobilised Aggregator
 ====================
 
@@ -32,8 +35,18 @@ data.head()
 # The data mask indicates which DMOs of the input data should be used for the aggregation (marked as True) and which
 # should be ignored (marked as False).
 #
-# For this example, we will simply fake this input mask, setting all values to True.
-data_mask = pd.DataFrame(data=True, index=data.index, columns=data.columns)
+# For this example, we create this mask by applying the "standard" thresholds from Mobilise-D to the data.
+# To learn more about this see the example :ref:`threshold_check example <threshold_check_example>`.
+#
+# .. note :: It is only possible to use the ``apply_thresholds`` function here, as all the example data is from the same
+#    participant.
+#    As some thresholds are cohort or height specific, you would have to apply the thresholds for each participant data
+#    separately.
+from gaitlink.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
+
+thresholds = get_mobilised_dmo_thresholds()
+# Note: The height is "artificially" set to 1.75m, as the example data does not contain this information.
+data_mask = apply_thresholds(data, thresholds, cohort="HA", height_m=1.75)
 
 # %%
 # Performing the aggregation

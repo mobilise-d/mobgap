@@ -119,3 +119,15 @@ class TestMobilisedAggregator:
         # check that input data is still the same
         assert_frame_equal(data, agg.wb_dmos)
         assert_frame_equal(data_mask, agg.wb_dmos_mask)
+
+    def test_nan_considered_true(self, example_dmo_data, dummy_dmo_data_mask):
+        data = example_dmo_data.copy()
+        data_mask = dummy_dmo_data_mask.copy()
+        data_mask_wit_nan = data_mask.copy().replace(True, np.nan)
+
+        agg_with_nan = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask_wit_nan)
+        agg_without_nan = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask)
+
+        assert_frame_equal(agg_with_nan.aggregated_data_, agg_without_nan.aggregated_data_)
+
+
