@@ -20,7 +20,7 @@ def get_mobilised_dmo_thresholds() -> pd.DataFrame:
         files("gaitlink") / "aggregation/_dmo_thresholds/official_mobilised_dmo_thresholds.csv"
     ).open() as threshold_data:
         thresholds = pd.read_csv(threshold_data, header=0, index_col=[0, 1])
-    thresholds = thresholds.fillna(method="bfill").drop("ALL", level=1)
+    thresholds = thresholds.bfill().drop("ALL", level=1)
     thresholds.columns = pd.MultiIndex.from_tuples(
         [c.rsplit("_", 1) for c in thresholds.columns], names=["condition", "threshold_type"]
     )
@@ -59,6 +59,10 @@ def apply_thresholds(
     """
     Apply DMO thresholds to input data and return a DataFrame check whether each data point is within the threshold.
 
+    All thresholds are inclusive to the maximum and minimum values.
+    To undestand how the ``thresholds`` DataFrame is structured, please refer to the documentation of the function
+    :func:`get_mobilised_dmo_thresholds`.
+
     Parameters
     ----------
     input_data : pd.DataFrame
@@ -78,6 +82,9 @@ def apply_thresholds(
     -------
     pd.DataFrame
         Boolean DataFrame indicating whether each data point is within the thresholds.
+        For values in columns, for which no thresholds were provided this df contains NaN values indicating no checks
+        were applied.
+
     """
     # Check if all required columns are present in the input data
     required_columns = ["cadence_spm", "walking_speed_mps", "stride_length_m", "stride_duration_s"]
@@ -98,7 +105,7 @@ def apply_thresholds(
     data_flag = input_data[required_columns].stack()
 
     # Get the dmo for each row
-    dmo_vals = data_flag.index.get_level_values(1)
+    dmo_vals = data_flag.index.get_level_values(-1)
     # Get the cohort for each row
     per_row_thresholds = dmo_type_threshold.loc[dmo_vals]
     # Check if the value is within the threshold
@@ -107,5 +114,7 @@ def apply_thresholds(
     )
     # Unstack the data
     data_flag = data_flag.unstack()  # noqa: PD010
+
+    data_flag = data_flag.reindex(input_data.index).reindex(input_data.columns, axis=1)
 
     return data_flag

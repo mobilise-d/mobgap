@@ -18,11 +18,11 @@ Aggregator Classes
 
 Functions
 +++++++++
-.. automodule:: gaitlink.aggregation.base
+.. automodule:: gaitlink.aggregation
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.aggregation.base
+.. currentmodule:: gaitlink.aggregation
 
 .. autosummary::
    :toctree: generated/aggregation
