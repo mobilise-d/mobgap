@@ -1,5 +1,4 @@
 """
-
 .. _threshold_check_example:
 
 Threshold Checker
@@ -45,9 +44,9 @@ data_mask.head()
 # We can see that the output has exactly the same structure as the input data, but with boolean values indicating if
 # the DMO falls within the thresholds or not.
 # Columns for which no thresholds were provided are simply NaN, indicating that no filtering was applied.
-# It is up to you how you wnat to use this information.
+# It is up to you how you want to use this information.
 
 # %%
 # This output data can be used to filter the input data for DMOs that fall within the thresholds.
 # This can be done in combination with the aggregation algorithm to only include DMOs that fall within the thresholds.
-# See the :ref:`mobilised_aggregator example < s>` for more information.
+# See the :ref:`mobilised_aggregator example <mobilised_aggregator_example>` for more information.
