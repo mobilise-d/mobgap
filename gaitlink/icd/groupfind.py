@@ -40,4 +40,4 @@ def groupfind(bool_array: np.ndarray) -> np.ndarray:
     seq[:, 1] = nonzero[np.append(endzero, -1)]  # End
     seq[:, 0] = nonzero[np.insert(endzero, 0, -1) + 1]  # Start
     seq = seq[seq[:, 1] - seq[:, 0] != 0]
-    return np.array(seq)
+    return seq
