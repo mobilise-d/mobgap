@@ -14,4 +14,4 @@ Functions
    :toctree: ../generated/utils/conversions
    :template: function.rst
 
-    sliding_window_view
+    as_samples
