@@ -16,6 +16,7 @@ Algorithms
 
     IcdShinImproved
     IcdIonescu
+    IcdHKLeeImproved
 
 Base Classes
 ++++++++++++
