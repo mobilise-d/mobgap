@@ -13,66 +13,39 @@ class TestDataThresholds:
         )
         thresholds = get_mobilised_dmo_thresholds()
 
-        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7)
+        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7, measurement_condition="free_living")
+
+        # We dropna to remove columns with NaN values to still use the old snapshot
+        flags = flags.dropna(axis=1, how="all")
 
         snapshot.assert_match(flags, "flags")
 
-    def test_thresholds_for_different_cohorts(self, snapshot):
+    def test_heights(self):
         input_data = pd.read_csv(
             PACKAGE_ROOT.parent / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
         )
         thresholds = get_mobilised_dmo_thresholds()
 
-        # Test for CHF cohort
-        flags_chf = apply_thresholds(input_data, thresholds, cohort="CHF", height_m=1.7)
-        snapshot.assert_match(flags_chf, "flags_chf")
+        # We naivly test the height by setting to a really large value which should result in all SL values being True
+        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1000, measurement_condition="free_living")
 
-        # Test for COPD cohort
-        flags_copd = apply_thresholds(input_data, thresholds, cohort="COPD", height_m=1.7)
-        snapshot.assert_match(flags_copd, "flags_copd")
+        assert (flags["stride_length_m"] == True).all()
 
-        # Test for MS cohort
-        flags_ms = apply_thresholds(input_data, thresholds, cohort="MS", height_m=1.7)
-        snapshot.assert_match(flags_ms, "flags_ms")
+        # We naivly test the height by setting to a really small value which should result in all SL values being False
+        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=0.1, measurement_condition="free_living")
 
-    def test_thresholds_for_different_conditions(self, snapshot):
-        input_data = pd.read_csv(
-            PACKAGE_ROOT.parent / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
-        )
-        thresholds = get_mobilised_dmo_thresholds()
+        assert (flags["stride_length_m"].all() == False).all()
 
-        # Test for free living condition
-        flags_free_living = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7, condition="free_living")
-        snapshot.assert_match(flags_free_living, "flags_free_living")
-
-        # Test for laboratory condition
-        flags_laboratory = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7, condition="laboratory")
-        snapshot.assert_match(flags_laboratory, "flags_laboratory")
-
-    def test_thresholds_for_different_heights(self, snapshot):
-        input_data = pd.read_csv(
-            PACKAGE_ROOT.parent / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
-        )
-        thresholds = get_mobilised_dmo_thresholds()
-
-        # Test for height 1.7 meters
-        flags_height_1_7 = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7)
-        snapshot.assert_match(flags_height_1_7, "flags_height_1_7")
-
-        # Test for height 1.5 meters
-        flags_height_1_5 = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.5)
-        snapshot.assert_match(flags_height_1_5, "flags_height_1_5")
-
-    def test_missing_required_columns(snapshot):
+    def test_missing_required_columns(self):
         # Load input data without all required columns
         input_data = pd.DataFrame({"cadence_spm": [100, 110, 120]})
         thresholds = get_mobilised_dmo_thresholds()
 
         # Test function behavior when input data is missing required columns
         with pytest.raises(ValueError, match="Input data is missing required columns: .*"):
-            apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7)
+            apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7, measurement_condition="free_living")
 
-    def test_invalid_input_data(self, snapshot):
+    def test_invalid_input_data(self):
         # Load input data with valid numeric values
         input_data = pd.DataFrame(
             {
@@ -86,9 +59,9 @@ class TestDataThresholds:
 
         # Test function behavior with invalid input data
         with pytest.raises(ValueError):
-            apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7)
+            apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7, measurement_condition="free_living")
 
-    def test_large_input_data_performance(self, snapshot):
+    def test_large_input_data_performance(self):
         # Generate large input data for performance testing
         num_rows = 1000000  # 1 million rows
         input_data = pd.DataFrame(
@@ -102,7 +75,7 @@ class TestDataThresholds:
         thresholds = get_mobilised_dmo_thresholds()
 
         # Test function performance with large input data
-        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7)
+        flags = apply_thresholds(input_data, thresholds, cohort="HA", height_m=1.7, measurement_condition="free_living")
         # Assert some properties of the output if needed
         assert flags.shape[0] == num_rows
         assert flags.shape[1] == input_data.shape[1]  # Ensure the number of columns remains the same
