@@ -1,7 +1,12 @@
 import numpy as np
+import pandas as pd
 import pytest
+from pandas._testing import assert_frame_equal
 
-from gaitlink.utils.array_handling import sliding_window_view
+from gaitlink.utils.array_handling import (
+    create_multi_groupby,
+    sliding_window_view,
+)
 
 
 class TestSlidingWindowView:
@@ -28,3 +33,35 @@ class TestSlidingWindowView:
     def test_error_overlap_larger_than_window(self):
         with pytest.raises(ValueError):
             sliding_window_view(np.arange(14), window_size_samples=3, overlap_samples=4)
+
+
+class TestMultiGroupby:
+    def test_simple_iter(self):
+        df = pd.DataFrame(
+            {
+                "group1": [1, 1, 2, 2, 3, 3],
+                "group2": [1, 2, 1, 2, 1, 2],
+                "value": [1, 2, 3, 4, 5, 6],
+            }
+        ).set_index(["group1", "group2"])
+        df_2 = df + 10
+        df_3 = df + 20
+
+        multi_groupby = create_multi_groupby(df, [df_2, df_3], ["group1", "group2"])
+        i = 0
+        for group, (df1, df2, df3) in multi_groupby.groups.items():
+            assert_frame_equal(df1, df.loc[[group]])
+            assert_frame_equal(df1, multi_groupby.get_group(group)[0])
+            assert_frame_equal(df2, df_2.loc[[group]])
+            assert_frame_equal(df2, multi_groupby.get_group(group)[1])
+            assert_frame_equal(df3, df_3.loc[[group]])
+            assert_frame_equal(df3, multi_groupby.get_group(group)[2])
+            i += 1
+
+        assert i == multi_groupby.ngroups == len(multi_groupby) == len(df.groupby(level=["group1", "group2"]))
+
+        # We test both plausible ways to access the groups
+        for group, (df1, df2, df3) in multi_groupby:
+            assert_frame_equal(df1, df.loc[[group]])
+            assert_frame_equal(df2, df_2.loc[[group]])
+            assert_frame_equal(df3, df_3.loc[[group]])
