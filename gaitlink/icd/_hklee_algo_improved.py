@@ -2,7 +2,6 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
-from gaitmap.utils.array_handling import bool_array_to_start_end_array
 from numpy.linalg import norm
 from scipy.ndimage import grey_closing, grey_opening
 from typing_extensions import Self, Unpack
