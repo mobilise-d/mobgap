@@ -37,7 +37,7 @@ thresholds
 # %%
 # Apply Thresholds
 # ----------------
-data_mask = apply_thresholds(data, thresholds, cohort="CHF", height_m=1.75)
+data_mask = apply_thresholds(data, thresholds, cohort="CHF", height_m=1.75, measurement_condition="free_living")
 data_mask.head()
 
 # %%

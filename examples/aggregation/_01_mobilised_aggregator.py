@@ -46,7 +46,7 @@ from gaitlink.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
 thresholds = get_mobilised_dmo_thresholds()
 # Note: The height is "artificially" set to 1.75m, as the example data does not contain this information.
-data_mask = apply_thresholds(data, thresholds, cohort="HA", height_m=1.75)
+data_mask = apply_thresholds(data, thresholds, cohort="HA", height_m=1.75, measurement_condition="free_living")
 
 # %%
 # Performing the aggregation
