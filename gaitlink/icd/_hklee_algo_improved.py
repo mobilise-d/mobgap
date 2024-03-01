@@ -195,25 +195,22 @@ class IcdHKLeeImproved(BaseIcDetector):
         o = grey_opening(c, structure=se_opening)
         r = c - o
 
-        detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")
+        final_detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")
 
         if np.any(r > 0):
             non_zero = groupfind(r > 0)
-            detected_ics = np.zeros(len(non_zero), dtype=float)
-            for j in range(len(non_zero)):
-                start_non_zero, end_non_zero = non_zero[j, 0], non_zero[j, 1]
-                values_within_range = r[start_non_zero : end_non_zero + 1]
-                imax = start_non_zero + np.argmax(values_within_range)
+            detected_ics = []
+            for start, end in non_zero:
+                values_within_range = r[start : end + 1]
+                imax = start + np.argmax(values_within_range)
+                detected_ics.append(imax)
 
-                # Assign the value to the NumPy array
-                detected_ics[j] = imax
+            final_detected_ics["ic"] = detected_ics
 
-            detected_ics = pd.DataFrame({"ic": detected_ics}).rename_axis(index="ic_id")
-
-        self.ic_list_internal_ = detected_ics
+        self.ic_list_internal_ = final_detected_ics
 
         # Downsample initial contacts to original sampling rate
-        ic_downsampled = (detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
+        ic_downsampled = (final_detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
 
         self.ic_list_ = ic_downsampled
 
