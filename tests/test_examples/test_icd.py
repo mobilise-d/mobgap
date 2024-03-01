@@ -14,3 +14,9 @@ def test_icd_shin_improved(snapshot):
     from examples.icd._02_shin_algo import detected_ics
 
     snapshot.assert_match(detected_ics, "short_trial_output")
+
+
+def test_icd_hklee_improved(snapshot):
+    from examples.icd._03_hklee_algo import detected_ics
+
+    snapshot.assert_match(detected_ics, "short_trial_output")
