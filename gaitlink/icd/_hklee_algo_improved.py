@@ -18,6 +18,7 @@ from gaitlink.data_transform import (
     chain_transformers,
 )
 from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
+from gaitlink.icd.groupfind import groupfind
 
 
 @base_icd_docfiller
@@ -207,9 +208,7 @@ class IcdHKLeeImproved(BaseIcDetector):
         detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")
 
         if np.any(r > 0):
-            non_zero = bool_array_to_start_end_array(r > 0)
-            # removing single non-zero values to be more consistent with the original implementation
-            non_zero = non_zero[non_zero[:, 1] - non_zero[:, 0] > 1]
+            non_zero = groupfind(r > 0)
             detected_ics = np.zeros(len(non_zero), dtype=float)
             for j in range(len(non_zero)):
                 start_non_zero, end_non_zero = non_zero[j, 0], non_zero[j, 1]
@@ -227,5 +226,6 @@ class IcdHKLeeImproved(BaseIcDetector):
         ic_downsampled = (detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
 
         self.ic_list_ = ic_downsampled
+        print(detected_ics)
 
         return self
