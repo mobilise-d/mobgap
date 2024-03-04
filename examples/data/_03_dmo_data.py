@@ -31,6 +31,7 @@ is hence, the recommended way to load the data.
 We will only show loading the data without the weartime reports, as no example weartime reports are included in the
 package at the moment.
 """
+
 from gaitlink.data import MobilisedCvsDmoDataset, get_example_cvs_dmo_data_path
 
 example_data_base_path = get_example_cvs_dmo_data_path()

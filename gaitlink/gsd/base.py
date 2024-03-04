@@ -1,4 +1,5 @@
 """Base class for GSD detectors."""
+
 from typing import Any
 
 import pandas as pd

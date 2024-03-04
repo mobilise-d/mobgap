@@ -9,6 +9,7 @@ We start by defining some helpers for plotting and loading the data.
 You can skip them for now and jump directly to "Performance on a single lab trial", if you just want to see how to
 apply the algorithm.
 """
+
 # %%
 # Plotting Helper
 # ---------------

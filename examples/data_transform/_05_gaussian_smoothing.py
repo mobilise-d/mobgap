@@ -6,6 +6,7 @@ average.
 We provide a class based implementation of Gaussian smoothing in the :class:`~gaitlink.data_transform.GaussianFilter`
 class.
 """
+
 import matplotlib.pyplot as plt
 
 from gaitlink.data import LabExampleDataset

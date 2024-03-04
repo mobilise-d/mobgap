@@ -282,16 +282,14 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
         self: "GsIterator[FullPipelinePerGsResult]",
         data_type: type[FullPipelinePerGsResult] = ...,
         aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
         self: "GsIterator[DataclassT]",
         data_type: type[DataclassT] = ...,
         aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @set_defaults(**PredefinedParameters.default_aggregation)
     def __init__(

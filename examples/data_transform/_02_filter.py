@@ -24,6 +24,7 @@ we demonstrate a simple butterworth filter.
 We load some example data to apply the filters to.
 
 """
+
 from gaitlink.data import LabExampleDataset
 from gaitlink.data_transform import Resample
 

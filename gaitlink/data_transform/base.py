@@ -1,4 +1,5 @@
 """Base classes for all data transformers and filters."""
+
 from typing import Any, ClassVar, Literal, Optional, Union
 
 import numpy as np

@@ -1,6 +1,7 @@
 line-length = 120
 target-version = "py39"
 
+[lint]
 select = [
     # pyflakes
     "F",
@@ -116,12 +117,12 @@ exclude = [
 ]
 
 
-[per-file-ignores]
+[lint.per-file-ignores]
 # https://github.com/astral-sh/ruff/issues/8925
 "examples/**/*.py" = ["D400"]
 
 
-[pydocstyle]
+[lint.pydocstyle]
 convention = "numpy"
 
 [format]

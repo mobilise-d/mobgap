@@ -1,4 +1,5 @@
 """Utility functions to perform common array operations."""
+
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view as np_sliding_window_view
 

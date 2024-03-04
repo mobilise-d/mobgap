@@ -1,4 +1,5 @@
 """Base class for aggregators."""
+
 from typing import Any
 
 import pandas as pd

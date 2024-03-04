@@ -1,4 +1,5 @@
 """Filter and Data Transformation with a familiar algorithm interface."""
+
 from gaitlink.data_transform._cwt import CwtFilter
 from gaitlink.data_transform._filter import (
     ButterworthFilter,

@@ -28,6 +28,7 @@ two sets of predefined parameters for healthy and pathological gait.
 
 We will omit the algorithm implementation (aka the action method) here, as it is not relevant for the example.
 """
+
 from typing import Optional
 
 import tpcp

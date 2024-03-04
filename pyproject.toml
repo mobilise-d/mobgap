@@ -23,7 +23,7 @@ pywavelets = "^1.5.0"
 poethepoet = "^0.22.0"
 pytest = "^7.4.0"
 pytest-cov = "^4.1.0"
-ruff = "^0.1.8"
+ruff = "^0.3.0"
 sphinx = "^7.2.6"
 sphinx-gallery = "^0.14.0"
 memory-profiler = "^0.61.0"
@@ -40,12 +40,12 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poe.tasks]
 _format = "ruff format ."
-_auto_fix = "ruff . --fix-only --show-fixes --exit-zero"
-_auto_fix_unsafe = "ruff . --fix-only --show-fixes --exit-zero --unsafe-fixes"
+_auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
+_auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_auto_fix", "_format"]
 format_unsafe = ["_auto_fix_unsafe", "_format"]
-lint = { cmd = "ruff gaitlink --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff gaitlink --output-format=github"
+lint = { cmd = "ruff check gaitlink --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff check gaitlink --output-format=github"
 _check_format = "ruff format . --check"
 ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
 test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }

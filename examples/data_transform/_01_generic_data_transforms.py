@@ -52,6 +52,7 @@ The basic things that a data-transform needs are:
   :func:`~gaitlink.utils.dtypes.dflike_as_2d_array` can be used for that.
 
 """
+
 from typing import Any
 
 import numpy as np

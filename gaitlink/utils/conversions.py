@@ -1,4 +1,5 @@
 """Some basic conversion utilities."""
+
 from collections.abc import Sequence
 from typing import TypeVar, Union, overload
 
@@ -8,18 +9,15 @@ T = TypeVar("T", float, int, Sequence[float], Sequence[int])
 
 
 @overload
-def as_samples(sec_value: Union[int, float], sampling_rate_hz: float) -> int:
-    ...
+def as_samples(sec_value: Union[int, float], sampling_rate_hz: float) -> int: ...
 
 
 @overload
-def as_samples(sec_value: Union[Sequence[int], Sequence[float]], sampling_rate_hz: float) -> Sequence[int]:
-    ...
+def as_samples(sec_value: Union[Sequence[int], Sequence[float]], sampling_rate_hz: float) -> Sequence[int]: ...
 
 
 @overload
-def as_samples(sec_value: np.ndarray, sampling_rate_hz: float) -> np.ndarray:
-    ...
+def as_samples(sec_value: np.ndarray, sampling_rate_hz: float) -> np.ndarray: ...
 
 
 def as_samples(sec_value, sampling_rate_hz: float):

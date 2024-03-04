@@ -1,4 +1,5 @@
 """Helper to validate and convert common data types used in gaitlink."""
+
 from typing import Any, Callable, Optional, TypeVar, Union
 
 import numpy as np

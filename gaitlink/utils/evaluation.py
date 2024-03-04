@@ -1,4 +1,5 @@
 """Module containing functions to calculate common performance metrics."""
+
 import warnings
 from typing import Literal, Union
 

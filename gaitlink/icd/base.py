@@ -1,4 +1,5 @@
 """Base class for ICs detectors."""
+
 from typing import Any
 
 import pandas as pd

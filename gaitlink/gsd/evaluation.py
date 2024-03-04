@@ -1,4 +1,5 @@
 """Class to validate gait sequence detection results."""
+
 from typing import Any, Union
 
 import matplotlib.pyplot as plt
