@@ -66,7 +66,7 @@ def load_matlab_output(datapoint):
         original_results = [original_results]
 
     ics = {}
-    for i, gs in enumerate(original_results):
+    for i, gs in enumerate(original_results, start=1):
         ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="ic_id")
 
     return (pd.concat(ics, names=["wb_id", ics[0].index.name]) * datapoint.sampling_rate_hz).astype(int)
@@ -82,11 +82,14 @@ detected_ics_matlab
 #
 # We can make a couple of main observations:
 #
-# 1. The python version finds the same ICs as the matlab version, but wil a small shift to the left (around 5-10
-#    samples/50-100 ms).
+# 1. The python version finds (for the most part) the same ICs as the matlab version, but detects them slightly earlies
+#    (around 2-8 samples/20-80 ms).
 #    This is likely due to some differences in the downsampling process.
-# 2. Compared to the ground truth reference, both versions detect the IC too late most of the time.
-# 3. Both algorithms can not detect the first IC of the gait sequence.
+# 2. Matlab and Python sometimes differ in the detection in the first and the last IC, if they are close to the border
+#    of the GS.
+#    This is because the morphological filter in the Python and the Matlab treat the border differently.
+# 3. Compared to the ground truth reference, both versions detect the IC too late most of the time.
+# 4. Both algorithms can not detect the first IC of the gait sequence.
 #    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
 #    Hence, there are no samples before that point the algorithm can use to detect the IC.
 
