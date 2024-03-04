@@ -69,6 +69,9 @@ class IcdHKLeeImproved(BaseIcDetector):
     - For CWT and gaussian filter, the actual parameter we pass to the respective functions differ from the matlab
       implementation, as the two languages use different implementations of the functions.
       However, the similarity of the output was visually confirmed.
+    - The "closing" and "opening" operations are not exactly the same as in the original matlab code.
+      This leads to small differences at the edges of the final signal.
+      This can lead to one additional or one missing IC at the edges of the signal.
     - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
       Specifically, we use m/s^2 instead of g.
 
@@ -77,6 +80,7 @@ class IcdHKLeeImproved(BaseIcDetector):
     - The algorithm can be improved by increasing the threshold of the allowed non-zero values.
       Currently, only single non-zero sequences are removed.
       For example, we could include a threshold of the minimum duration (samples) of an initial contact.
+
 
     .. [1] Lee, H-K., et al. "Computational methods to detect step events for normal and pathological
         gait evaluation using accelerometer." Electronics letters 46.17 (2010): 1185-1187.
@@ -134,49 +138,42 @@ class IcdHKLeeImproved(BaseIcDetector):
         len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         padding = Pad(pad_len_s=len_pad_s, mode="wrap")
 
-        #   CWT - Filter
-        #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
-        #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
-        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
-        #   wavelet.
-        #   This frequency this scale corresponds to depends on the sampling rate of the data.
-        #   As the gaitlink cwt method uses the center frequency instead of the scale, we need to calculate the
-        #   frequency that scale corresponds to at 40 Hz sampling rate.
-        #   Turns out that this is 1.2 Hz
-        cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
-
-        # Savgol filters
-        # The original Matlab code useses two savgol filter in the chain.
-        # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
-        # sampling-rate independent units used for the parameters of our classes.
-        # The parameters from the matlab code are: (21, 7) and (11, 5)
-        savgol_1_win_size_samples = 21
-        savgol_1 = SavgolFilter(
-            window_length_s=savgol_1_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
-            polyorder_rel=7 / savgol_1_win_size_samples,
-        )
-        savgol_2_win_size_samples = 11
-        savgol_2 = SavgolFilter(
-            window_length_s=savgol_2_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
-            polyorder_rel=5 / savgol_2_win_size_samples,
-        )
-
         # Now we build everything together into one filter chain.
         filter_chain = [
             # Resample to 40Hz to process with filters
             ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("padding", padding),
+            # Savgol filters
+            # The original Matlab code useses two savgol filter in the chain.
+            # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
+            # sampling-rate independent units used for the parameters of our classes.
+            # The parameters from the matlab code are: (21, 7) and (11, 5) for the 2 savgol filters
             (
                 "savgol_1",
-                savgol_1,
+                SavgolFilter(
+                    window_length_s=21 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+                    polyorder_rel=7 / 21,
+                ),
             ),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
-            ("cwt_1", cwt),
+            #   CWT - Filter
+            #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
+            #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
+            #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+            #   wavelet.
+            #   This frequency this scale corresponds to depends on the sampling rate of the data.
+            #   As the gaitlink cwt method uses the center frequency instead of the scale, we need to calculate the
+            #   frequency that scale corresponds to at 40 Hz sampling rate.
+            #   Turns out that this is 1.2 Hz
+            ("cwt_1", CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)),
             (
                 "savol_2",
-                savgol_2,
+                SavgolFilter(
+                    window_length_s=11 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+                    polyorder_rel=5 / 11,
+                ),
             ),
-            ("cwt_2", cwt),
+            ("cwt_2", CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)),
             ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_3", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
@@ -187,12 +184,14 @@ class IcdHKLeeImproved(BaseIcDetector):
         final_filtered = chain_transformers(signal, filter_chain, sampling_rate_hz=sampling_rate_hz)
         self.final_filtered_signal_ = final_filtered
 
-        # Apply morphological filters
-        se_closing = np.ones(32, dtype=int)
-        se_opening = np.ones(18, dtype=int)
-
-        c = grey_closing(self.final_filtered_signal_, structure=se_closing)
-        o = grey_opening(c, structure=se_opening)
+        # Note that this is slightly different to how matlab is handling edges.
+        # According to the closing source code in Matlab, the edges are padded by half the structure size with 0.
+        # Opening does not seem to use any padding.
+        # The closest we can get to this is using the "constant" mode in Python, which should also use 0 as padding.
+        # However, the start and the end of the output still sometimes look the same resulting in either one additional
+        # or one missing ICs at the edges.
+        c = grey_closing(self.final_filtered_signal_, size=32, mode="constant")
+        o = grey_opening(c, size=18, mode="constant")
         r = c - o
 
         final_detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")

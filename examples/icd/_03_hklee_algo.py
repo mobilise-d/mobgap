@@ -85,16 +85,16 @@ detected_ics_matlab
 # 1. The python version finds the same ICs as the matlab version, but wil a small shift to the left (around 5-10
 #    samples/50-100 ms).
 #    This is likely due to some differences in the downsampling process.
-# 2. Compared to the ground truth reference, both versions detect the IC too early most of the time.
+# 2. Compared to the ground truth reference, both versions detect the IC too late most of the time.
 # 3. Both algorithms can not detect the first IC of the gait sequence.
 #    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
-#    Hence, there are not samples before that point the algorithm can use to detect the IC.
+#    Hence, there are no samples before that point the algorithm can use to detect the IC.
 
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
 plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="hklee_algo_py")
 plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="hklee_algo_matlab")
-plt.xlim(reference_wbs.iloc[0]["start"] - 50, reference_wbs.iloc[0]["end"] + 50)
+plt.xlim(reference_wbs.iloc[3]["start"] - 50, reference_wbs.iloc[3]["end"] + 50)
 plt.legend()
 plt.show()
