@@ -65,3 +65,55 @@ class TestMultiGroupby:
             assert_frame_equal(df1, df.loc[[group]])
             assert_frame_equal(df2, df_2.loc[[group]])
             assert_frame_equal(df3, df_3.loc[[group]])
+
+    def test_iter_with_one_level_groupby(self):
+        df = pd.DataFrame(
+            {
+                "group1": [1, 1, 2, 2, 3, 3],
+                "group2": [1, 2, 1, 2, 1, 2],
+                "value": [1, 2, 3, 4, 5, 6],
+            }
+        ).set_index(["group1", "group2"])
+        df_2 = pd.DataFrame(
+            {
+                "group1": [1, 1, 1, 2, 3, 3],
+                "group2": [1, 2, 3, 1, 1, 2],
+                "value": [11, 12, 13, 14, 15, 16],
+            }
+        ).set_index(["group1", "group2"])
+
+        multi_groupby = create_multi_groupby(df, df_2, "group1")
+
+        i = 0
+        for group, (df1, df2) in multi_groupby.groups.items():
+            assert_frame_equal(df1, df.loc[[group]])
+            assert_frame_equal(df2, df_2.loc[[group]])
+            i += 1
+
+        assert i == multi_groupby.ngroups == len(multi_groupby) == len(df.groupby(level=["group1"]))
+
+        for group, (df1, df2) in multi_groupby:
+            assert_frame_equal(df1, df.loc[[group]])
+            assert_frame_equal(df2, df_2.loc[[group]])
+
+
+    def test_iter_with_missing_element_groupby(self):
+        df = pd.DataFrame(
+            {
+                "group1": [1, 1, 3, 3],
+                "group2": [1, 2, 1, 2],
+                "value": [1, 2, 3, 4, 5, 6, 7, 8],
+            }
+        ).set_index(["group1", "group2"])
+        df_2 = pd.DataFrame(
+            {
+                "group1": [1, 1, 2, 2],
+                "group2": [1, 2, 1, 2],
+                "value": [11, 12, 13, 14],
+            }
+        ).set_index(["group1", "group2"])
+
+        multi_groupby = create_multi_groupby(df, df_2, "group1")
+        for group, (df1, df2) in multi_groupby:
+            assert_frame_equal(df1, df.loc[[group]])
+            assert_frame_equal(df2, df_2.loc[[group]])
