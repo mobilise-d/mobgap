@@ -106,7 +106,7 @@ plt.show()
 # true positives, false positives, and false negatives, as well as precision, recall, and F1-score) in one go,
 # we can use the :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function.
 # It returns a dictionary containing all metrics for the specified detected and reference initial contact lists.
-# With the `tolerance` parameter, we can specify the maximum allowed deviation in samples.
+# With the `tolerance_samples` parameter, we can specify the maximum allowed deviation in samples.
 # Consequently, the tolerance parameter should be chosen with respect to the sampling rate of the data.
 # In this case, it is set to 20 samples, which corresponds to 200 ms.
 # As our data includes multiple walking bouts and the detected initial contacts within these walking bouts,
@@ -121,7 +121,7 @@ plt.show()
 from gaitlink.icd.evaluation import calculate_icd_performance_metrics
 
 metrics_all = calculate_icd_performance_metrics(
-    ic_list_detected=detected_ics, ic_list_reference=ref_ics, tolerance=20, multiindex_warning=False
+    ic_list_detected=detected_ics, ic_list_reference=ref_ics, tolerance_samples=20, multiindex_warning=False
 )
 
 print("Performance Metrics:\n\n", metrics_all)
@@ -129,20 +129,20 @@ print("Performance Metrics:\n\n", metrics_all)
 # %%
 # To gain a more detailed insight into the performance of the algorithm, we can also look into the individual matches
 # between the detected and reference initial contacts.
-# To do this, we use the :func:`~gaitlink.icd.evaluation.evaluate_initial_contact_list` function to compare the detected
+# To do this, we use the :func:`~gaitlink.icd.evaluation.evaluate_ic_list` function to compare the detected
 # ICs to the ground truth ICs.
-# Analogous to the previous function, with the `tolerance` parameter,
+# Analogous to the previous function, with the `tolerance_samples` parameter,
 # the maximum allowed deviation in samples is specified,
 # and with the `multiindex_warning` parameter, the warning for multiindex DataFrames as input is suppressed.
-from gaitlink.icd.evaluation import evaluate_initial_contact_list
+from gaitlink.icd.evaluation import evaluate_ic_list
 
 matches_all_wb = []
 
-matches = evaluate_initial_contact_list(detected_ics, ref_ics, tolerance=20)
+matches = evaluate_ic_list(detected_ics, ref_ics, tolerance_samples=20, multiindex_warning=False)
 
 # %%
 # The function returns a DataFrame containing the ID of the detected ICs (`"ic_id_detected"`) and the reference ICs
 # (`"ic_id_reference"`) that they match to. If there is no match for the respective IC, the IC ID is set to `NaN`.
 # The column `"match_type"` indicates the type of every match, i.e. `tp` for true positive, `fp` for false
 # positive, and `fn` for false negative.
-print("Matched Initial Contacts:\n\n", matches)
+matches
