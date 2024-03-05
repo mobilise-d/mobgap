@@ -89,7 +89,6 @@ detected_ics_matlab
 # 3. Both algorithms can not detect the first IC of the gait sequence.
 #    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
 #    Hence, there are no samples before that point the algorithm can use to detect the IC.
-#
 
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
