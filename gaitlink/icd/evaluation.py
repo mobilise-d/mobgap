@@ -268,23 +268,6 @@ def _match_label_lists(
     return valid_matches[0], valid_matches[1]
 
 
-def _check_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
-    # check if input is a dataframe
-    if not isinstance(matches, pd.DataFrame):
-        raise TypeError("`matches` must be of type `pandas.DataFrame`.")
-    # check for correct columns
-    try:
-        matches = matches[["ic_id_detected", "ic_id_reference", "match_type"]]
-    except KeyError as e:
-        raise ValueError(
-            "`matches` must have columns named `ic_id_detected`, `ic_id_reference`, and `match_type`."
-        ) from e
-    # check if `match_type` column contains only valid values
-    if not matches["match_type"].isin(["tp", "fp", "fn"]).all():
-        raise ValueError("`match_type` must contain only the values 'tp', 'fp', and 'fn'.")
-    return matches
-
-
 def _check_input_sanity(
     ic_list_detected: pd.DataFrame, ic_list_reference: pd.DataFrame
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
