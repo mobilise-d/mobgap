@@ -68,8 +68,8 @@ class MultiGroupBy:
         primary_df: pd.DataFrame,
         secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
         index_level_names: Union[str, list[str]],
-            *,
-            drop_groupby_cols: bool = True,
+        *,
+        drop_groupby_cols: bool = False,  # TODO: whats the purpose of this? Fails when set to True
     ) -> None:
         self.primary_df = primary_df
         self.secondary_dfs = secondary_dfs
@@ -84,15 +84,15 @@ class MultiGroupBy:
         # For the approach to work, all dfs need to have the same index columns with the `level` columns as the first
         # index levels.
         primary_index_cols = primary_df.index.names
-        if not set(index_level_names).issubset(primary_index_cols):
+        if not set(self.index_level_names).issubset(primary_index_cols):
             raise ValueError("All index_level_names need to be in the index of all dataframes.")
         primary_index_cols_reorderd = [
-            *index_level_names,
+            *self.index_level_names,
             *[col for col in primary_index_cols if col not in index_level_names],
         ]
 
         self.primary_df = primary_df.reorder_levels(primary_index_cols_reorderd)
-        self.secondary_dfs = [df.reorder_levels(primary_index_cols_reorderd) for df in secondary_dfs]
+        self.secondary_dfs = [df.reorder_levels(primary_index_cols_reorderd) for df in self.secondary_dfs]
 
     @property
     def primary_groupby(self) -> pd.core.groupby.DataFrameGroupBy:
@@ -101,10 +101,10 @@ class MultiGroupBy:
         return self._primary_groupby
 
     def _get_secondary_vals(self, name: Union[str, tuple[str, ...]]) -> list[pd.DataFrame]:
-        return [df.loc[[name]] for df in self.secondary_dfs]
+        return [df.loc[[name]] for df in self.secondary_dfs]  # TODO: what if name doesnt exist? return empty df?
 
     def get_group(self, name: Union[str, tuple[str, ...]]) -> tuple[pd.DataFrame, ...]:
-        return_val =  self.primary_groupby.get_group(name), *self._get_secondary_vals(name)
+        return_val = self.primary_groupby.get_group(name), *self._get_secondary_vals(name)
         if not self.drop_groupby_cols:
             return return_val
         return tuple(df.droplevel(self.index_level_names) for df in return_val)
@@ -171,7 +171,7 @@ def create_multi_groupby(
         The secondary dataframes to group by.
     index_level_names
         The names of the index levels to group by.
-        If not provided, the first index level will be used.
+        If not provided, the first index level will be used. # TODO: this is not yet implemented
     """
     return MultiGroupBy(primary_df, secondary_dfs, index_level_names)
 
