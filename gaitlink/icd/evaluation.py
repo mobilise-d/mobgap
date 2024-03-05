@@ -13,7 +13,7 @@ def calculate_icd_performance_metrics(
     *,
     ic_list_detected: pd.DataFrame,
     ic_list_reference: pd.DataFrame,
-    tolerance: Union[int, float] = 0,
+    tolerance_samples: Union[int, float] = 0,
     multiindex_warning: bool = True,
 ) -> dict[str, Union[float, int]]:
     """
@@ -27,7 +27,7 @@ def calculate_icd_performance_metrics(
 
     The following metrics are calculated:
 
-    - tp_samples`: Number of samples that are correctly detected as initial contacts.
+    - `tp_samples`: Number of samples that are correctly detected as initial contacts.
     - `fp_samples`: Number of samples that are falsely detected as initial contacts.
     - `fn_samples`: Number of samples that are not detected as initial contacts.
     - `precision`: Precision of the detected initial contacts.
@@ -43,10 +43,10 @@ def calculate_icd_performance_metrics(
         The dataframe of detected initial contacts.
     ic_list_reference: pd.DataFrame, optional
         The ground truth initial contact dataframe.
-    tolerance: int or float, optional
+    tolerance_samples: int or float, optional
         The allowed tolerance between a detected and reference initial contact in samples for it to be considered a
         true positive match.
-        The comparison is done as `distance <= tolerance`.
+        The comparison is done as `distance <= tolerance_samples`.
     multiindex_warning
         If True, a warning will be raised if the index of the input data is a MultiIndex, explaining that the index
         levels will be ignored for the matching process.
@@ -55,8 +55,8 @@ def calculate_icd_performance_metrics(
     -------
     icd_metrics: dict
     """
-    matches = evaluate_initial_contact_list(
-        ic_list_detected, ic_list_reference, tolerance=tolerance, multiindex_warning=multiindex_warning
+    matches = evaluate_ic_list(
+        ic_list_detected, ic_list_reference, tolerance_samples=tolerance_samples, multiindex_warning=multiindex_warning
     )
 
     # estimate tp, fp, fn
@@ -77,11 +77,11 @@ def calculate_icd_performance_metrics(
     return icd_metrics
 
 
-def evaluate_initial_contact_list(
+def evaluate_ic_list(
     ic_list_detected: pd.DataFrame,
     ic_list_reference: pd.DataFrame,
     *,
-    tolerance: Union[int, float] = 0,  # TODO: insert practical default value?
+    tolerance_samples: Union[int, float] = 0,
     multiindex_warning: bool = True,
 ) -> pd.DataFrame:
     """Evaluate an initial contact list against a reference contact-by-contact.
@@ -109,10 +109,10 @@ def evaluate_initial_contact_list(
         The dataframe of detected initial contacts.
     ic_list_reference
         The ground truth initial contact dataframe.
-    tolerance
+    tolerance_samples
         The allowed tolerance between a detected and reference initial contact in samples for it to be considered a
         true positive match.
-        The comparison is done as `distance <= tolerance`.
+        The comparison is done as `distance <= tolerance_samples`.
     multiindex_warning
         If True, a warning will be raised if the index of the input data is a MultiIndex, explaining that the index
         levels will be ignored for the matching process.
@@ -132,13 +132,17 @@ def evaluate_initial_contact_list(
         All reference initial contacts that do not have a counterpart in the detected list
         are marked as "fn" (false negative).
 
+    Notes
+    -----
+    This function is a simplified version of a
+    `gaitmap function <https://gaitmap.readthedocs.io/en/latest/modules/generated/evaluation_utils/
+    gaitmap.evaluation_utils.evaluate_segmented_stride_list.html>`_.
+
     Examples
     --------
     >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("ic_id")
     >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("ic_id")
-    >>> result = evaluate_initial_contact_list(
-    ...     ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance=2
-    ... )
+    >>> result = evaluate_ic_list(ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance_samples=2)
     >>> result
       ic_id_detected ic_id_reference match_type
     0    0                 0         tp
@@ -152,13 +156,13 @@ def evaluate_initial_contact_list(
     detected = _set_correct_index(detected, "detected", multiindex_warning)
     reference = _set_correct_index(reference, "reference", multiindex_warning)
 
-    if tolerance < 0:
-        raise ValueError("The tolerance must be larger than 0.")
+    if tolerance_samples < 0:
+        raise ValueError("`tolerance_samples` must be larger than 0.")
 
     left_indices, right_indices = _match_label_lists(
         detected.to_numpy(),
         reference.to_numpy(),
-        tolerance=tolerance,
+        tolerance_samples=tolerance_samples,
     )
 
     detected_index_name = detected.index.name + "_detected"
@@ -201,7 +205,7 @@ def evaluate_initial_contact_list(
 
 
 def _match_label_lists(
-    list_left: np.ndarray, list_right: np.ndarray, tolerance: Union[int, float] = 0
+    list_left: np.ndarray, list_right: np.ndarray, tolerance_samples: Union[int, float] = 0
 ) -> tuple[np.ndarray, np.ndarray]:
     """Find matches in two lists based on the distance between their vectors.
 
@@ -211,9 +215,9 @@ def _match_label_lists(
         An n long array of 1-dimensional vectors
     list_right : array with shape (m, 1)
         An m long array of 1-dimensional vectors
-    tolerance
+    tolerance_samples
         Max allowed Chebyshev distance between matches.
-        The comparison is done as "distance <= tolerance".
+        The comparison is done as "distance <= tolerance_samples".
 
     Returns
     -------
@@ -232,6 +236,12 @@ def _match_label_lists(
     This means that every index will only occur once in the output arrays.
     If an index in one list does have two equally close matches in the other list,
     only the first match will be returned.
+
+    Notes
+    -----
+    This function is a simplified version of a
+    `gaitmap function <https://gaitmap.readthedocs.io/en/latest/modules/generated/evaluation_utils/
+    gaitmap.evaluation_utils.match_stride_lists.html>`_.
     """
     # reshape the input arrays to (n, 1) if from shape (n,)
     if len(np.shape(list_left)) == 1:
@@ -261,7 +271,7 @@ def _match_label_lists(
 
     # Only keep the matches that are within the tolerance
     valid_matches_distance = l_nearest_distance[boolean_map]
-    valid_matches_idx = np.where(valid_matches_distance <= tolerance)[0]
+    valid_matches_idx = np.where(valid_matches_distance <= tolerance_samples)[0]
     valid_matches = valid_matches[valid_matches_idx]
 
     valid_matches = valid_matches.T
