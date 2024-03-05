@@ -129,6 +129,33 @@ class TestEvaluateInitialContactList:
         with pytest.raises(ValueError):
             evaluate_initial_contact_list(wrong_index, create_ic_list_default)
 
+    def test_input_multiindex_warning(self, create_ic_list_default):
+        multiindex = create_ic_list_default.copy()
+        multiindex.index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
+        )
+        with pytest.warns(Warning):
+            evaluate_initial_contact_list(multiindex, create_ic_list_default)
+        with pytest.warns(Warning):
+            evaluate_initial_contact_list(create_ic_list_default, multiindex)
+        with pytest.warns(Warning):
+            evaluate_initial_contact_list(multiindex, multiindex)
+
+    def test_input_multiindex_warning_suppressed(self, create_ic_list_default):
+        multiindex = create_ic_list_default.copy()
+        multiindex.index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
+        )
+        with pytest.warns(None) as record:
+            evaluate_initial_contact_list(multiindex, create_ic_list_default, multiindex_warning=False)
+            assert len(record) == 0
+        with pytest.warns(None) as record:
+            evaluate_initial_contact_list(create_ic_list_default, multiindex, multiindex_warning=False)
+            assert len(record) == 0
+        with pytest.warns(None) as record:
+            evaluate_initial_contact_list(multiindex, multiindex, multiindex_warning=False)
+            assert len(record) == 0
+
     def test_perfect_match(self, create_ic_list_default):
         matches = evaluate_initial_contact_list(create_ic_list_default, create_ic_list_default)
         assert np.all(matches["match_type"] == "tp")
@@ -186,6 +213,8 @@ class TestEvaluateInitialContactList:
         assert_array_equal(matches.columns.to_numpy(), ["ic_id_detected", "ic_id_reference", "match_type"])
         assert matches.index.name is None
         assert_array_equal(matches.index.to_numpy(), [0, 1, 2, 3])
+        assert_array_equal(ic_list_multiindex.index.to_flat_index(), matches["ic_id_detected"].to_numpy())
+        assert_array_equal(ic_list_multiindex.index.to_flat_index(), matches["ic_id_reference"].to_numpy())
 
     def test_invalid_index_error(self, create_ic_list_default):
         ic_list_wrong_index = create_ic_list_default.copy()
@@ -240,12 +269,26 @@ class TestEvaluateInitialContactList:
 
 
 class TestCalculateIcdMetrics:
-    # TODO: test possible input errors
-
     def test_ic_list_input(self, snapshot):
         ic_list_detected = pd.DataFrame([10, 20, 30, 40, 50], columns=["ic"]).rename_axis("ic_id")
         ic_list_reference = pd.DataFrame([10, 20, 40, 50, 60], columns=["ic"]).rename_axis("ic_id")
         metrics = calculate_icd_performance_metrics(
             ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference
         )
+        snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
+
+    def test_multiindex_ic_list_input(self, snapshot):
+        ic_list_detected = pd.DataFrame([10, 20, 30, 40], columns=["ic"]).rename_axis("ic_id")
+        ic_list_detected.index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
+        )
+        ic_list_reference = pd.DataFrame([10, 20, 40, 50], columns=["ic"]).rename_axis("ic_id")
+        ic_list_reference.index = pd.MultiIndex.from_tuples(
+            [("c", 5), ("c", 6), ("d", 7), ("d", 8)], names=["something_else", "ic_id"]
+        )
+        # multiindex warning not suppressed per default
+        with pytest.warns(Warning):
+            metrics = calculate_icd_performance_metrics(
+                ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference
+            )
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
