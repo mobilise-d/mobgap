@@ -6,6 +6,7 @@ from typing import Any, Callable, Union
 import numpy as np
 import pandas as pd
 from numpy.lib.stride_tricks import sliding_window_view as np_sliding_window_view
+from typing_extensions import Unpack
 
 
 def sliding_window_view(data: np.ndarray, window_size_samples: int, overlap_samples: int) -> np.ndarray:
@@ -72,6 +73,15 @@ def _loc_with_empty_fallback(df: pd.DataFrame, name: Any) -> pd.DataFrame:
 
 
 class MultiGroupBy:
+    """Object representing the grouping result of multiple Dfs.
+
+    This is used as proxy object to allow a somewhat similar API to the normal pandas groupby object, but allowing
+    to group multiple dataframes by the same index levels to apply a function to each group across all dataframes.
+
+    See :func:`~create_multi_groupby` for the creation of this object.
+
+    """
+
     _primary_groupby: pd.core.groupby.DataFrameGroupBy
 
     def __init__(
@@ -103,6 +113,10 @@ class MultiGroupBy:
 
     @property
     def primary_groupby(self) -> pd.core.groupby.DataFrameGroupBy:
+        """The primary groupby object.
+
+        This is the grouper created from the primary dataframe.
+        """
         if not hasattr(self, "_primary_groupby"):
             self._primary_groupby = self.primary_df.groupby(level=self.groupby)
         return self._primary_groupby
@@ -133,7 +147,7 @@ class MultiGroupBy:
         return self.primary_groupby.ngroups
 
     def __len__(self) -> int:
-        """The number of groups."""
+        """Get the number of groups."""
         return len(self.primary_groupby)
 
     def __iter__(
@@ -142,7 +156,7 @@ class MultiGroupBy:
         """Iterate over the groups and return a tuple with the group name and the group dataframes."""
         return ((name, self.get_group(name)) for name, group in self.primary_groupby)
 
-    def apply(self, func: Callable, *args, **kwargs):
+    def apply(self, func: Callable, *args: Unpack[list[Any]], **kwargs: Unpack[dict[str, Any]]) -> pd.DataFrame:
         """Apply a function that takes the group values from each df as input.
 
         The function is expected to take n dataframes as input, where n is the number of secondary dataframes + 1.
@@ -151,11 +165,11 @@ class MultiGroupBy:
 
         """
 
-        def nested_func(group: pd.DataFrame, *args, **kwargs):
+        def _nested_func(group: pd.DataFrame, *iargs: Any, **ikwargs: Unpack[dict[str, Any]]) -> Any:
             secondary_vals = self._get_secondary_vals(group.name)
-            return func(group, *secondary_vals, *args, **kwargs)
+            return func(group, *secondary_vals, *iargs, **ikwargs)
 
-        return self.primary_groupby.apply(nested_func, *args, **kwargs)
+        return self.primary_groupby.apply(_nested_func, *args, **kwargs)
 
 
 def create_multi_groupby(
@@ -174,16 +188,70 @@ def create_multi_groupby(
     This also means that this function is much more limited than the standard groupby object, as it only supports the
     grouping by existing **named** index levels and forces all dataframes to have the same index columns.
 
+    .. warning:: It is important to understand that we only groupy the index of the primary dataframe!
+       This means if an index value only exists in one of the secondary dataframes, it will be ignored.
+       We do this to be able to "just" use the normal pandas groupby API under the hood.
+       We simply group the primary dataframe, get the corresponding groups from the secondary dataframes (if available)
+       and inject them into all operations.
+
     Parameters
     ----------
     primary_df
         The primary dataframe to group by.
+        Its index will be used to perform the actual grouping.
     secondary_dfs
         The secondary dataframes to group by.
     groupby
         The names of the index levels to group by.
+
+    Examples
+    --------
+    >>> df = pd.DataFrame(
+    ...     {
+    ...         "group1": [1, 1, 2, 3],
+    ...         "group2": [1, 2, 1, 1],
+    ...         "value": [1, 2, 3, 4],
+    ...     }
+    ... ).set_index(["group1", "group2"])
+    >>> df_2 = pd.DataFrame(
+    ...     {
+    ...         "group1": [1, 1, 1, 2],
+    ...         "group2": [1, 2, 3, 1],
+    ...         "value": [11, 12, 13, 14],
+    ...     }
+    ... ).set_index(["group1", "group2"])
+    >>> multi_groupby = create_multi_groupby(df, df_2, ["group1"])
+    >>> for group, (df1, df2) in multi_groupby:
+    ...     print(group)
+    ...     print(df1)
+    ...     print(df2)
+    1
+                   value
+    group1 group2
+    1      1           1
+           2           2
+                   value
+    group1 group2
+    1      1          11
+           2          12
+           3          13
+    2
+                   value
+    group1 group2
+    2      1           3
+                   value
+    group1 group2
+    2      1          14
+    3
+                   value
+    group1 group2
+    3      1           4
+    Empty DataFrame
+    Columns: [value]
+    Index: []
+
     """
     return MultiGroupBy(primary_df, secondary_dfs, groupby)
 
 
-__all__ = ["sliding_window_view", "create_multi_groupby"]
+__all__ = ["sliding_window_view", "create_multi_groupby", "MultiGroupBy"]

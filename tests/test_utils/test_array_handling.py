@@ -121,3 +121,53 @@ class TestMultiGroupby:
             except KeyError:
                 expected = pd.DataFrame(columns=df_2.columns, index=df_2.index[:0])
             assert_frame_equal(df2, expected)
+
+    def test_apply(self):
+        df = pd.DataFrame(
+            {
+                "group1": [1, 1, 2, 2, 3, 3],
+                "group2": [1, 2, 1, 2, 1, 2],
+                "value": [1, 2, 3, 4, 5, 6],
+            }
+        ).set_index(["group1", "group2"])
+        df_2 = pd.DataFrame(
+            {
+                "group1": [1, 1, 1, 2, 3, 3],
+                "group2": [1, 2, 3, 1, 1, 2],
+                "value": [11, 12, 13, 14, 15, 16],
+            }
+        ).set_index(["group1", "group2"])
+
+        multi_groupby = create_multi_groupby(df, df_2, ["group1", "group2"])
+
+        def func(df1, df2):
+            return (df1 + df2).iloc[0]
+
+        result = multi_groupby.apply(func)
+        expected = df + df_2.reindex(df.index)
+        assert_frame_equal(result, expected)
+
+    def test_apply_args_kwargs(self):
+        df = pd.DataFrame(
+            {
+                "group1": [1, 1, 2, 2, 3, 3],
+                "group2": [1, 2, 1, 2, 1, 2],
+                "value": [1, 2, 3, 4, 5, 6],
+            }
+        ).set_index(["group1", "group2"])
+        df_2 = pd.DataFrame(
+            {
+                "group1": [1, 1, 1, 2, 3, 3],
+                "group2": [1, 2, 3, 1, 1, 2],
+                "value": [11, 12, 13, 14, 15, 16],
+            }
+        ).set_index(["group1", "group2"])
+
+        multi_groupby = create_multi_groupby(df, df_2, ["group1", "group2"])
+
+        def func(df1, df2, a, b, c=1):
+            return (df1 + df2).iloc[0] + a + b + c
+
+        result = multi_groupby.apply(func, 1, b=2, c=3)
+        expected = df + df_2.reindex(df.index) + 1 + 2 + 3
+        assert_frame_equal(result, expected)
