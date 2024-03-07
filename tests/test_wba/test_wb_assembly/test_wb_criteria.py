@@ -19,7 +19,7 @@ class BaseTestCriteriaInclusion:
         """Test that now exception is thrown if a list with a single stride is checked."""
         single_stride_list = naive_stride_list.iloc[:1]
 
-        self.criteria_class(**self.defaults).check_include(single_stride_list)
+        self.criteria_class(**self.defaults).check_include(single_stride_list, sampling_rate_hz=1)
 
 
 class BaseTestCriteriaTermination:
@@ -36,28 +36,29 @@ class BaseTestCriteriaTermination:
             original_start=0,
             current_start=0,
             current_end=0,
+            sampling_rate_hz=1,
         )
 
 
 class TestMaxBreakCriteria(BaseTestCriteriaTermination):
     criteria_class = MaxBreakCriteria
-    defaults = {"max_break": 0, "remove_last_ic": False}
+    defaults = {"max_break_s": 0, "remove_last_ic": False}
 
     @pytest.fixture(
         params=(
             (
-                {"max_break": 0, "comment": "comment"},
-                {"max_break": 0, "comment": "comment"},
+                {"max_break_s": 0, "comment": "comment"},
+                {"max_break_s": 0, "comment": "comment"},
             ),
-            ({"max_break": -5, "comment": None}, ValueError),
-            ({"max_break": -5, "remove_last_ic": "something_wrong", "comment": None}, ValueError),
+            ({"max_break_s": -5, "comment": None}, ValueError),
+            ({"max_break_s": -5, "remove_last_ic": "something_wrong", "comment": None}, ValueError),
             (
-                {"max_break": 100, "remove_last_ic": True, "name": None, "comment": None},
-                {"max_break": 100, "remove_last_ic": True, "name": None, "comment": None},
+                {"max_break_s": 100, "remove_last_ic": True, "name": None, "comment": None},
+                {"max_break_s": 100, "remove_last_ic": True, "name": None, "comment": None},
             ),
             (
-                {"max_break": 100, "remove_last_ic": "per_foot", "name": None, "comment": None},
-                {"max_break": 100, "remove_last_ic": "per_foot", "name": None, "comment": None},
+                {"max_break_s": 100, "remove_last_ic": "per_foot", "name": None, "comment": None},
+                {"max_break_s": 100, "remove_last_ic": "per_foot", "name": None, "comment": None},
             ),
         )
     )
@@ -80,7 +81,11 @@ class TestMaxBreakCriteria(BaseTestCriteriaTermination):
 
         assert (
             c.check_wb_start_end(
-                stride_list=naive_stride_list, original_start=0, current_start=0, current_end=len(naive_stride_list) - 1
+                stride_list=naive_stride_list,
+                original_start=0,
+                current_start=0,
+                current_end=len(naive_stride_list) - 1,
+                sampling_rate_hz=1,
             )[1]
             is expected
         )

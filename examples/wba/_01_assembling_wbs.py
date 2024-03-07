@@ -90,7 +90,7 @@ rules = [("sl_thres", IntervalParameterCriteria("stride_length", lower_threshold
 from gaitlink.wba import StrideSelection
 
 ss = StrideSelection(rules)
-ss.filter(stride_list)
+ss.filter(stride_list, sampling_rate_hz=1)
 
 filtered_stride_list = ss.filtered_stride_list_
 filtered_stride_list
@@ -110,10 +110,10 @@ filtered_stride_list["stride_length"].unique()
 # The thresholds we use here should filter out all the strides from above with a duration of 60
 from gaitlink.wba import IntervalDurationCriteria
 
-rules.append(("dur_thres", IntervalDurationCriteria(lower_threshold=80, upper_threshold=120)))
+rules.append(("dur_thres", IntervalDurationCriteria(min_duration_s=80, max_duration_s=120)))
 
 ss = StrideSelection(rules)
-ss.filter(stride_list)
+ss.filter(stride_list, sampling_rate_hz=1)
 
 filtered_stride_list = ss.filtered_stride_list_
 filtered_stride_list
@@ -153,13 +153,13 @@ ss.excluded_stride_list_.merge(ss.exclusion_reasons_, left_index=True, right_ind
 from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
 
 rules = [
-    ("max_break", MaxBreakCriteria(max_break=10, remove_last_ic="per_foot", consider_end_as_break=True)),
+    ("max_break", MaxBreakCriteria(max_break_s=10, remove_last_ic="per_foot", consider_end_as_break=True)),
     ("min_strides", NStridesCriteria(min_strides=5)),
 ]
 
 wb_assembly = WbAssembly(rules)
 # Note, that we use the filtered stride list from above.
-wb_assembly.assemble(filtered_stride_list)
+wb_assembly.assemble(filtered_stride_list, sampling_rate_hz=1)
 
 # %%
 # The wb_assembly object now contains a grouping of each stride to a WB.

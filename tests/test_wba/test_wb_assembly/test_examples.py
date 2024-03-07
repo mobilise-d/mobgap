@@ -30,7 +30,7 @@ def test_simple_single_wb(consider_end_as_break):
     ]
 
     wba = WbAssembly(rules)
-    wba.assemble(strides)
+    wba.assemble(strides, sampling_rate_hz=1)
 
     assert len(wba.wbs_) == 1
     single_wb = next(iter(wba.wbs_.values()))
@@ -74,7 +74,7 @@ def test_simple_break_center(consider_end_as_break):
     ]
 
     wba = WbAssembly(rules)
-    wba.assemble(strides)
+    wba.assemble(strides, sampling_rate_hz=1)
 
     assert len(wba.excluded_wbs_) == 0
     assert len(wba.excluded_stride_list_) == 0

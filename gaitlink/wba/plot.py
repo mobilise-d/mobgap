@@ -93,7 +93,7 @@ def plot_wba_results(
             ) from e
 
         # We check that the stride selection object belongs to the WBA object.
-        if not wba.stride_list.equals(stride_list):
+        if not wba.filtered_stride_list.equals(stride_list):
             raise ValueError(
                 "It seems like the WBAssembly and StrideSelection objects do not belong together. "
                 "You can only plot stride selection and wba results together, when you called the WBA with the "

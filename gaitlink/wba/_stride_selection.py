@@ -2,6 +2,7 @@ from typing import ClassVar, Optional
 
 import pandas as pd
 from tpcp import Algorithm, cf
+from tpcp.misc import set_defaults
 from typing_extensions import Self
 
 from gaitlink.wba._interval_criteria import BaseIntervalCriteria, IntervalDurationCriteria, IntervalParameterCriteria
@@ -38,6 +39,8 @@ class StrideSelection(Algorithm):
     ----------------
     stride_list
         The stride list provided to the :meth:`filter` method.
+    sampling_rate_hz
+        The sampling rate provided to the :meth:`filter` method.
 
     """
 
@@ -47,23 +50,23 @@ class StrideSelection(Algorithm):
     rules: Optional[list[tuple[str, BaseIntervalCriteria]]]
 
     stride_list: pd.DataFrame
+    sampling_rate_hz: float
 
     _exclusion_reasons: pd.DataFrame
 
-    PREDEFINED_RULES: ClassVar[dict[str, list[tuple[str, BaseIntervalCriteria]]]] = {
-        "mobilise_stride_selection": [
-            ("stride_duration_thres", IntervalDurationCriteria(lower_threshold=0.2, upper_threshold=3.0)),
-            (
-                "stride_length_thres",
-                IntervalParameterCriteria("stride_length", lower_threshold=0.15, upper_threshold=None),
-            ),
-        ],
-    }
+    class PredefinedParameters:
+        mobilise_stride_selection: ClassVar = {
+            "rules": [
+                ("stride_duration_thres", IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0)),
+                (
+                    "stride_length_thres",
+                    IntervalParameterCriteria("stride_length", lower_threshold=0.15, upper_threshold=None),
+                ),
+            ],
+        }
 
-    def __init__(
-        self,
-        rules: Optional[list[tuple[str, BaseIntervalCriteria]]] = cf(PREDEFINED_RULES["mobilise_stride_selection"]),
-    ) -> None:
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_stride_selection.items()})
+    def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
         self.rules = rules
 
     @property
@@ -78,7 +81,7 @@ class StrideSelection(Algorithm):
     def exclusion_reasons_(self) -> pd.DataFrame:
         return self._exclusion_reasons[self._exclusion_reasons["rule_name"].notna()]
 
-    def filter(self, stride_list: pd.DataFrame) -> Self:
+    def filter(self, stride_list: pd.DataFrame, *, sampling_rate_hz: float) -> Self:
         """Filter the stride list.
 
         Parameters
@@ -88,8 +91,19 @@ class StrideSelection(Algorithm):
             The stride list must be a dataframe, where each row represents a stride.
             The index should be a unique identifier for each stride.
             The dataframe must at least have a `start` and `end` column.
+            We assume that the `start` and `end` values are in samples and can be converted to seconds using the
+            `sampling_rate_hz` parameter.
             Additional required columns depend on the rules that are used for filtering.
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is used to potentially convert the ``start`` and ``end`` values of a stride to seconds, assuming that
+            they are in samples.
+            If this is not the case and the value are already in seconds, `sampling_rate_hz` should set to 1.
 
+        Returns
+        -------
+        self
+            The instance itself with the result parameters set.
         """
         # TODO: Add better checking for compound fields dtype
         for _, rule in self.rules or []:
@@ -97,14 +111,17 @@ class StrideSelection(Algorithm):
                 raise TypeError("All rules must be instances of `IntervalSummaryCriteria` or one of its child classes.")
 
         self.stride_list = stride_list
+        self.sampling_rate_hz = sampling_rate_hz
         self._exclusion_reasons = self.stride_list.apply(
-            lambda x: pd.Series(self._check_stride(x), index=["rule_name", "rule_obj"]), axis=1
+            lambda x: pd.Series(self._check_stride(x, self.sampling_rate_hz), index=["rule_name", "rule_obj"]), axis=1
         )
 
         return self
 
-    def _check_stride(self, stride: pd.Series) -> tuple[Optional[str], Optional[BaseIntervalCriteria]]:
+    def _check_stride(
+        self, stride: pd.Series, sampling_rate_hz: float
+    ) -> tuple[Optional[str], Optional[BaseIntervalCriteria]]:
         for rule_name, rule in self.rules or []:
-            if not rule.check(stride):
+            if not rule.check(stride, sampling_rate_hz=sampling_rate_hz):
                 return rule_name, rule
         return None, None

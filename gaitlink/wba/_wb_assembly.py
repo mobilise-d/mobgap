@@ -63,8 +63,10 @@ class WbAssembly(Algorithm):
 
     Other Parameters
     ----------------
-    stride_list
+    filtered_stride_list
         The stride list provided to the :meth:`assemble` method.
+    sampling_rate_hz
+        The sampling rate provided to the :meth:`assemble` method.
 
     Notes
     -----
@@ -95,7 +97,8 @@ class WbAssembly(Algorithm):
 
     rules: Optional[list[tuple[str, BaseWbCriteria]]]
 
-    stride_list: pd.DataFrame
+    filtered_stride_list: pd.DataFrame
+    sampling_rate_hz: float
 
     annotated_stride_list_: pd.DataFrame
     excluded_stride_list_: pd.DataFrame
@@ -110,7 +113,7 @@ class WbAssembly(Algorithm):
                     "min_strides",
                     NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
                 ),
-                ("max_break", MaxBreakCriteria(max_break=3)),
+                ("max_break", MaxBreakCriteria(max_break_s=3)),
             ]
         }
 
@@ -136,15 +139,41 @@ class WbAssembly(Algorithm):
 
     def assemble(
         self,
-        stride_list: pd.DataFrame,
+        filtered_stride_list: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
     ) -> Self:
+        """
+        Assemble the walking bouts based on the pre-filtered stride list.
+
+        Parameters
+        ----------
+        filtered_stride_list
+            The list of valid strides that should be used to assemble final WBs.
+            Usually this is the output of the :class:`~gaitlink.wba.StrideSelection`.
+            We expect at least to have a `start` and `end` column.
+            We assume that the `start` and `end` values are in samples and can be converted to seconds using the
+            `sampling_rate_hz` parameter.
+            Additional required columns depend on the rules that are used for aggregation.
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is used to potentially convert the ``start`` and ``end`` values of a stride to seconds, assuming that
+            they are in samples.
+            If this is not the case and the value are already in seconds, `sampling_rate_hz` should set to 1.
+
+        Returns
+        -------
+        self
+            The instance itself with the result parameters set.
+        """
         # TODO: Add better checks for correct type of compound rule field
         for _, rule in self.rules or []:
             if not isinstance(rule, BaseWbCriteria):
                 raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
-        self.stride_list = stride_list
-        stride_list_sorted = self.stride_list.sort_values(by=["start", "end"])
+        self.filtered_stride_list = filtered_stride_list
+        self.sampling_rate_hz = sampling_rate_hz
+        stride_list_sorted = self.filtered_stride_list.sort_values(by=["start", "end"])
 
         (
             preliminary_wb_list,
@@ -158,7 +187,7 @@ class WbAssembly(Algorithm):
         if len(wb_list) > 0:
             self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
         else:
-            self.annotated_stride_list_ = pd.DataFrame(columns=[*stride_list.columns, "wb_id"])
+            self.annotated_stride_list_ = pd.DataFrame(columns=[*filtered_stride_list.columns, "wb_id"])
 
         if (
             len(
@@ -173,7 +202,7 @@ class WbAssembly(Algorithm):
                 "pre_wb_id"
             )
         else:
-            excluded_strides_in_wbs = pd.DataFrame(columns=[*stride_list.columns, "pre_wb_id"])
+            excluded_strides_in_wbs = pd.DataFrame(columns=[*filtered_stride_list.columns, "pre_wb_id"])
         other_excluded_strides = excluded_strides.assign(pre_wb_id=None)
         self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides])
         self.termination_reasons_ = termination_reasons
@@ -332,6 +361,7 @@ class WbAssembly(Algorithm):
                 original_start=original_start,
                 current_start=current_start,
                 current_end=current_end,
+                sampling_rate_hz=self.sampling_rate_hz,
             )
             if start is not None and start > tmp_start:
                 tmp_start = start
@@ -354,7 +384,7 @@ class WbAssembly(Algorithm):
         exclusion_reasons = {}
         for wb_id, stride_list in preliminary_wb_list.items():
             for rule_name, rule in self.rules or []:
-                if not rule.check_include(stride_list):
+                if not rule.check_include(stride_list, sampling_rate_hz=self.sampling_rate_hz):
                     removed_wb_list[wb_id] = stride_list
                     exclusion_reasons[wb_id] = (rule_name, rule)
                     break
