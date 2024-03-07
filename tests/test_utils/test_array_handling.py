@@ -96,13 +96,12 @@ class TestMultiGroupby:
             assert_frame_equal(df1, df.loc[[group]])
             assert_frame_equal(df2, df_2.loc[[group]])
 
-
     def test_iter_with_missing_element_groupby(self):
         df = pd.DataFrame(
             {
                 "group1": [1, 1, 3, 3],
                 "group2": [1, 2, 1, 2],
-                "value": [1, 2, 3, 4, 5, 6, 7, 8],
+                "value": [1, 2, 3, 4],
             }
         ).set_index(["group1", "group2"])
         df_2 = pd.DataFrame(
@@ -116,4 +115,9 @@ class TestMultiGroupby:
         multi_groupby = create_multi_groupby(df, df_2, "group1")
         for group, (df1, df2) in multi_groupby:
             assert_frame_equal(df1, df.loc[[group]])
-            assert_frame_equal(df2, df_2.loc[[group]])
+            # For df_2 some values dont't exist in this case we expect an empty dataframe
+            try:
+                expected = df_2.loc[[group]]
+            except KeyError:
+                expected = pd.DataFrame(columns=df_2.columns, index=df_2.index[:0])
+            assert_frame_equal(df2, expected)
