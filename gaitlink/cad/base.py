@@ -1,4 +1,5 @@
 """Base classes for all Cadence calculation methods."""
+
 from typing import Any
 
 import pandas as pd

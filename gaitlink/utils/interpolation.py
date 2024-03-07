@@ -1,4 +1,5 @@
 """Helper functions to perform interpolation and resampling tasks."""
+
 import warnings
 
 import numpy as np
