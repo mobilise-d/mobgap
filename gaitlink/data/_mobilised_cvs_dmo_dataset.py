@@ -502,7 +502,7 @@ class MobilisedCvsDmoDataset(Dataset):
                 "format for weartime reports available in Dec. 2023. "
                 "If you encounter any issues, please report them on GitHub: ",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=1,
             )
 
         return hybrid_cache(self.memory, 1)(_create_index)(
