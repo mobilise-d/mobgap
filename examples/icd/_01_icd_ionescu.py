@@ -130,10 +130,8 @@ plt.show()
 # WB separately.
 # We also set the `multiindex_warning` parameter to `False` to suppress the warning that is otherwise raised informing
 # users about this potential "foot-gun".
-from gaitlink.icd.evaluation import calculate_icd_performance_metrics
-from gaitlink.utils.array_handling import create_multi_groupby
 from gaitlink.icd.evaluation import evaluate_ic_list
-
+from gaitlink.utils.array_handling import create_multi_groupby
 
 # TODO: That does not really work as we want to... If we do it that way, all metrics will be calculated per WB...
 #       But what we want is to only match per WB and then calculate metrics across all WBs.
@@ -153,7 +151,6 @@ matches
 # Analogous to the previous function, with the `tolerance_samples` parameter,
 # the maximum allowed deviation in samples is specified,
 # and with the `multiindex_warning` parameter, the warning for multiindex DataFrames as input is suppressed.
-from gaitlink.icd.evaluation import evaluate_ic_list
 
 matches_all_wb = []
 
