@@ -1,0 +1,36 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"sec_center_samples",
+                "type":"integer"
+            },
+            {
+                "name":"cad_spm",
+                "type":"number"
+            }
+        ],
+        "primaryKey":[
+            "sec_center_samples"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "sec_center_samples":50,
+            "cad_spm":105.2631578947
+        },
+        {
+            "sec_center_samples":150,
+            "cad_spm":105.2631578947
+        },
+        {
+            "sec_center_samples":250,
+            "cad_spm":105.2631578947
+        },
+        {
+            "sec_center_samples":350,
+            "cad_spm":105.2631578947
+        }
+    ]
+}
