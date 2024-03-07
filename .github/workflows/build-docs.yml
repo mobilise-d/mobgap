@@ -45,6 +45,9 @@ jobs:
         run: |
           poetry run poe docs
 
+#      - name: Link Checker
+#        run: |
+#          poetry run poe docs_linkcheck
       - name: Upload Documentation as Artifact
         uses: actions/upload-artifact@v3
         with:

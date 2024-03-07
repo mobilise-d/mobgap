@@ -51,6 +51,7 @@ ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potenti
 test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 docs_clean = { "script" = "_tasks:task_docs(clean=True)",  help = "Remove all old build files and build a clean version of the docs." }
+docs_linkcheck = { "script" = "_tasks:task_docs(builder='linkcheck')", help = "Check all links in the built html docs." }
 docs_preview = { cmd = "python -m http.server --directory docs/_build/html", help = "Preview the built html docs." }
 version = { script = "_tasks:task_update_version()", help="Bump the version number in all relevant files."}
 conf_jupyter = { cmd = "python -m ipykernel install --user --name gaitlink", help = "Add a new jupyter kernel for the project." }
