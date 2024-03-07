@@ -14,6 +14,7 @@ class BaseWbCriteria(BaseTpcpObject):
         original_start: int,  # noqa: ARG002
         current_start: int,  # noqa: ARG002
         current_end: int,
+        sampling_rate_hz: Optional[float] = None,  # noqa: ARG002
     ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         """Determine the current start and end of the current WB.
 
@@ -60,6 +61,10 @@ class BaseWbCriteria(BaseTpcpObject):
         current_end
             The index at which the WB is supposed to end.
             This is always the index of the stride that should be considered for the WB.
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is used to potentially convert provided stride value to seconds, assuming that they are in
+            samples.
 
         Returns
         -------
@@ -84,13 +89,18 @@ class BaseWbCriteria(BaseTpcpObject):
         """
         return None, None, current_end
 
-    def check_include(self, preliminary_wb: dict) -> bool:  # noqa: ARG002
+    def check_include(self, preliminary_wb: dict, *, sampling_rate_hz: Optional[float] = None) -> bool:  # noqa: ARG002
         """Check if a preliminary WB should be considered an actual WB.
 
         Parameters
         ----------
         preliminary_wb
             The preliminary wb including its stride list
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is used to potentially convert values of a stride to seconds if required, assuming that they are in
+            samples.
+            If this is not the case and the values are already in seconds, `sampling_rate_hz` should set to 1.
 
         Returns
         -------
@@ -116,12 +126,16 @@ class BaseSummaryCriteria(BaseWbCriteria):
         self.upper_threshold = upper_threshold
         self.inclusive = inclusive
 
-    def check_include(self, wb: dict) -> bool:
+    def check_include(
+        self,
+        wb: dict,
+        sampling_rate_hz: Optional[float] = None,
+    ) -> bool:
         stride_list = wb["strideList"]
-        value = self._calc_summary(stride_list)
+        value = self._calc_summary(stride_list, sampling_rate_hz)
         return compare_with_threshold(value, self.lower_threshold, self.upper_threshold, self.inclusive)
 
-    def _calc_summary(self, stride_list: pd.DataFrame) -> float:
+    def _calc_summary(self, stride_list: pd.DataFrame, sampling_rate_hz: Optional[float]) -> float:
         raise NotImplementedError("This needs to implemented by child class")
 
 

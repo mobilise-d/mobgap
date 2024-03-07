@@ -13,7 +13,7 @@ class TestStrideSelectionMeta(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self, naive_stride_list) -> StrideSelection:
         return self.ALGORITHM_CLASS([("simple_thres", IntervalParameterCriteria("para_1", 1.5, 2.5))]).filter(
-            naive_stride_list
+            naive_stride_list, sampling_rate_hz=1
         )
 
 
@@ -30,14 +30,14 @@ def test_stride_list_creation(naive_stride_list):
 )
 def test_stride_filter_all_valid(naive_stride_list, rules):
     selector = StrideSelection(rules)
-    filtered_stride_list = selector.filter(naive_stride_list).filtered_stride_list_
+    filtered_stride_list = selector.filter(naive_stride_list, sampling_rate_hz=1).filtered_stride_list_
     pd.testing.assert_frame_equal(filtered_stride_list, naive_stride_list)
 
 
 @pytest.mark.parametrize("rules", ([("para_1", IntervalParameterCriteria("para_1", 1.5, 2.5))],))
 def test_stride_filter_all_invalid(naive_stride_list, rules):
     selector = StrideSelection(rules)
-    filtered_stride_list = selector.filter(naive_stride_list).filtered_stride_list_
+    filtered_stride_list = selector.filter(naive_stride_list, sampling_rate_hz=1).filtered_stride_list_
     assert len(filtered_stride_list) == 0
     assert len(selector.excluded_stride_list_) == len(naive_stride_list)
     assert selector.exclusion_reasons_.loc[naive_stride_list.iloc[0].name]["rule_name"] == rules[0][0]
@@ -47,4 +47,4 @@ def test_stride_filter_all_invalid(naive_stride_list, rules):
 
 def test_stride_selection_wrong_rules():
     with pytest.raises(TypeError):
-        StrideSelection([("test", "something_invalid")]).filter(pd.DataFrame([]))
+        StrideSelection([("test", "something_invalid")]).filter(pd.DataFrame([]), sampling_rate_hz=1)

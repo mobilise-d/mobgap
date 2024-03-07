@@ -33,6 +33,8 @@ class NStridesCriteria(BaseWbCriteria):
     def check_include(
         self,
         stride_list: pd.DataFrame,
+        *,
+        sampling_rate_hz: Optional[float] = None,  # noqa: ARG002
     ) -> bool:
         if self.min_strides is not None:
             if self.min_strides < 0:
@@ -60,7 +62,7 @@ class MaxBreakCriteria(BaseWbCriteria):
 
     Parameters
     ----------
-    max_break
+    max_break_s
         The maximal allowed break between two strides independent of the foot.
         It will be compared with <=.
         The unit depends on the unit used in the stride list that is filtered.
@@ -80,7 +82,7 @@ class MaxBreakCriteria(BaseWbCriteria):
 
     """
 
-    max_break: float
+    max_break_s: float
 
     _FOOT_COL_NAME: str = "foot"
     _START_COL_NAME: str = "start"
@@ -88,11 +90,11 @@ class MaxBreakCriteria(BaseWbCriteria):
 
     def __init__(
         self,
-        max_break: float,
+        max_break_s: float,
         remove_last_ic: Union[bool, Literal["per_foot"]] = False,
         consider_end_as_break: bool = True,
     ) -> None:
-        self.max_break = max_break
+        self.max_break_s = max_break_s
         self.remove_last_ic = remove_last_ic
         self.consider_end_as_break = consider_end_as_break
 
@@ -103,9 +105,13 @@ class MaxBreakCriteria(BaseWbCriteria):
         original_start: int,
         current_start: int,  # noqa: ARG002
         current_end: int,
+        sampling_rate_hz: Optional[float] = None,
     ) -> tuple[Optional[int], Optional[int], Optional[int]]:
-        if self.max_break < 0:
-            raise ValueError(f'Only positive values are allowed for "max_break" not {self.max_break}')
+        if sampling_rate_hz is None:
+            raise ValueError("The sampling rate must be provided if the MaxBreakCriteria is used.")
+
+        if self.max_break_s < 0:
+            raise ValueError(f'Only positive values are allowed for "max_break" not {self.max_break_s}')
 
         if not isinstance(self.remove_last_ic, bool) and not self.remove_last_ic == "per_foot":
             raise ValueError("`remove_last_ic` must be a Boolean or the string 'per_foot'.")
@@ -123,7 +129,9 @@ class MaxBreakCriteria(BaseWbCriteria):
         last_stride = stride_list.iloc[current_end - 1]
         current_stride = stride_list.iloc[current_end]
 
-        if current_stride[self._START_COL_NAME] - last_stride[self._END_COL_NAME] <= self.max_break:
+        if (
+            current_stride[self._START_COL_NAME] - last_stride[self._END_COL_NAME]
+        ) / sampling_rate_hz <= self.max_break_s:
             # No break -> no termination
             return None, None, None
         # Break -> terminate
@@ -180,6 +188,7 @@ class LeftRightCriteria(BaseWbCriteria):
         original_start: int,  # noqa: ARG002
         current_start: int,  # noqa: ARG002
         current_end: int,
+        sampling_rate_hz: Optional[float] = None,  # noqa: ARG002
     ) -> tuple[Optional[int], Optional[int], Optional[int]]:
         if current_end < 1:
             return None, None, None

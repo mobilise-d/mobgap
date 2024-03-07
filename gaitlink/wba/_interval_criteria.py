@@ -15,15 +15,21 @@ class BaseIntervalCriteria(BaseTpcpObject):
     strides that do not meet a set of criteria.
     """
 
-    def check(self, interval: pd.Series) -> bool:
+    def check(self, interval: pd.Series, *, sampling_rate_hz: Optional[float] = None) -> bool:
         """Check if the interval meets the criteria.
 
         Parameters
         ----------
         interval : pd.Series
             The interval to check.
-            The interval must at least have a `start` and `end` column.
+            The interval must at least have a `start` and `end` column that contain the start and end of the interval
+            in samples.
             Additional columns might be used to check the values of further parameters.
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is used to potentially convert the `start` and `end` values to seconds, assuming that they are in
+            samples.
+            If this is not the case and the value are already in seconds, `sampling_rate_hz` should set to 1.
 
         """
         raise NotImplementedError("This needs to implemented by child class")
@@ -62,12 +68,12 @@ class _IntervalParameterCriteria(BaseIntervalCriteria):
         self.upper_threshold = upper_threshold
         self.inclusive = inclusive
 
-    def _get_value(self, interval: pd.Series) -> float:
+    def _get_value(self, interval: pd.Series, sampling_rate_hz: Optional[float]) -> float:
         raise NotImplementedError("This needs to implemented by child class")
 
     @inherit_docstring_from(BaseIntervalCriteria)
-    def check(self, interval: pd.Series) -> bool:
-        value = self._get_value(interval)
+    def check(self, interval: pd.Series, *, sampling_rate_hz: Optional[float] = None) -> bool:
+        value = self._get_value(interval, sampling_rate_hz)
         return compare_with_threshold(value, self.lower_threshold, self.upper_threshold, self.inclusive)
 
 
@@ -96,7 +102,7 @@ class IntervalParameterCriteria(_IntervalParameterCriteria):
         self.parameter = parameter
         super().__init__(lower_threshold, upper_threshold, inclusive=inclusive)
 
-    def _get_value(self, interval: pd.Series) -> float:
+    def _get_value(self, interval: pd.Series, sampling_rate_hz: Optional[float]) -> float:  # noqa: ARG002
         try:
             value = interval[self.parameter]
         except KeyError as e:
@@ -105,7 +111,7 @@ class IntervalParameterCriteria(_IntervalParameterCriteria):
 
 
 @_interval_parameter_criteria_docfiller
-class IntervalDurationCriteria(_IntervalParameterCriteria):
+class IntervalDurationCriteria(BaseIntervalCriteria):
     """Checks the duration of the stride by subtracting the start and the end value.
 
     Note that this is different from the `IntervalParameterCriteria` as it does not check a single parameter but
@@ -122,19 +128,32 @@ class IntervalDurationCriteria(_IntervalParameterCriteria):
     _START_COL_NAME: str = "start"
     _END_COL_NAME: str = "end"
 
+    min_duration_s: float
+    max_duration_s: float
+    inclusive: tuple[bool, bool]
+
     def __init__(
         self,
-        lower_threshold: Optional[float] = None,
-        upper_threshold: Optional[float] = None,
+        min_duration_s: Optional[float] = None,
+        max_duration_s: Optional[float] = None,
         *,
         inclusive: tuple[bool, bool] = (False, True),
     ) -> None:
-        super().__init__(lower_threshold, upper_threshold, inclusive=inclusive)
+        self.min_duration_s = min_duration_s
+        self.max_duration_s = max_duration_s
+        self.inclusive = inclusive
 
-    def _get_value(self, interval: pd.Series) -> float:
+    def _get_value(self, interval: pd.Series, sampling_rate_hz: Optional[float]) -> float:
+        if sampling_rate_hz is None:
+            raise ValueError("The sampling rate must be provided if the IntervalDurationCriteria is used.")
         try:
-            return interval[self._END_COL_NAME] - interval[self._START_COL_NAME]
+            return (interval[self._END_COL_NAME] - interval[self._START_COL_NAME]) / sampling_rate_hz
         except KeyError as e:
             raise ValueError(
                 f"Interval does not contain both columns {self._START_COL_NAME} and {self._END_COL_NAME}"
             ) from e
+
+    @inherit_docstring_from(BaseIntervalCriteria)
+    def check(self, interval: pd.Series, *, sampling_rate_hz: Optional[float] = None) -> bool:
+        value = self._get_value(interval, sampling_rate_hz)
+        return compare_with_threshold(value, self.min_duration_s, self.max_duration_s, self.inclusive)
