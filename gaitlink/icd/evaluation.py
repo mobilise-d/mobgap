@@ -1,4 +1,5 @@
 """Class to evaluate initial contact detection algorithms."""
+
 import warnings
 from typing import Literal, Union
 
