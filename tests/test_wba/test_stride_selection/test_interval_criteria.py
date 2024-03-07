@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from gaitlink.wba._interval_criteria import IntervalParameterCriteria
+from gaitlink.wba import IntervalParameterCriteria
 from tests.test_wba.conftest import window
 
 

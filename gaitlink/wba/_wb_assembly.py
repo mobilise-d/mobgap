@@ -105,7 +105,7 @@ class WbAssembly(Algorithm):
             ]
         }
 
-    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_wb.values()})
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_wb.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]]) -> None:
         self.rules = rules
 

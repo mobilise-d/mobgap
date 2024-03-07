@@ -40,7 +40,7 @@ import pandas as pd
 def window(start, end, **parameter):
     parameter = parameter or {}
 
-    parameter = {**parameter, **{"duration": end - start}}
+    parameter = {**parameter, "duration": end - start}
 
     return dict(id=str(uuid.uuid4())[:6], start=start, end=end, **parameter)
 

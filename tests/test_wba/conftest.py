@@ -8,7 +8,7 @@ import pytest
 def window(start, end, **parameter):
     parameter = parameter or {}
 
-    parameter = {**parameter, **{"duration": end - start}}
+    parameter = {**parameter, "duration": end - start}
 
     return dict(s_id=str(uuid.uuid4()), start=start, end=end, **parameter)
 

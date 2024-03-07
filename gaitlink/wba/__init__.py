@@ -1,4 +1,5 @@
 """Utilities for grouping detected stride candidates in compliant walking bouts."""
+
 from gaitlink.wba._interval_criteria import BaseIntervalCriteria, IntervalDurationCriteria, IntervalParameterCriteria
 from gaitlink.wba._stride_selection import StrideSelection
 from gaitlink.wba._wb_assembly import WbAssembly
