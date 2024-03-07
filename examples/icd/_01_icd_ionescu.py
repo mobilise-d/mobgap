@@ -117,21 +117,33 @@ plt.show()
 # Consequently, the tolerance parameter should be chosen with respect to the sampling rate of the data.
 # In this case, it is set to 20 samples, which corresponds to 200 ms.
 # As our data includes multiple walking bouts and the detected initial contacts within these walking bouts,
-# it has a multiindex with two levels.
-# Note that the :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function will ignore the multiindex
-# and consequently also match initial contacts across different walking bouts.
-# This can be useful especially if the walking bouts are algorithmically calculated in a previous pipeline step,
-# and might thus not be perfectly aligned or have a rather high granularity.
-# However, to make sure the user is aware of this behavior, the function will raise a warning
-# when DataFrames with multiple index levels are passed to it. This warning can be suppressed by setting the
-# `multiindex_warning` parameter to `False`.
+# it has a multiindex with two levels to indicate that.
+#
+# The :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function will "ignore" the multiindex
+# by default and will potentially match initial contacts across different walking bouts.
+# This can be useful if the walking bouts between the two compared systems are not identical or the multinindex has
+# other columns that should not be taken into account for the matching.
+#
+# However, in our case, we used the WBs from the reference system to iterate over the data and apply the algorithm.
+# This means we have exactly the same WBs and only want to match ICs within the same WB.
+# For this we use the `~gaitlink.utils.array_handling.create_multi_groupby` helper to apply the matiching func to each
+# WB separately.
+# We also set the `multiindex_warning` parameter to `False` to suppress the warning that is otherwise raised informing
+# users about this potential "foot-gun".
 from gaitlink.icd.evaluation import calculate_icd_performance_metrics
+from gaitlink.utils.array_handling import create_multi_groupby
+from gaitlink.icd.evaluation import evaluate_ic_list
 
-metrics_all = calculate_icd_performance_metrics(
-    ic_list_detected=detected_ics, ic_list_reference=ref_ics, tolerance_samples=20, multiindex_warning=False
+
+# TODO: That does not really work as we want to... If we do it that way, all metrics will be calculated per WB...
+#       But what we want is to only match per WB and then calculate metrics across all WBs.
+matches = create_multi_groupby(detected_ics, ref_ics, groupby=["wb_id"]).apply(
+    lambda df1, df2: evaluate_ic_list(
+        ic_list_detected=df1, ic_list_reference=df2, tolerance_samples=20, multiindex_warning=False
+    )
 )
 
-print("Performance Metrics:\n\n", metrics_all)
+matches
 
 # %%
 # To gain a more detailed insight into the performance of the algorithm, we can also look into the individual matches
