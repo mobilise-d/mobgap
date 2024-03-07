@@ -217,6 +217,14 @@ class TestCadFromIc:
 
         assert "Initial contacts must be sorted" in str(e.value)
 
+    def test_no_ics_result_all_nan(self):
+        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        initial_contacts = pd.DataFrame({"ic": []})
+        sampling_rate_hz = 40.0
+        cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+        assert cad.cad_per_sec_["cad_spm"].isna().all()
+        assert len(cad.cad_per_sec_) == len(data) // sampling_rate_hz
+
     def test_regression_on_longer_data(self, snapshot):
         dp = LabExampleDataset(reference_system="INDIP").get_subset(
             cohort="HA", participant_id="001", test="Test11", trial="Trial1"
@@ -431,6 +439,15 @@ class TestCadFromIcDetector:
 
         assert "Initial contacts must be sorted" in str(e.value)
 
+    def test_no_ics_result_all_nan(self):
+        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        initial_contacts = pd.DataFrame({"ic": []})
+        icd = _DummyIcDetector(initial_contacts)
+        sampling_rate_hz = 40.0
+        cad = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+        assert cad.cad_per_sec_["cad_spm"].isna().all()
+        assert len(cad.cad_per_sec_) == len(data) // sampling_rate_hz
+
     def test_regression_on_longer_data(self, snapshot):
         dp = LabExampleDataset(reference_system="INDIP").get_subset(
             cohort="HA", participant_id="001", test="Test11", trial="Trial1"
@@ -441,7 +458,7 @@ class TestCadFromIcDetector:
         ref_data = dp.reference_parameters_relative_to_wb_
 
         for (gs, data), r in gs_iterator.iterate(dp.data["LowerBack"], ref_data.wb_list):
-            cad = CadFromIcDetector().calculate(
+            cad = CadFromIcDetector(silence_ic_warning=True).calculate(
                 data,
                 ref_data.ic_list.loc[gs.id],
                 sampling_rate_hz=dp.sampling_rate_hz,
@@ -449,3 +466,10 @@ class TestCadFromIcDetector:
             r.cad_per_sec = cad.cad_per_sec_
 
         snapshot.assert_match(gs_iterator.results_.cad_per_sec)
+
+    def test_no_ics_result_all_nan(self):
+        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        initial_contacts = pd.DataFrame({"ic": []})
+        icd = _DummyIcDetector(initial_contacts)
+        cad = CadFromIcDetector(icd, silence_ic_warning=True).calculate(data, initial_contacts, sampling_rate_hz=40.0)
+        assert cad.cad_per_sec_["cad_spm"].isna().all()

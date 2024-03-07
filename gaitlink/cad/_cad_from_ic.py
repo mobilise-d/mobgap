@@ -207,14 +207,16 @@ class CadFromIc(BaseCadCalculator):
     ) -> pd.DataFrame:
         """Calculate initial contacts from the data."""
         ic_series = initial_contacts["ic"]
-        if ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data):
+        if len(ic_series) == 0:
+            warnings.warn("No initial contacts provided. Cad will be NaN", stacklevel=2)
+        if len(ic_series) > 0 and (ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data)):
             warnings.warn(
                 "Usually we assume that gait sequences are cut to the first and last detected initial "
                 "contact. "
                 "This is not the case for the passed initial contacts and might lead to unexpected "
                 "results in the cadence calculation. "
                 "Specifically, you will get NaN values at the start and the end of the output.",
-                stacklevel=3,
+                stacklevel=2,
             )
         return initial_contacts
 
@@ -302,4 +304,8 @@ class CadFromIcDetector(CadFromIc):
             )
 
         self.ic_detector_ = self.ic_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
+        if len(self.internal_ic_list_) == 0:
+            warnings.warn(
+                "The interal IC detector did not detect any initial contacts provided. Cad will be NaN", stacklevel=2
+            )
         return self.internal_ic_list_
