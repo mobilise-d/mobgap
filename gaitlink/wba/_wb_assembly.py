@@ -25,7 +25,7 @@ class WbAssembly(Algorithm):
     rules
         The rules that are used to assemble the walking bouts.
         They need to be provided as a list of tuples, where the first element is the name of the rule and the second
-        is an instance of a subclass of :class:`gaitlink.wba.BaseWBCriteria`.
+        is an instance of a subclass of :class:`~gaitlink.wba.BaseWBCriteria`.
         If `None`, no rules are applied and all strides are returned as a single WB.
 
     Attributes
@@ -52,9 +52,14 @@ class WbAssembly(Algorithm):
         no other rule terminated the WB.
         This dictionary contains all WBs, including the ones that were discarded.
     exclusion_reasons_
-        A dictionary containing the reason why a stride was excluded.
-        The dictionary has the stride id as key and a tuple of the rule name and the rule object as value.
+        A dictionary containing the reason why a WB was excluded.
+        The dictionary has the WB id as key and a tuple of the rule name and the rule object as value.
         This dictionary only contains WBs that were discarded.
+    stride_exclusion_reasons_
+        A dictionary containing the reason why a stride was excluded/was never part of a WB.
+        The dictionary has the stride id as key and a tuple of the rule name and the rule object as value.
+        Note, that this only contains strides that were never part of any WB.
+        Strides that were part of a WB that was later discarded by a Inclusion Rule are not included.
 
     Other Parameters
     ----------------
@@ -96,11 +101,15 @@ class WbAssembly(Algorithm):
     excluded_stride_list_: pd.DataFrame
     termination_reasons_: dict[str, tuple[str, BaseWbCriteria]]
     exclusion_reasons_: dict[str, tuple[str, BaseWbCriteria]]
+    stride_exclusion_reasons_: dict[str, tuple[str, BaseWbCriteria]]
 
     class PredefinedParameters:
         mobilise_wb: ClassVar = {
             "rules": [
-                ("min_strides", NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3)),
+                (
+                    "min_strides",
+                    NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
+                ),
                 ("max_break", MaxBreakCriteria(max_break=3)),
             ]
         }
@@ -151,7 +160,15 @@ class WbAssembly(Algorithm):
         else:
             self.annotated_stride_list_ = pd.DataFrame(columns=[*stride_list.columns, "wb_id"])
 
-        if len(combined_excluded_stride_list := {**excluded_wb_list, **excluded_wb_list_2}) > 0:
+        if (
+            len(
+                combined_excluded_stride_list := {
+                    **excluded_wb_list,
+                    **excluded_wb_list_2,
+                }
+            )
+            > 0
+        ):
             excluded_strides_in_wbs = pd.concat(combined_excluded_stride_list, names=["pre_wb_id", "s_id"]).reset_index(
                 "pre_wb_id"
             )
@@ -161,6 +178,7 @@ class WbAssembly(Algorithm):
         self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides])
         self.termination_reasons_ = termination_reasons
         self.exclusion_reasons_ = {**exclusion_reasons, **exclusion_reasons_2}
+        self.stride_exclusion_reasons_ = stride_exclusion_reasons
         return self
 
     def _apply_termination_rules(
@@ -243,7 +261,13 @@ class WbAssembly(Algorithm):
         self,
         stride_list: pd.DataFrame,
         original_start: int,
-    ) -> tuple[int, int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
+    ) -> tuple[
+        int,
+        int,
+        int,
+        Optional[tuple[str, BaseWbCriteria]],
+        Optional[tuple[str, BaseWbCriteria]],
+    ]:
         end_index = len(stride_list)
         current_end = original_start
         current_start = original_start
@@ -252,21 +276,37 @@ class WbAssembly(Algorithm):
         # The reason is, that we want to give rules the chance to check the end of a WB including the final stride of
         # the list.
         while current_end <= end_index:
-            tmp_start, tmp_end, tmp_restart_at, tmp_start_delay_reason, termination_reason = self._check_wb_start_end(
-                stride_list, original_start, current_start, current_end
-            )
+            (
+                tmp_start,
+                tmp_end,
+                tmp_restart_at,
+                tmp_start_delay_reason,
+                termination_reason,
+            ) = self._check_wb_start_end(stride_list, original_start, current_start, current_end)
             if termination_reason:
                 # In case of termination return directly.
                 # Do not consider further updates on the start as they might be made based on strides that are not part
                 # of a WB
-                return current_start, tmp_end, tmp_restart_at, start_delay_reason, termination_reason
+                return (
+                    current_start,
+                    tmp_end,
+                    tmp_restart_at,
+                    start_delay_reason,
+                    termination_reason,
+                )
             if tmp_start_delay_reason:
                 start_delay_reason = tmp_start_delay_reason
                 current_start = tmp_start
 
             current_end += 1
         # In case we end the loop without any termination rule firing
-        return current_start, len(stride_list), len(stride_list), start_delay_reason, ("end_of_list", EndOfList())
+        return (
+            current_start,
+            len(stride_list),
+            len(stride_list),
+            start_delay_reason,
+            ("end_of_list", EndOfList()),
+        )
 
     def _check_wb_start_end(
         self,
@@ -274,7 +314,13 @@ class WbAssembly(Algorithm):
         original_start: int,
         current_start: int,
         current_end: int,
-    ) -> tuple[int, int, int, Optional[tuple[str, BaseWbCriteria]], Optional[tuple[str, BaseWbCriteria]]]:
+    ) -> tuple[
+        int,
+        int,
+        int,
+        Optional[tuple[str, BaseWbCriteria]],
+        Optional[tuple[str, BaseWbCriteria]],
+    ]:
         termination_rule = None
         start_delay_rule = None
         tmp_start = -1
@@ -282,7 +328,10 @@ class WbAssembly(Algorithm):
         tmp_restart_at = np.inf
         for rule_name, rule in self.rules or []:
             start, end, restart_at = rule.check_wb_start_end(
-                stride_list, original_start=original_start, current_start=current_start, current_end=current_end
+                stride_list,
+                original_start=original_start,
+                current_start=current_start,
+                current_end=current_end,
             )
             if start is not None and start > tmp_start:
                 tmp_start = start
@@ -295,7 +344,11 @@ class WbAssembly(Algorithm):
 
     def _apply_inclusion_rules(
         self, preliminary_wb_list: dict[str, pd.DataFrame]
-    ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame], dict[str, tuple[str, BaseWbCriteria]]]:
+    ) -> tuple[
+        dict[str, pd.DataFrame],
+        dict[str, pd.DataFrame],
+        dict[str, tuple[str, BaseWbCriteria]],
+    ]:
         wb_list = {}
         removed_wb_list = {}
         exclusion_reasons = {}
