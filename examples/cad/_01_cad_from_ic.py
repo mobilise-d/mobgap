@@ -5,7 +5,7 @@ Cadence from Initial Contacts
 The most obvious way to calculate cadence is to use the detected initial contacts.
 However, initial contact (IC) detection from a single lower back sensor is never perfect.
 If we naively calculate cadence via a step time derived by "diffing" the initial contacts, missing ICs or
-even actual breaks in the gait sequence will lead to wrong cadence values (likely overestimating the cadence).
+even actual breaks in the gait sequence will lead to wrong cadence values (likely underestimating the cadence).
 We need to be robust to these types of errors.
 
 On the other hand, for the cadence estimation it is less important that the position of the IC within the
@@ -20,11 +20,12 @@ Two variants exist:
    This method should be used, if you want to use the same IC detection method for the cadence estimation than for the
    IC detection itself (i.e. we are not rerunning any calculations, we just use the provided ICs).
 2. :class:`~gaitlink.algorithm.CadFromIcDetector` is a proxy algorithm that wraps around any IC detection algorithm.
-   Compared to the previous method, this method will ignore the provided ICs and rerun the IC detection algorithm (
-   which can be different from the one used for the IC detection itself).
+   Compared to the previous method, this method will ignore the provided ICs and run the IC detection algorithm it
+   wraps (which can be different from the one used for the IC detection itself) to find new ICs that are only used
+   for the Cadence estimation.
 
 Both methods than use step-to-step smoothing to deal with missing ICs and breaks in the gait sequence and then
-interpolate all step level values to seconds to provide an average cadence for each one second interval of the
+interpolate all step time values to seconds to provide an average cadence for each one second interval of the
 recording.
 
 Below we will demonstrate the usage of both methods. But first we load some data.
@@ -36,6 +37,7 @@ We will use a single short-trail from the "HA" participant for this example, as 
 All the cadence algorithms are designed to work on a single gait sequence at a time.
 
 """
+
 from gaitlink.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
@@ -89,8 +91,8 @@ print(f"Calculated average per-sec cadence: {cad_from_ic_avg_cad:.2f} steps/min"
 #
 # CadFromIcDetector
 # -----------------
-# For the ``CadFromIcDetector`` we need to supply an IC detection algorithm.
-# In this case we use the ``IcdShinImproved`` algorithm.
+# For the :class:`~gaitlink.cad.CadFromIcDetector` we need to supply an IC detection algorithm.
+# In this case we use the :class:`~gaitlink.icd.IcdShinImproved` algorithm.
 # We could also use any other IC detection algorithm or adapt the parameters of the IC detection algorithm.
 from gaitlink.cad import CadFromIcDetector
 from gaitlink.icd import IcdShinImproved
@@ -99,7 +101,7 @@ cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
 
 # %%
 # Now we can call the ``calculate`` method with the same data as before.
-# Note, that we are still passing the initial contacts from the "previous" calculation step to fulfull the API.
+# Note, that we are still passing the initial contacts from the "previous" calculation step to fulfill the API.
 # However, internally the algorithm will ignore the provided ICs and rerun the IC detection using the provided IC
 # detector.
 cad_from_ic_detector.calculate(data_in_gs, initial_contacts=ics_in_gs, sampling_rate_hz=short_trial.sampling_rate_hz)
@@ -125,6 +127,9 @@ cad_from_ic_detector.ic_detector_
 # %%
 # To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
 # reference system.
+#
+# .. note:: Compared to the previous method, the cadence value are more different, as we actually run a IC
+#          detection algorithm to find the ICs and not just used the values provided by the reference.
 cad_from_ic_detector_avg_cad = cad_from_ic_detector.cadence_per_sec_["cad_spm"].mean()
 print(f"Average stride cadence from reference: {reference_cad:.2f} steps/min")
 print(f"Calculated average per-sec cadence (CadFromIC): {cad_from_ic_avg_cad:.2f} steps/min")
