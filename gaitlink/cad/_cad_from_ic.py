@@ -138,7 +138,7 @@ class CadFromIc(BaseCadCalculator):
 
     Attributes
     ----------
-    %(cadence_per_sec_)s
+    %(cad_per_sec_)s
 
     Other Parameters
     ----------------
@@ -181,10 +181,12 @@ class CadFromIc(BaseCadCalculator):
         self.data = data
 
         initial_contacts = self._get_ics(data, initial_contacts, sampling_rate_hz)["ic"]
+        if not initial_contacts.is_monotonic_increasing:
+            raise ValueError("Initial contacts must be sorted in ascending order.")
         initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
         n_secs = len(data) // sampling_rate_hz
         sec_centers = np.arange(0, n_secs) + 0.5
-        self.cadence_per_sec_ = pd.DataFrame(
+        self.cad_per_sec_ = pd.DataFrame(
             {
                 "cad_spm": _robust_ic_to_cad_per_sec(
                     initial_contacts_in_seconds,
@@ -205,8 +207,6 @@ class CadFromIc(BaseCadCalculator):
     ) -> pd.DataFrame:
         """Calculate initial contacts from the data."""
         ic_series = initial_contacts["ic"]
-        if not ic_series.is_monotonic_increasing:
-            raise ValueError("Initial contacts must be sorted in ascending order.")
         if ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data):
             warnings.warn(
                 "Usually we assume that gait sequences are cut to the first and last detected initial "
@@ -245,7 +245,7 @@ class CadFromIcDetector(CadFromIc):
 
     Attributes
     ----------
-    %(cadence_per_sec_)s
+    %(cad_per_sec_)s
     ic_detector_
         The IC detector used to detect the initial contacts with the results attached.
         This is only available after the ``detect`` method was called.
