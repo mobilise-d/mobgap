@@ -111,7 +111,7 @@ class WbAssembly(Algorithm):
     exclusion_reasons_: pd.DataFrame
     stride_exclusion_reasons_: pd.DataFrame
 
-    _wb_id_map_: dict[str, int]
+    _wb_id_map: dict[str, int]
 
     class PredefinedParameters:
         mobilise_wb: ClassVar = {
@@ -192,10 +192,10 @@ class WbAssembly(Algorithm):
         ) = self._apply_termination_rules(stride_list_sorted)
         wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
         # After we have the final wbs, we rewrite the wb_ids to be easier to read.
-        self._wb_id_map_ = {k: i for i, k in enumerate(wb_list.keys(), 1)}
+        self._wb_id_map = {k: i for i, k in enumerate(wb_list.keys(), 1)}
         if len(wb_list) > 0:
             self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
-            self.annotated_stride_list_["wb_id"] = self.annotated_stride_list_["wb_id"].map(self._wb_id_map_)
+            self.annotated_stride_list_["wb_id"] = self.annotated_stride_list_["wb_id"].map(self._wb_id_map)
         else:
             self.annotated_stride_list_ = pd.DataFrame(columns=[*filtered_stride_list.columns, "wb_id"])
 
@@ -219,7 +219,7 @@ class WbAssembly(Algorithm):
             termination_reasons, orient="index", columns=["rule_name", "rule_obj"]
         ).rename_axis(index="wb_id")
         # For the WBs that "made" it into the final structure, we need to rename the wb_ids
-        self.termination_reasons_.index = self.termination_reasons_.index.map(self._wb_id_map_)
+        self.termination_reasons_.index = self.termination_reasons_.index.map(self._wb_id_map)
         self.exclusion_reasons_ = pd.DataFrame.from_dict(
             {**exclusion_reasons, **exclusion_reasons_2},
             orient="index",
