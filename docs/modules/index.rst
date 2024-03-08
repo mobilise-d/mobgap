@@ -13,7 +13,6 @@ This is the API Reference for ``gaitlink``.
     gsd
     icd
     cad
-    data_transform
     wba
     aggregation
     data_transform
