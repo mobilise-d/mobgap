@@ -218,6 +218,8 @@ class WbAssembly(Algorithm):
         self.termination_reasons_ = pd.DataFrame.from_dict(
             termination_reasons, orient="index", columns=["rule_name", "rule_obj"]
         ).rename_axis(index="wb_id")
+        # For the WBs that "made" it into the final structure, we need to rename the wb_ids
+        self.termination_reasons_.index = self.termination_reasons_.index.map(self._wb_id_map_)
         self.exclusion_reasons_ = pd.DataFrame.from_dict(
             {**exclusion_reasons, **exclusion_reasons_2},
             orient="index",
