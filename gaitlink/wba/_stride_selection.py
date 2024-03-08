@@ -5,7 +5,11 @@ from tpcp import Algorithm, cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self
 
-from gaitlink.wba._interval_criteria import BaseIntervalCriteria, IntervalDurationCriteria, IntervalParameterCriteria
+from gaitlink.wba._interval_criteria import (
+    BaseIntervalCriteria,
+    IntervalDurationCriteria,
+    IntervalParameterCriteria,
+)
 
 
 class StrideSelection(Algorithm):
@@ -31,8 +35,15 @@ class StrideSelection(Algorithm):
         This is a strict subset of the stride list that was provided to the :meth:`filter` method.
     exclusion_reasons_
         A dataframe containing the reason why a stride was excluded.
-        The dataframe has two columns: `rule_name` and `rule_obj` corresponding to the values in the `rules` parameter.
+        The dataframe has two columns: ``rule_name`` and ``rule_obj`` corresponding to the values in the `rules`
+        parameter.
+        The rule always corresponds to the first rule that failed.
+        To see the results of all rules, use the ``check_results_`` attribute.
         The df only contains rows for strides that were excluded.
+    check_results_
+        A dataframe containing the results of the checks for each rule.
+        The dataframe has one column for each rule and one row for each stride in the stride list.
+        The values are boolean and indicate if the stride meets the criteria of the rule.
 
 
     Other Parameters
@@ -53,11 +64,15 @@ class StrideSelection(Algorithm):
     sampling_rate_hz: float
 
     _exclusion_reasons: pd.DataFrame
+    check_results_: pd.DataFrame
 
     class PredefinedParameters:
         mobilise_stride_selection: ClassVar = {
             "rules": [
-                ("stride_duration_thres", IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0)),
+                (
+                    "stride_duration_thres",
+                    IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
+                ),
                 (
                     "stride_length_thres",
                     IntervalParameterCriteria("stride_length", lower_threshold=0.15, upper_threshold=None),
@@ -112,8 +127,32 @@ class StrideSelection(Algorithm):
 
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
-        self._exclusion_reasons = self.stride_list.apply(
-            lambda x: pd.Series(self._check_stride(x, self.sampling_rate_hz), index=["rule_name", "rule_obj"]), axis=1
+
+        if self.rules is None:
+            self._exclusion_reasons = pd.DataFrame(columns=["rule_name", "rule_obj"]).reindex(stride_list.index)
+            return self
+
+        rules_as_dict = dict(self.rules)
+
+        self.check_results_ = pd.concat(
+            {
+                name: rule.check_multiple(stride_list, sampling_rate_hz=sampling_rate_hz)
+                for name, rule in rules_as_dict.items()
+            },
+            axis=1,
+        )
+
+        # find first rule that fails:
+        # idxmin will return the first False, but will always return a rule, even if everything is True
+        self._exclusion_reasons = (
+            self.check_results_.idxmin(axis=1)
+            # So we need to take a second step where we replace all cases where all are True with Nan
+            .where(~self.check_results_.any(axis=1))
+            # Then we rename
+            .rename("rule_name")
+            .to_frame()
+            # And find the corresponding rule object
+            .assign(rule_obj=lambda df_: df_["rule_name"].replace(rules_as_dict))
         )
 
         return self
