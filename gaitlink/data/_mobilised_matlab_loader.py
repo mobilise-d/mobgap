@@ -625,6 +625,21 @@ def parse_reference_parameters(
     stride_paras.index.name = "s_id"
     stride_paras = stride_paras.reset_index().set_index(["wb_id", "s_id"])
 
+    # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.
+    # We need to fix 2 things:
+    # 1. In Matlab time value were calculated to samples (as done here), but then used as indices in Matlabs 1-based
+    #    indexing. To make them correspond to the 0-based indexing in python, we need to subtract 1 from all values.
+    # 2. In Matlab slicing is inclusive, but in python it is exclusive. Hence, we need to add 1 to all end values in
+    #    python.
+    #
+    # Or simply the combination of both: All timing values (like ICs, ...) need to be adjusted by -1.
+    # All start values of intervals need to be adjusted by -1.
+    # All end values of intervals stay the same, as the two adjustments cancel each other out.
+    walking_bouts["start"] -= 1
+    ics["ic"] -= 1
+    turn_paras["start"] -= 1
+    stride_paras["start"] -= 1
+
     if relative_to_wb is True:
         ics = _relative_to_gs(ics, walking_bouts, "wb_id", columns_to_cut=["ic"])
         turn_paras = _relative_to_gs(turn_paras, walking_bouts, "wb_id", columns_to_cut=["start", "end"])
