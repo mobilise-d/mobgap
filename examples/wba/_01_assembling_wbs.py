@@ -53,7 +53,7 @@ def naive_stride_list(start, stop, duration, foot=None, **paras):
     start_end = zip(x[:-1], x[1:])
 
     return pd.DataFrame.from_records(
-        [window(start=s, end=e, foot=foot, duration=duration, **paras) for i, (s, e) in enumerate(start_end)]
+        [window(start=s, end=e, foot=foot, duration=duration, **paras) for s, e in start_end]
     ).set_index("s_id")
 
 
@@ -67,6 +67,9 @@ stride_list = [
 ]
 
 stride_list = pd.concat(stride_list).sort_values("start")
+# We reset the stride ids to have them in ascending order.
+stride_list = stride_list.reset_index(drop=True).rename_axis(index="s_id")
+stride_list.index += 1
 # We add some additional parameters, we can use to filter later on.
 large_sl_ids = [10, 11, 12, 13, 14, 18, 19, 20, 21, 56, 90, 91, 121, 122, 176]
 stride_list["stride_length"] = 1

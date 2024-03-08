@@ -147,7 +147,7 @@ class StrideSelection(Algorithm):
         self._exclusion_reasons = (
             self.check_results_.idxmin(axis=1)
             # So we need to take a second step where we replace all cases where all are True with Nan
-            .where(~self.check_results_.any(axis=1))
+            .where(~self.check_results_.all(axis=1))
             # Then we rename
             .rename("rule_name")
             .to_frame()
@@ -156,11 +156,3 @@ class StrideSelection(Algorithm):
         )
 
         return self
-
-    def _check_stride(
-        self, stride: pd.Series, sampling_rate_hz: float
-    ) -> tuple[Optional[str], Optional[BaseIntervalCriteria]]:
-        for rule_name, rule in self.rules or []:
-            if not rule.check(stride, sampling_rate_hz=sampling_rate_hz):
-                return rule_name, rule
-        return None, None
