@@ -149,4 +149,5 @@ def test_full_complicated_example(snapshot):
     wb_assembly = WbAssembly(rules)
     wb_assembly.assemble(filtered_stride_list, sampling_rate_hz=1)
 
-    snapshot.assert_match(wb_assembly.annotated_stride_list_)
+    snapshot.assert_match(wb_assembly.annotated_stride_list_, "wba")
+    snapshot.assert_match(ss.filtered_stride_list_, "stride_selection")
