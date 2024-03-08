@@ -18,19 +18,19 @@
     "data":[
         {
             "sec_center_samples":50,
-            "cad_spm":105.2631578947
+            "cad_spm":101.6949152542
         },
         {
             "sec_center_samples":150,
-            "cad_spm":105.2631578947
+            "cad_spm":106.1946902655
         },
         {
             "sec_center_samples":250,
-            "cad_spm":105.2631578947
+            "cad_spm":104.347826087
         },
         {
             "sec_center_samples":350,
-            "cad_spm":105.2631578947
+            "cad_spm":97.5609756098
         }
     ]
 }
