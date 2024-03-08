@@ -28,37 +28,37 @@
         {
             "wb_id":1,
             "ic_id":0,
-            "ic":228,
+            "ic":227,
             "lr_label":"Left"
         },
         {
             "wb_id":1,
             "ic_id":1,
-            "ic":296,
+            "ic":295,
             "lr_label":"Right"
         },
         {
             "wb_id":1,
             "ic_id":2,
-            "ic":356,
+            "ic":355,
             "lr_label":"Left"
         },
         {
             "wb_id":1,
             "ic_id":3,
-            "ic":414,
+            "ic":413,
             "lr_label":"Right"
         },
         {
             "wb_id":1,
             "ic_id":4,
-            "ic":472,
+            "ic":471,
             "lr_label":"Left"
         },
         {
             "wb_id":1,
             "ic_id":5,
-            "ic":539,
+            "ic":538,
             "lr_label":"Right"
         }
     ]
