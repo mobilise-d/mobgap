@@ -192,7 +192,7 @@ class WbAssembly(Algorithm):
         ) = self._apply_termination_rules(stride_list_sorted)
         wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
         # After we have the final wbs, we rewrite the wb_ids to be easier to read.
-        self._wb_id_map_ = {k: i for i, k in enumerate(wb_list.keys())}
+        self._wb_id_map_ = {k: i for i, k in enumerate(wb_list.keys(), 1)}
         if len(wb_list) > 0:
             self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
             self.annotated_stride_list_["wb_id"] = self.annotated_stride_list_["wb_id"].map(self._wb_id_map_)
