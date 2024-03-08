@@ -52,7 +52,7 @@
         {
             "wb_id":1,
             "s_id":0,
-            "start":228,
+            "start":227,
             "end":356,
             "duration_s":1.28,
             "length_m":1.6130588018,
@@ -64,7 +64,7 @@
         {
             "wb_id":1,
             "s_id":1,
-            "start":296,
+            "start":295,
             "end":414,
             "duration_s":1.18,
             "length_m":1.5951899503,
@@ -76,7 +76,7 @@
         {
             "wb_id":1,
             "s_id":2,
-            "start":356,
+            "start":355,
             "end":472,
             "duration_s":1.16,
             "length_m":1.6529550696,
@@ -88,7 +88,7 @@
         {
             "wb_id":1,
             "s_id":3,
-            "start":414,
+            "start":413,
             "end":539,
             "duration_s":1.25,
             "length_m":1.8172309925,
