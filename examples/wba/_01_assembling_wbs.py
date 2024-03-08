@@ -30,11 +30,13 @@ This works in 3 steps:
 #
 # Let's start by creating a list of strides with dummy values.
 # We specifically create list of "left" and "right" strides and combine them at the end.
-import uuid
+from itertools import count
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+id_counter = count(1)
 
 
 def window(start, end, **parameter):
@@ -42,7 +44,7 @@ def window(start, end, **parameter):
 
     parameter = {**parameter, "duration": end - start}
 
-    return dict(id=str(uuid.uuid4())[:6], start=start, end=end, **parameter)
+    return dict(s_id=next(id_counter), start=start, end=end, **parameter)
 
 
 def naive_stride_list(start, stop, duration, foot=None, **paras):
@@ -52,7 +54,7 @@ def naive_stride_list(start, stop, duration, foot=None, **paras):
 
     return pd.DataFrame.from_records(
         [window(start=s, end=e, foot=foot, duration=duration, **paras) for i, (s, e) in enumerate(start_end)]
-    ).set_index("id")
+    ).set_index("s_id")
 
 
 stride_list = [
@@ -89,10 +91,10 @@ rules = [("sl_thres", IntervalParameterCriteria("stride_length", lower_threshold
 # We can now use these rules to filter the stride list.
 from gaitlink.wba import StrideSelection
 
-ss = StrideSelection(rules)
-ss.filter(stride_list, sampling_rate_hz=1)
+stride_selection = StrideSelection(rules)
+stride_selection.filter(stride_list, sampling_rate_hz=1)
 
-filtered_stride_list = ss.filtered_stride_list_
+filtered_stride_list = stride_selection.filtered_stride_list_
 filtered_stride_list
 
 # %%
@@ -112,10 +114,10 @@ from gaitlink.wba import IntervalDurationCriteria
 
 rules.append(("dur_thres", IntervalDurationCriteria(min_duration_s=80, max_duration_s=120)))
 
-ss = StrideSelection(rules)
-ss.filter(stride_list, sampling_rate_hz=1)
+stride_selection = StrideSelection(rules)
+stride_selection.filter(stride_list, sampling_rate_hz=1)
 
-filtered_stride_list = ss.filtered_stride_list_
+filtered_stride_list = stride_selection.filtered_stride_list_
 filtered_stride_list
 
 # %%
@@ -123,12 +125,12 @@ filtered_stride_list["duration"].unique()
 
 # %%
 # We can also explicitly inspect which strides are filtered out.
-ss.excluded_stride_list_
+stride_selection.excluded_stride_list_
 
 # %%
 # And even see which rule filtered them out.
 # Note, that only the first rule that filtered the stride is shown.
-ss.excluded_stride_list_.merge(ss.exclusion_reasons_, left_index=True, right_index=True)
+stride_selection.excluded_stride_list_.merge(stride_selection.exclusion_reasons_, left_index=True, right_index=True)
 
 # %%
 # Step 2,3: WB Assembly
@@ -179,5 +181,5 @@ print(f"The method identified {len(wb_assembly.wbs_)} WBs.")
 # We can also get an idea of how the final results looks, by plotting the wba outputs.
 from gaitlink.wba.plot import plot_wba_results
 
-plot_wba_results(wb_assembly, stride_selection=ss)
+plot_wba_results(wb_assembly, stride_selection=stride_selection)
 plt.show()
