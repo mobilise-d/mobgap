@@ -1,5 +1,6 @@
-import uuid
-from typing import ClassVar, Optional, Hashable
+from collections.abc import Hashable
+from itertools import count
+from typing import ClassVar, Optional
 
 import numpy as np
 import pandas as pd
@@ -110,14 +111,14 @@ class WbAssembly(Algorithm):
     exclusion_reasons_: pd.DataFrame
     stride_exclusion_reasons_: pd.DataFrame
 
+    _wb_id_map_: dict[str, int]
+
     class PredefinedParameters:
         mobilise_wb: ClassVar = {
             "rules": [
                 (
                     "min_strides",
-                    NStridesCriteria(
-                        min_strides=4, min_strides_left=3, min_strides_right=3
-                    ),
+                    NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
                 ),
                 ("max_break", MaxBreakCriteria(max_break_s=3)),
             ]
@@ -131,10 +132,7 @@ class WbAssembly(Algorithm):
     def wbs_(self) -> dict[Hashable, pd.DataFrame]:
         if len(self.annotated_stride_list_) == 0:
             return {}
-        return {
-            k: v.drop("wb_id", axis=1)
-            for k, v in self.annotated_stride_list_.groupby("wb_id")
-        }
+        return {k: v.drop("wb_id", axis=1) for k, v in self.annotated_stride_list_.groupby("wb_id")}
 
     @property
     def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
@@ -143,9 +141,7 @@ class WbAssembly(Algorithm):
         return {
             k: v.drop("pre_wb_id", axis=1)
             # We group only the strides that are part of a preliminary WB
-            for k, v in self.excluded_stride_list_[
-                self.excluded_stride_list_["pre_wb_id"].notna()
-            ].groupby("pre_wb_id")
+            for k, v in self.excluded_stride_list_[self.excluded_stride_list_["pre_wb_id"].notna()].groupby("pre_wb_id")
         }
 
     def assemble(
@@ -180,9 +176,7 @@ class WbAssembly(Algorithm):
         # TODO: Add better checks for correct type of compound rule field
         for _, rule in self.rules or []:
             if not isinstance(rule, BaseWbCriteria):
-                raise TypeError(
-                    "All rules must be instances of `WBCriteria` or one of its child classes."
-                )
+                raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
         self.filtered_stride_list = filtered_stride_list
         self.sampling_rate_hz = sampling_rate_hz
@@ -196,17 +190,14 @@ class WbAssembly(Algorithm):
             excluded_strides,
             stride_exclusion_reasons,
         ) = self._apply_termination_rules(stride_list_sorted)
-        wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(
-            preliminary_wb_list
-        )
+        wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
+        # After we have the final wbs, we rewrite the wb_ids to be easier to read.
+        self._wb_id_map_ = {k: i for i, k in enumerate(wb_list.keys())}
         if len(wb_list) > 0:
-            self.annotated_stride_list_ = pd.concat(
-                wb_list, names=["wb_id", "s_id"]
-            ).reset_index("wb_id")
+            self.annotated_stride_list_ = pd.concat(wb_list, names=["wb_id", "s_id"]).reset_index("wb_id")
+            self.annotated_stride_list_["wb_id"] = self.annotated_stride_list_["wb_id"].map(self._wb_id_map_)
         else:
-            self.annotated_stride_list_ = pd.DataFrame(
-                columns=[*filtered_stride_list.columns, "wb_id"]
-            )
+            self.annotated_stride_list_ = pd.DataFrame(columns=[*filtered_stride_list.columns, "wb_id"])
 
         if (
             len(
@@ -217,17 +208,13 @@ class WbAssembly(Algorithm):
             )
             > 0
         ):
-            excluded_strides_in_wbs = pd.concat(
-                combined_excluded_stride_list, names=["pre_wb_id", "s_id"]
-            ).reset_index("pre_wb_id")
-        else:
-            excluded_strides_in_wbs = pd.DataFrame(
-                columns=[*filtered_stride_list.columns, "pre_wb_id"]
+            excluded_strides_in_wbs = pd.concat(combined_excluded_stride_list, names=["pre_wb_id", "s_id"]).reset_index(
+                "pre_wb_id"
             )
+        else:
+            excluded_strides_in_wbs = pd.DataFrame(columns=[*filtered_stride_list.columns, "pre_wb_id"])
         other_excluded_strides = excluded_strides.assign(pre_wb_id=None)
-        self.excluded_stride_list_ = pd.concat(
-            [excluded_strides_in_wbs, other_excluded_strides]
-        )
+        self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides])
         self.termination_reasons_ = pd.DataFrame.from_dict(
             termination_reasons, orient="index", columns=["rule_name", "rule_obj"]
         ).rename_axis(index="wb_id")
@@ -241,7 +228,9 @@ class WbAssembly(Algorithm):
         ).rename_axis(index=filtered_stride_list.index.name)
         return self
 
-    def _apply_termination_rules(self, stride_list: pd.DataFrame) -> tuple[
+    def _apply_termination_rules(
+        self, stride_list: pd.DataFrame
+    ) -> tuple[
         dict[str, pd.DataFrame],
         dict[str, pd.DataFrame],
         dict[str, tuple[str, BaseWbCriteria]],
@@ -249,6 +238,7 @@ class WbAssembly(Algorithm):
         pd.DataFrame,
         dict[str, tuple[str, BaseWbCriteria]],
     ]:
+        id_counter = count(start=1)
         end = 0
         preliminary_wb_list = {}
         termination_reasons = {}
@@ -266,21 +256,17 @@ class WbAssembly(Algorithm):
                 start_delay_reason,
                 termination_reason,
             ) = self._find_first_preliminary_wb(stride_list, start)
-            preliminary_wb_id = str(uuid.uuid1())
+            preliminary_wb_id = f"pre_{next(id_counter)}"
 
             if final_start > final_end:
                 # There was a termination criteria, but the WB was never properly started
                 final_start = final_end + 1
-                excluded_wb_list[preliminary_wb_id] = stride_list.iloc[
-                    start:final_start
-                ]
+                excluded_wb_list[preliminary_wb_id] = stride_list.iloc[start:final_start]
                 exclusion_reasons[preliminary_wb_id] = start_delay_reason
                 termination_reasons[preliminary_wb_id] = termination_reason
             else:
                 # The preliminary WB is saved
-                preliminary_wb_list[preliminary_wb_id] = stride_list.iloc[
-                    final_start : final_end + 1
-                ]
+                preliminary_wb_list[preliminary_wb_id] = stride_list.iloc[final_start : final_end + 1]
                 termination_reasons[preliminary_wb_id] = termination_reason
                 # Save strides that were excluded in the beginning as an excluded strides
                 removed_strides = stride_list.iloc[start:final_start]
@@ -344,9 +330,7 @@ class WbAssembly(Algorithm):
                 tmp_restart_at,
                 tmp_start_delay_reason,
                 termination_reason,
-            ) = self._check_wb_start_end(
-                stride_list, original_start, current_start, current_end
-            )
+            ) = self._check_wb_start_end(stride_list, original_start, current_start, current_end)
             if termination_reason:
                 # In case of termination return directly.
                 # Do not consider further updates on the start as they might be made based on strides that are not part
@@ -419,9 +403,7 @@ class WbAssembly(Algorithm):
         exclusion_reasons = {}
         for wb_id, stride_list in preliminary_wb_list.items():
             for rule_name, rule in self.rules or []:
-                if not rule.check_include(
-                    stride_list, sampling_rate_hz=self.sampling_rate_hz
-                ):
+                if not rule.check_include(stride_list, sampling_rate_hz=self.sampling_rate_hz):
                     removed_wb_list[wb_id] = stride_list
                     exclusion_reasons[wb_id] = (rule_name, rule)
                     break
