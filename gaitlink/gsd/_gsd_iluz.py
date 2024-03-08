@@ -124,7 +124,10 @@ class GsdIluz(BaseGsDetector):
         std_activity_threshold: float = 0.01 * GRAV_MS2,
         mean_activity_threshold: float = -0.1 * GRAV_MS2,
         acc_v_standing_threshold: float = 0.5 * GRAV_MS2,
-        step_detection_thresholds: tuple[float, float] = (0.4 * GRAV_MS2, 1.5 * GRAV_MS2),
+        step_detection_thresholds: tuple[float, float] = (
+            0.4 * GRAV_MS2,
+            1.5 * GRAV_MS2,
+        ),
         sin_template_freq_hz: float = 2,
         # Note: The original implementation uses 1 step per second as the lower bound. This means a minimum of 3
         #       steps per 3-second window. We use 0.5 steps per second as the lower bound, which means a minimum of
@@ -146,7 +149,13 @@ class GsdIluz(BaseGsDetector):
         self.min_gsd_duration_s = min_gsd_duration_s
 
     @base_gsd_docfiller
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+    def detect(
+        self,
+        data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
+        **_: Unpack[dict[str, Any]],
+    ) -> Self:
         """%(detect_short)s.
 
         Parameters
@@ -169,7 +178,9 @@ class GsdIluz(BaseGsDetector):
         window_length_samples = round(self.window_length_s * sampling_rate_hz)
         window_overlap_samples = round(window_length_samples * self.window_overlap)
         windowed_filtered_data = sliding_window_view(
-            filtered_data["acc_x"].to_numpy(), window_length_samples, window_overlap_samples
+            filtered_data["acc_x"].to_numpy(),
+            window_length_samples,
+            window_overlap_samples,
         )
         windowed_data = sliding_window_view(data["acc_x"].to_numpy(), window_length_samples, window_overlap_samples)
 
@@ -229,7 +240,8 @@ class GsdIluz(BaseGsDetector):
             # The number of peaks is expected to be the number of steps
             n_peaks = np.full(activity_windows.shape, np.nan)
             n_peaks[activity_windows] = vec_find_n_peaks(
-                convolved_data_windowed[activity_windows], self.step_detection_thresholds[i]
+                convolved_data_windowed[activity_windows],
+                self.step_detection_thresholds[i],
             )
             # Note: The original implementation uses a different threshold for the second axis.
             #       Namely, on a 3-second window, they expect a minimum of only 1 step instead of 3.
@@ -265,6 +277,9 @@ class GsdIluz(BaseGsDetector):
         gs_list = merge_intervals(gs_list)
 
         gs_list = pd.DataFrame(gs_list, columns=["start", "end"])
+
+        # To make sure that the end is inclusive, we add 1 to the end index
+        gs_list["end"] += 1
 
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
