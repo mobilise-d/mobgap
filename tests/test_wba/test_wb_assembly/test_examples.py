@@ -43,7 +43,9 @@ def test_simple_single_wb(consider_end_as_break):
     assert len(wba.exclusion_reasons_) == 0
     assert len(wba.termination_reasons_) == 1
 
-    assert wba.termination_reasons_[single_wb_id][0] == ("break" if consider_end_as_break else "end_of_list")
+    assert wba.termination_reasons_.loc[single_wb_id, "rule_name"] == (
+        "break" if consider_end_as_break else "end_of_list"
+    )
 
 
 @pytest.mark.parametrize("consider_end_as_break", [True, False])
@@ -86,13 +88,13 @@ def test_simple_break_center(consider_end_as_break):
     wb_ids = list(wba.wbs_.keys())
     assert wbs[0].iloc[0]["start"] == wb_start_time
     assert wbs[0].iloc[-1]["end"] == wb_start_time + 7
-    assert wba.termination_reasons_[wb_ids[0]][0] == "break"
+    assert wba.termination_reasons_.loc[wb_ids[0], "rule_name"] == "break"
     assert_frame_equal(wbs[0], strides.iloc[:7])
 
     assert wbs[1].iloc[0]["start"] == 16
     assert wbs[1].iloc[-1]["end"] == wb_start_time + n_strides
     assert_frame_equal(wbs[1], strides.iloc[7:])
-    assert wba.termination_reasons_[wb_ids[1]][0] == ("break" if consider_end_as_break else "end_of_list")
+    assert wba.termination_reasons_.loc[wb_ids[1], "rule_name"] == ("break" if consider_end_as_break else "end_of_list")
 
 
 # TODO: Add a couple more simple test cases

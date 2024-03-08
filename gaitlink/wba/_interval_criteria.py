@@ -5,7 +5,7 @@ from scipy._lib.doccer import inherit_docstring_from
 from tpcp import BaseTpcpObject
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.wba._utils import compare_with_threshold
+from gaitlink.wba._utils import compare_with_threshold_multiple
 
 
 class BaseIntervalCriteria(BaseTpcpObject):
@@ -30,6 +30,30 @@ class BaseIntervalCriteria(BaseTpcpObject):
             This is used to potentially convert the `start` and `end` values to seconds, assuming that they are in
             samples.
             If this is not the case and the value are already in seconds, `sampling_rate_hz` should set to 1.
+
+        """
+        return bool(self.check_multiple(pd.DataFrame([interval]), sampling_rate_hz=sampling_rate_hz).iloc[0])
+
+    def check_multiple(self, intervals: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None) -> pd.Series:
+        """Check if the intervals meet the criteria.
+
+        Parameters
+        ----------
+        intervals : pd.DataFrame
+            The intervals to check.
+            The intervals must at least have a `start` and `end` column that contain the start and end of the interval
+            in samples.
+            Additional columns might be used to check the values of further parameters.
+        sampling_rate_hz
+            The sampling rate of the data in Hz.
+            This is used to potentially convert the `start` and `end` values to seconds, assuming that they are in
+            samples.
+            If this is not the case and the value are already in seconds, `sampling_rate_hz` should set to 1.
+
+        Returns
+        -------
+        pd.Series
+            A boolean series indicating if the intervals meet the criteria.
 
         """
         raise NotImplementedError("This needs to implemented by child class")
@@ -68,13 +92,13 @@ class _IntervalParameterCriteria(BaseIntervalCriteria):
         self.upper_threshold = upper_threshold
         self.inclusive = inclusive
 
-    def _get_value(self, interval: pd.Series, sampling_rate_hz: Optional[float]) -> float:
+    def _get_values(self, intervals: pd.DataFrame, sampling_rate_hz: Optional[float]) -> pd.Series:
         raise NotImplementedError("This needs to implemented by child class")
 
     @inherit_docstring_from(BaseIntervalCriteria)
-    def check(self, interval: pd.Series, *, sampling_rate_hz: Optional[float] = None) -> bool:
-        value = self._get_value(interval, sampling_rate_hz)
-        return compare_with_threshold(value, self.lower_threshold, self.upper_threshold, self.inclusive)
+    def check_multiple(self, intervals: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None) -> pd.Series:
+        values = self._get_values(intervals, sampling_rate_hz)
+        return compare_with_threshold_multiple(values, self.lower_threshold, self.upper_threshold, self.inclusive)
 
 
 @_interval_parameter_criteria_docfiller
@@ -102,12 +126,12 @@ class IntervalParameterCriteria(_IntervalParameterCriteria):
         self.parameter = parameter
         super().__init__(lower_threshold, upper_threshold, inclusive=inclusive)
 
-    def _get_value(self, interval: pd.Series, sampling_rate_hz: Optional[float]) -> float:  # noqa: ARG002
+    def _get_values(self, intervals: pd.DataFrame, sampling_rate_hz: Optional[float]) -> pd.Series:  # noqa: ARG002
         try:
-            value = interval[self.parameter]
+            values = intervals[self.parameter]
         except KeyError as e:
-            raise ValueError(f"Interval does not contain parameter {self.parameter}") from e
-        return value
+            raise ValueError(f"Intervals do not contain parameter {self.parameter}") from e
+        return values
 
 
 @_interval_parameter_criteria_docfiller
@@ -143,17 +167,21 @@ class IntervalDurationCriteria(BaseIntervalCriteria):
         self.max_duration_s = max_duration_s
         self.inclusive = inclusive
 
-    def _get_value(self, interval: pd.Series, sampling_rate_hz: Optional[float]) -> float:
+    def _get_values(
+        self,
+        intervals: pd.DataFrame,
+        sampling_rate_hz: Optional[float],
+    ) -> pd.Series:
         if sampling_rate_hz is None:
             raise ValueError("The sampling rate must be provided if the IntervalDurationCriteria is used.")
         try:
-            return (interval[self._END_COL_NAME] - interval[self._START_COL_NAME]) / sampling_rate_hz
+            return (intervals[self._END_COL_NAME] - intervals[self._START_COL_NAME]) / sampling_rate_hz
         except KeyError as e:
             raise ValueError(
                 f"Interval does not contain both columns {self._START_COL_NAME} and {self._END_COL_NAME}"
             ) from e
 
     @inherit_docstring_from(BaseIntervalCriteria)
-    def check(self, interval: pd.Series, *, sampling_rate_hz: Optional[float] = None) -> bool:
-        value = self._get_value(interval, sampling_rate_hz)
-        return compare_with_threshold(value, self.min_duration_s, self.max_duration_s, self.inclusive)
+    def check_multiple(self, intervals: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None) -> pd.Series:
+        values = self._get_values(intervals, sampling_rate_hz)
+        return compare_with_threshold_multiple(values, self.min_duration_s, self.max_duration_s, self.inclusive)
