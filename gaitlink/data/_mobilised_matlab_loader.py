@@ -11,6 +11,7 @@ import scipy.io as sio
 from tpcp import Dataset
 
 from gaitlink._docutils import make_filldoc
+from gaitlink.data import ReferenceData
 
 T = TypeVar("T")
 
@@ -422,30 +423,6 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
-class ReferenceData(NamedTuple):
-    """Parsed reference parameters.
-
-    All start/end values are provided in samples since the start of the recording.
-
-    Attributes
-    ----------
-    wb_list
-        A dataframe with the start and end of each walking bout in samples.
-    ic_list
-        A dataframe with the initial contacts in samples and the corresponding left/right label.
-    turn_parameters
-        A dataframe with the start, end, angle and other parameters of each turn.
-    stride_parameters
-        A dataframe with the start, end, duration and other parameters of each stride.
-
-    """
-
-    wb_list: pd.DataFrame
-    ic_list: pd.DataFrame
-    turn_parameters: pd.DataFrame
-    stride_parameters: pd.DataFrame
-
-
 def parse_reference_parameters(
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
     *,
@@ -689,7 +666,7 @@ def _relative_to_gs(
 
 
 @docfiller
-class _GenericMobilisedDataset(Dataset):
+class BaseGenericMobilisedDataset(Dataset):
     """Common base class for Datasets based on the Mobilise-D matlab format.
 
     Parameters
@@ -945,7 +922,7 @@ class _GenericMobilisedDataset(Dataset):
 
 
 @docfiller
-class GenericMobilisedDataset(_GenericMobilisedDataset):
+class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     """A generic dataset loader for the Mobilise-D data format.
 
     This allows to create a dataset from multiple data files in the Mobilise-D data format stored within nested folder
