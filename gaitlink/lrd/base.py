@@ -1,4 +1,4 @@
-"""Base class for LR detectors"""
+"""Base class for LR detectors."""
 
 from typing import Any
 

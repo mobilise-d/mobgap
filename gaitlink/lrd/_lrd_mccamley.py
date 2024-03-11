@@ -67,10 +67,8 @@ class LrdMcCamley(BaseLRDetector):
     def __init__(
         self,
         axis: Literal["yaw", "roll", "combined"] = "combined",
-        smoothing_filter: BaseFilter = cf(
-            ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass")
-        ),
-    ):
+        smoothing_filter: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass")),
+    ) -> None:
         self.axis = axis
         self.smoothing_filter = smoothing_filter
 
@@ -113,9 +111,7 @@ class LrdMcCamley(BaseLRDetector):
         # The use of the smoothing filter is an addition made by Ullrich et al. to the original McCamley algorithm.
         # Originally, simply the mean of the signal was subtracted from the signal
         self.smoothed_data_ = (
-            self.smoothing_filter.clone()
-            .filter(selected_data, sampling_rate_hz=self.sampling_rate_hz)
-            .filtered_data_
+            self.smoothing_filter.clone().filter(selected_data, sampling_rate_hz=self.sampling_rate_hz).filtered_data_
         )
 
         data_at_ic = self.smoothed_data_.iloc[ic_list["ic"].to_numpy()]
