@@ -49,6 +49,9 @@ class LrdMcCamley(BaseLRDetector):
 
     Notes
     -----
+    In the edge case of data == 0, the left side is assumed.
+
+
     .. [1] J. McCamley et al., “An enhanced estimate of initial contact and final contact instants of time using lower
         trunk inertial sensor data,” Gait & posture, 2012, available at:
         https://www.sciencedirect.com/science/article/pii/S0966636212000707?via%%3Dihub
@@ -65,6 +68,7 @@ class LrdMcCamley(BaseLRDetector):
 
     def __init__(
         self,
+        # TODO: Change axis names, once we are using them consistently everywhere
         axis: Literal["yaw", "roll", "combined"] = "combined",
         smoothing_filter: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass")),
     ) -> None:
