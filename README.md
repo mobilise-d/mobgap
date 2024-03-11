@@ -19,7 +19,7 @@ If you run into problems, clone the repository and install the package locally.
 
 ```bash
 git clone https://github.com/mobilise-d/gaitlink.git
-cd gaitmap
+cd gaitlink
 pip install .
 ```
 
