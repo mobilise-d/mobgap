@@ -572,6 +572,8 @@ def parse_reference_parameters(
     ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype(int)
     ics.index.name = "ic_id"
     ics = ics.reset_index().set_index(["wb_id", "ic_id"])
+    # make left-right labels lowercase
+    ics["lr_label"] = ics["lr_label"].str.lower()
 
     turn_paras = pd.concat(turn_paras, ignore_index=True)
     turn_paras.index.name = "turn_id"
