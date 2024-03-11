@@ -12,6 +12,7 @@ This is the API Reference for ``gaitlink``.
     pipeline
     gsd
     icd
+    lrd
     cad
     wba
     aggregation

@@ -174,6 +174,7 @@ sphinx_gallery_conf = {
             "../examples/data",
             "../examples/gsd",
             "../examples/icd",
+            "../examples/lrd",
             "../examples/cad",
             "../examples/wba",
             "../examples/aggregation",
