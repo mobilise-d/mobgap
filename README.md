@@ -1,7 +1,7 @@
 > [!CAUTION]
 > **Warning:** Gaitlink is currently under development and not ready for production use. Do not use any of the algorithm results for actual research purposes. Most of them are not in their final state and are not properly validated yet.
 
-# GaitLink - The MobiliseD algorithm toolbox
+# GaitLink - The Mobilise-D algorithm toolbox
 
 A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back.
 
