@@ -45,7 +45,7 @@ For more commands see the [official documentation](https://python-poetry.org/doc
 
 To update dependencies after the `pyproject.toml` file was changed (It is a good idea to run this after a `git pull`):
 ```bash
-poetry install --no-root
+poetry install
 
 # or (see differences below)
 poetry update
@@ -66,15 +66,19 @@ To list the available tasks, run:
 $ poetry run poe
 ...
 CONFIGURED TASKS
-  format          Format all files with Black and Ruff.
-  lint            Lint all files with ruff.
-  ci_check        Check all potential format and linting issues.
-  test            Run Pytest with coverage.
-  docs            Build the html docs using Sphinx.
-  docs_preview    Preview the built html docs.
-  version         Pump the version number in all relevant files.
-  conf_jupyter    Add a new jupyter kernel for the project.
-  remove_jupyter  Remove the project specific jupyter kernel.
+  format            
+  format_unsafe     
+  lint              Lint all files with ruff.
+  ci_check          Check all potential format and linting issues.
+  test              Run Pytest with coverage.
+  docs              Build the html docs using Sphinx.
+  docs_clean        Remove all old build files and build a clean version of the docs.
+  docs_linkcheck    Check all links in the built html docs.
+  docs_preview      Preview the built html docs.
+  version           Bump the version number in all relevant files.
+  conf_jupyter      Add a new jupyter kernel for the project.
+  remove_jupyter    Remove the project specific jupyter kernel.
+
 ```
 
 To run one of the commands execute (e.g. the `test` command):
@@ -86,12 +90,7 @@ poetry run poe test
 
 ### Formatting and Linting
 
-To ensure that the whole library uses a consistent **format**, we use [black](https://github.com/psf/black) and 
-[ruff](https://github.com/astral-sh/ruff) to autoformat our code.
-Black can also be integrated [into you editor](https://black.readthedocs.io/en/stable/editor_integration.html), if you
-do not want to run it from the commandline.
-Because, it is so easy, we also use *black* to format the test-suite as well.
-
+To ensure that the whole library uses a consistent **format**, we use [ruff](https://github.com/astral-sh/ruff) to autoformat our code.
 Beyond automatically fixing issues, we use *ruff* to handle all other **linting** tasks.
 
 For **documentation** we follow the numpy doc-string guidelines and autobuild our API documentation using *Sphinx*.
@@ -111,6 +110,33 @@ poetry run poe lint
 
 Tou should run this as often as possible!
 At least once before any `git push`.
+
+
+### Building Documentation
+
+To build the documentation, run:
+
+```bash
+poetry run poe docs
+```
+
+Afterwards, you can preview the documentation by running:
+
+```bash
+poetry run poe docs_preview
+```
+
+This should display a URL in your terminal, which you can open in your browser.
+
+Sometimes building the documentation fails, because you still have some old files around.
+In this case, you can run:
+
+```bash
+poetry run poe docs_clean
+```
+
+to force a clean build.
+Note, that this might take substantially longer than a normal build.
 
 
 ### Testing and Test data
@@ -204,8 +230,6 @@ dependencies installed (see [IDE Config](#Configure-your-IDE)).
 
 **Test runner**: Set the default testrunner to `pytest`. 
 
-**Black**: Refer to this [guide](https://black.readthedocs.io/en/stable/editor_integration.html) 
-
 **Autoreload for the Python console**:
 
 You can instruct Pycharm to automatically reload modules upon changing by adding the following lines to
@@ -222,7 +246,7 @@ While we do not (and will not) use Jupyter Notebooks in gaitlink, it might still
 prototype your scientific code.
 To set up a Jupyter environment that has gaitlink and all dependencies installed, run the following commands:
 
-```
+```bash
 # poetry install including root!
 poetry install
 poetry run poe conf_jupyter
@@ -266,6 +290,24 @@ section.
 
 There is no fixed timeline for a release, but rather a list of features we will plan to include in every release.
 Releases can happen often and even with small added features.
+
+If you are ready to release a new version, you can use the following command:
+
+```bash
+poetry run poe version {major|minor|patch}
+```
+
+This will update the version number in all relevant files.
+Then head over to the ChangeLog and update the "Unreleased" section to the new version number and set the release date.
+
+Then follow the following steps:
+
+- Double-check the changelog and the migration guide
+- Commit and push all changes including the changed version number
+- **Wait for the CI to finish**
+- Create a new release on GitHub (you can create a new tag directly from the same interface) and add the changelog to 
+  the release notes
+- Wait for the "publish" job to finish -> Double-check the PyPI page if the new version is available
 
 
 ## Git Workflow
