@@ -11,14 +11,14 @@ At the moment, the package is not available on PyPI.
 To install the package use pip (or poetry) with the git repository URL
 
 ```bash
-pip install "git+https://github.com/mad-lab-fau/gaitmap.git" --upgrade
+pip install "git+https://github.com/mobilise-d/gaitlink.git" --upgrade
 ```
 
 You might need to set your git credentials to install the package.
 If you run into problems, clone the repository and install the package locally.
 
 ```bash
-git clone https://github.com/mad-lab-fau/gaitmap
+git clone https://github.com/mobilise-d/gaitlink.git
 cd gaitmap
 pip install .
 ```
