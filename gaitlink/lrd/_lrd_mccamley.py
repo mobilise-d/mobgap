@@ -47,12 +47,11 @@ class LrdMcCamley(BaseLRDetector):
     ----------------
     %(other_parameters)s
 
-
     Notes
     -----
     .. [1] J. McCamley et al., “An enhanced estimate of initial contact and final contact instants of time using lower
         trunk inertial sensor data,” Gait & posture, 2012, available at:
-        https://www.sciencedirect.com/science/article/pii/S0966636212000707?via%3Dihub
+        https://www.sciencedirect.com/science/article/pii/S0966636212000707?via%%3Dihub
 
     .. [2] Ullrich M, Kuderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
         and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021,
