@@ -156,8 +156,8 @@ def evaluate_ic_list(
     5  NaN                 3         fn
     """
     detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
-    detected = _check_index_sanity(detected, "detected", multiindex_warning)
-    reference = _check_index_sanity(reference, "reference", multiindex_warning)
+    detected = _sanitize_index(detected, "detected", multiindex_warning)
+    reference = _sanitize_index(reference, "reference", multiindex_warning)
 
     if tolerance_samples < 0:
         raise ValueError("`tolerance_samples` must be larger than 0.")
@@ -182,13 +182,6 @@ def evaluate_ic_list(
 
     matches_detected.loc[ic_list_detected_idx, reference_index_name] = ic_list_reference_idx
     matches_reference.loc[ic_list_reference_idx, detected_index_name] = ic_list_detected_idx
-
-    if isinstance(matches_detected.index, pd.MultiIndex):
-        matches_detected.index = matches_detected.index.to_flat_index()
-        matches_detected.index.name = detected_index_name
-    if isinstance(matches_reference.index, pd.MultiIndex):
-        matches_reference.index = matches_reference.index.to_flat_index()
-        matches_reference.index.name = reference_index_name
 
     matches_detected = matches_detected.reset_index()
     matches_reference = matches_reference.reset_index()
@@ -295,7 +288,7 @@ def _check_input_sanity(
     return detected, reference
 
 
-def _check_index_sanity(
+def _sanitize_index(
     ic_list: pd.DataFrame, list_type: Literal["detected", "reference"], multiindex_warning: bool
 ) -> pd.DataFrame:
     # check if index is a multiindex and raise warning if it is
@@ -310,6 +303,8 @@ def _check_index_sanity(
                 "before calling the evaluation function.",
                 stacklevel=2,
             )
+        ic_list.index = ic_list.index.to_flat_index()
+        ic_list.index.name = f"ic_id_{list_type}"
     # check if indices are unique
     if not ic_list.index.is_unique:
         raise ValueError(f"The index of `ic_list_{list_type}` must be unique!")
