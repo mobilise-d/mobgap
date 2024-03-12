@@ -14,15 +14,15 @@ from gaitlink.lrd.base import BaseLRDetector, base_lrd_docfiller
 class LrdMcCamley(BaseLRDetector):
     """McCamley algorithm for laterality detection of initial contacts.
 
-    The McCamley algorithm uses the sign of the angular velocity either yaw or roll (or a combination of both) as the
-    distinguishing factor for identifying left and right ICs.
+    The McCamley algorithm [1]_ uses the sign of the angular velocity either yaw or roll (or a combination of both) as
+    the distinguishing factor for identifying left and right ICs.
 
     For this the respective signal is filtered (high-pass to remove DC offset and low-pass to remove noise) and the sign
     at the position of the IC is used to determine the laterality.
 
-    The original algorithm uses the yaw signal, but Ullrich et al. [2] showed that a combination of yaw and roll signals
-    can improve the detection accuracy.
-    Further, instead of simple mean subtraction, Ullrich et al. [2] used a Butterworth bandpass filter to smooth the
+    The original algorithm uses the yaw signal, but Ullrich et al. [2]_ showed that a combination of yaw and roll
+    signals can improve the detection accuracy.
+    Further, instead of simple mean subtraction, Ullrich et al. [2]_ used a Butterworth bandpass filter to smooth the
     signal.
 
     Parameters

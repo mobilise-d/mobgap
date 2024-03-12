@@ -1,5 +1,6 @@
 # Q&A
 
+(q&a__wb_vs_gs)=
 ## Walking Bouts vs Gait Sequences
 
 Fundamentally, we differentiate between walking bouts and gait sequences.
@@ -21,6 +22,7 @@ Historic Naming: In older standardized data, WBs were referred to as "Continuous
 and Level WBs were called "MicroWBs".
 When loading old data, we try to map these to the new terminology whenever possible.
 
+(q&a__sec_vals)=
 ## Why per-second value output for CAD/SL/Gaitspeed?
 
 While we only implement Physics based CAD and SL algorithms, which can provide step-level output, in the original 

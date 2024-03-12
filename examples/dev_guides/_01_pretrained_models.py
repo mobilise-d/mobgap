@@ -2,7 +2,7 @@
 Pretrained models and predefined Parameters
 ===========================================
 
-All gaitlink algorithms are implemented as tpcp classes (see :ref:`tpcp`).
+All gaitlink algorithms are implemented as tpcp classes (see :class:`tpcp.Algorithm`).
 Hence, all there configuration is stored in the parameters of the class.
 
 Each algorithm already has sensible default parameters, which can be used for many applications.
