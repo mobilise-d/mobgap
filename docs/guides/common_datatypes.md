@@ -21,7 +21,54 @@ with only a few rules associated with them.
 Most structure are {external:class}`pandas.DataFrame` and only the expected columns and index shapes change between 
 different algorithm inputs/outputs.
 
-Below we will list the datatypes in the order that they typically appear in a gait pipeline
+Below we will list the datatypes in the order that they typically appear in a gait pipeline.
+But before some general rules that apply to all datatypes:
+
+### Units
+
+Some common units:
+
+| Value           | Unit                               | Short-hand Postfix |
+|-----------------|:-----------------------------------|:-------------------|
+| Acceleration    | m/s^2                              | -                  |
+| Rotation Rate   | deg/s                              | -                  |
+| Magnetic fields | uT                                 | -                  |
+| Velocity        | m/s                                | _mps               |
+| Distance        | m                                  | _m                 |
+| Cadence         | steps/min                          | _spm               |         
+| Time/Duration   | s or # (see "Further Rules" below) | _s/_samples        |         
+| Sampling Rate   | Hz                                 | _hz                |
+
+Further rules:
+
+- In all (but the most common cases), the unit is also appended to the column/variable name.
+  This is to make it clear what the unit of the value is and to avoid confusion.
+- If a method requires a parameter in a given unit, append it with a common short-hand name in this unit (e.g.
+  `windowsize_ms` would expect a value in milliseconds).
+- Time is either specified in seconds (s) for user facing durations (e.g. stride time), but time points in intermediate
+  results (e.g. biomechanical events) are typically specified in samples since the start of the measurement (#).
+
+### Start-End Indices
+
+Many of the datatypes contain information about the start or the end of a certain time-period (e.g. a gait sequence).
+Start and end values are (whenever possible) provided in samples from the start of a recording.
+The respective time-period is then defined as [start, end), meaning starting with the start sample (inclusive) until the
+end sample (exclusive).
+This follows the Python convention for indices and therefore, you can extract a region from the dataset as follows:
+
+>>> dataset.iloc[start : end]
+
+Note that `dataset.iloc[end]` refers to the first value **after** the region!
+To get the last sample of a region you must use `end-1`.
+
+The duration of a region (in samples) is simply `end - start`.
+
+For edge cases this means:
+
+- A region that starts on the first sample of a dataset has `start=0`
+- A region that ends with the dataset (i.e. inclusive the last sample) has `end=len(dataset)`.
+- If two regions are directly adjacent to each other, the end index of the first, is the start index of the second.
+
 
 ### Raw IMU Data
 
@@ -44,13 +91,7 @@ Hence, they are represented as a dataframe with the following mandatory columns:
 - `start`: The start of the sequence in samples from the start of the data
 - `end`: The end of the sequence in samples from the start of the data
 
-The start and end values follow the typical Python indexing rules.
-This means the start of the data is at index 0 and the end of the data is at index `len(data)`.
-The start value is considered inclusive and the end value exclusive.
-
-This means to describe a gait sequence that starts at the first sample and ends at the last sample, you would use
-`start=0` and `end=len(data)` and to cut out the respective data for a gait sequence, you would use 
-`data.iloc[start:end]`.
+The start and end values follow the typical Python indexing rules (see above).
 
 We don't require any specific index for the data, but we suggest using a unique identifier for each sequence.
 In most cases internally, we use a simple integer index starting at 1.
