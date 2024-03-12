@@ -21,9 +21,11 @@ def calculate_icd_performance_metrics(
 
     The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
     respective initial contact.
-    As index, a range index or a column of unique identifiers for each initial contact named "ic_id" can be provided.
-    If a multiindex is provided, the single index levels will be ignored for the comparison.
-    However, the index level "ic_id" must be present and the index must be unique.
+    As index, a range index, a column of unique identifiers for each initial contact, or a multiindex can be provided.
+    However, the index should be suitable to uniquely identify each initial contact and must thus be unique.
+    If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
+    index groups will be possible.
+    If this is not the intended use case, consider grouping your input data before calling the evaluation function.
 
     The following metrics are calculated:
 
@@ -94,10 +96,11 @@ def evaluate_ic_list(
 
     The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
     resective initial contact.
-    As index, a range index or a column of unique identifiers for each initial contact named "ic_id" can be provided.
-    If a multiindex is provided, the single index levels will be ignored for the comparison.
-    However, the index level "ic_id" must be present and the index must be unique.
-
+    As index, a range index, a column of unique identifiers for each initial contact, or a multiindex can be provided.
+    However, the index should be suitable to uniquely identify each initial contact and must thus be unique.
+    If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
+    index groups will be possible.
+    If this is not the intended use case, consider grouping your input data before calling the evaluation function.
 
     If multiple detected initial contacts would match to a single ground truth initial contact
     (or vise-versa), only the initial contact with the lowest distance is considered an actual match.
@@ -120,8 +123,8 @@ def evaluate_ic_list(
     Returns
     -------
     matches
-        A 3 column dataframe with the column names `{ic_list_detected.index.name}_detected`,
-        `{ic_list_reference.index.name}_reference`, and `match_type`. If the index of an input is unnamed,
+        A 3 column dataframe with the column names `ic_id_detected`,
+        `ic_id_reference`, and `match_type`. If the index of an input is unnamed,
         it will be named as `ic_id`.
         Each row is a match containing the index value of the detected and the reference list, that belong together,
         or a tuple of index values in case of a multiindex input.
@@ -153,8 +156,8 @@ def evaluate_ic_list(
     5  NaN                 3         fn
     """
     detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
-    detected = _set_correct_index(detected, "detected", multiindex_warning)
-    reference = _set_correct_index(reference, "reference", multiindex_warning)
+    detected = _check_index_sanity(detected, "detected", multiindex_warning)
+    reference = _check_index_sanity(reference, "reference", multiindex_warning)
 
     if tolerance_samples < 0:
         raise ValueError("`tolerance_samples` must be larger than 0.")
@@ -165,8 +168,8 @@ def evaluate_ic_list(
         tolerance_samples=tolerance_samples,
     )
 
-    detected_index_name = detected.index.name + "_detected"
-    reference_index_name = reference.index.name + "_reference"
+    detected_index_name = "ic_id_detected"
+    reference_index_name = "ic_id_reference"
 
     matches_detected = pd.DataFrame(index=detected.index.copy(), columns=[reference_index_name])
     matches_detected.index.name = detected_index_name
@@ -292,7 +295,7 @@ def _check_input_sanity(
     return detected, reference
 
 
-def _set_correct_index(
+def _check_index_sanity(
     ic_list: pd.DataFrame, list_type: Literal["detected", "reference"], multiindex_warning: bool
 ) -> pd.DataFrame:
     # check if index is a multiindex and raise warning if it is
@@ -307,15 +310,6 @@ def _set_correct_index(
                 "before calling the evaluation function.",
                 stacklevel=2,
             )
-        # check if index level "ic_id" exists
-        if "ic_id" not in ic_list.index.names:
-            raise ValueError(f"The index of `ic_list_{list_type}` must have a level named `ic_id`. ")
-    # rename index to "ic_id"
-    if ic_list.index.name is None:
-        ic_list.index.name = "ic_id"
-    # check if index name is correct
-    if ic_list.index.name != "ic_id":
-        raise ValueError(f"The index of `ic_list_{list_type}` must be named `ic_id`.")
     # check if indices are unique
     if not ic_list.index.is_unique:
         raise ValueError(f"The index of `ic_list_{list_type}` must be unique!")
