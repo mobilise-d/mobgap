@@ -134,7 +134,7 @@ class IcdIonescu(BaseIcDetector):
         # Detect the extrema between the zero crossings
         icd_array = _find_minima_between_zero_crossings(acc_v_lp_int_cwt)
 
-        detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="ic_id")
+        detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="step_id")
         detected_ics_unsampled = (
             (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
         )

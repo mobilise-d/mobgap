@@ -185,7 +185,7 @@ class IcdShinImproved(BaseIcDetector):
         self.final_filtered_signal_ = final_filtered
 
         detected_ics = find_zero_crossings(final_filtered, "negative_to_positive")
-        detected_ics = pd.DataFrame({"ic": detected_ics}).rename_axis(index="ic_id")
+        detected_ics = pd.DataFrame({"ic": detected_ics}).rename_axis(index="step_id")
 
         self.ic_list_internal_ = detected_ics
 

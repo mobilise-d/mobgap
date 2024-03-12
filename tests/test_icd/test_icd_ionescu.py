@@ -33,7 +33,7 @@ class TestIcdIonescu:
 
         output = IcdIonescu().detect(data, sampling_rate_hz=100.0).ic_list_
 
-        assert_frame_equal(output, pd.DataFrame({"ic": []}).rename_axis(index="ic_id").astype(int))
+        assert_frame_equal(output, pd.DataFrame({"ic": []}).rename_axis(index="step_id").astype(int))
 
     def test_single_icd(self):
         # s and e delimit a gait sequence with just one IC

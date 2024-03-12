@@ -6,7 +6,7 @@
                 "type":"integer"
             },
             {
-                "name":"ic_id",
+                "name":"step_id",
                 "type":"integer"
             },
             {
@@ -16,49 +16,49 @@
         ],
         "primaryKey":[
             "wb_id",
-            "ic_id"
+            "step_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":1,
-            "ic_id":0,
+            "step_id":0,
             "ic":517
         },
         {
             "wb_id":1,
-            "ic_id":1,
+            "step_id":1,
             "ic":578
         },
         {
             "wb_id":1,
-            "ic_id":2,
+            "step_id":2,
             "ic":638
         },
         {
             "wb_id":1,
-            "ic_id":3,
+            "step_id":3,
             "ic":696
         },
         {
             "wb_id":1,
-            "ic_id":4,
+            "step_id":4,
             "ic":755
         },
         {
             "wb_id":1,
-            "ic_id":5,
+            "step_id":5,
             "ic":812
         },
         {
             "wb_id":1,
-            "ic_id":6,
+            "step_id":6,
             "ic":872
         },
         {
             "wb_id":1,
-            "ic_id":7,
+            "step_id":7,
             "ic":935
         }
     ]
