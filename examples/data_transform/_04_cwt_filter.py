@@ -1,6 +1,6 @@
 """
 Continuous Wavelet Transform (CWT) - Filter
-===================================
+===========================================
 
 Continuous wavelet transform (CWT) is a time-frequency analysis method that can provide frequency information localized
 in both time and frequency.
