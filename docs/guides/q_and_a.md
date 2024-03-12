@@ -34,3 +34,21 @@ algorithms with ML based algorithms.
 Further, the interpolation per-second also allows for a level of outlier correction.
 For example, in the case of Cadence, we can correct for potential missed initial contacts/steps by smoothing the 
 detected step times.
+
+(q&a__other_paras)=
+## Why do all algorithms store the input on the object? Does this increase memory consumption?
+
+All algorithm objects make the input data available via `self.data` and `self.ic_list` (and others) available after 
+calling the action method.
+This is a "convention" that leads to some nice side effects.
+This way, the final object has all the information about inputs and outputs. 
+You could write for example a plot func, that just takes the algo instance as input and have all the information 
+available that you need.
+I also thought about memory consumption in this context, and the reality is, that it won't matter in 99% of the cases.
+Just storing the object on the instance will not result in an increase in memory consumption.
+It only stores the reference to the object.
+This means the only thing that "could" cause issues here, is that as long as the instance with the results attached 
+exists, the original data will not be cleared from memory.
+But, it basically never happens, that the original data is out of scope and an algorithm object is still in scope, 
+blocking the data deletion.
+I played around with that a bit (as we are doing the same in gaitmap) and it was never an issue in any of our usecases.

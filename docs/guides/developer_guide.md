@@ -5,7 +5,7 @@ This document contains information for developers that need further in-depth inf
 and learn about programing methods used in development of this project.
 
 If you are looking for a higher level overview over the guiding ideas and structure of this project, please visit the
-[Project Structure document](project_structure.md).
+[Project Structure document](#proj_struct).
 
 ## Project Setup and Poetry
 

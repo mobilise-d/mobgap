@@ -69,7 +69,7 @@ in control of your own code.
 In any case, let us know! We are happy to link your project in our documentation!
 
 Developing Code for Gaitlink
----------------------------
+----------------------------
 
 After discussing with us, you are ready to start developing code for gaitlink.
 First of all, we are happy to have you on board! 🎉🎉
