@@ -1,3 +1,4 @@
+"""Base classes for all fundamental dataset types."""
 from typing import Any, NamedTuple
 
 import pandas as pd
@@ -81,6 +82,7 @@ class ReferenceData(NamedTuple):
     turn_parameters: pd.DataFrame
     stride_parameters: pd.DataFrame
 
+
 @base_gait_dataset_docfiller
 class BaseGaitDataset(Dataset):
     """Basic subclass for all normal gait datasets.
@@ -124,6 +126,7 @@ class BaseGaitDataset(Dataset):
     data: IMU_DATA_DTYPE
     # TODO: Make that more specific, once we know what metadata is needed for the pipelines
     participant_metadata: dict[str, Any]
+
 
 @base_gait_dataset_docfiller
 class BaseGaitDatasetWithReference(BaseGaitDataset):
