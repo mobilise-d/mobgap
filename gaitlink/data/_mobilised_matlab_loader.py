@@ -2,23 +2,32 @@ import warnings
 from collections.abc import Iterator, Sequence
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Literal,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import joblib
 import numpy as np
 import pandas as pd
 import scipy.io as sio
-from tpcp import Dataset
 
 from gaitlink._docutils import make_filldoc
-from gaitlink.data import ReferenceData
+from gaitlink.data.base import BaseGaitDatasetWithReference, ReferenceData, base_gait_dataset_docfiller_dict
 
 T = TypeVar("T")
 
 PathLike = TypeVar("PathLike", str, Path)
 
-docfiller = make_filldoc(
+matlab_dataset_docfiller = make_filldoc(
     {
+        **base_gait_dataset_docfiller_dict,
         "file_loader_args": """
     raw_data_sensor
         Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
@@ -44,47 +53,21 @@ docfiller = make_filldoc(
         Whether to provide "wb" (walking bout) or "lwb" (level-walking bout) reference when loading
         ``reference_parameters_``.
         ``raw_reference_parameters_`` will always contain both in an unformatted way.
-    groupby_cols
-        Columns to group the data by. See :class:`~tpcp.Dataset` for details.
-    subset_index
-        The selected subset of the index. See :class:`~tpcp.Dataset` for details.
-    """,
-        "dataset_memory_args": """
-    memory
-        A joblib memory object to cache the results of the data loading.
-        This is highly recommended, if you have many large data files.
-        Otherwise, the initial index creation can take a long time.
-    """,
-        "dataset_data_attrs": """
-    data
-        The raw IMU data.
-    sampling_rate_hz
-        The sampling rate of the IMU data in Hz.
+    """
+                                + base_gait_dataset_docfiller_dict["general_dataset_args"],
+        "dataset_data_attrs": base_gait_dataset_docfiller_dict["common_dataset_data_attrs"]
+                              + base_gait_dataset_docfiller_dict["common_dataset_reference_attrs"]
+                              + """
     raw_reference_parameters_
         The raw reference parameters (if available).
         Check other attributes with a trailing underscore for the reference parameters converted into a more
         standardized format.
-    reference_parameters_
-        Parsed reference parameters.
-        This contains the reference parameters in a format that can be used as input and output to many of the gaitlink
-        algorithms.
-        See :func:`~gaitlink.data.parse_reference_parameters` for details.
-    reference_parameters_relative_to_wb_
-        Parsed reference parameters, where all values are relative to the start of each WB.
-        This is the same as `reference_parameters_`, but the :func:`~gaitlink.data.parse_reference_parameters`
-        is called with ``relative_to_wb=True`` internally.
-    reference_sampling_rate_hz_
-        The sampling rate of the reference data in Hz.
     metadata
         The metadata of the selected test.
-    participant_metadata
-        The participant metadata loaded from the `infoForAlgo.mat` file.
-    UNITS
-        (ClassVar) Units of the IMU data
-    """,
-        "dataset_see_also": """
-    :class:`~tpcp.Dataset`
-        For details about the ``groupby_cols`` and ``subset_index`` parameters.
+    """
+                              + base_gait_dataset_docfiller_dict["dataset_classvars"],
+        "dataset_see_also": base_gait_dataset_docfiller_dict["dataset_see_also"]
+                            + """
     load_mobilised_matlab_format
     """,
     }
@@ -169,7 +152,7 @@ def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[s
     }
 
 
-@docfiller
+@matlab_dataset_docfiller
 def load_mobilised_matlab_format(
     path: PathLike,
     *,
@@ -665,9 +648,11 @@ def _relative_to_gs(
     return event_data
 
 
-@docfiller
-class BaseGenericMobilisedDataset(Dataset):
+@matlab_dataset_docfiller
+class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     """Common base class for Datasets based on the Mobilise-D matlab format.
+
+    This should not be used directly, but can be used for custom dataset implementations.
 
     Parameters
     ----------
@@ -710,24 +695,6 @@ class BaseGenericMobilisedDataset(Dataset):
         self.missing_sensor_error_type = missing_sensor_error_type
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
-
-    class UNITS:
-        """Representation of units in the Mobilised dataset.
-
-        Parameters
-        ----------
-        acc
-            acceleration unit, default = ms^-2
-        gyr
-            gyroscope unit, default = deg/s
-        mag
-            magnetometer unit, default = uT
-
-        """
-
-        acc: str = "ms^-2"
-        gyr: str = "deg/s"
-        mag: str = "uT"
 
     @property
     def _paths_list(self) -> list[Path]:
@@ -921,7 +888,7 @@ class BaseGenericMobilisedDataset(Dataset):
         return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
 
 
-@docfiller
+@matlab_dataset_docfiller
 class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     """A generic dataset loader for the Mobilise-D data format.
 
@@ -984,10 +951,10 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
 
     Attributes
     ----------
+    %(dataset_data_attrs)s
     COMMON_TEST_LEVEL_NAMES
         (ClassVar) A dictionary of common test level names for Mobilise-D datasets.
         These can be passed to the ``test_level_names`` parameter.
-    %(dataset_data_attrs)s
 
     See Also
     --------

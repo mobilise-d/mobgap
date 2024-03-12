@@ -9,6 +9,7 @@ This is the API Reference for ``gaitlink``.
 .. toctree::
     :maxdepth: 1
 
+    data
     pipeline
     gsd
     icd
@@ -17,6 +18,5 @@ This is the API Reference for ``gaitlink``.
     wba
     aggregation
     data_transform
-    data
     utils/index.rst
 
