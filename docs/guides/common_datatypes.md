@@ -5,7 +5,7 @@ When considering data in gaitlink, we need to separate two hierarchies:
 
 1. The direct input and outputs of a single algorithm. There we try to stick to common datatypes as much as possible.
 2. Full datasets that are used as inputs for pipelines. 
-   These are based on {py:class}`tpcp.Datasets` and don't just contain all the data required for a single recording, 
+   These are based on {external:class}`tpcp.Dataset` and don't just contain all the data required for a single recording, 
    but also additional metadata, the logic on how to load the data, and usually the structure of an entire set of 
    recordings that together form a dataset.
 
@@ -18,8 +18,8 @@ This should make it possible to use algorithms easily across different datasets.
 
 To make it possible for you to easily create these input datatypes from your own data, we stick to very basic containers
 with only a few rules associated with them.
-Most structure are {py:class}`pandas.DataFrame` and only the expected columns and index shapes change between different
-algorithm inputs/outputs.
+Most structure are {external:class}`pandas.DataFrame` and only the expected columns and index shapes change between 
+different algorithm inputs/outputs.
 
 Below we will list the datatypes in the order that they typically appear in a gait pipeline
 
@@ -59,7 +59,7 @@ So the first WB/GS in the data would have the index 1, the second 2, and so on.
 Depending on the type of sequence (i.e. WB or GS) we name the index column either `gs_id` or `wb_id`.
 However, this does not affect the processing of the data.
 
-For more information on GS and WB, see the [Q&A](q_and_a.md#Walking-Bouts-vs-Gait-Sequences).
+For more information on GS and WB, see the [Q&A](#q&a__wb_vs_gs).
 
 ### Gait Events
 
@@ -83,15 +83,15 @@ But this naming does not affect the processing of the data.
 This event dataframe can have additional columns that contain additional information about the events.
 For example, the `ic` column is often accompanied by a `lr_label` column that contains the label of the leg 
 (`left`/`right`) that the initial contact was detected on.
-For more information see {py:module}`~gaitlink.lrd`.
+For more information see {py:mod}`~gaitlink.lrd`.
 
 ### Per-Second Gait Parameters
 
 For the Cadence and Stride Length estimation (and potentially other parameters in the future) we expect the output to be
 on a per-second level (i.e. one parameter per second of data).
-Learn more about the reasoning behind this in the [Q&A](q_and_a.md#Why-per-second-value-output-for-CAD/SL/Gaitspeed?).
+Learn more about the reasoning behind this in the [Q&A](#q&a__sec_vals).
 These dataframes have one or multiple columns that contain the respective parameter (e.g. `cad_spm`).
-The name of the column should be the parameter name or a common abreviation of it joined with the unit of the parameter
+The name of the column should be the parameter name or a common abbreviation of it joined with the unit of the parameter
 (e.g. `cad_spm` for cadence in steps per minute).
 
 The index of the dataframe contains the sample marking the center of the respective second relative to the start of the
@@ -124,7 +124,7 @@ Further, we use multi-index dataframes to represent aggregated parameters of mul
 
 Compared to the low level datatypes, datasets are higher level abstractions, containing all data and metadata 
 associated with a set of recordings.
-They are based on the {py:class}`tpcp.Datasets` class and allow to easily load and access otherwise complex data 
+They are based on the {external:class}`tpcp.Dataset` class and allow to easily load and access otherwise complex data 
 structures.
 
 A dataset that has only one "row" (i.e. one recording) is referred to as a "datapoint" and is the expected input for
@@ -142,7 +142,7 @@ If you have already loaded your own data and want to use it with a gaitlink pipe
 However, we highly encourage you to create a custom dataset class for your data.
 This will simplify a lot of things and provides a generally nice abstraction for your dataset.
 
-We provide helper for creating custom datasets in the {py:module}`~gaitlink.data` module and are happy to integrate
+We provide helper for creating custom datasets in the {py:mod}`~gaitlink.data` module and are happy to integrate
 developed datasets of public datasets into gaitlink.
 
 TODO: Link to tutorial on working with data
