@@ -10,11 +10,7 @@ from gaitlink.utils.evaluation import precision_recall_f1_score
 
 
 def calculate_icd_performance_metrics(
-    *,
-    ic_list_detected: pd.DataFrame,
-    ic_list_reference: pd.DataFrame,
-    tolerance_samples: Union[int, float] = 0,
-    multiindex_warning: bool = True,
+    matches: pd.DataFrame,
 ) -> dict[str, Union[float, int]]:
     """
     Calculate performance metrics for initial contact detection results.
@@ -41,25 +37,15 @@ def calculate_icd_performance_metrics(
 
     Parameters
     ----------
-    ic_list_detected: pd.DataFrame, optional
-        The dataframe of detected initial contacts.
-    ic_list_reference: pd.DataFrame, optional
-        The ground truth initial contact dataframe.
-    tolerance_samples: int or float, optional
-        The allowed tolerance between a detected and reference initial contact in samples for it to be considered a
-        true positive match.
-        The comparison is done as `distance <= tolerance_samples`.
-    multiindex_warning
-        If True, a warning will be raised if the index of the input data is a MultiIndex, explaining that the index
-        levels will be ignored for the matching process.
+    matches: pd.DataFrame
+        A dataframe containing the matches between detected and reference initial contacts as output
+        by :func:`~gaitlink.icd.evaluation.evaluate_initial_contact_list`.
 
     Returns
     -------
     icd_metrics: dict
     """
-    matches = evaluate_ic_list(
-        ic_list_detected, ic_list_reference, tolerance_samples=tolerance_samples, multiindex_warning=multiindex_warning
-    )
+    matches = _check_matches_sanity(matches)
 
     # estimate tp, fp, fn
     tp_samples = len(matches[matches["match_type"] == "tp"])
@@ -283,6 +269,23 @@ def _check_input_sanity(
     except KeyError as e:
         raise ValueError("Both `ic_list_detected` and `ic_list_reference` must have a column named `ic`.") from e
     return detected, reference
+
+
+def _check_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
+    # check if input is a dataframe
+    if not isinstance(matches, pd.DataFrame):
+        raise TypeError("`matches` must be of type `pandas.DataFrame`.")
+    # check for correct columns
+    try:
+        matches = matches[["ic_id_detected", "ic_id_reference", "match_type"]]
+    except KeyError as e:
+        raise ValueError(
+            "`matches` must have columns named `ic_id_detected`, `ic_id_reference`, and `match_type`."
+        ) from e
+    # check if `match_type` column contains only valid values
+    if not matches["match_type"].isin(["tp", "fp", "fn"]).all():
+        raise ValueError("`match_type` must contain only the values 'tp', 'fp', and 'fn'.")
+    return matches
 
 
 def _sanitize_index(

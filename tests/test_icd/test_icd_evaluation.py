@@ -257,26 +257,45 @@ class TestEvaluateInitialContactList:
 
 
 class TestCalculateIcdMetrics:
+    def test_empty_input(self):
+        matches = pd.DataFrame(columns=["ic_id_detected", "ic_id_reference", "match_type"])
+        metrics = calculate_icd_performance_metrics(matches)
+        for val in metrics.values():
+            assert val == 0
+
     def test_ic_list_input(self, snapshot):
-        ic_list_detected = pd.DataFrame([10, 20, 30, 40, 50], columns=["ic"]).rename_axis("ic_id")
-        ic_list_reference = pd.DataFrame([10, 20, 40, 50, 60], columns=["ic"]).rename_axis("ic_id")
-        metrics = calculate_icd_performance_metrics(
-            ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference
+        matches = pd.DataFrame(
+            {
+                "ic_id_detected": [0, 1, 2, np.nan, 3],
+                "ic_id_reference": [0, 1, 3, 2, np.nan],
+                "match_type": ["tp", "tp", "tp", "fn", "fp"],
+            }
         )
+        metrics = calculate_icd_performance_metrics(matches)
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
 
-    def test_multiindex_ic_list_input(self, snapshot):
-        ic_list_detected = pd.DataFrame([10, 20, 30, 40], columns=["ic"]).rename_axis("ic_id")
-        ic_list_detected.index = pd.MultiIndex.from_tuples(
-            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
-        )
-        ic_list_reference = pd.DataFrame([10, 20, 40, 50], columns=["ic"]).rename_axis("ic_id")
-        ic_list_reference.index = pd.MultiIndex.from_tuples(
-            [("c", 5), ("c", 6), ("d", 7), ("d", 8)], names=["something_else", "ic_id"]
-        )
-        # multiindex warning not suppressed per default
-        with pytest.warns(Warning):
-            metrics = calculate_icd_performance_metrics(
-                ic_list_detected=ic_list_detected, ic_list_reference=ic_list_reference
+    @pytest.mark.parametrize(
+        "column_names",
+        [
+            ["ic_id_detected", "ic_id_reference", "not_match_type"],
+            ["something", "something_else", "match_type"],
+            ["not_even", "enough_columns"],
+        ],
+    )
+    def test_raise_error_on_invalid_input(self, column_names):
+        with pytest.raises(ValueError):
+            calculate_icd_performance_metrics(
+                pd.DataFrame(columns=["ic_id_detected", "ic_id_reference", "not_match_type"])
             )
-        snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
+
+    def test_raise_error_on_invalid_match_type(self):
+        with pytest.raises(ValueError):
+            calculate_icd_performance_metrics(
+                pd.DataFrame(
+                    {
+                        "ic_id_detected": [0, 1, 2, 3],
+                        "ic_id_reference": [0, 1, 3, 2],
+                        "match_type": ["tp", "tp", "tp", "fn", "not_valid"],
+                    }
+                )
+            )
