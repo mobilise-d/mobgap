@@ -207,7 +207,7 @@ class TestEvaluateInitialContactList:
     def test_input_multiindex(self, create_ic_list_default):
         ic_list_multiindex = create_ic_list_default.copy()
         ic_list_multiindex.index = pd.MultiIndex.from_tuples(
-            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
+            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "something_else"]
         )
         matches = evaluate_ic_list(ic_list_multiindex, ic_list_multiindex)
         assert np.all(matches["match_type"] == "tp")
@@ -217,20 +217,6 @@ class TestEvaluateInitialContactList:
         assert_array_equal(matches.index.to_numpy(), [0, 1, 2, 3])
         assert_array_equal(ic_list_multiindex.index.to_flat_index(), matches["ic_id_detected"].to_numpy())
         assert_array_equal(ic_list_multiindex.index.to_flat_index(), matches["ic_id_reference"].to_numpy())
-
-    def test_invalid_index_error(self, create_ic_list_default):
-        ic_list_wrong_index = create_ic_list_default.copy()
-        ic_list_wrong_index.index.name = "invalid"
-        with pytest.raises(ValueError):
-            evaluate_ic_list(ic_list_wrong_index, ic_list_wrong_index)
-
-    def test_invalid_multiindex_error(self, create_ic_list_default):
-        ic_list_wrong_index = create_ic_list_default.copy()
-        ic_list_wrong_index.index = pd.MultiIndex.from_tuples(
-            [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["invalid", "also_invalid"]
-        )
-        with pytest.raises(ValueError):
-            evaluate_ic_list(ic_list_wrong_index, ic_list_wrong_index)
 
     def test_segmented_stride_list_no_match(self, create_ic_list_default):
         detected = self._create_ic_list([15, 15, 35, 45])
