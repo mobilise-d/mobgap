@@ -188,36 +188,31 @@ print("Matched Intervals:\n\n", categorized_intervals)
 # %%
 # Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
 # and recall can be calculated.
-# For this purpose, the :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` function can be used.
+# For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_general_gsd_performance_metrics` function can be used.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
-# Furthermore, we provide similar functions for other metrics such as accuracy, specificity,
-# and negative predictive value.
 
-from gaitlink.utils.evaluation import precision_recall_f1_score
+from gaitlink.gsd.evaluation import calculate_general_gsd_performance_metrics
 
-prec_rec_f1_dict = precision_recall_f1_score(categorized_intervals)
+general_metrics_dict = calculate_general_gsd_performance_metrics(categorized_intervals)
 
-print("Performance Metrics:\n\n", prec_rec_f1_dict)
+print("Performance Metrics:\n\n", general_metrics_dict)
 
 # %%
-# To calculate not only a specific performance metric but the whole range of possible metrics that were utilized for
-# gait sequence detection in Mobilise-D, we can use the
-# :func:`~gaitlink.gsd.evaluation.calculate_gsd_performance_metrics` function.
-# It returns a dictionary containing all metrics for the specified detected and reference gait sequences. To retrieve
-# the whole range of metrics, the length and the sampling frequency of the recording are required.
-# This is used to infer the number of true negative samples and derived metrics (e.g., accuracy and specificity), and
-# to calculate the duration errors (in seconds), respectively.
+# Furthermore, there is a range of performance metrics specific for gait sequence detection algorithms utilized in
+# Mobilise-D. To calculate these Mobilise-D specific set of metrics,  we can use the
+# :func:`~gaitlink.gsd.evaluation.calculate_mobilised_gsd_performance_metrics` function.
+# It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
+# and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
 
-from gaitlink.gsd.evaluation import calculate_gsd_performance_metrics
+from gaitlink.gsd.evaluation import calculate_mobilised_gsd_performance_metrics
 
-metrics_all = calculate_gsd_performance_metrics(
-    long_trial_output.gs_list_,
-    long_trial_reference_parameters,
+mobilised_metrics_dict = calculate_mobilised_gsd_performance_metrics(
+    gsd_list_detected=long_trial_output.gs_list_,
+    gsd_list_reference=long_trial_reference_parameters,
     sampling_rate_hz=long_trial.sampling_rate_hz,
-    n_overall_samples=long_trial.data["LowerBack"].shape[0],
 )
 
-print("Performance Metrics:\n\n", metrics_all)
+print("Performance Metrics:\n\n", mobilised_metrics_dict)
 
 # %%
 # Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`. It returns all intervals from the Python
