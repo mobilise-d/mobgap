@@ -2,7 +2,11 @@ from pathlib import Path
 from typing import Optional
 
 from gaitlink import PACKAGE_ROOT
-from gaitlink.data._mobilised_matlab_loader import GenericMobilisedDataset, BaseGenericMobilisedDataset, docfiller
+from gaitlink.data._mobilised_matlab_loader import (
+    BaseGenericMobilisedDataset,
+    GenericMobilisedDataset,
+    matlab_dataset_docfiller,
+)
 
 LOCAL_EXAMPLE_PATH = PACKAGE_ROOT.parent / "example_data/"
 
@@ -60,7 +64,7 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}
 
 
-@docfiller
+@matlab_dataset_docfiller
 class LabExampleDataset(BaseGenericMobilisedDataset):
     """A dataset containing all lab example data provided with gaitlink.
 
