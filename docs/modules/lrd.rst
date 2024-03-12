@@ -14,7 +14,7 @@ Algorithms
    :toctree: generated/lrd
    :template: class.rst
 
-    LrdMcCamely
+    LrdMcCamley
 
 Base Classes
 ++++++++++++

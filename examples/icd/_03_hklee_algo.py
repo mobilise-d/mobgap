@@ -1,6 +1,6 @@
 """
 HKLee algo
-=========
+==========
 
 This example shows how to use the improved HKLee algorithm and some examples on how the results compare to the original
 matlab implementation.
