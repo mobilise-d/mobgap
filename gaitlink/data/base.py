@@ -1,4 +1,5 @@
 """Base classes for all fundamental dataset types."""
+
 from typing import Any, NamedTuple
 
 import pandas as pd
