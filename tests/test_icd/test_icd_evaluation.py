@@ -284,9 +284,7 @@ class TestCalculateIcdMetrics:
     )
     def test_raise_error_on_invalid_input(self, column_names):
         with pytest.raises(ValueError):
-            calculate_icd_performance_metrics(
-                pd.DataFrame(columns=["ic_id_detected", "ic_id_reference", "not_match_type"])
-            )
+            calculate_icd_performance_metrics(pd.DataFrame(columns=column_names))
 
     def test_raise_error_on_invalid_match_type(self):
         with pytest.raises(ValueError):
