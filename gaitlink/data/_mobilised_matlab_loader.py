@@ -54,10 +54,10 @@ matlab_dataset_docfiller = make_filldoc(
         ``reference_parameters_``.
         ``raw_reference_parameters_`` will always contain both in an unformatted way.
     """
-                                + base_gait_dataset_docfiller_dict["general_dataset_args"],
+        + base_gait_dataset_docfiller_dict["general_dataset_args"],
         "dataset_data_attrs": base_gait_dataset_docfiller_dict["common_dataset_data_attrs"]
-                              + base_gait_dataset_docfiller_dict["common_dataset_reference_attrs"]
-                              + """
+        + base_gait_dataset_docfiller_dict["common_dataset_reference_attrs"]
+        + """
     raw_reference_parameters_
         The raw reference parameters (if available).
         Check other attributes with a trailing underscore for the reference parameters converted into a more
@@ -65,9 +65,9 @@ matlab_dataset_docfiller = make_filldoc(
     metadata
         The metadata of the selected test.
     """
-                              + base_gait_dataset_docfiller_dict["dataset_classvars"],
+        + base_gait_dataset_docfiller_dict["dataset_classvars"],
         "dataset_see_also": base_gait_dataset_docfiller_dict["dataset_see_also"]
-                            + """
+        + """
     load_mobilised_matlab_format
     """,
     }

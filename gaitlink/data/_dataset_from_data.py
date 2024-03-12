@@ -66,7 +66,7 @@ class GaitDatasetFromData(BaseGaitDataset):
         index_cols: Optional[Union[list[str], str]] = None,
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
-    ):
+    ) -> None:
         self._data = _data
         self._sampling_rate_hz = _sampling_rate_hz
         self._participant_metadata = _participant_metadata
@@ -102,18 +102,14 @@ class GaitDatasetFromData(BaseGaitDataset):
 
     @property
     def _is_tuple_key(self) -> bool:
-        return isinstance(list(self._data.keys())[0], tuple)
+        return isinstance(next(iter(self._data.keys())), tuple)
 
     @property
     def _group_label_correct_format(self) -> Union[Hashable, tuple[Hashable, ...]]:
         return self.group_label if self._is_tuple_key else self.group_label[0]
 
     def create_index(self) -> pd.DataFrame:
-        if isinstance(self.index_cols, str):
-            index_cols = [self.index_cols]
-        else:
-            index_cols = self.index_cols
-
+        index_cols = [self.index_cols] if isinstance(self.index_cols, str) else self.index_cols
         return pd.DataFrame(list(self._data.keys()), columns=index_cols)
 
     @classmethod
