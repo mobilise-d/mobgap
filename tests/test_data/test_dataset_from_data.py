@@ -15,7 +15,7 @@ class TestDatasetFromData:
         assert dataset.get_subset(participant_id="p1").data["sensor1"] is data["p1"]["sensor1"]
         assert dataset.get_subset(participant_id="p1").sampling_rate_hz == sampling_rate_hz
 
-        with pytest.raises(ValueError):
+        with pytest.raises(AttributeError):
             _ = dataset.get_subset(participant_id="p1").participant_metadata
 
     def test_multi_participant_single_sensor(self):
