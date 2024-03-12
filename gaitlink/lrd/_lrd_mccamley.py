@@ -17,7 +17,7 @@ class LrdMcCamley(BaseLRDetector):
     The McCamley algorithm uses the sign of the angular velocity either yaw or roll (or a combination of both) as the
     distinguishing factor for identifying left and right ICs.
 
-    For this the respectice signal is filtered (high-pass to remove DC offset and low-pass to remove noise) and the sign
+    For this the respective signal is filtered (high-pass to remove DC offset and low-pass to remove noise) and the sign
     at the position of the IC is used to determine the laterality.
 
     The original algorithm uses the yaw signal, but Ullrich et al. [2] showed that a combination of yaw and roll signals
@@ -56,7 +56,7 @@ class LrdMcCamley(BaseLRDetector):
         trunk inertial sensor data,” Gait & posture, 2012, available at:
         https://www.sciencedirect.com/science/article/pii/S0966636212000707?via%%3Dihub
 
-    .. [2] Ullrich M, Kuderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
+    .. [2] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
         and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021,
         available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
     """
