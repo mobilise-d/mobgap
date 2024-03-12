@@ -194,7 +194,7 @@ class IcdHKLeeImproved(BaseIcDetector):
         o = grey_opening(c, size=18, mode="constant")
         r = c - o
 
-        final_detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="ic_id")
+        final_detected_ics = pd.DataFrame(columns=["ic"]).rename_axis(index="step_id")
 
         if np.any(r > 0):
             non_zero = groupfind(r > 0)

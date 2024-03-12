@@ -77,7 +77,7 @@ def load_matlab_output(datapoint):
 
     ics = {}
     for i, gs in enumerate(original_results, start=1):
-        ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="ic_id")
+        ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="step_id")
 
     return (pd.concat(ics, names=["wb_id", ics[1].index.name]) * datapoint.sampling_rate_hz).astype(int)
 

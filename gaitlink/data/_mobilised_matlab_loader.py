@@ -290,7 +290,6 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
 
             else:
                 all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
-                # TODO: Update units! acc should be ms^-2, gyr should be deg/s, mag should be uT
                 sampling_rates_obj = raw_data.Fs
                 sampling_rates.update(
                     {f"{sensor_pos}_{k}": getattr(sampling_rates_obj, k) for k in sampling_rates_obj._fieldnames}
@@ -530,8 +529,8 @@ def parse_reference_parameters(
     ics_is_na = ics["ic"].isna()
     ics = ics[~ics_is_na].drop_duplicates()
     ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype(int)
-    ics.index.name = "ic_id"
-    ics = ics.reset_index().set_index(["wb_id", "ic_id"])
+    ics.index.name = "step_id"
+    ics = ics.reset_index().set_index(["wb_id", "step_id"])
     # make left-right labels lowercase
     ics["lr_label"] = ics["lr_label"].str.lower()
 

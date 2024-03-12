@@ -6,7 +6,7 @@
                 "type":"integer"
             },
             {
-                "name":"ic_id",
+                "name":"step_id",
                 "type":"integer"
             },
             {
@@ -16,259 +16,259 @@
         ],
         "primaryKey":[
             "wb_id",
-            "ic_id"
+            "step_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":1,
-            "ic_id":0,
+            "step_id":0,
             "ic":697
         },
         {
             "wb_id":1,
-            "ic_id":1,
+            "step_id":1,
             "ic":760
         },
         {
             "wb_id":1,
-            "ic_id":2,
+            "step_id":2,
             "ic":814
         },
         {
             "wb_id":1,
-            "ic_id":3,
+            "step_id":3,
             "ic":872
         },
         {
             "wb_id":1,
-            "ic_id":4,
+            "step_id":4,
             "ic":924
         },
         {
             "wb_id":2,
-            "ic_id":0,
+            "step_id":0,
             "ic":2929
         },
         {
             "wb_id":2,
-            "ic_id":1,
+            "step_id":1,
             "ic":2989
         },
         {
             "wb_id":2,
-            "ic_id":2,
+            "step_id":2,
             "ic":3056
         },
         {
             "wb_id":2,
-            "ic_id":3,
+            "step_id":3,
             "ic":3109
         },
         {
             "wb_id":2,
-            "ic_id":4,
+            "step_id":4,
             "ic":3176
         },
         {
             "wb_id":2,
-            "ic_id":5,
+            "step_id":5,
             "ic":3264
         },
         {
             "wb_id":3,
-            "ic_id":0,
+            "step_id":0,
             "ic":3913
         },
         {
             "wb_id":3,
-            "ic_id":1,
+            "step_id":1,
             "ic":3975
         },
         {
             "wb_id":3,
-            "ic_id":2,
+            "step_id":2,
             "ic":4085
         },
         {
             "wb_id":3,
-            "ic_id":3,
+            "step_id":3,
             "ic":4141
         },
         {
             "wb_id":3,
-            "ic_id":4,
+            "step_id":4,
             "ic":4201
         },
         {
             "wb_id":3,
-            "ic_id":5,
+            "step_id":5,
             "ic":4273
         },
         {
             "wb_id":3,
-            "ic_id":6,
+            "step_id":6,
             "ic":4355
         },
         {
             "wb_id":3,
-            "ic_id":7,
+            "step_id":7,
             "ic":4488
         },
         {
             "wb_id":3,
-            "ic_id":8,
+            "step_id":8,
             "ic":4553
         },
         {
             "wb_id":3,
-            "ic_id":9,
+            "step_id":9,
             "ic":4638
         },
         {
             "wb_id":3,
-            "ic_id":10,
+            "step_id":10,
             "ic":4758
         },
         {
             "wb_id":3,
-            "ic_id":11,
+            "step_id":11,
             "ic":4815
         },
         {
             "wb_id":3,
-            "ic_id":12,
+            "step_id":12,
             "ic":4863
         },
         {
             "wb_id":3,
-            "ic_id":13,
+            "step_id":13,
             "ic":4968
         },
         {
             "wb_id":3,
-            "ic_id":14,
+            "step_id":14,
             "ic":5038
         },
         {
             "wb_id":4,
-            "ic_id":0,
+            "step_id":0,
             "ic":7739
         },
         {
             "wb_id":4,
-            "ic_id":1,
+            "step_id":1,
             "ic":7846
         },
         {
             "wb_id":4,
-            "ic_id":2,
+            "step_id":2,
             "ic":7983
         },
         {
             "wb_id":4,
-            "ic_id":3,
+            "step_id":3,
             "ic":8096
         },
         {
             "wb_id":4,
-            "ic_id":4,
+            "step_id":4,
             "ic":8166
         },
         {
             "wb_id":4,
-            "ic_id":5,
+            "step_id":5,
             "ic":8229
         },
         {
             "wb_id":4,
-            "ic_id":6,
+            "step_id":6,
             "ic":8281
         },
         {
             "wb_id":4,
-            "ic_id":7,
+            "step_id":7,
             "ic":8336
         },
         {
             "wb_id":4,
-            "ic_id":8,
+            "step_id":8,
             "ic":8399
         },
         {
             "wb_id":4,
-            "ic_id":9,
+            "step_id":9,
             "ic":8461
         },
         {
             "wb_id":4,
-            "ic_id":10,
+            "step_id":10,
             "ic":8541
         },
         {
             "wb_id":4,
-            "ic_id":11,
+            "step_id":11,
             "ic":8606
         },
         {
             "wb_id":5,
-            "ic_id":0,
+            "step_id":0,
             "ic":9531
         },
         {
             "wb_id":5,
-            "ic_id":1,
+            "step_id":1,
             "ic":9593
         },
         {
             "wb_id":5,
-            "ic_id":2,
+            "step_id":2,
             "ic":9659
         },
         {
             "wb_id":5,
-            "ic_id":3,
+            "step_id":3,
             "ic":9723
         },
         {
             "wb_id":5,
-            "ic_id":4,
+            "step_id":4,
             "ic":9791
         },
         {
             "wb_id":5,
-            "ic_id":5,
+            "step_id":5,
             "ic":9853
         },
         {
             "wb_id":6,
-            "ic_id":0,
+            "step_id":0,
             "ic":12044
         },
         {
             "wb_id":6,
-            "ic_id":1,
+            "step_id":1,
             "ic":12099
         },
         {
             "wb_id":6,
-            "ic_id":2,
+            "step_id":2,
             "ic":12157
         },
         {
             "wb_id":6,
-            "ic_id":3,
+            "step_id":3,
             "ic":12211
         },
         {
             "wb_id":6,
-            "ic_id":4,
+            "step_id":4,
             "ic":12271
         },
         {
             "wb_id":6,
-            "ic_id":5,
+            "step_id":5,
             "ic":12414
         }
     ]
