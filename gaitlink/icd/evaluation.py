@@ -23,8 +23,8 @@ def calculate_icd_performance_metrics(
     respective initial contact.
     As index, a range index, a column of unique identifiers for each initial contact, or a multiindex can be provided.
     However, the index should be suitable to uniquely identify each initial contact and must thus be unique.
-    If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
-    index groups will be possible.
+    If a multiindex is provided, the single index levels will not be regarded separately for the comparison
+    and matches across different index groups, such as walking bouts or participants, will be possible.
     If this is not the intended use case, consider grouping your input data before calling the evaluation function.
 
     The following metrics are calculated:
@@ -160,7 +160,7 @@ def evaluate_ic_list(
     reference = _sanitize_index(reference, "reference", multiindex_warning)
 
     if tolerance_samples < 0:
-        raise ValueError("`tolerance_samples` must be larger than 0.")
+        raise ValueError("`tolerance_samples` must be larger or equal to 0.")
 
     left_indices, right_indices = _match_label_lists(
         detected.to_numpy(),
@@ -222,9 +222,6 @@ def _match_label_lists(
     right_indices
         Indices from the right list that have a match in the left list.
         A valid match pair is then `(left_indices[i], right_indices[i]) for all i.
-    multiindex_warning
-        If True, a warning will be raised if the index of the input data is a MultiIndex, explaining that the index
-        levels will be ignored for the matching process.
 
     Notes
     -----
@@ -297,8 +294,9 @@ def _sanitize_index(
             # TODO: refer to possible grouping function
             warnings.warn(
                 "The index of `ic_list_{list_type}` is a MultiIndex. "
-                "Please be aware that the index levels will be ignored for the matching process, "
-                "and initial contacts might be matched across index groups. "
+                "Please be aware that the index levels will not be regarded separately for the matching process, "
+                "and initial contacts might be matched across different index groups, "
+                "such as walking bouts or participants."
                 "If this is not the intended use case for you, consider grouping your input data "
                 "before calling the evaluation function.",
                 stacklevel=2,
