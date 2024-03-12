@@ -1,13 +1,13 @@
 from tpcp import OptimizablePipeline, OptimizableParameter
 from tpcp.optimize import GridSearchCV
-from gaitlink.lrml._utils import extract_ref_data
-from gaitlink.lrml import UllrichLRDetection
+from mobgap.lrd._utils import extract_ref_data
+from mobgap.lrd import LrdUllrich
 
 
-
+# TODO: this might be removed in the future, but I think it makes life easier, as people might not be familiar with tpcp.
 class UllrichLROptimizer():
     """
-    This class is used to optimize the parameters of a UllrichLRDetection pipeline using GridSearchCV.
+    This class is used to optimize the parameters of a LrdUllrich pipeline using GridSearchCV.
     """
     def __init__(self, pipeline, parameter_grid, cross_val_splits = 2):
         """
@@ -35,6 +35,9 @@ class UllrichLROptimizer():
         Returns:
             dict: The results of the optimization.
         """
+        # Ensure the dataset has been normalised before running the pipeline.
+        if not hasattr(self.pipeline.algo.scaler, 'scale_'):
+            raise RuntimeError("Model not fit. Call pipeline.self_optimize on your dataset before running the optimization.")
 
         self.optimization_results = GridSearchCV(self.pipeline,
                                     self.parameter_grid,
@@ -51,17 +54,17 @@ class LROptiPipeline(OptimizablePipeline):
     # This is a trick we use internally to check that the optimization is not doing something strange.
     # Only the model is allowed to change. If other things change, we get an error by default.
     """
-    This class represents a pipeline for UllrichLRDetection that can be optimized.
+    This class represents a pipeline for LrdUllrich that can be optimized.
     """
     algo__model: OptimizableParameter
-    algo_with_results_: list[UllrichLRDetection]
+    algo_with_results_: list[LrdUllrich]
 
     def __init__(self, algo):
         """
         Initializes the pipeline with an algorithm.
 
         Args:
-            algo (UllrichLRDetection): The algorithm to use in the pipeline.
+            algo (LrdUllrich): The algorithm to use in the pipeline.
         """
         self.algo = algo
         
@@ -72,11 +75,11 @@ class LROptiPipeline(OptimizablePipeline):
         Returns the IC_LR results of the algorithm.
 
         Returns:
-            List of pd.DataFrame: The IC_LR results. <- THIS WILL NEED TO BE CHANGED.
+            List of pd.DataFrame: the predicted L/R labels.
         """
 
         # unpack the predictions from self.algo_with_results_
-        return [prediction_per_gs.ic_lr for prediction_per_gs in self.algo_with_results_]
+        return [prediction_per_gs.ic_lr_list_["lr_label"] for prediction_per_gs in self.algo_with_results_]
     
     def run(self, datapoint):
         """
@@ -86,18 +89,20 @@ class LROptiPipeline(OptimizablePipeline):
             datapoint (gaitlink.data._example_data.LabExampleDataset): The datapoint to run the pipeline on.
 
         Returns:
-            UllrichLRDetection: The algorithm with results.
+            LrdUllrich: The algorithm with results.
         """
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        # Firstly, we need to extract the data_list and ic_list from the datapoint. Note, that datapoint can contain multiple GSs.
-        # We can use the extract_ref_data utility function for this.
+        # Extract data_list and ic_list from the datapoint using the extract_ref_data utility function
+        # Note that datapoint can contain multiple GSs.
         data_list, ic_list, _ = extract_ref_data(datapoint)
 
-        self.algo_with_results_ = []
-        # TODO: add a loop to handle multiple GS.
-        for gs in range(len(data_list)):
-            self.algo_with_results_.append(self.algo.clone().detect(data_list[gs], ic_list[gs], sampling_rate_hz))
+        # Ensure the dataset has been normalised before running the pipeline.
+        if not hasattr(self.algo.scaler, 'scale_'):
+            raise RuntimeError("Model not fit. Call pipeline.self_optimize on your dataset before running the pipeline.")
+
+        # Run detection for each GS
+        self.algo_with_results_ = [self.algo.clone().detect(data, ic, sampling_rate_hz = sampling_rate_hz) for data, ic in zip(data_list, ic_list)]
         
         return self
     
@@ -108,31 +113,23 @@ class LROptiPipeline(OptimizablePipeline):
         This method extracts the data_list, ic_list, and label_list from each datapoint in the dataset, and then calls the self_optimize method of the algorithm with these lists.
 
         Args:
-            dataset (gaitlink.data._example_data.LabExampleDataset): The dataset to fit the algorithm to. Each element of the list is a datapoint.
+            dataset: The dataset to fit the algorithm to.
 
         Returns:
             LROptiPipeline: The pipeline itself. This allows for method chaining.
         """
-        all_gs_data = []
-        all_ics = []
-        all_labels = []
+        all_gs_data, all_ics, all_labels = [], [], []
 
         for datapoint in dataset:
-            
-            # TODO: this is a temporary fix, as HA, with participant_id = 002 (TimeMeasure1, Test5, Trial1) is problematic
-            try:
-                data_list, ic_list, label_list = extract_ref_data(datapoint)
+            data_list, ic_list, label_list = extract_ref_data(datapoint)
+            all_gs_data.extend(data_list)
+            all_ics.extend(ic_list)
+            all_labels.extend(label_list)
 
-                all_gs_data.extend(data_list)
-                all_ics.extend(ic_list)
-                all_labels.extend(label_list)
-            except:
-                pass
+        sampling_rate_hz = dataset[0].sampling_rate_hz
         
-        # No cloning here -> we actually want to modify the object
-        # this is also going to fit the model and the scaler to the training data.
-        self.algo.self_optimize(all_gs_data, all_ics, all_labels)
-
-        # TODO: We should think of a better method to catch any scalers that were not fit to the training data before the optimizer is triggered.
+        # Fit the model and the scaler to the training data
+        # Note: there is no cloning here -> we actually want to modify the object
+        self.algo.self_optimize(all_gs_data, all_ics, all_labels, sampling_rate_hz = sampling_rate_hz)
 
         return self
