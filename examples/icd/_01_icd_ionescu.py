@@ -121,12 +121,12 @@ plt.show()
 #
 # The :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function will "ignore" the multiindex
 # by default and will potentially match initial contacts across different walking bouts.
-# This can be useful if the walking bouts between the two compared systems are not identical or the multinindex has
+# This can be useful if the walking bouts between the two compared systems are not identical or the multiindex has
 # other columns that should not be taken into account for the matching.
 #
 # However, in our case, we used the WBs from the reference system to iterate over the data and apply the algorithm.
 # This means we have exactly the same WBs and only want to match ICs within the same WB.
-# For this we use the `~gaitlink.utils.array_handling.create_multi_groupby` helper to apply the matiching func to each
+# For this we use the `~gaitlink.utils.array_handling.create_multi_groupby` helper to apply the matching func to each
 # WB separately.
 # We also set the `multiindex_warning` parameter to `False` to suppress the warning that is otherwise raised informing
 # users about this potential "foot-gun".
