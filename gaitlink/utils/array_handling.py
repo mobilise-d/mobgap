@@ -73,9 +73,9 @@ def _loc_with_empty_fallback(df: pd.DataFrame, name: Any) -> pd.DataFrame:
 
 
 class MultiGroupBy:
-    """Object representing the grouping result of multiple Dfs.
+    """Object representing the grouping result of multiple dataframes.
 
-    This is used as proxy object to allow a somewhat similar API to the normal pandas groupby object, but allowing
+    This is used as proxy object to replicate an API similar to the normal pandas groupy object, but allowing
     to group multiple dataframes by the same index levels to apply a function to each group across all dataframes.
 
     See :func:`~create_multi_groupby` for the creation of this object.
@@ -102,7 +102,7 @@ class MultiGroupBy:
         # index levels.
         primary_index_cols = primary_df.index.names
         if not set(self.groupby).issubset(primary_index_cols):
-            raise ValueError("All index_level_names need to be in the index of all dataframes.")
+            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
         primary_index_cols_reorderd = [
             *self.groupby,
             *[col for col in primary_index_cols if col not in groupby],
