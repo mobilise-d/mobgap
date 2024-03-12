@@ -17,6 +17,7 @@ from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
 # Loading data
 # ------------
 # .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+#
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP output for initial contacts ("ic") as ground truth.
 
