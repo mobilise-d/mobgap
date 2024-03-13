@@ -67,9 +67,9 @@ def calculate_icd_performance_metrics(
 
 
 def evaluate_ic_list(
+    *,
     ic_list_detected: pd.DataFrame,
     ic_list_reference: pd.DataFrame,
-    *,
     tolerance_samples: Union[int, float] = 0,
     multiindex_warning: bool = True,
 ) -> pd.DataFrame:
@@ -111,14 +111,13 @@ def evaluate_ic_list(
     -------
     matches
         A 3 column dataframe with the column names `ic_id_detected`,
-        `ic_id_reference`, and `match_type`. If the index of an input is unnamed,
-        it will be named as `ic_id`.
+        `ic_id_reference`, and `match_type`.
         Each row is a match containing the index value of the detected and the reference list, that belong together,
         or a tuple of index values in case of a multiindex input.
         The `match_type` column indicates the type of match.
         For all initial contacts that have a match in the reference list, this will be "tp" (true positive).
         Initial contacts that do not have a match will be mapped to a NaN and the match-type will be "fp" (false
-        positives)
+        positive).
         All reference initial contacts that do not have a counterpart in the detected list
         are marked as "fn" (false negative).
 
