@@ -117,7 +117,7 @@ class TestEvaluateInitialContactList:
 
     def test_input_no_df_error(self):
         with pytest.raises(TypeError):
-            evaluate_ic_list([1], [1])
+            evaluate_ic_list(ic_list_detected=[1], ic_list_reference=[1])
 
     def test_input_wrong_cols_error(self, create_ic_list_default):
         wrong_cols = pd.DataFrame([1, 2, 3, 4], columns=["wrong"])
@@ -284,6 +284,10 @@ class TestCalculateIcdMetrics:
         metrics = calculate_icd_performance_metrics(matches)
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
 
+    def test_raise_error_on_invalid_input(self):
+        with pytest.raises(TypeError):
+            calculate_icd_performance_metrics([1, 2, 3])
+
     @pytest.mark.parametrize(
         "column_names",
         [
@@ -292,7 +296,7 @@ class TestCalculateIcdMetrics:
             ["not_even", "enough_columns"],
         ],
     )
-    def test_raise_error_on_invalid_input(self, column_names):
+    def test_raise_error_on_invalid_columns(self, column_names):
         with pytest.raises(ValueError):
             calculate_icd_performance_metrics(pd.DataFrame(columns=column_names))
 
@@ -301,8 +305,8 @@ class TestCalculateIcdMetrics:
             calculate_icd_performance_metrics(
                 pd.DataFrame(
                     {
-                        "ic_id_detected": [0, 1, 2, 3],
-                        "ic_id_reference": [0, 1, 3, 2],
+                        "ic_id_detected": [0, 1, 2, 3, 4],
+                        "ic_id_reference": [0, 1, 3, 2, 4],
                         "match_type": ["tp", "tp", "tp", "fn", "not_valid"],
                     }
                 )
