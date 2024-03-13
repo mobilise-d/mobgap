@@ -38,12 +38,12 @@
     "data":[
         {
             "index":0,
-            "tp_samples":4848,
-            "fp_samples":1769,
-            "fn_samples":1701,
-            "precision":0.7326583044,
-            "recall":0.7402656894,
-            "f1_score":0.7364423515
+            "tp_samples":4852,
+            "fp_samples":1770,
+            "fn_samples":1703,
+            "precision":0.7327091513,
+            "recall":0.7401983219,
+            "f1_score":0.7364346968
         }
     ]
 }
