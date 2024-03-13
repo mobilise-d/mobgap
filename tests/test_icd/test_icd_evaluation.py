@@ -111,7 +111,9 @@ class TestEvaluateInitialContactList:
 
     def test_invalid_tolerance_error(self, create_ic_list_default):
         with pytest.raises(ValueError):
-            evaluate_ic_list(create_ic_list_default, create_ic_list_default, tolerance_samples=-1)
+            evaluate_ic_list(
+                ic_list_detected=create_ic_list_default, ic_list_reference=create_ic_list_default, tolerance_samples=-1
+            )
 
     def test_input_no_df_error(self):
         with pytest.raises(TypeError):
@@ -120,16 +122,16 @@ class TestEvaluateInitialContactList:
     def test_input_wrong_cols_error(self, create_ic_list_default):
         wrong_cols = pd.DataFrame([1, 2, 3, 4], columns=["wrong"])
         with pytest.raises(ValueError):
-            evaluate_ic_list(create_ic_list_default, wrong_cols)
+            evaluate_ic_list(ic_list_detected=create_ic_list_default, ic_list_reference=wrong_cols)
         with pytest.raises(ValueError):
-            evaluate_ic_list(wrong_cols, create_ic_list_default)
+            evaluate_ic_list(ic_list_detected=wrong_cols, ic_list_reference=create_ic_list_default)
 
     def test_input_index_not_unique(self, create_ic_list_default):
         wrong_index = pd.DataFrame([1, 2, 3, 4], columns=["ic"], index=[1, 1, 2, 3])
         with pytest.raises(ValueError):
-            evaluate_ic_list(create_ic_list_default, wrong_index)
+            evaluate_ic_list(ic_list_detected=create_ic_list_default, ic_list_reference=wrong_index)
         with pytest.raises(ValueError):
-            evaluate_ic_list(wrong_index, create_ic_list_default)
+            evaluate_ic_list(ic_list_detected=wrong_index, ic_list_reference=create_ic_list_default)
 
     def test_input_multiindex_warning(self, create_ic_list_default):
         multiindex = create_ic_list_default.copy()
@@ -137,11 +139,11 @@ class TestEvaluateInitialContactList:
             [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
         )
         with pytest.warns(Warning):
-            evaluate_ic_list(multiindex, create_ic_list_default)
+            evaluate_ic_list(ic_list_detected=multiindex, ic_list_reference=create_ic_list_default)
         with pytest.warns(Warning):
-            evaluate_ic_list(create_ic_list_default, multiindex)
+            evaluate_ic_list(ic_list_detected=create_ic_list_default, ic_list_reference=multiindex)
         with pytest.warns(Warning):
-            evaluate_ic_list(multiindex, multiindex)
+            evaluate_ic_list(ic_list_detected=multiindex, ic_list_reference=multiindex)
 
     def test_input_multiindex_warning_suppressed(self, create_ic_list_default):
         multiindex = create_ic_list_default.copy()
@@ -149,35 +151,41 @@ class TestEvaluateInitialContactList:
             [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
         )
         with pytest.warns(None) as record:
-            evaluate_ic_list(multiindex, create_ic_list_default, multiindex_warning=False)
+            evaluate_ic_list(
+                ic_list_detected=multiindex, ic_list_reference=create_ic_list_default, multiindex_warning=False
+            )
             assert len(record) == 0
         with pytest.warns(None) as record:
-            evaluate_ic_list(create_ic_list_default, multiindex, multiindex_warning=False)
+            evaluate_ic_list(
+                ic_list_detected=create_ic_list_default, ic_list_reference=multiindex, multiindex_warning=False
+            )
             assert len(record) == 0
         with pytest.warns(None) as record:
-            evaluate_ic_list(multiindex, multiindex, multiindex_warning=False)
+            evaluate_ic_list(ic_list_detected=multiindex, ic_list_reference=multiindex, multiindex_warning=False)
             assert len(record) == 0
 
     def test_perfect_match(self, create_ic_list_default):
-        matches = evaluate_ic_list(create_ic_list_default, create_ic_list_default)
+        matches = evaluate_ic_list(ic_list_detected=create_ic_list_default, ic_list_reference=create_ic_list_default)
         assert np.all(matches["match_type"] == "tp")
         assert len(matches["match_type"] == "tp") == len(create_ic_list_default)
 
     def test_empty_reference(self, create_ic_list_default):
         reference = self._create_ic_list([])
-        matches = evaluate_ic_list(create_ic_list_default, reference)
+        matches = evaluate_ic_list(ic_list_detected=create_ic_list_default, ic_list_reference=reference)
         assert np.all(matches["match_type"] == "fp")
         assert len(matches["match_type"] == "fp") == len(create_ic_list_default)
 
     def test_empty_detected(self, create_ic_list_default):
         detected = self._create_ic_list([])
-        matches = evaluate_ic_list(detected, create_ic_list_default)
+        matches = evaluate_ic_list(ic_list_detected=detected, ic_list_reference=create_ic_list_default)
         assert np.all(matches["match_type"] == "fn")
         assert len(matches["match_type"] == "fn") == len(create_ic_list_default)
 
     def test_with_matches(self, create_ic_list_default):
         list_detected = self._create_ic_list([11, 22, 39, 45])
-        matches = evaluate_ic_list(list_detected, create_ic_list_default, tolerance_samples=1)
+        matches = evaluate_ic_list(
+            ic_list_detected=list_detected, ic_list_reference=create_ic_list_default, tolerance_samples=1
+        )
         assert_array_equal(matches.query("match_type == 'tp'")["ic_id_detected"].to_numpy(), [0, 2])
         assert_array_equal(matches.query("match_type == 'tp'")["ic_id_reference"].to_numpy(), [0, 2])
 
@@ -197,7 +205,7 @@ class TestEvaluateInitialContactList:
 
     def test_input_range_index(self, create_ic_list_default):
         ic_list_range_index = create_ic_list_default.reset_index()
-        matches = evaluate_ic_list(ic_list_range_index, ic_list_range_index)
+        matches = evaluate_ic_list(ic_list_detected=ic_list_range_index, ic_list_reference=ic_list_range_index)
         assert np.all(matches["match_type"] == "tp")
         assert len(matches["match_type"] == "tp") == len(create_ic_list_default)
         assert_array_equal(matches.columns.to_numpy(), ["ic_id_detected", "ic_id_reference", "match_type"])
@@ -209,7 +217,7 @@ class TestEvaluateInitialContactList:
         ic_list_multiindex.index = pd.MultiIndex.from_tuples(
             [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "something_else"]
         )
-        matches = evaluate_ic_list(ic_list_multiindex, ic_list_multiindex)
+        matches = evaluate_ic_list(ic_list_detected=ic_list_multiindex, ic_list_reference=ic_list_multiindex)
         assert np.all(matches["match_type"] == "tp")
         assert len(matches["match_type"] == "tp") == len(create_ic_list_default)
         assert_array_equal(matches.columns.to_numpy(), ["ic_id_detected", "ic_id_reference", "match_type"])
@@ -220,7 +228,9 @@ class TestEvaluateInitialContactList:
 
     def test_segmented_stride_list_no_match(self, create_ic_list_default):
         detected = self._create_ic_list([15, 15, 35, 45])
-        matches = evaluate_ic_list(detected, create_ic_list_default, tolerance_samples=4)
+        matches = evaluate_ic_list(
+            ic_list_detected=detected, ic_list_reference=create_ic_list_default, tolerance_samples=4
+        )
         assert matches.query("match_type == 'tp'").empty
 
         assert_array_equal(
@@ -243,7 +253,7 @@ class TestEvaluateInitialContactList:
         reference = self._create_ic_list([20])
         detected = self._create_ic_list([18, 22])
 
-        matches = evaluate_ic_list(detected, reference, tolerance_samples=2)
+        matches = evaluate_ic_list(ic_list_detected=detected, ic_list_reference=reference, tolerance_samples=2)
 
         assert_array_equal(matches.query("match_type == 'tp'")["ic_id_detected"].to_numpy(), [0])
         assert_array_equal(matches.query("match_type == 'tp'")["ic_id_reference"].to_numpy(), [0])
