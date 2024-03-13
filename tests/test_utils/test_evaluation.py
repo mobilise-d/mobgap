@@ -244,7 +244,7 @@ class TestUnsupportedInputError:
     )
     def test_unsupported_input_error(self, fct):
         matches_df = pd.DataFrame(columns=["something", "something_else", "match_type"])
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError):
             fct(matches_df)
 
 

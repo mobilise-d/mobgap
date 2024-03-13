@@ -21,14 +21,15 @@ from gaitlink.utils.evaluation import (
 )
 
 
-def calculate_general_gsd_performance_metrics(
+def calculate_matched_gsd_performance_metrics(
     matches: pd.DataFrame,
 ) -> dict[str, Union[float, int]]:
     """
     Calculate commonly known performance metrics for gait sequence detection results.
 
-    As these metrics are purely based on the number of true positives, false positives, false negatives,
-    and (optionally) true negatives, they only require the dataframes of categorized intervals as input.
+    These metrics are purely based on the number of true positive, false positive, false negative,
+    and (optionally) true negative matches between detected and reference.
+    Therefore, they only require the dataframe of categorized intervals as input.
     This dataframe is retrieved from the function :func:`~gaitlink.gsd.evaluation.categorize_intervals`.
     The detected and reference dataframes are expected to have columns named "start" and "end" containing the
     start and end indices of the respective gait sequences.
@@ -67,7 +68,7 @@ def calculate_general_gsd_performance_metrics(
     Note
     ----
     To calculate the mobilised-specific set of gait sequence detection metrics,
-    use the :func:`~gaitlink.gsd.evaluation.calculate_mobilised_gsd_performance_metrics` function.
+    use the :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics` function.
     As those metrics are not based on the number of tp/fp/tn/fn samples,
     it requires to the detected and reference gait sequence lists
     as well as the sampling rate of the recording as input.
@@ -98,14 +99,15 @@ def calculate_general_gsd_performance_metrics(
     return gsd_metrics
 
 
-def calculate_mobilised_gsd_performance_metrics(
+def calculate_unmatched_gsd_performance_metrics(
     *,
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
 ) -> dict[str, Union[float, int]]:
     """
-    Calculate mobilised-specific performance metrics for gait sequence detection results.
+    Calculate performance metrics for gait sequence detection results that can be inferred from the detected
+    and reference gait sequence lists without actually matching the intervals.
 
     The detected and reference dataframes are expected to have columns named "start" and "end" containing the
     start and end indices of the respective gait sequences.
@@ -492,7 +494,7 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
 __all__ = [
     "categorize_intervals",
     "find_matches_with_min_overlap",
-    "calculate_general_gsd_performance_metrics",
-    "calculate_mobilised_gsd_performance_metrics",
+    "calculate_matched_gsd_performance_metrics",
+    "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
 ]

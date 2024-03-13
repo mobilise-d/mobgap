@@ -50,4 +50,4 @@ Evaluation
    :template: func.rst
 
     calculate_icd_performance_metrics
-    evaluate_ic_list
+    categorize_ic_list

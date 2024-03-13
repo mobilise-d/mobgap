@@ -41,7 +41,7 @@ def precision_recall_f1_score(
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
         (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~gaitlink.icd.evaluation.evaluate_ic_list`).
+        (results from :func:`~gaitlink.icd.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,
@@ -86,7 +86,7 @@ def precision_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
         (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~gaitlink.icd.evaluation.evaluate_ic_list`).
+        (results from :func:`~gaitlink.icd.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,
@@ -111,7 +111,7 @@ def precision_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 
         tp = len(matches_df[matches_df["match_type"] == "tp"])
         fp = len(matches_df[matches_df["match_type"] == "fp"])
     else:
-        raise NotImplementedError(
+        raise ValueError(
             "Only gait sequence detection match dataframes (mandatory columns 'start', "
             "'end', and 'match_type'), or initial contact detection match dataframes "
             "(mandatory columns 'ic_id_detected', 'ic_id_reference', and 'match_type') "
@@ -140,7 +140,7 @@ def recall_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
         (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~gaitlink.icd.evaluation.evaluate_ic_list`).
+        (results from :func:`~gaitlink.icd.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,
@@ -165,7 +165,7 @@ def recall_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 
         tp = len(matches_df[matches_df["match_type"] == "tp"])
         fn = len(matches_df[matches_df["match_type"] == "fn"])
     else:
-        raise NotImplementedError(
+        raise ValueError(
             "Only gait sequence detection match dataframes (mandatory columns 'start', "
             "'end', and 'match_type'), or initial contact detection match dataframes "
             "(mandatory columns 'ic_id_detected', 'ic_id_reference', and 'match_type') "
@@ -197,17 +197,14 @@ def specificity_score(
     ----------
     matches_df
         A 3 column dataframe.
-        Currently supported are dataframes are resulting either from the evaluation of gait sequence detection
-        algorithms (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
+        Currently supported are dataframes resulting from the evaluation of gait sequence detection
+        algorithms (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         The `match_type` column indicates the type of match:
         "tp" (true positive), "fp" (false positives), "fn" (false negative), or "tn" (true negative), if no segmented
         counterpart exists. If the `matches_df` does not contain `tn` matches, the number of overall samples in the
         recording needs to be provided as `n_overall_samples`.
-        Initial contact detection evaluation dataframes
-        (with the columns "ic_id_detected", "ic_id_reference", "match_type") are rejected for this metric as the
-        percentage of true negatives outweighs all other match types and thus the specificity score is not meaningful.
     n_overall_samples: Union[int, None]
         Number of overall samples. Must be provided if the `matches_df` does not contain `tn` matches.
         Needs to be kept as `None` if the `matches_df` contains `tn` matches.
@@ -222,18 +219,24 @@ def specificity_score(
     -------
     specificity_score: float
         Value between 0 and 1.
+
+    Notes
+    -----
+    Initial contact detection evaluation dataframes
+    (with the columns "ic_id_detected", "ic_id_reference", "match_type") are rejected for this metric as the
+    percentage of true negatives outweighs all other match types and thus the specificity score is not meaningful.
     """
     if _input_is_gsd_matches_df(matches_df):
         fp = count_samples_in_match_intervals(matches_df, "fp")
         tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     elif _input_is_icd_matches_df(matches_df):
         raise ValueError(
-            "The specificity score is not a meaningful metric for initial contact detection "
+            "The sample-wise specificity score is not a meaningful metric for initial contact detection "
             "match dataframes, as the number of true negatives always outweighs the number of "
             "false positives."
         )
     else:
-        raise NotImplementedError(
+        raise ValueError(
             "Only gait sequence detection match dataframes with the mandatory columns 'start', "
             "'end', and 'match_type' are supported as valid input at the moment."
         )
@@ -262,17 +265,14 @@ def accuracy_score(
     ----------
     matches_df
         A 3 column dataframe.
-        Currently supported are dataframes are resulting either from the evaluation of gait sequence detection
-        algorithms (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
+        Currently supported are dataframes resulting from the evaluation of gait sequence detection
+        algorithms (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         The `match_type` column indicates the type of match:
         "tp" (true positive), "fp" (false positives), "fn" (false negative), or "tn" (true negative), if no segmented
         counterpart exists. If the `matches_df` does not contain `tn` matches, the number of overall samples in the
         recording needs to be provided as `n_overall_samples`.
-        Initial contact detection evaluation dataframes
-        (with the columns "ic_id_detected", "ic_id_reference", "match_type") are rejected for this metric as the
-        percentage of true negatives outweighs all other match types and thus the accuracy score is not meaningful.
     n_overall_samples: Union[int, None]
         Number of overall samples. Must be provided if the `matches_df` does not contain `tn` matches.
         Needs to be kept as `None` if the `matches_df` contains `tn` matches.
@@ -287,6 +287,12 @@ def accuracy_score(
     -------
     accuracy_score: float
         Value between 0 and 1.
+
+    Notes
+    -----
+    Initial contact detection evaluation dataframes
+    (with the columns "ic_id_detected", "ic_id_reference", "match_type") are rejected for this metric as the
+    percentage of true negatives outweighs all other match types and thus the accuracy score is not meaningful.
     """
     if _input_is_gsd_matches_df(matches_df):
         tp = count_samples_in_match_intervals(matches_df, "tp")
@@ -295,12 +301,12 @@ def accuracy_score(
         tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     elif _input_is_icd_matches_df(matches_df):
         raise ValueError(
-            "The accuracy score is not a meaningful metric for initial contact detection match dataframes,"
+            "The sample-wise accuracy score is not a meaningful metric for initial contact detection match dataframes,"
             " as the number of true negatives always outweighs the number of false negatives, "
             "false positives, and true positives."
         )
     else:
-        raise NotImplementedError(
+        raise ValueError(
             "Only gait sequence detection match dataframes with the mandatory columns 'start', "
             "'end', and 'match_type' are supported as valid input at the moment."
         )
@@ -329,17 +335,14 @@ def npv_score(
     ----------
     matches_df
         A 3 column dataframe.
-        Currently supported are dataframes are resulting either from the evaluation of gait sequence detection
-        algorithms (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
+        Currently supported are dataframes resulting from the evaluation of gait sequence detection
+        algorithms (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         The `match_type` column indicates the type of match:
         "tp" (true positive), "fp" (false positives), "fn" (false negative), or "tn" (true negative), if no segmented
         counterpart exists. If the `matches_df` does not contain `tn` matches, the number of overall samples in the
         recording needs to be provided as `n_overall_samples`.
-        Initial contact detection evaluation dataframes
-        (with the columns "ic_id_detected", "ic_id_reference", "match_type") are rejected for this metric as the
-        percentage of true negatives outweighs all other match types and thus the NPV score is not meaningful.
     n_overall_samples: Union[int, None]
         Number of overall samples. Must be provided if the `matches_df` does not contain `tn` matches.
         Needs to be kept as `None` if the `matches_df` contains `tn` matches.
@@ -354,17 +357,23 @@ def npv_score(
     -------
     npv_score: float
         Value between 0 and 1.
+
+    Notes
+    -----
+    Initial contact detection evaluation dataframes
+    (with the columns "ic_id_detected", "ic_id_reference", "match_type") are rejected for this metric as the
+    percentage of true negatives outweighs all other match types and thus the NPV score is not meaningful.
     """
     if _input_is_gsd_matches_df(matches_df):
         fn = count_samples_in_match_intervals(matches_df, "fn")
         tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     elif _input_is_icd_matches_df(matches_df):
         raise ValueError(
-            "The NPV score is not a meaningful metric for initial contact detection match dataframes, as "
+            "The sample-wise NPV score is not a meaningful metric for initial contact detection match dataframes, as "
             "the number of true negatives always outweighs the number of false negatives."
         )
     else:
-        raise NotImplementedError(
+        raise ValueError(
             "Only gait sequence detection match dataframes with the mandatory columns 'start', "
             "'end', and 'match_type' are supported as valid input at the moment."
         )
@@ -390,7 +399,7 @@ def f1_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] =
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
         (results from :func:`~gaitlink.gsd.evaluation.categorize_intervals`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~gaitlink.icd.evaluation.evaluate_ic_list`).
+        (results from :func:`~gaitlink.icd.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,

@@ -190,25 +190,25 @@ print("Matched Intervals:\n\n", categorized_intervals)
 # %%
 # Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
 # and recall can be calculated.
-# For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_general_gsd_performance_metrics` function can be used.
+# For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
 
-from gaitlink.gsd.evaluation import calculate_general_gsd_performance_metrics
+from gaitlink.gsd.evaluation import calculate_matched_gsd_performance_metrics
 
-general_metrics_dict = calculate_general_gsd_performance_metrics(categorized_intervals)
+general_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
 
 print("Performance Metrics:\n\n", general_metrics_dict)
 
 # %%
 # Furthermore, there is a range of performance metrics specific for gait sequence detection algorithms utilized in
 # Mobilise-D. To calculate these Mobilise-D specific set of metrics,  we can use the
-# :func:`~gaitlink.gsd.evaluation.calculate_mobilised_gsd_performance_metrics` function.
+# :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics` function.
 # It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
 # and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
 
-from gaitlink.gsd.evaluation import calculate_mobilised_gsd_performance_metrics
+from gaitlink.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
 
-mobilised_metrics_dict = calculate_mobilised_gsd_performance_metrics(
+mobilised_metrics_dict = calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected=long_trial_output.gs_list_,
     gsd_list_reference=long_trial_reference_parameters,
     sampling_rate_hz=long_trial.sampling_rate_hz,
