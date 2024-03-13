@@ -15,8 +15,9 @@ from gaitlink.pipeline import GsIterator
 # %%
 # Loading some example data
 # -------------------------
-# First, we load example data and apply the ICD Ionescu algorithm to it. To have a reference to compare the results to,
-# we also load the correcponding ground truth data.
+# First, we load example data and apply the ICD Ionescu algorithm to it.
+# However, you can use any other ICD algorithm as well.
+# To have a reference to compare the results to, we also load the corresponding ground truth data.
 # These steps are explained in more detail in the :ref:`ICD Ionescu example <icd_ionescu>`.
 
 
@@ -57,9 +58,9 @@ reference_ics = load_reference(wb_data)
 # Let's quantify how the algorithm output compares to the reference labels.
 # On the one hand, to gain a detailed insight into the performance of the algorithm,
 # we can look into the individual matches between the detected and reference initial contacts.
-# To do this, we use the :func:`~gaitlink.icd.evaluation.evaluate_ic_list` function to compare the detected
+# To do this, we use the :func:`~gaitlink.icd.evaluation.categorize_ic_list` function to compare the detected
 # ICs to the ground truth ICs.
-# The :func:`~gaitlink.icd.evaluation.evaluate_ic_list` function will "ignore" the multiindex
+# The :func:`~gaitlink.icd.evaluation.categorize_ic_list` function will "ignore" the multiindex
 # by default and will potentially match initial contacts across different walking bouts.
 # This can be useful if the walking bouts between the two compared systems are not identical or the multiindex has
 # other columns that should not be taken into account for the matching.
@@ -73,16 +74,21 @@ reference_ics = load_reference(wb_data)
 #
 # With the `tolerance_samples` parameter, we can specify the maximum allowed deviation in samples.
 # Consequently, the tolerance parameter should be chosen with respect to the sampling rate of the data.
-# In this case, it is set to 20 samples, which corresponds to 200 ms.
+# In this case, it is set to 200 ms (=0.2s). This needs to be converted to samples, which is done using the
+# sampling rate of the data and the :func:`~gaitlink.utils.conversions.as_samples` function.
 # As our data includes multiple walking bouts and the detected initial contacts within these walking bouts,
 # it has a multiindex with two levels to indicate that.
 
-from gaitlink.icd.evaluation import evaluate_ic_list
+from gaitlink.icd.evaluation import categorize_ic_list
 from gaitlink.utils.array_handling import create_multi_groupby
+from gaitlink.utils.conversions import as_samples
+
+tolerance_seconds = 0.2
+tolerance_samples = as_samples(tolerance_seconds, wb_data.sampling_rate_hz)
 
 matches = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"]).apply(
-    lambda df1, df2: evaluate_ic_list(
-        ic_list_detected=df1, ic_list_reference=df2, tolerance_samples=20, multiindex_warning=False
+    lambda df1, df2: categorize_ic_list(
+        ic_list_detected=df1, ic_list_reference=df2, tolerance_samples=tolerance_samples, multiindex_warning=False
     )
 )
 

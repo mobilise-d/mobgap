@@ -66,7 +66,7 @@ def calculate_icd_performance_metrics(
     return icd_metrics
 
 
-def evaluate_ic_list(
+def categorize_ic_list(
     *,
     ic_list_detected: pd.DataFrame,
     ic_list_reference: pd.DataFrame,
@@ -131,7 +131,7 @@ def evaluate_ic_list(
     --------
     >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("ic_id")
     >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("ic_id")
-    >>> result = evaluate_ic_list(ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance_samples=2)
+    >>> result = categorize_ic_list(ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance_samples=2)
     >>> result
       ic_id_detected ic_id_reference match_type
     0    0                 0         tp

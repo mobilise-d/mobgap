@@ -48,8 +48,8 @@ Evaluation
    :toctree: generated/gsd
    :template: func.rst
 
-    calculate_general_gsd_performance_metrics
-    calculate_mobilised_gsd_performance_metrics
+    calculate_matched_gsd_performance_metrics
+    calculate_unmatched_gsd_performance_metrics
     categorize_intervals
     find_matches_with_min_overlap
     plot_categorized_intervals

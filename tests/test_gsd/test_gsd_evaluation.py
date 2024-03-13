@@ -5,8 +5,8 @@ from pandas._testing import assert_frame_equal
 
 from gaitlink.gsd.evaluation import (
     _get_tn_intervals,
-    calculate_general_gsd_performance_metrics,
-    calculate_mobilised_gsd_performance_metrics,
+    calculate_matched_gsd_performance_metrics,
+    calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
     find_matches_with_min_overlap,
 )
@@ -412,11 +412,11 @@ class TestGetTnIntervals:
 
 
 class TestGeneralGsdPerformanceMetrics:
-    """Tests for calculate_general_gsd_performance_metrics method for gsd validation."""
+    """Tests for calculate_matched_gsd_performance_metrics method for gsd validation."""
 
     def test_raise_type_error_no_df(self, intervals_example):
         with pytest.raises(TypeError):
-            calculate_general_gsd_performance_metrics([1, 2, 3])
+            calculate_matched_gsd_performance_metrics([1, 2, 3])
 
     @pytest.mark.parametrize(
         "column_names",
@@ -428,11 +428,11 @@ class TestGeneralGsdPerformanceMetrics:
     )
     def test_raise_error_on_invalid_columns(self, column_names):
         with pytest.raises(ValueError):
-            calculate_general_gsd_performance_metrics(pd.DataFrame(columns=column_names))
+            calculate_matched_gsd_performance_metrics(pd.DataFrame(columns=column_names))
 
     def test_raise_error_on_invalid_match_type(self):
         with pytest.raises(ValueError):
-            calculate_general_gsd_performance_metrics(
+            calculate_matched_gsd_performance_metrics(
                 pd.DataFrame(
                     {
                         "start": [0, 1, 2, 3, 4],
@@ -446,24 +446,24 @@ class TestGeneralGsdPerformanceMetrics:
         categorized_intervals = pd.DataFrame(
             [[1, 2, "tp"], [3, 4, "fp"], [7, 8, "tn"], [10, 12, "fn"]], columns=["start", "end", "match_type"]
         )
-        metrics = calculate_general_gsd_performance_metrics(categorized_intervals)
+        metrics = calculate_matched_gsd_performance_metrics(categorized_intervals)
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
 
     def test_output_no_matches(self, snapshot):
         categorized_intervals = pd.DataFrame(
             [[1, 2, "fp"], [3, 4, "fp"], [5, 6, "tn"]], columns=["start", "end", "match_type"]
         )
-        metrics = calculate_general_gsd_performance_metrics(categorized_intervals)
+        metrics = calculate_matched_gsd_performance_metrics(categorized_intervals)
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics_no_match")
 
 
 class TestMobilisedGsdPerformanceMetrics:
-    """Tests for calculate_mobilised_gsd_performance_metrics method for gsd validation."""
+    """Tests for calculate_unmatched_gsd_performance_metrics method for gsd validation."""
 
     def test_output(self, snapshot):
         reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
         detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
-        metrics = calculate_mobilised_gsd_performance_metrics(
+        metrics = calculate_unmatched_gsd_performance_metrics(
             gsd_list_detected=detected, gsd_list_reference=reference, sampling_rate_hz=10
         )
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
@@ -471,7 +471,7 @@ class TestMobilisedGsdPerformanceMetrics:
     def test_output_no_matches(self, snapshot):
         reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
         detected = pd.DataFrame([[10, 15], [30, 35]], columns=["start", "end"])
-        metrics = calculate_mobilised_gsd_performance_metrics(
+        metrics = calculate_unmatched_gsd_performance_metrics(
             gsd_list_detected=detected, gsd_list_reference=reference, sampling_rate_hz=10
         )
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics_no_match")
