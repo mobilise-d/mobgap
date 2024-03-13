@@ -171,7 +171,9 @@ fig.show()
 
 from gaitlink.gsd.evaluation import categorize_intervals
 
-categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_trial_reference_parameters)
+categorized_intervals = categorize_intervals(
+    gsd_list_detected=long_trial_output.gs_list_, gsd_list_reference=long_trial_reference_parameters
+)
 
 # %%
 # The function returns a DataFrame containing `start` and `end`  index of the resulting matched intervals together with
@@ -224,7 +226,9 @@ print("Performance Metrics:\n\n", mobilised_metrics_dict)
 from gaitlink.gsd.evaluation import find_matches_with_min_overlap
 
 matches = find_matches_with_min_overlap(
-    long_trial_output.gs_list_, long_trial_reference_parameters, overlap_threshold=0.7
+    gsd_list_detected=long_trial_output.gs_list_,
+    gsd_list_reference=long_trial_reference_parameters,
+    overlap_threshold=0.7,
 )
 
 print("Matches:\n\n", matches)

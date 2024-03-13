@@ -187,7 +187,7 @@ def calculate_mobilised_gsd_performance_metrics(
 
 
 def categorize_intervals(
-    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Union[int, None] = None
+    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Union[int, None] = None
 ) -> pd.DataFrame:
     """
     Evaluate detected gait sequence intervals against a reference on a sample-wise level.
@@ -349,7 +349,7 @@ def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Int
 
 
 def find_matches_with_min_overlap(
-    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, overlap_threshold: float = 0.8
+    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, overlap_threshold: float = 0.8
 ) -> pd.DataFrame:
     """
     Find all matches of `gsd_list_detected` in `gsd_list_reference` with at least overlap_threshold overlap.
@@ -492,6 +492,7 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
 __all__ = [
     "categorize_intervals",
     "find_matches_with_min_overlap",
+    "calculate_general_gsd_performance_metrics",
     "calculate_mobilised_gsd_performance_metrics",
     "plot_categorized_intervals",
 ]
