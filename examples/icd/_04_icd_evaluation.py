@@ -6,6 +6,7 @@ ICD Evaluation
 
 This example shows how to apply evaluation algorithms to ICD and thus how to rate the performance of an ICD algorithm.
 """
+
 # %%
 # Import useful modules and packages
 from gaitlink.data import LabExampleDataset
