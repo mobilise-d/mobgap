@@ -195,26 +195,27 @@ print("Matched Intervals:\n\n", categorized_intervals)
 
 from gaitlink.gsd.evaluation import calculate_matched_gsd_performance_metrics
 
-general_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
+matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
 
-print("Performance Metrics:\n\n", general_metrics_dict)
+print("Matched Performance Metrics:\n\n", matched_metrics_dict)
 
 # %%
 # Furthermore, there is a range of performance metrics specific for gait sequence detection algorithms utilized in
-# Mobilise-D. To calculate these Mobilise-D specific set of metrics,  we can use the
+# Mobilise-D, that can be calculated without interval-wise matching.
+# To calculate these Mobilise-D specific set of metrics,  we can use the
 # :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics` function.
 # It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
 # and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
 
 from gaitlink.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
 
-mobilised_metrics_dict = calculate_unmatched_gsd_performance_metrics(
+unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected=long_trial_output.gs_list_,
     gsd_list_reference=long_trial_reference_parameters,
     sampling_rate_hz=long_trial.sampling_rate_hz,
 )
 
-print("Performance Metrics:\n\n", mobilised_metrics_dict)
+print("Unmatched Performance Metrics:\n\n", unmatched_metrics_dict)
 
 # %%
 # Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`. It returns all intervals from the Python
