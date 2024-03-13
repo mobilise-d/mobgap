@@ -106,7 +106,9 @@ def calculate_unmatched_gsd_performance_metrics(
     sampling_rate_hz: float,
 ) -> dict[str, Union[float, int]]:
     """
-    Calculate performance metrics for gait sequence detection results that can be inferred from the detected
+    Calculate matched performance metrics for gait sequence detection results.
+
+    These metrics can be inferred from the detected
     and reference gait sequence lists without actually matching the intervals.
 
     The detected and reference dataframes are expected to have columns named "start" and "end" containing the
