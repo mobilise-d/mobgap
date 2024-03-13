@@ -101,3 +101,9 @@ plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["
 plt.xlim(reference_wbs.iloc[3]["start"] - 50, reference_wbs.iloc[3]["end"] + 50)
 plt.legend()
 plt.show()
+
+# %%
+# Evaluation of the algorithm against a reference
+# --------------------------------------------------
+# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
+# See the :ref:`example on ICD evaluation <icd_evaluation>` for more details.

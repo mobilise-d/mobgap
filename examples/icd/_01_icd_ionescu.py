@@ -1,4 +1,6 @@
-"""
+r"""
+.. _icd_ionescu:
+
 ICD Ionescu
 ===========
 
@@ -108,57 +110,5 @@ plt.show()
 # %%
 # Evaluation of the algorithm against a reference
 # --------------------------------------------------
-# Let's quantify how the Python output compares to the reference labels.
-# To calculate the whole range of possible performance metrics (including the total number of
-# true positives, false positives, and false negatives, as well as precision, recall, and F1-score) in one go,
-# we can use the :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function.
-# It returns a dictionary containing all metrics for the specified detected and reference initial contact lists.
-# With the `tolerance_samples` parameter, we can specify the maximum allowed deviation in samples.
-# Consequently, the tolerance parameter should be chosen with respect to the sampling rate of the data.
-# In this case, it is set to 20 samples, which corresponds to 200 ms.
-# As our data includes multiple walking bouts and the detected initial contacts within these walking bouts,
-# it has a multiindex with two levels to indicate that.
-#
-# The :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function will "ignore" the multiindex
-# by default and will potentially match initial contacts across different walking bouts.
-# This can be useful if the walking bouts between the two compared systems are not identical or the multiindex has
-# other columns that should not be taken into account for the matching.
-#
-# However, in our case, we used the WBs from the reference system to iterate over the data and apply the algorithm.
-# This means we have exactly the same WBs and only want to match ICs within the same WB.
-# For this we use the `~gaitlink.utils.array_handling.create_multi_groupby` helper to apply the matching func to each
-# WB separately.
-# We also set the `multiindex_warning` parameter to `False` to suppress the warning that is otherwise raised informing
-# users about this potential "foot-gun".
-from gaitlink.icd.evaluation import evaluate_ic_list
-from gaitlink.utils.array_handling import create_multi_groupby
-
-# TODO: That does not really work as we want to... If we do it that way, all metrics will be calculated per WB...
-#       But what we want is to only match per WB and then calculate metrics across all WBs.
-matches = create_multi_groupby(detected_ics, ref_ics, groupby=["wb_id"]).apply(
-    lambda df1, df2: evaluate_ic_list(
-        ic_list_detected=df1, ic_list_reference=df2, tolerance_samples=20, multiindex_warning=False
-    )
-)
-
-matches
-
-# %%
-# To gain a more detailed insight into the performance of the algorithm, we can also look into the individual matches
-# between the detected and reference initial contacts.
-# To do this, we use the :func:`~gaitlink.icd.evaluation.evaluate_ic_list` function to compare the detected
-# ICs to the ground truth ICs.
-# Analogous to the previous function, with the `tolerance_samples` parameter,
-# the maximum allowed deviation in samples is specified,
-# and with the `multiindex_warning` parameter, the warning for multiindex DataFrames as input is suppressed.
-
-matches_all_wb = []
-
-matches = evaluate_ic_list(detected_ics, ref_ics, tolerance_samples=20, multiindex_warning=False)
-
-# %%
-# The function returns a DataFrame containing the ID of the detected ICs (`"ic_id_detected"`) and the reference ICs
-# (`"ic_id_reference"`) that they match to. If there is no match for the respective IC, the IC ID is set to `NaN`.
-# The column `"match_type"` indicates the type of every match, i.e. `tp` for true positive, `fp` for false
-# positive, and `fn` for false negative.
-matches
+# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
+# See the :ref:`example on ICD evaluation <icd_evaluation>` for more details.
