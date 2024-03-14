@@ -3,6 +3,7 @@ name = "gaitlink"
 version = "0.1.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = ["Arne Küderle <arne.kuederle@fau.de>"]
+license = "Apache-2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
