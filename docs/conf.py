@@ -37,6 +37,18 @@ def convert_github_links(base_url, text):
     return re.sub(regex, substitute, text)
 
 
+def convert_github_md_admonitions(text):
+    """Converts the GitHub style admonitions to the myst style."""
+
+    def substitute(matchobj) -> str:
+        admonition_type = matchobj.group(1).lower()
+        text = re.sub(r"\n>", "\n", matchobj.group(2)).strip()
+
+        return f"```{{{admonition_type}}}\n{text}\n```\n"
+
+    return re.sub(r"> \[!([^\]]+)\]((?:\n>[^\n]+)+)", substitute, text)
+
+
 # -- Project information -----------------------------------------------------
 
 URL = "https://github.com/mobilise-d/gaitlink"
@@ -53,6 +65,9 @@ copyright = f"2021 - {datetime.now().year}, MaD Lab, FAU"
 HERE = Path(__file__).parent
 with (HERE.parent / "README.md").open() as f:
     out = f.read()
+out = convert_github_links(URL, out)
+out = convert_github_md_admonitions(out)
+out = out.replace("./LICENSE", URL + "/blob/main/LICENSE")
 with (HERE / "README.md").open("w+") as f:
     f.write(out)
 

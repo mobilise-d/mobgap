@@ -1,5 +1,9 @@
 > [!CAUTION]
-> **Warning:** Gaitlink is currently under development and not ready for production use. Do not use any of the algorithm results for actual research purposes. Most of them are not in their final state and are not properly validated yet.
+> Gaitlink is currently under active development and not ready for production use.
+> Do not use any of the algorithm results for actual research purposes. 
+> Most of them are not in their final state and are not properly validated yet.
+> 
+> Learn more about this in our blog post about the [alpha release](TODO).
 
 # GaitLink - The Mobilise-D algorithm toolbox
 
@@ -102,7 +106,7 @@ Copyright of any community contributions remains with the respective code author
 The gaitlink library is licensed under an Apache 2.0 license.
 This means it is free to use for any purpose (including commercial use), but you have to include the license text
 in any distribution of the code.
-See the [LICENSE](LICENSE) file for the full license text.
+See the [LICENSE](./LICENSE) file for the full license text.
 
 Please note that this software comes with no warranty, all code is provided as is.
 In particular, we do not guarantee any correctness of the results, algorithmic performance or any other properties
