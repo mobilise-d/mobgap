@@ -7,7 +7,13 @@
 
 # GaitLink - The Mobilise-D algorithm toolbox
 
-A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back.
+A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back
+(Learn more about [the Mobilise-D project](https://mobilise-d.eu)).
+This package is meant as reference implementation for research and production use.
+
+We are open to contributions and feedback, and are actively interested in expanding the library beyond its current scope
+and include algorithms and tools, that would allow gaitlink to grow into a general purpose library for gait and mobility
+analysis.
 
 ## Installation
 
