@@ -54,9 +54,9 @@ def conj(q: np.ndarray) -> np.ndarray:
     np.ndarray: Conjugate of the input quaternion.
 
     """
-
-    q[1:][q[1:] != 0] *= -1
-    return q
+    conj = q.copy()
+    conj[1:][conj[1:] != 0] *= -1
+    return conj
 
 def quatmultiply(r: np.ndarray, q: np.ndarray) -> np.ndarray:
     """Computes the product of two quaternions. Python implementation of "quatmultiply" in MATLAB.
@@ -75,9 +75,9 @@ def quatmultiply(r: np.ndarray, q: np.ndarray) -> np.ndarray:
 
     """
     n0 = r[0] * q[0] - r[1] * q[1] - r[2] * q[2] - r[3] * q[3]
-    n1 = r[0] * q[1] + r[1] * q[0] + r[2] * q[3] - r[3] * q[2]
-    n2 = r[0] * q[2] - r[1] * q[3] + r[2] * q[0] + r[3] * q[1]
-    n3 = r[0] * q[3] + r[1] * q[2] - r[2] * q[1] + r[3] * q[0]
+    n1 = r[0] * q[1] + r[1] * q[0] - r[2] * q[3] + r[3] * q[2]
+    n2 = r[0] * q[2] + r[1] * q[3] + r[2] * q[0] - r[3] * q[1]
+    n3 = r[0] * q[3] - r[1] * q[2] + r[2] * q[1] + r[3] * q[0]
 
     n = np.array([n0, n1, n2, n3])
     return n
