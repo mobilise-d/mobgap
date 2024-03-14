@@ -10,19 +10,16 @@ from scipy.spatial import KDTree
 from gaitlink.utils.evaluation import precision_recall_f1_score
 
 
-def calculate_icd_performance_metrics(
+def calculate_matched_icd_performance_metrics(
     matches: pd.DataFrame,
 ) -> dict[str, Union[float, int]]:
     """
     Calculate performance metrics for initial contact detection results.
 
-    The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
-    respective initial contact.
-    As index, a range index, a column of unique identifiers for each initial contact, or a multiindex can be provided.
-    However, the index should be suitable to uniquely identify each initial contact and must thus be unique.
-    If a multiindex is provided, the single index levels will not be regarded separately for the comparison
-    and matches across different index groups, such as walking bouts or participants, will be possible.
-    If this is not the intended use case, consider grouping your input data before calling the evaluation function.
+    This function assumes that you already classified the detected initial contacts as true positive (tp), false
+    positive (fp), or false negative (fn) matches using the :func:`~gaitlink.icd.evaluation.categorize_ic_list`
+    function.
+    The dataframe returned by categorize function can then be used as input to this function.
 
     The following metrics are calculated:
 
@@ -45,6 +42,12 @@ def calculate_icd_performance_metrics(
     Returns
     -------
     icd_metrics: dict
+
+    See Also
+    --------
+    categorize_ic_list
+        Function to create the input dataframe for this function from the detected and reference initial contacts.
+
     """
     matches = _check_matches_sanity(matches)
 
@@ -75,23 +78,26 @@ def categorize_ic_list(
 ) -> pd.DataFrame:
     """Evaluate an initial contact list against a reference contact-by-contact.
 
-    This compares an initial contact dataframe with a ground truth initial contact dataframe and returns true positive,
-    false positive and true negative matches.
+    This compares an initial contact dataframe with a ground truth initial contact dataframe and classifies each
+    intial contact as true positive, false positive or true negative.
     The comparison is purely based on the index of each initial contact.
     Two initial contacts are considered a positive match, if the difference between their indices is less than or equal
     to the threshold.
 
-    The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
-    resective initial contact.
-    As index, a range index, a column of unique identifiers for each initial contact, or a multiindex can be provided.
-    However, the index should be suitable to uniquely identify each initial contact and must thus be unique.
-    If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
-    index groups will be possible.
-    If this is not the intended use case, consider grouping your input data before calling the evaluation function.
-
     If multiple detected initial contacts would match to a single ground truth initial contact
     (or vise-versa), only the initial contact with the lowest distance is considered an actual match.
     In case of multiple matches with the same distance, the first match will be considered.
+    All other matches will be considered false positives or false negatives.
+
+    The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
+    resective initial contact.
+    As index, we support either a single or a multiindex without duplicates (i.e. the index must identify each initial
+    contact uniquely).
+    If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
+    index groups will be possible.
+    If this is not the intended use case, consider grouping your input data before calling the evaluation function
+    (see :func:`~gaitlink.utils.array_handling.create_multi_groupby` and the example of IC-evaluation).
+
 
     Parameters
     ----------
@@ -106,6 +112,9 @@ def categorize_ic_list(
     multiindex_warning
         If True, a warning will be raised if the index of the input data is a MultiIndex, explaining that the index
         levels will be ignored for the matching process.
+        This exists, as this is a common source of error, when this function is used together with a typical pipeline
+        that iterates over individual gait sequences during the processing using :class:`~gaitlink.pipeline.GsIterator`.
+        Only set this to False, once you understand the two different usecases.
 
     Returns
     -------
@@ -298,10 +307,12 @@ def _sanitize_index(
             warnings.warn(
                 "The index of `ic_list_{list_type}` is a MultiIndex. "
                 "Please be aware that the index levels will not be regarded separately for the matching process, "
-                "and initial contacts might be matched across different index groups, "
-                "such as walking bouts or participants."
-                "If this is not the intended use case for you, consider grouping your input data "
-                "before calling the evaluation function.",
+                "and initial contacts might be matched across different index groups, such as walking bouts or "
+                "participants.\n"
+                "If this is not the intended use case for you, consider grouping your input data before calling the "
+                "evaluation function.\n\n"
+                "This can be done using the `create_multi_groupby` function from the `gaitlink.utils.array_handling`. "
+                "Checkout the example of IC-evaluation for more information.",
                 stacklevel=2,
             )
         ic_list.index = ic_list.index.to_flat_index()

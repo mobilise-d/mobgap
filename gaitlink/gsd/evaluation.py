@@ -1,6 +1,6 @@
 """Class to validate gait sequence detection results."""
 
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,14 +25,15 @@ def calculate_matched_gsd_performance_metrics(
     matches: pd.DataFrame,
 ) -> dict[str, Union[float, int]]:
     """
-    Calculate commonly known performance metrics for gait sequence detection results.
+    Calculate commonly known performance metrics for based on the matched overlap with the reference.
 
-    These metrics are purely based on the number of true positive, false positive, false negative,
-    and (optionally) true negative matches between detected and reference.
-    Therefore, they only require the dataframe of categorized intervals as input.
-    This dataframe is retrieved from the function :func:`~gaitlink.gsd.evaluation.categorize_intervals`.
-    The detected and reference dataframes are expected to have columns named "start" and "end" containing the
-    start and end indices of the respective gait sequences.
+    This method assumes that you already calculated the overlapping regions between the ground truth and the detected
+    gait sequences using the :func:`~gaitlink.gsd.evaluation.categorize_intervals` method.
+    This function then calculates the performance metrics based on the number of true positive, false positive,
+    false negative, and true negative matches between detected and reference.
+    All calculations are performed on the sample level.
+    This means the intervals provided by the input dataframe are used to calculate the number of samples in each
+    category.
 
     The following metrics are always returned:
 
@@ -46,8 +47,8 @@ def calculate_matched_gsd_performance_metrics(
     See the documentation of :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` for more details.
 
     Further metrics are calculated if `matches` contains true negative intervals.
-    This can be achieved by passing `n_overall_samples` as additional information
-    to :func:`~gaitlink.gsd.evaluation.categorize_intervals`.
+    This can be achieved by passing `n_overall_samples` as additional information to
+    :func:`~gaitlink.gsd.evaluation.categorize_intervals`.
 
     - `tn_samples`: Number of samples that are correctly not detected as gait sequences.
     - `specificity`: Specificity of the detected gait sequences.
@@ -55,8 +56,8 @@ def calculate_matched_gsd_performance_metrics(
     - `npv`: Negative predictive value of the detected gait sequences.
 
     See the documentation of :func:`~gaitlink.utils.evaluation.specificity_score`,
-    :func:`~gaitlink.utils.evaluation.accuracy_score`,
-    and :func:`~gaitlink.utils.evaluation.npv_score` for more details.
+     :func:`~gaitlink.utils.evaluation.accuracy_score`, and :func:`~gaitlink.utils.evaluation.npv_score` for more
+     details.
 
     Parameters
     ----------
@@ -65,17 +66,18 @@ def calculate_matched_gsd_performance_metrics(
         It contains the matched intervals between algorithm output and reference with their `start` and `end` index
         and the respective `match_type`.
 
-    Note
-    ----
-    To calculate the mobilised-specific set of gait sequence detection metrics,
-    use the :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics` function.
-    As those metrics are not based on the number of tp/fp/tn/fn samples,
-    it requires to the detected and reference gait sequence lists
-    as well as the sampling rate of the recording as input.
-
     Returns
     -------
     gsd_metrics: dict
+
+    See Also
+    --------
+    calculate_unmatched_gsd_performance_metrics
+        For calculating performance metrics without matching the detected and reference gait sequences.
+    categorize_intervals
+        For categorizing the detected and reference gait sequences on a sample-wise level.
+        This is required to calculate the ``matches`` parameter for this function.
+
     """
     matches = _check_matches_sanity(matches)
 
@@ -106,14 +108,9 @@ def calculate_unmatched_gsd_performance_metrics(
     sampling_rate_hz: float,
 ) -> dict[str, Union[float, int]]:
     """
-    Calculate matched performance metrics for gait sequence detection results.
+    Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
 
-    These metrics can be inferred from the detected
-    and reference gait sequence lists without actually matching the intervals.
-
-    The detected and reference dataframes are expected to have columns named "start" and "end" containing the
-    start and end indices of the respective gait sequences.
-
+    Metrics calculated by this function are just based on the overall amount of gait detected.
     The following metrics are calculated:
 
     - `reference_gs_duration_s`: Total duration of the reference gait sequences in seconds.
@@ -133,24 +130,26 @@ def calculate_unmatched_gsd_performance_metrics(
 
     Parameters
     ----------
-    gsd_list_detected: pd.DataFrame
+    gsd_list_detected
        Each row contains a detected gait sequence interval as output from the GSD algorithms.
        The respective start index is stored in a column named `start` and the stop index in a column named `end`.
-    gsd_list_reference: pd.DataFrame
+    gsd_list_reference
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
-    sampling_rate_hz: float
+    sampling_rate_hz
         Sampling frequency of the recording in Hz.
 
     Returns
     -------
     gsd_metrics: dict
 
-    Notes
-    -----
-    This function aggregates one set of metrics over the entire input dataframes and does not consider any groups or
-    subcategories that might be present in the data, e.g. several recording days or participants.
-    If this is not the intended use case, consider grouping your input data before calling this evaluation function.
+    See Also
+    --------
+    calculate_matched_gsd_performance_metrics
+        For calculating performance metrics based on the matched overlap with the reference.
+    categorize_intervals
+        For categorizing the detected and reference gait sequences on a sample-wise level.
+
     """
     # estimate duration metrics
     reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
@@ -191,7 +190,7 @@ def calculate_unmatched_gsd_performance_metrics(
 
 
 def categorize_intervals(
-    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Union[int, None] = None
+    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Optional[int] = None
 ) -> pd.DataFrame:
     """
     Evaluate detected gait sequence intervals against a reference on a sample-wise level.
@@ -199,26 +198,31 @@ def categorize_intervals(
     The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
     start and end indices of the respective gait sequences.
     Each sample from the detected interval list is categorized as true positive (tp), false positive (fp),
-    false negative (fn), or - if the total length of the recording is provided - true negative (tn).
+    false negative (fn), or - if the total length of the recording (``n_overall_samples``) is provided - true negative
+    (tn).
     The results are concatenated into intervals of tp, fp, fn, and tn matches and returned as a DataFrame.
+
+    The output of this method can be used to calculate performance metrics using the
+    :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics` method.
 
     Parameters
     ----------
-    gsd_list_detected: pd.DataFrame
+    gsd_list_detected
        Each row contains a detected gait sequence interval as output from the GSD algorithms.
        The respective start index is stored in a column named `start` and the stop index in a column named `end`.
-    gsd_list_reference: pd.DataFrame
+    gsd_list_reference
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
-    n_overall_samples: int, optional
+    n_overall_samples
         Number of samples in the analyzed recording. If provided, true negative intervals will be added to the result.
 
     Returns
     -------
     pd.DataFrame
-        A DataFrame containing the categorized intervals with their `start` and `end` index
-        and the respective `match_type`. Keep in mind that the intervals are not identical to the intervals
-        in `gsd_list_detected`, but are rather split into subsequences according to their match type with the reference.
+        A DataFrame containing the categorized intervals with their `start` and `end` index and the respective
+        `match_type`.
+        Keep in mind that the intervals are not identical to the intervals in `gsd_list_detected`, but are rather split
+        into subsequences according to their match type with the reference.
 
     Examples
     --------
@@ -232,13 +236,21 @@ def categorize_intervals(
     1     15   20         fn
     2     20   25         tp
     3     25   30         fp
+
+    See Also
+    --------
+    calculate_matched_gsd_performance_metrics
+        For calculating performance metrics based on the matches returned by this function.
+    calculate_unmatched_gsd_performance_metrics
+        For calculating performance metrics without matching the detected and reference gait sequences.
+
     """
     detected, reference = _check_input_sanity(gsd_list_detected, gsd_list_reference)
 
     if n_overall_samples and n_overall_samples < max(gsd_list_reference["end"].max(), gsd_list_detected["end"].max()):
         raise ValueError(
             "The provided `n_samples` parameter is implausible. The number of samples must be larger than the highest "
-            "index in the detected and reference gait sequences."
+            "end value in the detected and reference gait sequences."
         )
 
     # Create Interval Trees
@@ -356,17 +368,16 @@ def find_matches_with_min_overlap(
     *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, overlap_threshold: float = 0.8
 ) -> pd.DataFrame:
     """
-    Find all matches of `gsd_list_detected` in `gsd_list_reference` with at least overlap_threshold overlap.
+    Find all matches of `gsd_list_detected` in `gsd_list_reference` with at least ``overlap_threshold`` overlap.
 
     The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
     start and end indices of the respective gait sequences.
-    As index, a range index or a column of unique identifiers for each gait sequence can be provided.
 
     Note, that the threshold is enforced in both directions. That means, that the relative overlap of the detected gait
     sequence with respect to the overall length of the detected interval AND to the overall length of the matched
     reference interval must be at least `overlap_threshold`.
 
-    Note, we assume that `gsd_list_detected` has no overlaps, but we don't enforce it!
+    Note, we assume that ``gsd_list_detected`` has no overlaps, but we don't enforce it!
 
     Parameters
     ----------
@@ -379,7 +390,7 @@ def find_matches_with_min_overlap(
        Should have the same format as `gsd_list_detected`.
     overlap_threshold: float
         The minimum relative overlap between a detected sequence and its reference with respect to the length of both
-         intervals.
+        intervals.
         Must be larger than 0.5 and smaller than or equal to 1.
 
     Returns

@@ -6,6 +6,7 @@ ICD Evaluation
 
 This example shows how to apply evaluation algorithms to ICD and thus how to rate the performance of an ICD algorithm.
 """
+import pandas as pd
 
 # %%
 # Import useful modules and packages
@@ -54,73 +55,118 @@ detected_ics = calculate_icd_ionescu_output(wb_data)
 reference_ics = load_reference(wb_data)
 
 # %%
-# Evaluation of the algorithm against a reference
-# --------------------------------------------------
-# Let's quantify how the algorithm output compares to the reference labels.
-# On the one hand, to gain a detailed insight into the performance of the algorithm,
-# we can look into the individual matches between the detected and reference initial contacts.
-# To do this, we use the :func:`~gaitlink.icd.evaluation.categorize_ic_list` function to compare the detected
-# ICs to the ground truth ICs.
-# The :func:`~gaitlink.icd.evaluation.categorize_ic_list` function will "ignore" the multiindex
-# by default and will potentially match initial contacts across different walking bouts.
-# This can be useful if the walking bouts between the two compared systems are not identical or the multiindex has
-# other columns that should not be taken into account for the matching.
-#
-# However, in our case, we used the WBs from the reference system to iterate over the data and apply the algorithm.
-# This means we have exactly the same WBs and only want to match ICs within the same WB.
-# For this we use the :func:`~gaitlink.utils.array_handling.create_multi_groupby` helper to apply the matching func to each
-# WB separately.
-# We also set the `multiindex_warning` parameter to `False` to suppress the warning that is otherwise raised informing
-# users about this potential "foot-gun".
-#
-# With the `tolerance_samples` parameter, we can specify the maximum allowed deviation in samples.
-# Consequently, the tolerance parameter should be chosen with respect to the sampling rate of the data.
-# In this case, it is set to 200 ms (=0.2s). This needs to be converted to samples, which is done using the
-# sampling rate of the data and the :func:`~gaitlink.utils.conversions.as_samples` function.
-# As our data includes multiple walking bouts and the detected initial contacts within these walking bouts,
-# it has a multiindex with two levels to indicate that.
+# As you can see our detected initial contacts and reference initial contacts are multiindexed dataframes.
+# The first level of the multiindex is the walking bout id and the second level is the index of the initial contact
+# within the walking bout.
+detected_ics
 
-from gaitlink.icd.evaluation import categorize_ic_list
+# %%
+reference_ics
+
+# %%
+# Matching ICs between detected and reference lists
+# -------------------------------------------------
+# Let's quantify how the algorithm output compares to the reference labels.
+# To gain a detailed insight into the performance of the algorithm, we can look into the individual matches between the
+# detected and reference initial contacts.
+# To do this, we use the :func:`~gaitlink.icd.evaluation.categorize_ic_list` function to classify each detected initial
+# contact as a true positive, false positive, or false negative.
+# We can then use these results to calculate a range of higher-level performance metrics.
+#
+# Note, that we want to only match initial contacts within the same walking bout.
+# If we would simply pass the detected and reference initial contacts to the matching function, it would match all ICs
+# independent of the walking bout, as it ignores the multiindex.
+# We will have a look at how this looks like below, and when we might want to use it, but for now, let's perform the
+# matching within the walking bouts.
+#
+# For this, we need to group the detected and reference initial contacts by the walking bout id.
+# This can be done using the :func:`~gaitlink.utils.array_handling.create_multi_groupby` helper function.
 from gaitlink.utils.array_handling import create_multi_groupby
+
+per_wb_grouper = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"])
+
+# %%
+# The provides us with a groupby object that is similar to the normal pandas groupby object that can be created from a
+# single dataframe.
+# The ``MultiGroupBy`` object allows us to apply a function to each group across all dataframes.
+# I.e. the function will get the detected and reference initial contacts for each walking bout and then can perform
+# some operation on them.
+#
+# In our case we want to apply the :func:`~gaitlink.icd.evaluation.categorize_ic_list` function to each walking bout.
+# This function will then return a dataframe with the matches given a certain tolerance.
+#
+# We don't assume that initial contacts are detected at perfectly the exact same time in both systems.
+# Hence, we allow for a certain deviation in the matching process.
 from gaitlink.utils.conversions import as_samples
 
-tolerance_seconds = 0.2
-tolerance_samples = as_samples(tolerance_seconds, wb_data.sampling_rate_hz)
+tolerance_s = 0.2
+tolerance_samples = as_samples(tolerance_s, wb_data.sampling_rate_hz)
+tolerance_samples
 
-matches = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"]).apply(
+# %%
+# Now we can apply the matching function to each walking bout.
+# Note, that our matches retain the multiindex and provide matches for each walking bout separately.
+# The dataframe has 3 columns, containing the index value of the detected ic, the index value of matched reference ic,
+# and the match type.
+# The two index columns contain tuples in our case, as they stem from the original multiindex that we provided.
+# So each of the tuples has the form ``(wb_id, ic_id)``.
+from gaitlink.icd.evaluation import categorize_ic_list
+
+matches_per_wb = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"]).apply(
     lambda df1, df2: categorize_ic_list(
         ic_list_detected=df1, ic_list_reference=df2, tolerance_samples=tolerance_samples, multiindex_warning=False
     )
 )
+matches_per_wb
 
 # %%
-# The function returns a 3-column dataframe with the columns containing the index value of the detected ic,
-# the index value of matched reference ic, and the match type.
-# The index serves as a unique identifier for each initial contacts,
-# therefore it must be unique for each ic.
-# Our multiindex is simply flattened to a tuple in the matching process.
-# We can see that for all ICs that have a match in the reference list, the match type is be "tp" (true positive).
-# ICs that do not have a match are be mapped to a NaN and the match-type is "fp" (false
-# positive). All reference initial contacts that do not have a counterpart in the detected list
-# are marked as "fn" (false negative).
+# Instead of matching the initial contacts within the same walking bout, we could also match all initial contacts
+# independent of the walking bout.
+# This can be done by simply passing the detected and reference initial contacts directly to the matching function.
+# This can be useful if the walking bouts between the two compared systems are not identical or the multiindex has
+# other columns that should not be taken into account for the matching.
+matched_all = categorize_ic_list(
+    ic_list_detected=detected_ics, ic_list_reference=reference_ics, tolerance_samples=tolerance_samples
+)
 
-matches
-
+matched_all
 # %%
-# From these detailed results, a range of higher-level performance metrics (including the total number of
-# true positives, false positives, and false negatives, as well as precision, recall, and F1-score) can be calculated.
-# For this purpose,
-# we can use the :func:`~gaitlink.icd.evaluation.calculate_icd_performance_metrics` function.
+# Note, that this did not really make a difference in our case, as the individual WBs are identical between the two
+# systems and far enough apart so that matches between different WBs are not possible.
+# But in general, this can be a typical "foot-gun" for users, as they might not be aware of the fact that the multiindex
+# is ignored in the matching process.
+# Hence, as you can see above, a warning is raised if you pass a multiindex to the matching function.
+# This can be silenced by setting the ``multiindex_warning`` parameter to ``False``.
+#
+# As in our case we would recommend to match the ICs per walking bout, we will continue with the matches per walking
+# bout and ignore ``matches_all`` for the rest of this example.
+#
+# Calculating performance metrics
+# -------------------------------
+# From these ``matches_per_wb``, a range of higher-level performance metrics (including the total number of true
+# positives, false positives, and false negatives, as well as precision, recall, and F1-score) can be calculated.
+# For this purpose, we can use the :func:`~gaitlink.icd.evaluation.calculate_matched_icd_performance_metrics` function.
 # It returns a dictionary containing all metrics for the specified detected and reference initial contact lists.
 #
-# As our example data only contains a single participant and a single recording session, we want to aggregate one set
-# of performance metrics for all walking bouts. Thus, we can simply use the entire matches dataframe as input.
-# However, if your data contains multiple participants or recording sessions, you might want to use the
-# :func:`~gaitlink.utils.array_handling.create_multi_groupby` function again to retrieve the performance metrics for
-# subsets of the data.
+# We can again decide, if we want to calculate these metrics across all walking bouts or for each walking bout
+# separately.
+# We will quickly show both approaches below.
+#
+# Across all walking bouts:
+from gaitlink.icd.evaluation import calculate_matched_icd_performance_metrics
 
-from gaitlink.icd.evaluation import calculate_icd_performance_metrics
+metrics_all = calculate_matched_icd_performance_metrics(matches_per_wb)
 
-metrics = calculate_icd_performance_metrics(matches)
+pd.Series(metrics_all)
 
-metrics
+# %%
+# Per Wb:
+#
+# For this we can use the normal pandas groupby to calculate the metrics for each walking bout separately.
+metrics_per_wb = matches_per_wb.groupby(level="wb_id").apply(
+    lambda df_: pd.Series(calculate_matched_icd_performance_metrics(df_)))
+
+metrics_per_wb
+
+# %%
+# Which of the two approaches makes more sense depends on the use case and what your multiindex represents.

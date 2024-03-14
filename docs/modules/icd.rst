@@ -49,5 +49,5 @@ Evaluation
    :toctree: generated/icd
    :template: func.rst
 
-    calculate_icd_performance_metrics
+    calculate_matched_icd_performance_metrics
     categorize_ic_list

@@ -166,13 +166,15 @@ fig.show()
 # Validation of algorithm output against a reference
 # --------------------------------------------------
 # Let's quantify how the Python output compares to the reference labels.
-# To do this, we use the `categorize_intervals` function to compare detected gait sequences to reference labels
-# sample by sample.
+# To do this, we use the `categorize_intervals` function to identify overlappting regions between the detected gait
+# sequences and the reference gait sequences.
 
 from gaitlink.gsd.evaluation import categorize_intervals
 
 categorized_intervals = categorize_intervals(
-    gsd_list_detected=long_trial_output.gs_list_, gsd_list_reference=long_trial_reference_parameters
+    gsd_list_detected=long_trial_output.gs_list_,
+    gsd_list_reference=long_trial_reference_parameters,
+    n_overall_samples=len(long_trial.data["LowerBack"]),
 )
 
 # %%
@@ -180,10 +182,10 @@ categorized_intervals = categorize_intervals(
 # a `match_type` column that contains the type of match for each interval, i.e. `tp` for true positive, `fp` for false
 # positive, and `fn` for false negative.
 # These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
-# categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples
-# from the reference gsd list that were not detected (`fn`).
-# Note that the true negative intervals are not explicitly returned, but can be inferred from the other intervals
-# (if the total length of the underlying recording is known), as everything between them is considered as true negative.
+# categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples from the reference gsd
+# list that were not detected (`fn`).
+# Note that the true negative intervals are not explicitly calculated, but are inferred from the other intervals
+# and the total length of the data, as everything between them is considered as true negative.
 
 print("Matched Intervals:\n\n", categorized_intervals)
 
@@ -192,7 +194,6 @@ print("Matched Intervals:\n\n", categorized_intervals)
 # and recall can be calculated.
 # For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
-
 from gaitlink.gsd.evaluation import calculate_matched_gsd_performance_metrics
 
 matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
@@ -200,10 +201,9 @@ matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_int
 print("Matched Performance Metrics:\n\n", matched_metrics_dict)
 
 # %%
-# Furthermore, there is a range of performance metrics specific for gait sequence detection algorithms utilized in
-# Mobilise-D, that can be calculated without interval-wise matching.
-# To calculate these Mobilise-D specific set of metrics,  we can use the
-# :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics` function.
+# Furthermore, there is a range of performance metrics that only require the overall amount of gait detected.
+# These metrics can be calculated using the :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics`
+# function.
 # It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
 # and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
 
@@ -218,11 +218,14 @@ unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
 print("Unmatched Performance Metrics:\n\n", unmatched_metrics_dict)
 
 # %%
-# Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`. It returns all intervals from the Python
-# output that overlap with the reference gait sequences by at least a given amount.
+# Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`.
+# It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
+# given amount.
 # We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
 # matches with the reference gait sequences.
 # The remaining ones either contain too many false positive and/or false negative samples.
+#
+# This information can then be used further to compare aggregated parameters from within the respective gait sequences.
 
 from gaitlink.gsd.evaluation import find_matches_with_min_overlap
 
