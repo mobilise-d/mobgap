@@ -37,16 +37,14 @@ The package is designed to be used in two modes:
    way to obtain gait parameters according to the Mobilise-D algorithms.
    Depending on the clinical cohort and the amount of gait impairment, we recommend different pipelines.
    When using the pipelines in the recommended way, you can expect error ranges as reported in [[1]].
-   Outside, this recommended use case, we cannot guarantee the correctness of the results.
+   Outside, this recommended use case, we cannot provide any supported evidence about the correctness of the results.
 
    If you are using the pipelines in this way, we recommend to cite [[1]] and [[2]] as follows:
 
    > Gait parameters were obtained using the Mobilise-D algorithm pipeline [[1], [2]] in its official implementation
    > provided with the gaitlink Python library version {insert version you used}.
 
-
-
-   When appropriate, include the link to the gaitlink library as a footnote or as a "online resource" in the reference
+   When appropriate, include the link to the gaitlink library as a footnote or as an "online resource" in the reference
    list.
 
    In general, we would like to ask you to be precise about the version of the gaitlink library you used and only
