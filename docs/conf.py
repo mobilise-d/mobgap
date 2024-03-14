@@ -69,6 +69,7 @@ out = convert_github_links(URL, out)
 out = convert_github_md_admonitions(out)
 out = out.replace("./LICENSE", URL + "/blob/main/LICENSE")
 out = out.replace("./NOTICE", URL + "/blob/main/NOTICE")
+out = out.replace("./docs/_static/logo/", "./_static/logo/")
 with (HERE / "README.md").open("w+") as f:
     f.write(out)
 
@@ -145,6 +146,16 @@ html_theme_options = {
     "github_url": URL,
     "show_prev_next": False,
 }
+html_context = {
+    "github_user": "mobilise-d",
+    "github_repo": "gaitlink",
+    "github_version": "main",
+    "doc_path": "docs",
+}
+
+html_favicon = "_static/logo/mobilise_d_logo.ico"
+html_logo = "_static/logo/mobilise_d_logo.png"
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
