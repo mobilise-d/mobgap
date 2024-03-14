@@ -68,6 +68,7 @@ with (HERE.parent / "README.md").open() as f:
 out = convert_github_links(URL, out)
 out = convert_github_md_admonitions(out)
 out = out.replace("./LICENSE", URL + "/blob/main/LICENSE")
+out = out.replace("./NOTICE", URL + "/blob/main/NOTICE")
 with (HERE / "README.md").open("w+") as f:
     f.write(out)
 
