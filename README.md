@@ -96,15 +96,15 @@ The package is designed to be used in two modes:
    > Gait parameters were obtained using the {name of algorithm} algorithm [algo-citation] as implemented in the
    > gaitlink Python library version {insert version you used}.
 
-   When appropriate, include the link to the gaitlink library as a footnote or as a "online resource" in the reference
+   When appropriate, include the link to the gaitlink library as a footnote or as an "online resource" in the reference
    list.
 
 ## License and Usage of Names
 
-The library was developed as part of the Mobilise-D project under the lead of the Friedrich-Alexander-Universität 
-Erlangen-Nürnberg (FAU).
+The library was developed as part of [the Mobilise-D project](https://mobilise-d.eu) under the lead of the 
+Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU).
 The original copyright lies with the Machine Learning and Data Analytics Lab
-([MAD Lab](https://www.mad.tf.fau.de/)) at the FAU.
+([MAD Lab](https://www.mad.tf.fau.de/)) at the FAU (See [NOTICE](./NOTICE).
 For any legal inquiries regarding copyright, contact 
 [Björn Eskofier](https://www.mad.tf.fau.de/person/bjoern-eskofier/).
 Copyright of any community contributions remains with the respective code authors.
