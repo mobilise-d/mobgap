@@ -2,7 +2,15 @@
 name = "gaitlink"
 version = "0.1.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
-authors = ["Arne Küderle <arne.kuederle@fau.de>"]
+authors = [
+    "Arne Küderle <arne.kuederle@fau.de>",
+    "Felix Kluge <felix.kluge@novartis.com>",
+    "Paolo Tasca <paolo.tasca@polito.it>",
+    "Annika Mücke <annika-muecke@outlook.de>",
+    "dmegaritis <dmgrei3@gmail.com>",
+    "Zamal Ali <zamalali9866@gmail.com>",
+    "Björn Eskofier <bjoern.eskofier@fau.de>"
+]
 license = "Apache-2.0"
 readme = "README.md"
 
