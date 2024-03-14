@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from gaitlink.icd.evaluation import _match_label_lists, calculate_icd_performance_metrics, categorize_ic_list
+from gaitlink.icd.evaluation import _match_label_lists, calculate_matched_icd_performance_metrics, categorize_ic_list
 
 
 @pytest.fixture()
@@ -281,7 +281,7 @@ class TestEvaluateInitialContactList:
 class TestCalculateIcdMetrics:
     def test_empty_input(self):
         matches = pd.DataFrame(columns=["ic_id_detected", "ic_id_reference", "match_type"])
-        metrics = calculate_icd_performance_metrics(matches)
+        metrics = calculate_matched_icd_performance_metrics(matches)
         for val in metrics.values():
             assert val == 0
 
@@ -293,12 +293,12 @@ class TestCalculateIcdMetrics:
                 "match_type": ["tp", "tp", "tp", "fn", "fp"],
             }
         )
-        metrics = calculate_icd_performance_metrics(matches)
+        metrics = calculate_matched_icd_performance_metrics(matches)
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics")
 
     def test_raise_error_on_invalid_input(self):
         with pytest.raises(TypeError):
-            calculate_icd_performance_metrics([1, 2, 3])
+            calculate_matched_icd_performance_metrics([1, 2, 3])
 
     @pytest.mark.parametrize(
         "column_names",
@@ -310,11 +310,11 @@ class TestCalculateIcdMetrics:
     )
     def test_raise_error_on_invalid_columns(self, column_names):
         with pytest.raises(ValueError):
-            calculate_icd_performance_metrics(pd.DataFrame(columns=column_names))
+            calculate_matched_icd_performance_metrics(pd.DataFrame(columns=column_names))
 
     def test_raise_error_on_invalid_match_type(self):
         with pytest.raises(ValueError):
-            calculate_icd_performance_metrics(
+            calculate_matched_icd_performance_metrics(
                 pd.DataFrame(
                     {
                         "ic_id_detected": [0, 1, 2, 3, 4],
