@@ -1,58 +1,8 @@
 from tpcp import OptimizablePipeline, OptimizableParameter
-from tpcp.optimize import GridSearchCV
 from mobgap.lrd._utils import extract_ref_data
 from mobgap.lrd import LrdUllrich
 
-
-# TODO: this might be removed in the future, but I think it makes life easier, as people might not be familiar with tpcp.
-class UllrichLROptimizer():
-    """
-    This class is used to optimize the parameters of a LrdUllrich pipeline using GridSearchCV.
-    """
-    def __init__(self, pipeline, parameter_grid, cross_val_splits = 2):
-        """
-        Initializes the optimizer with a pipeline, parameter grid, and number of cross-validation splits.
-
-        Args:
-            pipeline (LROptiPipeline): The pipeline to be optimized.
-            parameter_grid (dict): The grid of parameters to search over.
-            cross_val_splits (int, optional): The number of cross-validation splits. Defaults to 2.
-        """
-        pipeline: LROptiPipeline
-
-        self.pipeline = pipeline
-        self.parameter_grid = parameter_grid
-        self.cross_val_splits = cross_val_splits
-
-    def optimize(self, dataset, scoring_function):
-        """
-        Optimizes the pipeline's parameters using GridSearchCV.
-
-        Args:
-            dataset (gaitlink.data._example_data.LabExampleDataset): The dataset to use for optimization.
-            scoring_function (callable): The scoring function to use for optimization.
-
-        Returns:
-            dict: The results of the optimization.
-        """
-        # Ensure the dataset has been normalised before running the pipeline.
-        if not hasattr(self.pipeline.algo.scaler, 'scale_'):
-            raise RuntimeError("Model not fit. Call pipeline.self_optimize on your dataset before running the optimization.")
-
-        self.optimization_results = GridSearchCV(self.pipeline,
-                                    self.parameter_grid,
-                                    scoring = scoring_function,
-                                    cv = self.cross_val_splits,
-                                    return_optimized = "accuracy").optimize(dataset)
-
-        return self.optimization_results
-        # return self.pipeline, self.optimization_results
-
-    
-
 class LROptiPipeline(OptimizablePipeline):
-    # This is a trick we use internally to check that the optimization is not doing something strange.
-    # Only the model is allowed to change. If other things change, we get an error by default.
     """
     This class represents a pipeline for LrdUllrich that can be optimized.
     """

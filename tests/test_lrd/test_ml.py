@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
+from gaitlink.data import LabExampleDataset
 from tpcp.testing import TestAlgorithmMixin
+from gaitlink.lrd._utils import extract_ref_data
 from sklearn import svm
 
 from gaitlink.lrd import LrdUllrich
@@ -22,29 +24,28 @@ class TestMetaLrdUllrich(TestAlgorithmMixin):
         )
 
 class TestLrdUllrich:
+
     def test_empty_data(self):
-        test_params = LrdUllrich.PredefinedParameters.uniss_unige_all_all
+        test_params = LrdUllrich.PredefinedParameters.msproject_all
         algo = LrdUllrich(**test_params)
         data = pd.DataFrame([], columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
-        ic_list = pd.DataFrame({"ic": []})
-        with pytest.raises(ValueError):
-            algo.detect(
-                data = data,
-                ic_list = ic_list,
-                sampling_rate_hz=100.0,
-            )
+        ic_list = pd.DataFrame({"ic": [5, 10 , 15]})
+        output = algo.detect(data = data, ic_list = ic_list, sampling_rate_hz = 100.0)
+        assert(len(output.ic_lr_list_) == 0)
+        assert list(output.ic_lr_list_.columns) == ["ic", "lr_label"]
+        assert(len(output.feature_matrix_) == 0)
+        assert list(output.feature_matrix_.columns) == ["filtered_gyr_x", "gradient_gyr_x", "diff_2_gyr_x", "filtered_gyr_z", "gradient_gyr_z", "diff_2_gyr_z"]
 
     def test_empty_ic(self):
-        params = LrdUllrich.PredefinedParameters.uniss_unige_all_all
+        params = LrdUllrich.PredefinedParameters.msproject_all
         algo = LrdUllrich(**params)
         data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": []})
-        with pytest.raises(ValueError):
-            algo.detect(
-                data = data,
-                ic_list = ic_list,
-                sampling_rate_hz=100.0,
-            )
+        output = algo.detect(data = data, ic_list = ic_list, sampling_rate_hz = 100.0)
+        assert(len(output.ic_lr_list_) == 0)
+        assert list(output.ic_lr_list_.columns) == ["ic", "lr_label"]
+        assert(len(output.feature_matrix_) == 0)
+        assert list(output.feature_matrix_.columns) == ["filtered_gyr_x", "gradient_gyr_x", "diff_2_gyr_x", "filtered_gyr_z", "gradient_gyr_z", "diff_2_gyr_z"]
 
     def test_detect_with_model_not_fit(self):
         my_paras = {'model__C': 1.0, 'model__gamma': 1.0, 'model__kernel': 'linear'}
@@ -69,6 +70,8 @@ class TestLrdUllrich:
         y = np.tile(np.sin(x), (1, 6))
         data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
+        label_list = pd.DataFrame({"lr_label": ["left", "right", "left"]})
+        algo.self_optimize(data_list = [data], ic_list = [ic_list], label_list=[label_list], sampling_rate_hz=100.0)
         output = algo.detect(data, ic_list, sampling_rate_hz= 100.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
@@ -78,14 +81,14 @@ class TestLrdUllrich:
         y = np.tile(np.sin(x), (1, 6))
         data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        params = LrdUllrich.PredefinedParameters.uniss_unige_all_all
+        params = LrdUllrich.PredefinedParameters.msproject_all
         algo = LrdUllrich(**params)
         output = algo.detect(data, ic_list, sampling_rate_hz= 100.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
 
     def test_correct_ouput_format(self):
-        params = LrdUllrich.PredefinedParameters.uniss_unige_all_all
+        params = LrdUllrich.PredefinedParameters.msproject_all
         algo = LrdUllrich(**params)
         data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [10, 20 , 40]})
@@ -93,7 +96,6 @@ class TestLrdUllrich:
         assert_frame_equal(output.ic_lr_list_[["ic"]], ic_list)
         assert output.feature_matrix_.shape == pd.DataFrame(np.repeat(ic_list.values, 6, axis=1)).shape
         assert isinstance(output.feature_matrix_, pd.DataFrame)
-
 
     def test_alternating_output(self):
         # Test a simple sine wave
@@ -108,6 +110,34 @@ class TestLrdUllrich:
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == ["right", "left", "right"]).all()
 
+# TODO: this needs checking
+class testRegression:
+    @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
 
+    def test_example_lab_data_msproject_all(self, datapoint, snapshot):
 
+        params = LrdUllrich.PredefinedParameters.msproject_all
+        algo = LrdUllrich(**params)
+        try:
+                data_list, ic_list, _ = extract_ref_data(datapoint)
+        except:
+                pytest.skip("No reference parameters available.")
+        sampling_rate_hz = datapoint.sampling_rate_hz
 
+        detected_lr_labels = [algo.detect(data=data, ic_list=ics, sampling_rate_hz=sampling_rate_hz).ic_lr_list_ for data, ics in zip(data_list, ic_list)]
+
+        snapshot.assert_match(detected_lr_labels, str(datapoint.group_label))
+
+    def test_example_lab_data_msproject_ms(self, datapoint, snapshot):
+
+        params = LrdUllrich.PredefinedParameters.msproject_ms
+        algo = LrdUllrich(**params)
+        try:
+                data_list, ic_list, _ = extract_ref_data(datapoint)
+        except:
+                pytest.skip("No reference parameters available.")
+        sampling_rate_hz = datapoint.sampling_rate_hz
+
+        detected_lr_labels = [algo.detect(data=data, ic_list=ics, sampling_rate_hz=sampling_rate_hz).ic_lr_list_ for data, ics in zip(data_list, ic_list)]
+
+        snapshot.assert_match(detected_lr_labels, str(datapoint.group_label))
