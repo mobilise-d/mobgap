@@ -150,12 +150,25 @@ def categorize_ic_list(
     4  NaN                 1         fn
     5  NaN                 3         fn
     """
-    detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
-    detected = _sanitize_index(detected, "detected", multiindex_warning)
-    reference = _sanitize_index(reference, "reference", multiindex_warning)
-
     if tolerance_samples < 0:
         raise ValueError("`tolerance_samples` must be larger or equal to 0.")
+
+    detected, reference = _check_input_sanity(ic_list_detected, ic_list_reference)
+    detected, is_multindex_detected = _sanitize_index(detected, "detected")
+    reference, is_multindex_reference = _sanitize_index(reference, "reference")
+
+    if multiindex_warning and (is_multindex_detected or is_multindex_reference):
+        warnings.warn(
+            "The index of `ic_list_detected` or `ic_list_reference` is a MultiIndex. "
+            "Please be aware that the index levels will not be regarded separately for the matching process, "
+            "and initial contacts might be matched across different index groups, such as walking bouts or "
+            "participants.\n"
+            "If this is not the intended use case for you, consider grouping your input data before calling the "
+            "evaluation function.\n\n"
+            "This can be done using the `create_multi_groupby` function from the `gaitlink.utils.array_handling`. "
+            "Checkout the example of IC-evaluation for more information.",
+            stacklevel=1,
+        )
 
     left_indices, right_indices = _match_label_lists(
         detected.to_numpy(),
@@ -297,27 +310,14 @@ def _check_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
     return matches
 
 
-def _sanitize_index(
-    ic_list: pd.DataFrame, list_type: Literal["detected", "reference"], multiindex_warning: bool
-) -> pd.DataFrame:
+def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "reference"]) -> tuple[pd.DataFrame, bool]:
+    is_multindex = False
     # check if index is a multiindex and raise warning if it is
     if isinstance(ic_list.index, pd.MultiIndex):
-        if multiindex_warning:
-            # TODO: refer to possible grouping function
-            warnings.warn(
-                "The index of `ic_list_{list_type}` is a MultiIndex. "
-                "Please be aware that the index levels will not be regarded separately for the matching process, "
-                "and initial contacts might be matched across different index groups, such as walking bouts or "
-                "participants.\n"
-                "If this is not the intended use case for you, consider grouping your input data before calling the "
-                "evaluation function.\n\n"
-                "This can be done using the `create_multi_groupby` function from the `gaitlink.utils.array_handling`. "
-                "Checkout the example of IC-evaluation for more information.",
-                stacklevel=2,
-            )
+        is_multindex = True
         ic_list.index = ic_list.index.to_flat_index()
         ic_list.index.name = f"ic_id_{list_type}"
     # check if indices are unique
     if not ic_list.index.is_unique:
         raise ValueError(f"The index of `ic_list_{list_type}` must be unique!")
-    return ic_list
+    return ic_list, is_multindex

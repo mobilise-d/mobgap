@@ -6,6 +6,7 @@ ICD Evaluation
 
 This example shows how to apply evaluation algorithms to ICD and thus how to rate the performance of an ICD algorithm.
 """
+
 import pandas as pd
 
 # %%
@@ -164,7 +165,8 @@ pd.Series(metrics_all)
 #
 # For this we can use the normal pandas groupby to calculate the metrics for each walking bout separately.
 metrics_per_wb = matches_per_wb.groupby(level="wb_id").apply(
-    lambda df_: pd.Series(calculate_matched_icd_performance_metrics(df_)))
+    lambda df_: pd.Series(calculate_matched_icd_performance_metrics(df_))
+)
 
 metrics_per_wb
 
