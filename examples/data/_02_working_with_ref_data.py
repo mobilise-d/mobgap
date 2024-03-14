@@ -2,7 +2,7 @@
 Working with reference data
 ===========================
 
-Often you want to test an algorithmic stepo in isolation or validate the output of an algorithm.
+Often you want to test an algorithmic step in isolation or validate the output of an algorithm.
 In both cases, you need reference data - either as input or as a comparison.
 
 As explained in the `data example <data_loading_example>`_, reference data that is stored in .mat files can be easily
