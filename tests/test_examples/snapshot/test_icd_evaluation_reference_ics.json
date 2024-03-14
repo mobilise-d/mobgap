@@ -6,7 +6,7 @@
                 "type":"integer"
             },
             {
-                "name":"ic_id",
+                "name":"step_id",
                 "type":"integer"
             },
             {
@@ -20,386 +20,386 @@
         ],
         "primaryKey":[
             "wb_id",
-            "ic_id"
+            "step_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":1,
-            "ic_id":0,
+            "step_id":0,
             "ic":632,
             "lr_label":"left"
         },
         {
             "wb_id":1,
-            "ic_id":1,
+            "step_id":1,
             "ic":709,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "ic_id":2,
+            "step_id":2,
             "ic":763,
             "lr_label":"left"
         },
         {
             "wb_id":1,
-            "ic_id":3,
+            "step_id":3,
             "ic":824,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "ic_id":4,
+            "step_id":4,
             "ic":876,
             "lr_label":"left"
         },
         {
             "wb_id":1,
-            "ic_id":5,
+            "step_id":5,
             "ic":933,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "ic_id":6,
+            "step_id":6,
             "ic":987,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "ic_id":7,
+            "step_id":7,
             "ic":2864,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "ic_id":8,
+            "step_id":8,
             "ic":2935,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "ic_id":9,
+            "step_id":9,
             "ic":2996,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "ic_id":10,
+            "step_id":10,
             "ic":3058,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "ic_id":11,
+            "step_id":11,
             "ic":3127,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "ic_id":12,
+            "step_id":12,
             "ic":3324,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":13,
+            "step_id":13,
             "ic":3853,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":14,
+            "step_id":14,
             "ic":3922,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":15,
+            "step_id":15,
             "ic":3980,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":16,
+            "step_id":16,
             "ic":4082,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":17,
+            "step_id":17,
             "ic":4146,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":18,
+            "step_id":18,
             "ic":4213,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":19,
+            "step_id":19,
             "ic":4345,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":20,
+            "step_id":20,
             "ic":4434,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":21,
+            "step_id":21,
             "ic":4494,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":22,
+            "step_id":22,
             "ic":4568,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":23,
+            "step_id":23,
             "ic":4636,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":24,
+            "step_id":24,
             "ic":4700,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":25,
+            "step_id":25,
             "ic":4762,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":26,
+            "step_id":26,
             "ic":4817,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":27,
+            "step_id":27,
             "ic":4862,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":28,
+            "step_id":28,
             "ic":4909,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "ic_id":29,
+            "step_id":29,
             "ic":4964,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "ic_id":30,
+            "step_id":30,
             "ic":5084,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":31,
+            "step_id":31,
             "ic":7641,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":32,
+            "step_id":32,
             "ic":7642,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":33,
+            "step_id":33,
             "ic":7790,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":34,
+            "step_id":34,
             "ic":7852,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":35,
+            "step_id":35,
             "ic":7898,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":36,
+            "step_id":36,
             "ic":7991,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":37,
+            "step_id":37,
             "ic":8044,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":38,
+            "step_id":38,
             "ic":8095,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":39,
+            "step_id":39,
             "ic":8167,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":40,
+            "step_id":40,
             "ic":8228,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":41,
+            "step_id":41,
             "ic":8283,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":42,
+            "step_id":42,
             "ic":8341,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":43,
+            "step_id":43,
             "ic":8403,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":44,
+            "step_id":44,
             "ic":8472,
             "lr_label":"right"
         },
         {
             "wb_id":4,
-            "ic_id":45,
+            "step_id":45,
             "ic":8545,
             "lr_label":"left"
         },
         {
             "wb_id":4,
-            "ic_id":46,
+            "step_id":46,
             "ic":8620,
             "lr_label":"right"
         },
         {
             "wb_id":5,
-            "ic_id":47,
+            "step_id":47,
             "ic":9451,
             "lr_label":"right"
         },
         {
             "wb_id":5,
-            "ic_id":48,
+            "step_id":48,
             "ic":9535,
             "lr_label":"left"
         },
         {
             "wb_id":5,
-            "ic_id":49,
+            "step_id":49,
             "ic":9601,
             "lr_label":"right"
         },
         {
             "wb_id":5,
-            "ic_id":50,
+            "step_id":50,
             "ic":9663,
             "lr_label":"left"
         },
         {
             "wb_id":5,
-            "ic_id":51,
+            "step_id":51,
             "ic":9734,
             "lr_label":"right"
         },
         {
             "wb_id":5,
-            "ic_id":52,
+            "step_id":52,
             "ic":9799,
             "lr_label":"left"
         },
         {
             "wb_id":5,
-            "ic_id":53,
+            "step_id":53,
             "ic":9868,
             "lr_label":"right"
         },
         {
             "wb_id":5,
-            "ic_id":54,
+            "step_id":54,
             "ic":9931,
             "lr_label":"left"
         },
         {
             "wb_id":6,
-            "ic_id":55,
+            "step_id":55,
             "ic":11989,
             "lr_label":"right"
         },
         {
             "wb_id":6,
-            "ic_id":56,
+            "step_id":56,
             "ic":12051,
             "lr_label":"left"
         },
         {
             "wb_id":6,
-            "ic_id":57,
+            "step_id":57,
             "ic":12108,
             "lr_label":"right"
         },
         {
             "wb_id":6,
-            "ic_id":58,
+            "step_id":58,
             "ic":12162,
             "lr_label":"left"
         },
         {
             "wb_id":6,
-            "ic_id":59,
+            "step_id":59,
             "ic":12220,
             "lr_label":"right"
         },
         {
             "wb_id":6,
-            "ic_id":60,
+            "step_id":60,
             "ic":12277,
             "lr_label":"left"
         },
         {
             "wb_id":6,
-            "ic_id":61,
+            "step_id":61,
             "ic":12335,
             "lr_label":"right"
         },
         {
             "wb_id":6,
-            "ic_id":62,
+            "step_id":62,
             "ic":12516,
             "lr_label":"left"
         }
