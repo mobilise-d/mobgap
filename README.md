@@ -5,6 +5,11 @@
 > 
 > Learn more about this in our blog post about the [alpha release](TODO).
 
+
+<p align="center">
+<img src="./docs/_static/logo/mobilise_d_and_imi.png" height="200">
+</p>
+
 # GaitLink - The Mobilise-D algorithm toolbox
 
 A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back
@@ -14,6 +19,7 @@ This package is meant as reference implementation for research and production us
 We are open to contributions and feedback, and are actively interested in expanding the library beyond its current scope
 and include algorithms and tools, that would allow gaitlink to grow into a general purpose library for gait and mobility
 analysis.
+
 
 ## Installation
 
@@ -125,3 +131,18 @@ Ideally, we recommend to use the names as described in the usage recommendation 
 "Mobilise-D algorithm pipeline" for any custom pipelines or pipelines with modified parameters.
 If in doubt, feel free ask using the [Github issue tracker](https://github.com/mobilise-d/gaitlink/issues) or 
 the Github discussions.
+
+## Funding and Support
+
+This work was supported by the Mobilise-D project that has received funding from the Innovative Medicines Initiative 2 
+Joint Undertaking (JU) under grant agreement No. 820820.
+This JU receives support from the European Union‘s Horizon 2020 research and innovation program and the European 
+Federation of Pharmaceutical Industries and Associations (EFPIA).
+Content in this publication reflects the authors‘ view and neither IMI nor the European Union, EFPIA, or any Associated 
+Partners are responsible for any use that may be made of the information contained herein.
+
+And of course, this development was only made possible by the joint work of all Mobilise-D partners.
+
+<p align="center">
+<img src="./docs/_static/logo/mobilise_d_partners.png" height="400">
+</p>
