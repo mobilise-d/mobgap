@@ -1,4 +1,4 @@
-from gaitlink.data import LabExampleDataset, get_all_lab_example_data_paths
+from mobgap.data import LabExampleDataset, get_all_lab_example_data_paths
 from tests import PROJECT_ROOT
 
 

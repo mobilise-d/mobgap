@@ -1,7 +1,7 @@
 Pipelines
 =========
 
-.. automodule:: gaitlink.pipeline
+.. automodule:: mobgap.pipeline
     :no-members:
     :no-inherited-members:
 
@@ -13,7 +13,7 @@ Helper
 
 Gait Sequence Iteration
 +++++++++++++++++++++++
-.. currentmodule:: gaitlink.pipeline
+.. currentmodule:: mobgap.pipeline
 
 .. autosummary::
    :toctree: generated/pipeline
@@ -29,7 +29,7 @@ Gait Sequence Iteration
 
 Aggregation Functions
 ~~~~~~~~~~~~~~~~~~~~~
-.. currentmodule:: gaitlink.pipeline
+.. currentmodule:: mobgap.pipeline
 
 .. autosummary::
    :toctree: generated/pipeline
@@ -39,7 +39,7 @@ Aggregation Functions
 
 Datatypes
 ~~~~~~~~~
-.. currentmodule:: gaitlink.pipeline
+.. currentmodule:: mobgap.pipeline
 
 .. autosummary::
    :toctree: generated/pipeline

@@ -2,4 +2,4 @@
 
 Examples
 ========
-Examples that show how to work with GaitLink.
+Examples that show how to work with mobgap.

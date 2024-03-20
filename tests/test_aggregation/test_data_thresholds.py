@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from gaitlink import PACKAGE_ROOT
-from gaitlink.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
+from mobgap import PACKAGE_ROOT
+from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
 
 class TestDataThresholds:

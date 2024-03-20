@@ -1,14 +1,14 @@
 Gait Sequence Detection (GSD)
 =============================
 
-.. automodule:: gaitlink.gsd
+.. automodule:: mobgap.gsd
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: gaitlink.gsd
+.. currentmodule:: mobgap.gsd
 
 .. autosummary::
    :toctree: generated/gsd
@@ -18,11 +18,11 @@ Algorithms
 
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.gsd.base
+.. automodule:: mobgap.gsd.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.gsd.base
+.. currentmodule:: mobgap.gsd.base
 
 .. autosummary::
    :toctree: generated/gsd
@@ -42,7 +42,7 @@ Docu-helper
 
 Evaluation
 ++++++++++
-.. currentmodule:: gaitlink.gsd.evaluation
+.. currentmodule:: mobgap.gsd.evaluation
 
 .. autosummary::
    :toctree: generated/gsd

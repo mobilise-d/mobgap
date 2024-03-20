@@ -1,7 +1,7 @@
 # Common Datatypes
 
 
-When considering data in gaitlink, we need to separate two hierarchies:
+When considering data in mobgap, we need to separate two hierarchies:
 
 1. The direct input and outputs of a single algorithm. There we try to stick to common datatypes as much as possible.
 2. Full datasets that are used as inputs for pipelines. 
@@ -114,7 +114,7 @@ encounter in algorithm outputs are usually relative to the start of the gait seq
 So if you need them relative to the start of the recording you need to adjust the values accordingly.
 Similar, with reference data we usually differentiate between `reference_parameters_` and 
 `reference_parameters_relative_to_wb_`.
-For more information see {py:class}`~gaitlink.data.base.BaseGaitDatasetWithReference`.
+For more information see {py:class}`~mobgap.data.base.BaseGaitDatasetWithReference`.
 
 Like with the other structures, we don't have strict assumptions on the index.
 However, we suggest using a unique identifier for each event starting with 1 for the first event.
@@ -124,7 +124,7 @@ But this naming does not affect the processing of the data.
 This event dataframe can have additional columns that contain additional information about the events.
 For example, the `ic` column is often accompanied by a `lr_label` column that contains the label of the leg 
 (`left`/`right`) that the initial contact was detected on.
-For more information see {py:mod}`~gaitlink.lrd`.
+For more information see {py:mod}`~mobgap.lrd`.
 
 ### Per-Second Gait Parameters
 
@@ -150,13 +150,13 @@ TODO
 
 In some cases, we use the dataframes described above, but with a multi-index.
 This usually happens when we want to represent a group of results/data in one dataframe.
-The most common usecase of this is in the output of the {py:class}`~gaitlink.pipeline.GsIterator` class.
+The most common usecase of this is in the output of the {py:class}`~mobgap.pipeline.GsIterator` class.
 It allows to apply a set of algorithms to each gait sequence in a dataset and then combine the results in a single
 dataframe.
 
 These output dataframes then have a multi-index with the first level being the `gs_id` and the second level being the
 original index of the respective algorithm output.
-Algorithms and blocks designed to work with these outputs (like the {py:class}`~gaitlink.wba.WbAssembly`) are designed
+Algorithms and blocks designed to work with these outputs (like the {py:class}`~mobgap.wba.WbAssembly`) are designed
 to handle these multi-index dataframes.
 
 Further, we use multi-index dataframes to represent aggregated parameters of multiple recordings/participants/etc.
@@ -169,22 +169,22 @@ They are based on the {external:class}`tpcp.Dataset` class and allow to easily l
 structures.
 
 A dataset that has only one "row" (i.e. one recording) is referred to as a "datapoint" and is the expected input for
-all the pipelines in gaitlink.
+all the pipelines in mobgap.
 
 Using this dataset abstraction allows us to easily apply the same algorithms to different datasets and to use 
 higher-level tpcp-features like the {py:class}`~tpcp.validate.cross_validate` to run and evaluate our pipelines on
 subsets of our datasets in a consistent manner.
 
-The simplest dataset that we provide out of the box is the {py:class}`~gaitlink.data.LabExampleDataset`, which can be
-used to load the example data that we provide with gaitlink.
+The simplest dataset that we provide out of the box is the {py:class}`~mobgap.data.LabExampleDataset`, which can be
+used to load the example data that we provide with mobgap.
 
-If you have already loaded your own data and want to use it with a gaitlink pipeline, you can use the 
+If you have already loaded your own data and want to use it with a mobgap pipeline, you can use the 
 {py:class}`~gaitlin.data.GaitDatasetFromData` class to quickly create a compatible dataset from your data.
 However, we highly encourage you to create a custom dataset class for your data.
 This will simplify a lot of things and provides a generally nice abstraction for your dataset.
 
-We provide helper for creating custom datasets in the {py:mod}`~gaitlink.data` module and are happy to integrate
-developed datasets of public datasets into gaitlink.
+We provide helper for creating custom datasets in the {py:mod}`~mobgap.data` module and are happy to integrate
+developed datasets of public datasets into mobgap.
 
 TODO: Link to tutorial on working with data
 

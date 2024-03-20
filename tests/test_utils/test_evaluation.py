@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from gaitlink.utils.evaluation import (
+from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
     count_samples_in_match_intervals,

@@ -3,9 +3,9 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd._hklee_algo_improved import IcdHKLeeImproved
-from gaitlink.pipeline import GsIterator
+from mobgap.data import LabExampleDataset
+from mobgap.icd._hklee_algo_improved import IcdHKLeeImproved
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaHKLeeImproved(TestAlgorithmMixin):

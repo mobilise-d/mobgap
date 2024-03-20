@@ -11,9 +11,9 @@ import pandas as pd
 
 # %%
 # Import useful modules and packages
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdIonescu
-from gaitlink.pipeline import GsIterator
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdIonescu
+from mobgap.pipeline import GsIterator
 
 # %%
 # Loading some example data
@@ -70,7 +70,7 @@ reference_ics
 # Let's quantify how the algorithm output compares to the reference labels.
 # To gain a detailed insight into the performance of the algorithm, we can look into the individual matches between the
 # detected and reference initial contacts.
-# To do this, we use the :func:`~gaitlink.icd.evaluation.categorize_ic_list` function to classify each detected initial
+# To do this, we use the :func:`~mobgap.icd.evaluation.categorize_ic_list` function to classify each detected initial
 # contact as a true positive, false positive, or false negative.
 # We can then use these results to calculate a range of higher-level performance metrics.
 #
@@ -81,8 +81,8 @@ reference_ics
 # matching within the walking bouts.
 #
 # For this, we need to group the detected and reference initial contacts by the walking bout id.
-# This can be done using the :func:`~gaitlink.utils.array_handling.create_multi_groupby` helper function.
-from gaitlink.utils.array_handling import create_multi_groupby
+# This can be done using the :func:`~mobgap.utils.array_handling.create_multi_groupby` helper function.
+from mobgap.utils.array_handling import create_multi_groupby
 
 per_wb_grouper = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"])
 
@@ -93,12 +93,12 @@ per_wb_grouper = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_
 # I.e. the function will get the detected and reference initial contacts for each walking bout and then can perform
 # some operation on them.
 #
-# In our case we want to apply the :func:`~gaitlink.icd.evaluation.categorize_ic_list` function to each walking bout.
+# In our case we want to apply the :func:`~mobgap.icd.evaluation.categorize_ic_list` function to each walking bout.
 # This function will then return a dataframe with the matches given a certain tolerance.
 #
 # We don't assume that initial contacts are detected at perfectly the exact same time in both systems.
 # Hence, we allow for a certain deviation in the matching process.
-from gaitlink.utils.conversions import as_samples
+from mobgap.utils.conversions import as_samples
 
 tolerance_s = 0.2
 tolerance_samples = as_samples(tolerance_s, wb_data.sampling_rate_hz)
@@ -111,7 +111,7 @@ tolerance_samples
 # and the match type.
 # The two index columns contain tuples in our case, as they stem from the original multiindex that we provided.
 # So each of the tuples has the form ``(wb_id, ic_id)``.
-from gaitlink.icd.evaluation import categorize_ic_list
+from mobgap.icd.evaluation import categorize_ic_list
 
 matches_per_wb = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"]).apply(
     lambda df1, df2: categorize_ic_list(
@@ -146,7 +146,7 @@ matched_all
 # -------------------------------
 # From these ``matches_per_wb``, a range of higher-level performance metrics (including the total number of true
 # positives, false positives, and false negatives, as well as precision, recall, and F1-score) can be calculated.
-# For this purpose, we can use the :func:`~gaitlink.icd.evaluation.calculate_matched_icd_performance_metrics` function.
+# For this purpose, we can use the :func:`~mobgap.icd.evaluation.calculate_matched_icd_performance_metrics` function.
 # It returns a dictionary containing all metrics for the specified detected and reference initial contact lists.
 #
 # We can again decide, if we want to calculate these metrics across all walking bouts or for each walking bout
@@ -154,7 +154,7 @@ matched_all
 # We will quickly show both approaches below.
 #
 # Across all walking bouts:
-from gaitlink.icd.evaluation import calculate_matched_icd_performance_metrics
+from mobgap.icd.evaluation import calculate_matched_icd_performance_metrics
 
 metrics_all = calculate_matched_icd_performance_metrics(matches_per_wb)
 

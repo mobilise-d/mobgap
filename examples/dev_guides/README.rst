@@ -2,5 +2,5 @@
 
 Development Guides
 ==================
-Some recipies that should help during development of gaitlink and might also be helpful, if you want to extend gaitlink
+Some recipies that should help during development of mobgap and might also be helpful, if you want to extend mobgap
 using new algorithms.

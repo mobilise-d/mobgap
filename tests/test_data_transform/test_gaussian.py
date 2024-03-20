@@ -4,7 +4,7 @@ import pytest
 from scipy.ndimage import gaussian_filter1d
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data_transform import GaussianFilter
+from mobgap.data_transform import GaussianFilter
 
 
 class TestMetaGaussianFilter(TestAlgorithmMixin):

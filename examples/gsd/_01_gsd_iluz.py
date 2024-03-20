@@ -54,8 +54,8 @@ import json
 
 import pandas as pd
 
-from gaitlink import PACKAGE_ROOT
-from gaitlink.data import LabExampleDataset
+from mobgap import PACKAGE_ROOT
+from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 
@@ -82,7 +82,7 @@ def load_matlab_output(datapoint):
 # Performance on a single lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
-from gaitlink.gsd import GsdIluz
+from mobgap.gsd import GsdIluz
 
 short_trial = lab_example_data.get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")
 short_trial_matlab_output = load_matlab_output(short_trial)
@@ -169,7 +169,7 @@ fig.show()
 # To do this, we use the `categorize_intervals` function to identify overlappting regions between the detected gait
 # sequences and the reference gait sequences.
 
-from gaitlink.gsd.evaluation import categorize_intervals
+from mobgap.gsd.evaluation import categorize_intervals
 
 categorized_intervals = categorize_intervals(
     gsd_list_detected=long_trial_output.gs_list_,
@@ -192,9 +192,9 @@ print("Matched Intervals:\n\n", categorized_intervals)
 # %%
 # Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
 # and recall can be calculated.
-# For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
+# For this purpose, the :func:`~mobgap.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
-from gaitlink.gsd.evaluation import calculate_matched_gsd_performance_metrics
+from mobgap.gsd.evaluation import calculate_matched_gsd_performance_metrics
 
 matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
 
@@ -202,12 +202,12 @@ print("Matched Performance Metrics:\n\n", matched_metrics_dict)
 
 # %%
 # Furthermore, there is a range of performance metrics that only require the overall amount of gait detected.
-# These metrics can be calculated using the :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics`
+# These metrics can be calculated using the :func:`~mobgap.gsd.evaluation.calculate_unmatched_gsd_performance_metrics`
 # function.
 # It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
 # and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
 
-from gaitlink.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
+from mobgap.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
 
 unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected=long_trial_output.gs_list_,
@@ -218,7 +218,7 @@ unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
 print("Unmatched Performance Metrics:\n\n", unmatched_metrics_dict)
 
 # %%
-# Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`.
+# Another useful function for evaluation is :func:`~mobgap.gsd.evaluation.find_matches_with_min_overlap`.
 # It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
 # given amount.
 # We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
@@ -227,7 +227,7 @@ print("Unmatched Performance Metrics:\n\n", unmatched_metrics_dict)
 #
 # This information can then be used further to compare aggregated parameters from within the respective gait sequences.
 
-from gaitlink.gsd.evaluation import find_matches_with_min_overlap
+from mobgap.gsd.evaluation import find_matches_with_min_overlap
 
 matches = find_matches_with_min_overlap(
     gsd_list_detected=long_trial_output.gs_list_,

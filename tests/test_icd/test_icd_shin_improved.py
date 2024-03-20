@@ -3,9 +3,9 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdShinImproved
-from gaitlink.pipeline import GsIterator
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdShinImproved
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaShinImproved(TestAlgorithmMixin):

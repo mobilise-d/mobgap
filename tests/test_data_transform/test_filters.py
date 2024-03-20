@@ -9,8 +9,8 @@ from pandas.testing import assert_frame_equal
 from scipy.signal import butter, filtfilt, firwin, lfilter, sosfilt, sosfiltfilt
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import (
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import (
     ButterworthFilter,
     EpflDedriftedGaitFilter,
     EpflDedriftFilter,
@@ -18,7 +18,7 @@ from gaitlink.data_transform import (
     FirFilter,
     HampelFilter,
 )
-from gaitlink.data_transform.base import FixedFilter
+from mobgap.data_transform.base import FixedFilter
 
 HERE = Path(__file__).parent
 

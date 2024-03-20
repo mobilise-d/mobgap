@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data_transform import Crop, Pad
+from mobgap.data_transform import Crop, Pad
 
 
 class TestMetaPad(TestAlgorithmMixin):

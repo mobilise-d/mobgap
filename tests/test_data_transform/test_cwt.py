@@ -3,7 +3,7 @@ import pytest
 from pywt import cwt, scale2frequency
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data_transform import CwtFilter
+from mobgap.data_transform import CwtFilter
 
 
 class TestMetaCwtFilter(TestAlgorithmMixin):

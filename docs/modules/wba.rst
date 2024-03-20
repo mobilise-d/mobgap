@@ -1,13 +1,13 @@
 Walking Bout Assembly (WBA)
 ===========================
 
-.. automodule:: gaitlink.wba
+.. automodule:: mobgap.wba
     :no-members:
     :no-inherited-members:
 
 Stride Selection
 ----------------
-.. currentmodule:: gaitlink.wba
+.. currentmodule:: mobgap.wba
 
 .. autosummary::
    :toctree: generated/wba
@@ -18,7 +18,7 @@ Stride Selection
 Rules
 +++++
 
-.. currentmodule:: gaitlink.wba
+.. currentmodule:: mobgap.wba
 
 .. autosummary::
    :toctree: generated/wba
@@ -30,7 +30,7 @@ Rules
 
 Walking Bout Assembly
 ---------------------
-.. currentmodule:: gaitlink.wba
+.. currentmodule:: mobgap.wba
 
 .. autosummary::
    :toctree: generated/wba
@@ -41,7 +41,7 @@ Walking Bout Assembly
 Rules
 +++++
 
-.. currentmodule:: gaitlink.wba
+.. currentmodule:: mobgap.wba
 
 .. autosummary::
    :toctree: generated/wba
@@ -56,7 +56,7 @@ Rules
 Plotting
 --------
 
-.. currentmodule:: gaitlink.wba.plot
+.. currentmodule:: mobgap.wba.plot
 
 .. autosummary::
    :toctree: generated/wba

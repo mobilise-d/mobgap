@@ -4,7 +4,7 @@
 API Reference
 =============
 
-This is the API Reference for ``gaitlink``.
+This is the API Reference for ``mobgap``.
 
 .. toctree::
     :maxdepth: 1

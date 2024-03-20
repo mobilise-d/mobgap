@@ -3,8 +3,8 @@ import pytest
 from scipy.signal import resample
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import Resample
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import Resample
 
 
 class TestMetaResample(TestAlgorithmMixin):

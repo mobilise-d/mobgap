@@ -4,8 +4,8 @@ import pytest
 from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.gsd import GsdIluz
+from mobgap.data import LabExampleDataset
+from mobgap.gsd import GsdIluz
 
 
 class TestMetaGsdIluz(TestAlgorithmMixin):

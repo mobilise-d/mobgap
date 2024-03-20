@@ -1,6 +1,6 @@
-.. gaitlink documentation master file
+.. mobgap documentation master file
 
-Gaitlink Docu Overview
+mobgap Docu Overview
 ======================
 
 .. toctree::

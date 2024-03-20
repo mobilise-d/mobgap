@@ -1,14 +1,14 @@
 Lef-Right Detection (ICD)
 =========================
 
-.. automodule:: gaitlink.lrd
+.. automodule:: mobgap.lrd
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: gaitlink.lrd
+.. currentmodule:: mobgap.lrd
 
 .. autosummary::
    :toctree: generated/lrd
@@ -18,11 +18,11 @@ Algorithms
 
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.lrd.base
+.. automodule:: mobgap.lrd.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.lrd.base
+.. currentmodule:: mobgap.lrd.base
 
 .. autosummary::
    :toctree: generated/lrd

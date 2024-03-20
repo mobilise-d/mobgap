@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from gaitlink.data import GaitDatasetFromData
+from mobgap.data import GaitDatasetFromData
 
 
 class TestDatasetFromData:

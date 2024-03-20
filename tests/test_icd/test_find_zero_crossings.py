@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from gaitlink.icd._shin_algo_improved import find_zero_crossings
+from mobgap.icd._shin_algo_improved import find_zero_crossings
 
 
 class TestFindZeroCrossings:

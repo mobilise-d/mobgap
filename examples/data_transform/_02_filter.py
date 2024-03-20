@@ -3,7 +3,7 @@ General Filter Introduction
 ===========================
 
 One of the most common data transformations is filtering.
-In gaitlink various types of filters are used to clean data and enhance signal features.
+In mobgap various types of filters are used to clean data and enhance signal features.
 Important filters are implemented using the :class:`~tpcp.base.data_transform.BaseFilter` class, which supports
 a consistent interface for filtering data.
 See the :ref:`generic data transforms example <generic_data_transforms>` for more information.
@@ -18,15 +18,15 @@ All filters use :class:`~tpcp.data_transform.base.BaseFilter` as a base class, w
 
 Below we show two simple examples.
 
-First, we show how to apply the :class:`~gaitlink.data_transform.EpflDedriftedGaitFilter` to some data and then
+First, we show how to apply the :class:`~mobgap.data_transform.EpflDedriftedGaitFilter` to some data and then
 we demonstrate a simple butterworth filter.
 
 We load some example data to apply the filters to.
 
 """
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import Resample
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import Resample
 
 data_point = LabExampleDataset().get_subset(cohort="HA", participant_id="002", test="Test5", trial="Trial2")
 example_data = data_point.data["LowerBack"]
@@ -48,7 +48,7 @@ example_data_resampled
 
 # %%
 # We can now apply the filter to the data.
-from gaitlink.data_transform import EpflDedriftedGaitFilter
+from mobgap.data_transform import EpflDedriftedGaitFilter
 
 epfl_filter = EpflDedriftedGaitFilter()
 epfl_filter.filter(example_data_resampled, sampling_rate_hz=40)
@@ -80,7 +80,7 @@ plt.show()
 # ``zero_phase`` parameter.
 # Here, we will use the default (``zero_phase=True``), which means that the filter is applied twice, once forward and
 # once backward.
-from gaitlink.data_transform import ButterworthFilter
+from mobgap.data_transform import ButterworthFilter
 
 butterworth_filter = ButterworthFilter(order=4, cutoff_freq_hz=2.0, zero_phase=True)
 

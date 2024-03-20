@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from gaitlink.wba import IntervalParameterCriteria, MaxBreakCriteria, NStridesCriteria, StrideSelection, WbAssembly
+from mobgap.wba import IntervalParameterCriteria, MaxBreakCriteria, NStridesCriteria, StrideSelection, WbAssembly
 from tests.test_wba.conftest import window
 
 

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from gaitlink.icd.evaluation import _match_label_lists, calculate_matched_icd_performance_metrics, categorize_ic_list
+from mobgap.icd.evaluation import _match_label_lists, calculate_matched_icd_performance_metrics, categorize_ic_list
 
 
 @pytest.fixture()
