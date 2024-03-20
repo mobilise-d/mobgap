@@ -1,14 +1,14 @@
 Cadence Estimation (CAD)
 ========================
 
-.. automodule:: gaitlink.cad
+.. automodule:: mobgap.cad
     :no-members:
     :no-inherited-members:
 
 
 Cadence from ICs
 ++++++++++++++++
-.. currentmodule:: gaitlink.cad
+.. currentmodule:: mobgap.cad
 
 .. autosummary::
    :toctree: generated/cad
@@ -19,11 +19,11 @@ Cadence from ICs
 
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.cad.base
+.. automodule:: mobgap.cad.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.cad.base
+.. currentmodule:: mobgap.cad.base
 
 .. autosummary::
    :toctree: generated/cad

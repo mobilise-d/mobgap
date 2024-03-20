@@ -1,14 +1,14 @@
 General Performance Evaluation Metrics
 ======================================
 
-.. automodule:: gaitlink.utils.evaluation
+.. automodule:: mobgap.utils.evaluation
     :no-members:
     :no-inherited-members:
 
 Functions
 ---------
 
-.. currentmodule:: gaitlink.utils.evaluation
+.. currentmodule:: mobgap.utils.evaluation
 
 .. autosummary::
    :toctree: ../generated/utils/evaluation

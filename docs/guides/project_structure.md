@@ -50,7 +50,7 @@ For this we should try to follow the following principles:
    One example of that would be the `tpcp.Dataset` datatype used for high level pipelines.
 6. The library should be agnostic to sensor systems and should not contain any code that is highly specific to a certain
    IMU system. This means that loading and preprocessing should be handled by the user or other libraries.
-   However, gaitlink can provide utils to make preprocessing easier for users.
+   However, mobgap can provide utils to make preprocessing easier for users.
 
 
 ## Code Structure
@@ -83,7 +83,7 @@ In case multiple functions from an external package are used, import this packag
 ### Algorithms with specific dependencies
 
 Some algorithms require specific dependencies, that are not required by anything else.
-In this case, they should be made optional dependencies of gaitlink to reduce the number of dependencies for users.
+In this case, they should be made optional dependencies of mobgap to reduce the number of dependencies for users.
 To make this possible, the algorithm should be implemented in a separate submodule, that is not imported anywhere else 
 in the library.
 
@@ -136,7 +136,7 @@ Additions to the guide:
   Ideally this should be a reference and not a copy of the data! This allows to path the final object as a whole to 
   helper functions, that e.g. can visualize in and outputs (see also this [Q&A entry](#q&a__other_paras))
   These parameters should be documented under "Other Parameters" to not clutter the docstring.
-- Mutable defaults in the init are as always a bad idea, but in gaitlink we make specific exceptions.
+- Mutable defaults in the init are as always a bad idea, but in mobgap we make specific exceptions.
   See [this guide in tpcp](https://tpcp.readthedocs.io/en/latest/guides/general_concepts.html#mutable-defaults).
 - All methods should take care that they do not modify the original data passed to the function.
   If required a copy of the data can be created, but **not** stored in the object.
@@ -176,9 +176,9 @@ import pandas as pd
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
-from gaitlink.data_transform import EpflDedriftedGaitFilter
-from gaitlink.data_transform.base import BaseFilter
-from gaitlink.icd.base import BaseIcDetector, base_icd_docfiller
+from mobgap.data_transform import EpflDedriftedGaitFilter
+from mobgap.data_transform.base import BaseFilter
+from mobgap.icd.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller

@@ -14,8 +14,8 @@ matlab implementation.
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdIonescu
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdIonescu
 
 # %%
 # Loading some example data
@@ -45,7 +45,7 @@ reference_wbs
 # ----------------------
 # Below we apply the shin algorithm to a lab trial.
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
@@ -61,7 +61,7 @@ detected_ics
 # To check if the algorithm was implemented correctly, we compare the results to the matlab implementation.
 import json
 
-from gaitlink import PACKAGE_ROOT
+from mobgap import PACKAGE_ROOT
 
 
 def load_matlab_output(datapoint):

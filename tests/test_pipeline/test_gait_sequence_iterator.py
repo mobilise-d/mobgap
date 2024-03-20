@@ -4,8 +4,8 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from gaitlink.pipeline import GsIterator, create_aggregate_df, iter_gs
-from gaitlink.pipeline._gs_iterator import GaitSequence, WalkingBout
+from mobgap.pipeline import GsIterator, create_aggregate_df, iter_gs
+from mobgap.pipeline._gs_iterator import GaitSequence, WalkingBout
 
 
 class TestGsIterationFunc:

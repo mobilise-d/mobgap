@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "gaitlink"
+name = "mobgap"
 version = "0.1.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = [
@@ -53,16 +53,16 @@ _auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
 _auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_auto_fix", "_format"]
 format_unsafe = ["_auto_fix_unsafe", "_format"]
-lint = { cmd = "ruff check gaitlink --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff check gaitlink --output-format=github"
+lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff check mobgap --output-format=github"
 _check_format = "ruff format . --check"
 ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
-test = { cmd = "pytest --cov=gaitlink --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
+test = { cmd = "pytest --cov=mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 docs_clean = { "script" = "_tasks:task_docs(clean=True)",  help = "Remove all old build files and build a clean version of the docs." }
 docs_linkcheck = { "script" = "_tasks:task_docs(builder='linkcheck')", help = "Check all links in the built html docs." }
 docs_preview = { cmd = "python -m http.server --directory docs/_build/html", help = "Preview the built html docs." }
 version = { script = "_tasks:task_update_version()", help="Bump the version number in all relevant files."}
-conf_jupyter = { cmd = "python -m ipykernel install --user --name gaitlink", help = "Add a new jupyter kernel for the project." }
-remove_jupyter = { cmd = "jupyter kernelspec uninstall gaitlink", help = "Remove the project specific jupyter kernel."}
+conf_jupyter = { cmd = "python -m ipykernel install --user --name mobgap", help = "Add a new jupyter kernel for the project." }
+remove_jupyter = { cmd = "jupyter kernelspec uninstall mobgap", help = "Remove the project specific jupyter kernel."}
 

@@ -79,20 +79,20 @@ stride_list
 # %%
 # We can filter the stride list above based on a set of rules.
 # We start with some simple rules to demonstrate the process.
-# All rules must be subclasses of :class:`~gaitlink.wba.BaseIntervalCriteria`.
-# At the moment we have implemented :class:`~gaitlink.wba.IntervalParameterCriteria` and
-# :class:`~gaitlink.wba.IntervalDurationCriteria`.
+# All rules must be subclasses of :class:`~mobgap.wba.BaseIntervalCriteria`.
+# At the moment we have implemented :class:`~mobgap.wba.IntervalParameterCriteria` and
+# :class:`~mobgap.wba.IntervalDurationCriteria`.
 # But you could implement custom subclasses, if you see a need for it.
 #
 # Here we just implement a simple rule that filters strides based on their stride length for now.
 # With the thresholds, all strides, we marked as "large" above should be filtered out.
-from gaitlink.wba import IntervalParameterCriteria
+from mobgap.wba import IntervalParameterCriteria
 
 rules = [("sl_thres", IntervalParameterCriteria("stride_length", lower_threshold=0.5, upper_threshold=1.5))]
 
 # %%
 # We can now use these rules to filter the stride list.
-from gaitlink.wba import StrideSelection
+from mobgap.wba import StrideSelection
 
 stride_selection = StrideSelection(rules)
 stride_selection.filter(stride_list, sampling_rate_hz=1)
@@ -108,12 +108,12 @@ filtered_stride_list["stride_length"].unique()
 #
 # Let's make this a little more complicated and add a second rule that filters strides based on their duration.
 # This could either be done by a second rule targeting the parameter `duration` or by using the
-# :class:`~gaitlink.wba.IntervalDurationCriteria`, which recalculates the duration of the stride based on the
+# :class:`~mobgap.wba.IntervalDurationCriteria`, which recalculates the duration of the stride based on the
 # `start` and `end` columns.
 # We use the latter here.
 #
 # The thresholds we use here should filter out all the strides from above with a duration of 60
-from gaitlink.wba import IntervalDurationCriteria
+from mobgap.wba import IntervalDurationCriteria
 
 rules.append(("dur_thres", IntervalDurationCriteria(min_duration_s=80, max_duration_s=120)))
 
@@ -141,21 +141,21 @@ stride_selection.excluded_stride_list_.merge(stride_selection.exclusion_reasons_
 # Now that we have a list of strides that we consider valid, we want to group them into WBs.
 # For this we define a set of rules that define when a WB should be terminated and if a preliminary WB fulfills
 # the criteria to be a valid WB.
-# These rules are subclasses of :class:`~gaitlink.wba.BaseWbCriteria` and each rule can act as both a termination
+# These rules are subclasses of :class:`~mobgap.wba.BaseWbCriteria` and each rule can act as both a termination
 # criterion and an inclusion criterion.
 # Have a look at the documentation of the specific rules for more details.
 # For more details on how the rules are applied, have a look at the documentation of the
-# :class:`~gaitlink.wba.WbAssembly`.
+# :class:`~mobgap.wba.WbAssembly`.
 #
 # For this example, we use two rules:
 #
-# 1. :class:`~gaitlink.wba.MaxBreakCriteria`: This rule terminates a WB if the time between two strides is larger
+# 1. :class:`~mobgap.wba.MaxBreakCriteria`: This rule terminates a WB if the time between two strides is larger
 #    than a given threshold.
 #    It acts as a termination criterion.
-# 2. :class:`~gaitlink.wba.NStridesCriteria`: This rule excludes preliminary WBs that have less than a given number of
+# 2. :class:`~mobgap.wba.NStridesCriteria`: This rule excludes preliminary WBs that have less than a given number of
 #    strides.
 #    It acts as an inclusion criterion.
-from gaitlink.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
+from mobgap.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
 
 rules = [
     ("max_break", MaxBreakCriteria(max_break_s=10, remove_last_ic="per_foot", consider_end_as_break=True)),
@@ -182,7 +182,7 @@ print(f"The method identified {len(wb_assembly.wbs_)} WBs.")
 
 # %%
 # We can also get an idea of how the final results looks, by plotting the wba outputs.
-from gaitlink.wba.plot import plot_wba_results
+from mobgap.wba.plot import plot_wba_results
 
 plot_wba_results(wb_assembly, stride_selection=stride_selection)
 plt.show()

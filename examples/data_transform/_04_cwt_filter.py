@@ -16,8 +16,8 @@ In this example we will show how to apply a CWT as such a filter to a time serie
 
 import matplotlib.pyplot as plt
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import CwtFilter
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import CwtFilter
 
 # %%
 # Loading some example data

@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 
-from gaitlink import PACKAGE_ROOT
-from gaitlink.data import (
+from mobgap import PACKAGE_ROOT
+from mobgap.data import (
     GenericMobilisedDataset,
     get_all_lab_example_data_paths,
     load_mobilised_matlab_format,

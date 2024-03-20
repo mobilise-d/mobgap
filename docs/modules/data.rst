@@ -1,7 +1,7 @@
 Data loading and Datasets
 =========================
 
-.. automodule:: gaitlink.data
+.. automodule:: mobgap.data
     :no-members:
     :no-inherited-members:
 
@@ -10,7 +10,7 @@ General Gait Data
 
 Base Classes
 ++++++++++++
-.. currentmodule:: gaitlink.data.base
+.. currentmodule:: mobgap.data.base
 
 .. autosummary::
    :toctree: generated/data
@@ -21,7 +21,7 @@ Base Classes
 
 Generic Loader Classes
 ++++++++++++++++++++++
-.. currentmodule:: gaitlink.data
+.. currentmodule:: mobgap.data
 
 .. autosummary::
    :toctree: generated/data
@@ -35,7 +35,7 @@ Mobilise-D Matlab format
 
 Base Classes
 ++++++++++++
-.. currentmodule:: gaitlink.data
+.. currentmodule:: mobgap.data
 
 .. autosummary::
    :toctree: generated/data
@@ -60,7 +60,7 @@ Example Data
 
 Dataset Classes
 +++++++++++++++
-.. currentmodule:: gaitlink.data
+.. currentmodule:: mobgap.data
 
 .. autosummary::
    :toctree: generated/data
@@ -82,7 +82,7 @@ Load Functions
 
 Datatypes
 ---------
-.. currentmodule:: gaitlink.data.base
+.. currentmodule:: mobgap.data.base
 
 .. autosummary::
    :toctree: generated/data
@@ -90,7 +90,7 @@ Datatypes
 
     ReferenceData
 
-.. currentmodule:: gaitlink.data
+.. currentmodule:: mobgap.data
 
 .. autosummary::
    :toctree: generated/data
@@ -101,7 +101,7 @@ Datatypes
 
 Docfiller
 ---------
-.. currentmodule:: gaitlink.data.base
+.. currentmodule:: mobgap.data.base
 
 .. autosummary::
    :toctree: generated/data
@@ -109,7 +109,7 @@ Docfiller
 
     base_gait_dataset_docfiller
 
-.. currentmodule:: gaitlink.data
+.. currentmodule:: mobgap.data
 
 .. autosummary::
    :toctree: generated/data

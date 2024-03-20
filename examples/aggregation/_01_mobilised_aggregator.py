@@ -19,8 +19,8 @@ This example shows how to use the :class:`.MobilisedAggregator` class to aggrega
 
 import pandas as pd
 
-from gaitlink import PACKAGE_ROOT
-from gaitlink.aggregation import MobilisedAggregator
+from mobgap import PACKAGE_ROOT
+from mobgap.aggregation import MobilisedAggregator
 
 DATA_PATH = PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
 
@@ -42,7 +42,7 @@ data.head()
 #    participant.
 #    As some thresholds are cohort or height specific, you would have to apply the thresholds for each participant data
 #    separately.
-from gaitlink.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
+from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
 thresholds = get_mobilised_dmo_thresholds()
 # Note: The height is "artificially" set to 1.75m, as the example data does not contain this information.

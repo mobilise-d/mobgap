@@ -9,11 +9,11 @@ If you are looking for a higher level overview over the guiding ideas and struct
 
 ## Project Setup and Poetry
 
-*gaitlink* only supports Python 3.9 and newer.
+*mobgap* only supports Python 3.9 and newer.
 First, install a compatible version of Python.
 We highly recommend to follow [this guide](https://github.com/mad-lab-fau/mad-cookiecutter/blob/main/python-setup-tips.md)
 
-*gaitlink* uses [poetry](https://python-poetry.org) to manage its dependencies.
+*mobgap* uses [poetry](https://python-poetry.org) to manage its dependencies.
 First install poetry `>=1.5`.
 Once you installed poetry, run the following commands to initialize a virtual env and install all development
 dependencies:
@@ -156,11 +156,11 @@ For more details see the docstring of the mixin.
 #### Test Data
 
 Test data is available in the `example_data` folder.
-Within scripts or examples, the recommended way to access it is using the functions in `gaitlink.example_data`.
+Within scripts or examples, the recommended way to access it is using the functions in `mobgap.example_data`.
 
 TODO: Update this section once we know how to handle example data
 ```python
-from gaitlink.example_data import get_healthy_example_imu_data
+from mobgap.example_data import get_healthy_example_imu_data
 
 ```
 
@@ -242,9 +242,9 @@ settings->Build,Excecution,Deployment->Console->Python Console in the Starting S
 
 ### Jupyter Lab/Notebooks
 
-While we do not (and will not) use Jupyter Notebooks in gaitlink, it might still be helpful to use Jupyter to debug and
+While we do not (and will not) use Jupyter Notebooks in mobgap, it might still be helpful to use Jupyter to debug and
 prototype your scientific code.
-To set up a Jupyter environment that has gaitlink and all dependencies installed, run the following commands:
+To set up a Jupyter environment that has mobgap and all dependencies installed, run the following commands:
 
 ```bash
 # poetry install including root!
@@ -252,9 +252,9 @@ poetry install
 poetry run poe conf_jupyter
 ``` 
 
-After this you can start Jupyter as always, but select "gaitlink" as a kernel when you want to run a notebook.
+After this you can start Jupyter as always, but select "mobgap" as a kernel when you want to run a notebook.
 
-Remember to use the autoreload extension to make sure that Jupyter reloads gaitlink, when ever you change something in 
+Remember to use the autoreload extension to make sure that Jupyter reloads mobgap, when ever you change something in 
 the library.
 Put this in your first cell of every Jupyter Notebook to activate it:
 
@@ -265,7 +265,7 @@ Put this in your first cell of every Jupyter Notebook to activate it:
 
 ## Release Model
 
-Gaitlink follows typically semantic visioning: A.B.C (e.g. 1.3.5)
+mobgap follows typically semantic visioning: A.B.C (e.g. 1.3.5)
 
 - `A` is the major version, which will be updated once there were fundamental changes to the project
 - `B` is the minor version, which will be updated whenever new features are added
@@ -373,11 +373,11 @@ branch, from which new branches for the sub-features can be created.
 It will act as a develop branch for just this feature.
 Remember, to rebase this temporary dev branch onto master from time to time.
 
-.. note:: Due to the way gaitlink is build, it is often possible to develop new features (e.g. algorithms) without
-          touching the gaitlink source code.
-          Hence, it is recommended to devlop large features in a separate repository and only merge them into gaitlink
+.. note:: Due to the way mobgap is build, it is often possible to develop new features (e.g. algorithms) without
+          touching the mobgap source code.
+          Hence, it is recommended to devlop large features in a separate repository and only merge them into mobgap
           once you worked out all the kinks.
-          This avoids long living feature branches in gaitlink and allows you to develop your feature in a more flexible 
+          This avoids long living feature branches in mobgap and allows you to develop your feature in a more flexible 
           way.
 
 ### General Git Tips

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from gaitlink.wba._utils import check_thresholds
+from mobgap.wba._utils import check_thresholds
 
 
 @pytest.mark.parametrize(

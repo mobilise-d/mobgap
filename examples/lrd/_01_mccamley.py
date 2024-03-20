@@ -12,7 +12,7 @@ This example shows how to use the algorithm and compares the output to the refer
 
 import pandas as pd
 
-from gaitlink.data import LabExampleDataset
+from mobgap.data import LabExampleDataset
 
 # %%
 # Loading some example data
@@ -46,8 +46,8 @@ reference_wbs
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
 # Note, that we use the ``ic_list`` result key, as the output of all L/R detectors is identical to the output of the
 # IC-detectors, but with an additional ``lr_label`` column.
-from gaitlink.lrd import LrdMcCamley
-from gaitlink.pipeline import GsIterator
+from mobgap.lrd import LrdMcCamley
+from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 

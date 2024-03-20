@@ -1,14 +1,14 @@
 Unit Conversions
 ================
 
-.. automodule:: gaitlink.utils.conversions
+.. automodule:: mobgap.utils.conversions
     :no-members:
     :no-inherited-members:
 
 Functions
 ---------
 
-.. currentmodule:: gaitlink.utils.conversions
+.. currentmodule:: mobgap.utils.conversions
 
 .. autosummary::
    :toctree: ../generated/utils/conversions

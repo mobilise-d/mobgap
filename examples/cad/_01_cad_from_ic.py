@@ -15,11 +15,11 @@ This means, different IC detection methods might be optimal for the cadence esti
 With these two things in mind, we implemented "Proxy" cadence algorithms that work on top of any IC detection method.
 Two variants exist:
 
-1. :class:`~gaitlink.algorithm.CadFromIc` calculates the cadence directly from the provided ICs using step-to-step
+1. :class:`~mobgap.algorithm.CadFromIc` calculates the cadence directly from the provided ICs using step-to-step
    smoothing to deal with missing ICs and breaks in the gait sequence.
    This method should be used, if you want to use the same IC detection method for the cadence estimation than for the
    IC detection itself (i.e. we are not rerunning any calculations, we just use the provided ICs).
-2. :class:`~gaitlink.algorithm.CadFromIcDetector` is a proxy algorithm that wraps around any IC detection algorithm.
+2. :class:`~mobgap.algorithm.CadFromIcDetector` is a proxy algorithm that wraps around any IC detection algorithm.
    Compared to the previous method, this method will ignore the provided ICs and run the IC detection algorithm it
    wraps (which can be different from the one used for the IC detection itself) to find new ICs that are only used
    for the Cadence estimation.
@@ -38,7 +38,7 @@ All the cadence algorithms are designed to work on a single gait sequence at a t
 
 """
 
-from gaitlink.data import LabExampleDataset
+from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 short_trial: LabExampleDataset = lab_example_data.get_subset(
@@ -48,7 +48,7 @@ short_trial: LabExampleDataset = lab_example_data.get_subset(
 # %%
 # CadFromIc
 # ---------
-# To demonstrate the usage of :class:`~gaitlink.algorithm.CadFromIc` we use the detected initial contacts from the
+# To demonstrate the usage of :class:`~mobgap.algorithm.CadFromIc` we use the detected initial contacts from the
 # reference system as input.
 reference_ic = short_trial.reference_parameters_relative_to_wb_.ic_list
 reference_ic
@@ -61,7 +61,7 @@ reference_gs
 # Then we initialize the algorithm and call the ``calculate`` method.
 # Note that we use the ``sampling_rate_hz`` of the actual data and not the reference system.
 # This is because, the reference parameters are already converted to the data sampling rate.
-from gaitlink.cad import CadFromIc
+from mobgap.cad import CadFromIc
 
 cad_from_ic = CadFromIc()
 
@@ -91,11 +91,11 @@ print(f"Calculated average per-sec cadence: {cad_from_ic_avg_cad:.2f} steps/min"
 #
 # CadFromIcDetector
 # -----------------
-# For the :class:`~gaitlink.cad.CadFromIcDetector` we need to supply an IC detection algorithm.
-# In this case we use the :class:`~gaitlink.icd.IcdShinImproved` algorithm.
+# For the :class:`~mobgap.cad.CadFromIcDetector` we need to supply an IC detection algorithm.
+# In this case we use the :class:`~mobgap.icd.IcdShinImproved` algorithm.
 # We could also use any other IC detection algorithm or adapt the parameters of the IC detection algorithm.
-from gaitlink.cad import CadFromIcDetector
-from gaitlink.icd import IcdShinImproved
+from mobgap.cad import CadFromIcDetector
+from mobgap.icd import IcdShinImproved
 
 cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
 

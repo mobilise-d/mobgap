@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.wba import IntervalParameterCriteria, StrideSelection
+from mobgap.wba import IntervalParameterCriteria, StrideSelection
 
 
 class TestStrideSelectionMeta(TestAlgorithmMixin):

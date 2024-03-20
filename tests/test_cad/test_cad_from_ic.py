@@ -4,10 +4,10 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.cad import CadFromIc, CadFromIcDetector
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd.base import BaseIcDetector
-from gaitlink.pipeline import GsIterator
+from mobgap.cad import CadFromIc, CadFromIcDetector
+from mobgap.data import LabExampleDataset
+from mobgap.icd.base import BaseIcDetector
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaCadFromIc(TestAlgorithmMixin):

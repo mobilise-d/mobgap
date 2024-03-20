@@ -6,7 +6,7 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.aggregation import MobilisedAggregator
+from mobgap.aggregation import MobilisedAggregator
 
 BASE_PATH = Path(__file__).parent.parent.parent
 DATA_PATH = BASE_PATH / "example_data/original_results/mobilised_aggregator"

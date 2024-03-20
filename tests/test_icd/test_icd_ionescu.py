@@ -4,9 +4,9 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdIonescu
-from gaitlink.pipeline import GsIterator
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdIonescu
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaIcdIonescu(TestAlgorithmMixin):

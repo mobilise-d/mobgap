@@ -34,7 +34,7 @@ researchers that are working with data that has been published in this format.
 We further provide convenience tooling to work with raw aggregated data (i.e. the uncleaned DMO data) that was published
 as part of the Mobilise-D CVS study.
 This data is currently only available to members of the Mobilise-D consortium, but for the people that have access to
-this data, we recommend the use of our loaders {py:class}`~gaitlink.data.MobilisedCvsDmoDataset` to load and preprocess
+this data, we recommend the use of our loaders {py:class}`~mobgap.data.MobilisedCvsDmoDataset` to load and preprocess
 this data correctly.
 
 ### Algorithms
@@ -42,7 +42,7 @@ this data correctly.
 The plan of this project is to reimplement at least all algorithms that were selected as part of the final Mobilise-D
 pipelines.
 So far, we are a little over halfway there.
-To check our progress, have a look at [this github issue](https://github.com/mobilise-d/gaitlink/issues/8) that we use
+To check our progress, have a look at [this github issue](https://github.com/mobilise-d/mobgap/issues/8) that we use
 to track our progress.
 
 The algorithms that are already implemented are ready to be tested by the community.
@@ -61,7 +61,7 @@ You will have to wait a little longer for that...
 ### Further tooling
 
 Alongside the core algorithms, we provide various tools for processing (imu) data in general 
-(see `gaitlink.data_transforms` and `gaitlink.utils`).
+(see `mobgap.data_transforms` and `mobgap.utils`).
 These might be helpful for your project, however, unless you are planning to use other parts of the library as well,
 we would recommend not installing the library just for these tools.
 
@@ -72,8 +72,8 @@ gait analysis community to test and get familiar with this new library.
 
 Specifically, we are heavily interested in any feedback regarding the documentation and usability of the library.
 If you find any bugs, or if you have any feature requests, please open an issue on our 
-[github repository](https://github.com/mobilise-d/gaitlink/issues).
-For more general, questions and discussions, we would recommend to use the [github discussions](https://github.com/mobilise-d/gaitlink/disc) board.
+[github repository](https://github.com/mobilise-d/mobgap/issues).
+For more general, questions and discussions, we would recommend to use the [github discussions](https://github.com/mobilise-d/mobgap/disc) board.
 
 Of course, if you have your data available, we are also interested in any feedback regarding the correctness and 
 performance the algorithms.
@@ -105,7 +105,7 @@ We don't want to give you anything too specific here.
 That would be kind of cheating.
 We want that our library can be used by anyone arriving at our Github page.
 
-So head over to our [github repository](https://github.com/mobilise-d/gaitlink/) and check the README on how to get
+So head over to our [github repository](https://github.com/mobilise-d/mobgap/) and check the README on how to get
 started.
 If you get stuck, let us know in the issues and discussions, so that we can improve our documentation for you and all
 future users.

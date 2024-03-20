@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 
-from gaitlink.utils.array_handling import (
+from mobgap.utils.array_handling import (
     create_multi_groupby,
     sliding_window_view,
 )

@@ -3,7 +3,7 @@ Contribution Guide
 
 Issues and bugs
 ---------------
-If you are using the library and you find a bug or want to suggest a feature, please report it on the `issue tracker <https://github.com/mobilise-d/gaitlink/issues>`_.
+If you are using the library and you find a bug or want to suggest a feature, please report it on the `issue tracker <https://github.com/mobilise-d/mobgap/issues>`_.
 Please provide sufficient information (ideally reproducible code) to reproduce the bug that you have found.
 
 We are always happy to help, but please understand that it can take some time to answer your questions!
@@ -16,7 +16,7 @@ Scientific questions
 When working with this library, you might have questions about the underlying algorithms.
 We are happy to answer these questions, but please understand that we cannot provide free consulting.
 
-Ideally use `github discussions <https://github.com/mobilise-d/gaitlink/discussions/>`_ instead of the issue
+Ideally use `github discussions <https://github.com/mobilise-d/mobgap/discussions/>`_ instead of the issue
 tracker for these questions.
 
 New algorithms and features
@@ -31,7 +31,7 @@ I have an algorithm implemented in a way that is not directly compatible with th
 In case, your algorithm is implemented in a different programming language or in a different way, that does not fit
 our algorithm structure (see :ref:`own_algorithm`), yet, we suggest the following steps:
 
-1. Open an issue on the `issue tracker <https://github.com/mobilise-d/gaitlink/issues>`_ and describe the algorithm
+1. Open an issue on the `issue tracker <https://github.com/mobilise-d/mobgap/issues>`_ and describe the algorithm
    you want to contribute.
    Then we can discuss together how much work it would be to integrate your algorithm into this library and where we
    can help best.
@@ -51,7 +51,7 @@ I have an algorithm implemented in a way that is directly compatible with this l
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Awesome! You did the hard work already! Just follow the steps below:
 
-1. Open an issue on the `issue tracker <https://github.com/mobilise-d/gaitlink/issues>`_ and describe the algorithm
+1. Open an issue on the `issue tracker <https://github.com/mobilise-d/mobgap/issues>`_ and describe the algorithm
    you want to contribute.
 2. Once, we aggreed that the algorithm is a good fit for the library, create a fork of the repository, and copy your
    algorithm into the appropriate folder.
@@ -63,15 +63,15 @@ Awesome! You did the hard work already! Just follow the steps below:
 4. Once we are happy with the changes, we will merge your pull request and your algorithm will be part of the library! 🎉🎉
 
 In both cases, if we don't think the algorithm is a good fit for the library itself, you can still publish it yourself
-as a separate library that uses gaitlink as a dependency.
+as a separate library that uses mobgap as a dependency.
 This way, you can still benefit from the infrastructure we provide, but you are not bound to our requirements and stay
 in control of your own code.
 In any case, let us know! We are happy to link your project in our documentation!
 
-Developing Code for Gaitlink
+Developing Code for mobgap
 ----------------------------
 
-After discussing with us, you are ready to start developing code for gaitlink.
+After discussing with us, you are ready to start developing code for mobgap.
 First of all, we are happy to have you on board! 🎉🎉
 
 To get started, you should follow these steps:
@@ -87,7 +87,7 @@ To get started, you should follow these steps:
    We always strive to improve our documentation.
 6. Create a new branch in your local repository for your changes (e.g. `git switch -C my_new_feature`).
 7. We recommend directly pushing the new branch (`git push -u origin my_new_feature`) to your fork on Github and to
-   create a pull request (`click here <https://github.com/mobilise-d/gaitlink/compare>`_ and then select your branch in
+   create a pull request (`click here <https://github.com/mobilise-d/mobgap/compare>`_ and then select your branch in
    the right dropdown).
 8. Start implementing your changes and push them regularly to your branch on Github.
    This way we can monitor your progress and help you if you get stuck.

@@ -51,7 +51,7 @@ def convert_github_md_admonitions(text):
 
 # -- Project information -----------------------------------------------------
 
-URL = "https://github.com/mobilise-d/gaitlink"
+URL = "https://github.com/mobilise-d/mobgap"
 # Info from poetry config:
 info = toml.load("../pyproject.toml")["tool"]["poetry"]
 
@@ -148,7 +148,7 @@ html_theme_options = {
 }
 html_context = {
     "github_user": "mobilise-d",
-    "github_repo": "gaitlink",
+    "github_repo": "mobgap",
     "github_version": "main",
     "doc_path": "docs",
 }
@@ -189,10 +189,10 @@ intersphinx_mapping = {
 sphinx_gallery_conf = {
     "examples_dirs": ["../examples"],
     "gallery_dirs": ["./auto_examples"],
-    "reference_url": {"gaitlink": None},
+    "reference_url": {"mobgap": None},
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
-    "doc_module": ("gaitlink",),
+    "doc_module": ("mobgap",),
     "filename_pattern": re.escape(os.sep),
     "remove_config_comments": True,
     "show_memory": True,
@@ -217,6 +217,6 @@ sphinx_gallery_conf = {
 from sphinxext.githublink import make_linkcode_resolve
 
 linkcode_resolve = make_linkcode_resolve(
-    "gaitlink",
-    "https://github.com/orgs/mobilise-d/gaitlink/blob/{revision}/{package}/{path}#L{lineno}",
+    "mobgap",
+    "https://github.com/orgs/mobilise-d/mobgap/blob/{revision}/{package}/{path}#L{lineno}",
 )

@@ -3,7 +3,7 @@ import pytest
 from numpy.testing import assert_array_equal
 from pandas._testing import assert_frame_equal
 
-from gaitlink.gsd.evaluation import (
+from mobgap.gsd.evaluation import (
     _get_tn_intervals,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,

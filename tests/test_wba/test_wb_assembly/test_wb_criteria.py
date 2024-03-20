@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from gaitlink.wba import (
+from mobgap.wba import (
     BaseWbCriteria,
     LeftRightCriteria,
     MaxBreakCriteria,
