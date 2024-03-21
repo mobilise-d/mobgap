@@ -23,8 +23,17 @@ analysis.
 
 ## Installation
 
-At the moment, the package is not available on PyPI.
-To install the package use pip (or poetry) with the git repository URL
+First install a supported Python version (3.9 or higher) and then install the package using pip.
+
+```bash
+pip install mobgap
+```
+
+
+### From Source
+
+If you need the latest unreleased version of mobgap, install the package using pip (or poetry) with the git repository URL
+
 
 ```bash
 pip install "git+https://github.com/mobilise-d/mobgap.git" --upgrade
