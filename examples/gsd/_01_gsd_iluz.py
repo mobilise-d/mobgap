@@ -1,4 +1,6 @@
-"""
+r"""
+.. _gsd_iluz:
+
 GSD Iluz
 ========
 
@@ -163,76 +165,7 @@ fig, _ = plot_gsd_outputs(
 fig.show()
 
 # %%
-# Validation of algorithm output against a reference
+# Evaluation of the algorithm against a reference
 # --------------------------------------------------
-# Let's quantify how the Python output compares to the reference labels.
-# To do this, we use the `categorize_intervals` function to identify overlappting regions between the detected gait
-# sequences and the reference gait sequences.
-
-from mobgap.gsd.evaluation import categorize_intervals
-
-categorized_intervals = categorize_intervals(
-    gsd_list_detected=long_trial_output.gs_list_,
-    gsd_list_reference=long_trial_reference_parameters,
-    n_overall_samples=len(long_trial.data["LowerBack"]),
-)
-
-# %%
-# The function returns a DataFrame containing `start` and `end`  index of the resulting matched intervals together with
-# a `match_type` column that contains the type of match for each interval, i.e. `tp` for true positive, `fp` for false
-# positive, and `fn` for false negative.
-# These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
-# categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples from the reference gsd
-# list that were not detected (`fn`).
-# Note that the true negative intervals are not explicitly calculated, but are inferred from the other intervals
-# and the total length of the data, as everything between them is considered as true negative.
-
-print("Matched Intervals:\n\n", categorized_intervals)
-
-# %%
-# Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
-# and recall can be calculated.
-# For this purpose, the :func:`~mobgap.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
-# It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
-from mobgap.gsd.evaluation import calculate_matched_gsd_performance_metrics
-
-matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
-
-print("Matched Performance Metrics:\n\n", matched_metrics_dict)
-
-# %%
-# Furthermore, there is a range of performance metrics that only require the overall amount of gait detected.
-# These metrics can be calculated using the :func:`~mobgap.gsd.evaluation.calculate_unmatched_gsd_performance_metrics`
-# function.
-# It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
-# and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
-
-from mobgap.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
-
-unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
-    gsd_list_detected=long_trial_output.gs_list_,
-    gsd_list_reference=long_trial_reference_parameters,
-    sampling_rate_hz=long_trial.sampling_rate_hz,
-)
-
-print("Unmatched Performance Metrics:\n\n", unmatched_metrics_dict)
-
-# %%
-# Another useful function for evaluation is :func:`~mobgap.gsd.evaluation.find_matches_with_min_overlap`.
-# It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
-# given amount.
-# We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
-# matches with the reference gait sequences.
-# The remaining ones either contain too many false positive and/or false negative samples.
-#
-# This information can then be used further to compare aggregated parameters from within the respective gait sequences.
-
-from mobgap.gsd.evaluation import find_matches_with_min_overlap
-
-matches = find_matches_with_min_overlap(
-    gsd_list_detected=long_trial_output.gs_list_,
-    gsd_list_reference=long_trial_reference_parameters,
-    overlap_threshold=0.7,
-)
-
-print("Matches:\n\n", matches)
+# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
+# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.
