@@ -2,7 +2,7 @@ import os
 import joblib
 import numpy as np
 import pandas as pd
-from pathlib import Path
+from importlib.resources import files
 from typing import Optional, Any
 from typing_extensions import Self, Unpack
 
@@ -17,6 +17,7 @@ from mobgap.data_transform import ButterworthFilter
 from mobgap.lrd.base import BaseLRDetector, base_lrd_docfiller
 
 from tpcp import cf
+from tpcp.misc import set_defaults
 from tpcp.misc import classproperty
 
 
@@ -28,7 +29,7 @@ class LrdUllrich(BaseLRDetector):
 
     To ensure uniformity, the feature set is min-max normalised.
 
-    Parameters:
+    Parameters
     ---------------
     model: Optional[ClassifierMixin]
         The machine learning model used for step detection. This is the base class for all classifiers used in scikit-learn.
@@ -37,7 +38,7 @@ class LrdUllrich(BaseLRDetector):
     smoothing_filter:
         The bandpass filter used to smooth the data.
     
-    Attributes:
+    Attributes
     ---------------
     %(ic_lr_list_)s
 
@@ -75,19 +76,21 @@ class LrdUllrich(BaseLRDetector):
 
         @classmethod
         def _load_from_file(cls, model_name):
-            base_dir = Path(__file__).parent / os.getenv('MODEL_DIR', 'pretrained_models')
-            
             if (model_name in cls._model_cache) and (model_name in cls._scaler_cache):
                 print("Loading cached model and scaler...")
                 return cls._model_cache[model_name], cls._scaler_cache[model_name]
 
             if model_name in ["msproject_all", "msproject_hc", "msproject_ms"]:
                 print(f"Loading {model_name} model and scaler from file...")
-                model_path = base_dir / f'{model_name}_model.gz'
-                model = joblib.load(model_path) 
+
+                model_path = files('gaitlink') / 'lrd' / 'pretrained_models' / f'{model_name}_model.gz'
+                with model_path.open('rb') as file:
+                    model = joblib.load(file)
                 cls._model_cache[model_name] = model
-                scaler_path = base_dir / f'{model_name}_scaler.gz'
-                scaler = joblib.load(scaler_path)
+
+                scaler_path = files('gaitlink') / 'lrd' / 'pretrained_models' / f'{model_name}_scaler.gz'
+                with scaler_path.open('rb') as file:
+                    scaler = joblib.load(file)
 
                 # Note: this clip property was added here to ensure compatibility with sklearn version 0.23.1, which was used for training the models and storing the corresponding min-max scalers. Since version 0.24 onwards, this needs to be specified. Might be a good idea to resave both the models and scalers to the current sklearn version. 
 
@@ -117,22 +120,17 @@ class LrdUllrich(BaseLRDetector):
             return {"smoothing_filter" : ButterworthFilter(order = 4, cutoff_freq_hz = (0.5, 2), filter_type = "bandpass"),
                     "model": model, "scaler": scaler}
 
-
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.msproject_all.items()})
     def __init__(self,
-                model: ClassifierMixin = None,
-                scaler: MinMaxScaler = None,
-                smoothing_filter: BaseFilter = cf(ButterworthFilter(order = 4, cutoff_freq_hz = (0.5, 2), filter_type="bandpass"))
+                smoothing_filter: BaseFilter,
+                model: ClassifierMixin,
+                scaler: MinMaxScaler,
     ) -> None:
         super().__init__()
-        if model is None:
-            self.model = self.PredefinedParameters.msproject_all['model']
-        else:
-            self.model = model
-        if scaler is None:
-            self.scaler = self.PredefinedParameters.msproject_all['scaler']
-        else:
-            self.scaler = scaler
         self.smoothing_filter = smoothing_filter
+        self.model = model
+        self.scaler = scaler
+
 
     # Model checking
     @staticmethod
@@ -152,7 +150,7 @@ class LrdUllrich(BaseLRDetector):
         """
         if isinstance(model, ClassifierMixin):
             return model
-        raise TypeError(f"Unknown model type {type(model)}. The model must be of type {ClassifierMixin}")
+        raise TypeError(f"Unknown model type {type(model).__name__}. The model must be of type {ClassifierMixin.__name__}")
     
     @base_lrd_docfiller
     def detect(self,
@@ -182,11 +180,7 @@ class LrdUllrich(BaseLRDetector):
         self.ic_list = ic_list
         self.sampling_rate_hz = sampling_rate_hz
 
-        if data.empty:
-            self.ic_lr_list_ = pd.DataFrame(columns = ["ic", "lr_label"])
-            self.feature_matrix_ = pd.DataFrame(columns = ["filtered_gyr_x", "gradient_gyr_x", "diff_2_gyr_x", "filtered_gyr_z", "gradient_gyr_z", "diff_2_gyr_z"])
-            return self
-        if ic_list.empty:
+        if data.empty or ic_list.empty:
             self.ic_lr_list_ = pd.DataFrame(columns = ["ic", "lr_label"])
             self.feature_matrix_ = pd.DataFrame(columns = ["filtered_gyr_x", "gradient_gyr_x", "diff_2_gyr_x", "filtered_gyr_z", "gradient_gyr_z", "diff_2_gyr_z"])
             return self
@@ -202,17 +196,14 @@ class LrdUllrich(BaseLRDetector):
         except NotFittedError:
             raise RuntimeError("Model is not fitted. Call self_optimize before calling detect.")
 
-        # Extract the features and scale the feature matrix to ensure uniformity.
         feature_matrix = self.extract_features(self.data, ic_list, self.sampling_rate_hz)
-        self.feature_matrix_ = pd.DataFrame(self.scaler.transform(feature_matrix.values), columns = feature_matrix.columns, index = feature_matrix.index)
+        self.feature_matrix_ = pd.DataFrame(self.scaler.transform(feature_matrix.to_numpy()), columns = feature_matrix.columns, index = feature_matrix.index)
         prediction_per_gs = pd.DataFrame(self.model.predict(self.feature_matrix_.to_numpy()), columns = ["lr_label"])
         
-        # Map model's output 0s and 1s to 'left' and 'right'
         mapping = {0: "left", 1: "right"}
         prediction_per_gs = prediction_per_gs.replace(mapping)
 
-        self.ic_lr_list_ = pd.DataFrame({"ic": self.ic_list.values.flatten(), "lr_label": prediction_per_gs["lr_label"]})
-
+        self.ic_lr_list_ = pd.DataFrame({"ic": self.ic_list.to_numpy().flatten(), "lr_label": prediction_per_gs["lr_label"]})
         return self
 
     def self_optimize(self,
@@ -228,9 +219,9 @@ class LrdUllrich(BaseLRDetector):
         ---------------
         data : list[pd.DataFrame]
             The gait data.
-        ic_list : list[pd.DataFrame]
+        ic_list : list[pd.Series]
             The initial contact list.
-        label_list : list[pd.DataFrame]
+        label_list : list[pd.Series]
             The label list.
         sampling_rate_hz : float
             The sampling rate in Hz.
@@ -245,18 +236,14 @@ class LrdUllrich(BaseLRDetector):
             raise TypeError("'data' must be a list of pandas DataFrames")
             
         if not isinstance(ic_list, list):
-            raise TypeError("'ic_list' must be a list of pandas DataFrames")
+            raise TypeError("'ic_list' must be a list of pandas DataFrame")
+        
+        if not isinstance(label_list, list):
+            raise TypeError("'label_list' must be a list of pandas DataFrame")
         
         features = [self.extract_features(data, ic, sampling_rate_hz) for data, ic in zip(data_list, ic_list)]
-
-        # Concatenate the features if there is more than one GS
         all_features = pd.concat(features, axis=0, ignore_index=True) if len(features) > 1 else features[0]
-
-        try:
-            check_is_fitted(self.scaler)
-            all_features = pd.DataFrame(self.scaler.transform(all_features.values), columns=all_features.columns, index=all_features.index)
-        except NotFittedError:
-            all_features = pd.DataFrame(self.scaler.fit_transform(all_features.values), columns=all_features.columns, index=all_features.index)
+        all_features = pd.DataFrame(self.scaler.fit_transform(all_features.values), columns=all_features.columns, index=all_features.index)
 
         # Concatenate the labels if there is more than one GS
         all_labels = pd.concat(label_list, axis=0, ignore_index=True) if len(label_list) > 1 else label_list[0]
@@ -297,7 +284,6 @@ class LrdUllrich(BaseLRDetector):
         gyr_diff_2 = gyr_diff.diff()
 
         signal_paras = pd.concat({"filtered": gyr_filtered, "gradient": gyr_diff, "diff_2": gyr_diff_2}, axis=1)
-        # Squash the multi index
         signal_paras.columns = ["_".join(c) for c in signal_paras.columns]
 
         # shift the last IC by 3 samples to make the second derivative work
@@ -306,7 +292,7 @@ class LrdUllrich(BaseLRDetector):
         ics[ics < 2] = 2
 
         # Extract features corresponding to the adjusted ics values
-        feature_df = signal_paras.loc[ics['ic'].values.tolist()]
+        feature_df = signal_paras.loc[ics['ic'].to_numpy().tolist()]
 
         # Reorder the columns, to be consistent with the original implementation of [1].
         # Note: this order is necessary for the scaler to be applied correctly.
