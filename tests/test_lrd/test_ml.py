@@ -4,8 +4,8 @@ import pytest
 from pandas._testing import assert_frame_equal
 from gaitlink.data import LabExampleDataset
 from tpcp.testing import TestAlgorithmMixin
-from gaitlink.lrd._utils import extract_ref_data
 from sklearn import svm
+from gaitlink.pipeline import GsIterator
 
 from gaitlink.lrd import LrdUllrich
 
@@ -100,44 +100,44 @@ class TestLrdUllrich:
     def test_alternating_output(self):
         # Test a simple sine wave
         # We expect the labels to be alternating
+        params = LrdUllrich.PredefinedParameters.msproject_all
+        algo = LrdUllrich(**params)
         x = np.linspace(0, 4 * np.pi, 100)[:, None]
         y = np.tile(np.sin(x), (1, 6))
         y[:, [2, 5]] = y[:, [2, 5]] * -1 # make the z axis negative
         data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [15, 38, 65]})
-        output = LrdUllrich.detect(data = data, ic_list = ic_list, sampling_rate_hz = 100.0).ic_lr_list_
+        output = algo.detect(data = data, ic_list = ic_list, sampling_rate_hz = 100.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == ["right", "left", "right"]).all()
 
-# TODO: this needs checking
-class testRegression:
+
+class TestRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
+    @pytest.mark.parametrize("config_name, config", [
+                            ("msprpject_all", LrdUllrich.PredefinedParameters.msproject_all),
+                            ("msproject_", LrdUllrich.PredefinedParameters.msproject_hc),
+                            ("msproject_ms", LrdUllrich.PredefinedParameters.msproject_ms)])
+    def test_example_lab_data(self, datapoint, config_name, config, snapshot):
 
-    def test_example_lab_data_msproject_all(self, datapoint, snapshot):
-
-        params = LrdUllrich.PredefinedParameters.msproject_all
-        algo = LrdUllrich(**params)
+        imu_data = datapoint.data["LowerBack"]
         try:
-                data_list, ic_list, _ = extract_ref_data(datapoint)
+            ref = datapoint.reference_parameters_relative_to_wb_
         except:
-                pytest.skip("No reference parameters available.")
+            pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        detected_lr_labels = [algo.detect(data=data, ic_list=ics, sampling_rate_hz=sampling_rate_hz).ic_lr_list_ for data, ics in zip(data_list, ic_list)]
+        parameters = config
+        algo = LrdUllrich(**parameters)
 
-        snapshot.assert_match(detected_lr_labels, str(datapoint.group_label))
+        iterator = GsIterator()
 
-    def test_example_lab_data_msproject_ms(self, datapoint, snapshot):
+        for (gs, data), result in iterator.iterate(imu_data, ref.wb_list):
+            # extract data_list, ic_list, label_list
+            data = data.reset_index(drop = True)
+            ic_list = ref.ic_list.loc[ref.ic_list.index.get_level_values('wb_id') == gs.wb_id, ['ic']].reset_index(drop = True)
+            result.ic_list = algo.detect(data = data, ic_list = ic_list, sampling_rate_hz = sampling_rate_hz).ic_lr_list_
 
-        params = LrdUllrich.PredefinedParameters.msproject_ms
-        algo = LrdUllrich(**params)
-        try:
-                data_list, ic_list, _ = extract_ref_data(datapoint)
-        except:
-                pytest.skip("No reference parameters available.")
-        sampling_rate_hz = datapoint.sampling_rate_hz
-
-        detected_lr_labels = [algo.detect(data=data, ic_list=ics, sampling_rate_hz=sampling_rate_hz).ic_lr_list_ for data, ics in zip(data_list, ic_list)]
-
-        snapshot.assert_match(detected_lr_labels, str(datapoint.group_label))
+        detected_ics = iterator.results_.ic_list
+        snapshot.assert_match(detected_ics, f"{config_name}_{str(datapoint.group_label)}")
