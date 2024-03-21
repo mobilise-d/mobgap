@@ -10,6 +10,12 @@
 <img src="./docs/_static/logo/mobilise_d_and_imi.png" height="200">
 </p>
 
+[![PyPI](https://img.shields.io/pypi/v/mobgap)](https://pypi.org/project/mobgap/)
+[![Documentation Status](https://readthedocs.org/projects/mobgap/badge/?version=latest)](https://mobgap.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/mobilise-d/mobgap/branch/main/graph/badge.svg?token=ZNVT5LNYHO)](https://codecov.io/gh/mobilise-d/mobgap)
+[![Test and Lint](https://github.com/mobilise-d/mobgap/actions/workflows/test-and-lint.yml/badge.svg?branch=main)](https://github.com/mobilise-d/mobgap/actions/workflows/test-and-lint.yml)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/mobgap)
+
 # MobGap - The Mobilise-D algorithm toolbox
 
 A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back
