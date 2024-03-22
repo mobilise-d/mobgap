@@ -3,7 +3,7 @@
 > Do not use any of the algorithm results for actual research purposes. 
 > Most of them are not in their final state and are not properly validated yet.
 > 
-> Learn more about this in our blog post about the [alpha release](TODO).
+> Learn more about this in our blog post about the [alpha release](https://mobgap.readthedocs.io/en/latest/blog/20240322_alpha_release.html).
 
 
 <p align="center">
