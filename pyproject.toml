@@ -27,6 +27,7 @@ joblib = ">=1.3.2"
 openpyxl = "^3.1.2"
 intervaltree = "^3.1.0"
 pywavelets = "^1.5.0"
+pooch = "^1.8.1"
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.22.0"
@@ -56,7 +57,7 @@ format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
 _lint_ci = "ruff check mobgap --output-format=github"
 _check_format = "ruff format . --check"
-ci_check = { sequence = ["_check_format", "_lint_ci"], help = "Check all potential format and linting issues." }
+ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data"], help = "Check all potential format and linting issues." }
 test = { cmd = "pytest --cov=mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 docs_clean = { "script" = "_tasks:task_docs(clean=True)",  help = "Remove all old build files and build a clean version of the docs." }
@@ -65,4 +66,7 @@ docs_preview = { cmd = "python -m http.server --directory docs/_build/html", hel
 version = { script = "_tasks:task_update_version()", help="Bump the version number in all relevant files."}
 conf_jupyter = { cmd = "python -m ipykernel install --user --name mobgap", help = "Add a new jupyter kernel for the project." }
 remove_jupyter = { cmd = "jupyter kernelspec uninstall mobgap", help = "Remove the project specific jupyter kernel."}
+update_example_data = { script="_tasks:task_update_example_data", help = "Update the example data registry."}
+_check_update_example_data = { script="_tasks:task_update_example_data(raise_if_changes=True)", help = "Update the example data registry."}
+
 
