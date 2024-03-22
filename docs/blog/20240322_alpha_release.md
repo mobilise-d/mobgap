@@ -63,7 +63,7 @@ You will have to wait a little longer for that...
 Alongside the core algorithms, we provide various tools for processing (imu) data in general 
 (see `mobgap.data_transforms` and `mobgap.utils`).
 These might be helpful for your project, however, unless you are planning to use other parts of the library as well,
-we would recommend not installing the library just for these tools.
+we would not recommend installing the library just for these tools.
 
 ## We need you!
 
@@ -73,7 +73,7 @@ gait analysis community to test and get familiar with this new library.
 Specifically, we are heavily interested in any feedback regarding the documentation and usability of the library.
 If you find any bugs, or if you have any feature requests, please open an issue on our 
 [github repository](https://github.com/mobilise-d/mobgap/issues).
-For more general, questions and discussions, we would recommend to use the [github discussions](https://github.com/mobilise-d/mobgap/disc) board.
+For more general, questions and discussions, we would recommend using the [github discussions](https://github.com/mobilise-d/mobgap/disc) board.
 
 Of course, if you have your data available, we are also interested in any feedback regarding the correctness and 
 performance the algorithms.
