@@ -7,6 +7,23 @@ from gaitlink.Reorientation.filteringsignals_100Hz import filtering_signals_100h
 from gaitlink.icd._hklee_algo_improved import groupfind
 
 def CorrectOrientationSensorAxes (data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
+    '''
+    Updates the orientation of the IMU data based on the orientation of the sensor.
+    Parameters
+    ----------
+    data
+        Accelerometer and gyroscope data. The data should be in m/s2 and deg/s.
+    sampling_rate_hz
+        Sampling rate of the data in Hz.
+
+    Returns
+    -------
+    corIMUdata
+        Corrected IMU data.
+    corIMUdataSequence
+        Sequence of the corrected IMU data including start and stop of each walking bout.
+
+    '''
 
     Acc = data.iloc[:, 0:3]
     Gyr = data.iloc[:, 3:6]
