@@ -2,12 +2,14 @@ import pandas as pd
 import numpy as np
 from gaitlink.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
 from gaitlink.gsd import GsdIluz
-from scipy.signal import savgol_filter, correlate
+from scipy.signal import savgol_filter
 from gaitlink.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
 from gaitlink.icd._hklee_algo_improved import groupfind
 
-def CorrectOrientationSensorAxes (data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
-    '''
+
+def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
+    """
+
     Updates the orientation of the IMU data based on the orientation of the sensor.
     Parameters
     ----------
@@ -23,7 +25,7 @@ def CorrectOrientationSensorAxes (data: pd.DataFrame, sampling_rate_hz: float) -
     corIMUdataSequence
         Sequence of the corrected IMU data including start and stop of each walking bout.
 
-    '''
+    """
 
     Acc = data.iloc[:, 0:3]
     Gyr = data.iloc[:, 3:6]
@@ -52,7 +54,6 @@ def CorrectOrientationSensorAxes (data: pd.DataFrame, sampling_rate_hz: float) -
         GS = pd.DataFrame(columns=['Start', 'Stop'])
 
         if n > 2:
-            print("n > 2")
             for i in gs.index:
                 GS.loc[i, 'Start'] = gs.loc[i, 'start']
                 GS.loc[i, 'Stop'] = gs.loc[i, 'end']
