@@ -1,4 +1,4 @@
-# 2024-03-14 - Alpha Release 🎉
+# 2024-03-22 - Alpha Release 🎉
 
 *Arne Küderle*
 
