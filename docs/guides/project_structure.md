@@ -58,7 +58,7 @@ For this we should try to follow the following principles:
 ### Library Structure
 
 As the library aims to support multiple algorithms, each algorithm with similar function should be grouped into 
-individual modules/folders (e.g. gait sequence detection , event detection, ...).
+individual modules/folders (e.g. gait sequence detection, event detection, ...).
 Each folder contains a `base.py` file that contains the base classes for the respective type of algorithm.
 The actual algorithms are implemented in separate "hidden" files (i.e. leading `_`) in the respective folder and
 the public functions and classes are imported in the `__init__.py` of the folder.

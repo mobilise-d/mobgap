@@ -208,7 +208,7 @@ If the new `result_dataframe` is different from the file content the test fails.
 
 In case the test fails, the results need to be manually reviewed.
 If the changes were intentionally, the stored data can be updated by either deleting, the old file
-and rerunning the test, or by running ` pytest --snapshot-update`. Be careful, this will update all snapshots.
+and rerunning the test, or by running `pytest --snapshot-update`. Be careful, this will update all snapshots.
 
 The results of a snapshot test should be committed to the repo.
 Make reasonable decisions when it comes to the datasize of this data.

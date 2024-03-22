@@ -80,6 +80,18 @@ Load Functions
 
     get_all_lab_example_data_paths
 
+
+Mobilise-D v1.0 Pipeline Result Loaders
+---------------------------------------
+.. currentmodule:: mobgap.data
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    MobilisedCvsDmoDataset
+
+
 Datatypes
 ---------
 .. currentmodule:: mobgap.data.base
