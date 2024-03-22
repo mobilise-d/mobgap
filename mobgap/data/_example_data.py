@@ -1,7 +1,9 @@
+import fnmatch
+from importlib.resources import files
 from pathlib import Path
 from typing import Optional
 
-from mobgap import PACKAGE_ROOT
+from mobgap import PACKAGE_ROOT, __version__
 from mobgap.data._mobilised_matlab_loader import (
     BaseGenericMobilisedDataset,
     GenericMobilisedDataset,
@@ -10,9 +12,77 @@ from mobgap.data._mobilised_matlab_loader import (
 
 LOCAL_EXAMPLE_PATH = PACKAGE_ROOT.parent / "example_data/"
 
+BRIAN = None
 
-def _is_manually_installed() -> bool:
-    return (LOCAL_EXAMPLE_PATH / "README.md").is_file()
+if not (LOCAL_EXAMPLE_PATH / "README.md").is_file():
+    import pooch
+
+    GITHUB_FOLDER_PATH = "https://raw.githubusercontent.com/mobilise-d/mobgap/{version}/example_data/"
+
+    BRIAN = pooch.create(
+        # Use the default cache folder for the operating system
+        path=pooch.os_cache("mobgap"),
+        # The remote data is on Github
+        base_url=GITHUB_FOLDER_PATH,
+        version=f"v{__version__}",
+        version_dev="master",
+        registry=None,
+        # The name of an environment variable that *can* overwrite the path
+        env="MOBGAP_DATA_DIR",
+    )
+
+    # Get registry file from package_data
+    # The registry file can be recreated by running the task `poe update_example_data`
+    registry_file = files("mobgap") / "data/_example_data_registry.txt"
+    # Load this registry file
+    BRIAN.load_registry(registry_file)
+
+
+def _pooch_get_folder(folder_path: Path) -> Path:
+    """Get the path to the example data folder.
+
+    If the data is not available locally, it will be downloaded from the remote repository.
+    For this we use pooch to download all files that start with the folder name.
+    """
+    if BRIAN is None:
+        return folder_path
+
+    rel_folder_path = folder_path.relative_to(LOCAL_EXAMPLE_PATH)
+
+    matching_files = []
+    for f in BRIAN.registry:
+        try:
+            Path(f).relative_to(rel_folder_path)
+        except ValueError:
+            continue
+        matching_files.append(Path(BRIAN.fetch(f, progressbar=True)))
+
+    print(matching_files)
+    return BRIAN.abspath / rel_folder_path
+
+
+def _pooch_glob(base_path: Path, pattern: str) -> list[Path]:
+    """Get the path to the example data file.
+
+    If the data is not available locally, it will be downloaded from the remote repository.
+    For this we use pooch to download the file.
+    """
+    if BRIAN is None:
+        return list(base_path.rglob(pattern))
+
+    rel_base_path = base_path.relative_to(LOCAL_EXAMPLE_PATH)
+
+    matching_files = []
+    for f in BRIAN.registry:
+        try:
+            rel_f = Path(f).relative_to(rel_base_path)
+        except ValueError:
+            continue
+
+        if fnmatch.fnmatch(str(rel_f), pattern):
+            matching_files.append(Path(BRIAN.fetch(f, progressbar=True)))
+
+    return matching_files
 
 
 def get_example_cvs_dmo_data_path() -> Path:
@@ -27,16 +97,7 @@ def get_example_cvs_dmo_data_path() -> Path:
     MobilisedCvsDmoDataset
 
     """
-    if not _is_manually_installed():
-        # This is a redundant check for now, as we can not download the example data yet automatically
-        # This means that the example data is only available, if the person cloned the repository
-        raise FileNotFoundError(
-            "It looks like the example data folder does not exist. "
-            "This can happen if you installed mobgap via a build package and not the raw git-repo. "
-            "At the moment, we only support accessing the example data if you cloned the repo manually. "
-        )
-
-    return LOCAL_EXAMPLE_PATH / "dmo_data" / "example_cvs_data"
+    return _pooch_get_folder(LOCAL_EXAMPLE_PATH / "dmo_data/example_cvs_data")
 
 
 def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
@@ -51,16 +112,9 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
     get_lab_example_data_path
 
     """
-    if not _is_manually_installed():
-        # This is a redundant check for now, as we can not download the example data yet automatically
-        # This means that the example data is only available, if the person cloned the repository
-        raise FileNotFoundError(
-            "It looks like the example data folder does not exist. "
-            "This can happen if you installed mobgap via a build package and not the raw git-repo. "
-            "At the moment, we only support accessing the example data if you cloned the repo manually. "
-        )
-
-    potential_paths = (LOCAL_EXAMPLE_PATH / "data/lab").rglob("data.mat")
+    # We also fetch the infoForAlgo.mat files in case they need to be downloaded
+    _ = _pooch_glob(LOCAL_EXAMPLE_PATH / "data/lab", "**/infoForAlgo.mat")
+    potential_paths = _pooch_glob(LOCAL_EXAMPLE_PATH / "data/lab", "**/data.mat")
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}
 
 
