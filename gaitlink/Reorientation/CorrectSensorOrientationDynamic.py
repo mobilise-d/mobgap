@@ -8,6 +8,30 @@ from gaitlink.Reorientation.utils import acceleration
 
 def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
 
+    '''
+    Corrects the orientation of the IMU data based on the orientation of the sensor.
+
+    Parameters
+    ----------
+    data
+        Accelerometer and gyroscope data. The data should be in m/s2 and deg/s.
+    sampling_rate_hz
+        Sampling rate of the data in Hz.
+
+    Returns
+    -------
+    IMU_corrected
+        Corrected IMU data.
+
+    Notes
+    -----
+    Points of deviation from the MATLAB implementation:
+    -The signal is allready sliced before calling this function. Thus, this script has been simplified
+    -All parameters are expressed in the units used in gaitlink, as opposed to matlab.
+      Specifically, we use m/s^2 instead of g.
+
+    '''
+
     Acc = data.iloc[:, 0:3]
     Gyr = data.iloc[:, 3:6]
 
