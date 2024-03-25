@@ -29,7 +29,7 @@ from mobgap.data import LabExampleDataset
 from mobgap.data_transform import Resample
 
 data_point = LabExampleDataset().get_subset(cohort="HA", participant_id="002", test="Test5", trial="Trial2")
-example_data = data_point.data["LowerBack"]
+example_data = data_point.data_ss
 sampling_rate_hz = data_point.sampling_rate_hz
 
 example_data

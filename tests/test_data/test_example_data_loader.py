@@ -28,12 +28,12 @@ class TestLabExampleDataset:
 
         test_11_subset = dataset.get_subset(test="Test11")
 
-        assert len(test_11_subset[0].data["LowerBack"]) == 13759
+        assert len(test_11_subset[0].data_ss) == 13759
         assert (
             test_11_subset[0].selected_data_file
             == PROJECT_ROOT / "example_data/" / "data" / "lab" / "HA" / "001" / "data.mat"
         )
-        assert len(test_11_subset[1].data["LowerBack"]) == 15984
+        assert len(test_11_subset[1].data_ss) == 15984
         assert (
             test_11_subset[1].selected_data_file
             == PROJECT_ROOT / "example_data/" / "data" / "lab" / "HA" / "002" / "data.mat"

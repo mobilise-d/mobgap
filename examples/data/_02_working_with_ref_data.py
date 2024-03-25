@@ -27,7 +27,7 @@ from mobgap.data import LabExampleDataset
 
 dataset = LabExampleDataset(reference_system="INDIP")
 datapoint = dataset.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
-data = datapoint.data["LowerBack"]
+data = datapoint.data_ss
 data
 
 # %%

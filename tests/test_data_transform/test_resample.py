@@ -93,7 +93,7 @@ class TestResample:
         example_data = LabExampleDataset()
         ha_example_data = example_data.get_subset(cohort="HA")
         single_test = ha_example_data.get_subset(participant_id="002", test="Test11", trial="Trial1")
-        df = single_test.data["LowerBack"]
+        df = single_test.data_ss
         # Load your real data or create a synthetic dataset
         real_data = df
 

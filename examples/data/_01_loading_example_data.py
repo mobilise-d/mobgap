@@ -41,14 +41,27 @@ single_test = ha_example_data.get_subset(participant_id="002", test="Test5", tri
 single_test
 
 # %%
-# The raw IMU data:
+# The raw IMU data can be accessed in two ways:
+#
+# 1. ``.data`` which contains a dictionary with the data of all IMU sensors in the dataset.
+#    Per default, we only load the data of the "LowerBack" sensor for performance reasons.
+#    But, you can select the sensors to load using the ``raw_data_sensor`` and ``sensor_psotions`` argument of the
+#    Dataset class.
 imu_data = single_test.data["LowerBack"]
 imu_data
+# %%
+# 2. ``.data_ss`` which contains only the data of the "single sensor".
+#    This is the data used as input for all algorithms in the provided pipelines.
+#    In most cases this is equivalent to the data of the "LowerBack" sensor, but a different position can be selected
+#    using the ``single_sensor_position`` (or ``single_sensor_name`` in some Dataset classes) argument of the Dataset
+#    class.
+single_sensor_data = single_test.data_ss
+single_sensor_data
 
 # %%
 import matplotlib.pyplot as plt
 
-imu_data.filter(like="gyr").plot()
+single_sensor_data.filter(like="gyr").plot()
 plt.show()
 
 # %%

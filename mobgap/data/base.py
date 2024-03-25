@@ -24,7 +24,13 @@ base_gait_dataset_docfiller_dict = {
     """,
     "common_dataset_data_attrs": """
     data
-        The raw IMU data.
+        The raw IMU data of all available sensors.
+        This is a dictionary with the sensor name as key and the data as value.
+    data_ss
+        The IMU data of the "single sensor".
+        Compared to ``data``, this is only just the data of a single sensor.
+        Which sensor is considered the "single sensor" might be different for each dataset.
+        Most datasets use a configuration of ``single_sensor_name=...`` to allow the user to select the sensor.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     participant_metadata
@@ -125,6 +131,7 @@ class BaseGaitDataset(Dataset):
 
     sampling_rate_hz: float
     data: IMU_DATA_DTYPE
+    data_ss: pd.DataFrame
     # TODO: Make that more specific, once we know what metadata is needed for the pipelines
     participant_metadata: dict[str, Any]
 

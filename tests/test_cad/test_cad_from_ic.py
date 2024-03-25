@@ -234,7 +234,7 @@ class TestCadFromIc:
 
         ref_data = dp.reference_parameters_relative_to_wb_
 
-        for (gs, data), r in gs_iterator.iterate(dp.data["LowerBack"], ref_data.wb_list):
+        for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
             cad = CadFromIc().calculate(
                 data,
                 ref_data.ic_list.loc[gs.id],
@@ -457,7 +457,7 @@ class TestCadFromIcDetector:
 
         ref_data = dp.reference_parameters_relative_to_wb_
 
-        for (gs, data), r in gs_iterator.iterate(dp.data["LowerBack"], ref_data.wb_list):
+        for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
             cad = CadFromIcDetector(silence_ic_warning=True).calculate(
                 data,
                 ref_data.ic_list.loc[gs.id],

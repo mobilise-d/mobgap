@@ -33,12 +33,18 @@ matlab_dataset_docfiller = make_filldoc(
         Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
         SU is usually the "normal" lower back sensor.
         INDIP and INDIP2 are only available under special circumstances for the Mobilise-D TVS data.
+        Note, that we don't support loading multiple sensors at once.
     reference_system
         When specified, reference gait parameters are loaded using the specified reference system.
     sensor_positions
         Which sensor positions to load the raw data for.
         For "SU", only "LowerBack" is available, but for other sensors, more positions might be available.
         If a sensor position is not available, an error is raised.
+    single_sensor_position
+        The sensor position that is considered the "single sensor".
+        This is the sensor that you expect to be the input to all pipelines and algorithms.
+        For most Mobilise-d datasets, this should be kept at "LowerBack".
+        But, we support using other sensors as well.
     sensor_types
         Which sensor types to load the raw data for.
         This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
@@ -671,6 +677,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
     reference_para_level: Literal["wb", "lwb"]
     sensor_positions: Sequence[str]
+    single_sensor_position: str
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
 
@@ -681,6 +688,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
         sensor_positions: Sequence[str] = ("LowerBack",),
+        single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
         missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
         memory: joblib.Memory = joblib.Memory(None),
@@ -691,6 +699,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         self.reference_system = reference_system
         self.reference_para_level = reference_para_level
         self.sensor_positions = sensor_positions
+        self.single_sensor_position = single_sensor_position
         self.sensor_types = sensor_types
         self.memory = memory
         self.missing_sensor_error_type = missing_sensor_error_type
@@ -723,6 +732,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     @property
     def data(self) -> MobilisedTestData.imu_data:
         return self._load_selected_data("data").imu_data
+
+    @property
+    def data_ss(self) -> pd.DataFrame:
+        return self.data[self.single_sensor_position]
 
     @property
     def raw_reference_parameters_(self) -> MobilisedTestData.raw_reference_parameters:
