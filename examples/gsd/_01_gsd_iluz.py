@@ -90,7 +90,7 @@ short_trial = lab_example_data.get_subset(cohort="HA", participant_id="001", tes
 short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
-short_trial_output = GsdIluz().detect(short_trial.data["LowerBack"], sampling_rate_hz=short_trial.sampling_rate_hz)
+short_trial_output = GsdIluz().detect(short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
@@ -101,7 +101,7 @@ print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # Both algorithm implementations produce a gait sequence that extends beyond the end of the reference system.
 
 fig, ax = plot_gsd_outputs(
-    short_trial.data["LowerBack"],
+    short_trial.data_ss,
     reference=short_trial_reference_parameters,
     matlab=short_trial_matlab_output,
     python=short_trial_output.gs_list_,
@@ -117,7 +117,7 @@ long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test
 long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
-long_trial_output = GsdIluz().detect(long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz)
+long_trial_output = GsdIluz().detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nMatlab Output:\n\n", long_trial_matlab_output)
@@ -128,7 +128,7 @@ print("\nPython Output:\n\n", long_trial_output.gs_list_)
 # It detects longer gait sequences and even one entire gait sequence that is not detected by the matlab version.
 
 fig, _ = plot_gsd_outputs(
-    long_trial.data["LowerBack"],
+    long_trial.data_ss,
     reference=long_trial_reference_parameters,
     matlab=long_trial_matlab_output,
     python=long_trial_output.gs_list_,
@@ -149,7 +149,7 @@ fig.show()
 # detected before.
 
 long_trial_output_modified = GsdIluz(window_length_s=5, window_overlap=0.8).detect(
-    long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz
+    long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz
 )
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
@@ -157,7 +157,7 @@ print("\nPython Output:\n\n", long_trial_output.gs_list_)
 print("\nPython Output Modified:\n\n", long_trial_output_modified.gs_list_)
 
 fig, _ = plot_gsd_outputs(
-    long_trial.data["LowerBack"],
+    long_trial.data_ss,
     reference=long_trial_reference_parameters,
     python=long_trial_output.gs_list_,
     python_modified=long_trial_output_modified.gs_list_,

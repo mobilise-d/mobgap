@@ -27,11 +27,7 @@ def load_data():
 
 def calculate_gsd_iluz_output(single_test_data):
     """Calculate the GSD Iluz output for one sensor from the test data."""
-    det_gsd = (
-        GsdIluz()
-        .detect(single_test_data.data["LowerBack"], sampling_rate_hz=single_test_data.sampling_rate_hz)
-        .gs_list_
-    )
+    det_gsd = GsdIluz().detect(single_test_data.data_ss, sampling_rate_hz=single_test_data.sampling_rate_hz).gs_list_
     return det_gsd
 
 
@@ -89,7 +85,7 @@ from mobgap.gsd.evaluation import categorize_intervals
 categorized_intervals = categorize_intervals(
     gsd_list_detected=detected_gsd_list,
     gsd_list_reference=reference_gsd_list,
-    n_overall_samples=len(test_data.data["LowerBack"]),
+    n_overall_samples=len(test_data.data_ss),
 )
 
 categorized_intervals

@@ -200,7 +200,7 @@ class TestButterworthFilter:
         sampling_rate = 100
         f = ButterworthFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff)
 
-        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        raw_data = LabExampleDataset()[0].data_ss[["gyr_x", "gyr_y"]]
         data = conversion_func(raw_data)
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 
@@ -223,7 +223,7 @@ class TestFirFilter:
         sampling_rate = 100
         f = FirFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff, window=window)
 
-        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        raw_data = LabExampleDataset()[0].data_ss[["gyr_x", "gyr_y"]]
         data = conversion_func(raw_data)
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 

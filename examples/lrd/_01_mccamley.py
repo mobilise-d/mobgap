@@ -27,7 +27,7 @@ from mobgap.data import LabExampleDataset
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
 single_test = example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
 
-imu_data = single_test.data["LowerBack"]
+imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz

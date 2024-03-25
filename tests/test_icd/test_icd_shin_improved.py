@@ -37,7 +37,7 @@ class TestShinImproved:
 class TestShinImprovedRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
-        data = datapoint.data["LowerBack"]
+        data = datapoint.data_ss
         try:
             ref_walk_bouts = datapoint.reference_parameters_.wb_list
         except:

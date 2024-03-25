@@ -33,7 +33,7 @@ def load_data():
 
 def calculate_icd_ionescu_output(single_test_data):
     """Calculate the ICD Ionescu output for one sensor from the test data."""
-    imu_data = single_test_data.data["LowerBack"]
+    imu_data = single_test_data.data_ss
     sampling_rate_hz = single_test_data.sampling_rate_hz
     reference_wbs = single_test_data.reference_parameters_.wb_list
 

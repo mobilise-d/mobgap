@@ -66,7 +66,7 @@ from mobgap.cad import CadFromIc
 cad_from_ic = CadFromIc()
 
 gs_id = reference_gs.index[0]
-data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
+data_in_gs = short_trial.data_ss.iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
 ics_in_gs = reference_ic[["ic"]].loc[gs_id]
 
 cad_from_ic.calculate(data_in_gs, ics_in_gs, sampling_rate_hz=short_trial.sampling_rate_hz)

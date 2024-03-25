@@ -25,7 +25,7 @@ from mobgap.data_transform import CwtFilter
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
 single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
-data = single_test.data["LowerBack"]
+data = single_test.data_ss
 
 data.head()
 
