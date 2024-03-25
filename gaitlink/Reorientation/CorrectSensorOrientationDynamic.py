@@ -5,6 +5,10 @@ from sklearn.decomposition import PCA
 from numpy.linalg import norm
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from gaitlink.Reorientation.utils import acceleration
+from gaitlink.data_transform import (
+    SavgolFilter,
+    chain_transformers,
+)
 
 def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
 
@@ -130,9 +134,18 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
 
     #  Savitzky-Golay filter
     av_pca_filt = np.zeros_like(av_pca)
-    av_pca_filt[:, 2] = savgol_filter(av_pca[:, 2], 11, 0)
-    av_pca_filt[:, 1] = savgol_filter(av_pca[:, 1], 11, 0)
-    av_pca_filt[:, 0] = savgol_filter(av_pca[:, 0], 11, 0)
+
+    savgol_win_size_samples = 11
+    savgol = SavgolFilter(
+        window_length_s=savgol_win_size_samples / sampling_rate_hz,
+        polyorder_rel=0 / savgol_win_size_samples,
+    )
+
+    filter = [("savgol", savgol)]
+
+    av_pca_filt[:, 2] = chain_transformers(av_pca[:, 2], filter, sampling_rate_hz=sampling_rate_hz)
+    av_pca_filt[:, 1] = chain_transformers(av_pca[:, 1], filter, sampling_rate_hz=sampling_rate_hz)
+    av_pca_filt[:, 0] = chain_transformers(av_pca[:, 0], filter, sampling_rate_hz=sampling_rate_hz)
 
     # Standardization
     sig5 = (av_pca_filt[:, 2] - np.mean(av_pca_filt[:, 2])) / np.std(av_pca_filt[:, 2])

@@ -5,7 +5,10 @@ from gaitlink.gsd import GsdIluz
 from scipy.signal import savgol_filter
 from gaitlink.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
 from gaitlink.icd._hklee_algo_improved import groupfind
-
+from gaitlink.data_transform import (
+    SavgolFilter,
+    chain_transformers,
+)
 
 def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
     """
@@ -43,7 +46,17 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                              #low pass filtering of vertical acc (supposed to be recorded on right channel/IMU data matrix)
 
         av_filt = filtering_signals_100hz(Acc.iloc[:, 0], 'low', 0.1)
-        av_filt1 = savgol_filter(av_filt, N_sgfilt, 1)
+
+        savgol_win_size_samples = N_sgfilt
+
+        savgol = SavgolFilter(
+            window_length_s=savgol_win_size_samples / sampling_rate_hz,
+            polyorder_rel=1 / savgol_win_size_samples,
+        )
+
+        filter = [("savgol", savgol)]
+
+        av_filt1 = chain_transformers(av_filt, filter, sampling_rate_hz=sampling_rate_hz)
 
         gs = GsdIluz().detect(Acc, sampling_rate_hz=sampling_rate_hz).gs_list_
 
