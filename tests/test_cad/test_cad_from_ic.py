@@ -59,7 +59,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         assert_frame_equal(
@@ -94,7 +94,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -129,7 +129,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -168,7 +168,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 
@@ -275,7 +275,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         assert_frame_equal(
@@ -311,7 +311,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -347,7 +347,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -385,7 +385,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 

@@ -523,12 +523,12 @@ def parse_reference_parameters(
         )
 
     walking_bouts = pd.DataFrame.from_records(walking_bouts).set_index("wb_id")
-    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
+    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
 
     ics = pd.concat(ics, ignore_index=True)
     ics_is_na = ics["ic"].isna()
     ics = ics[~ics_is_na].drop_duplicates()
-    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype(int)
+    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype("int64")
     ics.index.name = "step_id"
     ics = ics.reset_index().set_index(["wb_id", "step_id"])
     # make left-right labels lowercase
@@ -551,12 +551,12 @@ def parse_reference_parameters(
     # For the INDIP system, that shouldn't matter, as the sampling rates are the same, but hey you can never be too
     # safe.
     assume_stride_paras_in_samples = (
-        (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype(int)
+        (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
     )
     # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
     # parameters are also in seconds not in samples.
     if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
-        stride_paras[["start", "end"]] = (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
+        stride_paras[["start", "end"]] = (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
         # We check again, just to be sure and if they are still not there, we throw an error.
         if not stride_paras["start"].isin(ics["ic"]).all():
             raise ValueError(
@@ -566,7 +566,7 @@ def parse_reference_parameters(
             )
     else:
         stride_paras[["start", "end"]] = (
-            (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype(int)
+            (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
         )
 
     # We also get the correct LR-label for the stride parameters from the ICs.
