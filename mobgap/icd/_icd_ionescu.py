@@ -160,6 +160,8 @@ def _find_minima_between_zero_crossings(signal: np.ndarray) -> np.ndarray:
     if not bool_map[0]:
         neg_to_pos = neg_to_pos[1:]
 
-    minima = np.array([np.argmin(signal[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]).astype("int64")
+    minima = np.array([np.argmin(signal[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]).astype(
+        "int64"
+    )
 
     return minima

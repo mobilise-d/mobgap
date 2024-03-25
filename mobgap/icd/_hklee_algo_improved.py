@@ -209,7 +209,9 @@ class IcdHKLeeImproved(BaseIcDetector):
         self.ic_list_internal_ = final_detected_ics
 
         # Downsample initial contacts to original sampling rate
-        ic_downsampled = (final_detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype("int64")
+        ic_downsampled = (
+            (final_detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype("int64")
+        )
 
         self.ic_list_ = ic_downsampled
 
