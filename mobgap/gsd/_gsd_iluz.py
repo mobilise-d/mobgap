@@ -267,7 +267,7 @@ class GsdIluz(BaseGsDetector):
         selected_windows_index = np.where(selected_windows)[0]
         # We initialize an empty array with two columns, where each row represents a gsd. First column is the start
         # index, second column is the end index.
-        gs_list = np.empty((len(selected_windows_index), 2), dtype=int)
+        gs_list = np.empty((len(selected_windows_index), 2), dtype="int64")
         # We convert the window indices to sample indices of the original data
         gs_list[:, 0] = selected_windows_index * (window_length_samples - window_overlap_samples)
         # We add one to make the end index inclusive

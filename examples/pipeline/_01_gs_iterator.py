@@ -116,7 +116,7 @@ from mobgap.utils.conversions import as_samples
 
 for (gs, data), result in iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
     # Now we can just "calculate" the initial contacts and set it on the result object.
-    result.ic_list = pd.DataFrame(np.arange(0, len(data), 100), columns=["ic"]).rename_axis(index="step_id")
+    result.ic_list = pd.DataFrame(np.arange(0, len(data), 100, dtype="int64"), columns=["ic"]).rename_axis(index="step_id")
     # For cadence, we just set a dummy value to the wb_id for each 1 second bout of the data.
     n_seconds = int(len(data) // long_trial.sampling_rate_hz)
     result.cad_per_sec = pd.DataFrame(
