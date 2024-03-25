@@ -1,5 +1,9 @@
 name: Test and Lint
 
+defaults:
+  run:
+    shell: bash
+
 on:
   push:
     branches: [ main ]
@@ -9,7 +13,6 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    shell: bash
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
