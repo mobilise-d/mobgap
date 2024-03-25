@@ -51,4 +51,4 @@ class TestFindZeroCrossings:
         output = find_zero_crossings(signal, mode=mode)
 
         assert np.all(np.diff(output) > 0)
-        np.testing.assert_allclose(output.astype(int), expected)
+        np.testing.assert_allclose(output.astype("int64"), expected)

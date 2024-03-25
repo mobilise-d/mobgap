@@ -191,7 +191,7 @@ class IcdShinImproved(BaseIcDetector):
 
         # Upsample initial contacts to original sampling rate
         detected_ics_unsampled = (
-            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
+            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype("int64")
         )
 
         self.ic_list_ = detected_ics_unsampled

@@ -21,17 +21,17 @@ def _create_dummy_gsd_matches_df(num_tp, num_fp, num_fn):
         np.column_stack([np.repeat(0, num_tp), np.repeat(0, num_tp), np.repeat("tp", num_tp)]),
         columns=["start", "end", "match_type"],
     )
-    tp_df[["start", "end"]] = tp_df[["start", "end"]].astype(int)
+    tp_df[["start", "end"]] = tp_df[["start", "end"]].astype("int64")
     fp_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_fp), np.repeat(0, num_fp), np.repeat("fp", num_fp)]),
         columns=["start", "end", "match_type"],
     )
-    fp_df[["start", "end"]] = fp_df[["start", "end"]].astype(int)
+    fp_df[["start", "end"]] = fp_df[["start", "end"]].astype("int64")
     fn_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_fn), np.repeat(0, num_fn), np.repeat("fn", num_fn)]),
         columns=["start", "end", "match_type"],
     )
-    fn_df[["start", "end"]] = fn_df[["start", "end"]].astype(int)
+    fn_df[["start", "end"]] = fn_df[["start", "end"]].astype("int64")
 
     return pd.concat([tp_df, fp_df, fn_df])
 
@@ -41,17 +41,17 @@ def _create_dummy_icd_matches_df(num_tp, num_fp, num_fn):
         np.column_stack([np.repeat(0, num_tp), np.repeat(0, num_tp), np.repeat("tp", num_tp)]),
         columns=["ic_id_detected", "ic_id_reference", "match_type"],
     )
-    tp_df[["ic_id_detected", "ic_id_reference"]] = tp_df[["ic_id_detected", "ic_id_reference"]].astype(int)
+    tp_df[["ic_id_detected", "ic_id_reference"]] = tp_df[["ic_id_detected", "ic_id_reference"]].astype("int64")
     fp_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_fp), np.repeat(0, num_fp), np.repeat("fp", num_fp)]),
         columns=["ic_id_detected", "ic_id_reference", "match_type"],
     )
-    fp_df[["ic_id_detected", "ic_id_reference"]] = fp_df[["ic_id_detected", "ic_id_reference"]].astype(int)
+    fp_df[["ic_id_detected", "ic_id_reference"]] = fp_df[["ic_id_detected", "ic_id_reference"]].astype("int64")
     fn_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_fn), np.repeat(0, num_fn), np.repeat("fn", num_fn)]),
         columns=["ic_id_detected", "ic_id_reference", "match_type"],
     )
-    fn_df[["ic_id_detected", "ic_id_reference"]] = fn_df[["ic_id_detected", "ic_id_reference"]].astype(int)
+    fn_df[["ic_id_detected", "ic_id_reference"]] = fn_df[["ic_id_detected", "ic_id_reference"]].astype("int64")
 
     return pd.concat([tp_df, fp_df, fn_df])
 
@@ -213,7 +213,7 @@ class TestNumberSamplesLogic:
                 ),
             ]
         )
-        matches_df[["start", "end"]] = matches_df[["start", "end"]].astype(int)
+        matches_df[["start", "end"]] = matches_df[["start", "end"]].astype("int64")
 
         with pytest.raises(ValueError):
             specificity_score(matches_df, n_overall_samples=20)
