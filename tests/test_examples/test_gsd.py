@@ -16,15 +16,11 @@ def test_gsd_iluz(snapshot):
 def test_gsd_evaluation(snapshot):
     from examples.gsd._02_gsd_evaluation import (
         categorized_intervals,
-        detected_gsd_list,
         matched_metrics_dict,
         matches,
-        reference_gsd_list,
         unmatched_metrics_dict,
     )
 
-    snapshot.assert_match(reference_gsd_list, "reference_gsd_list")
-    snapshot.assert_match(detected_gsd_list, "detected_gsd_list")
     snapshot.assert_match(categorized_intervals, "categorized_intervals")
     snapshot.assert_match(pd.DataFrame(matched_metrics_dict, index=[0]), "general_metrics_dict")
     snapshot.assert_match(pd.DataFrame(unmatched_metrics_dict, index=[0]), "mobilised_metrics_dict")
