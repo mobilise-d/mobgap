@@ -136,7 +136,7 @@ class IcdIonescu(BaseIcDetector):
 
         detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="step_id")
         detected_ics_unsampled = (
-            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
+            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype("int64")
         )
         self.ic_list_ = detected_ics_unsampled
 
@@ -144,7 +144,7 @@ class IcdIonescu(BaseIcDetector):
 
 
 def _find_minima_between_zero_crossings(signal: np.ndarray) -> np.ndarray:
-    zero_crossings = find_zero_crossings(signal, "both", refine=False).astype(int)
+    zero_crossings = find_zero_crossings(signal, "both", refine=False).astype("int64")
 
     if len(zero_crossings) == 0:
         return np.array([])
@@ -160,6 +160,6 @@ def _find_minima_between_zero_crossings(signal: np.ndarray) -> np.ndarray:
     if not bool_map[0]:
         neg_to_pos = neg_to_pos[1:]
 
-    minima = np.array([np.argmin(signal[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]).astype(int)
+    minima = np.array([np.argmin(signal[start:end]) + start for start, end in zip(pos_to_neg, neg_to_pos)]).astype("int64")
 
     return minima

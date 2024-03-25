@@ -37,7 +37,7 @@ def as_samples(sec_value, sampling_rate_hz: float):
 
     """
     if isinstance(sec_value, np.ndarray):
-        return np.round(sec_value * sampling_rate_hz).astype(int)
+        return np.round(sec_value * sampling_rate_hz).astype("int64")
     if isinstance(sec_value, (int, float)):
         return int(np.round(sec_value * sampling_rate_hz))
     return type(sec_value)(int(np.round(s * sampling_rate_hz)) for s in sec_value)

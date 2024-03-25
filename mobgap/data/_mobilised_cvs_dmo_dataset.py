@@ -112,7 +112,7 @@ def _load_pid_mid_map(compliance_report: Path) -> pd.DataFrame:
                 }
             )
         )
-        .astype({"participant_id": "string", "visit_type": "string", "measurement_id": int})
+        .astype({"participant_id": "string", "visit_type": "string", "measurement_id": "int64"})
         .set_index(["participant_id", "visit_type"])
     )
 
@@ -421,7 +421,7 @@ class MobilisedCvsDmoDataset(Dataset):
         results = (
             pd.concat(dict(results), names=["measurement_id", "measurement_date"])
             .reset_index()
-            .astype({"measurement_date": "string", "measurement_id": int})
+            .astype({"measurement_date": "string", "measurement_id": "int64"})
         )
 
         results = results.merge(pid_mid_map, on=["measurement_id"])
