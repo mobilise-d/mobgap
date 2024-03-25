@@ -91,13 +91,13 @@ def dflike_as_2d_array(
 
     if isinstance(data, pd.Series):
         return (
-            data.to_numpy(copy=False).reshape(-1, 1),
+            data.to_numpy(copy=False, dtype="int64").reshape(-1, 1),
             data.index,
             lambda x, i: pd.Series(x.reshape(data.shape), index=i, copy=False, name=data.name),
         )
 
     return (
-        data.to_numpy(copy=False),
+        data.to_numpy(copy=False, dtype="int64"),
         data.index,
         lambda x, i: pd.DataFrame(x, columns=data.columns, index=i, copy=False),
     )
