@@ -7,8 +7,8 @@ GSD Evaluation
 This example shows how to apply evaluation algorithms to GSD and thus how to rate the performance of a GSD algorithm.
 """
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.gsd import GsdIluz
+from mobgap.data import LabExampleDataset
+from mobgap.gsd import GsdIluz
 
 # %%
 # Loading some example data
@@ -75,7 +75,7 @@ reference_gsd_list
 # and detected gait sequences (`tn`).
 # Note that the tn intervals are not explicitly calculated, but are inferred from the total length of the recording
 # (if provided) and from the other intervals, as everything between them is considered as true negative.
-from gaitlink.gsd.evaluation import categorize_intervals
+from mobgap.gsd.evaluation import categorize_intervals
 
 categorized_intervals = categorize_intervals(
     gsd_list_detected=detected_gsd_list,
@@ -98,7 +98,7 @@ categorized_intervals
 # Here, the total number of samples in every match type, precision, recall, F1 score, are always calculated.
 # Depending on whether true negatives are present in the categorized intervals,
 # specificity, negative predictive value, and accuracy will additionally be reported.
-from gaitlink.gsd.evaluation import calculate_matched_gsd_performance_metrics
+from mobgap.gsd.evaluation import calculate_matched_gsd_performance_metrics
 
 matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
 
@@ -114,7 +114,7 @@ matched_metrics_dict
 # data as an additional argument.
 # It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
 # and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
-from gaitlink.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
+from mobgap.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
 
 unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected=detected_gsd_list,
@@ -135,7 +135,7 @@ unmatched_metrics_dict
 # We can see that with an overlap threshold of 0.7 (70%), three of the six detected gait sequences are considered as
 # matches with the reference gait sequences for our example recording.
 # The remaining ones either contain too many false positive and/or false negative samples.
-from gaitlink.gsd.evaluation import find_matches_with_min_overlap
+from mobgap.gsd.evaluation import find_matches_with_min_overlap
 
 matches = find_matches_with_min_overlap(
     gsd_list_detected=detected_gsd_list,
