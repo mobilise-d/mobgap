@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal
 def test_generic_data_transform():
     from examples.data_transform._01_generic_data_transforms import MyComplicatedAlgorithm, ScaleTransformer
 
-    data = np.array([1, 2, 3])
+    data = np.array([1, 2, 3], dtype="int64")
 
     my_algorithm = MyComplicatedAlgorithm()
     assert_frame_equal(my_algorithm.run(pd.DataFrame(data)).result_, pd.DataFrame([2, 3, 4]))
