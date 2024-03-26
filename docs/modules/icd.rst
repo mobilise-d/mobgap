@@ -1,4 +1,4 @@
-Initial Contact Detection (LRD)
+Initial Contact Detection (ICD)
 ===============================
 
 .. automodule:: mobgap.icd

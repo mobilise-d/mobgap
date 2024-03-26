@@ -1,4 +1,4 @@
-Lef-Right Detection (ICD)
+Lef-Right Detection (LRD)
 =========================
 
 .. automodule:: mobgap.lrd
