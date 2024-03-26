@@ -9,8 +9,12 @@ from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from typing_extensions import Unpack
+from tpcp import OptimizablePipeline
+from tpcp.validate import Aggregator, NoAgg
+from typing_extensions import Self, Unpack
 
+from mobgap.data.base import BaseGaitDatasetWithReference
+from mobgap.gsd.base import BaseGsDetector
 from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
@@ -155,18 +159,18 @@ def calculate_unmatched_gsd_performance_metrics(
     reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
     detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
-    gs_relative_duration_error = gs_duration_error_s / reference_gs_duration_s
+    gs_relative_duration_error = np.array(gs_duration_error_s) / reference_gs_duration_s
     gs_absolute_duration_error_s = abs(gs_duration_error_s)
-    gs_absolute_relative_duration_error = gs_absolute_duration_error_s / reference_gs_duration_s
+    gs_absolute_relative_duration_error = np.array(gs_absolute_duration_error_s) / reference_gs_duration_s
     gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
 
     # estimate gs count metrics
     detected_num_gs = len(gsd_list_detected)
     reference_num_gs = len(gsd_list_reference)
     num_gs_error = detected_num_gs - reference_num_gs
-    num_gs_relative_error = num_gs_error / reference_num_gs
+    num_gs_relative_error = num_gs_error / np.array(reference_num_gs)
     num_gs_absolute_error = abs(num_gs_error)
-    num_gs_absolute_relative_error = num_gs_absolute_error / reference_num_gs
+    num_gs_absolute_relative_error = num_gs_absolute_error / np.array(reference_num_gs)
     num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)
 
     gsd_metrics = {
@@ -511,3 +515,60 @@ __all__ = [
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
 ]
+
+
+class GsdEvaluationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
+    """Pipeline that can be used during evaluation of Gsd algorithms."""
+
+    algo: BaseGsDetector
+
+    algo_: BaseGsDetector
+
+    def __init__(self, algo: BaseGsDetector):
+        self.algo = algo
+
+    @property
+    def gs_list_(self):
+        return self.algo_.gs_list_
+
+    def run(self, datapoint: BaseGaitDatasetWithReference) -> Self:
+        single_sensor_imu_data = datapoint.data_ss
+        sampling_rate_hz = datapoint.sampling_rate_hz
+
+        self.algo_ = self.algo.clone().detect(single_sensor_imu_data, sampling_rate_hz=sampling_rate_hz)
+
+        return self
+
+    def self_optimize(self, dataset: BaseGaitDatasetWithReference, **kwargs) -> Self:
+        all_data = [d.data_ss for d in dataset]
+        reference_wbs = [d.reference_parameters_.wb_list for d in dataset]
+        sampling_rate_hz = [d.sampling_rate_hz for d in dataset]
+
+        self.algo.self_optimize(all_data, reference_wbs, sampling_rate_hz=sampling_rate_hz)
+
+        return self
+
+    def score(
+        self, datapoint: BaseGaitDatasetWithReference
+    ) -> Union[float, dict[str, Union[float, Aggregator]], Aggregator]:
+        detected_gs_list = self.safe_run(datapoint).gs_list_
+        reference_gs_list = datapoint.reference_parameters_.wb_list[["start", "end"]]
+        n_datapoints = len(datapoint.data_ss)
+        sampling_rate_hz = datapoint.sampling_rate_hz
+
+        matches = categorize_intervals(
+            gsd_list_detected=detected_gs_list, gsd_list_reference=reference_gs_list, n_overall_samples=n_datapoints
+        )
+
+        all_metrics = {
+            **calculate_unmatched_gsd_performance_metrics(
+                gsd_list_detected=detected_gs_list,
+                gsd_list_reference=reference_gs_list,
+                sampling_rate_hz=sampling_rate_hz,
+            ),
+            **calculate_matched_gsd_performance_metrics(matches),
+            "detected": NoAgg(detected_gs_list),
+            "reference": NoAgg(reference_gs_list),
+        }
+
+        return all_metrics
