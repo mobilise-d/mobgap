@@ -58,15 +58,19 @@ class TestDatasetFromData:
 
     def test_tuple_key(self):
         data = {
-            ("p1", "s1"): pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}),
-            ("p2", "s1"): pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]}),
+            ("p1", "s1"): {"pos1": pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})},
+            ("p2", "s1"): {"pos1": pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})},
         }
 
         sampling_rate_hz = 100
-        dataset = GaitDatasetFromData(data, sampling_rate_hz, index_cols=["participant_id", "sensor_id"])
+        dataset = GaitDatasetFromData(
+            data, sampling_rate_hz, index_cols=["participant_id", "sensor_id"], single_sensor_name="pos1"
+        )
 
         assert dataset.index.shape == (2, 2)
         assert list(dataset.index.columns) == ["participant_id", "sensor_id"]
         assert dataset.get_subset(participant_id="p1", sensor_id="s1").data is data[("p1", "s1")]
         assert dataset.get_subset(participant_id="p2", sensor_id="s1").data is data[("p2", "s1")]
+        assert dataset.get_subset(participant_id="p1", sensor_id="s1").data_ss is data[("p1", "s1")]["pos1"]
+        assert dataset.get_subset(participant_id="p2", sensor_id="s1").data_ss is data[("p2", "s1")]["pos1"]
         assert dataset.get_subset(participant_id="p1", sensor_id="s1").sampling_rate_hz == sampling_rate_hz
