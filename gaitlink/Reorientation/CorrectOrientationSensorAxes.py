@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from gaitlink.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
 from gaitlink.gsd import GsdIluz
-from scipy.signal import savgol_filter
 from gaitlink.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
 from gaitlink.icd._hklee_algo_improved import groupfind
 from gaitlink.data_transform import (
@@ -101,8 +100,8 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                 avm = np.mean(av_filt1[l1 : l2])
 
                 if avm >= th:
-                    corIMUdata[l1:l2, 0:3] = Acc[l1:l2, :]
+                    corIMUdata.iloc[l1:l2, 0:3] = Acc.iloc[l1:l2, :]
                 elif avm <= -th:
-                    corIMUdata[l1:l2, 0] = -Acc[l1:l2, 0]
+                    corIMUdata.iloc[l1:l2, 0] = -Acc.iiloc[l1:l2, 0]
 
     return corIMUdata, corIMUdataSequence
