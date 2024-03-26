@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Loading the reference data from a trial without identified WBs will not raise an error anymore, but will correctly
+  return an empty DataFrame (https://github.com/mobilise-d/mobgap/pull/119)
 - We use operating system independent pandas dtypes everywhere (https://github.com/mobilise-d/mobgap/pull/118)
 
 ### Development
