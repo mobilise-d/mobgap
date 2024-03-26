@@ -1,6 +1,6 @@
 """Base class for GSD detectors."""
 
-from typing import Any
+from typing import Any, Union
 
 import pandas as pd
 from tpcp import Algorithm
@@ -94,6 +94,16 @@ class BaseGsDetector(Algorithm):
         %(detect_return)s
         """
         raise NotImplementedError
+
+    def self_optimize(
+        self,
+        data: list[pd.DataFrame],
+        reference_gsd_list: list[pd.DataFrame],
+        *,
+        sampling_rate_hz: Union[float, list[float]],
+        **kwargs: Unpack[dict[str, Any]],
+    ):
+        raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
 __all__ = ["BaseGsDetector", "base_gsd_docfiller"]

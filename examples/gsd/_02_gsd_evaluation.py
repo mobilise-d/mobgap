@@ -157,3 +157,23 @@ matches = find_matches_with_min_overlap(
 )
 
 matches
+
+# %%
+# Running a full evaluation pipeline
+# ----------------------------------
+
+from sklearn.model_selection import ParameterGrid
+from tpcp.optimize import GridSearch
+from tpcp.validate import cross_validate
+
+from mobgap.gsd.evaluation import GsdEvaluationPipeline
+
+para_grid = ParameterGrid({"algo__window_length_s": [1, 2, 3, 4, 5]})
+
+out = cross_validate(
+    GridSearch(GsdEvaluationPipeline(GsdIluz()), para_grid, return_optimized="npv"),
+    LabExampleDataset(reference_system="INDIP"),
+    cv=3,
+    return_optimizer=True,
+    return_train_score=True,
+)
