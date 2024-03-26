@@ -14,7 +14,7 @@ def test_loading_example_data(snapshot):
     dataset_data.index = dataset_data.index.round("ms")
     snapshot.assert_match(dataset_data, "dataset")
     assert len(single_trial_with_reference.raw_reference_parameters_["wb"]) == 1
-    functional_data = data_with_reference[test_list[2]].imu_data_ss.head()
+    functional_data = data_with_reference[test_list[2]].imu_data["LowerBack"].head()
     functional_data.index = functional_data.index.round("ms")
     snapshot.assert_match(functional_data, "functional_interface")
     assert len(data_with_reference[test_list[2]].raw_reference_parameters["wb"]) == 3
