@@ -39,7 +39,8 @@
             },
             {
                 "name":"termination_reason",
-                "type":"string"
+                "type":"any",
+                "extDtype":"string"
             }
         ],
         "primaryKey":[
