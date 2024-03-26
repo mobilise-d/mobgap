@@ -38,9 +38,8 @@ class TestShinImprovedRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
         data = datapoint.data_ss
-        try:
-            ref_walk_bouts = datapoint.reference_parameters_.wb_list
-        except:
+        ref_walk_bouts = datapoint.reference_parameters_.wb_list
+        if len(ref_walk_bouts) == 0:
             pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
 

@@ -19,7 +19,11 @@ import pandas as pd
 import scipy.io as sio
 
 from mobgap._docutils import make_filldoc
-from mobgap.data.base import BaseGaitDatasetWithReference, ReferenceData, base_gait_dataset_docfiller_dict
+from mobgap.data.base import (
+    BaseGaitDatasetWithReference,
+    ReferenceData,
+    base_gait_dataset_docfiller_dict,
+)
 
 T = TypeVar("T")
 
@@ -129,7 +133,9 @@ class MobilisedTestData(NamedTuple):
     metadata: MobilisedMetadata
 
 
-def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
+def load_mobilised_participant_metadata_file(
+    path: PathLike,
+) -> dict[str, dict[str, Any]]:
     """Load the participant metadata file (usually called infoForAlgo.mat).
 
     This file contains various metadata about the participant and the measurement setup.
@@ -231,7 +237,9 @@ def load_mobilised_matlab_format(
 
 
 def _parse_until_test_level(
-    data: sio.matlab.mat_struct, test_level_marker: Sequence[str], _parent_key: tuple[str, ...] = ()
+    data: sio.matlab.mat_struct,
+    test_level_marker: Sequence[str],
+    _parent_key: tuple[str, ...] = (),
 ) -> Iterator[tuple[tuple[str, ...], sio.matlab.mat_struct]]:
     # If one of the test level markers is in the field names, we reached the level of a test.
     if any(marker in data._fieldnames for marker in test_level_marker):
@@ -353,12 +361,15 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
         meta_data["reference_sampling_rate_hz"] = None
 
     return MobilisedTestData(
-        imu_data=all_imu_data, raw_reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data)
+        imu_data=all_imu_data,
+        raw_reference_parameters=reference_data,
+        metadata=MobilisedMetadata(**meta_data),
     )
 
 
 def _parse_single_sensor_data(
-    sensor_data: sio.matlab.mat_struct, sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    sensor_data: sio.matlab.mat_struct,
+    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
 ) -> pd.DataFrame:
     parsed_data = []
     for sensor_type in sensor_types:
@@ -411,7 +422,7 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
-def parse_reference_parameters(
+def parse_reference_parameters(  # noqa: C901, PLR0915
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
     *,
     ref_sampling_rate_hz: float,
@@ -474,6 +485,67 @@ def parse_reference_parameters(
     turn_paras = []
     stride_paras = []
 
+    wb_df_dtypes = {
+        "wb_id": "int64",
+        "start": "int64",
+        "end": "int64",
+        "n_strides": "int64",
+        "duration_s": "float64",
+        "length_m": "float64",
+        "avg_speed_mps": "float64",
+        "avg_cadence_spm": "float64",
+        "avg_stride_length_m": "float64",
+        "termination_reason": "string",
+    }
+
+    ic_df_dtypes = {
+        "wb_id": "int64",
+        "step_id": "int64",
+        "ic": "int64",
+        "lr_label": pd.CategoricalDtype(categories=["left", "right"]),
+    }
+
+    turn_df_dtypes = {
+        "wb_id": "int64",
+        "turn_id": "int64",
+        "start": "int64",
+        "end": "int64",
+        "duration_s": "float64",
+        "angle_deg": "float64",
+    }
+
+    stride_df_dtypes = {
+        "wb_id": "int64",
+        "s_id": "int64",
+        "start": "int64",
+        "end": "int64",
+        "duration_s": "float64",
+        "length_m": "float64",
+        "speed_mps": "float64",
+        "stance_time_s": "float64",
+        "swing_time_s": "float64",
+    }
+
+    def _unify_wb_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.astype(wb_df_dtypes).set_index("wb_id")
+
+    def _unify_ic_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.reset_index().astype(ic_df_dtypes).set_index(["wb_id", "step_id"])
+
+    def _unify_turn_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.reset_index().astype(turn_df_dtypes).set_index(["wb_id", "turn_id"])
+
+    def _unify_stride_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.reset_index().astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
+
+    if len(ref_data) == 0:
+        return ReferenceData(
+            _unify_wb_df(pd.DataFrame(columns=list(wb_df_dtypes.keys()))),
+            _unify_ic_df(pd.DataFrame(columns=list(ic_df_dtypes.keys()))),
+            _unify_turn_df(pd.DataFrame(columns=list(turn_df_dtypes.keys()))),
+            _unify_stride_df(pd.DataFrame(columns=list(stride_df_dtypes.keys()))),
+        )
+
     for wb_id, wb in enumerate(ref_data, start=1):
         walking_bouts.append(
             {
@@ -519,30 +591,48 @@ def parse_reference_parameters(
                     "wb_id": [wb_id] * len(starts),
                     "start": starts,
                     "end": ends,
-                    "duration_s": _ensure_is_list(wb["Stride_Duration"]),
-                    "length_m": _ensure_is_list(wb["Stride_Length"]),
-                    "speed_mps": _ensure_is_list(wb["Stride_Speed"]),
-                    "stance_time_s": _ensure_is_list(wb["Stance_Duration"]),
-                    "swing_time_s": _ensure_is_list(wb["Swing_Duration"]),
+                    # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
+                    # columns for the Stereiphoto system. We replace them with NaN using `to_numeric`.
+                    "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
+                    "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
+                    "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),
+                    "stance_time_s": pd.to_numeric(_ensure_is_list(wb["Stance_Duration"])),
+                    "swing_time_s": pd.to_numeric(_ensure_is_list(wb["Swing_Duration"])),
                 }
             )
         )
 
-    walking_bouts = pd.DataFrame.from_records(walking_bouts).set_index("wb_id")
-    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
+    walking_bouts = pd.DataFrame.from_records(walking_bouts)
+    # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
+    # columns for the Stereiphoto system. We replace them with NaN using `to_numeric`.
+    for col in [
+        "n_strides",
+        "duration_s",
+        "n_strides",
+        "duration_s",
+        "length_m",
+        "avg_speed_mps",
+        "avg_cadence_spm",
+        "avg_stride_length_m",
+    ]:
+        walking_bouts[col] = pd.to_numeric(walking_bouts[col])
+    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round()
+
+    walking_bouts = walking_bouts.replace(np.array([]), np.nan)
+    walking_bouts = _unify_wb_df(walking_bouts)
 
     ics = pd.concat(ics, ignore_index=True)
     ics_is_na = ics["ic"].isna()
     ics = ics[~ics_is_na].drop_duplicates()
-    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype("int64")
-    ics.index.name = "step_id"
-    ics = ics.reset_index().set_index(["wb_id", "step_id"])
     # make left-right labels lowercase
     ics["lr_label"] = ics["lr_label"].str.lower()
+    ics.index.name = "step_id"
+    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
+    ics = _unify_ic_df(ics)
 
     turn_paras = pd.concat(turn_paras, ignore_index=True)
     turn_paras.index.name = "turn_id"
-    turn_paras = turn_paras.reset_index().set_index(["wb_id", "turn_id"])
+    turn_paras = _unify_turn_df(turn_paras)
 
     stride_paras = pd.concat(stride_paras, ignore_index=True)
     stride_ics_is_na = stride_paras[["start", "end"]].isna().any(axis=1)
@@ -592,7 +682,7 @@ def parse_reference_parameters(
         )
     stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
     stride_paras.index.name = "s_id"
-    stride_paras = stride_paras.reset_index().set_index(["wb_id", "s_id"])
+    stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.
     # We need to fix 2 things:
@@ -618,7 +708,11 @@ def parse_reference_parameters(
 
 
 def _relative_to_gs(
-    event_data: pd.DataFrame, gait_sequences: pd.DataFrame, gs_index_col: str, *, columns_to_cut: Sequence[str]
+    event_data: pd.DataFrame,
+    gait_sequences: pd.DataFrame,
+    gs_index_col: str,
+    *,
+    columns_to_cut: Sequence[str],
 ) -> pd.DataFrame:
     """Convert the start and end values or event values to values relative to the start of GSs or WBs.
 
@@ -789,7 +883,9 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         return participant_metadata[first_level_selected_test_name]
 
     @property
-    def _cached_data_load(self) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
+    def _cached_data_load(
+        self,
+    ) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
         return partial(
             self.memory.cache(load_mobilised_matlab_format),
             raw_data_sensor=self.raw_data_sensor,
@@ -861,7 +957,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             return None
 
         metadata_per_level = [
-            {"__path": path, **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path)))}
+            {
+                "__path": path,
+                **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path))),
+            }
             for path in self._paths_list
         ]
         metadata_per_level = pd.DataFrame.from_records(metadata_per_level).set_index("__path")
