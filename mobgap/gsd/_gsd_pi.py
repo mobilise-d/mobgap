@@ -22,7 +22,8 @@ from mobgap.data_transform import (
 from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 
 # TODO: Solve remaining linting issues (After running poe lint)
-# TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
+# TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real
+#       world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
 # TODO: Potentially rework find_pulse_trains
 # TODO: Complete narrative example including comparison with original Matlab and Ground Truth. See GSD-A example
 # TODO: Correct to simpler version
@@ -36,13 +37,13 @@ class GsdParaschivIonescu(BaseGsDetector):
     using body acceleration recorded with a triaxial accelerometer worn/fixed on the lower back (close to body
     center of mass).
 
-    The algorithm was developed and validated using data recorded in patients with impaired mobility (Parkinson’s
+    The algorithm was developed and validated using data recorded in patients with impaired mobility (Parkinson's
     disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
 
     The algorithm detects the gait sequences based on identified steps. First, the norm of triaxial acceleration
     signal is detrended and low-pass filtered (FIR, fc=3.2Hz). In order to enhance the step-related features (peaks
     in acceleration signal) the obtained signal is further processed using continuous wavelet transform, Savitzky-
-    Golay filters and Gaussian-weighted moving average filters [1]_. The ‘active’ periods, potentially corresponding
+    Golay filters and Gaussian-weighted moving average filters [1]_. The "active" periods, potentially corresponding
     to locomotion, are roughly detected and the statistical distribution of the amplitude of the peaks in these
     active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
     Consecutive steps are associated to gait sequences [1]_ [2]_.
@@ -95,7 +96,8 @@ class GsdParaschivIonescu(BaseGsDetector):
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
         - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
         - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
-        - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than max_gap_s
+        - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
+          max_gap_s
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
     - The original implementation used a check for overlapping gait sequences.
       We removed this step since it should not occur. `
@@ -126,7 +128,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         active_signal_fallback_threshold: float = 0.15,
         max_gap_s: float = 3,
         padding: float = 0.75,
-    ):
+    ) -> None:
         self.min_n_steps = min_n_steps
         self.active_signal_fallback_threshold = active_signal_fallback_threshold
         self.max_gap_s = max_gap_s
@@ -214,7 +216,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         except NoActivePeriodsDetectedError:
             # If we don't find the active periods, use a fallback threshold and use a less filtered signal for further
             # processing, for which we can better predict the threshold.
-            warnings.warn("No active periods detected, using fallback threshold")
+            warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
             active_peak_threshold = self.active_signal_fallback_threshold
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
@@ -284,7 +286,8 @@ class GsdParaschivIonescu(BaseGsDetector):
 
 
 def hilbert_envelop(sig, smooth_window, duration):
-    """
+    """Apply hilbert transform to select dynamic threshold for activity detection.
+
     Calculates the analytical signal with the help of hilbert transform, takes the envelope and smooths the signal.
     Finally, with the help of an adaptive threshold detects the activity of the signal where at least a minimum number
     of samples with the length of duration samples should stay above the threshold. The threshold is a computation of
@@ -292,16 +295,21 @@ def hilbert_envelop(sig, smooth_window, duration):
 
     Parameters
     ----------
-    sig (np.ndarray): A 1D numpy array representing the signal.
-    smooth_window (int): This is the window length used for smoothing the input signal in terms of number of samples.
-    duration (int): Number of samples in the window used for updating the threshold.
+    sig
+        A 1D numpy array representing the signal.
+    smooth_window
+        This is the window length used for smoothing the input signal in terms of number of samples.
+    duration
+        Number of samples in the window used for updating the threshold.
 
     Returns
     -------
-    active (np.ndarray): A binary 1D numpy array, same length as sig, where 1 represents active periods and 0 represents non-active periods.
+    active
+        A binary 1D numpy array, same length as sig, where 1 represents active periods and 0
+        represents non-active periods.
 
-    .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review • Repository
-    Archive. J. Open Source Softw. 2018, 3, 671
+    .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review •
+        Repository Archive. J. Open Source Softw. 2018, 3, 671
     """
     # Calculate the analytical signal and get the envelope
     amplitude_envelope = np.abs(scipy.signal.hilbert(sig))
@@ -351,8 +359,7 @@ def hilbert_envelop(sig, smooth_window, duration):
 
 def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
     """
-    Identify the indices of local minima and maxima in a 1D numpy array (signal),
-    where the values are beyond a specified threshold.
+    Identify the indices of local minima and maxima  where the values are beyond a specified threshold.
 
     Parameters
     ----------
