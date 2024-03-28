@@ -12,7 +12,6 @@ from typing_extensions import Self, Unpack
 from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
 from gaitlink.gsd.base import BaseGsDetector, base_gsd_docfiller
 
-# TODO: make docstring
 # TODO: Start using new filter classes in detect method (see IC - shin algo improved for example)
 # TODO: Solve remaining linting issues (After runnin poe lint)
 # TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
@@ -39,12 +38,10 @@ class GsdParaschivIonescu(BaseGsDetector):
         active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
         Consecutive steps are associated to gait sequences [1]_ [2]_.
 
-        Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original MATLAB code.
+        Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original implementation.
 
         Abbreviations:
         gs = gait sequence
-
-        TODO: Changes from original matlab code
 
         Parameters
         ----------
