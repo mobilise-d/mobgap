@@ -16,6 +16,7 @@ def test_gsd_iluz(snapshot):
 def test_gsd_evaluation(snapshot):
     from examples.gsd._02_gsd_evaluation import (
         categorized_intervals,
+        cross_validate_results,
         matched_metrics_dict,
         matches,
         unmatched_metrics_dict,
@@ -25,3 +26,6 @@ def test_gsd_evaluation(snapshot):
     snapshot.assert_match(pd.DataFrame(matched_metrics_dict, index=[0]), "general_metrics_dict")
     snapshot.assert_match(pd.DataFrame(unmatched_metrics_dict, index=[0]), "mobilised_metrics_dict")
     snapshot.assert_match(matches, "matches")
+    snapshot.assert_match(
+        cross_validate_results[["test_single_precision", "test_single_accuracy"]], "cross_validate_results"
+    )

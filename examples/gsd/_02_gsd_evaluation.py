@@ -229,7 +229,7 @@ from sklearn.model_selection import ParameterGrid
 from tpcp.optimize import GridSearch
 from tpcp.validate import cross_validate
 
-para_grid = ParameterGrid({"algo__window_length_s": [1, 2, 3, 4, 5]})
+para_grid = ParameterGrid({"algo__window_length_s": [2, 3, 4]})
 
 cross_validate_results = pd.DataFrame(
     cross_validate(
