@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   algorithms.
   This was added to move all data related config (i.e. which sensor to use in a pipeline) to the dataset class, making
   it easier to implement dataset agnostic pipelines (https://github.com/mobilise-d/mobgap/pull/119)
+- A evaluation pipeline for GSD (https://github.com/mobilise-d/mobgap/pull/124)
 
 ### Changed
 
