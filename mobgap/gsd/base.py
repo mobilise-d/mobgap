@@ -102,7 +102,12 @@ class BaseGsDetector(Algorithm):
         *,
         sampling_rate_hz: Union[float, list[float]],
         **kwargs: Unpack[dict[str, Any]],
-    ):
+    ) -> Self:
+        """Optimize the internal parameters of the algorithm.
+
+        This is only relevant for algorithms that have a special internal optimization approach (like ML based algos).
+
+        """
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
