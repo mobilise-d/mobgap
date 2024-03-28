@@ -12,6 +12,13 @@ from typing_extensions import Self, Unpack
 from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
 from gaitlink.gsd.base import BaseGsDetector, base_gsd_docfiller
 
+# TODO: make docstring
+# TODO: Start using new filter classes in detect method (see IC - shin algo improved for example)
+# TODO: Solve remaining linting issues (After runnin poe lint)
+# TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
+# TODO: Potentially rework find_pulse_trains
+# TODO: Complete narrative example including comparison with original Matlab and Ground Truth. See GSD-A example
+# TODO: Correct to simplier version
 
 @base_gsd_docfiller
 class GsdParaschivIonescu(BaseGsDetector):
@@ -72,43 +79,20 @@ class GsdParaschivIonescu(BaseGsDetector):
         - All parameters and thresholds are converted the units used in gaitlink.
           Specifically, we use m/s^2 instead of g.
         - For scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
-          Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
+          Original implementation calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
           which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
           wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
           how the two languages initialise their wavelets).
         - For scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), sigma=2):
           In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
-        - Included a try/except incase no active periods were detected. 
-        
-
-
-
-
-    `        - The order of processing is changed.
-              In the original implementation, steps are detected early on in the pipeline and later further thresholds on the
-              raw signal are used to discard certain parts of the signal and non-gait.
-              We flip the order to reduce the number of windows we need to apply step detection to.
-              This is done, because the step detection process is the most expensive part of the algorithm.
-            - Instead of a custom peak detection algorithm, we use the scipy implementation (:func:`~scipy.signal.find_peaks`).
-              This method produces similar but different results.
-              Most notably, it does not have a maximal distance parameter.
-              However, based on some testing, this parameter did not seem to have a big impact on the results, anyway.
-              Overall, the scipy implementation seems to be more robust and detects less false positives
-              (i.e. less peaks overall)
-            - As the new find-peaks approach finds fewer peaks, we also change the threshold for the number of peaks per window.
-              The original implementation expects 3 peaks per 3-second window.
-              We use 0.5 steps per second as the lower bound, which means a minimum of 1.5/2 steps per 3-second window.
-            - Similarly, the original implementation uses different thresholds for the two signal axis.
-              I.e. different numbers of peaks are expected for the two axes.
-              As this is not mentioned anywhere in the paper, and using the same threshold for both axis did not seem to have a
-              negative impact on the results, we decided to use the same threshold for both axes to simplify the algorithm.
-            - The original implementation used a check, that if the sum of the signal in the window is below the min-height
-              threshold no peaks are detected.
-              We assume that this is an error and use the max of the signal instead.`
-
-
-
-
+        - We introduced a try/except incase no active periods were detected.
+        - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
+            - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
+            - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
+            - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than max_gap_s
+          This means that original implementation cannot be perfectly replicated with definition of min_n_steps
+        - The original implementation used a check for overlapping gait sequences.
+          We removed this step since it should not occur. `
 
         .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
         methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
@@ -200,7 +184,7 @@ class GsdParaschivIonescu(BaseGsDetector):
             self.gs_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
             return self
 
-        # Find all max_peaks withing each final gs
+        # Find all max_peaks within each final gs
         steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
         n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
         mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
@@ -272,8 +256,6 @@ def hilbert_envelop(sig, smooth_window, duration):
     # Initialize Buffers
     noise_buff = np.zeros(len(env) - duration + 1)
     active = np.zeros(len(env))
-
-    # TODO: Check diff from matlab from this point
 
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
