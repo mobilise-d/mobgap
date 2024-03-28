@@ -94,23 +94,25 @@ class GsdParaschivIonescu(BaseGsDetector):
       In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
     - We introduced a try/except incase no active periods were detected.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
+
         - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
         - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
         - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
           max_gap_s
+
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
     - The original implementation used a check for overlapping gait sequences.
       We removed this step since it should not occur. `
 
     .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
-    methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
-    Engineering in Medicine & Biology Society (EMBC). IEEE, 2020.
+       methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
+       Engineering in Medicine & Biology Society (EMBC). IEEE, 2020.
     .. [2] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
-    validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
-    rehabilitation 16.1 (2019): 1-11.
+       validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
+       rehabilitation 16.1 (2019): 1-11.
     .. [3] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
-    S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
-    Mobilise-D consortium.
+       S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
+       Mobilise-D consortium.
     """
 
     min_n_steps: int
