@@ -1,7 +1,7 @@
 """Example_GSD Implementation"""
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.gsd import GsdParaschivIonescu
+from mobgap.data import LabExampleDataset
+from mobgap.gsd import GsdParaschivIonescu
 
 # Load data
 data_all = LabExampleDataset()  # Data is in m/s2

@@ -13,6 +13,12 @@ def test_gsd_iluz(snapshot):
     snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
 
 
+def test_gsd_b(snapshot):
+    from examples.gsd._02_gsd_pi import gsd_output
+
+    snapshot.assert_match(gsd_output, "gsd_output")
+
+
 def test_gsd_evaluation(snapshot):
     from examples.gsd._03_gsd_evaluation import (
         categorized_intervals,
@@ -29,9 +35,3 @@ def test_gsd_evaluation(snapshot):
     snapshot.assert_match(
         cross_validate_results[["test_single_precision", "test_single_accuracy"]], "cross_validate_results"
     )
-
-
-def test_gsd_b(snapshot):
-    from examples.gsd._02_gsd_pi import gsd_output
-
-    snapshot.assert_match(gsd_output, "gsd_output")
