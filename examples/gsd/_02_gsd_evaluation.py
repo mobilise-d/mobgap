@@ -165,7 +165,7 @@ matches
 # ----------------------------------
 # Instead of manually evaluating and investigating the performance of a GSD algorithm on a single piece of data, we
 # often want to run a full evaluation on an entire dataset.
-# This can be done using the :class:`~gaitlink.gsd.evaluation.GsdEvaluationPipeline` class and some ``tpcp`` functions.
+# This can be done using the :class:`~mobgap.gsd.evaluation.GsdEvaluationPipeline` class and some ``tpcp`` functions.
 #
 # But lets start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
@@ -173,7 +173,7 @@ simulated_real_world_walking = LabExampleDataset(reference_system="INDIP").get_s
 
 simulated_real_world_walking
 # %%
-# Now we can use the :class:`~gaitlink.gsd.evaluation.GsdEvaluationPipeline` class to directly run a Gsd algorithm on
+# Now we can use the :class:`~mobgap.gsd.evaluation.GsdEvaluationPipeline` class to directly run a Gsd algorithm on
 # a datapoint.
 # The pipeline takes care of extracting the required data.
 from mobgap.gsd.evaluation import GsdEvaluationPipeline
