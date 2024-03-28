@@ -95,14 +95,15 @@ class GsdParaschivIonescu(BaseGsDetector):
     - We introduced a try/except incase no active periods were detected.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
 
-        - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
-        - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
-        - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
-          max_gap_s
+      - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
+      - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
+      - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
+        max_gap_s
 
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
+
     - The original implementation used a check for overlapping gait sequences.
-      We removed this step since it should not occur. `
+      We removed this step since it should not occur.
 
     .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
        methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
