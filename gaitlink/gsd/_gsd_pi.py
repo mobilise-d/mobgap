@@ -11,13 +11,22 @@ from typing_extensions import Self, Unpack
 
 from gaitlink.data_transform import EpflDedriftedGaitFilter, Resample
 from gaitlink.gsd.base import BaseGsDetector, base_gsd_docfiller
+from gaitlink.data_transform import (
+    CwtFilter,
+    EpflDedriftedGaitFilter,
+    EpflGaitFilter,
+    GaussianFilter,
+    Pad,
+    Resample,
+    SavgolFilter,
+    chain_transformers,
+)
 
-# TODO: Start using new filter classes in detect method (see IC - shin algo improved for example)
-# TODO: Solve remaining linting issues (After runnin poe lint)
+# TODO: Solve remaining linting issues (After running poe lint)
 # TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
 # TODO: Potentially rework find_pulse_trains
 # TODO: Complete narrative example including comparison with original Matlab and Ground Truth. See GSD-A example
-# TODO: Correct to simplier version
+# TODO: Correct to simpler version
 
 @base_gsd_docfiller
 class GsdParaschivIonescu(BaseGsDetector):
@@ -132,23 +141,64 @@ class GsdParaschivIonescu(BaseGsDetector):
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
-        # Resample to algorithm_target_fs
-        acc_norm_resampled = (
-            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_
+        # TODO: Check new filter implementation below is correct
+        # TODO: Update data_transform to get Pad
+        # We need to initialize the filter once to get the number of coefficients to calculate the padding.
+        # This is not ideal, but works for now.
+        # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
+        #  correctly anyway. -> filtfilt uses padding automatically and savgol allows to actiavte padding, put uses the
+        #  default mode (polyinomal interpolation) might be suffiecent anyway, cwt might have some edeeffects, but
+        #  usually nothing to worry about.
+        n_coefficients = len(EpflGaitFilter().coefficients[0])
+
+        # Padding to cope with short data
+        len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        padding = Pad(pad_len_s=len_pad_s, mode="wrap")
+
+        #   CWT - Filter
+        #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
+        #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
+        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+        #   wavelet.
+        #   This frequency this scale corresponds to depends on the sampling rate of the data.
+        #   As the mobgap cwt method uses the center frequency instead of the scale, we need to calculate the
+        #   frequency that scale corresponds to at 40 Hz sampling rate.
+        #   Turns out that this is 1.2 Hz
+        cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
+
+        # Savgol filters
+        # The original Matlab code useses two savgol filter in the chain.
+        # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
+        # sampling-rate independent units used for the parameters of our classes.
+        # The parameters from the matlab code are: (21, 7) and (11, 5)
+        savgol_1_win_size_samples = 21
+        savgol_1 = SavgolFilter(
+            window_length_s=savgol_1_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=7 / savgol_1_win_size_samples,
+        )
+        savgol_2_win_size_samples = 11
+        savgol_2 = SavgolFilter(
+            window_length_s=savgol_2_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=5 / savgol_2_win_size_samples,
         )
 
-        # Filter to enhance the acceleration signal, when low SNR, impaired, asymmetric and slow gait
-        acc_filtered = scipy.signal.savgol_filter(acc_norm_resampled, polyorder=7, window_length=21)  # window_length and polyorder from MATLAB
-        acc_filtered = EpflDedriftedGaitFilter().filter(acc_filtered, sampling_rate_hz=40).filtered_data_
-        acc_filtered = scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7])   # scale=[7] in python matches 10 in MATLAB
-        acc_filtered4 = scipy.signal.savgol_filter(acc_filtered, 11, 5)  # window_length and polyorder from MATLAB
-        acc_filtered = scipy.signal.cwt(acc_filtered4.squeeze(), scipy.signal.ricker, [7])  # scale=[7] in python matches 10 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 3)  # windowWidth=15 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+        # Now we build everything together into one filter chain.
+        filter_chain = [
+            # Resample to 40Hz to process with filters
+            ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding", padding),
+            ("savgol_1", savgol_1,),
+            ("epfl_gait_filter", EpflDedriftedGaitFilter()),
+            ("cwt_1", cwt),
+            ("savol_2", savgol_2,),
+            ("cwt_2", cwt),
+            ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("gaussian_3", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding_remove", padding.get_inverse_transformer()),
+        ]
+
+        acc_filtered = chain_transformers(acc_norm, filter_chain, sampling_rate_hz=sampling_rate_hz)
 
         try:
             active_peak_threshold = find_active_period_peak_threshold(
@@ -160,7 +210,16 @@ class GsdParaschivIonescu(BaseGsDetector):
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold")
             active_peak_threshold = self.active_signal_fallback_threshold
-            signal = acc_filtered4
+            fallback_filter_chain = [
+                ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+                ("padding", padding),
+                ("savgol_1", savgol_1,),
+                ("epfl_gait_filter", EpflDedriftedGaitFilter()),
+                ("cwt_1", cwt),
+                ("savol_2", savgol_2,),
+                ("padding_remove", padding.get_inverse_transformer()),
+            ]
+            signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
 
         # Find extrema in signal that might represent steps
         min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
