@@ -9,8 +9,6 @@ from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
 from typing_extensions import Self, Unpack
 
-from mobgap.data_transform import EpflDedriftedGaitFilter, Resample
-from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -21,6 +19,7 @@ from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
+from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 
 # TODO: Solve remaining linting issues (After running poe lint)
 # TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
@@ -28,88 +27,89 @@ from mobgap.data_transform import (
 # TODO: Complete narrative example including comparison with original Matlab and Ground Truth. See GSD-A example
 # TODO: Correct to simpler version
 
+
 @base_gsd_docfiller
 class GsdParaschivIonescu(BaseGsDetector):
     """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
 
-        The Gait Sequence Detection toolbox contains code (MATLAB, R2018b) for detection of gait (walking) sequences
-        using body acceleration recorded with a triaxial accelerometer worn/fixed on the lower back (close to body
-        center of mass).
+    The Gait Sequence Detection toolbox contains code (MATLAB, R2018b) for detection of gait (walking) sequences
+    using body acceleration recorded with a triaxial accelerometer worn/fixed on the lower back (close to body
+    center of mass).
 
-        The algorithm was developed and validated using data recorded in patients with impaired mobility (Parkinson’s
-        disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
+    The algorithm was developed and validated using data recorded in patients with impaired mobility (Parkinson’s
+    disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
 
-        The algorithm detects the gait sequences based on identified steps. First, the norm of triaxial acceleration
-        signal is detrended and low-pass filtered (FIR, fc=3.2Hz). In order to enhance the step-related features (peaks
-        in acceleration signal) the obtained signal is further processed using continuous wavelet transform, Savitzky-
-        Golay filters and Gaussian-weighted moving average filters [1]_. The ‘active’ periods, potentially corresponding
-        to locomotion, are roughly detected and the statistical distribution of the amplitude of the peaks in these
-        active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
-        Consecutive steps are associated to gait sequences [1]_ [2]_.
+    The algorithm detects the gait sequences based on identified steps. First, the norm of triaxial acceleration
+    signal is detrended and low-pass filtered (FIR, fc=3.2Hz). In order to enhance the step-related features (peaks
+    in acceleration signal) the obtained signal is further processed using continuous wavelet transform, Savitzky-
+    Golay filters and Gaussian-weighted moving average filters [1]_. The ‘active’ periods, potentially corresponding
+    to locomotion, are roughly detected and the statistical distribution of the amplitude of the peaks in these
+    active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
+    Consecutive steps are associated to gait sequences [1]_ [2]_.
 
-        Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original implementation.
+    Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original implementation.
 
-        Abbreviations:
-        gs = gait sequence
+    Abbreviations:
+    gs = gait sequence
 
-        Parameters
-        ----------
-        min_n_steps
-            The minimum number of steps allowed in a gait sequence (walking bout).
-            Only walking bouts with equal or more detected steps are considered for further processing.
-        active_signal_fallback_threshold
-            An upper threshold applied to the filtered signal. Minima and maxima beyond this threshold are considered as
-            detected steps.
-        padding
-            A float multiplied by the mean of the step times to pad the start and end of the detected gait sequences.
-            The gait sequences are filtered again by number of steps after this padding, removing any gs with too few steps.
-        max_gap_s
-            Maximum time (in seconds) between consecutive gait sequences.
-            If a gap is smaller than max_gap_s, the two consecutive gait sequences are merged into one.
-            This is applied after the gait sequences are detected.
+    Parameters
+    ----------
+    min_n_steps
+        The minimum number of steps allowed in a gait sequence (walking bout).
+        Only walking bouts with equal or more detected steps are considered for further processing.
+    active_signal_fallback_threshold
+        An upper threshold applied to the filtered signal. Minima and maxima beyond this threshold are considered as
+        detected steps.
+    padding
+        A float multiplied by the mean of the step times to pad the start and end of the detected gait sequences.
+        The gait sequences are filtered again by number of steps after this padding, removing any gs with too few steps.
+    max_gap_s
+        Maximum time (in seconds) between consecutive gait sequences.
+        If a gap is smaller than max_gap_s, the two consecutive gait sequences are merged into one.
+        This is applied after the gait sequences are detected.
 
-        Other Parameters
-        ----------------
-        %(other_parameters)s
+    Other Parameters
+    ----------------
+    %(other_parameters)s
 
-        Attributes
-        ----------
-        %(gs_list_)s
-            A dataframe containing the start and end times of the detected gait sequences.
-            Each row corresponds to a single gs.
+    Attributes
+    ----------
+    %(gs_list_)s
+        A dataframe containing the start and end times of the detected gait sequences.
+        Each row corresponds to a single gs.
 
-        Notes
-        -----
-        Points of deviation from the original implementation and their reasons:
+    Notes
+    -----
+    Points of deviation from the original implementation and their reasons:
 
-        - All parameters and thresholds are converted the units used in mobgap.
-          Specifically, we use m/s^2 instead of g.
-        - For scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
-          Original implementation calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
-          which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
-          wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
-          how the two languages initialise their wavelets).
-        - For scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), sigma=2):
-          In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
-        - We introduced a try/except incase no active periods were detected.
-        - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
-            - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
-            - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
-            - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than max_gap_s
-          This means that original implementation cannot be perfectly replicated with definition of min_n_steps
-        - The original implementation used a check for overlapping gait sequences.
-          We removed this step since it should not occur. `
+    - All parameters and thresholds are converted the units used in mobgap.
+      Specifically, we use m/s^2 instead of g.
+    - For scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
+      Original implementation calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
+      which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+      wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
+      how the two languages initialise their wavelets).
+    - For scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), sigma=2):
+      In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
+    - We introduced a try/except incase no active periods were detected.
+    - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
+        - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
+        - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
+        - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than max_gap_s
+      This means that original implementation cannot be perfectly replicated with definition of min_n_steps
+    - The original implementation used a check for overlapping gait sequences.
+      We removed this step since it should not occur. `
 
-        .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
-        methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
-        Engineering in Medicine & Biology Society (EMBC). IEEE, 2020.
-        .. [2] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
-        validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
-        rehabilitation 16.1 (2019): 1-11.
-        .. [3] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
-        S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
-        Mobilise-D consortium.
-        """
+    .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
+    methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
+    Engineering in Medicine & Biology Society (EMBC). IEEE, 2020.
+    .. [2] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
+    validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
+    rehabilitation 16.1 (2019): 1-11.
+    .. [3] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
+    S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
+    Mobilise-D consortium.
+    """
 
     min_n_steps: int
     active_signal_fallback_threshold: float
@@ -187,10 +187,16 @@ class GsdParaschivIonescu(BaseGsDetector):
             # Resample to 40Hz to process with filters
             ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("padding", padding),
-            ("savgol_1", savgol_1,),
+            (
+                "savgol_1",
+                savgol_1,
+            ),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
             ("cwt_1", cwt),
-            ("savol_2", savgol_2,),
+            (
+                "savol_2",
+                savgol_2,
+            ),
             ("cwt_2", cwt),
             ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
@@ -213,10 +219,16 @@ class GsdParaschivIonescu(BaseGsDetector):
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
                 ("padding", padding),
-                ("savgol_1", savgol_1,),
+                (
+                    "savgol_1",
+                    savgol_1,
+                ),
                 ("epfl_gait_filter", EpflDedriftedGaitFilter()),
                 ("cwt_1", cwt),
-                ("savol_2", savgol_2,),
+                (
+                    "savol_2",
+                    savgol_2,
+                ),
                 ("padding_remove", padding.get_inverse_transformer()),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
@@ -231,9 +243,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         gs_from_min = gs_from_min[gs_from_min[:, 2] >= self.min_n_steps]
 
         # Combine the gs from the maxima and minima
-        combined_final = find_intersections(
-            gs_from_max[:, :2], gs_from_min[:, :2]
-        )
+        combined_final = find_intersections(gs_from_max[:, :2], gs_from_min[:, :2])
 
         # Check if all gs removed
         if combined_final.size == 0:
@@ -293,13 +303,14 @@ def hilbert_envelop(sig, smooth_window, duration):
     .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review • Repository
     Archive. J. Open Source Softw. 2018, 3, 671
     """
-
     # Calculate the analytical signal and get the envelope
     amplitude_envelope = np.abs(scipy.signal.hilbert(sig))
 
     # Take the moving average of analytical signal
     env = np.convolve(
-        amplitude_envelope, np.ones(smooth_window) / smooth_window, "same"  # Smooth
+        amplitude_envelope,
+        np.ones(smooth_window) / smooth_window,
+        "same",  # Smooth
     )
     env -= np.mean(env)  # Get rid of offset
     env /= np.max(env)  # Normalize
@@ -317,7 +328,7 @@ def hilbert_envelop(sig, smooth_window, duration):
     #       We should test that out once we have a proper evaluation pipeline.
     for i in range(len(env) - duration + 1):
         # Update threshold 10% of the maximum peaks found
-        window = env[i: i + duration]
+        window = env[i : i + duration]
         if (window > threshold_sig).all():
             active[i] = max(env)
             threshold = 0.1 * np.mean(window)
@@ -384,15 +395,14 @@ def find_pulse_trains(x):
                 else:
                     steps[n] = steps[n] + 1
                     THD = 1.5 * 40 + (x[i] - start[n]) / steps[n]
-            else:
-                if walkflag == 1:
-                    end[n] = x[i - 1]
-                    n = n + 1
-                    start = start + [0]
-                    steps = steps + [0]
-                    end = end + [0]
-                    walkflag = 0
-                    THD = 3.5 * 40
+            elif walkflag == 1:
+                end[n] = x[i - 1]
+                n = n + 1
+                start = start + [0]
+                steps = steps + [0]
+                end = end + [0]
+                walkflag = 0
+                THD = 3.5 * 40
 
     if walkflag == 1:
         if x[-1] - x[-2] < THD:
@@ -445,24 +455,18 @@ class NoActivePeriodsDetectedError(Exception):
 
 def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
     # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
-    alarm = hilbert_envelop(
-        signal, sampling_rate_hz, sampling_rate_hz
-    )
-    
+    alarm = hilbert_envelop(signal, sampling_rate_hz, sampling_rate_hz)
+
     if not np.any(alarm):
         raise NoActivePeriodsDetectedError()
 
     # TODO: What does all of this do?
     # Length of each consecutive stretch of nonzero values in alarm
-    len_alarm = [
-        len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)
-    ]
+    len_alarm = [len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)]
     end_alarm = np.cumsum(len_alarm)
     start_alarm = np.concatenate([np.array([0]), end_alarm[:-1]])
     # Whether each consecutive stretch of nonzero values in alarm is alarmed
-    alarmed = [
-        v for v, s in groupby(alarm, key=lambda x: x > 0)
-    ]
+    alarmed = [v for v, s in groupby(alarm, key=lambda x: x > 0)]
 
     walk = np.array([])  # Initialise detected periods of walking variable
     for s, e, a in zip(start_alarm, end_alarm, alarmed):  # Iterate through the consecutive periods
@@ -470,7 +474,7 @@ def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
             if e - s <= 3 * sampling_rate_hz:  # If the length of the alarm period is too short
                 alarm[s:e] = 0  # Replace this section of alarm with zeros
             else:
-                walk = np.concatenate([walk, signal[s - 1: e - 1]])
+                walk = np.concatenate([walk, signal[s - 1 : e - 1]])
 
     if walk.size == 0:
         raise NoActivePeriodsDetectedError()
