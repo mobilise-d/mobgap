@@ -7,6 +7,8 @@ GSD Evaluation
 This example shows how to apply evaluation algorithms to GSD and thus how to rate the performance of a GSD algorithm.
 """
 
+import pandas as pd
+
 from mobgap.data import LabExampleDataset
 from mobgap.gsd import GsdIluz
 
@@ -142,11 +144,11 @@ unmatched_metrics_dict
 # The index of the result dataframe indicated the index of the detected gait sequence.
 # We can see that with an overlap threshold of 0.7 (70%), three of the six detected gait sequences are considered as
 # matches with the reference gait sequences for our example recording.
-# Note, that this threshold is enforeced in both directions, i.e., the detected gait sequence must overlap with the
+# Note, that this threshold is enforced in both directions, i.e., the detected gait sequence must overlap with the
 # reference gait sequence by at least 70% and vice versa.
 # This means that only 1 to 1 matches are possible.
-# If multiple detected gait sequences overlap with the same reference gait sequence, only the one with the highest overlap
-# is considered as a match.
+# If multiple detected gait sequences overlap with the same reference gait sequence, only the one with the highest
+# overlap is considered as a match.
 # If one gait sequence is covered by multiple smaller once, possibly none of them is considered as a match.
 from mobgap.gsd.evaluation import find_matches_with_min_overlap
 
@@ -161,19 +163,88 @@ matches
 # %%
 # Running a full evaluation pipeline
 # ----------------------------------
+# Instead of manually evaluating and investigating the performance of a GSD algorithm on a single piece of data, we
+# often want to run a full evaluation on an entire dataset.
+# This can be done using the :class:`~gaitlink.gsd.evaluation.GsdEvaluationPipeline` class and some ``tpcp`` functions.
+#
+# But lets start with selecting some data.
+# We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
+simulated_real_world_walking = LabExampleDataset(reference_system="INDIP").get_subset(test="Test11")
 
+simulated_real_world_walking
+# %%
+# Now we can use the :class:`~gaitlink.gsd.evaluation.GsdEvaluationPipeline` class to directly run a Gsd algorithm on
+# a datapoint.
+# The pipeline takes care of extracting the required data.
+from mobgap.gsd.evaluation import GsdEvaluationPipeline
+
+pipeline = GsdEvaluationPipeline(GsdIluz())
+
+pipeline.run(simulated_real_world_walking[0]).gs_list_
+
+# %%
+# Note, that this did just "run" the pipeline on a single datapoint.
+# If we want to run it on all datapoints and evaluate the performance of the algorithm, we can use the
+# ``tpcp.validate.validate`` function.
+#
+# It uses the build in ``score`` method of the pipeline to calculate the performance of the algorithm on each datapoint
+# and then takes the mean of the results.
+# All mean and individual results are returned in huge dictionary that can be easily converted to a pandas DataFrame.
+from tpcp.validate import validate
+
+evaluation_results = pd.DataFrame(validate(pipeline, simulated_real_world_walking))
+
+evaluation_results.drop(["single_reference", "single_detected"], axis=1)
+# %%
+# In addition to the metrics, the method also returns the raw reference and detected gait sequences.
+# These can be used for further custom analysis.
+
+evaluation_results["single_reference"][0]
+
+# %%
+evaluation_results["single_detected"][0]
+
+# %%
+# If you want to calculate additional metrics, you can either create a custom score function or sublcass the pipeline
+# and overwrite the score function.
+#
+# Parameter Optimization
+# ----------------------
+# Simply applying an algorithm to the data for evaluation is often not enough.
+# In case, of machine learning algorithms or algorithms with tunable parameters, we might want to optimize these
+# parameters to get the best possible performance.
+# To avoid overfitting, we can use cross-validation to evaluate the performance of the algorithm on multiple splits of
+# the data.
+#
+# Below we show that procedure by using a simple grid search to optimize the window length of the GSD Iluz algorithm
+# and evaluate this approach within a 3-fold cross-validation.
+# Per-fold we select the window length leading to the highest precision on the "train set" and evaluate the performance
+# on the "test set".
+#
+# Note, that on a real world dataset, you would likely need to perform a group-wise stratified cross-validation to
+# avoid data leakage between multiple trials from the same participant and ensure equal distribution of patient cohorts
+# across the folds.
+# See the detailed ``tpcp`` examples on these topics.
 from sklearn.model_selection import ParameterGrid
 from tpcp.optimize import GridSearch
 from tpcp.validate import cross_validate
 
-from mobgap.gsd.evaluation import GsdEvaluationPipeline
-
 para_grid = ParameterGrid({"algo__window_length_s": [1, 2, 3, 4, 5]})
 
-out = cross_validate(
-    GridSearch(GsdEvaluationPipeline(GsdIluz()), para_grid, return_optimized="npv"),
-    LabExampleDataset(reference_system="INDIP"),
-    cv=3,
-    return_optimizer=True,
-    return_train_score=True,
+cross_validate_results = pd.DataFrame(
+    cross_validate(
+        GridSearch(GsdEvaluationPipeline(GsdIluz()), para_grid, return_optimized="precision"),
+        simulated_real_world_walking,
+        cv=3,
+        return_train_score=True,
+    )
 )
+
+cross_validate_results.drop(
+    ["test_single_reference", "test_single_detected", "train_single_reference", "train_single_detected"], axis=1
+)
+
+# %%
+# In general, it is a good idea to use ``cross_validation`` also for algorithms that do not have tunable parameters.
+# This way you can ensure that the performance of the algorithm is stable across different splits of the data, and it
+# allows the direct comparison between tunaable and non-tunable algorithms.
