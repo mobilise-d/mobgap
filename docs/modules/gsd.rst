@@ -16,6 +16,16 @@ Algorithms
 
     GsdIluz
 
+Pipelines
++++++++++
+.. currentmodule:: mobgap.gsd
+
+.. autosummary::
+   :toctree: generated/gsd
+   :template: class.rst
+
+    evaluation.GsdEvaluationPipeline
+
 Base Classes
 ++++++++++++
 .. automodule:: mobgap.gsd.base
