@@ -5,15 +5,15 @@ This document contains information for developers that need further in-depth inf
 and learn about programing methods used in development of this project.
 
 If you are looking for a higher level overview over the guiding ideas and structure of this project, please visit the
-[Project Structure document](project_structure.md).
+[Project Structure document](#proj_struct).
 
 ## Project Setup and Poetry
 
-*gaitlink* only supports Python 3.9 and newer.
+*mobgap* only supports Python 3.9 and newer.
 First, install a compatible version of Python.
 We highly recommend to follow [this guide](https://github.com/mad-lab-fau/mad-cookiecutter/blob/main/python-setup-tips.md)
 
-*gaitlink* uses [poetry](https://python-poetry.org) to manage its dependencies.
+*mobgap* uses [poetry](https://python-poetry.org) to manage its dependencies.
 First install poetry `>=1.5`.
 Once you installed poetry, run the following commands to initialize a virtual env and install all development
 dependencies:
@@ -45,7 +45,7 @@ For more commands see the [official documentation](https://python-poetry.org/doc
 
 To update dependencies after the `pyproject.toml` file was changed (It is a good idea to run this after a `git pull`):
 ```bash
-poetry install --no-root
+poetry install
 
 # or (see differences below)
 poetry update
@@ -66,15 +66,19 @@ To list the available tasks, run:
 $ poetry run poe
 ...
 CONFIGURED TASKS
-  format          Format all files with Black and Ruff.
-  lint            Lint all files with ruff.
-  ci_check        Check all potential format and linting issues.
-  test            Run Pytest with coverage.
-  docs            Build the html docs using Sphinx.
-  docs_preview    Preview the built html docs.
-  version         Pump the version number in all relevant files.
-  conf_jupyter    Add a new jupyter kernel for the project.
-  remove_jupyter  Remove the project specific jupyter kernel.
+  format            
+  format_unsafe     
+  lint              Lint all files with ruff.
+  ci_check          Check all potential format and linting issues.
+  test              Run Pytest with coverage.
+  docs              Build the html docs using Sphinx.
+  docs_clean        Remove all old build files and build a clean version of the docs.
+  docs_linkcheck    Check all links in the built html docs.
+  docs_preview      Preview the built html docs.
+  version           Bump the version number in all relevant files.
+  conf_jupyter      Add a new jupyter kernel for the project.
+  remove_jupyter    Remove the project specific jupyter kernel.
+
 ```
 
 To run one of the commands execute (e.g. the `test` command):
@@ -86,12 +90,7 @@ poetry run poe test
 
 ### Formatting and Linting
 
-To ensure that the whole library uses a consistent **format**, we use [black](https://github.com/psf/black) and 
-[ruff](https://github.com/astral-sh/ruff) to autoformat our code.
-Black can also be integrated [into you editor](https://black.readthedocs.io/en/stable/editor_integration.html), if you
-do not want to run it from the commandline.
-Because, it is so easy, we also use *black* to format the test-suite as well.
-
+To ensure that the whole library uses a consistent **format**, we use [ruff](https://github.com/astral-sh/ruff) to autoformat our code.
 Beyond automatically fixing issues, we use *ruff* to handle all other **linting** tasks.
 
 For **documentation** we follow the numpy doc-string guidelines and autobuild our API documentation using *Sphinx*.
@@ -113,6 +112,33 @@ Tou should run this as often as possible!
 At least once before any `git push`.
 
 
+### Building Documentation
+
+To build the documentation, run:
+
+```bash
+poetry run poe docs
+```
+
+Afterwards, you can preview the documentation by running:
+
+```bash
+poetry run poe docs_preview
+```
+
+This should display a URL in your terminal, which you can open in your browser.
+
+Sometimes building the documentation fails, because you still have some old files around.
+In this case, you can run:
+
+```bash
+poetry run poe docs_clean
+```
+
+to force a clean build.
+Note, that this might take substantially longer than a normal build.
+
+
 ### Testing and Test data
 
 This library uses `pytest` for **testing**. Besides using the poe-command, you can also use an IDE integration
@@ -130,11 +156,11 @@ For more details see the docstring of the mixin.
 #### Test Data
 
 Test data is available in the `example_data` folder.
-Within scripts or examples, the recommended way to access it is using the functions in `gaitlink.example_data`.
+Within scripts or examples, the recommended way to access it is using the functions in `mobgap.example_data`.
 
 TODO: Update this section once we know how to handle example data
 ```python
-from gaitlink.example_data import get_healthy_example_imu_data
+from mobgap.example_data import get_healthy_example_imu_data
 
 ```
 
@@ -182,7 +208,7 @@ If the new `result_dataframe` is different from the file content the test fails.
 
 In case the test fails, the results need to be manually reviewed.
 If the changes were intentionally, the stored data can be updated by either deleting, the old file
-and rerunning the test, or by running ` pytest --snapshot-update`. Be careful, this will update all snapshots.
+and rerunning the test, or by running `pytest --snapshot-update`. Be careful, this will update all snapshots.
 
 The results of a snapshot test should be committed to the repo.
 Make reasonable decisions when it comes to the datasize of this data.
@@ -204,8 +230,6 @@ dependencies installed (see [IDE Config](#Configure-your-IDE)).
 
 **Test runner**: Set the default testrunner to `pytest`. 
 
-**Black**: Refer to this [guide](https://black.readthedocs.io/en/stable/editor_integration.html) 
-
 **Autoreload for the Python console**:
 
 You can instruct Pycharm to automatically reload modules upon changing by adding the following lines to
@@ -218,19 +242,19 @@ settings->Build,Excecution,Deployment->Console->Python Console in the Starting S
 
 ### Jupyter Lab/Notebooks
 
-While we do not (and will not) use Jupyter Notebooks in gaitlink, it might still be helpful to use Jupyter to debug and
+While we do not (and will not) use Jupyter Notebooks in mobgap, it might still be helpful to use Jupyter to debug and
 prototype your scientific code.
-To set up a Jupyter environment that has gaitlink and all dependencies installed, run the following commands:
+To set up a Jupyter environment that has mobgap and all dependencies installed, run the following commands:
 
-```
+```bash
 # poetry install including root!
 poetry install
 poetry run poe conf_jupyter
 ``` 
 
-After this you can start Jupyter as always, but select "gaitlink" as a kernel when you want to run a notebook.
+After this you can start Jupyter as always, but select "mobgap" as a kernel when you want to run a notebook.
 
-Remember to use the autoreload extension to make sure that Jupyter reloads gaitlink, when ever you change something in 
+Remember to use the autoreload extension to make sure that Jupyter reloads mobgap, when ever you change something in 
 the library.
 Put this in your first cell of every Jupyter Notebook to activate it:
 
@@ -241,7 +265,7 @@ Put this in your first cell of every Jupyter Notebook to activate it:
 
 ## Release Model
 
-Gaitlink follows typically semantic visioning: A.B.C (e.g. 1.3.5)
+mobgap follows typically semantic visioning: A.B.C (e.g. 1.3.5)
 
 - `A` is the major version, which will be updated once there were fundamental changes to the project
 - `B` is the minor version, which will be updated whenever new features are added
@@ -266,6 +290,24 @@ section.
 
 There is no fixed timeline for a release, but rather a list of features we will plan to include in every release.
 Releases can happen often and even with small added features.
+
+If you are ready to release a new version, you can use the following command:
+
+```bash
+poetry run poe version {major|minor|patch}
+```
+
+This will update the version number in all relevant files.
+Then head over to the ChangeLog and update the "Unreleased" section to the new version number and set the release date.
+
+Then follow the following steps:
+
+- Double-check the changelog and the migration guide
+- Commit and push all changes including the changed version number
+- **Wait for the CI to finish**
+- Create a new release on GitHub (you can create a new tag directly from the same interface) and add the changelog to 
+  the release notes
+- Wait for the "publish" job to finish -> Double-check the PyPI page if the new version is available
 
 
 ## Git Workflow
@@ -331,11 +373,11 @@ branch, from which new branches for the sub-features can be created.
 It will act as a develop branch for just this feature.
 Remember, to rebase this temporary dev branch onto master from time to time.
 
-.. note:: Due to the way gaitlink is build, it is often possible to develop new features (e.g. algorithms) without
-          touching the gaitlink source code.
-          Hence, it is recommended to devlop large features in a separate repository and only merge them into gaitlink
+.. note:: Due to the way mobgap is build, it is often possible to develop new features (e.g. algorithms) without
+          touching the mobgap source code.
+          Hence, it is recommended to devlop large features in a separate repository and only merge them into mobgap
           once you worked out all the kinks.
-          This avoids long living feature branches in gaitlink and allows you to develop your feature in a more flexible 
+          This avoids long living feature branches in mobgap and allows you to develop your feature in a more flexible 
           way.
 
 ### General Git Tips

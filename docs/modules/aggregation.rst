@@ -1,14 +1,14 @@
 DMO Aggregation
 ===============
 
-.. automodule:: gaitlink.aggregation
+.. automodule:: mobgap.aggregation
     :no-members:
     :no-inherited-members:
 
 Aggregator Classes
 ++++++++++++++++++
 
-.. currentmodule:: gaitlink.aggregation
+.. currentmodule:: mobgap.aggregation
 
 .. autosummary::
    :toctree: generated/aggregation
@@ -16,14 +16,29 @@ Aggregator Classes
 
     MobilisedAggregator
 
-
-Base Classes
-++++++++++++
-.. automodule:: gaitlink.aggregation.base
+Functions
++++++++++
+.. automodule:: mobgap.aggregation
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.aggregation.base
+.. currentmodule:: mobgap.aggregation
+
+.. autosummary::
+   :toctree: generated/aggregation
+   :template: function.rst
+
+    apply_thresholds
+    get_mobilised_dmo_thresholds
+
+
+Base Classes
+++++++++++++
+.. automodule:: mobgap.aggregation.base
+    :no-members:
+    :no-inherited-members:
+
+.. currentmodule:: mobgap.aggregation.base
 
 .. autosummary::
    :toctree: generated/aggregation

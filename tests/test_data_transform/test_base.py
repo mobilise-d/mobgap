@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from gaitlink.data_transform import Resample
-from gaitlink.data_transform._utils import chain_transformers
-from gaitlink.data_transform.base import BaseTransformer
+from mobgap.data_transform import Resample
+from mobgap.data_transform._utils import chain_transformers
+from mobgap.data_transform.base import BaseTransformer
 
 
 class TestChainTransformers:

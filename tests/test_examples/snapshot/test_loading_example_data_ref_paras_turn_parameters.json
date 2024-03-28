@@ -3,7 +3,7 @@
         "fields":[
             {
                 "name":"wb_id",
-                "type":"number"
+                "type":"integer"
             },
             {
                 "name":"turn_id",
@@ -11,11 +11,11 @@
             },
             {
                 "name":"start",
-                "type":"number"
+                "type":"integer"
             },
             {
                 "name":"end",
-                "type":"number"
+                "type":"integer"
             },
             {
                 "name":"duration_s",

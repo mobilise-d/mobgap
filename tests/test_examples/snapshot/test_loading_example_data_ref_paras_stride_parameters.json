@@ -52,50 +52,50 @@
         {
             "wb_id":1,
             "s_id":0,
-            "start":228,
+            "start":227,
             "end":356,
             "duration_s":1.28,
             "length_m":1.6130588018,
             "speed_mps":1.2602021889,
             "stance_time_s":0.85,
             "swing_time_s":0.43,
-            "lr_label":"Left"
+            "lr_label":"left"
         },
         {
             "wb_id":1,
             "s_id":1,
-            "start":296,
+            "start":295,
             "end":414,
             "duration_s":1.18,
             "length_m":1.5951899503,
             "speed_mps":1.3518558901,
             "stance_time_s":0.74,
             "swing_time_s":0.44,
-            "lr_label":"Right"
+            "lr_label":"right"
         },
         {
             "wb_id":1,
             "s_id":2,
-            "start":356,
+            "start":355,
             "end":472,
             "duration_s":1.16,
             "length_m":1.6529550696,
             "speed_mps":1.4249612669,
             "stance_time_s":0.75,
             "swing_time_s":0.41,
-            "lr_label":"Left"
+            "lr_label":"left"
         },
         {
             "wb_id":1,
             "s_id":3,
-            "start":414,
+            "start":413,
             "end":539,
             "duration_s":1.25,
             "length_m":1.8172309925,
             "speed_mps":1.453784794,
             "stance_time_s":0.73,
             "swing_time_s":0.52,
-            "lr_label":"Right"
+            "lr_label":"right"
         }
     ]
 }

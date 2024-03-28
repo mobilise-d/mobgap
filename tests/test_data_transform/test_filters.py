@@ -3,19 +3,24 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import scipy
+from numpy.testing import assert_array_almost_equal
 from pandas.testing import assert_frame_equal
 from scipy.signal import butter, filtfilt, firwin, lfilter, sosfilt, sosfiltfilt
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import (
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import (
     ButterworthFilter,
     EpflDedriftedGaitFilter,
     EpflDedriftFilter,
     EpflGaitFilter,
     FirFilter,
+    HampelFilter,
 )
-from gaitlink.data_transform.base import FixedFilter
+from mobgap.data_transform.base import FixedFilter
+
+HERE = Path(__file__).parent
 
 
 @pytest.fixture(params=[np.array, pd.DataFrame, pd.Series, "array_1d"])
@@ -104,6 +109,17 @@ class TestMetaEpflDedriftedGaitFilter(TestAlgorithmMixin):
         return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
 
 
+class TestMetaHampelFilter(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = HampelFilter
+    ONLY_DEFAULT_PARAMS = False
+
+    @pytest.fixture()
+    def after_action_instance(self):
+        return self.ALGORITHM_CLASS(2, 30).filter(pd.DataFrame(np.zeros((500, 1))), sampling_rate_hz=100.0)
+
+
 class TestFixedFilter:
     filter_subclass: type[FixedFilter]
 
@@ -184,7 +200,7 @@ class TestButterworthFilter:
         sampling_rate = 100
         f = ButterworthFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff)
 
-        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        raw_data = LabExampleDataset()[0].data_ss[["gyr_x", "gyr_y"]]
         data = conversion_func(raw_data)
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 
@@ -207,7 +223,7 @@ class TestFirFilter:
         sampling_rate = 100
         f = FirFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff, window=window)
 
-        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        raw_data = LabExampleDataset()[0].data_ss[["gyr_x", "gyr_y"]]
         data = conversion_func(raw_data)
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 
@@ -216,3 +232,23 @@ class TestFirFilter:
         reference = filtfilt(b, 1, data, axis=0) if zero_phase else lfilter(b, 1, data, axis=0)
 
         output_assertions(result, reference, data)
+
+
+class TestHampelFilter:
+    def test_matlab_equivalent(self):
+        mat_data = scipy.io.loadmat(HERE / "hampel_filter_test_data/matlab_hampel_test_data.mat")
+        data = mat_data["data"].flatten()
+        matlab_filtered_array = mat_data["filteredDataArray"]
+        window_sizes = mat_data["windowSizes"].flatten()
+        num_stds = mat_data["numStds"].flatten()
+
+        # Iterate through the parameter combinations
+        for i in range(len(window_sizes)):
+            window_size = int(window_sizes[i])
+            num_std = num_stds[i]
+
+            python_filtered = HampelFilter(window_size, num_std).filter(data, sampling_rate_hz=100.0).filtered_data_
+            # MATLAB output
+            matlab_filtered = matlab_filtered_array[i, 0].flatten()
+
+            assert_array_almost_equal(python_filtered, matlab_filtered)

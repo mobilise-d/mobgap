@@ -2,7 +2,7 @@
 Working with reference data
 ===========================
 
-Often you want to test an algorithmic stepo in isolation or validate the output of an algorithm.
+Often you want to test an algorithmic step in isolation or validate the output of an algorithm.
 In both cases, you need reference data - either as input or as a comparison.
 
 As explained in the `data example <data_loading_example>`_, reference data that is stored in .mat files can be easily
@@ -17,17 +17,17 @@ If you want to test such an algorithm, you need to use the GS/WB information of 
 accordingly.
 Further, you might also want to get the reference information belonging to the GS/WB.
 
-This can be achieved using the :func:`~gaitlink.pipeline.GsIterator`
-(or the :func:`~gaitlink.pipeline.iter_gs` function).
+This can be achieved using the :func:`~mobgap.pipeline.GsIterator`
+(or the :func:`~mobgap.pipeline.iter_gs` function).
 
 But first, we need to load some example data.
 """
 
-from gaitlink.data import LabExampleDataset
+from mobgap.data import LabExampleDataset
 
 dataset = LabExampleDataset(reference_system="INDIP")
 datapoint = dataset.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
-data = datapoint.data["LowerBack"]
+data = datapoint.data_ss
 data
 
 # %%
@@ -61,13 +61,13 @@ ref_ics_rel.loc[1]  # First WB
 ref_ics_rel.loc[2]  # Second WB
 
 # %%
-# Now we can use the :func:`~gaitlink.pipeline.GsIterator` to iterate over the data.
+# Now we can use the :func:`~mobgap.pipeline.GsIterator` to iterate over the data.
 # Check out the `gs_iterator example <gs_iterator_example>`_ for more information.
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 gs_iterator = GsIterator()
 
-# For most use-cases, the default configuration of the :class:`~gaitlink.pipeline.GsIterator` should be sufficient.
+# For most use-cases, the default configuration of the :class:`~mobgap.pipeline.GsIterator` should be sufficient.
 # This allows you to specify the following results:
 gs_iterator.data_type
 
@@ -77,12 +77,12 @@ gs_iterator.data_type
 # The iterator provides us the cut data and an object representing all information of the respective GS/WB.
 # The latter can be used to index other aspects of the reference data.
 for (wb, data_per_wb), result in gs_iterator.iterate(data, ref_walking_bouts):
-    print("GS/WB id: ", wb.wb_id)
-    print("Expected N-samples in wb: ", ref_walking_bouts.loc[wb.wb_id].end - ref_walking_bouts.loc[wb.wb_id].start)
+    print("GS/WB id: ", wb.id)
+    print("Expected N-samples in wb: ", ref_walking_bouts.loc[wb.id].end - ref_walking_bouts.loc[wb.id].start)
     print("N-samples in wb: ", len(data_per_wb))
 
-    # We can use the wb.wb_id to get the reference initial contacts that belong to this GS/WB
-    ics_per_wb = ref_ics_rel.loc[wb.wb_id]
+    # We can use the wb.id to get the reference initial contacts that belong to this GS/WB
+    ics_per_wb = ref_ics_rel.loc[wb.id]
     # These could be used in some algorithm.
     # Here we will just store them in the results.
     result.ic_list = ics_per_wb

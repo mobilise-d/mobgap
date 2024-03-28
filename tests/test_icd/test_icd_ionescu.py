@@ -4,9 +4,9 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdIonescu
-from gaitlink.pipeline import GsIterator
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdIonescu
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaIcdIonescu(TestAlgorithmMixin):
@@ -33,7 +33,7 @@ class TestIcdIonescu:
 
         output = IcdIonescu().detect(data, sampling_rate_hz=100.0).ic_list_
 
-        assert_frame_equal(output, pd.DataFrame({"ic": []}).rename_axis(index="ic_id").astype(int))
+        assert_frame_equal(output, pd.DataFrame({"ic": []}).rename_axis(index="step_id").astype("int64"))
 
     def test_single_icd(self):
         # s and e delimit a gait sequence with just one IC
@@ -42,7 +42,7 @@ class TestIcdIonescu:
         data = (
             LabExampleDataset()
             .get_subset(cohort="MS", participant_id="001", test="Test5", trial="Trial1")
-            .data["LowerBack"][s : e + 1]
+            .data_ss[s : e + 1]
         )
 
         output = IcdIonescu().detect(data, sampling_rate_hz=100.0).ic_list_
@@ -54,10 +54,9 @@ class TestIcdIonescu:
 class TestIcdIonescuRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
-        data = datapoint.data["LowerBack"]
-        try:
-            ref_walk_bouts = datapoint.reference_parameters_.wb_list
-        except:
+        data = datapoint.data_ss
+        ref_walk_bouts = datapoint.reference_parameters_.wb_list
+        if len(ref_walk_bouts) == 0:
             pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
 

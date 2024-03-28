@@ -10,20 +10,21 @@ matlab implementation.
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdShinImproved
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdShinImproved
 
 # %%
 # Loading data
 # ------------
-# .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+# .. note:: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+#
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP output for initial contacts ("ic") as ground truth.
 
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
 
 single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
-imu_data = single_test.data["LowerBack"]
+imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz
@@ -35,7 +36,7 @@ reference_wbs
 # ----------------------
 # Below we apply the shin algorithm to a lab trial.
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
@@ -44,14 +45,13 @@ for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
 
 detected_ics = iterator.results_.ic_list
 detected_ics
-
 # %%
 # Matlab Outputs
 # --------------
 # To check if the algorithm was implemented correctly, we compare the results to the matlab implementation.
 import json
 
-from gaitlink import PACKAGE_ROOT
+from mobgap import PACKAGE_ROOT
 
 
 def load_matlab_output(datapoint):
@@ -66,10 +66,10 @@ def load_matlab_output(datapoint):
         original_results = [original_results]
 
     ics = {}
-    for i, gs in enumerate(original_results):
-        ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="ic_id")
+    for i, gs in enumerate(original_results, start=1):
+        ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="step_id")
 
-    return (pd.concat(ics, names=["wb_id", ics[0].index.name]) * datapoint.sampling_rate_hz).astype(int)
+    return (pd.concat(ics, names=["wb_id", ics[1].index.name]) * datapoint.sampling_rate_hz).astype("int64")
 
 
 detected_ics_matlab = load_matlab_output(single_test)
@@ -88,7 +88,7 @@ detected_ics_matlab
 # 2. Compared to the ground truth reference, both versions detect the IC too early most of the time.
 # 3. Both algorithms can not detect the first IC of the gait sequence.
 #    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
-#    Hence, there are not samples before that point the algorithm can use to detect the IC.
+#    Hence, there are no samples before that point the algorithm can use to detect the IC.
 
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
@@ -98,3 +98,9 @@ plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["
 plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()
+
+# %%
+# Evaluation of the algorithm against a reference
+# --------------------------------------------------
+# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
+# See the :ref:`example on ICD evaluation <icd_evaluation>` for more details.

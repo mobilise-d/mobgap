@@ -1,4 +1,4 @@
 .. _examples-pipelines:
 
-Full Pipelines and Pipline Helper
-=================================
+Full Pipelines and Pipeline Helper
+----------------------------------

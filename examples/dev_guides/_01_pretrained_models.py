@@ -2,7 +2,7 @@
 Pretrained models and predefined Parameters
 ===========================================
 
-All gaitlink algorithms are implemented as tpcp classes (see :ref:`tpcp`).
+All mobgap algorithms are implemented as tpcp classes (see :class:`tpcp.Algorithm`).
 Hence, all there configuration is stored in the parameters of the class.
 
 Each algorithm already has sensible default parameters, which can be used for many applications.
@@ -12,7 +12,7 @@ Similarly, the machine learning based algorithms have a set of pretrained models
 
 For both cases, we need a good way to make these parameters and models available to the user.
 Below, we show the aggreed upon way to do this.
-For reference about the discussion, see `GitHub Issue <https://github.com/mobilise-d/gaitlink/issues/65>`_.
+For reference about the discussion, see `GitHub Issue <https://github.com/mobilise-d/mobgap/issues/65>`_.
 
 The basic idea is to add a static inner class to the algorithm class, which contains the parameters and models.
 In the easiest case, these are just dictionaries.
@@ -20,7 +20,7 @@ If more complex configuration is needed, we can use the ``property`` decorator t
 
 The simple case
 ---------------
-For a real world implementation see :class:`gaitlink.wba.WbAssembly`.
+For a real world implementation see :class:`mobgap.wba.WbAssembly`.
 
 For the simple case we just add a static inner class to the algorithm class.
 For the example we assume that the algorithm has two parameters ``param1`` and ``param2`` and we assume that we have
@@ -28,6 +28,7 @@ two sets of predefined parameters for healthy and pathological gait.
 
 We will omit the algorithm implementation (aka the action method) here, as it is not relevant for the example.
 """
+
 from typing import Optional
 
 import tpcp

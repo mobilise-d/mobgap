@@ -17,10 +17,11 @@ Getting Some Example Data
 -------------------------
 
 """
+
 import numpy as np
 import pandas as pd
 
-from gaitlink.data import LabExampleDataset
+from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
@@ -31,7 +32,7 @@ long_trial_gs
 # %%
 # Simple Functional Interface
 # ---------------------------
-# We provide the :func:`~gaitlink.pipeline.iter_gs` function to iterate over the gait sequences.
+# We provide the :func:`~mobgap.pipeline.iter_gs` function to iterate over the gait sequences.
 # It simply takes the data and the gait sequence list and cuts the data accordingly to iterate over it.
 # The function yields the gait sequence information as tuple (i.e. the "row" of the gs dataframe as namedtuple) and the
 # data for each iteration.
@@ -39,17 +40,22 @@ long_trial_gs
 # Hence we recommend using `iloc` to access the data (`iloc[0]` will return the first sample of the gait sequence).
 #
 # Using our example data and gs, we can iterate over the data as follows:
-from gaitlink.pipeline import iter_gs
+from mobgap.pipeline import iter_gs
 
-for gs, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
+for gs, data in iter_gs(long_trial.data_ss, long_trial_gs):
     # Note that the key to access the id is called "wb_id" here, as we loaded the WB from the reference system.
     # If this is an "actual" gait sequences, as calculated by one of the GSD algorithms, the key would be "gs_id".
-    print("Gait Sequence: ", gs.wb_id)
+    print("Gait Sequence: ", gs)
     print("Expected N-samples in gs: ", gs.end - gs.start)
     print("N-samples in gs: ", len(data))
     print("First sample of gs:\n", data.iloc[0], end="\n\n")
 
 # %%
+# .. note:: The ``gs`` named-tuples returned by the iterator can either be of type ``GaitSequence`` or ``WalkingBout``.
+#           In both cases they contain the fields ``id``, ``start``, and ``end`` in this order.
+#           When using the named access the ``id`` field can also be accessed via the ``wb_id``/``gs_id`` field (
+#           depending on the type of the gait sequence).
+#
 # You can see that this way it is pretty easy to iterate over the data.
 # However, if you are planning to run calculations on the data, you need to aggregate the results yourself.
 # If you are planning to collect multiple pieces of results, this can become cumbersome.
@@ -78,7 +84,7 @@ for gs, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
 # ---------------
 # The simple case basically no more setup as the functional interface.
 # However, it assumes that your results are a subset of initial contacts, cadence, stride length, and gait speed, and
-# that all of them are stored in the expected gaitlink datatypes (aka pandas dataframes).
+# that all of them are stored in the expected mobgap datatypes (aka pandas dataframes).
 # The iterator will then automatically aggregate the results the dataframes per iteration into one combined dataframe,
 # handling the sample offsets of the gait sequences for you.
 #
@@ -86,7 +92,7 @@ for gs, data in iter_gs(long_trial.data["LowerBack"], long_trial_gs):
 #
 # We start by setting up an iterator object.
 # We can leave everything at the default values, as we do not need any custom aggregation functions.
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 dt = iterator.data_type
@@ -106,14 +112,20 @@ display(inspect.getsource(iterator.data_type))
 #
 # In each iteration the iterator will give us a tuple of the gait sequence information, the data for the iteration, and
 # a new empty result object.
+from mobgap.utils.conversions import as_samples
 
-for (gs, data), result in iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
+for (gs, data), result in iterator.iterate(long_trial.data_ss, long_trial_gs):
     # Now we can just "calculate" the initial contacts and set it on the result object.
-    result.ic_list = pd.DataFrame(np.arange(0, len(data), 100), columns=["ic"]).rename_axis(index="ic_id")
+    result.ic_list = pd.DataFrame(np.arange(0, len(data), 100, dtype="int64"), columns=["ic"]).rename_axis(
+        index="step_id"
+    )
     # For cadence, we just set a dummy value to the wb_id for each 1 second bout of the data.
+    n_seconds = int(len(data) // long_trial.sampling_rate_hz)
     result.cad_per_sec = pd.DataFrame(
-        [gs.wb_id] * int(len(data) // long_trial.sampling_rate_hz), columns=["cadence"]
-    ).rename_axis(index="time")
+        [gs.id] * n_seconds,
+        columns=["cad_spm"],
+        index=as_samples(np.arange(0, n_seconds) + 0.5, long_trial.sampling_rate_hz),
+    ).rename_axis(index="sec_center_samples")
 
 # %%
 # After the iteration, we can access the aggregated results either using the `results_` property of the iterator
@@ -129,7 +141,9 @@ iterator.ic_list_
 # And all ICs are offset, so that they are relative to the start of the recording and not the start of the gait
 # sequence anymore.
 #
-# For the cadence value, we see that no adjustment was made, as the cadence value is not a "time" value per sample.
+# For the cadence value, the index represents the sample of the center of the second the cadence value belongs to.
+# This value was originally relative to the start of the GS.
+# We can see that in the aggregated results this is transformed back to be relative to the start of the recording.
 iterator.results_.cad_per_sec
 
 
@@ -172,7 +186,7 @@ class ResultType:
 
 def aggregate_n_samples(inputs, results):
     gait_sequences, _ = zip(*inputs)
-    return pd.Series(results, index=[gs.wb_id for gs in gait_sequences], name="N-Samples")
+    return pd.Series(results, index=[gs.id for gs in gait_sequences], name="N-Samples")
 
 
 aggregations = [("n_samples", aggregate_n_samples)]
@@ -182,7 +196,7 @@ aggregations = [("n_samples", aggregate_n_samples)]
 # Note, that if we want to correctly infer the result type, we need to use the somewhat weird square bracket-typing
 # syntax, when creating the iterator.
 # This will allow to autocomplete the attributes of the result type.
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 custom_iterator = GsIterator[ResultType](ResultType, aggregations=aggregations)
 
@@ -190,11 +204,11 @@ custom_iterator = GsIterator[ResultType](ResultType, aggregations=aggregations)
 # Iterating over the iterator now provides us the row from the gait sequence list (which we ignore here), the data for
 # each iteration, and the empty result object, we can fill up each iteration.
 
-for (_, data), custom_result in custom_iterator.iterate(long_trial.data["LowerBack"], long_trial_gs):
+for (_, data), custom_result in custom_iterator.iterate(long_trial.data_ss, long_trial_gs):
     # We just calculate the length, but you can image any other calculation here.
     # Then we just set the result.
     custom_result.n_samples = len(data)
-    # For the "filtered" data we just substract 1 form the input
+    # For the "filtered" data we just subtract 1 form the input
     custom_result.filtered_data = data - 1
 
 # %%

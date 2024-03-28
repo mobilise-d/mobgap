@@ -2,7 +2,7 @@
 Loading Digital Mobility Outcome (DMO) data
 ===========================================
 
-Besides raw data, gaitlink also has utilities to load pre-calculated DMO data in the format published by Mobilise-D.
+Besides raw data, mobgap also has utilities to load pre-calculated DMO data in the format published by Mobilise-D.
 Specifically, this is the data of the TVS (=technical validation study) and the
 individual CVS (=clinical validation study) visits.
 For each CVS visit data is available as a single CSV file, which contains the DMO data for all walking bouts of all
@@ -23,7 +23,7 @@ To get started, the data should be organised as follows:
    the weartime reports.
 
 If the data is organised as described above, you can load the data using the :class:`MobilisedCvsDmoDataset` class.
-Below, we will use some example data that is included in the gaitlink package containing the data from two participants.
+Below, we will use some example data that is included in the mobgap package containing the data from two participants.
 
 Loading data using these classes handles a lot of common edgecases, in particular the correct handling of timezones and
 is hence, the recommended way to load the data.
@@ -31,7 +31,8 @@ is hence, the recommended way to load the data.
 We will only show loading the data without the weartime reports, as no example weartime reports are included in the
 package at the moment.
 """
-from gaitlink.data import MobilisedCvsDmoDataset, get_example_cvs_dmo_data_path
+
+from mobgap.data import MobilisedCvsDmoDataset, get_example_cvs_dmo_data_path
 
 example_data_base_path = get_example_cvs_dmo_data_path()
 dmo_data_path = example_data_base_path / "cvs-T1-test_data.csv"

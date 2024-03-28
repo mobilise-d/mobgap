@@ -44,14 +44,15 @@ We will create two transforms: One that adds a constant and one that multiplies 
 
 The basic things that a data-transform needs are:
 
-- Inherit from :class:`~gaitlink.data_transform.base.BaseTransformer` (or one of its subclasses, e.g.
-  :class:`~gaitlink.data_transform.base.BaseFilter`)
+- Inherit from :class:`~mobgap.data_transform.base.BaseTransformer` (or one of its subclasses, e.g.
+  :class:`~mobgap.data_transform.base.BaseFilter`)
 - Implement the ``transform`` method
 - The transform method should support data-frames, series, and numpy arrays as input and output.
   The output should match the input function.
-  :func:`~gaitlink.utils.dtypes.dflike_as_2d_array` can be used for that.
+  :func:`~mobgap.utils.dtypes.dflike_as_2d_array` can be used for that.
 
 """
+
 from typing import Any
 
 import numpy as np
@@ -59,8 +60,8 @@ import pandas as pd
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
-from gaitlink.data_transform.base import BaseTransformer
-from gaitlink.utils.dtypes import DfLike, dflike_as_2d_array
+from mobgap.data_transform.base import BaseTransformer
+from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
 
 
 class ShiftTransformer(BaseTransformer):
@@ -160,10 +161,10 @@ cloned_transformer.transformed_data_
 # Chaining data transforms
 # ------------------------
 # As all transformers have the same interface, we can chain them together using
-# :func:`~gaitlink.data_transform.chain_transformers`.
+# :func:`~mobgap.data_transform.chain_transformers`.
 #
 # TODO: Update once we have a chain_transformer class
-from gaitlink.data_transform import chain_transformers
+from mobgap.data_transform import chain_transformers
 
 chained_result = chain_transformers(data, [("scale", scale_transformer), ("shift", shift_transformer)])
 chained_result

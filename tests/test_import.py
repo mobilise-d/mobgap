@@ -3,6 +3,6 @@
 
 def test_import():
     """Test that the package can be imported."""
-    import gaitlink
+    import mobgap
 
-    assert gaitlink is not None
+    assert mobgap is not None

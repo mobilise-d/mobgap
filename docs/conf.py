@@ -37,9 +37,21 @@ def convert_github_links(base_url, text):
     return re.sub(regex, substitute, text)
 
 
+def convert_github_md_admonitions(text):
+    """Converts the GitHub style admonitions to the myst style."""
+
+    def substitute(matchobj) -> str:
+        admonition_type = matchobj.group(1).lower()
+        text = re.sub(r"\n>", "\n", matchobj.group(2)).strip()
+
+        return f"```{{{admonition_type}}}\n{text}\n```\n"
+
+    return re.sub(r"> \[!([^\]]+)\]((?:\n>[^\n]+)+)", substitute, text)
+
+
 # -- Project information -----------------------------------------------------
 
-URL = "https://github.com/mobilise-d/gaitlink"
+URL = "https://github.com/mobilise-d/mobgap"
 # Info from poetry config:
 info = toml.load("../pyproject.toml")["tool"]["poetry"]
 
@@ -53,6 +65,11 @@ copyright = f"2021 - {datetime.now().year}, MaD Lab, FAU"
 HERE = Path(__file__).parent
 with (HERE.parent / "README.md").open() as f:
     out = f.read()
+out = convert_github_links(URL, out)
+out = convert_github_md_admonitions(out)
+out = out.replace("./LICENSE", URL + "/blob/main/LICENSE")
+out = out.replace("./NOTICE", URL + "/blob/main/NOTICE")
+out = out.replace("./docs/_static/logo/", "./_static/logo/")
 with (HERE / "README.md").open("w+") as f:
     f.write(out)
 
@@ -129,6 +146,16 @@ html_theme_options = {
     "github_url": URL,
     "show_prev_next": False,
 }
+html_context = {
+    "github_user": "mobilise-d",
+    "github_repo": "mobgap",
+    "github_version": "main",
+    "doc_path": "docs",
+}
+
+html_favicon = "_static/logo/mobilise_d_logo.ico"
+html_logo = "_static/logo/mobilise_d_logo.png"
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -162,10 +189,10 @@ intersphinx_mapping = {
 sphinx_gallery_conf = {
     "examples_dirs": ["../examples"],
     "gallery_dirs": ["./auto_examples"],
-    "reference_url": {"gaitlink": None},
+    "reference_url": {"mobgap": None},
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
-    "doc_module": ("gaitlink",),
+    "doc_module": ("mobgap",),
     "filename_pattern": re.escape(os.sep),
     "remove_config_comments": True,
     "show_memory": True,
@@ -174,6 +201,9 @@ sphinx_gallery_conf = {
             "../examples/data",
             "../examples/gsd",
             "../examples/icd",
+            "../examples/lrd",
+            "../examples/cad",
+            "../examples/wba",
             "../examples/aggregation",
             "../examples/pipeline",
             "../examples/data_transform",
@@ -187,6 +217,6 @@ sphinx_gallery_conf = {
 from sphinxext.githublink import make_linkcode_resolve
 
 linkcode_resolve = make_linkcode_resolve(
-    "gaitlink",
-    "https://github.com/orgs/mobilise-d/gaitlink/blob/{revision}/{package}/{path}#L{lineno}",
+    "mobgap",
+    "https://github.com/orgs/mobilise-d/mobgap/blob/{revision}/{package}/{path}#L{lineno}",
 )

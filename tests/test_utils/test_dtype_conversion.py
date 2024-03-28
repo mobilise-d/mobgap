@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal, assert_series_equal
 
-from gaitlink.utils.dtypes import dflike_as_2d_array
+from mobgap.utils.dtypes import dflike_as_2d_array
 
 
 class TestDflikeAs2dArray:

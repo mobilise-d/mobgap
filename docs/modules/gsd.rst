@@ -1,14 +1,14 @@
 Gait Sequence Detection (GSD)
 =============================
 
-.. automodule:: gaitlink.gsd
+.. automodule:: mobgap.gsd
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: gaitlink.gsd
+.. currentmodule:: mobgap.gsd
 
 .. autosummary::
    :toctree: generated/gsd
@@ -17,13 +17,23 @@ Algorithms
     GsdIluz
     GsdParaschivIonescu
 
+Pipelines
++++++++++
+.. currentmodule:: mobgap.gsd
+
+.. autosummary::
+   :toctree: generated/gsd
+   :template: class.rst
+
+    evaluation.GsdEvaluationPipeline
+
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.gsd.base
+.. automodule:: mobgap.gsd.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.gsd.base
+.. currentmodule:: mobgap.gsd.base
 
 .. autosummary::
    :toctree: generated/gsd
@@ -41,14 +51,17 @@ Docu-helper
     base_gsd_docfiller
 
 
-Validation
+Evaluation
 ++++++++++
-.. currentmodule:: gaitlink.gsd.validation
+.. currentmodule:: mobgap.gsd.evaluation
 
 .. autosummary::
    :toctree: generated/gsd
    :template: func.rst
 
+    calculate_matched_gsd_performance_metrics
+    calculate_unmatched_gsd_performance_metrics
     categorize_intervals
     find_matches_with_min_overlap
+    plot_categorized_intervals
 

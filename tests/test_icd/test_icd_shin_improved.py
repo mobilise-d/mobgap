@@ -3,9 +3,9 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd import IcdShinImproved
-from gaitlink.pipeline import GsIterator
+from mobgap.data import LabExampleDataset
+from mobgap.icd import IcdShinImproved
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaShinImproved(TestAlgorithmMixin):
@@ -37,10 +37,9 @@ class TestShinImproved:
 class TestShinImprovedRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
-        data = datapoint.data["LowerBack"]
-        try:
-            ref_walk_bouts = datapoint.reference_parameters_.wb_list
-        except:
+        data = datapoint.data_ss
+        ref_walk_bouts = datapoint.reference_parameters_.wb_list
+        if len(ref_walk_bouts) == 0:
             pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
 
