@@ -608,6 +608,16 @@ class GsdEvaluationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         This method can be used as a scoring function in the ``tpcp.validate`` module.
 
+        Parameters
+        ----------
+        datapoint
+            A single datapoint of a Gait Dataset with reference information.
+
+        Returns
+        -------
+        dict
+            Dictionary of performance metrics.
+
         See Also
         --------
         calculate_matched_gsd_performance_metrics
