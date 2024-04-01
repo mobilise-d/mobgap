@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, lfilter, filtfilt
+from gaitlink.data_transform import EpflGaitFilter
 
 def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: float, normalizing=None) -> np.ndarray:
     """
@@ -77,12 +78,24 @@ def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str)
 
     """
     order = 10
+    fs = 200
     btype = 'high' if filter_type == 'high' else 'low'
 
-    b, a = butter(order, freq, btype=btype, analog=False, fs=200)
-    high = filtfilt(b, a, unfiltered_altitude)
-    reversed_high = high[::-1]
-    high = filtfilt(b, a, reversed_high)
-    high = high[::-1]
+    # adding pad
+    n_coefficients = len(EpflGaitFilter().coefficients[0])
+    len_pad = 4 * n_coefficients
+    padded = np.pad(unfiltered_altitude, (len_pad, len_pad), "wrap")
 
-    return high
+    # ba methods gives high numbers
+    #b, a = butter(order, freq / (0.5 * fs), btype=btype, analog=False, output='ba')
+
+    # zpk methods using z and p in filtfilt gives normal
+    z, p, k = butter(order, freq / (0.5 * fs), btype=btype, analog=False, output='zpk')
+
+    #filtfilt takes two coefficients z and p give normal results
+    final = filtfilt(z, p, padded)
+
+    # Remove pad
+    final = final[len_pad:-len_pad]
+
+    return final
