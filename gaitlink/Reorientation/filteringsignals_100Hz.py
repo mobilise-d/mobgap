@@ -92,7 +92,7 @@ def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str)
     # zpk methods using z and p in filtfilt gives normal
     z, p, k = butter(order, freq / (0.5 * fs), btype=btype, analog=False, output='zpk')
 
-    #filtfilt takes two coefficients z and p give normal results
+    # filtfilt takes two coefficients z and p give normal results
     final = filtfilt(z, p, padded)
 
     # Remove pad
