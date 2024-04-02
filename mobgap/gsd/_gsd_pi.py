@@ -288,7 +288,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         return self
 
 
-def hilbert_envelop(sig, smooth_window, duration):
+def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:
     """Apply hilbert transform to select dynamic threshold for activity detection.
 
     Calculates the analytical signal with the help of hilbert transform, takes the envelope and smooths the signal.
@@ -308,11 +308,12 @@ def hilbert_envelop(sig, smooth_window, duration):
     Returns
     -------
     active
-        A binary 1D numpy array, same length as sig, where 1 represents active periods and 0
-        represents non-active periods.
+        A binary 1D numpy array, same length as sig, where 1 represents active periods and 0 represents non-active
+        periods.
 
     .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review •
         Repository Archive. J. Open Source Softw. 2018, 3, 671
+
     """
     # Calculate the analytical signal and get the envelope
     amplitude_envelope = np.abs(scipy.signal.hilbert(sig))
@@ -366,12 +367,14 @@ def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
 
     Parameters
     ----------
-    signal (np.ndarray): A 1D numpy array representing the signal.
-    threshold (float): A threshold value to filter the minima and maxima.
+    signal
+        A 1D numpy array representing the signal.
+    threshold
+        A threshold value to filter the minima and maxima.
 
     Returns
     -------
-    tuple: Two arrays containing the indices of local minima and maxima, respectively.
+    tuple: Two numpy arrays containing the indices of local minima and maxima, respectively.
     """
     signal = signal.squeeze()
     diff = np.diff(signal)
@@ -386,9 +389,9 @@ def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
     return minima, maxima
 
 
-def find_pulse_trains(x):
+def find_pulse_trains(x: np.ndarray) -> np.ndarray:
     walkflag = 0
-    THD = 3.5 * 40
+    thd = 3.5 * 40
     n = 0
 
     start = [0]
@@ -397,25 +400,25 @@ def find_pulse_trains(x):
 
     if len(x) > 2:
         for i in range(len(x) - 1):
-            if x[i + 1] - x[i] < THD:
+            if x[i + 1] - x[i] < thd:
                 if walkflag == 0:
                     start[n] = x[i]
                     steps[n] = 1
                     walkflag = 1
                 else:
                     steps[n] = steps[n] + 1
-                    THD = 1.5 * 40 + (x[i] - start[n]) / steps[n]
+                    thd = 1.5 * 40 + (x[i] - start[n]) / steps[n]
             elif walkflag == 1:
                 end[n] = x[i - 1]
                 n = n + 1
-                start = start + [0]
-                steps = steps + [0]
-                end = end + [0]
+                start = [*start, 0]
+                steps = [*steps, 0]
+                end = [*end, 0]
                 walkflag = 0
-                THD = 3.5 * 40
+                thd = 3.5 * 40
 
     if walkflag == 1:
-        if x[-1] - x[-2] < THD:
+        if x[-1] - x[-2] < thd:
             end[-1] = x[-1]
             steps[n] = steps[n] + 1
         else:
@@ -463,7 +466,7 @@ class NoActivePeriodsDetectedError(Exception):
     pass
 
 
-def find_active_period_peak_threshold(signal, sampling_rate_hz) -> float:
+def find_active_period_peak_threshold(signal: np.ndarray, sampling_rate_hz: int) -> float:
     # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
     alarm = hilbert_envelop(signal, sampling_rate_hz, sampling_rate_hz)
 
