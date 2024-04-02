@@ -631,14 +631,3 @@ __all__ = [
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
 ]
-
-if __name__ == "__main__":
-    gsd_list_detected = pd.DataFrame([[5, 10], [20, 30]], columns=["start", "end"])
-    gsd_list_reference = pd.DataFrame([[1, 2], [5, 10], [15, 25]], columns=["start", "end"])
-    multiindex_d = pd.MultiIndex.from_tuples([(0, 0), (0, 1)], names=["recording", "participant"])
-    multiindex_r = pd.MultiIndex.from_tuples([(0, 0), (0, 1), (1, 0)], names=["recording", "participant"])
-    gsd_list_detected.index = multiindex_d
-    gsd_list_reference.index = multiindex_r
-    find_matches_with_min_overlap(
-        gsd_list_detected=gsd_list_detected, gsd_list_reference=gsd_list_reference, overlap_threshold=0.8
-    )
