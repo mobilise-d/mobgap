@@ -21,12 +21,11 @@ from mobgap.data_transform import (
 )
 from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 
-# TODO: Solve remaining linting issues (After running poe lint)
 # TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real
 #       world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
 # TODO: Potentially rework find_pulse_trains
 # TODO: Complete narrative example including comparison with original Matlab and Ground Truth. See GSD-A example
-# TODO: Correct to simpler version
+# TODO: Add version without hilbert transform
 
 
 @base_gsd_docfiller
@@ -85,17 +84,17 @@ class GsdParaschivIonescu(BaseGsDetector):
 
     - All parameters and thresholds are converted the units used in mobgap.
       Specifically, we use m/s^2 instead of g.
-    - For scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
+    - For (:func:`~scipy.signal.cwt`)(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
       Original implementation calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
       which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
       wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
       how the two languages initialise their wavelets).
-    - For scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), sigma=2):
+    - For (:func:`~scipy.ndimage.gaussian_filter`)(acc_filtered.squeeze(), sigma=2):
       In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
     - We introduced a try/except incase no active periods were detected.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
 
-      - min_n_steps>=4 after FindPulseTrains(MaxPeaks) and FindPulseTrains(MinPeaks)
+      - min_n_steps>=4 after (:func:`~FindPulseTrains`)(MaxPeaks) and (:func:`~FindPulseTrains`)(MinPeaks)
       - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
       - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
         max_gap_s
@@ -104,6 +103,7 @@ class GsdParaschivIonescu(BaseGsDetector):
 
     - The original implementation used a check for overlapping gait sequences.
       We removed this step since it should not occur.
+
 
     .. [1] Paraschiv-Ionescu, A, Soltani A, and Aminian K. "Real-world speed estimation using single trunk IMU:
        methodological challenges for impaired gait patterns." 2020 42nd Annual International Conference of the IEEE
@@ -137,7 +137,17 @@ class GsdParaschivIonescu(BaseGsDetector):
         self.max_gap_s = max_gap_s
         self.padding = padding
 
+    @base_gsd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        """%(detect_short)s.
+
+        Parameters
+        ----------
+        %(detect_para)s
+
+        %(detect_return)s
+
+        """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
@@ -147,7 +157,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         acc_norm = np.linalg.norm(acc, axis=1)
 
         # TODO: Check new filter implementation below is correct
-        # TODO: Update data_transform to get Pad
+
         # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
         # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
