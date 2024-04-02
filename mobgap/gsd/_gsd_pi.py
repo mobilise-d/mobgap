@@ -86,11 +86,13 @@ class GsdParaschivIonescu(BaseGsDetector):
       Specifically, we use m/s^2 instead of g.
     - We introduced a try/except incase no active periods were detected.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
+
       - min_n_steps>=4 after find_pulse_trains(MaxPeaks) and find_pulse_trains(MinPeaks)
       - min_n_steps>=3 during the gs padding (NOTE: not implemented in this algorithm since it is redundant here)
-      - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
-        max_gap_s
+      - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than max_gap_s
+
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
+
     - The original implementation used a check for overlapping gait sequences.
       We removed this step since it should not occur.
 
