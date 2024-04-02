@@ -218,5 +218,5 @@ from sphinxext.githublink import make_linkcode_resolve
 
 linkcode_resolve = make_linkcode_resolve(
     "mobgap",
-    "https://github.com/orgs/mobilise-d/mobgap/blob/{revision}/{package}/{path}#L{lineno}",
+    "https://github.com/mobilise-d/mobgap/blob/{revision}/{package}/{path}#L{lineno}",
 )
