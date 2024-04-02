@@ -84,23 +84,13 @@ class GsdParaschivIonescu(BaseGsDetector):
 
     - All parameters and thresholds are converted the units used in mobgap.
       Specifically, we use m/s^2 instead of g.
-    - For :func:`~scipy.signal.cwt`(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
-      Original implementation calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
-      which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
-      wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
-      how the two languages initialise their wavelets).
-    - For :func:`~scipy.ndimage.gaussian_filter`(acc_filtered.squeeze(), sigma=2):
-      In gaussian_filter, sigma = windowWidth / 5. In original implementation windowWidth = 10, giving sigma=2.
     - We introduced a try/except incase no active periods were detected.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
-
-      - min_n_steps>=4 after :func:`~find_pulse_trains`(MaxPeaks) and :func:`~find_pulse_trains`(MinPeaks)
-      - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
+      - min_n_steps>=4 after find_pulse_trains(MaxPeaks) and find_pulse_trains(MinPeaks)
+      - min_n_steps>=3 during the gs padding (NOTE: not implemented in this algorithm since it is redundant here)
       - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
         max_gap_s
-
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
-
     - The original implementation used a check for overlapping gait sequences.
       We removed this step since it should not occur.
 
