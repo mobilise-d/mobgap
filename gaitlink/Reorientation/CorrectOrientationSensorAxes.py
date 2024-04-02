@@ -32,6 +32,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
     Acc = data.iloc[:, 0:3]
     Gyr = data.iloc[:, 3:6]
 
+
     corIMUdata = data
     corIMUdataSequence = pd.DataFrame(columns=['Start', 'End'])
     gs = []
@@ -44,7 +45,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
     if N_sgfilt < len(Accx): #condition to support the minimal signal length required for the filter parameter
                              #low pass filtering of vertical acc (supposed to be recorded on right channel/IMU data matrix)
 
-        av_filt = filtering_signals_100hz(Acc.iloc[:, 0], 'low', 0.1)
+        av_filt = filtering_signals_100hz(Acc.iloc[:, 0], 'low', 0.1, sampling_rate=sampling_rate_hz)
 
         savgol_win_size_samples = N_sgfilt
 
@@ -102,6 +103,6 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                 if avm >= th:
                     corIMUdata.iloc[l1:l2, 0:3] = Acc.iloc[l1:l2, :]
                 elif avm <= -th:
-                    corIMUdata.iloc[l1:l2, 0] = -Acc.iiloc[l1:l2, 0]
+                    corIMUdata.iloc[l1:l2, 0] = -Acc.iloc[l1:l2, 0]
 
     return corIMUdata, corIMUdataSequence
