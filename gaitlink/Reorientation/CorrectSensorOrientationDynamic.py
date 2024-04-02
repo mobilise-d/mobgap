@@ -55,9 +55,9 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
         quaternion[t, :] = mad.orientation_.iloc[1, :]
 
     # Adjust quaternion as from x, y, z, w to w, x, y, z
-    quaternion = quaternion[:, [1, 2, 3, 0]]
+    quaternion = quaternion[:, [3, 0, 1, 2]]
 
-    data = np.concatenate((chosenacc.to_numpy(), chosengyr.to_numpy()), axis=1)
+    data = pd.concat((chosenacc, chosengyr), axis=1)
     av = acceleration(data, quaternion)
 
     #Principal component analysis
