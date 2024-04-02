@@ -1,14 +1,14 @@
 Initial Contact Detection (ICD)
 ===============================
 
-.. automodule:: gaitlink.icd
+.. automodule:: mobgap.icd
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: gaitlink.icd
+.. currentmodule:: mobgap.icd
 
 .. autosummary::
    :toctree: generated/icd
@@ -20,11 +20,11 @@ Algorithms
 
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.icd.base
+.. automodule:: mobgap.icd.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.icd.base
+.. currentmodule:: mobgap.icd.base
 
 .. autosummary::
    :toctree: generated/icd
@@ -40,3 +40,14 @@ Docu-helper
    :template: func.rst
 
     base_icd_docfiller
+
+Evaluation
+++++++++++
+.. currentmodule:: mobgap.icd.evaluation
+
+.. autosummary::
+   :toctree: generated/icd
+   :template: func.rst
+
+    calculate_matched_icd_performance_metrics
+    categorize_ic_list

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from gaitlink.icd._shin_algo_improved import find_zero_crossings
+from mobgap.icd._shin_algo_improved import find_zero_crossings
 
 
 class TestFindZeroCrossings:
@@ -51,4 +51,4 @@ class TestFindZeroCrossings:
         output = find_zero_crossings(signal, mode=mode)
 
         assert np.all(np.diff(output) > 0)
-        np.testing.assert_allclose(output.astype(int), expected)
+        np.testing.assert_allclose(output.astype("int64"), expected)

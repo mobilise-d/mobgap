@@ -1,14 +1,14 @@
 DMO Aggregation
 ===============
 
-.. automodule:: gaitlink.aggregation
+.. automodule:: mobgap.aggregation
     :no-members:
     :no-inherited-members:
 
 Aggregator Classes
 ++++++++++++++++++
 
-.. currentmodule:: gaitlink.aggregation
+.. currentmodule:: mobgap.aggregation
 
 .. autosummary::
    :toctree: generated/aggregation
@@ -18,11 +18,11 @@ Aggregator Classes
 
 Functions
 +++++++++
-.. automodule:: gaitlink.aggregation
+.. automodule:: mobgap.aggregation
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.aggregation
+.. currentmodule:: mobgap.aggregation
 
 .. autosummary::
    :toctree: generated/aggregation
@@ -34,11 +34,11 @@ Functions
 
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.aggregation.base
+.. automodule:: mobgap.aggregation.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.aggregation.base
+.. currentmodule:: mobgap.aggregation.base
 
 .. autosummary::
    :toctree: generated/aggregation

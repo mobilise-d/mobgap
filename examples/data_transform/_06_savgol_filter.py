@@ -8,7 +8,7 @@ window.
 The window is then moved along the data and the process is repeated.
 
 We provide a class based implementation of the Savitzky-Golay filter in the
-:class:`~gaitlink.data_transform.SavgolFilter` class.
+:class:`~mobgap.data_transform.SavgolFilter` class.
 Compared to the version provided with scipy (:func:`scipy.signal.savgol_filter`), our implementation allows to specify
 all parameters independently of the sampling rate of the data.
 This should allow to apply the same filter to different datasets, while maintaining the same filter characteristics.
@@ -16,8 +16,8 @@ This should allow to apply the same filter to different datasets, while maintain
 
 import matplotlib.pyplot as plt
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import SavgolFilter
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import SavgolFilter
 
 # %%
 # Loading some example data
@@ -25,7 +25,7 @@ from gaitlink.data_transform import SavgolFilter
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
 single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
-data = single_test.data["LowerBack"]
+data = single_test.data_ss
 
 data.head()
 

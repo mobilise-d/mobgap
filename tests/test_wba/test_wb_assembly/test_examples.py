@@ -3,13 +3,13 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from gaitlink.wba import IntervalParameterCriteria, MaxBreakCriteria, NStridesCriteria, StrideSelection, WbAssembly
+from mobgap.wba import IntervalParameterCriteria, MaxBreakCriteria, NStridesCriteria, StrideSelection, WbAssembly
 from tests.test_wba.conftest import window
 
 
 def naive_stride_list(start, stop, duration, foot=None, **paras):
     """A window list full of identical strides."""
-    x = np.arange(start, stop + duration, duration)
+    x = np.arange(start, stop + duration, duration, dtype="int64")
     start_end = zip(x[:-1], x[1:])
 
     return pd.DataFrame.from_records(

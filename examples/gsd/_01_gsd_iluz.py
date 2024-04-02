@@ -1,4 +1,6 @@
-"""
+r"""
+.. _gsd_iluz:
+
 GSD Iluz
 ========
 
@@ -54,8 +56,8 @@ import json
 
 import pandas as pd
 
-from gaitlink import PACKAGE_ROOT
-from gaitlink.data import LabExampleDataset
+from mobgap import PACKAGE_ROOT
+from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 
@@ -82,13 +84,13 @@ def load_matlab_output(datapoint):
 # Performance on a single lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
-from gaitlink.gsd import GsdIluz
+from mobgap.gsd import GsdIluz
 
 short_trial = lab_example_data.get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")
 short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
-short_trial_output = GsdIluz().detect(short_trial.data["LowerBack"], sampling_rate_hz=short_trial.sampling_rate_hz)
+short_trial_output = GsdIluz().detect(short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
@@ -99,7 +101,7 @@ print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # Both algorithm implementations produce a gait sequence that extends beyond the end of the reference system.
 
 fig, ax = plot_gsd_outputs(
-    short_trial.data["LowerBack"],
+    short_trial.data_ss,
     reference=short_trial_reference_parameters,
     matlab=short_trial_matlab_output,
     python=short_trial_output.gs_list_,
@@ -115,7 +117,7 @@ long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test
 long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
-long_trial_output = GsdIluz().detect(long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz)
+long_trial_output = GsdIluz().detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nMatlab Output:\n\n", long_trial_matlab_output)
@@ -126,7 +128,7 @@ print("\nPython Output:\n\n", long_trial_output.gs_list_)
 # It detects longer gait sequences and even one entire gait sequence that is not detected by the matlab version.
 
 fig, _ = plot_gsd_outputs(
-    long_trial.data["LowerBack"],
+    long_trial.data_ss,
     reference=long_trial_reference_parameters,
     matlab=long_trial_matlab_output,
     python=long_trial_output.gs_list_,
@@ -147,7 +149,7 @@ fig.show()
 # detected before.
 
 long_trial_output_modified = GsdIluz(window_length_s=5, window_overlap=0.8).detect(
-    long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz
+    long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz
 )
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
@@ -155,7 +157,7 @@ print("\nPython Output:\n\n", long_trial_output.gs_list_)
 print("\nPython Output Modified:\n\n", long_trial_output_modified.gs_list_)
 
 fig, _ = plot_gsd_outputs(
-    long_trial.data["LowerBack"],
+    long_trial.data_ss,
     reference=long_trial_reference_parameters,
     python=long_trial_output.gs_list_,
     python_modified=long_trial_output_modified.gs_list_,
@@ -163,73 +165,7 @@ fig, _ = plot_gsd_outputs(
 fig.show()
 
 # %%
-# Validation of algorithm output against a reference
+# Evaluation of the algorithm against a reference
 # --------------------------------------------------
-# Let's quantify how the Python output compares to the reference labels.
-# To do this, we use the `categorize_intervals` function to compare detected gait sequences to reference labels
-# sample by sample.
-
-from gaitlink.gsd.evaluation import categorize_intervals
-
-categorized_intervals = categorize_intervals(long_trial_output.gs_list_, long_trial_reference_parameters)
-
-# %%
-# The function returns a DataFrame containing `start` and `end`  index of the resulting matched intervals together with
-# a `match_type` column that contains the type of match for each interval, i.e. `tp` for true positive, `fp` for false
-# positive, and `fn` for false negative.
-# These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
-# categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples
-# from the reference gsd list that were not detected (`fn`).
-# Note that the true negative intervals are not explicitly returned, but can be inferred from the other intervals
-# (if the total length of the underlying recording is known), as everything between them is considered as true negative.
-
-print("Matched Intervals:\n\n", categorized_intervals)
-
-# %%
-# Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
-# and recall can be calculated.
-# For this purpose, the :func:`~gaitlink.utils.evaluation.precision_recall_f1_score` function can be used.
-# It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
-# Furthermore, we provide similar functions for other metrics such as accuracy, specificity,
-# and negative predictive value.
-
-from gaitlink.utils.evaluation import precision_recall_f1_score
-
-prec_rec_f1_dict = precision_recall_f1_score(categorized_intervals)
-
-print("Performance Metrics:\n\n", prec_rec_f1_dict)
-
-# %%
-# To calculate not only a specific performance metric but the whole range of possible metrics that were utilized for
-# gait sequence detection in Mobilise-D, we can use the
-# :func:`~gaitlink.gsd.evaluation.calculate_gsd_performance_metrics` function.
-# It returns a dictionary containing all metrics for the specified detected and reference gait sequences. To retrieve
-# the whole range of metrics, the length and the sampling frequency of the recording are required.
-# This is used to infer the number of true negative samples and derived metrics (e.g., accuracy and specificity), and
-# to calculate the duration errors (in seconds), respectively.
-
-from gaitlink.gsd.evaluation import calculate_gsd_performance_metrics
-
-metrics_all = calculate_gsd_performance_metrics(
-    long_trial_output.gs_list_,
-    long_trial_reference_parameters,
-    sampling_rate_hz=long_trial.sampling_rate_hz,
-    n_overall_samples=long_trial.data["LowerBack"].shape[0],
-)
-
-print("Performance Metrics:\n\n", metrics_all)
-
-# %%
-# Another useful function for evaluation is :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap`. It returns all intervals from the Python
-# output that overlap with the reference gait sequences by at least a given amount.
-# We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
-# matches with the reference gait sequences.
-# The remaining ones either contain too many false positive and/or false negative samples.
-
-from gaitlink.gsd.evaluation import find_matches_with_min_overlap
-
-matches = find_matches_with_min_overlap(
-    long_trial_output.gs_list_, long_trial_reference_parameters, overlap_threshold=0.7
-)
-
-print("Matches:\n\n", matches)
+# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
+# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.

@@ -1,6 +1,6 @@
 """
 Continuous Wavelet Transform (CWT) - Filter
-===================================
+===========================================
 
 Continuous wavelet transform (CWT) is a time-frequency analysis method that can provide frequency information localized
 in both time and frequency.
@@ -16,8 +16,8 @@ In this example we will show how to apply a CWT as such a filter to a time serie
 
 import matplotlib.pyplot as plt
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import CwtFilter
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import CwtFilter
 
 # %%
 # Loading some example data
@@ -25,7 +25,7 @@ from gaitlink.data_transform import CwtFilter
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
 single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
-data = single_test.data["LowerBack"]
+data = single_test.data_ss
 
 data.head()
 

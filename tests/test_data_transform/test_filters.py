@@ -9,8 +9,8 @@ from pandas.testing import assert_frame_equal
 from scipy.signal import butter, filtfilt, firwin, lfilter, sosfilt, sosfiltfilt
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import (
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import (
     ButterworthFilter,
     EpflDedriftedGaitFilter,
     EpflDedriftFilter,
@@ -18,7 +18,7 @@ from gaitlink.data_transform import (
     FirFilter,
     HampelFilter,
 )
-from gaitlink.data_transform.base import FixedFilter
+from mobgap.data_transform.base import FixedFilter
 
 HERE = Path(__file__).parent
 
@@ -200,7 +200,7 @@ class TestButterworthFilter:
         sampling_rate = 100
         f = ButterworthFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff)
 
-        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        raw_data = LabExampleDataset()[0].data_ss[["gyr_x", "gyr_y"]]
         data = conversion_func(raw_data)
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 
@@ -223,7 +223,7 @@ class TestFirFilter:
         sampling_rate = 100
         f = FirFilter(zero_phase=zero_phase, order=order, cutoff_freq_hz=cutoff, window=window)
 
-        raw_data = LabExampleDataset()[0].data["LowerBack"][["gyr_x", "gyr_y"]]
+        raw_data = LabExampleDataset()[0].data_ss[["gyr_x", "gyr_y"]]
         data = conversion_func(raw_data)
         result = f.filter(data, sampling_rate_hz=100).filtered_data_
 

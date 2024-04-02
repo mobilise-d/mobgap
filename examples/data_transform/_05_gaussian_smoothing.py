@@ -3,14 +3,14 @@ Gaussian Smoothing
 ==================
 A common low-pass filtering technique is Gaussian smoothing, which applies a Gaussian window to the data with a moving
 average.
-We provide a class based implementation of Gaussian smoothing in the :class:`~gaitlink.data_transform.GaussianFilter`
+We provide a class based implementation of Gaussian smoothing in the :class:`~mobgap.data_transform.GaussianFilter`
 class.
 """
 
 import matplotlib.pyplot as plt
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import GaussianFilter
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import GaussianFilter
 
 # %%
 # Loading some example data
@@ -18,7 +18,7 @@ from gaitlink.data_transform import GaussianFilter
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
 single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
-data = single_test.data["LowerBack"]
+data = single_test.data_ss
 
 data.head()
 

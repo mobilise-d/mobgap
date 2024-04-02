@@ -3,7 +3,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.wba import MaxBreakCriteria, WbAssembly
+from mobgap.wba import MaxBreakCriteria, WbAssembly
 from tests.test_wba.conftest import window
 
 

@@ -1,13 +1,13 @@
 Data Transformations and Filters
 ================================
 
-.. automodule:: gaitlink.data_transform
+.. automodule:: mobgap.data_transform
     :no-members:
     :no-inherited-members:
 
 Filter
 ++++++
-.. currentmodule:: gaitlink.data_transform
+.. currentmodule:: mobgap.data_transform
 
 .. autosummary::
    :toctree: generated/data_transform
@@ -24,7 +24,7 @@ Filter
 
 Transformations
 +++++++++++++++
-.. currentmodule:: gaitlink.data_transform
+.. currentmodule:: mobgap.data_transform
 
 .. autosummary::
    :toctree: generated/data_transform
@@ -38,7 +38,7 @@ Transformations
 Utilities
 +++++++++
 
-.. currentmodule:: gaitlink.data_transform
+.. currentmodule:: mobgap.data_transform
 
 .. autosummary::
    :toctree: generated/data_transform
@@ -48,11 +48,11 @@ Utilities
 
 Base Classes
 ++++++++++++
-.. automodule:: gaitlink.data_transform.base
+.. automodule:: mobgap.data_transform.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: gaitlink.data_transform.base
+.. currentmodule:: mobgap.data_transform.base
 
 .. autosummary::
    :toctree: generated/data_transform

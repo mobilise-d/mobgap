@@ -1,25 +1,56 @@
 > [!CAUTION]
-> **Warning:** Gaitlink is currently under development and not ready for production use. Do not use any of the algorithm results for actual research purposes. Most of them are not in their final state and are not properly validated yet.
+> mobgap is currently under active development and not ready for production use.
+> Do not use any of the algorithm results for actual research purposes. 
+> Most of them are not in their final state and are not properly validated yet.
+> 
+> Learn more about this in our blog post about the [alpha release](https://mobgap.readthedocs.io/en/latest/blog/20240322_alpha_release.html).
 
-# GaitLink - The Mobilise-D algorithm toolbox
 
-A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back.
+<p align="center">
+<img src="./docs/_static/logo/mobilise_d_and_imi.png" height="200">
+</p>
+
+[![PyPI](https://img.shields.io/pypi/v/mobgap)](https://pypi.org/project/mobgap/)
+[![Documentation Status](https://readthedocs.org/projects/mobgap/badge/?version=latest)](https://mobgap.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/mobilise-d/mobgap/branch/main/graph/badge.svg?token=ZNVT5LNYHO)](https://codecov.io/gh/mobilise-d/mobgap)
+[![Test and Lint](https://github.com/mobilise-d/mobgap/actions/workflows/test-and-lint.yml/badge.svg?branch=main)](https://github.com/mobilise-d/mobgap/actions/workflows/test-and-lint.yml)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/mobgap)
+
+# MobGap - The Mobilise-D algorithm toolbox
+
+A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back
+(Learn more about [the Mobilise-D project](https://mobilise-d.eu)).
+This package is meant as reference implementation for research and production use.
+
+We are open to contributions and feedback, and are actively interested in expanding the library beyond its current scope
+and include algorithms and tools, that would allow mobgap to grow into a general purpose library for gait and mobility
+analysis.
+
 
 ## Installation
 
-At the moment, the package is not available on PyPI.
-To install the package use pip (or poetry) with the git repository URL
+First install a supported Python version (3.9 or higher) and then install the package using pip.
 
 ```bash
-pip install "git+https://github.com/mad-lab-fau/gaitmap.git" --upgrade
+pip install mobgap
+```
+
+
+### From Source
+
+If you need the latest unreleased version of mobgap, install the package using pip (or poetry) with the git repository URL
+
+
+```bash
+pip install "git+https://github.com/mobilise-d/mobgap.git" --upgrade
 ```
 
 You might need to set your git credentials to install the package.
 If you run into problems, clone the repository and install the package locally.
 
 ```bash
-git clone https://github.com/mad-lab-fau/gaitmap
-cd gaitmap
+git clone https://github.com/mobilise-d/mobgap.git
+cd mobgap
 pip install .
 ```
 
@@ -37,26 +68,24 @@ The package is designed to be used in two modes:
    way to obtain gait parameters according to the Mobilise-D algorithms.
    Depending on the clinical cohort and the amount of gait impairment, we recommend different pipelines.
    When using the pipelines in the recommended way, you can expect error ranges as reported in [[1]].
-   Outside, this recommended use case, we cannot guarantee the correctness of the results.
+   Outside, this recommended use case, we cannot provide any supported evidence about the correctness of the results.
 
-   If you are using the pipelines in this way, we recommend to cite [[1]] and [[2]] as follows:
+   If you are using the pipelines in this way, we recommend citing [[1]] and [[2]] as follows:
 
    > Gait parameters were obtained using the Mobilise-D algorithm pipeline [[1], [2]] in its official implementation
-   > provided with the gaitlink Python library version {insert version you used}.
+   > provided with the mobgap Python library version {insert version you used}.
 
-
-
-   When appropriate, include the link to the gaitlink library as a footnote or as a "online resource" in the reference
+   When appropriate, include the link to the mobgap library as a footnote or as an "online resource" in the reference
    list.
 
-   In general, we would like to ask you to be precise about the version of the gaitlink library you used and only
+   In general, we would like to ask you to be precise about the version of the mobgap library you used and only
    use the term "Mobilise-D algorithm pipeline" if you used the pipelines as described in the technical validation
    study and not when you just use individual algorithms (see point 2) or use the pipelines with modified parameters.
 
    In the latter case, we recommend the following citation:
 
    > Gait parameters were obtained using an approach inspired by Mobilise-D algorithm pipeline [[1], [2]].
-   > The algorithm pipeline was implemented based on {name of Pipeline class} available as part of the gaitlink Python
+   > The algorithm pipeline was implemented based on {name of Pipeline class} available as part of the mobgap Python
    > library version {insert version you used} with the following modifications:
    > {insert modifications you made}.
    
@@ -76,44 +105,59 @@ The package is designed to be used in two modes:
 2. Usage of individual algorithms:
 
    Besides the pipelines, we also provide individual algorithms to be used independently or in custom pipelines.
-   This can be helpful to build highly customised pipelines in a research context.
+   This can be helpful to build highly customized pipelines in a research context.
    But be aware that for most algorithms, we did not perform a specific validation outside the context of the official
    pipelines.
    Hence, we urge you to perform thorough validation of the algorithms in your specific use case.
 
-   If you are using individual algorithms in this way, we recommend to cite the original papers the algorithms were
-   proposed in and gaitlink as a software library.
+   If you are using individual algorithms in this way, we recommend citing the original papers the algorithms were
+   proposed in and mobgap as a software library.
    You can find the best references for each algorithm in the documentation of the respective algorithm.
 
    > Gait parameters were obtained using the {name of algorithm} algorithm [algo-citation] as implemented in the
-   > gaitlink Python library version {insert version you used}.
+   > mobgap Python library version {insert version you used}.
 
-   When appropriate, include the link to the gaitlink library as a footnote or as a "online resource" in the reference
+   When appropriate, include the link to the mobgap library as a footnote or as an "online resource" in the reference
    list.
 
 ## License and Usage of Names
 
-The library was developed as part of the Mobilise-D project under the lead of the Friedrich-Alexander-Universität 
-Erlangen-Nürnberg (FAU).
+The library was developed as part of [the Mobilise-D project](https://mobilise-d.eu) under the lead of the 
+Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU).
 The original copyright lies with the Machine Learning and Data Analytics Lab
-([MAD Lab](https://www.mad.tf.fau.de/)) at the FAU.
+([MAD Lab](https://www.mad.tf.fau.de/)) at the FAU (See [NOTICE](./NOTICE)).
 For any legal inquiries regarding copyright, contact 
 [Björn Eskofier](https://www.mad.tf.fau.de/person/bjoern-eskofier/).
 Copyright of any community contributions remains with the respective code authors.
 
-The gaitlink library is licensed under an Apache 2.0 license.
+The mobgap library is licensed under an Apache 2.0 license.
 This means it is free to use for any purpose (including commercial use), but you have to include the license text
 in any distribution of the code.
-See the [LICENSE](LICENSE.txt) file for the full license text.
+See the [LICENSE](./LICENSE) file for the full license text.
 
 Please note that this software comes with no warranty, all code is provided as is.
 In particular, we do not guarantee any correctness of the results, algorithmic performance or any other properties
 of the software.
 This software is not a medical product nor licensed for medical use.
 
-Neither the name "Mobilise-D" nor "gaitlink" are registered trademarks.
+Neither the name "Mobilise-D" nor "mobgap" are registered trademarks.
 However, we ask you to use the names appropriately when working with this software.
-Ideally, we recommend to use the names as described in the usage recommendation above and not use the name 
+Ideally, we recommend using the names as described in the usage recommendation above and not use the name 
 "Mobilise-D algorithm pipeline" for any custom pipelines or pipelines with modified parameters.
-If in doubt, feel free ask using the [Github issue tracker](https://github.com/mobilise-d/gaitlink/issues) or 
+If in doubt, feel free ask using the [Github issue tracker](https://github.com/mobilise-d/mobgap/issues) or 
 the Github discussions.
+
+## Funding and Support
+
+This work was supported by the Mobilise-D project that has received funding from the Innovative Medicines Initiative 2 
+Joint Undertaking (JU) under grant agreement No. 820820.
+This JU receives support from the European Union‘s Horizon 2020 research and innovation program and the European 
+Federation of Pharmaceutical Industries and Associations (EFPIA).
+Content in this publication reflects the authors‘ view and neither IMI nor the European Union, EFPIA, or any Associated 
+Partners are responsible for any use that may be made of the information contained herein.
+
+And of course, this development was only made possible by the joint work of all Mobilise-D partners.
+
+<p align="center">
+<img src="./docs/_static/logo/mobilise_d_partners.png" height="400">
+</p>

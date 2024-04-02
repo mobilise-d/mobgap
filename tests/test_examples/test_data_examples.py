@@ -10,7 +10,7 @@ def test_loading_example_data(snapshot):
     )
 
     # We round the index, otherwise it will not be properly stored in json due to float representation
-    dataset_data = single_trial_with_reference.data["LowerBack"].head()
+    dataset_data = single_trial_with_reference.data_ss.head()
     dataset_data.index = dataset_data.index.round("ms")
     snapshot.assert_match(dataset_data, "dataset")
     assert len(single_trial_with_reference.raw_reference_parameters_["wb"]) == 1

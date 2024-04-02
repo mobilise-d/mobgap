@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from numpy.testing import assert_equal
 
-from gaitlink.utils.interpolation import interval_mean
+from mobgap.utils.interpolation import interval_mean
 
 
 class TestIntervalMean:

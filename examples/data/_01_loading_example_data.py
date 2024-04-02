@@ -24,9 +24,9 @@ The data is stored in the `examples/data` folder of the repository in the Mobili
 # %%
 # Dataset Class
 # +++++++++++++
-# We provide a :class:`~gaitlink.data.LabExampleDataset` class to load the example data.
+# We provide a :class:`~mobgap.data.LabExampleDataset` class to load the example data.
 # This is the easiest way to access the example data and allows you to select and iterate over the data in an easy way.
-from gaitlink.data import LabExampleDataset
+from mobgap.data import LabExampleDataset
 
 example_data = LabExampleDataset()
 # %%
@@ -41,14 +41,27 @@ single_test = ha_example_data.get_subset(participant_id="002", test="Test5", tri
 single_test
 
 # %%
-# The raw IMU data:
+# The raw IMU data can be accessed in two ways:
+#
+# 1. ``.data`` which contains a dictionary with the data of all IMU sensors in the dataset.
+#    Per default, we only load the data of the "LowerBack" sensor for performance reasons.
+#    But, you can select the sensors to load using the ``raw_data_sensor`` and ``sensor_psotions`` argument of the
+#    Dataset class.
 imu_data = single_test.data["LowerBack"]
 imu_data
+# %%
+# 2. ``.data_ss`` which contains only the data of the "single sensor".
+#    This is the data used as input for all algorithms in the provided pipelines.
+#    In most cases this is equivalent to the data of the "LowerBack" sensor, but a different position can be selected
+#    using the ``single_sensor_position`` (or ``single_sensor_name`` in some Dataset classes) argument of the Dataset
+#    class.
+single_sensor_data = single_test.data_ss
+single_sensor_data
 
 # %%
 import matplotlib.pyplot as plt
 
-imu_data.filter(like="gyr").plot()
+single_sensor_data.filter(like="gyr").plot()
 plt.show()
 
 # %%
@@ -71,7 +84,7 @@ single_trial_with_reference.raw_reference_parameters_
 # %%
 # The data you can see above is the "raw" reference data.
 # Including both the information for walking bouts and level-walking bouts.
-# To access the data in format that can be directly compared to the output of the gaitlink algorithms or used as input
+# To access the data in format that can be directly compared to the output of the mobgap algorithms or used as input
 # to algorithms further down the processing pipeline, you can use the ``reference_parameters_`` attribute.
 # If the data is extracted from the normal walking bouts or the level walking bouts is controlled by the
 # ``reference_para_level`` parameter of the Dataset class (default is ``wb``).
@@ -94,9 +107,9 @@ ref_paras.stride_parameters
 # %%
 # Functional interface
 # ++++++++++++++++++++
-# We can get the local path to the example data using :func:`~gaitlink.data.get_all_lab_example_data_paths`
-# and then use :func:`~gaitlink.data.load_mobilised_matlab_format` to load the data.
-from gaitlink.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
+# We can get the local path to the example data using :func:`~mobgap.data.get_all_lab_example_data_paths`
+# and then use :func:`~mobgap.data.load_mobilised_matlab_format` to load the data.
+from mobgap.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
 
 all_example_data_paths = get_all_lab_example_data_paths()
 list(all_example_data_paths.keys())
@@ -109,7 +122,7 @@ data = load_mobilised_matlab_format(example_participant_path / "data.mat")
 # %%
 # Calling the loader function without any further arguments, will load the "SU" (normal lower-back sensor) only.
 # The returned dictionary contains the test names as keys and the loaded data as
-# :class:`~gaitlink.data.MobilisedTestData` objects.
+# :class:`~mobgap.data.MobilisedTestData` objects.
 # This allows for easy access to the data and metadata without traversing a nested data structure.
 test_list = list(data.keys())
 test_list
@@ -135,7 +148,7 @@ data_with_reference = load_mobilised_matlab_format(example_participant_path / "d
 selected_test = data_with_reference[test_list[2]]
 
 # %%
-# The returned :class:`~gaitlink.data.MobilisedTestData` objects now contain the reference parameters.
+# The returned :class:`~mobgap.data.MobilisedTestData` objects now contain the reference parameters.
 raw_reference_data = selected_test.raw_reference_parameters
 
 # %%
@@ -145,8 +158,8 @@ ref_sampling_rate_hz
 
 # %%
 # To parse the reference data into better data structures, we can use the
-# :func:`~gaitlink.data.parse_reference_parameters` function.
-from gaitlink.data import parse_reference_parameters
+# :func:`~mobgap.data.parse_reference_parameters` function.
+from mobgap.data import parse_reference_parameters
 
 data_sampling_rate_hz = selected_test.metadata.sampling_rate_hz
 

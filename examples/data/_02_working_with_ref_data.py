@@ -2,7 +2,7 @@
 Working with reference data
 ===========================
 
-Often you want to test an algorithmic stepo in isolation or validate the output of an algorithm.
+Often you want to test an algorithmic step in isolation or validate the output of an algorithm.
 In both cases, you need reference data - either as input or as a comparison.
 
 As explained in the `data example <data_loading_example>`_, reference data that is stored in .mat files can be easily
@@ -17,17 +17,17 @@ If you want to test such an algorithm, you need to use the GS/WB information of 
 accordingly.
 Further, you might also want to get the reference information belonging to the GS/WB.
 
-This can be achieved using the :func:`~gaitlink.pipeline.GsIterator`
-(or the :func:`~gaitlink.pipeline.iter_gs` function).
+This can be achieved using the :func:`~mobgap.pipeline.GsIterator`
+(or the :func:`~mobgap.pipeline.iter_gs` function).
 
 But first, we need to load some example data.
 """
 
-from gaitlink.data import LabExampleDataset
+from mobgap.data import LabExampleDataset
 
 dataset = LabExampleDataset(reference_system="INDIP")
 datapoint = dataset.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
-data = datapoint.data["LowerBack"]
+data = datapoint.data_ss
 data
 
 # %%
@@ -61,13 +61,13 @@ ref_ics_rel.loc[1]  # First WB
 ref_ics_rel.loc[2]  # Second WB
 
 # %%
-# Now we can use the :func:`~gaitlink.pipeline.GsIterator` to iterate over the data.
+# Now we can use the :func:`~mobgap.pipeline.GsIterator` to iterate over the data.
 # Check out the `gs_iterator example <gs_iterator_example>`_ for more information.
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 gs_iterator = GsIterator()
 
-# For most use-cases, the default configuration of the :class:`~gaitlink.pipeline.GsIterator` should be sufficient.
+# For most use-cases, the default configuration of the :class:`~mobgap.pipeline.GsIterator` should be sufficient.
 # This allows you to specify the following results:
 gs_iterator.data_type
 

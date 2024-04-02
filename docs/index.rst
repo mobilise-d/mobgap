@@ -1,6 +1,6 @@
-.. gaitlink documentation master file
+.. mobgap documentation master file
 
-Gaitlink Docu Overview
+mobgap Docu Overview
 ======================
 
 .. toctree::
@@ -11,6 +11,7 @@ Gaitlink Docu Overview
    guides/index.rst
    modules/index.rst
    auto_examples/index.rst
+   blog/index.rst
    Changelog <CHANGELOG.md>
 
 Indices and Tables

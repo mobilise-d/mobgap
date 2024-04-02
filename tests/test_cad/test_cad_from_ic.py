@@ -4,10 +4,10 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from gaitlink.cad import CadFromIc, CadFromIcDetector
-from gaitlink.data import LabExampleDataset
-from gaitlink.icd.base import BaseIcDetector
-from gaitlink.pipeline import GsIterator
+from mobgap.cad import CadFromIc, CadFromIcDetector
+from mobgap.data import LabExampleDataset
+from mobgap.icd.base import BaseIcDetector
+from mobgap.pipeline import GsIterator
 
 
 class TestMetaCadFromIc(TestAlgorithmMixin):
@@ -59,7 +59,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         assert_frame_equal(
@@ -94,7 +94,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -129,7 +129,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -168,7 +168,7 @@ class TestCadFromIc:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 
@@ -234,7 +234,7 @@ class TestCadFromIc:
 
         ref_data = dp.reference_parameters_relative_to_wb_
 
-        for (gs, data), r in gs_iterator.iterate(dp.data["LowerBack"], ref_data.wb_list):
+        for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
             cad = CadFromIc().calculate(
                 data,
                 ref_data.ic_list.loc[gs.id],
@@ -275,7 +275,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         assert_frame_equal(
@@ -311,7 +311,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -347,7 +347,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert len(cadence) == len(data) // sampling_rate_hz
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
@@ -385,7 +385,7 @@ class TestCadFromIcDetector:
         expected_index = pd.Index(
             np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
             name="sec_center_samples",
-        ).astype(int)
+        ).astype("int64")
 
         assert_frame_equal(cadence, pd.DataFrame({"cad_spm": expected_output}, index=expected_index))
 
@@ -457,7 +457,7 @@ class TestCadFromIcDetector:
 
         ref_data = dp.reference_parameters_relative_to_wb_
 
-        for (gs, data), r in gs_iterator.iterate(dp.data["LowerBack"], ref_data.wb_list):
+        for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
             cad = CadFromIcDetector(silence_ic_warning=True).calculate(
                 data,
                 ref_data.ic_list.loc[gs.id],

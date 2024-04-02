@@ -103,6 +103,8 @@ ignore = [
     "PLR0913",
     # Class attribute shadows builtin
     "A003",
+    # No typing for `cls`
+    "ANN102",
     # Ignore because of formatting
     "ISC001",
 ]

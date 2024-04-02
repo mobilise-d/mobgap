@@ -4,18 +4,19 @@
 API Reference
 =============
 
-This is the API Reference for ``gaitlink``.
+This is the API Reference for ``mobgap``.
 
 .. toctree::
     :maxdepth: 1
 
+    data
     pipeline
     gsd
     icd
+    lrd
     cad
     wba
     aggregation
     data_transform
-    data
     utils/index.rst
 

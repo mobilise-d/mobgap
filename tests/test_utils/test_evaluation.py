@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from gaitlink.utils.evaluation import (
+from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
     count_samples_in_match_intervals,
@@ -16,136 +16,182 @@ from gaitlink.utils.evaluation import (
 )
 
 
-def _create_dummy_matches_df(num_tp, num_fp, num_fn):
+def _create_dummy_gsd_matches_df(num_tp, num_fp, num_fn):
     tp_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_tp), np.repeat(0, num_tp), np.repeat("tp", num_tp)]),
         columns=["start", "end", "match_type"],
     )
-    tp_df[["start", "end"]] = tp_df[["start", "end"]].astype(int)
+    tp_df[["start", "end"]] = tp_df[["start", "end"]].astype("int64")
     fp_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_fp), np.repeat(0, num_fp), np.repeat("fp", num_fp)]),
         columns=["start", "end", "match_type"],
     )
-    fp_df[["start", "end"]] = fp_df[["start", "end"]].astype(int)
+    fp_df[["start", "end"]] = fp_df[["start", "end"]].astype("int64")
     fn_df = pd.DataFrame(
         np.column_stack([np.repeat(0, num_fn), np.repeat(0, num_fn), np.repeat("fn", num_fn)]),
         columns=["start", "end", "match_type"],
     )
-    fn_df[["start", "end"]] = fn_df[["start", "end"]].astype(int)
+    fn_df[["start", "end"]] = fn_df[["start", "end"]].astype("int64")
+
+    return pd.concat([tp_df, fp_df, fn_df])
+
+
+def _create_dummy_icd_matches_df(num_tp, num_fp, num_fn):
+    tp_df = pd.DataFrame(
+        np.column_stack([np.repeat(0, num_tp), np.repeat(0, num_tp), np.repeat("tp", num_tp)]),
+        columns=["ic_id_detected", "ic_id_reference", "match_type"],
+    )
+    tp_df[["ic_id_detected", "ic_id_reference"]] = tp_df[["ic_id_detected", "ic_id_reference"]].astype("int64")
+    fp_df = pd.DataFrame(
+        np.column_stack([np.repeat(0, num_fp), np.repeat(0, num_fp), np.repeat("fp", num_fp)]),
+        columns=["ic_id_detected", "ic_id_reference", "match_type"],
+    )
+    fp_df[["ic_id_detected", "ic_id_reference"]] = fp_df[["ic_id_detected", "ic_id_reference"]].astype("int64")
+    fn_df = pd.DataFrame(
+        np.column_stack([np.repeat(0, num_fn), np.repeat(0, num_fn), np.repeat("fn", num_fn)]),
+        columns=["ic_id_detected", "ic_id_reference", "match_type"],
+    )
+    fn_df[["ic_id_detected", "ic_id_reference"]] = fn_df[["ic_id_detected", "ic_id_reference"]].astype("int64")
 
     return pd.concat([tp_df, fp_df, fn_df])
 
 
 class TestEvaluationScores:
     def test_precision(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         precision = precision_score(matches_df)
+        assert_array_equal(precision, 0.5)
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 5, 5)
+        precision = precision_score(matches_df)
         assert_array_equal(precision, 0.5)
 
     def test_perfect_precision(self):
-        matches_df = _create_dummy_matches_df(5, 0, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 0, 5)
         precision = precision_score(matches_df)
+        assert_array_equal(precision, 1.0)
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 0, 5)
+        precision = precision_score(matches_df)
         assert_array_equal(precision, 1.0)
 
     def test_recall(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         recall = recall_score(matches_df)
+        assert_array_equal(recall, 0.5)
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 5, 5)
+        recall = recall_score(matches_df)
         assert_array_equal(recall, 0.5)
 
     def test_perfect_recall(self):
-        matches_df = _create_dummy_matches_df(5, 5, 0)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 0)
         recall = recall_score(matches_df)
+        assert_array_equal(recall, 1.0)
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 5, 0)
+        recall = recall_score(matches_df)
         assert_array_equal(recall, 1.0)
 
     def test_f1_score(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         f1 = f1_score(matches_df)
+        assert_array_equal(f1, 0.5)
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 5, 5)
+        f1 = f1_score(matches_df)
         assert_array_equal(f1, 0.5)
 
     def test_perfect_f1_score(self):
-        matches_df = _create_dummy_matches_df(5, 0, 0)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 0, 0)
         f1 = f1_score(matches_df)
+        assert_array_equal(f1, 1.0)
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 0, 0)
+        f1 = f1_score(matches_df)
         assert_array_equal(f1, 1.0)
 
     def test_precision_recall_f1(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         eval_metrics = precision_recall_f1_score(matches_df)
+        assert_array_equal(list(eval_metrics.values()), [0.5, 0.5, 0.5])
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 5, 5)
+        eval_metrics = precision_recall_f1_score(matches_df)
         assert_array_equal(list(eval_metrics.values()), [0.5, 0.5, 0.5])
 
     def test_perfect_precision_recall_f1(self):
-        matches_df = _create_dummy_matches_df(5, 0, 0)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 0, 0)
         eval_metrics = precision_recall_f1_score(matches_df)
+        assert_array_equal(list(eval_metrics.values()), [1.0, 1.0, 1.0])
 
+        # test return for icd type input
+        matches_df = _create_dummy_icd_matches_df(5, 0, 0)
+        eval_metrics = precision_recall_f1_score(matches_df)
         assert_array_equal(list(eval_metrics.values()), [1.0, 1.0, 1.0])
 
     def test_specificity(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         specificity = specificity_score(matches_df, n_overall_samples=20)
-
         assert_array_equal(specificity, 0.5)
 
     def test_perfect_specificity(self):
-        matches_df = _create_dummy_matches_df(0, 0, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(0, 0, 5)
         specificity = specificity_score(matches_df, n_overall_samples=10)
-
         assert_array_equal(specificity, 1.0)
 
     def test_accuracy(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         accuracy = accuracy_score(matches_df, n_overall_samples=20)
-
         assert_array_equal(accuracy, 0.5)
 
     def test_perfect_accuracy(self):
-        matches_df = _create_dummy_matches_df(5, 0, 0)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 0, 0)
         accuracy = accuracy_score(matches_df, n_overall_samples=5)
-
         assert_array_equal(accuracy, 1.0)
 
     def test_npv_score(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         npv = npv_score(matches_df, n_overall_samples=20)
-
         assert_array_equal(npv, 0.5)
 
     def test_perfect_npv_score(self):
-        matches_df = _create_dummy_matches_df(5, 5, 0)
-
+        # test return for gsd type input
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 0)
         npv = npv_score(matches_df, n_overall_samples=15)
-
         assert_array_equal(npv, 1.0)
 
 
 class TestNumberSamplesLogic:
     @pytest.mark.parametrize("fct", [specificity_score, accuracy_score, npv_score])
     def test_warns_no_tn_no_n_samples(self, fct):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         with pytest.warns():
             fct(matches_df)
 
     @pytest.mark.parametrize("fct", [specificity_score, accuracy_score, npv_score])
     def test_no_warning_when_suppressed(self, fct):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
 
         with pytest.warns(None) as w:
             fct(matches_df, tn_warning=False)
@@ -157,7 +203,7 @@ class TestNumberSamplesLogic:
         assert len(w) == 0
 
     def test_raises_tn_and_n_samples(self):
-        matches_df = _create_dummy_matches_df(5, 5, 5)
+        matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
         matches_df = pd.concat(
             [
                 matches_df,
@@ -167,7 +213,7 @@ class TestNumberSamplesLogic:
                 ),
             ]
         )
-        matches_df[["start", "end"]] = matches_df[["start", "end"]].astype(int)
+        matches_df[["start", "end"]] = matches_df[["start", "end"]].astype("int64")
 
         with pytest.raises(ValueError):
             specificity_score(matches_df, n_overall_samples=20)
@@ -175,6 +221,31 @@ class TestNumberSamplesLogic:
             accuracy_score(matches_df, n_overall_samples=20)
         with pytest.raises(ValueError):
             npv_score(matches_df, n_overall_samples=20)
+
+
+class TestUnsupportedInputError:
+    @pytest.mark.parametrize("fct", [specificity_score, accuracy_score, npv_score])
+    def test_unsupported_icd_metric_error(self, fct):
+        matches_df = _create_dummy_icd_matches_df(5, 5, 5)
+        with pytest.raises(ValueError):
+            fct(matches_df)
+
+    @pytest.mark.parametrize(
+        "fct",
+        [
+            precision_score,
+            recall_score,
+            f1_score,
+            precision_recall_f1_score,
+            specificity_score,
+            accuracy_score,
+            npv_score,
+        ],
+    )
+    def test_unsupported_input_error(self, fct):
+        matches_df = pd.DataFrame(columns=["something", "something_else", "match_type"])
+        with pytest.raises(ValueError):
+            fct(matches_df)
 
 
 class TestDivisionByZeroReturn:
@@ -208,8 +279,9 @@ class TestDivisionByZeroReturn:
         self.func, self.arguments, self.n_samples, self.zero_division, self.expected_output = request.param
 
     def test_division_by_zero_return(self):
-        matches_df = _create_dummy_matches_df(*self.arguments)
+        matches_df = _create_dummy_gsd_matches_df(*self.arguments)
 
+        # test return for gsd type input
         if self.n_samples is not None:
             eval_metrics = self.func(matches_df, n_overall_samples=self.n_samples, zero_division=self.zero_division)
         else:
@@ -219,6 +291,15 @@ class TestDivisionByZeroReturn:
             np.array(list(eval_metrics.values()) if isinstance(eval_metrics, dict) else eval_metrics),
             self.expected_output,
         )
+
+        # test return  for icd supported metrics
+        if self.n_samples is None:
+            eval_metrics = self.func(_create_dummy_icd_matches_df(*self.arguments), zero_division=self.zero_division)
+
+            assert_array_equal(
+                np.array(list(eval_metrics.values()) if isinstance(eval_metrics, dict) else eval_metrics),
+                self.expected_output,
+            )
 
 
 class TestDivisionByZeroWarnings:
@@ -238,18 +319,30 @@ class TestDivisionByZeroWarnings:
         self.func, self.arguments, self.n_samples, self.zero_division, self.warning_message = request.param
 
     def test_division_by_zero_warnings(self):
+        # test return for gsd type input
         with pytest.warns(UserWarning) as w:
             if self.n_samples is not None:
                 self.func(
-                    _create_dummy_matches_df(*self.arguments),
+                    _create_dummy_gsd_matches_df(*self.arguments),
                     n_overall_samples=self.n_samples,
                     zero_division=self.zero_division,
                 )
             else:
-                self.func(_create_dummy_matches_df(*self.arguments), zero_division=self.zero_division)
+                self.func(_create_dummy_gsd_matches_df(*self.arguments), zero_division=self.zero_division)
 
         # check that the message matches
         assert self.warning_message in w[-1].message.args[0]
+
+        # test warning for icd supported metrics
+        if self.n_samples is None:
+            with pytest.warns(UserWarning) as w:
+                self.func(
+                    _create_dummy_icd_matches_df(*self.arguments),
+                    zero_division=self.zero_division,
+                )
+
+            # check that the message matches
+            assert self.warning_message in w[-1].message.args[0]
 
 
 class TestDivisionByZeroError:
@@ -275,19 +368,31 @@ class TestDivisionByZeroError:
     def make_methods(self, request):
         self.func, self.arguments, self.n_samples, self.zero_division = request.param
 
-    def test_division_by_zero_warnings(self):
+    def test_division_by_zero_error(self):
+        # test return for gsd type input
         with pytest.raises(ValueError) as e:
             if self.n_samples is not None:
                 self.func(
-                    _create_dummy_matches_df(*self.arguments),
+                    _create_dummy_gsd_matches_df(*self.arguments),
                     n_overall_samples=self.n_samples,
                     zero_division=self.zero_division,
                 )
             else:
-                self.func(_create_dummy_matches_df(*self.arguments), zero_division=self.zero_division)
+                self.func(_create_dummy_gsd_matches_df(*self.arguments), zero_division=self.zero_division)
 
         # check that the message matches
         assert str(e.value) == '"zero_division" must be set to "warn", 0 or 1!'
+
+        # test error for icd supported metrics
+        if self.n_samples is None:
+            with pytest.raises(ValueError) as e:
+                self.func(
+                    _create_dummy_icd_matches_df(*self.arguments),
+                    zero_division=self.zero_division,
+                )
+
+            # check that the message matches
+            assert str(e.value) == '"zero_division" must be set to "warn", 0 or 1!'
 
 
 class TestCountSamples:

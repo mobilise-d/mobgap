@@ -5,15 +5,15 @@ Resampling data
 Sometimes you may want to resample your data to a different sampling rate.
 We provide a utility class to do this.
 It wraps :func:`scipy.signal.resample` and provides a standardized transform interface, so that it can be chained
-and used with other transforms in gaitlink.
+and used with other transforms in mobgap.
 
 Below we show how to apply the method.
 """
 
 import matplotlib.pyplot as plt
 
-from gaitlink.data import LabExampleDataset
-from gaitlink.data_transform import Resample
+from mobgap.data import LabExampleDataset
+from mobgap.data_transform import Resample
 
 # %%
 # Loading some example data
@@ -21,7 +21,7 @@ from gaitlink.data_transform import Resample
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
 single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
-data = single_test.data["LowerBack"]
+data = single_test.data_ss
 
 data.head()
 

@@ -1,14 +1,14 @@
 General helper for validating and converting dtypes
 ===================================================
 
-.. automodule:: gaitlink.utils.dtypes
+.. automodule:: mobgap.utils.dtypes
     :no-members:
     :no-inherited-members:
 
 DataFrame Like
 --------------
 
-.. currentmodule:: gaitlink.utils.dtypes
+.. currentmodule:: mobgap.utils.dtypes
 
 .. autosummary::
    :toctree: ../generated/utils/dtypes
@@ -20,7 +20,7 @@ DataFrame Like
 Types
 +++++
 
-.. currentmodule:: gaitlink.utils.dtypes
+.. currentmodule:: mobgap.utils.dtypes
 
 .. autosummary::
    :toctree: ../generated/utils/dtypes
