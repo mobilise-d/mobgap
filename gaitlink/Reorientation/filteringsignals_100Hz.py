@@ -1,9 +1,13 @@
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, lfilter, filtfilt
-from gaitlink.data_transform import EpflGaitFilter
+import matplotlib.pyplot as plt
 
-def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: float, normalizing=None) -> np.ndarray:
+from gaitlink.data_transform import (
+    ButterworthFilter,
+    chain_transformers,
+)
+
+def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: float, sampling_rate: float, normalizing=None) -> np.ndarray:
     """
     Filtering the input signal with a high or low pass butterworth filter
 
@@ -44,10 +48,10 @@ def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: 
 
 
     if filter_type == 'high':
-        filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type)
+        filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type, sampling_rate)
 
     elif filter_type == 'low':
-        filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type)
+        filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type, sampling_rate)
 
     else:
         return np.array([])
@@ -58,7 +62,7 @@ def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: 
 
 
 
-def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str) -> np.ndarray:
+def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str, sampling_rate: float) -> np.ndarray:
     """
     Apply a high or low pass butterworth filter to the input signal
     Parameters
@@ -78,24 +82,22 @@ def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str)
 
     """
     order = 10
-    fs = 200
-    btype = 'high' if filter_type == 'high' else 'low'
+    fs = sampling_rate
+    btype = 'highpass' if filter_type == 'high' else 'lowpass'
 
-    # adding pad
-    n_coefficients = len(EpflGaitFilter().coefficients[0])
-    len_pad = 4 * n_coefficients
-    padded = np.pad(unfiltered_altitude, (len_pad, len_pad), "wrap")
+    # plot pre
+    plt.plot(unfiltered_altitude, label="unfiltered_altitude")
+    plt.legend()
+    plt.savefig("/Users/dimitrismegaritis/Desktop/pythonplots/unfiltered_altitude.pdf")
+    plt.show()
 
-    # ba methods gives high numbers
-    #b, a = butter(order, freq / (0.5 * fs), btype=btype, analog=False, output='ba')
+    filter = [("butterworth", ButterworthFilter(order=order, cutoff_freq_hz=freq, filter_type=btype, zero_phase=True))]
+    final = chain_transformers(unfiltered_altitude, filter, sampling_rate_hz=sampling_rate)
 
-    # zpk methods using z and p in filtfilt gives normal
-    z, p, k = butter(order, freq / (0.5 * fs), btype=btype, analog=False, output='zpk')
-
-    # filtfilt takes two coefficients z and p give normal results
-    final = filtfilt(z, p, padded)
-
-    # Remove pad
-    final = final[len_pad:-len_pad]
+    # plot post
+    plt.plot(final, label="final")
+    plt.legend()
+    plt.savefig("/Users/dimitrismegaritis/Desktop/pythonplots/final.pdf")
+    plt.show()
 
     return final
