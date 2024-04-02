@@ -32,26 +32,22 @@ from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 class GsdParaschivIonescu(BaseGsDetector):
     """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
 
-    The Gait Sequence Detection toolbox contains code (MATLAB, R2018b) for detection of gait (walking) sequences
-    using body acceleration recorded with a triaxial accelerometer worn/fixed on the lower back (close to body
-    center of mass).
+    This algorithm is for the detection of gait (walking) sequences using body acceleration recorded with a tri-axial
+    accelerometer worn/fixed on the lower back (close to body center of mass). The algorithm was developed and validated
+    using data recorded in patients with impaired mobility (Parkinson's disease, multiple sclerosis, hip fracture,
+    post-stroke and cerebral palsy).
 
-    The algorithm was developed and validated using data recorded in patients with impaired mobility (Parkinson's
-    disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
+    The algorithm detects the gait sequences based on identified steps. In order to enhance the step-related features
+    (peaks in acceleration signal), the "active" periods potentially corresponding to locomotion are roughly detected
+    and the statistical distribution of the amplitude of the peaks in these active periods is used to derive an adaptive
+    (data-driven) threshold for detection of step-related peaks.
+    Consecutive steps are associated into gait sequences [1]_ [2]_.
 
-    The algorithm detects the gait sequences based on identified steps. First, the norm of triaxial acceleration
-    signal is detrended and low-pass filtered (FIR, fc=3.2Hz). In order to enhance the step-related features (peaks
-    in acceleration signal) the obtained signal is further processed using continuous wavelet transform, Savitzky-
-    Golay filters and Gaussian-weighted moving average filters [1]_. The "active" periods, potentially corresponding
-    to locomotion, are roughly detected and the statistical distribution of the amplitude of the peaks in these
-    active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
-    Consecutive steps are associated to gait sequences [1]_ [2]_.
-
-    This is based on the implementation published as part of the mobilised project [2]_.
+    This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section.
 
-    Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original implementation.
+    Note that this algorithm is referred as GSDB in the validation study [4]_ and in the original implementation.
 
     Abbreviations:
     gs = gait sequence
@@ -88,17 +84,17 @@ class GsdParaschivIonescu(BaseGsDetector):
 
     - All parameters and thresholds are converted the units used in mobgap.
       Specifically, we use m/s^2 instead of g.
-    - For (:func:`~scipy.signal.cwt`)(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
+    - For :func:`~scipy.signal.cwt`(acc_filtered.squeeze(), scipy.signal.ricker, [7]):
       Original implementation calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in cwt function
       which uses scale=10 and gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
       wavelet. In Python, a scale of 7 matches the MATLAB scale of 10 from visual inspection of plots (likely due to
       how the two languages initialise their wavelets).
-    - For (:func:`~scipy.ndimage.gaussian_filter`)(acc_filtered.squeeze(), sigma=2):
-      In gaussian_filter, sigma = windowWidth / 5. In MATLAB code windowWidth = 10, giving sigma=2.
+    - For :func:`~scipy.ndimage.gaussian_filter`(acc_filtered.squeeze(), sigma=2):
+      In gaussian_filter, sigma = windowWidth / 5. In original implementation windowWidth = 10, giving sigma=2.
     - We introduced a try/except incase no active periods were detected.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
 
-      - min_n_steps>=4 after (:func:`~FindPulseTrains`)(MaxPeaks) and (:func:`~FindPulseTrains`)(MinPeaks)
+      - min_n_steps>=4 after :func:`~find_pulse_trains`(MaxPeaks) and :func:`~find_pulse_trains`(MinPeaks)
       - min_n_steps>=3 in PackResults during the padding (NOTE: not implemented in Python since it is redundant here)
       - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than
         max_gap_s
@@ -115,9 +111,11 @@ class GsdParaschivIonescu(BaseGsDetector):
     .. [2] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
        validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
        rehabilitation 16.1 (2019): 1-11.
-    .. [3] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
+    .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/GSDA/Library/GSD_Iluz.m
+    .. [4] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
        S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
        Mobilise-D consortium.
+
     """
 
     min_n_steps: int
