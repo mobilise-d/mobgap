@@ -228,16 +228,10 @@ class GsdParaschivIonescu(BaseGsDetector):
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
                 ("padding", padding),
-                (
-                    "savgol_1",
-                    savgol_1,
-                ),
+                ("savgol_1", savgol_1,),
                 ("epfl_gait_filter", EpflDedriftedGaitFilter()),
                 ("cwt_1", cwt),
-                (
-                    "savol_2",
-                    savgol_2,
-                ),
+                ("savol_2", savgol_2,),
                 ("padding_remove", padding.get_inverse_transformer()),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
@@ -339,6 +333,9 @@ def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.nd
     # Initialize Buffers
     noise_buff = np.zeros(len(env) - duration + 1)
     active = np.zeros(len(env))
+
+    if np.isnan(threshold_sig):
+        return active
 
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
