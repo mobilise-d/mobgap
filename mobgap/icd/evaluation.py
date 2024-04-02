@@ -82,7 +82,7 @@ def categorize_ic_list(
     """Evaluate an initial contact list against a reference contact-by-contact.
 
     This compares an initial contact dataframe with a ground truth initial contact dataframe and classifies each
-    intial contact as true positive, false positive or true negative.
+    intial contact as true positive, false positive or false negative.
     The comparison is purely based on the index of each initial contact.
     Two initial contacts are considered a positive match, if the difference between their indices is less than or equal
     to the threshold.
@@ -94,7 +94,7 @@ def categorize_ic_list(
 
     The detected and reference initial contact dataframes must have a column named "ic" that contains the index of the
     resective initial contact.
-    As index, we support either a single or a multiindex without duplicates (i.e. the index must identify each initial
+    As index, we support either a single or a multiindex without duplicates (i.e., the index must identify each initial
     contact uniquely).
     If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
     index groups will be possible.

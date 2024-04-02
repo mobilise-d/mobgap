@@ -403,17 +403,32 @@ def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Int
 
 
 def find_matches_with_min_overlap(
-    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, overlap_threshold: float = 0.8
+    *,
+    gsd_list_detected: pd.DataFrame,
+    gsd_list_reference: pd.DataFrame,
+    overlap_threshold: float = 0.8,
+    multiindex_warning: bool = True,
 ) -> pd.DataFrame:
-    """
-    Find all matches of `gsd_list_detected` in `gsd_list_reference` with at least ``overlap_threshold`` overlap.
+    """Evaluate a gait sequence list against a reference sequence-by-sequence with a minimum overlap threshold.
 
-    The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
-    start and end indices of the respective gait sequences.
+    This compares a gait sequence list against a reference list and classifies each detected sequence as true positive,
+    false positive, or false negative.
+    A gait sequence is classified as true positive when having at least ``overlap_threshold`` overlap with a reference
+    sequence. If a detected sequence has no overlap with any reference sequence, it is classified as false positive.
+    If a reference sequence has no overlap with any detected sequence, it is classified as false negative.
 
     Note, that the threshold is enforced in both directions. That means, that the relative overlap of the detected gait
     sequence with respect to the overall length of the detected interval AND to the overall length of the matched
     reference interval must be at least `overlap_threshold`.
+
+    The detected and reference dataframes are expected to have columns namend "start" and "end" containing the
+    start and end indices of the respective gait sequences.
+    As index, we support either a single or a multiindex without duplicates
+    (i.e., the index must identify each gait sequence uniquely).
+    If a multiindex is provided, the single index levels will be ignored for the comparison and matches across different
+    index groups will be possible.
+    If this is not the intended use case, consider grouping your input data before calling this function
+    (see :func:`~mobgap.utils.array_handling.create_multi_groupby`).
 
     Note, we assume that ``gsd_list_detected`` has no overlaps, but we don't enforce it!
 
@@ -430,14 +445,26 @@ def find_matches_with_min_overlap(
         The minimum relative overlap between a detected sequence and its reference with respect to the length of both
         intervals.
         Must be larger than 0.5 and smaller than or equal to 1.
+    multiindex_warning
+        If True, a warning will be raised if the index of the input data is a MultiIndex, explaining that the index
+        levels will be ignored for the matching process.
+        This exists, as this is a common source of error, when this function is used together with a typical pipeline
+        that iterates over individual gait sequences during the processing using :class:`~mobgap.pipeline.GsIterator`.
+        Only set this to False, once you understand the two different usecases.
 
     Returns
     -------
-    pandas.DataFrame
-        A dataframe containing the intervals from `gsd_list_detected` that overlap with `gsd_list_reference` with the
-        specified minimum overlap.
-        The dataframe contains the gait sequence ids as index column as well as the start and end indices of the
-        intervals.
+    matches: pandas.DataFrame
+        A 3 column dataframe with the column names `gsd_id_detected`,
+        `gsd_id_reference`, and `match_type`.
+        Each row is a match containing the index value of the detected and the reference list, that belong together,
+        or a tuple of index values in case of a multiindex input.
+        The `match_type` column indicates the type of match.
+        For all gait sequences that have a match in the reference list, this will be "tp" (true positive).
+        Gait sequences that do not have a match will be mapped to a NaN and the match-type will be "fp" (false
+        positive).
+        All reference gait sequences that do not have a counterpart in the detected list
+        are marked as "fn" (false negative).
 
     Examples
     --------
@@ -445,16 +472,26 @@ def find_matches_with_min_overlap(
     >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> result = find_matches_with_min_overlap(detected, reference)
-       start  end
-    id
-    0      0   10
-
+       gsd_id_detected  gs_id_reference match_type
+    0               0               0         tp
+    1               1               NaN       fp
+    2               NaN             1         fn
     """
     detected, reference = _check_input_sanity(gsd_list_detected, gsd_list_reference)
+    detected, is_multindex_detected = _sanitize_index(detected, "detected")
+    reference, is_multindex_reference = _sanitize_index(reference, "reference")
 
-    # check if index is unique
-    if not gsd_list_detected.index.is_unique:
-        raise ValueError("`gsd_list_detected` must have a unique index.")
+    if multiindex_warning and (is_multindex_detected or is_multindex_reference):
+        warnings.warn(
+            "The index of `gsd_list_detected` or `gsd_list_reference` is a MultiIndex. "
+            "Please be aware that the index levels will not be regarded separately for the matching process, "
+            "and gait sequences might be matched across different index groups, such as recording sessions or "
+            "participants.\n"
+            "If this is not the intended use case for you, consider grouping your input data before calling the "
+            "evaluation function.\n\n"
+            "This can be done using the `create_multi_groupby` function from the `mobgap.utils.array_handling`. ",
+            stacklevel=1,
+        )
 
     if overlap_threshold <= 0.5:
         raise ValueError(
@@ -465,24 +502,56 @@ def find_matches_with_min_overlap(
     if overlap_threshold > 1:
         raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
 
-    tree = IntervalTree.from_tuples(detected.reset_index(names="id")[["start", "end", "id"]].to_numpy())
-    final_matches = []
+    detected["range_index"] = range(len(detected))
+    tree = IntervalTree.from_tuples(detected[["start", "end", "range_index"]].to_numpy())
+    detected_index = []
+    reference_index = []
 
-    for _, interval in reference[["start", "end"]].iterrows():
+    for ref_id, interval in reference.reset_index()[["start", "end"]].iterrows():
         matches = tree[interval["start"] : interval["end"]]
         if len(matches) > 0:
             for match in matches:
+                det_idx = list(match)[2]
                 # First calculate the absolute overlap
                 absolute_overlap = match.overlap_size(interval["start"], interval["end"])
                 # Then calculate the relative overlap
                 relative_overlap_interval = absolute_overlap / (interval["end"] - interval["start"])
                 relative_overlap_match = absolute_overlap / (match[1] - match[0])
                 if relative_overlap_interval >= overlap_threshold and relative_overlap_match >= overlap_threshold:
-                    final_matches.append(list(match)[:3])
+                    detected_index.append(det_idx)
+                    reference_index.append(ref_id)
                     break
 
-    final_matches = pd.DataFrame(final_matches, columns=["start", "end", "id"]).set_index("id")
-    return final_matches
+    detected_index_name = "gs_id_detected"
+    reference_index_name = "gs_id_reference"
+
+    matches_detected = pd.DataFrame(index=detected.index.copy(), columns=[reference_index_name])
+    matches_detected.index.name = detected_index_name
+
+    matches_reference = pd.DataFrame(index=reference.index.copy(), columns=[detected_index_name])
+    matches_reference.index.name = reference_index_name
+
+    ic_list_detected_idx = detected.iloc[detected_index].index
+    ic_list_reference_idx = reference.iloc[reference_index].index
+
+    matches_detected.loc[ic_list_detected_idx, reference_index_name] = ic_list_reference_idx
+    matches_reference.loc[ic_list_reference_idx, detected_index_name] = ic_list_detected_idx
+
+    matches_detected = matches_detected.reset_index()
+    matches_reference = matches_reference.reset_index()
+
+    matches = (
+        pd.concat([matches_detected, matches_reference])
+        .drop_duplicates()
+        .sort_values([detected_index_name, reference_index_name])
+        .reset_index(drop=True)
+    )
+
+    matches.loc[~matches.isna().any(axis=1), "match_type"] = "tp"
+    matches.loc[matches[reference_index_name].isna(), "match_type"] = "fp"
+    matches.loc[matches[detected_index_name].isna(), "match_type"] = "fn"
+
+    return matches
 
 
 def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Union[int, None]) -> pd.DataFrame:
@@ -531,6 +600,19 @@ def plot_categorized_intervals(
     return fig
 
 
+def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "reference"]) -> tuple[pd.DataFrame, bool]:
+    is_multindex = False
+    # check if index is a multiindex and raise warning if it is
+    if isinstance(ic_list.index, pd.MultiIndex):
+        is_multindex = True
+        ic_list.index = ic_list.index.to_flat_index()
+        ic_list.index.name = f"gs_id_{list_type}"
+    # check if indices are unique
+    if not ic_list.index.is_unique:
+        raise ValueError(f"The index of `gs_list_{list_type}` must be unique!")
+    return ic_list, is_multindex
+
+
 def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack[dict[str, Any]]) -> None:
     label_set = False
     for _, row in df.iterrows():
@@ -549,3 +631,14 @@ __all__ = [
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
 ]
+
+if __name__ == "__main__":
+    gsd_list_detected = pd.DataFrame([[5, 10], [20, 30]], columns=["start", "end"])
+    gsd_list_reference = pd.DataFrame([[1, 2], [5, 10], [15, 25]], columns=["start", "end"])
+    multiindex_d = pd.MultiIndex.from_tuples([(0, 0), (0, 1)], names=["recording", "participant"])
+    multiindex_r = pd.MultiIndex.from_tuples([(0, 0), (0, 1), (1, 0)], names=["recording", "participant"])
+    gsd_list_detected.index = multiindex_d
+    gsd_list_reference.index = multiindex_r
+    find_matches_with_min_overlap(
+        gsd_list_detected=gsd_list_detected, gsd_list_reference=gsd_list_reference, overlap_threshold=0.8
+    )
