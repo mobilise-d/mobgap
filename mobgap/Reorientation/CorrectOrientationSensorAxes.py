@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from gaitlink.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
+from mobgap.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
 from gaitlink.gsd import GsdIluz
 from gaitlink.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
 from gaitlink.icd._hklee_algo_improved import groupfind
