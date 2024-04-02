@@ -47,6 +47,10 @@ class GsdParaschivIonescu(BaseGsDetector):
     active periods is used to derive an adaptive (data-driven) threshold for detection of step-related peaks.
     Consecutive steps are associated to gait sequences [1]_ [2]_.
 
+    This is based on the implementation published as part of the mobilised project [2]_.
+    However, this implementation deviates from the original implementation in some places.
+    For details, see the notes section.
+
     Note that this algorithm is referred as GSDB in the validation study [3]_ and in the original implementation.
 
     Abbreviations:
