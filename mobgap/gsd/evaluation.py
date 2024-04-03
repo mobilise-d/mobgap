@@ -1,7 +1,7 @@
 """Class to validate gait sequence detection results."""
 
 import warnings
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -437,7 +437,6 @@ def find_matches_with_min_overlap(
     gsd_list_detected: pd.DataFrame
        Each row contains a detected gait sequence interval as output from the GSD algorithms.
        The respective start index is stored in the first and the stop index in the second column.
-       Furthermore, the id of the respective gait sequence can be provided in the third column.
     gsd_list_reference: pd.DataFrame
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
@@ -554,6 +553,77 @@ def find_matches_with_min_overlap(
     return matches
 
 
+def get_matching_gs(
+    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, matches: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Get the detected and reference gait sequences that are considered as matches.
+
+    Parameters
+    ----------
+    gsd_list_detected
+       Each row contains a detected gait sequence interval as output from the GSD algorithms.
+       The respective start index is stored in a column named `start` and the stop index in a column named `end`.
+    gsd_list_reference
+       Gold standard to validate the detected gait sequences against.
+       Should have the same format as `gsd_list_detected`.
+    matches
+        A DataFrame containing the matched gait sequences
+        as output by :func:`~mobgap.gsd.evaluation.find_matches_with_min_overlap`.
+        Expected to have the columns `gsd_id_detected`, `gsd_id_reference`, and `match_type`.
+
+    Returns
+    -------
+    matches: pd.DataFrame
+        The detected gait sequences that are considered as matches.
+
+    Examples
+    --------
+    >>> from mobgap.gsd.evaluation import find_matches_with_min_overlap
+    >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
+    >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
+    >>> matches = find_matches_with_min_overlap(detected, reference)
+    >>> matched_gs = get_matching_gs(detected, reference, matches)
+    """
+    # TODO: ensure that detected and reference have the same column names
+    # TODO: ensure that indices can be accessed -> are analogous to entries in matches df
+    tp_matches = matches.query("match_type == 'tp'")
+    detected_cols = gsd_list_detected.columns
+    detected_matches = gsd_list_detected.loc[tp_matches["gs_id_detected"]]
+    reference_matches = gsd_list_reference.loc[tp_matches["gs_id_reference"]]
+
+    result = detected_matches.merge(reference_matches, left_index=True, right_index=True, suffixes=("_det", "_ref"))
+    """
+    # Resetting index to make 'row_index' as a regular column
+    result.reset_index(inplace=True)
+
+    # Adding 'source' column to indicate the source DataFrame
+    result['source'] = result['level_0']
+
+    # Dropping the level_0 column
+    result.drop(columns='level_0', inplace=True)
+    """
+    result.columns = pd.MultiIndex.from_product([detected_cols, ["detected", "reference"]], names=["metric", "origin"])
+    # concatenated_matches = pd.concat([detected_matches, reference_matches], axis=1)
+    return result
+
+
+def assign_error(df: pd.DataFrame, value_prefix: str) -> pd.DataFrame:
+    # TODO: input validation
+    # TODO: ensure cols are sorted?
+    insert_index = df.columns.get_loc(value_prefix).stop
+    df.insert(insert_index, (value_prefix, "error"), df[value_prefix]["detected"] - df[value_prefix]["reference"])
+    df.insert(insert_index + 1, (value_prefix, "rel_error"), df[value_prefix]["error"] / df[value_prefix]["reference"])
+    df.insert(insert_index + 2, (value_prefix, "abs_rel_error"), df[value_prefix]["rel_error"].abs())
+    df.insert(insert_index + 3, (value_prefix, "abs_error"), df[value_prefix]["error"].abs())
+    return df
+
+
+def agg_metrics(df: pd.DataFrame, aggregate_funcs: dict[str, list[Callable]]) -> pd.DataFrame:
+    res = df.agg(aggregate_funcs)
+    return res
+
+
 def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Union[int, None]) -> pd.DataFrame:
     """Add true negative intervals to the categorized intervals by inferring them from the other intervals.
 
@@ -631,3 +701,33 @@ __all__ = [
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
 ]
+
+if __name__ == "__main__":
+    detected = pd.DataFrame([[0, 10, 0], [11, 12, 1], [20, 30, 2]], columns=["start", "end", "id"]).set_index("id")
+    reference = pd.DataFrame([[0, 10, 0], [13, 14, 1], [21, 29, 2]], columns=["start", "end", "id"]).set_index("id")
+    matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    detected_metrics = pd.DataFrame(
+        [[1, 2, 0], [1, 2, 1], [3, 4, 2]], columns=["metric_1", "metric_2", "id"]
+    ).set_index("id")
+    matched_gs = get_matching_gs(
+        gsd_list_detected=detected_metrics, gsd_list_reference=detected_metrics, matches=matches
+    )
+    matches_with_err = matched_gs.pipe(lambda df_: assign_error(df_, "metric_1")).pipe(
+        lambda df_: assign_error(df_, "metric_2")
+    )
+    print(matches_with_err)
+    """
+    aggs = {
+        "mean": ("metric_1", "mean"),
+        "mean": ("metric_2", "mean"),
+        "std": ("metric_1", "std"),
+    }
+    """
+    aggs = {
+        ("metric_1", "detected"): ["mean", "std"],
+        ("metric_2", "detected"): ["mean", "std"],
+        ("metric_1", "reference"): ["mean"],
+    }
+    agg_results = matches_with_err.pipe(agg_metrics, aggs)
+    agg_results = agg_results.stack(level=(0, 1), future_stack=True).dropna()
+    print(agg_results)
