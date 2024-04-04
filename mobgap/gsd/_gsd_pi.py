@@ -248,7 +248,7 @@ class GsdParaschivIonescu(BaseGsDetector):
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
             active_peak_threshold = self.active_signal_fallback_threshold
-            x = 0/0
+            signal = acc_filtered4
             '''fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
                 ("savgol_1", savgol_1,),
