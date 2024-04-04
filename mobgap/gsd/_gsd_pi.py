@@ -150,7 +150,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
-        # TODO: Check new filter implementation below is correct
+        '''# TODO: Check new filter implementation below is correct
 
         # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
@@ -203,6 +203,40 @@ class GsdParaschivIonescu(BaseGsDetector):
         ]
 
         acc_filtered = chain_transformers(acc_norm, filter_chain, sampling_rate_hz=sampling_rate_hz)
+        '''
+
+        # Resample to algorithm_target_fs
+        acc_norm_resampled = (
+            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
+            .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
+            .transformed_data_
+        )
+
+        # Filter to enhance the acceleration signal, when low SNR, impaired, asymmetric and slow gait
+        acc_filtered = scipy.signal.savgol_filter(acc_norm_resampled, polyorder=7,
+                                                  window_length=21)  # window_length and polyorder from MATLAB
+        acc_filtered = EpflDedriftedGaitFilter().filter(acc_filtered, sampling_rate_hz=40).filtered_data_
+        acc_filtered = scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker,
+                                        [7])  # scale=[7] in python matches 10 in MATLAB
+        acc_filtered4 = scipy.signal.savgol_filter(acc_filtered, 11, 5)  # window_length and polyorder from MATLAB
+        acc_filtered = scipy.signal.cwt(acc_filtered4.squeeze(), scipy.signal.ricker,
+                                        [7])  # scale=[7] in python matches 10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 3)  # windowWidth=15 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+
+
+
+
+
+
+
+
+
+
+
+
 
         try:
             active_peak_threshold = find_active_period_peak_threshold(
@@ -214,7 +248,8 @@ class GsdParaschivIonescu(BaseGsDetector):
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
             active_peak_threshold = self.active_signal_fallback_threshold
-            fallback_filter_chain = [
+            x = 0/0
+            '''fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
                 ("savgol_1", savgol_1,),
                 ("epfl_gait_filter", EpflDedriftedGaitFilter()),
@@ -222,6 +257,7 @@ class GsdParaschivIonescu(BaseGsDetector):
                 ("savol_2", savgol_2,),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
+            '''
 
         # Find extrema in signal that might represent steps
         min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
