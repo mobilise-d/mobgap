@@ -50,8 +50,6 @@ class TestGsdParaschivIonescu:
 
         output = GsdParaschivIonescu().detect(data, sampling_rate_hz=40.0).gs_list_
 
-
-
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end"]).astype(int))
 
     def test_single_gsd(self):
@@ -59,9 +57,14 @@ class TestGsdParaschivIonescu:
 
         output = GsdParaschivIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
 
-        print(output)
-
         assert len(output) == 1
+        assert set(output.columns) == {"start", "end"}
+
+    def test_random_signal(self):
+        data = pd.DataFrame(np.random.rand(1000, 3), columns=["acc_x", "acc_y", "acc_z"])
+
+        output = GsdParaschivIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
+
         assert set(output.columns) == {"start", "end"}
 
 class TestGsdParaschivIonescuRegression:

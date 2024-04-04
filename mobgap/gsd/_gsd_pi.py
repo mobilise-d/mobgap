@@ -160,10 +160,6 @@ class GsdParaschivIonescu(BaseGsDetector):
         #  usually nothing to worry about.
         n_coefficients = len(EpflGaitFilter().coefficients[0])
 
-        # Padding to cope with short data
-        len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-        padding = Pad(pad_len_s=len_pad_s, mode="wrap")
-
         #   CWT - Filter
         #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
@@ -195,22 +191,15 @@ class GsdParaschivIonescu(BaseGsDetector):
         filter_chain = [
             # Resample to 40Hz to process with filters
             ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
-            ("padding", padding),
-            (
-                "savgol_1",
-                savgol_1,
-            ),
+            ("savgol_1", savgol_1),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
             ("cwt_1", cwt),
-            (
-                "savol_2",
-                savgol_2,
-            ),
+            ("savol_2", savgol_2),
             ("cwt_2", cwt),
             ("gaussian_1", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_3", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
-            ("padding_remove", padding.get_inverse_transformer()),
+            ("gaussian_4", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
         ]
 
         acc_filtered = chain_transformers(acc_norm, filter_chain, sampling_rate_hz=sampling_rate_hz)
@@ -227,12 +216,10 @@ class GsdParaschivIonescu(BaseGsDetector):
             active_peak_threshold = self.active_signal_fallback_threshold
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
-                ("padding", padding),
                 ("savgol_1", savgol_1,),
                 ("epfl_gait_filter", EpflDedriftedGaitFilter()),
                 ("cwt_1", cwt),
                 ("savol_2", savgol_2,),
-                ("padding_remove", padding.get_inverse_transformer()),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
 
