@@ -12,9 +12,7 @@ from typing_extensions import Self, Unpack
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
-    EpflGaitFilter,
     GaussianFilter,
-    Pad,
     Resample,
     SavgolFilter,
     chain_transformers,
@@ -89,7 +87,8 @@ class GsdParaschivIonescu(BaseGsDetector):
 
       - min_n_steps>=4 after find_pulse_trains(MaxPeaks) and find_pulse_trains(MinPeaks)
       - min_n_steps>=3 during the gs padding (NOTE: not implemented in this algorithm since it is redundant here)
-      - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller than max_gap_s
+      - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller
+      than max_gap_s
 
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
 
@@ -150,16 +149,6 @@ class GsdParaschivIonescu(BaseGsDetector):
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
-        # TODO: Check new filter implementation below is correct
-
-        # We need to initialize the filter once to get the number of coefficients to calculate the padding.
-        # This is not ideal, but works for now.
-        # TODO: We should evaluate, if we need the padding at all, or if the filter methods that we use handle that
-        #  correctly anyway. -> filtfilt uses padding automatically and savgol allows to actiavte padding, put uses the
-        #  default mode (polyinomal interpolation) might be suffiecent anyway, cwt might have some edeeffects, but
-        #  usually nothing to worry about.
-        n_coefficients = len(EpflGaitFilter().coefficients[0])
-
         #   CWT - Filter
         #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
@@ -204,40 +193,6 @@ class GsdParaschivIonescu(BaseGsDetector):
 
         acc_filtered = chain_transformers(acc_norm, filter_chain, sampling_rate_hz=sampling_rate_hz)
 
-
-        '''# Resample to algorithm_target_fs
-        acc_norm_resampled = (
-            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_
-        )
-
-        # Filter to enhance the acceleration signal, when low SNR, impaired, asymmetric and slow gait
-        acc_filtered = scipy.signal.savgol_filter(acc_norm_resampled, polyorder=7,
-                                                  window_length=21)  # window_length and polyorder from MATLAB
-        acc_filtered = EpflDedriftedGaitFilter().filter(acc_filtered, sampling_rate_hz=40).filtered_data_
-        acc_filtered = scipy.signal.cwt(acc_filtered.squeeze(), scipy.signal.ricker,
-                                        [7])  # scale=[7] in python matches 10 in MATLAB
-        acc_filtered4 = scipy.signal.savgol_filter(acc_filtered, 11, 5)  # window_length and polyorder from MATLAB
-        acc_filtered = scipy.signal.cwt(acc_filtered4.squeeze(), scipy.signal.ricker,
-                                        [7])  # scale=[7] in python matches 10 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 3)  # windowWidth=15 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB'''
-
-
-
-
-
-
-
-
-
-
-
-
-
         try:
             active_peak_threshold = find_active_period_peak_threshold(
                 acc_filtered, self._INTERNAL_FILTER_SAMPLING_RATE_HZ
@@ -248,7 +203,6 @@ class GsdParaschivIonescu(BaseGsDetector):
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
             active_peak_threshold = self.active_signal_fallback_threshold
-            '''signal = acc_filtered4'''
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
                 ("savgol_1", savgol_1,),
@@ -360,13 +314,11 @@ def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.nd
     if np.isnan(threshold_sig):
         return active
 
-
-
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
     for i in range(len(env) - duration + 1):
         # Update threshold 10% of the maximum peaks found
-        window = env[i : i + duration]
+        window = env[i: i + duration]
 
         if (window > threshold_sig).all():
             active[i] = max(env)
