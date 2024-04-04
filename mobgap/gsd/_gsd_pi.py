@@ -150,7 +150,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
-        '''# TODO: Check new filter implementation below is correct
+        # TODO: Check new filter implementation below is correct
 
         # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.
@@ -203,9 +203,9 @@ class GsdParaschivIonescu(BaseGsDetector):
         ]
 
         acc_filtered = chain_transformers(acc_norm, filter_chain, sampling_rate_hz=sampling_rate_hz)
-        '''
 
-        # Resample to algorithm_target_fs
+
+        '''# Resample to algorithm_target_fs
         acc_norm_resampled = (
             Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
             .transform(acc_norm, sampling_rate_hz=sampling_rate_hz)
@@ -224,7 +224,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
         acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
         acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 3)  # windowWidth=15 in MATLAB
-        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB
+        acc_filtered = scipy.ndimage.gaussian_filter(acc_filtered.squeeze(), 2)  # windowWidth=10 in MATLAB'''
 
 
 
@@ -248,8 +248,8 @@ class GsdParaschivIonescu(BaseGsDetector):
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
             active_peak_threshold = self.active_signal_fallback_threshold
-            signal = acc_filtered4
-            '''fallback_filter_chain = [
+            '''signal = acc_filtered4'''
+            fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
                 ("savgol_1", savgol_1,),
                 ("epfl_gait_filter", EpflDedriftedGaitFilter()),
@@ -257,7 +257,7 @@ class GsdParaschivIonescu(BaseGsDetector):
                 ("savol_2", savgol_2,),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
-            '''
+
 
         # Find extrema in signal that might represent steps
         min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
