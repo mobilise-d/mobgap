@@ -368,19 +368,6 @@ def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.nd
         # Update threshold 10% of the maximum peaks found
         window = env[i : i + duration]
 
-
-
-
-
-        print(threshold_sig)
-        print(window)
-
-
-
-
-
-
-
         if (window > threshold_sig).all():
             active[i] = max(env)
             threshold = 0.1 * np.mean(window)
