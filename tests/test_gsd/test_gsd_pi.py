@@ -50,7 +50,7 @@ class TestGsdParaschivIonescu:
 
         output = GsdParaschivIonescu().detect(data, sampling_rate_hz=40.0).gs_list_
 
-        print(output)
+
 
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end"]).astype(int))
 
@@ -59,10 +59,12 @@ class TestGsdParaschivIonescu:
 
         output = GsdParaschivIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
 
+        print(output)
+
         assert len(output) == 1
         assert set(output.columns) == {"start", "end"}
 
-class TestGsdIluzRegression:
+class TestGsdParaschivIonescuRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
         data = datapoint.data_ss
