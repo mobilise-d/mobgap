@@ -4,8 +4,8 @@ from scipy.signal import savgol_filter, correlate
 from sklearn.decomposition import PCA
 from numpy.linalg import norm
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
-from gaitlink.Reorientation.utils import acceleration
-from gaitlink.data_transform import (
+from mobgap.Reorientation.utils import acceleration
+from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
