@@ -41,7 +41,7 @@ class TestGsdParaschivIonescu:
 
     Note, we don't test the influence of any single parameter here.
     We don't even really know, how they all influence the results.
-    We just test the happy path and some potential edegecases.
+    We just test the happy path and some potential edege cases.
     If people run into bugs when changing parameters, we can add more tests.
     """
 
@@ -61,6 +61,15 @@ class TestGsdParaschivIonescu:
 
         assert len(output) == 1
         assert set(output.columns) == {"start", "end"}
+
+class TestGsdIluzRegression:
+    @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
+    def test_example_lab_data(self, datapoint, snapshot):
+        data = datapoint.data_ss
+        sampling_rate_hz = datapoint.sampling_rate_hz
+
+        gs_list = GsdParaschivIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
+        snapshot.assert_match(gs_list, str(datapoint.group_label))
 
 # TODO: Think of anymore edge cases
 
