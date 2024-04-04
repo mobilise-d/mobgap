@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 from mobgap.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
-from gaitlink.gsd import GsdIluz
-from gaitlink.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
-from gaitlink.icd._hklee_algo_improved import groupfind
-from gaitlink.data_transform import (
+from mobgap.gsd import GsdIluz
+from mobgap.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
+from mobgap.icd._hklee_algo_improved import groupfind
+from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )

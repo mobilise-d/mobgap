@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from gaitlink.data_transform import (
+from mobgap.data_transform import (
     ButterworthFilter,
     chain_transformers,
 )
@@ -85,19 +85,8 @@ def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str,
     fs = sampling_rate
     btype = 'highpass' if filter_type == 'high' else 'lowpass'
 
-    # plot pre
-    plt.plot(unfiltered_altitude, label="unfiltered_altitude")
-    plt.legend()
-    plt.savefig("/Users/dimitrismegaritis/Desktop/pythonplots/unfiltered_altitude.pdf")
-    plt.show()
-
     filter = [("butterworth", ButterworthFilter(order=order, cutoff_freq_hz=freq, filter_type=btype, zero_phase=True))]
     final = chain_transformers(unfiltered_altitude, filter, sampling_rate_hz=sampling_rate)
 
-    # plot post
-    plt.plot(final, label="final")
-    plt.legend()
-    plt.savefig("/Users/dimitrismegaritis/Desktop/pythonplots/final.pdf")
-    plt.show()
 
     return final
