@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 # The below tests the Madgwick algorithm from gaitmap on the lab data
-
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
 
 single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
