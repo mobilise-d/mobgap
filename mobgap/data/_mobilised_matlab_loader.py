@@ -1115,8 +1115,57 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             sensor_types=self.sensor_types,
         )
 
+    def _create_precomputed_test_list(self) -> None:
+        """Compute and store a json test list for a data.mat file.
+
+        This function should be used by Dataset developers to precompute the test list for a data.mat file.
+        This can massively reduce initial loading time, as the dataset index can be generated without loading the data.
+
+        When this is used to generate the test-list, the `_relpath_to_precomputed_test_list` method must be implemented.
+
+        """
+        rel_out_path = self._relpath_to_precomputed_test_list()
+        for p in self._paths_list:
+            _, available_data_per_test = _load_test_data_without_checks(p)
+            # Reformat for json dumping:
+            available_data_per_test = [
+                {"key": test_name, "value": data._asdict()} for test_name, data in available_data_per_test.items()
+            ]
+
+            import json
+
+            out_path = Path(p).parent / rel_out_path
+            with out_path.open("w") as f:
+                json.dump(available_data_per_test, f, indent=4)
+            print(f"Test list for {p} stored at {out_path}")
+
+    def _get_precomputed_available_tests(self, path: PathLike) -> dict[tuple[str, ...], MobilisedAvailableData]:
+        import json
+
+        test_list_path = Path(path).parent / self._relpath_to_precomputed_test_list()
+
+        with test_list_path.open() as f:
+            available_data_per_test = json.load(f)
+
+        out = {}
+        for data in available_data_per_test:
+            available_sensors = [tuple(d) for d in data["value"]["available_sensors"]]
+            out[tuple(data["key"])] = MobilisedAvailableData(
+                available_sensors=available_sensors,
+                available_reference_systems=data["value"]["available_reference_systems"],
+            )
+
+        return out
+
+    def _relpath_to_precomputed_test_list(self) -> Path:
+        raise NotImplementedError
+
     def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
-        available_data = self._cached_data_load_no_checks(path)[1]
+        try:
+            available_data = self._get_precomputed_available_tests(path)
+        except NotImplementedError:
+            available_data = self._cached_data_load_no_checks(path)[1]
+
         available_keys = []
         for key, value in available_data.items():
             if _check_test_data(
