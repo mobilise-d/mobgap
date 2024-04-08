@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A evaluation pipeline for GSD (https://github.com/mobilise-d/mobgap/pull/124)
 - ML based LR classification (https://github.com/mobilise-d/mobgap/pull/106)
 - A evaluation/optimization pipeline for LRC (https://github.com/mobilise-d/mobgap/pull/106)
+- All the loader functions for the matlab format now have the option to skip a test, if either data or reference data 
+  is not available ()
 
 ### Changed
 
@@ -30,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - We use operating system independent pandas dtypes everywhere (https://github.com/mobilise-d/mobgap/pull/118)
 - Fixed issue with multi-groupby, that grouping by just a subset of the index cols resulted in cryptic error messages
   (https://github.com/mobilise-d/mobgap/pull/132)
+
+### Removed
+
+- When data is loaded, the error/warning that none of the sensors where available is removed ()
 
 ### Development
 
