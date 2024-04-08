@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Iterator, Sequence
-from functools import lru_cache, partial
+from functools import lru_cache
 from pathlib import Path
 from typing import (
     Any,
@@ -18,6 +18,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from tpcp.caching import hybrid_cache
 
 from mobgap._docutils import make_filldoc
 from mobgap.data.base import (
@@ -59,7 +60,17 @@ matlab_dataset_docfiller = make_filldoc(
         If a sensor type is not available, it is ignored.
     missing_sensor_error_type
         Whether to throw an error ("raise"), a warning ("warn") or ignore ("ignore") when a sensor is missing.
-
+        In all three cases, the trial is still included in the index, but the imu-data is not available.
+        If you want to skip the trial entirely, set this to "skip".
+        Then the trial will not appear in the index at all.
+        Note, that "skip" will skip the trial, if ANY sensor position specified is missing.
+        Specifying, "skip" will only effect the initial data loading.
+        Changing the value after you already created a subset of the data has no effect.
+    missing_reference_error_type
+        Whether to throw an error ("raise"), a warning ("warn") or ignore ("ignore") when reference data is missing.
+        If you want to skip the trial entirely when the reference data is not available, set this to "skip".
+        Specifying, "skip" will only effect the initial data loading.
+        Changing the value after you already created a subset of the data has no effect.
     """,
         "general_dataset_args": """
     reference_para_level
@@ -183,6 +194,24 @@ class MobilisedMetadata(PartialMobilisedMetadata, RecordingMetadata):
     recording_identifier: tuple[str, ...]
 
 
+class MobilisedAvailableData(NamedTuple):
+    """Basic metadata that can be used to filter tests based on availability of certain factors.
+
+    Parameters
+    ----------
+    available_sensors
+        The available sensors for the test.
+        It provides a list of tuples of the form (``sensor_type``, ``sensor_position``).
+    available_reference_systems
+        The available reference systems for the test.
+        This is a list
+
+    """
+
+    available_sensors: list[tuple[Literal["SU", "INDIP", "INDIP2"], str]]
+    available_reference_systems: list[Literal["INDIP", "Stereophoto"]]
+
+
 class MobilisedTestData(NamedTuple):
     """Data representation of a single test/recording.
 
@@ -239,6 +268,33 @@ def load_mobilised_participant_metadata_file(
     }
 
 
+def _extract_available_sensor_pos_(
+    test_data: sio.matlab.mat_struct,
+) -> list[tuple[Literal["SU", "INDIP", "INDIP2"], str]]:
+    result = []
+    for field in test_data._fieldnames:
+        if not (field.startswith("SU_") or field == "SU"):
+            continue
+        positions = getattr(test_data, field)._fieldnames
+        # To be consistent with how we represent the names of the non "SU" sensors, we remove the "SU_" prefix.
+        if field != "SU":
+            field = field[3:]
+        for position in positions:
+            result.append((field, position))
+    return result
+
+
+def _extract_available_reference_systems(test_data: sio.matlab.mat_struct) -> list[Literal["INDIP", "Stereophoto"]]:
+    try:
+        standards = test_data.Standards._fieldnames
+    except AttributeError:
+        return []
+
+    # There can be a bunch of different fields here. We are only interested in "INDIP" and "Stereophoto".
+    # We simply check if they exist.
+    return [field for field in standards if field in ["INDIP", "Stereophoto"]]
+
+
 @matlab_dataset_docfiller
 def load_mobilised_matlab_format(
     path: PathLike,
@@ -248,6 +304,7 @@ def load_mobilised_matlab_format(
     sensor_positions: Sequence[str] = ("LowerBack",),
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
     missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+    missing_reference_error_type: Literal["raise", "warn", "ignore"] = "ignore",
 ) -> dict[tuple[str, ...], MobilisedTestData]:
     """Load a single data.mat file formatted according to the Mobilise-D guidelines.
 
@@ -275,6 +332,41 @@ def load_mobilised_matlab_format(
     a start time per trial (but only a start time per test).
 
     """
+    data_per_test, available_data_per_test = _load_test_data_without_checks(
+        path,
+        raw_data_sensor=raw_data_sensor,
+        reference_system=reference_system,
+        sensor_positions=sensor_positions,
+        sensor_types=sensor_types,
+    )
+
+    return {
+        test_name: test_data
+        for test_name, test_data in data_per_test.items()
+        if _check_test_data(
+            available_data_per_test[test_name],
+            raw_data_sensor=raw_data_sensor,
+            reference_system=reference_system,
+            sensor_positions=sensor_positions,
+            missing_sensor_error_type=missing_sensor_error_type,
+            missing_reference_error_type=missing_reference_error_type,
+            error_context=f"Test: {test_name}, File: {path}",
+        )
+    }
+
+
+def _load_test_data_without_checks(
+    path: PathLike,
+    *,
+    raw_data_sensor: Optional[Literal["SU", "INDIP", "INDIP2"]] = "SU",
+    reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
+    sensor_positions: Sequence[str] = ("LowerBack",),
+    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+) -> tuple[dict[tuple[str, ...], MobilisedTestData], dict[tuple[str, ...], MobilisedAvailableData]]:
+    """Like load_mobilised_matlab_format, but does not perform any checks.
+
+    The information of what data is available is simply returned, so that checks can be performed later.
+    """
     if raw_data_sensor is None and reference_system is None:
         raise ValueError(
             "At least one of raw_data_sensor and reference_system must be set. Otherwise no data is loaded."
@@ -288,27 +380,73 @@ def load_mobilised_matlab_format(
     data = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)
     data_per_test = _parse_until_test_level(data["data"], (sensor_test_level_marker, "Standards"))
 
-    data_per_test_dict = {
-        test_name: _process_test_data(
+    data_per_test_parsed = {}
+    available_data_per_test = {}
+    for test_name, test_data in data_per_test:
+        data_per_test_parsed[test_name] = _process_test_data(
             test_data,
             test_name,
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
-            missing_sensor_error_type=missing_sensor_error_type,
+        )
+        available_data_per_test[test_name] = MobilisedAvailableData(
+            available_sensors=_extract_available_sensor_pos_(test_data),
+            available_reference_systems=_extract_available_reference_systems(test_data),
+        )
+
+    return data_per_test_parsed, available_data_per_test
+
+
+def load_mobilised_matlab(path: PathLike, *, remove_not_needed: bool = True) -> sio.matlab.mat_struct:
+    """Load a Mobilise-D data.mat file in memory.
+
+    This simply wraps the scipy.io.loadmat function with the correct defaults.
+
+    The loaded data can be used as input to :func:`~mobgab.data.parse_mobilised_matlab_available_tests` or
+    :func:`~mobgab.data.load_mobilised_matlab_format`.
+
+    Parameters
+    ----------
+    path
+        str or Path to the data.mat file.
+
+    Returns
+    -------
+    data
+        The loaded data as a scipy.io.matlab.mat_struct.
+
+    """
+    data = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)["data"]
+    if not remove_not_needed:
+        return data
+    # We remove some fields that are not needed to reduce the memory footprint.
+    test_data = _parse_until_test_level(data, ("SU", "SU_INDIP", "SU_INDIP2", "Standards"))
+
+
+def parse_mobilised_matlab_available_tests(
+    data: sio.matlab.mat_struct,
+) -> dict[tuple[str, ...], MobilisedAvailableData]:
+    """Parse a list of all available tests from a loaded data.mat file formatted according to the Mobilise-D guidelines.
+
+    For each test we load the list of available sensors and reference systems.
+
+    Parameters
+    ----------
+    data
+        The raw loaded matlab structure.
+        Use :func:`~mobgab.data.load_mobilised_matlab` to initially load the data.mat file into memory.
+
+    """
+    data_per_test = _parse_until_test_level(data, ("SU", "SU_INDIP", "SU_INDIP2", "Standards"))
+    return {
+        test_name: MobilisedAvailableData(
+            available_sensors=_extract_available_sensor_pos_(test_data),
+            available_reference_systems=_extract_available_reference_systems(test_data),
         )
         for test_name, test_data in data_per_test
     }
-
-    # Unit conversion of imu data, if available
-    for test, data in data_per_test_dict.items():
-        if data.imu_data is not None:
-            for sensor_position in data.imu_data:
-                # Convert acc columns to m/s-2
-                data_per_test_dict[test].imu_data[sensor_position][["acc_x", "acc_y", "acc_z"]] *= 9.81
-
-    return data_per_test_dict
 
 
 def _parse_until_test_level(
@@ -336,7 +474,7 @@ def _parse_until_test_level(
             )
 
 
-def _process_test_data(  # noqa: C901, PLR0912, PLR0915
+def _process_test_data(
     test_data: sio.matlab.mat_struct,
     test_name: tuple[str, ...],
     *,
@@ -344,11 +482,8 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
-    missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
 ) -> MobilisedTestData:
-    if missing_sensor_error_type not in ["raise", "warn", "ignore"]:
-        raise ValueError(f"Invalid value for missing_sensor_error_type: {missing_sensor_error_type}")
-
+    # Note, this function ignores all missing sensor loadings, as we expect the caller to handle this.
     meta_data = {}
 
     try:
@@ -362,36 +497,22 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
         raise ValueError(f"Time zone information is missing from the data file for test {test_name}.") from e
 
     if raw_data_sensor:
-        all_sensor_data = getattr(test_data, raw_data_sensor)
+        all_sensor_data = getattr(test_data, raw_data_sensor, {})
         sampling_rates: dict[str, float] = {}
 
         all_imu_data = {}
         for sensor_pos in sensor_positions:
             try:
                 raw_data = getattr(all_sensor_data, sensor_pos)
-            except AttributeError as e:
-                error_message = f"Sensor position {sensor_pos} is not available for test {test_name}."
-
-                if missing_sensor_error_type == "raise":
-                    raise ValueError(error_message) from e
-                if missing_sensor_error_type == "warn":
-                    warnings.warn(error_message, stacklevel=1)
-
+            except AttributeError:
+                continue
+                # We ignore the error here, as we handle missing sensors later.
             else:
                 all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
                 sampling_rates_obj = raw_data.Fs
                 sampling_rates.update(
                     {f"{sensor_pos}_{k}": getattr(sampling_rates_obj, k) for k in sampling_rates_obj._fieldnames}
                 )
-
-        if all_imu_data == {}:
-            error_message = (
-                f"Expected at least one valid sensor position for {raw_data_sensor}. Given: {sensor_positions}"
-            )
-            if missing_sensor_error_type == "raise":
-                raise ValueError(error_message)
-            if missing_sensor_error_type == "warn":
-                warnings.warn(error_message, stacklevel=1)
 
         # In the data files the sampling rate for each sensor type is reported individually.
         # But in reality, we expect them all to have the same sampling rate.
@@ -442,6 +563,45 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
     )
 
 
+def _check_test_data(
+    available_data: MobilisedAvailableData,
+    *,
+    raw_data_sensor: Optional[Literal["SU", "INDIP", "INDIP2"]],
+    reference_system: Optional[Literal["INDIP", "Stereophoto"]],
+    sensor_positions: Sequence[str],
+    missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"],
+    missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"],
+    error_context: Optional[str] = None,
+) -> bool:
+    # Return boolean indicates if it should be included, not, if it is valid!
+    if raw_data_sensor:
+        available_sensors = available_data.available_sensors
+        expected_sensors = [(raw_data_sensor, pos) for pos in sensor_positions]
+        sensor_data_missing = set(expected_sensors) - set(available_sensors)
+
+        if sensor_data_missing:
+            error_context = f"Context: {error_context}\n" if error_context else ""
+            error_message = f"{error_context}Expected sensor data for {sensor_data_missing}, but it is missing."
+            if missing_sensor_error_type == "raise":
+                raise ValueError(error_message)
+            if missing_sensor_error_type == "warn":
+                warnings.warn(error_message, stacklevel=2)
+            elif missing_sensor_error_type == "skip":
+                return False
+
+    available_reference_systems = available_data.available_reference_systems
+    if reference_system and reference_system not in available_reference_systems:
+        error_message = f"Expected reference system {reference_system}, but it is not available."
+        if missing_reference_error_type == "raise":
+            raise ValueError(error_message)
+        if missing_reference_error_type == "warn":
+            warnings.warn(error_message, stacklevel=2)
+        elif missing_reference_error_type == "skip":
+            return False
+
+    return True
+
+
 def _parse_single_sensor_data(
     sensor_data: sio.matlab.mat_struct,
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
@@ -462,6 +622,8 @@ def _parse_single_sensor_data(
         parsed_data.index = pd.DatetimeIndex(pd.to_datetime(sensor_data.Timestamp, unit="s", utc=True), name="time")
     else:
         parsed_data.index.name = "samples"
+    # Convert acc columns to m/s-2
+    parsed_data[["acc_x", "acc_y", "acc_z"]] *= 9.81
 
     return parsed_data
 
@@ -854,6 +1016,8 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     sensor_positions: Sequence[str]
     single_sensor_position: str
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"]
+    missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"]
     memory: joblib.Memory
 
     def __init__(
@@ -865,7 +1029,8 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         sensor_positions: Sequence[str] = ("LowerBack",),
         single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"] = "raise",
+        missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"] = "ignore",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -878,6 +1043,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         self.sensor_types = sensor_types
         self.memory = memory
         self.missing_sensor_error_type = missing_sensor_error_type
+        self.missing_reference_error_type = missing_reference_error_type
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
@@ -986,21 +1152,34 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         }
         return final_dict
 
-    @property
-    def _cached_data_load(
-        self,
-    ) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
-        return partial(
-            self.memory.cache(load_mobilised_matlab_format),
+    def _cached_data_load_no_checks(
+        self, path: PathLike
+    ) -> tuple[dict[tuple[str, ...], MobilisedTestData], dict[tuple[str, ...], MobilisedAvailableData]]:
+        return hybrid_cache(self.memory, 1)(_load_test_data_without_checks)(
+            path,
             raw_data_sensor=self.raw_data_sensor,
             reference_system=self.reference_system,
             sensor_positions=self.sensor_positions,
             sensor_types=self.sensor_types,
-            missing_sensor_error_type=self.missing_sensor_error_type,
         )
 
     def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
-        return list(self._cached_data_load(path).keys())
+        available_data = self._cached_data_load_no_checks(path)[1]
+        available_keys = []
+        for key, value in available_data.items():
+            if _check_test_data(
+                value,
+                raw_data_sensor=self.raw_data_sensor,
+                reference_system=self.reference_system,
+                sensor_positions=self.sensor_positions,
+                missing_sensor_error_type=self.missing_sensor_error_type if self.missing_sensor_error_type == "skip" else "ignore",
+                missing_reference_error_type=self.missing_reference_error_type if self.missing_reference_error_type == "skip" else "ignore",
+            ):
+                available_keys.append(key)
+
+        return available_keys
+
+
 
     def _load_selected_data(self, property_name: str) -> MobilisedTestData:
         selected_file = self._get_selected_data_file(property_name)
@@ -1013,7 +1192,31 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         # to keep the current file in memory.
         # The second part is important, when we use the same Dataset object to load multiple parts of the file (e.g.
         # the raw data and the reference parameters).
-        return cached_load_current(selected_file, self._cached_data_load)[selected_test]
+        data, available = self._cached_data_load_no_checks(selected_file)
+
+        # And then we do the checks afterward.
+        # This way, changing the check parameters will not invalidate the cache.
+        # The final checks are cheap, so we don't need to cache them.
+        test_data = data[selected_test]
+        available_data = available[selected_test]
+
+        if not _check_test_data(
+            available_data,
+            raw_data_sensor=self.raw_data_sensor,
+            reference_system=self.reference_system,
+            sensor_positions=self.sensor_positions,
+            missing_sensor_error_type=self.missing_sensor_error_type,
+            missing_reference_error_type=self.missing_reference_error_type,
+            error_context=f"Test: {selected_test}, Selected Index: {self.group_label}",
+        ):
+            # If this returns false, aka test should be skipped, users have manipulated the index.
+            raise RuntimeError("A text listed in the index was marked as skipped when loading. "
+                               "This should not happen and might indicate that the index was manually modified, or "
+                               "the ``missing_sensor_error_type`` or ``missing_reference_error_type`` was set to "
+                               "``skip`` AFTER the object was initialized. "
+                               "This is not supported.")
+
+        return test_data
 
     @property
     def selected_data_file(self) -> Path:
@@ -1203,8 +1406,10 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
         sensor_positions: Sequence[str] = ("LowerBack",),
+        single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"] = "raise",
+        missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"] = "ignore",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -1219,10 +1424,12 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
             reference_para_level=reference_para_level,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
+            single_sensor_position=single_sensor_position,
             memory=memory,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
             missing_sensor_error_type=missing_sensor_error_type,
+            missing_reference_error_type=missing_reference_error_type,
         )
 
     @property
