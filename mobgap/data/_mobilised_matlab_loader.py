@@ -273,14 +273,16 @@ def _extract_available_sensor_pos_(
 ) -> list[tuple[Literal["SU", "INDIP", "INDIP2"], str]]:
     result = []
     for field in test_data._fieldnames:
-        if not (field.startswith("SU_") or field == "SU"):
+        if field == "SU":
+            short_field_name = "SU"
+        elif field.startswith("SU_"):
+            # To be consistent with how we represent the names of the non "SU" sensors, we remove the "SU_" prefix.
+            short_field_name = field[3:]
+        else:
             continue
         positions = getattr(test_data, field)._fieldnames
-        # To be consistent with how we represent the names of the non "SU" sensors, we remove the "SU_" prefix.
-        if field != "SU":
-            field = field[3:]
         for position in positions:
-            result.append((field, position))
+            result.append((short_field_name, position))
     return result
 
 
@@ -399,56 +401,6 @@ def _load_test_data_without_checks(
     return data_per_test_parsed, available_data_per_test
 
 
-def load_mobilised_matlab(path: PathLike, *, remove_not_needed: bool = True) -> sio.matlab.mat_struct:
-    """Load a Mobilise-D data.mat file in memory.
-
-    This simply wraps the scipy.io.loadmat function with the correct defaults.
-
-    The loaded data can be used as input to :func:`~mobgab.data.parse_mobilised_matlab_available_tests` or
-    :func:`~mobgab.data.load_mobilised_matlab_format`.
-
-    Parameters
-    ----------
-    path
-        str or Path to the data.mat file.
-
-    Returns
-    -------
-    data
-        The loaded data as a scipy.io.matlab.mat_struct.
-
-    """
-    data = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)["data"]
-    if not remove_not_needed:
-        return data
-    # We remove some fields that are not needed to reduce the memory footprint.
-    test_data = _parse_until_test_level(data, ("SU", "SU_INDIP", "SU_INDIP2", "Standards"))
-
-
-def parse_mobilised_matlab_available_tests(
-    data: sio.matlab.mat_struct,
-) -> dict[tuple[str, ...], MobilisedAvailableData]:
-    """Parse a list of all available tests from a loaded data.mat file formatted according to the Mobilise-D guidelines.
-
-    For each test we load the list of available sensors and reference systems.
-
-    Parameters
-    ----------
-    data
-        The raw loaded matlab structure.
-        Use :func:`~mobgab.data.load_mobilised_matlab` to initially load the data.mat file into memory.
-
-    """
-    data_per_test = _parse_until_test_level(data, ("SU", "SU_INDIP", "SU_INDIP2", "Standards"))
-    return {
-        test_name: MobilisedAvailableData(
-            available_sensors=_extract_available_sensor_pos_(test_data),
-            available_reference_systems=_extract_available_reference_systems(test_data),
-        )
-        for test_name, test_data in data_per_test
-    }
-
-
 def _parse_until_test_level(
     data: sio.matlab.mat_struct,
     test_level_marker: Sequence[str],
@@ -474,7 +426,7 @@ def _parse_until_test_level(
             )
 
 
-def _process_test_data(
+def _process_test_data(  # noqa: C901, PLR0912
     test_data: sio.matlab.mat_struct,
     test_name: tuple[str, ...],
     *,
@@ -1172,14 +1124,16 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
                 raw_data_sensor=self.raw_data_sensor,
                 reference_system=self.reference_system,
                 sensor_positions=self.sensor_positions,
-                missing_sensor_error_type=self.missing_sensor_error_type if self.missing_sensor_error_type == "skip" else "ignore",
-                missing_reference_error_type=self.missing_reference_error_type if self.missing_reference_error_type == "skip" else "ignore",
+                missing_sensor_error_type=self.missing_sensor_error_type
+                if self.missing_sensor_error_type == "skip"
+                else "ignore",
+                missing_reference_error_type=self.missing_reference_error_type
+                if self.missing_reference_error_type == "skip"
+                else "ignore",
             ):
                 available_keys.append(key)
 
         return available_keys
-
-
 
     def _load_selected_data(self, property_name: str) -> MobilisedTestData:
         selected_file = self._get_selected_data_file(property_name)
@@ -1210,11 +1164,13 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             error_context=f"Test: {selected_test}, Selected Index: {self.group_label}",
         ):
             # If this returns false, aka test should be skipped, users have manipulated the index.
-            raise RuntimeError("A text listed in the index was marked as skipped when loading. "
-                               "This should not happen and might indicate that the index was manually modified, or "
-                               "the ``missing_sensor_error_type`` or ``missing_reference_error_type`` was set to "
-                               "``skip`` AFTER the object was initialized. "
-                               "This is not supported.")
+            raise RuntimeError(
+                "A text listed in the index was marked as skipped when loading. "
+                "This should not happen and might indicate that the index was manually modified, or "
+                "the ``missing_sensor_error_type`` or ``missing_reference_error_type`` was set to "
+                "``skip`` AFTER the object was initialized. "
+                "This is not supported."
+            )
 
         return test_data
 
