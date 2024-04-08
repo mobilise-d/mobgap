@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ML based LR classification (https://github.com/mobilise-d/mobgap/pull/106)
 - A evaluation/optimization pipeline for LRC (https://github.com/mobilise-d/mobgap/pull/106)
 - All the loader functions for the matlab format now have the option to skip a test, if either data or reference data 
-  is not available ()
+  is not available (https://github.com/mobilise-d/mobgap/pull/125)
 
 ### Changed
 
@@ -108,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- When data is loaded, the error/warning that none of the sensors where available is removed ()
+- When data is loaded, the error/warning that none of the sensors where available is removed (https://github.com/mobilise-d/mobgap/pull/125)
 
 ### Development
 
