@@ -1053,7 +1053,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         return out
 
-    def _relpath_to_precomputed_test_list(self) -> Path:
+    def _relpath_to_precomputed_test_list(self) -> PathLike:
         raise NotImplementedError
 
     def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:

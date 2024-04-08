@@ -1,0 +1,59 @@
+[
+    {
+        "key": [
+            "TimeMeasure1",
+            "Test5",
+            "Trial1"
+        ],
+        "value": {
+            "available_sensors": [
+                [
+                    "SU",
+                    "LowerBack"
+                ]
+            ],
+            "available_reference_systems": [
+                "Stereophoto",
+                "INDIP"
+            ]
+        }
+    },
+    {
+        "key": [
+            "TimeMeasure1",
+            "Test5",
+            "Trial2"
+        ],
+        "value": {
+            "available_sensors": [
+                [
+                    "SU",
+                    "LowerBack"
+                ]
+            ],
+            "available_reference_systems": [
+                "Stereophoto",
+                "INDIP"
+            ]
+        }
+    },
+    {
+        "key": [
+            "TimeMeasure1",
+            "Test11",
+            "Trial1"
+        ],
+        "value": {
+            "available_sensors": [
+                [
+                    "SU",
+                    "LowerBack"
+                ]
+            ],
+            "available_reference_systems": [
+                "Stereophoto",
+                "INDIP"
+            ]
+        }
+    }
+]
