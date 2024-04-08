@@ -8,12 +8,24 @@ import pandas as pd
 from mobgap.data import BaseGenericMobilisedDataset, GenericMobilisedDataset, matlab_dataset_docfiller
 
 
+# TODO:
+#  - [ ] Add version for Free Living
+#  - [ ] Add loader for clinical data
+#  - [ ] Think about how to represent "data quality" in the dataset
+#  - [ ] Check which tests should actually be used in the Clinical and the Free Living dataset for validation and only
+#        include those by default.
+
 @matlab_dataset_docfiller
 class TVSLabDataset(BaseGenericMobilisedDataset):
-    """A dataset containing all lab example data provided with mobgap.
+    """A dataset containing all Lab Data recorded within the Mobilise-D technical validation study.
+
+    .. warning:: The dataset is not yet available. The data will be made available end of June 2024. Then you need to
+        download the data from Zenodo and provide the path to the data folder.
 
     Parameters
     ----------
+    base_path
+        The path to the folder containing the data.
     %(file_loader_args)s
     %(dataset_memory_args)s
     %(general_dataset_args)s
@@ -61,7 +73,7 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
 
     _MEASUREMENT_CONDITION = "Laboratory"
 
-    def _relpath_to_precomputed_test_list(self) -> Path:
+    def _relpath_to_precomputed_test_list(self) -> str:
         return "test_list.json"
 
     @property
