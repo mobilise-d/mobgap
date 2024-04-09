@@ -1,6 +1,8 @@
 """Class to validate gait sequence detection results."""
 
 import warnings
+from collections.abc import Sequence
+from itertools import product
 from typing import Any, Callable, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
@@ -83,7 +85,7 @@ def calculate_matched_gsd_performance_metrics(
         This is required to calculate the ``matches`` parameter for this function.
 
     """
-    matches = _check_matches_sanity(matches)
+    matches = _check_sample_level_matches_sanity(matches)
 
     tp_samples = count_samples_in_match_intervals(matches, match_type="tp")
     fp_samples = count_samples_in_match_intervals(matches, match_type="fp")
@@ -344,7 +346,7 @@ def categorize_intervals(
     return categorized_intervals
 
 
-def _check_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
+def _check_sample_level_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
     # check if input is a dataframe
     if not isinstance(matches, pd.DataFrame):
         raise TypeError("`matches` must be of type `pandas.DataFrame`.")
@@ -400,6 +402,76 @@ def _get_false_matches_from_overlap_data(overlaps: list[Interval], interval: Int
             f_intervals.append([overlap.end, fn_end])
 
     return f_intervals
+
+
+def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Union[int, None]) -> pd.DataFrame:
+    """Add true negative intervals to the categorized intervals by inferring them from the other intervals.
+
+    This function requires sorted and non-overlapping intervals in `categorized_intervals`.
+    If `n_overall_samples` is not provided, an empty DataFrame is returned.
+    """
+    if n_overall_samples is None:
+        return pd.DataFrame(columns=["start", "end", "match_type"])
+
+    # add tn intervals
+    tn_intervals = []
+    for i, (start, _) in enumerate(categorized_intervals[["start", "end"]].itertuples(index=False)):
+        if i == 0:
+            if start > 0:
+                tn_intervals.append([0, start])
+        elif start > categorized_intervals.iloc[i - 1]["end"]:
+            tn_intervals.append([categorized_intervals.iloc[i - 1]["end"], start])
+
+    if categorized_intervals.iloc[-1]["end"] < n_overall_samples - 1:
+        tn_intervals.append([categorized_intervals.iloc[-1]["end"], n_overall_samples - 1])
+
+    tn_intervals = pd.DataFrame(tn_intervals, columns=["start", "end"])
+    tn_intervals["match_type"] = "tn"
+    return tn_intervals
+
+
+def plot_categorized_intervals(
+    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, categorized_intervals: pd.DataFrame
+) -> Figure:
+    """Plot the categorized intervals together with the detected and reference intervals."""
+    fig, ax = plt.subplots(figsize=(10, 3))
+    _plot_intervals_from_df(gsd_list_reference, 3, ax, color="orange")
+    _plot_intervals_from_df(gsd_list_detected, 2, ax, color="blue")
+    _plot_intervals_from_df(categorized_intervals.query("match_type == 'tp'"), 1, ax, color="green", label="TP")
+    _plot_intervals_from_df(categorized_intervals.query("match_type == 'fp'"), 1, ax, color="red", label="FP")
+    _plot_intervals_from_df(categorized_intervals.query("match_type == 'fn'"), 1, ax, color="purple", label="FN")
+    plt.yticks([1, 2, 3], ["Categorized", "Detected", "Reference"])
+    plt.ylim(0, 4)
+    plt.xlabel("Index")
+    leg = plt.legend(loc="upper right", bbox_to_anchor=(1, 1.2), ncol=3, frameon=False)
+    for handle in leg.legend_handles:
+        handle.set_linewidth(10)
+    plt.tight_layout()
+    return fig
+
+
+def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "reference"]) -> tuple[pd.DataFrame, bool]:
+    is_multindex = False
+    # check if index is a multiindex and raise warning if it is
+    if isinstance(ic_list.index, pd.MultiIndex):
+        is_multindex = True
+        ic_list.index = ic_list.index.to_flat_index()
+        ic_list.index.name = f"gs_id_{list_type}"
+    # check if indices are unique
+    if not ic_list.index.is_unique:
+        raise ValueError(f"The index of `gs_list_{list_type}` must be unique!")
+    return ic_list, is_multindex
+
+
+def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack[dict[str, Any]]) -> None:
+    label_set = False
+    for _, row in df.iterrows():
+        label = kwargs.pop("label", None)
+        if label and not label_set:
+            ax.hlines(y, row["start"], row["end"], lw=20, label=label, **kwargs)
+            label_set = True
+        else:
+            ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
 
 
 def find_matches_with_min_overlap(
@@ -553,145 +625,373 @@ def find_matches_with_min_overlap(
     return matches
 
 
-def get_matching_gs(
-    *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, matches: pd.DataFrame
+def combine_det_with_ref_without_matching(
+    *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame
 ) -> pd.DataFrame:
     """
-    Get the detected and reference gait sequences that are considered as matches.
+    Combine the detected and reference gait sequence metrics to one dataframe row-by-row based on their index.
+
+    This function is useful when the metrics you are working with are already aggregated on a higher level,
+    e.g., per participant, recording date, or trial.
+    When you're metrics are calculated on a gait sequence level,
+    refer to ~func:`~mobgap.gsd.evaluation.get_matching_gs` instead.
 
     Parameters
     ----------
-    gsd_list_detected
-       Each row contains a detected gait sequence interval as output from the GSD algorithms.
-       The respective start index is stored in a column named `start` and the stop index in a column named `end`.
-    gsd_list_reference
-       Gold standard to validate the detected gait sequences against.
-       Should have the same format as `gsd_list_detected`.
+    metrics_detected
+       Each row corresponds is characterized by a unique index and contains metrics estimated over
+       a group of walking bouts.
+       The columns contain the calculated metrics that should be compared to the reference metrics.
+       The index must be unique and correspond to the index of `metrics_reference`.
+    metrics_reference
+       Each row corresponds is characterized by a unique index and contains metrics estimated over
+       a group of walking bouts.
+       The columns contain the metrics serving as reference.
+       The index must be unique and correspond to the index of `metrics_detected`.
+
+    Returns
+    -------
+    combined_metrics: pd.DataFrame
+        The detected and reference metrics combined in one DataFrame for all indices present in both input DataFrames.
+        The columns are two-level MultiIndex columns, consisting of a `metrics` and an `origin` level.
+        As first column level, all columns present in both `metrics_detected` and `metrics_reference` are included.
+        The second column level indicates the origin of the respective value, either `detected` or `reference` for
+        metrics that were estimated based on the detected or reference gait sequences, respectively.
+    """
+    if not metrics_detected.index.is_unique:
+        raise ValueError("The index of `metrics_detected` must be unique!")
+    if not metrics_reference.index.is_unique:
+        raise ValueError("The index of `metrics_reference` must be unique!")
+
+    common_indices = metrics_detected.index.intersection(metrics_reference.index)
+    if len(common_indices) == 0:
+        raise ValueError("No common indices found in `metrics_detected` and `metrics_reference`.")
+
+    detected_metrics = metrics_detected.loc[common_indices]
+    reference_metrics = metrics_reference.loc[common_indices]
+
+    combined_metrics = _combine_detected_and_reference_metrics(detected_metrics, reference_metrics)
+    return combined_metrics
+
+
+def get_matching_gs(
+    *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame, matches: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Extract the detected and reference gait sequences that are considered as matches sequence-by-sequence.
+
+    Additionally, the metrics of the detected and reference gait sequences are extracted and returned in a DataFrame
+    for further comparison.
+    When your metrics are already aggregated on a higher level, such as daily, participant-wise, or session-wise,
+    refer to ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching` instead.
+
+    Parameters
+    ----------
+    metrics_detected
+       Each row corresponds to a detected gait sequence interval as output from the GSD algorithms.
+       The columns contain the metrics estimated for each respective gait sequence based on these detected intervals.
+       The columns present in both `metrics_detected` and `metrics_reference` are regarded for the matching,
+       while the other columns are discarded.
+    metrics_reference
+       Each row corresponds to a reference gait sequence interval as retrieved from the reference system.
+       The columns contain the metrics estimated for each respective gait sequence based on these reference intervals.
+       The columns present in both `metrics_detected` and `metrics_reference` are regarded for the matching,
+       while the other columns are discarded.
     matches
         A DataFrame containing the matched gait sequences
         as output by :func:`~mobgap.gsd.evaluation.find_matches_with_min_overlap`.
-        Expected to have the columns `gsd_id_detected`, `gsd_id_reference`, and `match_type`.
+        Must have been calculated based on the same interval data as `metrics_detected` and `metrics_reference`.
+        Expected to have the columns `gs_id_detected`, `gs_id_reference`, and `match_type`.
 
     Returns
     -------
     matches: pd.DataFrame
-        The detected gait sequences that are considered as matches.
+        The detected gait sequences that are considered as matches assigned to the reference sequences
+        they are matching with.
+        As index, the unique identifier for each matched gait sequence assigned in the `matches` DataFrame is used.
+        The columns are two-level MultiIndex columns, consisting of a `metrics` and an `origin` level.
+        As first column level, all columns present in both `metrics_detected` and `metrics_reference` are included.
+        The second column level indicates the origin of the respective value, either `detected` or `reference` for
+        metrics that were estimated based on the detected or reference gait sequences, respectively.
 
     Examples
     --------
     >>> from mobgap.gsd.evaluation import find_matches_with_min_overlap
     >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> matches = find_matches_with_min_overlap(detected, reference)
-    >>> matched_gs = get_matching_gs(detected, reference, matches)
+    >>> reference = pd.DataFrame([[0, 10, 0], [21, 29, 1]], columns=["start", "end", "id"]).set_index("id")
+    >>> detected_metrics = pd.DataFrame([[1, 2, 0], [1, 2, 1]], columns=["metric_1", "metric_2", "id"]).set_index("id")
+    >>> reference_metrics = pd.DataFrame([[2, 3, 0], [2, 3, 1]], columns=["metric_1", "metric_2", "id"]).set_index("id")
+    >>> matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    >>> matched_gs = get_matching_gs(
+    ...     metrics_detected=detected_metrics, metrics_reference=reference_metrics, matches=matches
+    ... )
+        metric metric_1           metric_2
+        origin detected reference detected reference
+    id
+    0             1         2        2         3
+    1             1         2        2         3
+
     """
-    # TODO: ensure that detected and reference have the same column names
-    # TODO: ensure that indices can be accessed -> are analogous to entries in matches df
+    matches = _check_gs_level_matches_sanity(matches)
+
     tp_matches = matches.query("match_type == 'tp'")
-    detected_cols = gsd_list_detected.columns
-    detected_matches = gsd_list_detected.loc[tp_matches["gs_id_detected"]]
-    reference_matches = gsd_list_reference.loc[tp_matches["gs_id_reference"]]
 
-    result = detected_matches.merge(reference_matches, left_index=True, right_index=True, suffixes=("_det", "_ref"))
+    detected_matches = _extract_tp_matches(metrics_detected, tp_matches["gs_id_detected"])
+    reference_matches = _extract_tp_matches(metrics_reference, tp_matches["gs_id_reference"])
+
+    matches = _combine_detected_and_reference_metrics(detected_matches, reference_matches)
+    return matches
+
+
+def _check_gs_level_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
+    # check if input is a dataframe
+    if not isinstance(matches, pd.DataFrame):
+        raise TypeError("`matches` must be of type `pandas.DataFrame`.")
+    # check for correct columns
+    try:
+        matches = matches[["gs_id_detected", "gs_id_reference", "match_type"]]
+    except KeyError as e:
+        raise ValueError(
+            "`matches` must have columns named `gs_id_detected`, `gs_id_reference`, and `match_type`."
+        ) from e
+    # check if `match_type` column contains only valid values
+    if not matches["match_type"].isin(["tp", "fp", "fn"]).all():
+        raise ValueError("`match_type` must contain only the values 'tp', 'fp', and 'fn'.")
+    return matches
+
+
+def _extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.DataFrame:
+    try:
+        matches = metrics.loc[match_indices]
+    except KeyError as e:
+        raise ValueError(
+            "The indices from the provided `matches` DataFrame do not fit to the metrics DataFrames. "
+            "Please ensure that the `matches` DataFrame is calculated based on the same data "
+            "as the `metrics` DataFrames and thus refers to valid indices."
+        ) from e
+    return matches
+
+
+def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: pd.DataFrame) -> pd.DataFrame:
+    common_columns = list(set(reference.columns).intersection(detected.columns))
+    if len(common_columns) == 0:
+        raise ValueError("No common columns found in `metrics_detected` and `metrics_reference`.")
+
+    detected = detected[common_columns]
+    reference = reference[common_columns]
+
+    matches = detected.merge(reference, left_index=True, right_index=True, suffixes=("_det", "_ref"))
+
+    # construct MultiIndex columns
+    matches.columns = pd.MultiIndex.from_product(
+        [["detected", "reference"], common_columns], names=["origin", "metric"]
+    )
+    # make 'metrics' level the uppermost level and sort columns accordingly for readability
+    matches = matches.swaplevel(axis=1).sort_index(axis=1, level=0)
+    return matches
+
+
+def assign_error(df: pd.DataFrame, metric: Union[str, list["str"]]) -> pd.DataFrame:
+    """Derive error metrics from given columns of a DataFrame and add them to the DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the columns to derive the error metrics from.
+        It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
+        or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
+        Needs to have a MultiIndex column structure with the first level being the metric name and the second level
+        being the origin of the metric (e.g., "detected" or "reference").
+    metric : Union[str, list[str]]
+        The name of the metric or a list of metric names for which the error metrics should be calculated.
+        Each of the specified metrics must be present in `df` together with a reference and a detected value.
     """
-    # Resetting index to make 'row_index' as a regular column
-    result.reset_index(inplace=True)
-
-    # Adding 'source' column to indicate the source DataFrame
-    result['source'] = result['level_0']
-
-    # Dropping the level_0 column
-    result.drop(columns='level_0', inplace=True)
-    """
-    result.columns = pd.MultiIndex.from_product([detected_cols, ["detected", "reference"]], names=["metric", "origin"])
-    # concatenated_matches = pd.concat([detected_matches, reference_matches], axis=1)
-    return result
-
-
-def assign_error(df: pd.DataFrame, value_prefix: str) -> pd.DataFrame:
-    # TODO: input validation
-    # TODO: ensure cols are sorted?
-    insert_index = df.columns.get_loc(value_prefix).stop
-    df.insert(insert_index, (value_prefix, "error"), df[value_prefix]["detected"] - df[value_prefix]["reference"])
-    df.insert(insert_index + 1, (value_prefix, "rel_error"), df[value_prefix]["error"] / df[value_prefix]["reference"])
-    df.insert(insert_index + 2, (value_prefix, "abs_rel_error"), df[value_prefix]["rel_error"].abs())
-    df.insert(insert_index + 3, (value_prefix, "abs_error"), df[value_prefix]["error"].abs())
+    if isinstance(metric, str):
+        metric = [metric]
+    for value in metric:
+        if value not in df.columns.get_level_values("metric"):
+            raise ValueError(f"Column '{value}' not found in DataFrame.")
+        try:
+            detected_value = df[value]["detected"]
+            reference_value = df[value]["reference"]
+        except KeyError as e:
+            raise ValueError(f"Column '{value}' does not contain both 'detected' and 'reference' values.") from e
+        # explicitly calculate the insertion order to keep columns in a logical order
+        insert_index = df.columns.get_loc(value).stop
+        df.insert(insert_index, (value, "error"), detected_value - reference_value)
+        df.insert(insert_index + 1, (value, "rel_error"), df[value]["error"] / reference_value)
+        df.insert(insert_index + 2, (value, "abs_rel_error"), df[value]["rel_error"].abs())
+        df.insert(insert_index + 3, (value, "abs_error"), df[value]["error"].abs())
     return df
 
 
-def agg_metrics(df: pd.DataFrame, aggregate_funcs: dict[str, list[Callable]]) -> pd.DataFrame:
-    res = df.agg(aggregate_funcs)
-    return res
+# TODO: how to handle icc?
+"""
+def icc(matches_df: pd.DataFrame, formatter:str="{icc:#.2f} {_a}[{q05:.2f}, {q95:.2f}]") -> str:
+    Calculate the ICC.
 
+    We expect the df to the "AverageStrideSpeed_ref", "AverageStrideSpeed_single" columns.
 
-def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Union[int, None]) -> pd.DataFrame:
-    """Add true negative intervals to the categorized intervals by inferring them from the other intervals.
-
-    This function requires sorted and non-overlapping intervals in `categorized_intervals`.
-    If `n_overall_samples` is not provided, an empty DataFrame is returned.
+    only_speed = matches_df.loc[:, ["AverageStrideSpeed_ref", "AverageStrideSpeed_single"]].rename(
+        columns=lambda c: tuple(c.split("_"))
+    )
+    only_speed.columns = pd.MultiIndex.from_tuples(only_speed.columns, names=("measure", "system"))
+    only_speed = (
+        only_speed.assign(wb_uid=lambda df_: pd.factorize(df_.index)[0])
+        .set_index("wb_uid", append=True)
+        .stack("system")
+        .reset_index(["system", "wb_uid"])
+        .astype({"AverageStrideSpeed": float})
+    )
+    icc, ci95 = intraclass_corr(only_speed, ratings="AverageStrideSpeed", raters="system", targets="wb_uid").loc[
+        0, ["ICC", "CI95%"]
+    ]
+    return formatter.format(icc=icc, _a=NO_BREAK_SPACE, **dict(zip(("q05", "q95"), ci95)))
     """
-    if n_overall_samples is None:
-        return pd.DataFrame(columns=["start", "end", "match_type"])
-
-    # add tn intervals
-    tn_intervals = []
-    for i, (start, _) in enumerate(categorized_intervals[["start", "end"]].itertuples(index=False)):
-        if i == 0:
-            if start > 0:
-                tn_intervals.append([0, start])
-        elif start > categorized_intervals.iloc[i - 1]["end"]:
-            tn_intervals.append([categorized_intervals.iloc[i - 1]["end"], start])
-
-    if categorized_intervals.iloc[-1]["end"] < n_overall_samples - 1:
-        tn_intervals.append([categorized_intervals.iloc[-1]["end"], n_overall_samples - 1])
-
-    tn_intervals = pd.DataFrame(tn_intervals, columns=["start", "end"])
-    tn_intervals["match_type"] = "tn"
-    return tn_intervals
 
 
-def plot_categorized_intervals(
-    gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, categorized_intervals: pd.DataFrame
-) -> Figure:
-    """Plot the categorized intervals together with the detected and reference intervals."""
-    fig, ax = plt.subplots(figsize=(10, 3))
-    _plot_intervals_from_df(gsd_list_reference, 3, ax, color="orange")
-    _plot_intervals_from_df(gsd_list_detected, 2, ax, color="blue")
-    _plot_intervals_from_df(categorized_intervals.query("match_type == 'tp'"), 1, ax, color="green", label="TP")
-    _plot_intervals_from_df(categorized_intervals.query("match_type == 'fp'"), 1, ax, color="red", label="FP")
-    _plot_intervals_from_df(categorized_intervals.query("match_type == 'fn'"), 1, ax, color="purple", label="FN")
-    plt.yticks([1, 2, 3], ["Categorized", "Detected", "Reference"])
-    plt.ylim(0, 4)
-    plt.xlabel("Index")
-    leg = plt.legend(loc="upper right", bbox_to_anchor=(1, 1.2), ncol=3, frameon=False)
-    for handle in leg.legend_handles:
-        handle.set_linewidth(10)
-    plt.tight_layout()
-    return fig
+def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tuple[float, float]:
+    """Calculate the quantiles of a measure."""
+    return tuple(series.quantile([lower, upper]).to_numpy())
 
 
-def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "reference"]) -> tuple[pd.DataFrame, bool]:
-    is_multindex = False
-    # check if index is a multiindex and raise warning if it is
-    if isinstance(ic_list.index, pd.MultiIndex):
-        is_multindex = True
-        ic_list.index = ic_list.index.to_flat_index()
-        ic_list.index.name = f"gs_id_{list_type}"
-    # check if indices are unique
-    if not ic_list.index.is_unique:
-        raise ValueError(f"The index of `gs_list_{list_type}` must be unique!")
-    return ic_list, is_multindex
+def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
+    """Calculate the limit of agreement of a measure."""
+    mean = series.mean()
+    std = series.std()
+    return mean - std * agreement, mean + std * agreement
 
 
-def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack[dict[str, Any]]) -> None:
-    label_set = False
-    for _, row in df.iterrows():
-        label = kwargs.pop("label", None)
-        if label and not label_set:
-            ax.hlines(y, row["start"], row["end"], lw=20, label=label, **kwargs)
-            label_set = True
-        else:
-            ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
+def mdc(error: pd.Series) -> float:
+    # TODO: isn't this supposed to be a tuple then?
+    """Calculate the mean difference and the confidence interval of a measure."""
+    return 1.96 * np.sqrt(2) * error.std()
+
+
+def get_aggregator(
+    aggregate: Union[str, Sequence[str]],
+    metric: Union[str, Sequence[str]],
+    origin: Union[str, Sequence[str]] = ("detected", "reference"),
+) -> dict[tuple[str], list[str]]:
+    """Create a dictionary for collecting aggregated metrics.
+
+    Contains the aggregation functions for a set of aggregations, metrics to aggregate,
+    and origins to extract the metrics from. The return value can directly be passed to
+    ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregate_funcs` parameter.
+
+    Parameters
+    ----------
+    aggregate : Union[str, Sequence[str]]
+        The aggregation functions to apply to the metrics, e.g. "mean" (mean), "std" (standard deviation),
+        "quantiles" (tuple of 5th and 95th percent quantile), "loa" (tuple of limits of agreement),
+        or "mdc" (mean difference).
+    metric : Union[str, Sequence[str]]
+        The metrics for which the aggregates should be applied.
+    origin : Union[str, Sequence[str]], optional
+        The origin of the data to aggregate over, e.g. "detected" or "reference" to directly aggregate over the data,
+        or "error", "rel_error", "abs_error", or "abs_rel_error" to aggregate over the errors between
+        detected and reference.
+
+    Returns
+    -------
+    aggregator : dict[tuple[str], list[str]]:
+        A dictionary containing the aggregation functions for each metric and origin combination in the form of
+        {("metric", "origin"): [aggregation_function, ...], ...}.
+
+    Note
+    ----
+    If you want to apply different aggregations to different metrics or origins,
+    you can call this function multiple times and merge the results.
+    However, be aware that the aggregations will be overwritten if the same metric and origin combinations
+    are used in multiple calls.
+    """
+    if isinstance(aggregate, str):
+        aggregate = [aggregate]
+    aggregate = list(set(aggregate))
+    if isinstance(metric, str):
+        metric = [metric]
+    metric = list(set(metric))
+    if isinstance(origin, str):
+        origin = [origin]
+    origin = list(set(origin))
+
+    # check if all aggregate strings are valid functions
+    aggregate_funcs = []
+    for agg in aggregate:
+        # custom functions
+        if agg in globals() and callable(globals()[agg]):
+            aggregate_funcs.append(globals()[agg])
+            continue
+        # built-in functions
+        try:
+            callable(getattr(pd.Series(), agg))
+        except AttributeError as e:
+            raise ValueError(f"Function '{agg}' is not implemented and thus not a valid aggregation function.") from e
+        aggregate_funcs.append(agg)
+
+    aggregator = {}
+    metric_origin = list(product(metric, origin))
+    for metric_origin_comb in metric_origin:
+        aggregator[metric_origin_comb] = aggregate_funcs
+    return aggregator
+
+
+def get_default_aggregator() -> dict[tuple[str], list[Callable]]:
+    """
+    Return a dictionary containing all important aggregations utilized in Mobilise-D.
+
+    This dictionary can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregate_funcs`
+    parameter to calculate the desired metrics.
+    """
+    # TODO: replace with meaningful default values
+    default_agg = {
+        **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
+        **get_aggregator(aggregate="mean", metric="metric_1", origin="reference"),
+        **get_aggregator(aggregate="mean", metric="metric_2", origin="rel_error"),
+    }
+    return default_agg
+
+
+def apply_aggregations(df: pd.DataFrame, aggregate_funcs: dict[tuple[str], list[str]]) -> pd.DataFrame:
+    """Apply a set of aggregation functions to a metrics DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the metrics to aggregate.
+        It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
+        or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
+        Needs to have a MultiIndex column structure with the first level being the metric name and the second level
+        being the origin of the metric (e.g., "detected" or "reference").
+        If error metrics are of interest, they can also be included
+        by calling ~func:`~mobgap.gsd.evaluation.assign_error` beforehand.
+
+    aggregate_funcs : dict[tuple[str], list[str]]
+        A dictionary containing the aggregation functions for each metric and origin combination in the form of
+        {("metric", "origin"): [aggregation_function, ...], ...}.
+        Can be created using ~func:`~mobgap.gsd.evaluation.get_aggregator`
+        or ~func:`~mobgap.gsd.evaluation.get_default_aggregator`.
+    """
+    _sanitize_combined_metrics(df, aggregate_funcs.keys())
+    # TODO: input validation
+    agg_metrics = df.agg(aggregate_funcs)
+    agg_metrics.index.name = "aggregate"
+    agg_metrics = agg_metrics.stack(level=("metric", "origin"), future_stack=True).dropna()
+    agg_metrics = agg_metrics.reorder_levels(["metric", "origin", "aggregate"]).sort_index(level=0)
+    return agg_metrics
+
+
+def _sanitize_combined_metrics(df: pd.DataFrame, metric_origin_combinations: list[tuple[str]]) -> None:
+    # check if input is a dataframe
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("`df` must be of type `pandas.DataFrame`.")
+    # check if input has the correct MultiIndex structure
+    if not all([isinstance(df.columns, pd.MultiIndex), df.columns.names == ["metric", "origin"]]):
+        raise ValueError("`df` must have a MultiIndex column structure.")
+    # check if all metric_origin_combinations are present in the input
+    for metric_origin_comb in metric_origin_combinations:
+        if metric_origin_comb not in df.columns:
+            raise ValueError(f"Column '{metric_origin_comb}' not found in DataFrame.")
 
 
 __all__ = [
@@ -700,9 +1000,19 @@ __all__ = [
     "calculate_matched_gsd_performance_metrics",
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
+    "combine_det_with_ref_without_matching",
+    "get_matching_gs",
+    "assign_error",
+    "quantiles",
+    "loa",
+    "mdc",
+    "get_aggregator",
+    "get_default_aggregator",
+    "apply_aggregations",
 ]
 
 if __name__ == "__main__":
+    """
     detected = pd.DataFrame([[0, 10, 0], [11, 12, 1], [20, 30, 2]], columns=["start", "end", "id"]).set_index("id")
     reference = pd.DataFrame([[0, 10, 0], [13, 14, 1], [21, 29, 2]], columns=["start", "end", "id"]).set_index("id")
     matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
@@ -712,22 +1022,39 @@ if __name__ == "__main__":
     matched_gs = get_matching_gs(
         gsd_list_detected=detected_metrics, gsd_list_reference=detected_metrics, matches=matches
     )
-    matches_with_err = matched_gs.pipe(lambda df_: assign_error(df_, "metric_1")).pipe(
-        lambda df_: assign_error(df_, "metric_2")
-    )
+    matches_with_err = matched_gs.pipe(lambda df_: assign_error(df_, ["metric_1", "metric_2"]))
     print(matches_with_err)
-    """
-    aggs = {
-        "mean": ("metric_1", "mean"),
-        "mean": ("metric_2", "mean"),
-        "std": ("metric_1", "std"),
+    aggregator = get_default_aggregator()
+    # TODO: values are overwritten when keys are reused - is this a problem?
+    aggregator = {
+        **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
+        **get_aggregator(aggregate=["loa", "mdc", "quantiles"], metric="metric_2", origin="rel_error"),
     }
+    print(aggregator)
+    agg_results = matches_with_err.pipe(apply_aggregations, aggregator)
+    print(agg_results)
     """
-    aggs = {
-        ("metric_1", "detected"): ["mean", "std"],
-        ("metric_2", "detected"): ["mean", "std"],
-        ("metric_1", "reference"): ["mean"],
-    }
-    agg_results = matches_with_err.pipe(agg_metrics, aggs)
-    agg_results = agg_results.stack(level=(0, 1), future_stack=True).dropna()
+    # construct MultiIndex
+    detected = pd.DataFrame([[0, 10, 0, 0], [20, 30, 0, 1]], columns=["start", "end", "id_0", "id_1"]).set_index(
+        ["id_0", "id_1"]
+    )
+    reference = pd.DataFrame([[0, 10, 0, 0], [21, 29, 0, 1]], columns=["start", "end", "id_0", "id_1"]).set_index(
+        ["id_0", "id_1"]
+    )
+    detected_metrics = pd.DataFrame(
+        [[1, 2, 0, 0], [1, 2, 0, 1]], columns=["metric_1", "metric_2", "id_0", "id_1"]
+    ).set_index(["id_0", "id_1"])
+    reference_metrics = pd.DataFrame(
+        [[3, 4, 0, 0], [3, 4, 0, 1]], columns=["metric_2", "metric_1", "id_0", "id_1"]
+    ).set_index(["id_0", "id_1"])
+    matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    matched_gs = get_matching_gs(
+        metrics_detected=detected_metrics, metrics_reference=reference_metrics, matches=matches
+    )
+    matches = combine_det_with_ref_without_matching(
+        metrics_detected=detected_metrics, metrics_reference=reference_metrics
+    )
+    matches_with_err = matches.pipe(lambda df_: assign_error(df_, ["metric_1", "metric_2"]))
+    aggregator = get_default_aggregator()
+    agg_results = matches_with_err.pipe(apply_aggregations, aggregator)
     print(agg_results)
