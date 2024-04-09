@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Optional, Union
 
@@ -13,6 +14,66 @@ from mobgap.data import BaseGenericMobilisedDataset, GenericMobilisedDataset, ma
 #  - [ ] Think about how to represent "data quality" in the dataset
 #  - [ ] Check which tests should actually be used in the Clinical and the Free Living dataset for validation and only
 #        include those by default.
+
+
+@lru_cache(maxsize=1)
+def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, list[str]], pd.DataFrame]:
+    clinical_info = (
+        pd.read_excel(
+            path,
+            sheet_name="Participant Characteristics",
+            engine="openpyxl",
+            header=[0, 1],
+            na_values=["N/A", "N.A.", "N.A"],
+        ).iloc[:-2]  # We need to remove the last two rows, as the Excel file contains "summary" rows at the end
+    )
+    cols = clinical_info.columns.to_list()
+    # We delay the setting of the index, as we need to set the correct dtypes first.
+    # For some reason that is not possible in the loading step.
+    clinical_info = (
+        clinical_info.astype({cols[0]: int})
+        .astype({cols[0]: str})
+        .set_index(cols[:2])
+        .rename_axis(["participant_id", "cohort"])
+        .swaplevel()
+        .sort_index()
+    )
+    data_quality = pd.read_excel(
+        path, sheet_name="Data Quality Summary", engine="openpyxl", header=[0, 1], index_col=[0, 1]
+    )
+
+    # Set better dtypes
+
+    clinical_info = clinical_info.rename(
+        columns=lambda c: c.lower().replace("(", "").replace(")", "").replace(" ", "_").replace("-", "_")
+    ).rename(columns={"updrsiii": "updrs3", "6mwt_distancewalked": "6mwt_distance_walked", "h&y": "h_and_y"})
+    clinical_info_cols = clinical_info.columns.to_list()
+    clinical_info_categories = {}
+    for c in clinical_info_cols:
+        clinical_info_categories.setdefault(c[0], []).append(c[1])
+
+    # Drop the first level of the columns
+    clinical_info = clinical_info.droplevel(0, axis=1)
+    original_col_order = clinical_info.columns.to_list()
+    clinical_info = (
+        clinical_info.assign(
+            handedness=lambda df_: df_.handedness.str.strip(" '").replace({"R": "right", "L": "left"}),
+            sex=lambda df_: df_.sex.str.lower(),
+            fall_history=lambda df_: df_.fall_history.str.lower().replace({"yes": True, "no": False}),
+        )[original_col_order]
+        .assign()
+        .astype(
+            {
+                "age": "Int8",
+                "bmi": "float32",
+                "sex": pd.CategoricalDtype(["female", "male"]),
+                "handedness": pd.CategoricalDtype(["left", "right"]),
+                "fall_history": "boolean",
+            }
+        )
+    )
+
+    return clinical_info, clinical_info_categories, data_quality
 
 
 @matlab_dataset_docfiller
@@ -93,11 +154,46 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
     def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
         return path.parents[2].name, path.parents[1].name
 
+    @property
+    def unique_center_id(self) -> str:
+        return (
+            self.index[["participant_id", "cohort"]]
+            .drop_duplicates()
+            .assign(center_id=lambda df_: df_.participant_id.str[0])
+            .set_index(["participant_id", "cohort"])
+            .center_id
+        )
+
+    @property
+    def participant_information(self) -> pd.DataFrame:
+        info = _load_participant_information(Path(self.base_path) / "participant_information.xlsx")[0]
+        selected_values = info.loc[info.index.get_level_values("participant_id").isin(self.index["participant_id"])]
+        return selected_values
+
+    def _get_info_categories(self) -> dict[str, list[str]]:
+        return _load_participant_information(Path(self.base_path) / "participant_information.xlsx")[1]
+
+    @property
+    def demographic_information(self) -> pd.DataFrame:
+        return self.participant_information[self._get_info_categories()["demographics"]]
+
+    @property
+    def general_clinical_information(self) -> pd.DataFrame:
+        return self.participant_information[self._get_info_categories()["general_clinical_characteristics"]]
+
+    @property
+    def cohort_clinical_information(self) -> pd.DataFrame:
+        return self.participant_information[self._get_info_categories()["cohort_specific_clinical_characteristics"]]
+
+    @property
+    def walking_aid_use_information(self) -> pd.DataFrame:
+        return self.participant_information[self._get_info_categories()["walking_aid_use"]]
+
 
 ds = TVSLabDataset(
     "/home/arne/Downloads/TVS_DATA_ALL/", missing_reference_error_type="ignore", reference_system="INDIP"
 )
-
 # ds._create_precomputed_test_list()
 
-print(ds.index)
+
+print(ds.general_clinical_information)
