@@ -1,6 +1,7 @@
 """Class to validate gait sequence detection results."""
 
-from typing import Any, Optional, Union, Literal
+import warnings
+from typing import Any, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,9 +27,7 @@ from mobgap.utils.evaluation import (
 
 
 def calculate_matched_gsd_performance_metrics(
-    matches: pd.DataFrame,
-    *,
-    zero_division: Literal["warn", 0, 1] = "warn"
+    matches: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate commonly known performance metrics for based on the matched overlap with the reference.
@@ -115,7 +114,7 @@ def calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
-    zero_division: Literal["warn", 0, 1] = "warn"
+    zero_division_hint: Literal["warn", "raise", False] = "warn",
 ) -> dict[str, Union[float, int]]:
     """
     Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
@@ -148,6 +147,11 @@ def calculate_unmatched_gsd_performance_metrics(
        Should have the same format as `gsd_list_detected`.
     sampling_rate_hz
         Sampling frequency of the recording in Hz.
+    zero_division_hint : "warn", "raise" or False, default="warn"
+        Controls the behavior when there is a zero division. If set to "warn",
+        affected metrics are set to NaN and a warning is raised.
+        If set to "raise", a ZeroDivisionError is raised.
+        If set to False, the warning is suppressed and the affected metrics are set to NaN.
 
     Returns
     -------
@@ -161,22 +165,49 @@ def calculate_unmatched_gsd_performance_metrics(
         For categorizing the detected and reference gait sequences on a sample-wise level.
 
     """
-    # estimate duration metrics
+    if sampling_rate_hz <= 0:
+        raise ValueError("The sampling rate must be larger than 0.")
+
+    # estimate basic duration metrics
     reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
     detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
-    gs_relative_duration_error = np.array(gs_duration_error_s) / reference_gs_duration_s
     gs_absolute_duration_error_s = abs(gs_duration_error_s)
-    gs_absolute_relative_duration_error = np.array(gs_absolute_duration_error_s) / reference_gs_duration_s
-    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
 
-    # estimate gs count metrics
+    # estimate basic gs count metrics
     detected_num_gs = len(gsd_list_detected)
     reference_num_gs = len(gsd_list_reference)
     num_gs_error = detected_num_gs - reference_num_gs
-    num_gs_relative_error = num_gs_error / np.array(reference_num_gs)
     num_gs_absolute_error = abs(num_gs_error)
-    num_gs_absolute_relative_error = num_gs_absolute_error / np.array(reference_num_gs)
+
+    # check if reference gs are present to prevent zero division
+    if reference_gs_duration_s == 0:
+        if zero_division_hint and zero_division_hint not in ["warn", "raise"]:
+            raise ValueError('"zero_division" must be set to "warn", "raise" or False!')
+        if zero_division_hint == "raise":
+            raise ZeroDivisionError(
+                "Zero division occurred because no gait sequences were detected in the reference data."
+            )
+        if zero_division_hint == "warn":
+            warnings.warn(
+                "Zero division occurred because no gait sequences were detected in the reference data. "
+                "Affected metrics are set to NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+        gs_relative_duration_error = np.nan
+        gs_absolute_relative_duration_error = np.nan
+        num_gs_relative_error = np.nan
+        num_gs_absolute_relative_error = np.nan
+    # no zero division, calculate relative metrics
+    else:
+        gs_relative_duration_error = np.array(gs_duration_error_s) / reference_gs_duration_s
+        gs_absolute_relative_duration_error = np.array(gs_absolute_duration_error_s) / reference_gs_duration_s
+        num_gs_relative_error = num_gs_error / np.array(reference_num_gs)
+        num_gs_absolute_relative_error = num_gs_absolute_error / np.array(reference_num_gs)
+
+    # logarithmic relative metrics
+    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
     num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)
 
     gsd_metrics = {
