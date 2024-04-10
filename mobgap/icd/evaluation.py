@@ -12,6 +12,8 @@ from mobgap.utils.evaluation import precision_recall_f1_score
 
 def calculate_matched_icd_performance_metrics(
     matches: pd.DataFrame,
+    *,
+    zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate performance metrics for initial contact detection results.
@@ -38,6 +40,9 @@ def calculate_matched_icd_performance_metrics(
     matches: pd.DataFrame
         A dataframe containing the matches between detected and reference initial contacts as output
         by :func:`~mobgap.icd.evaluation.evaluate_initial_contact_list`.
+    zero_division : "warn", 0 or 1, default="warn"
+        Sets the value to return when there is a zero division. If set to
+        "warn", this acts as 0, but warnings are also raised.
 
     Returns
     -------
@@ -57,7 +62,7 @@ def calculate_matched_icd_performance_metrics(
     fn_samples = len(matches[matches["match_type"] == "fn"])
 
     # estimate performance metrics
-    precision_recall_f1 = precision_recall_f1_score(matches)
+    precision_recall_f1 = precision_recall_f1_score(matches, zero_division=zero_division)
 
     icd_metrics = {
         "tp_samples": tp_samples,

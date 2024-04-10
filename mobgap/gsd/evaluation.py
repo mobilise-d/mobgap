@@ -1,6 +1,6 @@
 """Class to validate gait sequence detection results."""
 
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +27,8 @@ from mobgap.utils.evaluation import (
 
 def calculate_matched_gsd_performance_metrics(
     matches: pd.DataFrame,
+    *,
+    zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate commonly known performance metrics for based on the matched overlap with the reference.
@@ -69,6 +71,9 @@ def calculate_matched_gsd_performance_metrics(
         A DataFrame as returned by :func:`~mobgap.gsd.evaluation.categorize_intervals`.
         It contains the matched intervals between algorithm output and reference with their `start` and `end` index
         and the respective `match_type`.
+    zero_division : "warn", 0 or 1, default="warn"
+        Sets the value to return when there is a zero division. If set to
+        "warn", this acts as 0, but warnings are also raised.
 
     Returns
     -------
@@ -91,16 +96,16 @@ def calculate_matched_gsd_performance_metrics(
     tn_samples = count_samples_in_match_intervals(matches, match_type="tn")
 
     # estimate performance metrics
-    precision_recall_f1 = precision_recall_f1_score(matches)
+    precision_recall_f1 = precision_recall_f1_score(matches, zero_division=zero_division)
 
     gsd_metrics = {"tp_samples": tp_samples, "fp_samples": fp_samples, "fn_samples": fn_samples, **precision_recall_f1}
 
     # tn-dependent metrics
     if tn_samples != 0:
         gsd_metrics["tn_samples"] = tn_samples
-        gsd_metrics["specificity"] = specificity_score(matches)
-        gsd_metrics["accuracy"] = accuracy_score(matches)
-        gsd_metrics["npv"] = npv_score(matches)
+        gsd_metrics["specificity"] = specificity_score(matches, zero_division=zero_division)
+        gsd_metrics["accuracy"] = accuracy_score(matches, zero_division=zero_division)
+        gsd_metrics["npv"] = npv_score(matches, zero_division=zero_division)
 
     return gsd_metrics
 
@@ -110,6 +115,7 @@ def calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
+    zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
