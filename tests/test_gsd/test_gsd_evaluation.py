@@ -460,6 +460,17 @@ class TestGeneralGsdPerformanceMetrics:
 class TestMobilisedGsdPerformanceMetrics:
     """Tests for calculate_unmatched_gsd_performance_metrics method for gsd validation."""
 
+    def test_raise_implausible_sampling_rate(self):
+        data = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
+        with pytest.raises(ValueError):
+            calculate_unmatched_gsd_performance_metrics(
+                gsd_list_detected=data, gsd_list_reference=data, sampling_rate_hz=0
+            )
+        with pytest.raises(ValueError):
+            calculate_unmatched_gsd_performance_metrics(
+                gsd_list_detected=data, gsd_list_reference=data, sampling_rate_hz=-1
+            )
+
     def test_output(self, snapshot):
         reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
         detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
@@ -475,3 +486,40 @@ class TestMobilisedGsdPerformanceMetrics:
             gsd_list_detected=detected, gsd_list_reference=reference, sampling_rate_hz=10
         )
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics_no_match")
+
+    def test_raise_zero_division_no_reference(self):
+        reference = pd.DataFrame(columns=["start", "end"])
+        detected = pd.DataFrame([[10, 15], [30, 35]], columns=["start", "end"])
+        with pytest.raises(ZeroDivisionError):
+            calculate_unmatched_gsd_performance_metrics(
+                gsd_list_detected=detected,
+                gsd_list_reference=reference,
+                sampling_rate_hz=10,
+                zero_division_hint="raise",
+            )
+
+    def test_warning_zero_division_no_reference(self):
+        reference = pd.DataFrame(columns=["start", "end"])
+        detected = pd.DataFrame([[10, 15], [30, 35]], columns=["start", "end"])
+        with pytest.warns(UserWarning):
+            calculate_unmatched_gsd_performance_metrics(
+                gsd_list_detected=detected, gsd_list_reference=reference, sampling_rate_hz=10, zero_division_hint="warn"
+            )
+
+    def test_raise_invalid_zero_division_hint(self):
+        reference = pd.DataFrame(columns=["start", "end"])
+        with pytest.raises(ValueError):
+            calculate_unmatched_gsd_performance_metrics(
+                gsd_list_detected=reference,
+                gsd_list_reference=reference,
+                sampling_rate_hz=10,
+                zero_division_hint="invalid",
+            )
+
+    def test_output_no_reference(self, snapshot):
+        reference = pd.DataFrame(columns=["start", "end"])
+        detected = pd.DataFrame([[10, 15], [30, 35]], columns=["start", "end"])
+        metrics = calculate_unmatched_gsd_performance_metrics(
+            gsd_list_detected=detected, gsd_list_reference=reference, sampling_rate_hz=10
+        )
+        snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics_no_reference")

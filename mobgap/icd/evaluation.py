@@ -11,9 +11,7 @@ from mobgap.utils.evaluation import precision_recall_f1_score
 
 
 def calculate_matched_icd_performance_metrics(
-    matches: pd.DataFrame,
-    *,
-    zero_division: Literal["warn", 0, 1] = "warn"
+    matches: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate performance metrics for initial contact detection results.
