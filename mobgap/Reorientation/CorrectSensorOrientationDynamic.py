@@ -49,13 +49,22 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     mytime = np.arange(len(chosenacc)) / sampling_rate_hz
     quaternion = np.zeros((len(mytime), 4))
 
-    for t in range(len(mytime)):
-        data = pd.concat([chosenacc.iloc[[t]], chosengyr.iloc[[t]]], axis=1) # In Mobilise-D data are already in m/s2 and deg/s as required by the gaitlab_map package
-        mad = mad.estimate(data, sampling_rate_hz=sampling_rate_hz)
-        quaternion[t, :] = mad.orientation_.iloc[1, :]
+    # applying the madgwick filter to each row of the data array
+    # for t in range(len(mytime)):
+    #     data = pd.concat([chosenacc.iloc[[t]], chosengyr.iloc[[t]]], axis=1) # In Mobilise-D data are already in m/s2 and deg/s as required by the gaitlab_map package
+    #     mad = mad.estimate(data, sampling_rate_hz=sampling_rate_hz)
+    #     quaternion[t, :] = mad.orientation_.iloc[1, :]
+
+
+    # applying the madgwick filter to the entire data array at once
+    data = pd.concat((chosenacc, chosengyr), axis=1)
+    mad = mad.estimate(data, sampling_rate_hz=sampling_rate_hz)
+    quaternion = mad.orientation_.iloc[1:, :]
+    quaternion = quaternion.to_numpy()
 
     # Adjust quaternion as from x, y, z, w to w, x, y, z
     quaternion = quaternion[:, [3, 0, 1, 2]]
+
 
     data = pd.concat((chosenacc, chosengyr), axis=1)
     av = acceleration(data, quaternion)
