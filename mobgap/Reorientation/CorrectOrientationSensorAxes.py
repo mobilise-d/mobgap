@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import scipy.constants
 from mobgap.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
 from mobgap.gsd import GsdIluz
 from mobgap.Reorientation.filteringsignals_100Hz import filtering_signals_100hz
@@ -37,7 +38,8 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
     corIMUdataSequence = pd.DataFrame(columns=['Start', 'End'])
     gs = []
 
-    th = 0.65 # threshold to test alignment of av with gravity (+/-1g)
+    th = 0.65 * scipy.constants.g # threshold to test alignment of av with gravity. In matlab it was 0.65 and used with g-units.
+                                  # in this implementation it is 0.65 * 9.81 to convert it to m/s^2
     N_sgfilt = 9041 # parameter Savitzky - Golay smoothing filter
 
     Accx = Acc.iloc[:, 0].values
@@ -86,7 +88,6 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                     corIMUdata.iloc[l1:l2, 0] = -Acc.iloc[l1:l2, 0]
                     corIMUdataSequence.loc[k, ['Start', 'End']] = [gs.loc[i, 'start'], gs.loc[i, 'end']]
                     k = k + 1
-
                 else:
                     i = int(i)
                     corIMUdata.iloc[l1:l2, :] = CorrectSensorOrientationDynamic(data.iloc[l1:l2, :], sampling_rate_hz)
