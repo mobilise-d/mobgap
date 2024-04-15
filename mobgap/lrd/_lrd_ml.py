@@ -1,3 +1,4 @@
+import typing
 from functools import cache
 from importlib.resources import files
 from typing import Any, Optional
@@ -5,13 +6,13 @@ from typing import Any, Optional
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, ClassifierMixin, is_classifier
+from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin, is_classifier
 from sklearn.exceptions import NotFittedError
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils.validation import check_is_fitted
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
-from typing_extensions import Self, Unpack
+from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
@@ -19,35 +20,42 @@ from mobgap.lrd.base import BaseLRDetector, base_lrd_docfiller
 
 
 @cache
-def _load_model_files(file_name: str):
+def _load_model_files(file_name: str) -> Any:
     file_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / file_name
     with file_path.open("rb") as file:
         return joblib.load(file)
 
 
 class LrdUllrich(BaseLRDetector):
-    """
-    Machine-Learning based algorithm for laterality detection of initial contacts.
+    """Machine-Learning based algorithm for laterality detection of initial contacts.
 
-    This algorithm uses the band-pass filtered vertical ("gyr_x") and anterior-posterior ("gyr_z") angular velocity signal in combination with their first and second derivatives at the time points of the ICs, as described in [1]. This results in a 6-dimensional feature set.
+    This algorithm uses the band-pass filtered vertical ("gyr_x") and anterior-posterior ("gyr_z") angular velocity.
+    For both axis a set of features consisting of the value, the first and second derivative are extracted at the time
+    points of the ICs ([1]_).
+    This results in a 6-dimensional feature vector for each IC.
+    This feature set is normalized using the provided scaler and then classified using the provided model.
 
-    To ensure uniformity, the feature set is min-max normalised.
+    We provde a set of pre-trained models that are based on the MS-Project (TODO: Ref paper) dataset.
+    They all use a Min-Max Scaler in combination with a linear SVC classifier.
+    The parameters of the SVC depend on the cohort and were tuned as explained in the paper ([1]_).
+
 
     Parameters
     ----------
-    model
-        The machine learning model used for step detection. This is the base class for all classifiers used in scikit-learn.
-    scaler
-        The scikit-learn scaler used for the min-max normalisation.
     smoothing_filter
-        The bandpass filter used to smooth the data.
+        The bandpass filter used to smooth the data before feature extraction.
+    model
+        The machine learning model used for step detection.
+        This is expected to be a ML classifier instance.
+    scaler
+        The scikit-learn scaler used for scaling/normalizing the feature matrix.
 
     Attributes
     ----------
     %(ic_lr_list_)s
-
     feature_matrix_
-        The 6-dimensional feature set, containing the vertical and anterior-posterior filtered angular velocities and their first and second derivatives.
+        The 6-dimensional scaled feature vector, containing the vertical and anterior-posterior filtered angular
+        velocities and their first (gradient) and second (curvature) derivatives.
         This might be helpful for debugging or further analysis.
 
     Other Parameters
@@ -62,7 +70,9 @@ class LrdUllrich(BaseLRDetector):
     Compared to diff, gradient can estimate reliable derivatives for values at the edges of the data, which is
     important when the ICs are close to the beginning or end of the data.
 
-    .. [1] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021, available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
+    .. [1] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
+           and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021,
+           available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
     """
 
     model: Optional[ClassifierMixin]
@@ -71,22 +81,27 @@ class LrdUllrich(BaseLRDetector):
 
     feature_matrix_: pd.DataFrame
 
-    _feature_matrix_cols =  [
-                "filtered_gyr_x",
-                "gradient_gyr_x",
-                "curvature_gyr_x",
-                "filtered_gyr_z",
-                "gradient_gyr_z",
-                "curvature_gyr_z",
-            ]
+    _feature_matrix_cols: typing.Final = [
+        "filtered_gyr_x",
+        "gradient_gyr_x",
+        "curvature_gyr_x",
+        "filtered_gyr_z",
+        "gradient_gyr_z",
+        "curvature_gyr_z",
+    ]
 
     class PredefinedParameters:
         """Predefined parameters for the LrdUllrich class."""
 
         _BW_FILTER = ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass")
 
+        class _ModelConfig(TypedDict):
+            smoothing_filter: BaseFilter
+            model: ClassifierMixin
+            scaler: TransformerMixin
+
         @classmethod
-        def _load_from_file(cls, model_name):
+        def _load_model_config(cls, model_name: str) -> _ModelConfig:
             if model_name not in ["msproject_all", "msproject_hc", "msproject_ms"]:
                 raise ValueError("Invalid model name.")
 
@@ -99,11 +114,6 @@ class LrdUllrich(BaseLRDetector):
             # TODO: Might be a good idea to resave both the models and scalers to the current sklearn version.
             scaler.clip = False
 
-            return model, scaler
-
-        @classproperty
-        def msproject_all(cls):
-            model, scaler = cls._load_from_file("msproject_all")
             return {
                 "smoothing_filter": cls._BW_FILTER,
                 "model": model,
@@ -111,22 +121,16 @@ class LrdUllrich(BaseLRDetector):
             }
 
         @classproperty
-        def msproject_hc(cls):
-            model, scaler = cls._load_from_file("msproject_hc")
-            return {
-                "smoothing_filter": cls._BW_FILTER,
-                "model": model,
-                "scaler": scaler,
-            }
+        def msproject_all(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_model_config("msproject_all")
 
         @classproperty
-        def msproject_ms(cls):
-            model, scaler = cls._load_from_file("msproject_ms")
-            return {
-                "smoothing_filter": cls._BW_FILTER,
-                "model": model,
-                "scaler": scaler,
-            }
+        def msproject_hc(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_model_config("msproject_hc")
+
+        @classproperty
+        def msproject_ms(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_model_config("msproject_ms")
 
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.msproject_all.items()})
     def __init__(
@@ -169,9 +173,7 @@ class LrdUllrich(BaseLRDetector):
 
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = pd.DataFrame(columns=["ic", "lr_label"])
-            self.feature_matrix_ = pd.DataFrame(
-                columns=self.feature_matrix_.columns
-            )
+            self.feature_matrix_ = pd.DataFrame(columns=self.feature_matrix_.columns)
             return self
 
         if (
@@ -262,8 +264,7 @@ class LrdUllrich(BaseLRDetector):
         ics: pd.DataFrame,
         sampling_rate_hz: float,
     ) -> pd.DataFrame:
-        """
-        Extracts features from the provided gait data and initial contact list.
+        """Extract features from the provided gait data and initial contact list.
 
         Here, the feature set ic composed of the first (gradient) and second derivatives (curvature) of the filtered
         signals at the time points of the  ICs.
@@ -305,8 +306,6 @@ class LrdUllrich(BaseLRDetector):
 
         # Reorder the columns, to be consistent with the original implementation of [1].
         # Note: this order is necessary for the scaler to be applied correctly.
-        feature_df = feature_df[
-           self._feature_matrix_cols
-        ]
+        feature_df = feature_df[self._feature_matrix_cols]
 
         return feature_df
