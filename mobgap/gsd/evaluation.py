@@ -9,7 +9,7 @@ from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from tpcp import OptimizablePipeline
+from tpcp import OptimizableParameter, OptimizablePipeline
 from tpcp.validate import Aggregator, NoAgg
 from typing_extensions import Self, Unpack
 
@@ -532,7 +532,7 @@ class GsdEvaluationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
     """
 
-    algo: BaseGsDetector
+    algo: OptimizableParameter[BaseGsDetector]
 
     algo_: BaseGsDetector
 
@@ -590,9 +590,9 @@ class GsdEvaluationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             The pipeline instance with the optimized GSD algorithm.
 
         """
-        all_data = [d.data_ss for d in dataset]
-        reference_wbs = [d.reference_parameters_.wb_list for d in dataset]
-        sampling_rate_hz = [d.sampling_rate_hz for d in dataset]
+        all_data = (d.data_ss for d in dataset)
+        reference_wbs = (d.reference_parameters_.wb_list for d in dataset)
+        sampling_rate_hz = (d.sampling_rate_hz for d in dataset)
 
         self.algo.self_optimize(all_data, reference_wbs, sampling_rate_hz=sampling_rate_hz, **kwargs)
 

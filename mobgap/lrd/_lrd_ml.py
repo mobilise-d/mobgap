@@ -1,14 +1,13 @@
 import typing
 from functools import cache
 from importlib.resources import files
-from typing import Any, Optional
+from typing import Any
 
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin, is_classifier
+from sklearn.base import BaseEstimator, ClassifierMixin, is_classifier
 from sklearn.exceptions import NotFittedError
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils.validation import check_is_fitted
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
@@ -17,6 +16,7 @@ from typing_extensions import Self, TypedDict, Unpack
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.lrd.base import BaseLRDetector, base_lrd_docfiller
+from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScaler
 
 
 @cache
@@ -75,8 +75,8 @@ class LrdUllrich(BaseLRDetector):
            available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
     """
 
-    model: Optional[ClassifierMixin]
-    scaler: Optional[MinMaxScaler]
+    model: SklearnClassifier
+    scaler: SklearnScaler
     smoothing_filter: BaseFilter
 
     feature_matrix_: pd.DataFrame
@@ -97,8 +97,8 @@ class LrdUllrich(BaseLRDetector):
 
         class _ModelConfig(TypedDict):
             smoothing_filter: BaseFilter
-            model: ClassifierMixin
-            scaler: TransformerMixin
+            model: SklearnClassifier
+            scaler: SklearnScaler
 
         @classmethod
         def _load_model_config(cls, model_name: str) -> _ModelConfig:
@@ -136,12 +136,20 @@ class LrdUllrich(BaseLRDetector):
     def __init__(
         self,
         smoothing_filter: BaseFilter,
-        model: ClassifierMixin,
-        scaler: MinMaxScaler,
+        model: SklearnClassifier,
+        scaler: SklearnScaler,
     ) -> None:
         self.smoothing_filter = smoothing_filter
         self.model = model
         self.scaler = scaler
+
+    def _check_model(self, model: SklearnClassifier) -> None:
+        if not isinstance(model, ClassifierMixin) or not isinstance(model, BaseEstimator) or not is_classifier(model):
+            raise TypeError(
+                f"Unknown model type {type(model).__name__}."
+                "The model must inherit from ClassifierDtype and BaseEstimator. "
+                "Any valid scikit-learn classifier can be used."
+            )
 
     @base_lrd_docfiller
     def detect(
@@ -176,16 +184,7 @@ class LrdUllrich(BaseLRDetector):
             self.feature_matrix_ = pd.DataFrame(columns=self.feature_matrix_.columns)
             return self
 
-        if (
-            not isinstance(self.model, ClassifierMixin)
-            or not isinstance(self.model, BaseEstimator)
-            and is_classifier(self.model)
-        ):
-            raise TypeError(
-                f"Unknown model type {type(self.model).__name__}."
-                "The model must inherit from ClassifierMixin and BaseEstimator. "
-                "Any valid scikit-learn classifier can be used."
-            )
+        self._check_model(self.model)
 
         # create a copy of ic_list, otherwise, they will get modified when adding the predicted labels
         # We also remove the "lr_label" column, if it exists, to avoid conflicts
@@ -212,10 +211,11 @@ class LrdUllrich(BaseLRDetector):
 
     def self_optimize(
         self,
-        data_list: list[pd.DataFrame],
-        ic_list: list[pd.DataFrame],
-        label_list: list[pd.DataFrame],
-        sampling_rate_hz: float,
+        data: typing.Iterable[pd.DataFrame],
+        ic_list: typing.Iterable[pd.DataFrame],
+        reference_ic_lr_list: typing.Iterable[pd.DataFrame],
+        *,
+        sampling_rate_hz: typing.Union[float, typing.Iterable[float]],
     ) -> Self:
         """
         Model optimization method based on the provided gait data, initial contact list, and the reference label list.
@@ -234,27 +234,19 @@ class LrdUllrich(BaseLRDetector):
         Returns
         -------
         self
-         The instance of the LrdUllrich class.
+            Optimized instance of the provided class.
         """
-        if not isinstance(data_list, list):
-            raise TypeError("'data' must be a list of pandas DataFrames")
+        self._check_model(self.model)
 
-        if not isinstance(ic_list, list):
-            raise TypeError("'ic_list' must be a list of pandas DataFrame")
-
-        if not isinstance(label_list, list):
-            raise TypeError("'label_list' must be a list of pandas DataFrame")
-
-        features = [self.extract_features(data, ic, sampling_rate_hz) for data, ic in zip(data_list, ic_list)]
+        features = [self.extract_features(data, ic, sampling_rate_hz) for data, ic in zip(data, ic_list)]
         all_features = pd.concat(features, axis=0, ignore_index=True) if len(features) > 1 else features[0]
-        all_features = pd.DataFrame(
-            self.scaler.fit_transform(all_features.values), columns=all_features.columns, index=all_features.index
-        )
+        all_features = self.scaler.fit_transform(all_features)
 
         # Concatenate the labels if there is more than one GS
+        label_list = [ic_lr_list["lr_label"] for ic_lr_list in reference_ic_lr_list]
         all_labels = pd.concat(label_list, axis=0, ignore_index=True) if len(label_list) > 1 else label_list[0]
 
-        self.model.fit(all_features.to_numpy(), np.ravel(all_labels))
+        self.model.fit(all_features, all_labels)
 
         return self
 

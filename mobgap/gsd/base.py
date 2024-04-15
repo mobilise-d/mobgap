@@ -1,5 +1,6 @@
 """Base class for GSD detectors."""
 
+from collections.abc import Iterable
 from typing import Any, Union
 
 import pandas as pd
@@ -97,10 +98,10 @@ class BaseGsDetector(Algorithm):
 
     def self_optimize(
         self,
-        data: list[pd.DataFrame],
-        reference_gsd_list: list[pd.DataFrame],
+        data: Iterable[pd.DataFrame],
+        reference_gsd_list: Iterable[pd.DataFrame],
         *,
-        sampling_rate_hz: Union[float, list[float]],
+        sampling_rate_hz: Union[float, Iterable[float]],
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """Optimize the internal parameters of the algorithm.
