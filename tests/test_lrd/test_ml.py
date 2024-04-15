@@ -143,8 +143,7 @@ class TestRegression:
             pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        parameters = config
-        algo = LrdUllrich(**parameters)
+        algo = LrdUllrich(**config)
 
         iterator = GsIterator()
 
