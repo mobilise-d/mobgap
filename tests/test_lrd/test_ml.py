@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 import pytest
-from gaitlink.data import LabExampleDataset
-from gaitlink.lrd import LrdUllrich
-from gaitlink.pipeline import GsIterator
-from pandas._testing import assert_frame_equal
+from mobgap.data import LabExampleDataset
+from mobgap.lrd import LrdUllrich
+from mobgap.pipeline import GsIterator
+from pandas.testing import assert_frame_equal
 from sklearn import svm
 from tpcp.testing import TestAlgorithmMixin
 
@@ -71,7 +71,7 @@ class TestLrdUllrich:
 
     def test_load_invaliad_predetermined_model(self):
         with pytest.raises(AttributeError):
-            LrdUllrich.PredefinedParameters.invalid_model
+            _ = LrdUllrich.PredefinedParameters.invalid_model
 
     def test_detect_custom_algo(self):
         my_paras = {"model__C": 1.0, "model__gamma": 1.0, "model__kernel": "linear"}

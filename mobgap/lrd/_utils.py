@@ -1,4 +1,4 @@
-from gaitlink.pipeline import GsIterator
+from mobgap.pipeline import GsIterator
 
 
 def extract_ref_data(datapoint):
