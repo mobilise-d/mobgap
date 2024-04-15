@@ -96,6 +96,8 @@ class LrdMcCamley(BaseLRDetector):
         self.data = data
         self.ic_list = ic_list
 
+        # TODO: Handle no data or no ICs
+
         # create a copy of ic_list, otherwise they will get modified when adding the predicted labels
         # We also remove the "lr_label" column, if it exists, to avoid conflicts
         ic_list = ic_list.copy().drop(columns="lr_label", errors="ignore")

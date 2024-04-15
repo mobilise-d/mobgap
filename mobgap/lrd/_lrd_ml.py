@@ -5,7 +5,7 @@ from typing import Any, Optional
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import ClassifierMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, is_classifier
 from sklearn.exceptions import NotFittedError
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils.validation import check_is_fitted
@@ -55,14 +55,30 @@ class LrdUllrich(BaseLRDetector):
     %(other_parameters)s
 
 
-    Reference papers
-    ----------------
+    Notes
+    -----
+    Instead of using diff, this implementation uses numpy.gradient to calculate the first and second derivative of the
+    filtered signals.
+    Compared to diff, gradient can estimate reliable derivatives for values at the edges of the data, which is
+    important when the ICs are close to the beginning or end of the data.
+
     .. [1] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021, available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
     """
 
     model: Optional[ClassifierMixin]
     scaler: Optional[MinMaxScaler]
     smoothing_filter: BaseFilter
+
+    feature_matrix_: pd.DataFrame
+
+    _feature_matrix_cols =  [
+                "filtered_gyr_x",
+                "gradient_gyr_x",
+                "curvature_gyr_x",
+                "filtered_gyr_z",
+                "gradient_gyr_z",
+                "curvature_gyr_z",
+            ]
 
     class PredefinedParameters:
         """Predefined parameters for the LrdUllrich class."""
@@ -119,32 +135,9 @@ class LrdUllrich(BaseLRDetector):
         model: ClassifierMixin,
         scaler: MinMaxScaler,
     ) -> None:
-        super().__init__()
         self.smoothing_filter = smoothing_filter
         self.model = model
         self.scaler = scaler
-
-    # Model checking
-    @staticmethod
-    def _check_and_init_model(model):
-        """
-        Checks if the provided model is of type ClassifierMixin and returns it. Raises a TypeError if the check fails.
-
-        Parameters
-        ----------
-        model : ClassifierMixin)
-            The scikit-learn model to check.
-
-        Returns
-        -------
-        model : ClassifierMixin
-            The checked model.
-        """
-        if isinstance(model, ClassifierMixin):
-            return model
-        raise TypeError(
-            f"Unknown model type {type(model).__name__}. The model must be of type {ClassifierMixin.__name__}"
-        )
 
     @base_lrd_docfiller
     def detect(
@@ -177,18 +170,20 @@ class LrdUllrich(BaseLRDetector):
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = pd.DataFrame(columns=["ic", "lr_label"])
             self.feature_matrix_ = pd.DataFrame(
-                columns=[
-                    "filtered_gyr_x",
-                    "gradient_gyr_x",
-                    "diff_2_gyr_x",
-                    "filtered_gyr_z",
-                    "gradient_gyr_z",
-                    "diff_2_gyr_z",
-                ]
+                columns=self.feature_matrix_.columns
             )
             return self
 
-        self.model = self._check_and_init_model(self.model)
+        if (
+            not isinstance(self.model, ClassifierMixin)
+            or not isinstance(self.model, BaseEstimator)
+            and is_classifier(self.model)
+        ):
+            raise TypeError(
+                f"Unknown model type {type(self.model).__name__}."
+                "The model must inherit from ClassifierMixin and BaseEstimator. "
+                "Any valid scikit-learn classifier can be used."
+            )
 
         # create a copy of ic_list, otherwise, they will get modified when adding the predicted labels
         # We also remove the "lr_label" column, if it exists, to avoid conflicts
@@ -196,21 +191,21 @@ class LrdUllrich(BaseLRDetector):
 
         try:
             check_is_fitted(self.model)
-        except NotFittedError:
-            raise RuntimeError("Model is not fitted. Call self_optimize before calling detect.")
+        except NotFittedError as e:
+            raise RuntimeError("Model is not fitted. Call self_optimize before calling detect.") from e
 
         feature_matrix = self.extract_features(self.data, ic_list, self.sampling_rate_hz)
+        feature_matrix_scaled = self.scaler.transform(feature_matrix.to_numpy())
+
+        # Setting the feature matrix for debugging purposes
         self.feature_matrix_ = pd.DataFrame(
-            self.scaler.transform(feature_matrix.to_numpy()), columns=feature_matrix.columns, index=feature_matrix.index
+            feature_matrix_scaled, columns=feature_matrix.columns, index=feature_matrix.index
         )
-        prediction_per_gs = pd.DataFrame(self.model.predict(self.feature_matrix_.to_numpy()), columns=["lr_label"])
+        del feature_matrix
+        ic_list["lr_label"] = self.model.predict(feature_matrix_scaled)
+        ic_list = ic_list.replace({"lr_label": {0: "left", 1: "right"}})
 
-        mapping = {0: "left", 1: "right"}
-        prediction_per_gs = prediction_per_gs.replace(mapping)
-
-        self.ic_lr_list_ = pd.DataFrame(
-            {"ic": self.ic_list.to_numpy().flatten(), "lr_label": prediction_per_gs["lr_label"]}
-        )
+        self.ic_lr_list_ = ic_list
         return self
 
     def self_optimize(
@@ -225,13 +220,13 @@ class LrdUllrich(BaseLRDetector):
 
         Parameters
         ----------
-        data : list[pd.DataFrame]
+        data
             The gait data.
-        ic_list : list[pd.Series]
+        ic_list
             The initial contact list.
-        label_list : list[pd.Series]
+        label_list
             The label list.
-        sampling_rate_hz : float
+        sampling_rate_hz
             The sampling rate in Hz.
 
         Returns
@@ -270,43 +265,48 @@ class LrdUllrich(BaseLRDetector):
         """
         Extracts features from the provided gait data and initial contact list.
 
-        Here, the feature set ic composed of the first and second derivatives of the filtered signals at the time points of the  ICs. Consequently, for a dataset containing a total of  ICs, this results in a feature matrix. To ensure uniformity, the feature set is min-max normalized.
+        Here, the feature set ic composed of the first (gradient) and second derivatives (curvature) of the filtered
+        signals at the time points of the  ICs.
+        Consequently, for a dataset containing a total of  ICs, this results in a feature matrix.
+        To ensure uniformity, the feature set is normalized.
+
+        .. note:: Usually you don't want to call this method directly. Instead, use the `detect` method,
+            which calls this method internally.
 
         Parameters
         ----------
-        data (pd.DataFrame): The gait data.
-        ics (pd.DataFrame): The initial contact list.
-        sampling_rate_hz (float): The sampling rate in Hz.
-
-        Note:
-        ---------------
-        The last initial contact (IC) is shifted by 3 samples to ensure that the second derivative can be calculated. This shift only occurs if the last IC is within 3 samples of the end of the data. Additionally, any ICs that are less than 2 are set to 2 to avoid extracting rows with NaN values due to the calculation of the derivatives.
+        data
+            The gait data.
+        ics
+            The initial contact list.
+        sampling_rate_hz
+            The sampling rate in Hz.
 
         Returns
         -------
-        feature_df (pd.DataFrame): The DataFrame containing the extracted features.
+        feature_df
+            The DataFrame containing the extracted features.
         """
-        ics = ics.copy()
         gyr = data[["gyr_x", "gyr_z"]]
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_
-        gyr_diff = gyr_filtered.diff()
-        gyr_diff_2 = gyr_diff.diff()
+        # We use numpy gradient instead of diff, as it preserves the shape of the input and hence, can handle ICs that
+        # are close to the beginning or end of the data.
+        gyr_gradient = np.gradient(gyr_filtered, axis=0)
+        curvature = np.gradient(gyr_gradient, axis=0)
+        gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_x", "gyr_z"], copy=False)
+        curvature = pd.DataFrame(curvature, columns=["gyr_x", "gyr_z"], copy=False)
 
-        signal_paras = pd.concat({"filtered": gyr_filtered, "gradient": gyr_diff, "diff_2": gyr_diff_2}, axis=1)
+        signal_paras = pd.concat({"filtered": gyr_filtered, "gradient": gyr_gradient, "curvature": curvature}, axis=1)
         signal_paras.columns = ["_".join(c) for c in signal_paras.columns]
 
-        # shift the last IC by 3 samples to make the second derivative work
-        if (ics.iloc[-1]).any() >= len(signal_paras):
-            ics.iloc[-1] -= 3
-        ics[ics < 2] = 2
-
         # Extract features corresponding to the adjusted ics values
-        feature_df = signal_paras.loc[ics["ic"].to_numpy().tolist()]
+        feature_df = signal_paras.loc[ics["ic"].to_numpy()]
+        feature_df.index = ics.index
 
         # Reorder the columns, to be consistent with the original implementation of [1].
         # Note: this order is necessary for the scaler to be applied correctly.
         feature_df = feature_df[
-            ["filtered_gyr_x", "gradient_gyr_x", "diff_2_gyr_x", "filtered_gyr_z", "gradient_gyr_z", "diff_2_gyr_z"]
+           self._feature_matrix_cols
         ]
 
-        return feature_df.reset_index(drop=True)
+        return feature_df
