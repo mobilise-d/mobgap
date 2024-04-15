@@ -10,10 +10,10 @@ from mobgap.data import BaseGenericMobilisedDataset, GenericMobilisedDataset, ma
 
 # TODO:
 #  - [ ] Add version for Free Living
-#  - [ ] Add loader for clinical data
 #  - [ ] Think about how to represent "data quality" in the dataset
 #  - [ ] Check which tests should actually be used in the Clinical and the Free Living dataset for validation and only
 #        include those by default.
+# - [ ] Center=id will not work after changing the patient codes
 
 
 @lru_cache(maxsize=1)
@@ -196,4 +196,4 @@ ds = TVSLabDataset(
 # ds._create_precomputed_test_list()
 
 
-print(ds.general_clinical_information)
+print(ds.unique_center_id)
