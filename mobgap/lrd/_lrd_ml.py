@@ -27,11 +27,11 @@ class LrdUllrich(BaseLRDetector):
 
     Parameters
     ----------
-    model: Optional[ClassifierMixin]
+    model
         The machine learning model used for step detection. This is the base class for all classifiers used in scikit-learn.
-    scaler: Optional[MinMaxScaler]
-        The scikit-learn scaler used for the min-max nomalisation.
-    smoothing_filter:
+    scaler
+        The scikit-learn scaler used for the min-max normalisation.
+    smoothing_filter
         The bandpass filter used to smooth the data.
 
     Attributes
