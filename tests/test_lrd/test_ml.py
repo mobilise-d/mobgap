@@ -131,7 +131,7 @@ class TestRegression:
         "config_name, config",
         [
             ("msprpject_all", LrdUllrich.PredefinedParameters.msproject_all),
-            ("msproject_", LrdUllrich.PredefinedParameters.msproject_hc),
+            ("msproject_hc", LrdUllrich.PredefinedParameters.msproject_hc),
             ("msproject_ms", LrdUllrich.PredefinedParameters.msproject_ms),
         ],
     )
