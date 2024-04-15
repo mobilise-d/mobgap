@@ -83,7 +83,7 @@
             "wb_id":2,
             "level_1":0,
             "ic":1746,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":2,
@@ -185,7 +185,7 @@
             "wb_id":2,
             "level_1":17,
             "ic":3553,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":3,
@@ -239,7 +239,7 @@
             "wb_id":3,
             "level_1":8,
             "ic":6630,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":3,
