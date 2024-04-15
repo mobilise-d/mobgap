@@ -1,3 +1,4 @@
+from functools import cache
 from importlib.resources import files
 from typing import Any, Optional
 
@@ -15,6 +16,13 @@ from typing_extensions import Self, Unpack
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.lrd.base import BaseLRDetector, base_lrd_docfiller
+
+
+@cache
+def _load_model_files(file_name: str):
+    file_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / file_name
+    with file_path.open("rb") as file:
+        return joblib.load(file)
 
 
 class LrdUllrich(BaseLRDetector):
@@ -57,53 +65,31 @@ class LrdUllrich(BaseLRDetector):
     smoothing_filter: BaseFilter
 
     class PredefinedParameters:
-        """
-        A class used to manage predefined parameters for the LrdUllrich class.
+        """Predefined parameters for the LrdUllrich class."""
 
-        Attributes
-        ----------
-        _model_cache: dict
-            A dictionary used to cache loaded models to avoid loading the same model multiple times.
-        _scaler_cache: dict
-            A dictionary used to cache loaded scalers to avoid loading the same scaler multiple times.
-        """
-
-        _model_cache = {}
-        _scaler_cache = {}
+        _BW_FILTER = ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass")
 
         @classmethod
         def _load_from_file(cls, model_name):
-            if (model_name in cls._model_cache) and (model_name in cls._scaler_cache):
-                print("Loading cached model and scaler...")
-                return cls._model_cache[model_name], cls._scaler_cache[model_name]
+            if model_name not in ["msproject_all", "msproject_hc", "msproject_ms"]:
+                raise ValueError("Invalid model name.")
 
-            if model_name in ["msproject_all", "msproject_hc", "msproject_ms"]:
-                print(f"Loading {model_name} model and scaler from file...")
+            model = _load_model_files(f"{model_name}_model.gz")
+            scaler = _load_model_files(f"{model_name}_scaler.gz")
 
-                model_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / f"{model_name}_model.gz"
-                with model_path.open("rb") as file:
-                    model = joblib.load(file)
-                cls._model_cache[model_name] = model
+            # Note: this clip property was added here to ensure compatibility with sklearn version 0.23.1, which was
+            #  used for training the models and storing the corresponding min-max scalers.
+            #  Since version 0.24 onwards, this needs to be specified.
+            # TODO: Might be a good idea to resave both the models and scalers to the current sklearn version.
+            scaler.clip = False
 
-                scaler_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / f"{model_name}_scaler.gz"
-                with scaler_path.open("rb") as file:
-                    scaler = joblib.load(file)
-
-                # Note: this clip property was added here to ensure compatibility with sklearn version 0.23.1, which was used for training the models and storing the corresponding min-max scalers. Since version 0.24 onwards, this needs to be specified. Might be a good idea to resave both the models and scalers to the current sklearn version.
-
-                scaler.clip = False
-                cls._scaler_cache[model_name] = scaler
-
-                return model, scaler
-
-            else:
-                raise NotImplementedError("The specified pretrained configuration is not supported")
+            return model, scaler
 
         @classproperty
         def msproject_all(cls):
             model, scaler = cls._load_from_file("msproject_all")
             return {
-                "smoothing_filter": ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass"),
+                "smoothing_filter": cls._BW_FILTER,
                 "model": model,
                 "scaler": scaler,
             }
@@ -112,7 +98,7 @@ class LrdUllrich(BaseLRDetector):
         def msproject_hc(cls):
             model, scaler = cls._load_from_file("msproject_hc")
             return {
-                "smoothing_filter": ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass"),
+                "smoothing_filter": cls._BW_FILTER,
                 "model": model,
                 "scaler": scaler,
             }
@@ -121,7 +107,7 @@ class LrdUllrich(BaseLRDetector):
         def msproject_ms(cls):
             model, scaler = cls._load_from_file("msproject_ms")
             return {
-                "smoothing_filter": ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass"),
+                "smoothing_filter": cls._BW_FILTER,
                 "model": model,
                 "scaler": scaler,
             }
