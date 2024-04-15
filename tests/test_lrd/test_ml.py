@@ -136,9 +136,9 @@ class TestRegression:
     )
     def test_example_lab_data(self, datapoint, config_name, config, snapshot):
         imu_data = datapoint.data["LowerBack"]
-        try:
-            ref = datapoint.reference_parameters_relative_to_wb_
-        except:
+        ref = datapoint.reference_parameters_relative_to_wb_
+        ref_walk_bouts = ref.wb_list
+        if len(ref_walk_bouts) == 0:
             pytest.skip("No reference parameters available.")
         sampling_rate_hz = datapoint.sampling_rate_hz
 
