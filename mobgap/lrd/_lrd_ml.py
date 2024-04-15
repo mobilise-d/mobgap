@@ -80,12 +80,12 @@ class LrdUllrich(BaseLRDetector):
             if model_name in ["msproject_all", "msproject_hc", "msproject_ms"]:
                 print(f"Loading {model_name} model and scaler from file...")
 
-                model_path = files("gaitlink") / "lrd" / "pretrained_models" / f"{model_name}_model.gz"
+                model_path = files("mobgap") / "lrd" / "pretrained_models" / f"{model_name}_model.gz"
                 with model_path.open("rb") as file:
                     model = joblib.load(file)
                 cls._model_cache[model_name] = model
 
-                scaler_path = files("gaitlink") / "lrd" / "pretrained_models" / f"{model_name}_scaler.gz"
+                scaler_path = files("mobgap") / "lrd" / "pretrained_models" / f"{model_name}_scaler.gz"
                 with scaler_path.open("rb") as file:
                     scaler = joblib.load(file)
 

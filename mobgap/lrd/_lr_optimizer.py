@@ -38,7 +38,7 @@ class LROptiPipeline(OptimizablePipeline):
         Runs the pipeline on a datapoint.
 
         Args:
-            datapoint (gaitlink.data._example_data.LabExampleDataset): The datapoint to run the pipeline on.
+            datapoint (mobgap.data._example_data.LabExampleDataset): The datapoint to run the pipeline on.
 
         Returns
         -------
