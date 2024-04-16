@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from sklearn import svm
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.tree import DecisionTreeClassifier
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
@@ -34,14 +36,7 @@ class TestLrcUllrich:
         assert len(output.ic_lr_list_) == 0
         assert list(output.ic_lr_list_.columns) == ["ic", "lr_label"]
         assert len(output.feature_matrix_) == 0
-        assert list(output.feature_matrix_.columns) == [
-            "filtered_gyr_x",
-            "gradient_gyr_x",
-            "diff_2_gyr_x",
-            "filtered_gyr_z",
-            "gradient_gyr_z",
-            "diff_2_gyr_z",
-        ]
+        assert list(output.feature_matrix_.columns) == LrcUllrich._feature_matrix_cols
 
     def test_empty_ic(self):
         params = LrcUllrich.PredefinedParameters.msproject_all
@@ -52,77 +47,63 @@ class TestLrcUllrich:
         assert len(output.ic_lr_list_) == 0
         assert list(output.ic_lr_list_.columns) == ["ic", "lr_label"]
         assert len(output.feature_matrix_) == 0
-        assert list(output.feature_matrix_.columns) == [
-            "filtered_gyr_x",
-            "gradient_gyr_x",
-            "diff_2_gyr_x",
-            "filtered_gyr_z",
-            "gradient_gyr_z",
-            "diff_2_gyr_z",
-        ]
+        assert list(output.feature_matrix_.columns) == LrcUllrich._feature_matrix_cols
 
-    def test_detect_with_model_not_fit(self):
-        my_paras = {"model__C": 1.0, "model__gamma": 1.0, "model__kernel": "linear"}
-        algo = LrcUllrich(model=svm.SVC())
-        algo.set_params(**my_paras)
+    def test_predict_with_model_not_fit(self):
+        algo = LrcUllrich(**LrcUllrich.PredefinedParameters.untrained_svc)
         data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
         with pytest.raises(RuntimeError):
             algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0)
 
-    def test_load_invaliad_predetermined_model(self):
-        with pytest.raises(AttributeError):
-            _ = LrcUllrich.PredefinedParameters.invalid_model
-
-    def test_detect_custom_algo(self):
-        my_paras = {"model__C": 1.0, "model__gamma": 1.0, "model__kernel": "linear"}
-        algo = LrcUllrich(model=svm.SVC())
-        algo.set_params(**my_paras)
-        x = np.linspace(0, 4 * np.pi, 100)[:, None]
-        y = np.tile(np.sin(x), (1, 6))
-        data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
-        ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        label_list = pd.DataFrame({"lr_label": ["left", "right", "left"]})
-        algo.self_optimize([data], [ic_list], [label_list], sampling_rate_hz=100.0)
-        output = algo.predict(data, ic_list, sampling_rate_hz=100.0).ic_lr_list_
-        assert len(output) == 3
-        assert list(output.columns) == ["ic", "lr_label"]
-
-    def test_simple_sin_input(self):
-        x = np.linspace(0, 4 * np.pi, 100)[:, None]
-        y = np.tile(np.sin(x), (1, 6))
-        data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
-        ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        params = LrcUllrich.PredefinedParameters.msproject_all
-        algo = LrcUllrich(**params)
-        output = algo.predict(data, ic_list, sampling_rate_hz=100.0).ic_lr_list_
-        assert len(output) == 3
-        assert list(output.columns) == ["ic", "lr_label"]
-
-    def test_correct_ouput_format(self):
-        params = LrcUllrich.PredefinedParameters.msproject_all
-        algo = LrcUllrich(**params)
+    def test_correct_output_format(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [10, 20, 40]})
+
+        algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
         output = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0)
+
         assert_frame_equal(output.ic_lr_list_[["ic"]], ic_list)
         assert output.feature_matrix_.shape == pd.DataFrame(np.repeat(ic_list.values, 6, axis=1)).shape
         assert isinstance(output.feature_matrix_, pd.DataFrame)
 
-    def test_alternating_output(self):
-        # Test a simple sine wave
-        # We expect the labels to be alternating
-        params = LrcUllrich.PredefinedParameters.msproject_all
-        algo = LrcUllrich(**params)
+    def test_simple_sin_input(self):
         x = np.linspace(0, 4 * np.pi, 100)[:, None]
         y = np.tile(np.sin(x), (1, 6))
         y[:, [2, 5]] = y[:, [2, 5]] * -1  # make the z axis negative
         data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+
         ic_list = pd.DataFrame({"ic": [15, 38, 65]})
+
+        algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
         output = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
+
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == ["right", "left", "right"]).all()
+
+    def test_self_optimized_with_optimized_model(self):
+        algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
+        data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        ic_list = pd.DataFrame({"ic": [5, 10, 15]})
+        labels = ic_list.assign(lr_label=["left", "right", "left"])
+
+        with pytest.raises(RuntimeError):
+            algo.self_optimize([data], [ic_list], [labels], sampling_rate_hz=100.0)
+
+    def test_self_optimize_custom_algo(self):
+        x = np.linspace(0, 4 * np.pi, 100)[:, None]
+        y = np.tile(np.sin(x), (1, 6))
+        data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        ic_list = pd.DataFrame({"ic": [5, 10, 15]})
+        label_list = ic_list.assign(lr_label=["left", "right", "left"])
+
+        algo = LrcUllrich(clf_pipe=make_pipeline(MinMaxScaler(), DecisionTreeClassifier()))
+
+        algo.self_optimize([data], [ic_list], [label_list], sampling_rate_hz=100.0)
+        output = algo.predict(data, ic_list, sampling_rate_hz=100.0).ic_lr_list_
+        assert len(output) == 3
+        assert list(output.columns) == ["ic", "lr_label"]
 
 
 class TestRegression:
@@ -150,10 +131,8 @@ class TestRegression:
         for (gs, data), result in iterator.iterate(imu_data, ref.wb_list):
             # extract data_list, ic_list, label_list
             data = data.reset_index(drop=True)
-            ic_list = ref.ic_list.loc[ref.ic_list.index.get_level_values("wb_id") == gs.wb_id, ["ic"]].reset_index(
-                drop=True
-            )
+            ic_list = ref.ic_list.loc[gs.id]
             result.ic_list = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=sampling_rate_hz).ic_lr_list_
 
-        detected_ics = iterator.results_.ic_list
-        snapshot.assert_match(detected_ics, f"{config_name}_{datapoint.group_label!s}")
+        predicted_ics = iterator.results_.ic_list
+        snapshot.assert_match(predicted_ics, f"{config_name}_{datapoint.group_label!s}")
