@@ -1,6 +1,8 @@
+from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
-from typing import Any, Union, Final, Iterable
+from itertools import cycle
+from typing import Any, Final, Union
 
 import joblib
 import numpy as np
@@ -23,6 +25,9 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
     file_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / file_name
     with file_path.open("rb") as file:
         return joblib.load(file)
+
+
+# TODO: Instead of having a separate scaler and model, we should use a sklearn pipeline.
 
 
 class LrdUllrich(BaseLRDetector):
@@ -81,12 +86,12 @@ class LrdUllrich(BaseLRDetector):
     feature_matrix_: pd.DataFrame
 
     _feature_matrix_cols: Final = [
-        "filtered_gyr_x",
-        "gradient_gyr_x",
-        "curvature_gyr_x",
-        "filtered_gyr_z",
-        "gradient_gyr_z",
-        "curvature_gyr_z",
+        "filtered__gyr_x",
+        "gradient__gyr_x",
+        "curvature__gyr_x",
+        "filtered__gyr_z",
+        "gradient__gyr_z",
+        "curvature__gyr_z",
     ]
 
     class PredefinedParameters:
@@ -195,17 +200,27 @@ class LrdUllrich(BaseLRDetector):
             raise RuntimeError("Model is not fitted. Call self_optimize before calling detect.") from e
 
         feature_matrix = self.extract_features(self.data, ic_list, self.sampling_rate_hz)
-        feature_matrix_scaled = self.scaler.transform(feature_matrix.to_numpy())
 
-        # Setting the feature matrix for debugging purposes
-        self.feature_matrix_ = pd.DataFrame(
-            feature_matrix_scaled, columns=feature_matrix.columns, index=feature_matrix.index
-        )
-        del feature_matrix
+        # The old models were trained wihtout feature names, however, when we retrain the models, we do it with
+        # feature names.
+        # Once, we retrained all models, we can remove this destinction and assume we are working with dataframes
+        # all the time.
+        # Hence, we need to separate here:
+        _cols = feature_matrix.columns
+        _index = feature_matrix.index
+        if getattr(self.scaler, "feature_names_in_", None) is None:
+            feature_matrix = feature_matrix.to_numpy()
+
+        feature_matrix_scaled = self.scaler.transform(feature_matrix)
+
         ic_list["lr_label"] = self.model.predict(feature_matrix_scaled)
         ic_list = ic_list.replace({"lr_label": {0: "left", 1: "right"}})
 
         self.ic_lr_list_ = ic_list
+
+        if not isinstance(feature_matrix_scaled, pd.DataFrame):
+            self.feature_matrix_ = pd.DataFrame(feature_matrix_scaled, columns=_cols, index=_index)
+
         return self
 
     def self_optimize(
@@ -217,6 +232,7 @@ class LrdUllrich(BaseLRDetector):
         sampling_rate_hz: Union[float, Iterable[float]],
         **_: Unpack[dict[str, Any]],
     ) -> Self:
+        # TODO: Docstring
         """
         Model optimization method based on the provided gait data, initial contact list, and the reference label list.
 
@@ -238,7 +254,10 @@ class LrdUllrich(BaseLRDetector):
         """
         self._check_model(self.model)
 
-        features = [self.extract_features(data, ic, sampling_rate_hz) for data, ic in zip(data, ic_list)]
+        if isinstance(sampling_rate_hz, float):
+            sampling_rate_hz = cycle([sampling_rate_hz])
+
+        features = [self.extract_features(dp, ic, sr) for dp, ic, sr in zip(data, ic_list, sampling_rate_hz)]
         all_features = pd.concat(features, axis=0, ignore_index=True) if len(features) > 1 else features[0]
         all_features = self.scaler.fit_transform(all_features)
 
@@ -286,14 +305,14 @@ class LrdUllrich(BaseLRDetector):
         # are close to the beginning or end of the data.
         gyr_gradient = np.gradient(gyr_filtered, axis=0)
         curvature = np.gradient(gyr_gradient, axis=0)
-        gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_x", "gyr_z"], copy=False)
-        curvature = pd.DataFrame(curvature, columns=["gyr_x", "gyr_z"], copy=False)
+        gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_x", "gyr_z"], copy=False, index=gyr.index)
+        curvature = pd.DataFrame(curvature, columns=["gyr_x", "gyr_z"], copy=False, index=gyr.index)
 
         signal_paras = pd.concat({"filtered": gyr_filtered, "gradient": gyr_gradient, "curvature": curvature}, axis=1)
-        signal_paras.columns = ["_".join(c) for c in signal_paras.columns]
+        signal_paras.columns = ["__".join(c) for c in signal_paras.columns]
 
         # Extract features corresponding to the adjusted ics values
-        feature_df = signal_paras.loc[ics["ic"].to_numpy()]
+        feature_df = signal_paras.iloc[ics["ic"].to_numpy()]
         feature_df.index = ics.index
 
         # Reorder the columns, to be consistent with the original implementation of [1].

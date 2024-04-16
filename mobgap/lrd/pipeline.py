@@ -1,8 +1,10 @@
 from collections.abc import Iterator
-from typing import Any, Unpack
+from typing import Any, Union, Unpack
 
 import pandas as pd
+from sklearn.metrics import accuracy_score
 from tpcp import OptimizableParameter, OptimizablePipeline
+from tpcp.validate import NoAgg
 from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDatasetWithReference
@@ -15,7 +17,7 @@ def _extract_ref_data(dataset: BaseGaitDatasetWithReference) -> Iterator[tuple[s
         ref_paras = datapoint.reference_parameters_relative_to_wb_
         sampling_rate_hz = datapoint.sampling_rate_hz
         for _, per_wb_ic in ref_paras.ic_list.groupby("wb_id"):
-            yield per_wb_ic.pop("lr_label"), per_wb_ic, sampling_rate_hz
+            yield per_wb_ic, per_wb_ic.drop("lr_label", axis=1), sampling_rate_hz
 
 
 def _extract_data(dataset: BaseGaitDatasetWithReference) -> Iterator[pd.DataFrame]:
@@ -89,16 +91,27 @@ class LrdPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         -------
         self
             The pipeline instance with the optimized LRD algorithm.
+
         """
         # Note: This will pull all values from the generator into memory
         # This is fine, as we assume that the ICs are small and should fit into memory easily
         # But by getting all values at once, we avoid loading (potentially uncached) the same reference parameters
         # multiple times.
-        all_labels, all_ics, all_sampling_rate_hz = zip(*_extract_ref_data(dataset))
+        all_reference, all_ics, all_sampling_rate_hz = zip(*_extract_ref_data(dataset))
         # However, for the data, we want to keep the generator, as it might be large
         all_data = _extract_data(dataset)
 
         # Note: there is no cloning here -> we actually want to modify the object
-        self.algo.self_optimize(all_data, all_ics, all_labels, sampling_rate_hz=all_sampling_rate_hz, **kwargs)
+        self.algo.self_optimize(all_data, all_ics, all_reference, sampling_rate_hz=all_sampling_rate_hz, **kwargs)
 
         return self
+
+    def score(self, datapoint: BaseGaitDatasetWithReference) -> Union[float, dict[str, float]]:
+        predicted_lr_labels = self.safe_run(datapoint).ic_lr_list_
+
+        ref_labels = datapoint.reference_parameters_.ic_list["lr_label"]
+
+        combined = predicted_lr_labels.assign(ref_lr_label=ref_labels)
+
+        # TODO: Are there other useful metrics?
+        return {"accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]), "raw_results": NoAgg(combined)}
