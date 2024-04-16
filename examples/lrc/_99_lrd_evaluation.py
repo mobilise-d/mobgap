@@ -1,19 +1,19 @@
 r"""
 
-.. _lrd_evaluation:
+.. _lrC_evaluation:
 
 LRD Evaluation
 ==============
 
-This example demonstrates how to evaluate an LRD algorithm.
-As left-right detection, is a balanced binary classification problem, we can apply simple metrics like accuracy to
+This example demonstrates how to evaluate an LRC algorithm.
+As left-right classification, is a balanced binary classification problem, we can apply simple metrics like accuracy to
 evaluate the performance of the algorithm.
 """
 
 import pandas as pd
 
 from mobgap.data import LabExampleDataset
-from mobgap.lrd import LrdUllrich
+from mobgap.lrc import LrdUllrich
 from mobgap.pipeline import GsIterator
 
 # %%
@@ -38,7 +38,7 @@ def calculate_output(single_test_data):
 
     for (gs, data), r in iterator.iterate(single_test_data.data_ss, ref_paras.wb_list):
         ref_ics = ref_paras.ic_list.loc[gs.id]
-        r.ic_list = LrdUllrich().detect(data, ref_ics, sampling_rate_hz=single_test_data.sampling_rate_hz).ic_lr_list_
+        r.ic_list = LrdUllrich().predict(data, ref_ics, sampling_rate_hz=single_test_data.sampling_rate_hz).ic_lr_list_
 
     return iterator.results_.ic_list
 
@@ -84,7 +84,7 @@ disp.figure_.show()
 # ----------------------------------
 # Instead of manually evaluating and investigating the performance of an algorithm on a single piece of data, we
 # often want to run a full evaluation on an entire dataset.
-# This can be done using the :class:`~mobgap.lrd.base.LrdPipeline` class and some ``tpcp`` functions.
+# This can be done using the :class:`~mobgap.lrc.base.LrdPipeline` class and some ``tpcp`` functions.
 #
 # But let's start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
@@ -94,9 +94,9 @@ simulated_real_world_walking
 
 # %%
 # Now we can create a pipeline instance and directly run it on of the datapoints of the dataset.
-from mobgap.lrd.pipeline import LrdPipeline
+from mobgap.lrc.pipeline import LRCEmulationPipeline
 
-pipeline = LrdPipeline(LrdUllrich())
+pipeline = LRCEmulationPipeline(LrdUllrich())
 
 pipeline.safe_run(simulated_real_world_walking[0]).ic_lr_list_
 
@@ -161,7 +161,7 @@ para_grid = ParameterGrid({"algo__model__C": [0.1, 1.0, 10.0]})
 # %%
 # We initialize the pipeline with an untrained model and an untrained scaler.
 
-pipeline = LrdPipeline(LrdUllrich(model=SVC(kernel="linear"), scaler=MinMaxScaler()))
+pipeline = LRCEmulationPipeline(LrdUllrich(model=SVC(kernel="linear"), scaler=MinMaxScaler()))
 
 # %%
 # Then we path the pipeline to the optimizer.
@@ -195,7 +195,7 @@ evaluation_results_with_opti.loc[:, ~evaluation_results_with_opti.columns.str.en
 # We simply evaluate the pre-trained model on exactly the same test sets as the optimized model.
 from tpcp.optimize import DummyOptimize
 
-optimizer = DummyOptimize(LrdPipeline(LrdUllrich()))
+optimizer = DummyOptimize(LRCEmulationPipeline(LrdUllrich()))
 
 evaluation_results_pre_trained = pd.DataFrame(cross_validate(optimizer, simulated_real_world_walking, cv=3))
 evaluation_results_pre_trained.loc[:, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")].T

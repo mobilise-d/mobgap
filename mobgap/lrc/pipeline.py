@@ -1,3 +1,5 @@
+"""Helpful Pipelines to wrap the LRC algorithms for optimization and evaluation."""
+
 from collections.abc import Iterator
 from typing import Any, Union, Unpack
 
@@ -8,7 +10,7 @@ from tpcp.validate import NoAgg
 from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.lrd.base import BaseLRDetector
+from mobgap.lrc.base import BaseLRClassifier
 from mobgap.pipeline import GsIterator, iter_gs
 
 
@@ -27,29 +29,35 @@ def _extract_data(dataset: BaseGaitDatasetWithReference) -> Iterator[pd.DataFram
             yield data
 
 
-class LrdPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
+class LRCEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
     """
     This class represents a pipeline for LrdUllrich that can be optimized.
     """
 
     ic_lr_list_: pd.DataFrame
 
-    algo: OptimizableParameter[BaseLRDetector]
-    per_gs_algo_: list[BaseLRDetector]
+    algo: OptimizableParameter[BaseLRClassifier]
+    per_gs_algo_: list[BaseLRClassifier]
 
-    def __init__(self, algo: BaseLRDetector) -> None:
+    def __init__(self, algo: BaseLRClassifier) -> None:
         self.algo = algo
 
     def run(self, datapoint: BaseGaitDatasetWithReference) -> Self:
-        """
-        Runs the pipeline on a datapoint.
+        """Run the pipeline on a single datapoint.
 
-        Args:
-            datapoint (mobgap.data._example_data.LabExampleDataset): The datapoint to run the pipeline on.
+        This extracts the imu data (``data_ss``) and the reference initial contact per reference WB within the
+        datapoint and then calls the ``detect`` method of the algorithm once per WB.
+
+        Parameters
+        ----------
+        datapoint
+            A single datapoint of a Gait Dataset with reference information.
 
         Returns
         -------
-            LrdUllrich: The algorithm with results.
+        self
+            The pipeline instance with the detected gait sequences stored in the ``gs_list_`` attribute.
+
         """
         sampling_rate_hz = datapoint.sampling_rate_hz
 
@@ -61,7 +69,7 @@ class LrdPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         result_algo_list = []
         for (gs, data), r in gs_iterator.iterate(datapoint.data_ss, ref_paras.wb_list):
             ref_ic_list = ref_paras.ic_list.loc[gs.id]
-            algo = self.algo.clone().detect(data, ref_ic_list, sampling_rate_hz=sampling_rate_hz)
+            algo = self.algo.clone().predict(data, ref_ic_list, sampling_rate_hz=sampling_rate_hz)
             result_algo_list.append(algo)
             r.ic_list = algo.ic_lr_list_
 
