@@ -9,7 +9,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 
-base_lrd_docfiller = make_filldoc(
+base_lrc_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
@@ -76,7 +76,7 @@ base_lrd_docfiller = make_filldoc(
 )
 
 
-@base_lrd_docfiller
+@base_lrc_docfiller
 class BaseLRClassifier(Algorithm):
     """Base class for L/R foot classifier.
 
@@ -116,7 +116,7 @@ class BaseLRClassifier(Algorithm):
     # results
     ic_lr_list_: pd.DataFrame
 
-    @base_lrd_docfiller
+    @base_lrc_docfiller
     def predict(
         self,
         data: pd.DataFrame,
@@ -134,7 +134,7 @@ class BaseLRClassifier(Algorithm):
         """
         raise NotImplementedError
 
-    @base_lrd_docfiller
+    @base_lrc_docfiller
     def self_optimize(
         self,
         data_sequences: Iterable[pd.DataFrame],
@@ -158,4 +158,4 @@ class BaseLRClassifier(Algorithm):
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
-__all__ = ["BaseLRClassifier", "base_lrd_docfiller"]
+__all__ = ["BaseLRClassifier", "base_lrc_docfiller"]

@@ -18,7 +18,7 @@ from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrc.base import BaseLRClassifier, base_lrd_docfiller
+from mobgap.lrc.base import BaseLRClassifier, base_lrc_docfiller
 from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScaler
 
 
@@ -32,7 +32,7 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
 # TODO: Instead of having a separate scaler and model, we should use a sklearn pipeline.
 
 
-@base_lrd_docfiller
+@base_lrc_docfiller
 class LrcUllrich(BaseLRClassifier):
     """Machine-Learning based algorithm for laterality clf_pipe of initial contacts.
 
@@ -51,19 +51,18 @@ class LrcUllrich(BaseLRClassifier):
     ----------
     smoothing_filter
         The bandpass filter used to smooth the data before feature extraction.
-    model
-        The machine learning model used for step detection.
-        This is expected to be a ML classifier instance.
-    scaler
-        The scikit-learn scaler used for scaling/normalizing the feature matrix.
+    clf_pipe
+        A sklearn pipeline used to perform the laterality classification based on the extracted features.
+        All pretrained pipelines consist of a ``MinMaxScaler`` and a linear ``SVC`` classifier.
 
     Attributes
     ----------
     %(ic_lr_list_)s
     feature_matrix_
-        The 6-dimensional scaled feature vector, containing the vertical and anterior-posterior filtered angular
+        The 6-dimensional feature vector, containing the vertical and anterior-posterior filtered angular
         velocities and their first (gradient) and second (curvature) derivatives.
         This might be helpful for debugging or further analysis.
+        This feature matrix will be passed into the provided pipeline.
 
     Other Parameters
     ----------------
@@ -154,7 +153,7 @@ class LrcUllrich(BaseLRClassifier):
         self.smoothing_filter = smoothing_filter
         self.clf_pipe = clf_pipe
 
-    @base_lrd_docfiller
+    @base_lrc_docfiller
     def predict(
         self,
         data: pd.DataFrame,
@@ -216,7 +215,7 @@ class LrcUllrich(BaseLRClassifier):
 
         return self
 
-    @base_lrd_docfiller
+    @base_lrc_docfiller
     def self_optimize(
         self,
         data_sequences: Iterable[pd.DataFrame],
@@ -226,7 +225,7 @@ class LrcUllrich(BaseLRClassifier):
         sampling_rate_hz: Union[float, Iterable[float]],
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        """Retrain the internal model and scaler using the provided data.
+        """Retrain the classifier pipeline using the provided data.
 
         .. note:: We only support a full re-fit of the model and the scaler.
            Therefore, you have to pass an untrained instance to the algorithm instance before calling ``self_optimize.``

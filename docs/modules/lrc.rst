@@ -1,31 +1,32 @@
-Lef-Right Detection (LRD)
-=========================
+Left-Right Classification (LRC)
+===============================
 
-.. automodule:: mobgap.lrd
+.. automodule:: mobgap.lrc
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: mobgap.lrd
+.. currentmodule:: mobgap.lrc
 
 .. autosummary::
-   :toctree: generated/lrd
+   :toctree: generated/lrc
    :template: class.rst
 
     LrcMcCamley
+    LrcUllrich
 
 Base Classes
 ++++++++++++
-.. automodule:: mobgap.lrd.base
+.. automodule:: mobgap.lrc.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: mobgap.lrd.base
+.. currentmodule:: mobgap.lrc.base
 
 .. autosummary::
-   :toctree: generated/lrd
+   :toctree: generated/lrc
    :template: class.rst
 
     BaseLRClassifier
@@ -34,7 +35,7 @@ Docu-helper
 -----------
 
 .. autosummary::
-   :toctree: generated/lrd
+   :toctree: generated/lrc
    :template: func.rst
 
-    base_lrd_docfiller
+    base_lrc_docfiller
