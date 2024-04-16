@@ -167,7 +167,7 @@ matches
 # often want to run a full evaluation on an entire dataset.
 # This can be done using the :class:`~mobgap.gsd.evaluation.GsdEvaluationPipeline` class and some ``tpcp`` functions.
 #
-# But lets start with selecting some data.
+# But let's start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
 simulated_real_world_walking = LabExampleDataset(reference_system="INDIP").get_subset(test="Test11")
 
@@ -180,12 +180,12 @@ from mobgap.gsd.evaluation import GsdEvaluationPipeline
 
 pipeline = GsdEvaluationPipeline(GsdIluz())
 
-pipeline.run(simulated_real_world_walking[0]).gs_list_
+pipeline.safe_run(simulated_real_world_walking[0]).gs_list_
 
 # %%
 # Note, that this did just "run" the pipeline on a single datapoint.
 # If we want to run it on all datapoints and evaluate the performance of the algorithm, we can use the
-# ``tpcp.validate.validate`` function.
+# :func:`~tpcp.validate.validate` function.
 #
 # It uses the build in ``score`` method of the pipeline to calculate the performance of the algorithm on each datapoint
 # and then takes the mean of the results.
@@ -205,7 +205,7 @@ evaluation_results["single_reference"][0][0]
 evaluation_results["single_detected"][0][0]
 
 # %%
-# If you want to calculate additional metrics, you can either create a custom score function or sublcass the pipeline
+# If you want to calculate additional metrics, you can either create a custom score function or subclass the pipeline
 # and overwrite the score function.
 #
 # Parameter Optimization
