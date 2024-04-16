@@ -628,6 +628,7 @@ class GsdEvaluationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             The pipeline instance with the optimized GSD algorithm.
 
         """
+        # TODO: This method is not really tested yet, as we don't have any ML based GSD algorithms.
         all_data = (d.data_ss for d in dataset)
         reference_wbs = (d.reference_parameters_.wb_list for d in dataset)
         sampling_rate_hz = (d.sampling_rate_hz for d in dataset)
