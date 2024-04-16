@@ -38,6 +38,26 @@ base_gsd_docfiller = make_filldoc(
     self
         The instance of the class with the ``gs_list_`` attribute set to the detected gait sequences.
     """,
+        "self_optimize_paras": """
+    data_sequences
+        A sequence/iterable/list of dataframes, each containing the raw IMU data of a single sensor.
+        This could be individual trials or data from different participants.
+        The optimization will be performed over all sequences combined.
+    ref_gsd_list_per_sequence
+        A sequence/iterable/list of gsd-list, each containing the reference gait sequences for the respective
+        data sequence.
+        They are used as ground-truth to validate the output of the algorithm during optimization.
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+        This can either be a single float, in case all sequences have the same sampling rate, or a sequence of
+        floats, in case the sampling rate differs between the sequences.
+        """,
+        "self_optimize_return": """
+    Returns
+    -------
+    self
+        The instance of the class with the internal parameters optimized.
+        """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseGsdDetector`.",
 )
@@ -96,10 +116,11 @@ class BaseGsDetector(Algorithm):
         """
         raise NotImplementedError
 
+    @base_gsd_docfiller
     def self_optimize(
         self,
-        data: Iterable[pd.DataFrame],
-        reference_gsd_list: Iterable[pd.DataFrame],
+        data_sequences: Iterable[pd.DataFrame],
+        ref_gsd_list_per_sequence: Iterable[pd.DataFrame],
         *,
         sampling_rate_hz: Union[float, Iterable[float]],
         **kwargs: Unpack[dict[str, Any]],
@@ -107,6 +128,12 @@ class BaseGsDetector(Algorithm):
         """Optimize the internal parameters of the algorithm.
 
         This is only relevant for algorithms that have a special internal optimization approach (like ML based algos).
+
+        Parameters
+        ----------
+        %(self_optimize_paras)s
+
+        %(self_optimize_return)s
 
         """
         raise NotImplementedError("This algorithm does not implement a internal optimization.")

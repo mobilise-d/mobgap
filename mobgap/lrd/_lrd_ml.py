@@ -223,46 +223,55 @@ class LrdUllrich(BaseLRDetector):
 
         return self
 
+    @base_lrd_docfiller
     def self_optimize(
         self,
-        data: Iterable[pd.DataFrame],
-        ic_list: Iterable[pd.DataFrame],
-        reference_ic_lr_list: Iterable[pd.DataFrame],
+        data_sequences: Iterable[pd.DataFrame],
+        ic_list_per_sequence: Iterable[pd.DataFrame],
+        ref_ic_lr_list_per_sequence: Iterable[pd.DataFrame],
         *,
         sampling_rate_hz: Union[float, Iterable[float]],
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        # TODO: Docstring
-        """
-        Model optimization method based on the provided gait data, initial contact list, and the reference label list.
+        """Retrain the internal model and scaler using the provided data.
+
+        .. note:: We only support a full re-fit of the model and the scaler.
+           Therefore, you have to pass an untrained instance to the algorithm instance before calling ``self_optimize.``
 
         Parameters
         ----------
-        data
-            The gait data.
-        ic_list
-            The initial contact list.
-        label_list
-            The label list.
-        sampling_rate_hz
-            The sampling rate in Hz.
+        %(self_optimize_paras)s
 
-        Returns
-        -------
-        self
-            Optimized instance of the provided class.
+        %(self_optimize_return)s
         """
         self._check_model(self.model)
+
+        try:
+            check_is_fitted(self.model)
+        except NotFittedError:
+            pass
+        else:
+            raise RuntimeError("Model is already fitted. Initialize the algorithm with a untrained classifier object.")
+
+        try:
+            check_is_fitted(self.scaler)
+        except NotFittedError:
+            pass
+        else:
+            raise RuntimeError("Scaler is already fitted. Initialize the algorithm with a untrained scaler object.")
 
         if isinstance(sampling_rate_hz, float):
             sampling_rate_hz = cycle([sampling_rate_hz])
 
-        features = [self.extract_features(dp, ic, sr) for dp, ic, sr in zip(data, ic_list, sampling_rate_hz)]
+        features = [
+            self.extract_features(dp, ic, sr)
+            for dp, ic, sr in zip(data_sequences, ic_list_per_sequence, sampling_rate_hz)
+        ]
         all_features = pd.concat(features, axis=0, ignore_index=True) if len(features) > 1 else features[0]
         all_features = self.scaler.fit_transform(all_features)
 
         # Concatenate the labels if there is more than one GS
-        label_list = [ic_lr_list["lr_label"] for ic_lr_list in reference_ic_lr_list]
+        label_list = [ic_lr_list["lr_label"] for ic_lr_list in ref_ic_lr_list_per_sequence]
         all_labels = pd.concat(label_list, axis=0, ignore_index=True) if len(label_list) > 1 else label_list[0]
 
         self.model.fit(all_features, all_labels)
