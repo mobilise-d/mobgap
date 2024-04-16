@@ -1,8 +1,8 @@
 """
-McCamley L/R detector
-=====================
+McCamley L/R Classifier
+=======================
 
-The McCamley L/R detector is a simple algorithm to detect the laterality of initial contacts based on the sign
+The McCamley L/R classifier is a simple algorithm to detect the laterality of initial contacts based on the sign
 of the angular velocity signal.
 We use a modified version of the original McCamley algorithm, which includes a smoothing filter to reduce the
 influence of noise on the detection.
@@ -46,14 +46,14 @@ reference_wbs
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
 # Note, that we use the ``ic_list`` result key, as the output of all L/R detectors is identical to the output of the
 # IC-detectors, but with an additional ``lr_label`` column.
-from mobgap.lrd import LrdMcCamley
+from mobgap.lrc import LrdMcCamley
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     result.ic_list = (
-        LrdMcCamley().detect(data, ic_list=ref_ics_rel_to_gs.loc[gs.id], sampling_rate_hz=sampling_rate_hz).ic_lr_list_
+        LrdMcCamley().predict(data, ic_list=ref_ics_rel_to_gs.loc[gs.id], sampling_rate_hz=sampling_rate_hz).ic_lr_list_
     )
 
 detected_ics = iterator.results_.ic_list

@@ -77,10 +77,10 @@ base_lrd_docfiller = make_filldoc(
 
 
 @base_lrd_docfiller
-class BaseLRDetector(Algorithm):
-    """Base class for L/R foot detectors.
+class BaseLRClassifier(Algorithm):
+    """Base class for L/R foot classifier.
 
-    This base class should be used for all Left/Right foot detection algorithms.
+    This base class should be used for all Left/Right foot classificaiton algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
     The method should then return the instance of the class, with the ``ic_lr_list_`` attribute set to the ``ic_list``
     provided by the used with a new addition `lr` column that either contains the string ``left`` or ``right``,
@@ -107,7 +107,7 @@ class BaseLRDetector(Algorithm):
 
     """
 
-    _action_methods = ("detect",)
+    _action_methods = ("predict",)
 
     data: pd.DataFrame
     ic_list: pd.DataFrame
@@ -117,7 +117,7 @@ class BaseLRDetector(Algorithm):
     ic_lr_list_: pd.DataFrame
 
     @base_lrd_docfiller
-    def detect(
+    def predict(
         self,
         data: pd.DataFrame,
         ic_list: pd.DataFrame,
@@ -158,4 +158,4 @@ class BaseLRDetector(Algorithm):
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
-__all__ = ["BaseLRDetector", "base_lrd_docfiller"]
+__all__ = ["BaseLRClassifier", "base_lrd_docfiller"]

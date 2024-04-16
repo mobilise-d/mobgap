@@ -16,13 +16,13 @@ from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrd.base import BaseLRDetector, base_lrd_docfiller
+from mobgap.lrc.base import BaseLRClassifier, base_lrd_docfiller
 from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScaler
 
 
 @cache
 def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
-    file_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / file_name
+    file_path = files("mobgap") / "lrc" / "_ullrich_pretrained_models" / file_name
     with file_path.open("rb") as file:
         return joblib.load(file)
 
@@ -30,8 +30,9 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
 # TODO: Instead of having a separate scaler and model, we should use a sklearn pipeline.
 
 
-class LrdUllrich(BaseLRDetector):
-    """Machine-Learning based algorithm for laterality detection of initial contacts.
+@base_lrd_docfiller
+class LrcUllrich(BaseLRClassifier):
+    """Machine-Learning based algorithm for laterality classification of initial contacts.
 
     This algorithm uses the band-pass filtered vertical ("gyr_x") and anterior-posterior ("gyr_z") angular velocity.
     For both axis a set of features consisting of the value, the first and second derivative are extracted at the time
@@ -39,7 +40,7 @@ class LrdUllrich(BaseLRDetector):
     This results in a 6-dimensional feature vector for each IC.
     This feature set is normalized using the provided scaler and then classified using the provided model.
 
-    We provde a set of pre-trained models that are based on the MS-Project (TODO: Ref paper) dataset.
+    We provide a set of pre-trained models that are based on the MS-Project (TODO: Ref paper) dataset.
     They all use a Min-Max Scaler in combination with a linear SVC classifier.
     The parameters of the SVC depend on the cohort and were tuned as explained in the paper ([1]_).
 
@@ -156,7 +157,7 @@ class LrdUllrich(BaseLRDetector):
             )
 
     @base_lrd_docfiller
-    def detect(
+    def predict(
         self,
         data: pd.DataFrame,
         ic_list: pd.DataFrame,
@@ -185,7 +186,7 @@ class LrdUllrich(BaseLRDetector):
 
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = pd.DataFrame(columns=["ic", "lr_label"])
-            self.feature_matrix_ = pd.DataFrame(columns=self.feature_matrix_.columns)
+            self.feature_matrix_ = pd.DataFrame(columns=self._feature_matrix_cols)
             return self
 
         self._check_model(self.model)
