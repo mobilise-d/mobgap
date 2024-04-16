@@ -1,7 +1,6 @@
-import typing
 from functools import cache
 from importlib.resources import files
-from typing import Any
+from typing import Any, Union, Final, Iterable
 
 import joblib
 import numpy as np
@@ -20,7 +19,7 @@ from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScale
 
 
 @cache
-def _load_model_files(file_name: str) -> Any:
+def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
     file_path = files("mobgap") / "lrd" / "_ullrich_pretrained_models" / file_name
     with file_path.open("rb") as file:
         return joblib.load(file)
@@ -81,7 +80,7 @@ class LrdUllrich(BaseLRDetector):
 
     feature_matrix_: pd.DataFrame
 
-    _feature_matrix_cols: typing.Final = [
+    _feature_matrix_cols: Final = [
         "filtered_gyr_x",
         "gradient_gyr_x",
         "curvature_gyr_x",
@@ -211,11 +210,12 @@ class LrdUllrich(BaseLRDetector):
 
     def self_optimize(
         self,
-        data: typing.Iterable[pd.DataFrame],
-        ic_list: typing.Iterable[pd.DataFrame],
-        reference_ic_lr_list: typing.Iterable[pd.DataFrame],
+        data: Iterable[pd.DataFrame],
+        ic_list: Iterable[pd.DataFrame],
+        reference_ic_lr_list: Iterable[pd.DataFrame],
         *,
-        sampling_rate_hz: typing.Union[float, typing.Iterable[float]],
+        sampling_rate_hz: Union[float, Iterable[float]],
+        **_: Unpack[dict[str, Any]],
     ) -> Self:
         """
         Model optimization method based on the provided gait data, initial contact list, and the reference label list.

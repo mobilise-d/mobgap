@@ -1,6 +1,7 @@
 """Base class for LR detectors."""
 
-from typing import Any
+from collections.abc import Iterable
+from typing import Any, Union
 
 import pandas as pd
 from tpcp import Algorithm
@@ -105,6 +106,22 @@ class BaseLRDetector(Algorithm):
         %(detect_return)s
         """
         raise NotImplementedError
+
+    def self_optimize(
+        self,
+        data: Iterable[pd.DataFrame],
+        ic_list: Iterable[pd.DataFrame],
+        reference_ic_lr_list: Iterable[pd.DataFrame],
+        *,
+        sampling_rate_hz: Union[float, Iterable[float]],
+        **kwargs: Unpack[dict[str, Any]],
+    ) -> Self:
+        """Optimize the internal parameters of the algorithm.
+
+        This is only relevant for algorithms that have a special internal optimization approach (like ML based algos).
+
+        """
+        raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
 __all__ = ["BaseLRDetector", "base_lrd_docfiller"]
