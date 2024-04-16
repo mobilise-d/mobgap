@@ -7,10 +7,10 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrc.base import BaseLRClassifier, base_lrd_docfiller
+from mobgap.lrc.base import BaseLRClassifier, base_lrc_docfiller
 
 
-@base_lrd_docfiller
+@base_lrc_docfiller
 class LrcMcCamley(BaseLRClassifier):
     """McCamley algorithm for laterality detection of initial contacts.
 
@@ -75,7 +75,7 @@ class LrcMcCamley(BaseLRClassifier):
         self.axis = axis
         self.smoothing_filter = smoothing_filter
 
-    @base_lrd_docfiller
+    @base_lrc_docfiller
     def predict(
         self,
         data: pd.DataFrame,
