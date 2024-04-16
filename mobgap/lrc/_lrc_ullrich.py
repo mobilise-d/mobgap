@@ -7,8 +7,10 @@ from typing import Any, Final, Union
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, ClassifierMixin, is_classifier
 from sklearn.exceptions import NotFittedError
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.svm import SVC
 from sklearn.utils.validation import check_is_fitted
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
@@ -32,7 +34,7 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
 
 @base_lrd_docfiller
 class LrcUllrich(BaseLRClassifier):
-    """Machine-Learning based algorithm for laterality classification of initial contacts.
+    """Machine-Learning based algorithm for laterality clf_pipe of initial contacts.
 
     This algorithm uses the band-pass filtered vertical ("gyr_x") and anterior-posterior ("gyr_z") angular velocity.
     For both axis a set of features consisting of the value, the first and second derivative are extracted at the time
@@ -80,9 +82,8 @@ class LrcUllrich(BaseLRClassifier):
            available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
     """
 
-    model: SklearnClassifier
-    scaler: SklearnScaler
     smoothing_filter: BaseFilter
+    clf_pipe: Pipeline
 
     feature_matrix_: pd.DataFrame
 
@@ -102,8 +103,7 @@ class LrcUllrich(BaseLRClassifier):
 
         class _ModelConfig(TypedDict):
             smoothing_filter: BaseFilter
-            model: SklearnClassifier
-            scaler: SklearnScaler
+            clf_pipe: Pipeline
 
         @classmethod
         def _load_model_config(cls, model_name: str) -> _ModelConfig:
@@ -121,8 +121,9 @@ class LrcUllrich(BaseLRClassifier):
 
             return {
                 "smoothing_filter": cls._BW_FILTER,
-                "model": model,
-                "scaler": scaler,
+                # Note, that we use names for the pipeline steps, that are allow us to identify, that these are the
+                # old pre-trained models.
+                "clf_pipe": Pipeline([("scaler_old", scaler), ("clf_old", model)]),
             }
 
         @classproperty
@@ -137,24 +138,21 @@ class LrcUllrich(BaseLRClassifier):
         def msproject_ms(cls) -> _ModelConfig:  # noqa: N805
             return cls._load_model_config("msproject_ms")
 
+        @classproperty
+        def untrained_svc(self) -> _ModelConfig:
+            return {
+                "smoothing_filter": self._BW_FILTER,
+                "clf_pipe": Pipeline([("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))]),
+            }
+
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.msproject_all.items()})
     def __init__(
         self,
         smoothing_filter: BaseFilter,
-        model: SklearnClassifier,
-        scaler: SklearnScaler,
+        clf_pipe: Pipeline,
     ) -> None:
         self.smoothing_filter = smoothing_filter
-        self.model = model
-        self.scaler = scaler
-
-    def _check_model(self, model: SklearnClassifier) -> None:
-        if not isinstance(model, ClassifierMixin) or not isinstance(model, BaseEstimator) or not is_classifier(model):
-            raise TypeError(
-                f"Unknown model type {type(model).__name__}."
-                "The model must inherit from ClassifierDtype and BaseEstimator. "
-                "Any valid scikit-learn classifier can be used."
-            )
+        self.clf_pipe = clf_pipe
 
     @base_lrd_docfiller
     def predict(
@@ -189,38 +187,32 @@ class LrcUllrich(BaseLRClassifier):
             self.feature_matrix_ = pd.DataFrame(columns=self._feature_matrix_cols)
             return self
 
-        self._check_model(self.model)
-
         # create a copy of ic_list, otherwise, they will get modified when adding the predicted labels
         # We also remove the "lr_label" column, if it exists, to avoid conflicts
         ic_list = ic_list.copy().drop(columns="lr_label", errors="ignore")
 
         try:
-            check_is_fitted(self.model)
+            check_is_fitted(self.clf_pipe)
         except NotFittedError as e:
             raise RuntimeError("Model is not fitted. Call self_optimize before calling detect.") from e
 
         feature_matrix = self.extract_features(self.data, ic_list, self.sampling_rate_hz)
+        self.feature_matrix_ = feature_matrix
 
-        # The old models were trained wihtout feature names, however, when we retrain the models, we do it with
+        # The old models were trained without feature names, however, when we retrain the models, we do it with
         # feature names.
-        # Once, we retrained all models, we can remove this destinction and assume we are working with dataframes
+        # Once, we retrained all models, we can remove this distinction and assume we are working with dataframes
         # all the time.
         # Hence, we need to separate here:
-        _cols = feature_matrix.columns
-        _index = feature_matrix.index
-        if getattr(self.scaler, "feature_names_in_", None) is None:
+        if (scaler := self.clf_pipe.named_steps.get("scaler_old")) is not None and getattr(
+            scaler, "feature_names_in_", None
+        ) is None:
             feature_matrix = feature_matrix.to_numpy()
 
-        feature_matrix_scaled = self.scaler.transform(feature_matrix)
-
-        ic_list["lr_label"] = self.model.predict(feature_matrix_scaled)
+        ic_list["lr_label"] = self.clf_pipe.predict(feature_matrix)
         ic_list = ic_list.replace({"lr_label": {0: "left", 1: "right"}})
 
         self.ic_lr_list_ = ic_list
-
-        if not isinstance(feature_matrix_scaled, pd.DataFrame):
-            self.feature_matrix_ = pd.DataFrame(feature_matrix_scaled, columns=_cols, index=_index)
 
         return self
 
@@ -245,21 +237,17 @@ class LrcUllrich(BaseLRClassifier):
 
         %(self_optimize_return)s
         """
-        self._check_model(self.model)
-
         try:
-            check_is_fitted(self.model)
+            check_is_fitted(self.clf_pipe)
         except NotFittedError:
             pass
         else:
-            raise RuntimeError("Model is already fitted. Initialize the algorithm with a untrained classifier object.")
-
-        try:
-            check_is_fitted(self.scaler)
-        except NotFittedError:
-            pass
-        else:
-            raise RuntimeError("Scaler is already fitted. Initialize the algorithm with a untrained scaler object.")
+            raise RuntimeError(
+                "Pipeline is already fitted. "
+                "Initialize the algorithm with a untrained classifier object. "
+                "If you want to use the same classifier and scaler as for the pre-trained MS-Project pipelines, you"
+                "can use the `LrcUllrich(**LrcUllrich.PredefinedParameters.untrained_svc)` class to load them."
+            )
 
         if isinstance(sampling_rate_hz, float):
             sampling_rate_hz = cycle([sampling_rate_hz])
@@ -269,13 +257,11 @@ class LrcUllrich(BaseLRClassifier):
             for dp, ic, sr in zip(data_sequences, ic_list_per_sequence, sampling_rate_hz)
         ]
         all_features = pd.concat(features, axis=0, ignore_index=True) if len(features) > 1 else features[0]
-        all_features = self.scaler.fit_transform(all_features)
-
         # Concatenate the labels if there is more than one GS
         label_list = [ic_lr_list["lr_label"] for ic_lr_list in ref_ic_lr_list_per_sequence]
         all_labels = pd.concat(label_list, axis=0, ignore_index=True) if len(label_list) > 1 else label_list[0]
 
-        self.model.fit(all_features, all_labels)
+        self.clf_pipe.fit(all_features, all_labels)
 
         return self
 

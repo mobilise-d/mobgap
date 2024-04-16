@@ -13,13 +13,13 @@ evaluate the performance of the algorithm.
 import pandas as pd
 
 from mobgap.data import LabExampleDataset
-from mobgap.lrc import LrdUllrich
+from mobgap.lrc import LrcUllrich
 from mobgap.pipeline import GsIterator
 
 # %%
 # Loading some example data
 # --------------------------
-# First, we load some example data and apply the LrdUllrich algorithm with its default pre-trained model to it.
+# First, we load some example data and apply the LrcUllrich algorithm with its default pre-trained model to it.
 # We use the reference initial contacts as input for the algorithm so that we can focus on the evaluation of the
 # L/R classification independently of the detection of the initial contacts.
 # However, you can use any other algorithm as well.
@@ -38,7 +38,7 @@ def calculate_output(single_test_data):
 
     for (gs, data), r in iterator.iterate(single_test_data.data_ss, ref_paras.wb_list):
         ref_ics = ref_paras.ic_list.loc[gs.id]
-        r.ic_list = LrdUllrich().predict(data, ref_ics, sampling_rate_hz=single_test_data.sampling_rate_hz).ic_lr_list_
+        r.ic_list = LrcUllrich().predict(data, ref_ics, sampling_rate_hz=single_test_data.sampling_rate_hz).ic_lr_list_
 
     return iterator.results_.ic_list
 
@@ -96,7 +96,7 @@ simulated_real_world_walking
 # Now we can create a pipeline instance and directly run it on of the datapoints of the dataset.
 from mobgap.lrc.pipeline import LRCEmulationPipeline
 
-pipeline = LRCEmulationPipeline(LrdUllrich())
+pipeline = LRCEmulationPipeline(LrcUllrich())
 
 pipeline.safe_run(simulated_real_world_walking[0]).ic_lr_list_
 
@@ -145,23 +145,27 @@ disp.figure_.show()
 # In general, we would recommend using a cross-validation approach.
 # This can be done using the :func:`~tpcp.validate.cross_validate` function.
 #
-# In the example below, we show the "most complicated" case, where we retrain the internal model of the ``LrdUllrich``
+# In the example below, we show the "most complicated" case, where we retrain the internal model of the ``LrcUllrich``
 # algorithm and optimize one of the Hyperparmeters of the internal SVM.
 # As we retrain the model and optimize hyperparameters, we need to use a :class:`~tpcp.optimize.GridSearchCV` nested
 # within the cross-validation loop.
 #
 # Let's set this up first.
 from sklearn.model_selection import ParameterGrid
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
 from tpcp.optimize import GridSearchCV
 
-para_grid = ParameterGrid({"algo__model__C": [0.1, 1.0, 10.0]})
+# %%
+# We initialize the pipeline with an untrained model and an untrained scaler as a new pipeline.
+clf_pipeline = Pipeline([("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))])
+pipeline = LRCEmulationPipeline(LrcUllrich(clf_pipe=clf_pipeline))
 
 # %%
-# We initialize the pipeline with an untrained model and an untrained scaler.
-
-pipeline = LRCEmulationPipeline(LrdUllrich(model=SVC(kernel="linear"), scaler=MinMaxScaler()))
+# Then we can create a parameter Grid for the gridsearch.
+# Note, that we use ``__`` to set nested parameters.
+para_grid = ParameterGrid({"algo__clf_pipe__clf__C": [0.1, 1.0, 10.0]})
 
 # %%
 # Then we path the pipeline to the optimizer.
@@ -195,7 +199,7 @@ evaluation_results_with_opti.loc[:, ~evaluation_results_with_opti.columns.str.en
 # We simply evaluate the pre-trained model on exactly the same test sets as the optimized model.
 from tpcp.optimize import DummyOptimize
 
-optimizer = DummyOptimize(LRCEmulationPipeline(LrdUllrich()))
+optimizer = DummyOptimize(LRCEmulationPipeline(LrcUllrich()))
 
 evaluation_results_pre_trained = pd.DataFrame(cross_validate(optimizer, simulated_real_world_walking, cv=3))
 evaluation_results_pre_trained.loc[:, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")].T
