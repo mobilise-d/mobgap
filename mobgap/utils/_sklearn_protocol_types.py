@@ -8,16 +8,16 @@ ArrayLike = Union[np.ndarray, pd.Series, pd.DataFrame]
 
 
 class SklearnClassifier(Protocol):
-    def fit(self, X: ArrayLike, y: ArrayLike) -> Self: ...
+    def fit(self, X: ArrayLike, y: ArrayLike) -> Self: ...  # noqa: N803
 
-    def predict(self, X: ArrayLike) -> ArrayLike: ...
+    def predict(self, X: ArrayLike) -> ArrayLike: ...  # noqa: N803
 
 
 class SklearnScaler(Protocol):
-    def fit(self, X: ArrayLike) -> Self: ...
+    def fit(self, X: ArrayLike) -> Self: ...  # noqa: N803
 
-    def transform(self, X: ArrayLike) -> ArrayLike: ...
+    def transform(self, X: ArrayLike) -> ArrayLike: ...  # noqa: N803
 
-    def fit_transform(self, X: ArrayLike) -> ArrayLike: ...
+    def fit_transform(self, X: ArrayLike) -> ArrayLike: ...  # noqa: N803
 
-    def inverse_transform(self, X: ArrayLike) -> ArrayLike: ...
+    def inverse_transform(self, X: ArrayLike) -> ArrayLike: ...  # noqa: N803
