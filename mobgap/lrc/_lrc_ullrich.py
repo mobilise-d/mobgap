@@ -29,9 +29,6 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
         return joblib.load(file)
 
 
-# TODO: Instead of having a separate scaler and model, we should use a sklearn pipeline.
-
-
 @base_lrc_docfiller
 class LrcUllrich(BaseLRClassifier):
     """Machine-Learning based algorithm for laterality clf_pipe of initial contacts.
@@ -160,7 +157,7 @@ class LrcUllrich(BaseLRClassifier):
         ic_list: pd.DataFrame,
         *,
         sampling_rate_hz: float,
-        **_: Unpack[dict[str, Any]],
+        **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """
         %(detect_short)s.
@@ -168,15 +165,11 @@ class LrcUllrich(BaseLRClassifier):
         Parameters
         ----------
         %(detect_para)s
+        kwargs
+            Additional kwargs that are passed to the ``self.clf_pipe.predict`` method.
 
         %(detect_return)s
         """
-        if not isinstance(data, pd.DataFrame):
-            raise TypeError("'data' must be a pandas DataFrame")
-
-        if not isinstance(ic_list, pd.DataFrame):
-            raise TypeError("'ic_list' must be a pandas DataFrame")
-
         self.data = data
         self.ic_list = ic_list
         self.sampling_rate_hz = sampling_rate_hz
@@ -208,7 +201,7 @@ class LrcUllrich(BaseLRClassifier):
         ) is None:
             feature_matrix = feature_matrix.to_numpy()
 
-        ic_list["lr_label"] = self.clf_pipe.predict(feature_matrix)
+        ic_list["lr_label"] = self.clf_pipe.predict(feature_matrix, **kwargs)
         ic_list = ic_list.replace({"lr_label": {0: "left", 1: "right"}})
 
         self.ic_lr_list_ = ic_list
@@ -223,7 +216,7 @@ class LrcUllrich(BaseLRClassifier):
         ref_ic_lr_list_per_sequence: Iterable[pd.DataFrame],
         *,
         sampling_rate_hz: Union[float, Iterable[float]],
-        **_: Unpack[dict[str, Any]],
+        **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """Retrain the classifier pipeline using the provided data.
 
@@ -233,6 +226,8 @@ class LrcUllrich(BaseLRClassifier):
         Parameters
         ----------
         %(self_optimize_paras)s
+        kwargs
+            Additional keyword arguments that are passed to the ``self.clf_pipe.fit``
 
         %(self_optimize_return)s
         """
@@ -260,7 +255,7 @@ class LrcUllrich(BaseLRClassifier):
         label_list = [ic_lr_list["lr_label"] for ic_lr_list in ref_ic_lr_list_per_sequence]
         all_labels = pd.concat(label_list, axis=0, ignore_index=True) if len(label_list) > 1 else label_list[0]
 
-        self.clf_pipe.fit(all_features, all_labels)
+        self.clf_pipe.fit(all_features, all_labels, **kwargs)
 
         return self
 

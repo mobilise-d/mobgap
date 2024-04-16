@@ -94,9 +94,9 @@ simulated_real_world_walking
 
 # %%
 # Now we can create a pipeline instance and directly run it on of the datapoints of the dataset.
-from mobgap.lrc.pipeline import LRCEmulationPipeline
+from mobgap.lrc.pipeline import LrcEmulationPipeline
 
-pipeline = LRCEmulationPipeline(LrcUllrich())
+pipeline = LrcEmulationPipeline(LrcUllrich())
 
 pipeline.safe_run(simulated_real_world_walking[0]).ic_lr_list_
 
@@ -160,7 +160,7 @@ from tpcp.optimize import GridSearchCV
 # %%
 # We initialize the pipeline with an untrained model and an untrained scaler as a new pipeline.
 clf_pipeline = Pipeline([("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))])
-pipeline = LRCEmulationPipeline(LrcUllrich(clf_pipe=clf_pipeline))
+pipeline = LrcEmulationPipeline(LrcUllrich(clf_pipe=clf_pipeline))
 
 # %%
 # Then we can create a parameter Grid for the gridsearch.
@@ -199,7 +199,7 @@ evaluation_results_with_opti.loc[:, ~evaluation_results_with_opti.columns.str.en
 # We simply evaluate the pre-trained model on exactly the same test sets as the optimized model.
 from tpcp.optimize import DummyOptimize
 
-optimizer = DummyOptimize(LRCEmulationPipeline(LrcUllrich()))
+optimizer = DummyOptimize(LrcEmulationPipeline(LrcUllrich()))
 
 evaluation_results_pre_trained = pd.DataFrame(cross_validate(optimizer, simulated_real_world_walking, cv=3))
 evaluation_results_pre_trained.loc[:, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")].T

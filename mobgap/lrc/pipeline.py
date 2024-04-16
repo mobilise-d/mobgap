@@ -1,7 +1,7 @@
 """Helpful Pipelines to wrap the LRC algorithms for optimization and evaluation."""
 
 from collections.abc import Iterator
-from typing import Any, Union, Unpack
+from typing import Any, TypedDict, Unpack
 
 import pandas as pd
 from sklearn.metrics import accuracy_score
@@ -29,15 +29,49 @@ def _extract_data(dataset: BaseGaitDatasetWithReference) -> Iterator[pd.DataFram
             yield data
 
 
-class LRCEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
-    """
-    This class represents a pipeline for LrdUllrich that can be optimized.
-    """
+class _LrcScores(TypedDict):
+    accuracy: float
+    raw_results: NoAgg
 
-    ic_lr_list_: pd.DataFrame
+
+class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
+    """Run a LRC algorithm in isolation, using reference ICs as input.
+
+    This pipeline can wrap any LR-classifier and run it on a datapoint of any valid dataset or optimize it across a
+    full dataset.
+    The LRC is called once per WB in the datapoint and the reference initial contacts are used as the ``ic_list`` input
+    for the algorithm.
+
+    This pipeline should be used when performing a "block-wise" evaluation of an LRC algorithm or when optimizing an
+    LRC either using external (``tpcp.optimize``) or internal (``self_optimize``) optimization.
+
+    Parameters
+    ----------
+    algo
+        The LRC algorithm to be run in the pipeline.
+
+    Attributes
+    ----------
+    ic_lr_list_
+        A dataframe containing all ICs across all WBs of a datapoint with an additional column ``lr_label`` specifying
+        the detected left/right label.
+    per_wb_algo_
+        A dict of the LRC algorithm instances run on each WB of the datapoint.
+        The key is the wb-id.
+        Each instance contains the reference to the data it was called with, the classified labels and potential
+        additional debug information provided by the individual algorithm.
+
+    Other Parameters
+    ----------------
+    datapoint
+        The datapoint that was passed to the run method.
+
+    """
 
     algo: OptimizableParameter[BaseLRClassifier]
-    per_gs_algo_: list[BaseLRClassifier]
+
+    ic_lr_list_: pd.DataFrame
+    per_wb_algo_: dict[str, BaseLRClassifier]
 
     def __init__(self, algo: BaseLRClassifier) -> None:
         self.algo = algo
@@ -59,22 +93,25 @@ class LRCEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             The pipeline instance with the detected gait sequences stored in the ``gs_list_`` attribute.
 
         """
+        self.datapoint = datapoint
         sampling_rate_hz = datapoint.sampling_rate_hz
 
         ref_paras = datapoint.reference_parameters_relative_to_wb_
 
-        gs_iterator = GsIterator()
+        wb_iterator = GsIterator()
 
         # TODO: maybe do it properly and create a custom iter type
-        result_algo_list = []
-        for (gs, data), r in gs_iterator.iterate(datapoint.data_ss, ref_paras.wb_list):
-            ref_ic_list = ref_paras.ic_list.loc[gs.id]
-            algo = self.algo.clone().predict(data, ref_ic_list, sampling_rate_hz=sampling_rate_hz)
-            result_algo_list.append(algo)
+        result_algo_list = {}
+        for (wb, data), r in wb_iterator.iterate(datapoint.data_ss, ref_paras.wb_list):
+            ref_ic_list = ref_paras.ic_list.loc[wb.id]
+            algo = self.algo.clone().predict(
+                data, ref_ic_list.drop("lr_label", axis=1, errors="ignore"), sampling_rate_hz=sampling_rate_hz
+            )
+            result_algo_list[wb.id] = algo
             r.ic_list = algo.ic_lr_list_
 
-        self.per_gs_algo_ = result_algo_list
-        self.ic_lr_list_ = gs_iterator.results_.ic_list
+        self.per_wb_algo_ = result_algo_list
+        self.ic_lr_list_ = wb_iterator.results_.ic_list
 
         return self
 
@@ -114,12 +151,28 @@ class LRCEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         return self
 
-    def score(self, datapoint: BaseGaitDatasetWithReference) -> Union[float, dict[str, float]]:
+    def score(self, datapoint: BaseGaitDatasetWithReference) -> _LrcScores:
+        """Score the pipeline on a single datapoint.
+
+        This runs ``algo`` on the provided datapoint and returns the accuracy and the raw classified labels.
+
+        This method should be used in combination with the scoring/validation methods available in ``tpcp.optimize``
+
+        Parameters
+        ----------
+        datapoint
+            A single datapoint of a Gait Dataset with reference information.
+
+        Returns
+        -------
+        metrics
+            A dictionary with relevant performance metrics
+
+        """
         predicted_lr_labels = self.safe_run(datapoint).ic_lr_list_
 
         ref_labels = datapoint.reference_parameters_.ic_list["lr_label"]
 
         combined = predicted_lr_labels.assign(ref_lr_label=ref_labels)
 
-        # TODO: Are there other useful metrics?
         return {"accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]), "raw_results": NoAgg(combined)}
