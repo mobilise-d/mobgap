@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from itertools import tee
 from typing import Any, Unpack
 
 import pandas as pd
@@ -64,23 +63,32 @@ class LrdPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             result_algo_list.append(algo)
             r.ic_list = algo.ic_lr_list_
 
-        self.algo_with_results_ = result_algo_list
+        self.per_gs_algo_ = result_algo_list
         self.ic_lr_list_ = gs_iterator.results_.ic_list
 
         return self
 
     def self_optimize(self, dataset: BaseGaitDatasetWithReference, **kwargs: Unpack[dict[str, Any]]) -> Self:
-        """
-        Fits the algorithm to the entire dataset.
+        """Run a "self-optimization" of an LRD-algorithm (if it implements the respective method).
 
-        This method extracts the data_list, ic_list, and label_list from each datapoint in the dataset, and then calls the self_optimize method of the algorithm with these lists.
+        This method extracts the data_list, ic_list, and left-right label from each wb in each datapoint in the dataset,
+        and then calls the `self_optimize` method of the algorithm with these lists.
 
-        Args:
-            dataset: The dataset to fit the algorithm to.
+        Note, that this is only useful for algorithms with "internal" optimization logic (i.e. ML-based algorithms).
+        If you want to optimize the hyperparameters of the algorithm, you should use the ``tpcp.optimize`` module.
+
+        Parameters
+        ----------
+        dataset
+            A Gait Dataset with reference information.
+        kwargs
+            Additional parameters required for the optimization process.
+            This will be passed to the ``self_optimize`` method of the GSD algorithm.
 
         Returns
         -------
-            LROptiPipeline: The pipeline itself. This allows for method chaining.
+        self
+            The pipeline instance with the optimized LRD algorithm.
         """
         # Note: This will pull all values from the generator into memory
         # This is fine, as we assume that the ICs are small and should fit into memory easily
@@ -94,15 +102,3 @@ class LrdPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.algo.self_optimize(all_data, all_ics, all_labels, sampling_rate_hz=all_sampling_rate_hz, **kwargs)
 
         return self
-
-
-def lazy_star_zip(iterator: Iterator, n_expected_outputs: int) -> list[Iterator]:
-    # TODO: This is a bad implementaiton, as it will keep everything in memory until all sub-iterators are consumed
-    #       This is bad for our use case where some iterators might never be consumed
-    iterators = tee(iterator, n_expected_outputs)
-
-    final_iterators = []
-    for i, iterator in enumerate(iterators):
-        final_iterators.append(val[i] for val in iterator)
-
-    return final_iterators
