@@ -6,7 +6,7 @@
                 "type":"integer"
             },
             {
-                "name":"level_1",
+                "name":"step_id",
                 "type":"integer"
             },
             {
@@ -20,284 +20,284 @@
         ],
         "primaryKey":[
             "wb_id",
-            "level_1"
+            "step_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":1,
-            "level_1":0,
+            "step_id":0,
             "ic":485,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "level_1":1,
+            "step_id":1,
             "ic":553,
             "lr_label":"left"
         },
         {
             "wb_id":1,
-            "level_1":2,
+            "step_id":2,
             "ic":619,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "level_1":3,
+            "step_id":3,
             "ic":692,
             "lr_label":"left"
         },
         {
             "wb_id":1,
-            "level_1":4,
+            "step_id":4,
             "ic":742,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "level_1":5,
+            "step_id":5,
             "ic":779,
             "lr_label":"left"
         },
         {
             "wb_id":1,
-            "level_1":6,
+            "step_id":6,
             "ic":862,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "level_1":7,
+            "step_id":8,
             "ic":1016,
             "lr_label":"right"
         },
         {
             "wb_id":1,
-            "level_1":8,
+            "step_id":10,
             "ic":1130,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":0,
+            "step_id":11,
             "ic":1746,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":1,
+            "step_id":12,
             "ic":1768,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":2,
+            "step_id":13,
             "ic":1874,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":3,
+            "step_id":14,
             "ic":2005,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":4,
+            "step_id":15,
             "ic":2120,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":5,
+            "step_id":16,
             "ic":2196,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":6,
+            "step_id":18,
             "ic":2399,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":7,
+            "step_id":19,
             "ic":2489,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":8,
+            "step_id":20,
             "ic":2655,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":9,
+            "step_id":21,
             "ic":2675,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":10,
+            "step_id":22,
             "ic":2752,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":11,
+            "step_id":23,
             "ic":2880,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":12,
+            "step_id":25,
             "ic":3068,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":13,
+            "step_id":26,
             "ic":3139,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":14,
+            "step_id":27,
             "ic":3199,
             "lr_label":"right"
         },
         {
             "wb_id":2,
-            "level_1":15,
+            "step_id":28,
             "ic":3289,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":16,
+            "step_id":30,
             "ic":3426,
             "lr_label":"left"
         },
         {
             "wb_id":2,
-            "level_1":17,
+            "step_id":32,
             "ic":3553,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":0,
+            "step_id":33,
             "ic":6083,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":1,
+            "step_id":34,
             "ic":6151,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":2,
+            "step_id":35,
             "ic":6199,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":3,
+            "step_id":36,
             "ic":6277,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":4,
+            "step_id":37,
             "ic":6358,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":5,
+            "step_id":38,
             "ic":6425,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":6,
+            "step_id":39,
             "ic":6480,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":7,
+            "step_id":40,
             "ic":6534,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":8,
+            "step_id":41,
             "ic":6630,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":9,
+            "step_id":42,
             "ic":6758,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":10,
+            "step_id":43,
             "ic":6785,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":11,
+            "step_id":44,
             "ic":6847,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":12,
+            "step_id":45,
             "ic":6919,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":13,
+            "step_id":46,
             "ic":6985,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":14,
+            "step_id":47,
             "ic":7065,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":15,
+            "step_id":48,
             "ic":7112,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":16,
+            "step_id":49,
             "ic":7228,
             "lr_label":"left"
         },
         {
             "wb_id":3,
-            "level_1":17,
+            "step_id":51,
             "ic":7476,
             "lr_label":"right"
         },
         {
             "wb_id":3,
-            "level_1":18,
+            "step_id":53,
             "ic":7707,
             "lr_label":"right"
         }
