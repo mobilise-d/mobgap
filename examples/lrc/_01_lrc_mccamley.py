@@ -20,7 +20,7 @@ from mobgap.data import LabExampleDataset
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP "InitialContact_Event" output as ground truth.
 #
-# We only use the data from the "simulated daily living" activity test from a single particpant.
+# We only use the data from the "simulated daily living" activity test from a single participant.
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
 single_test = example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
 
