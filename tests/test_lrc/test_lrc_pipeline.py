@@ -79,9 +79,6 @@ class TestLrcEmulationPipeline:
 
     def test_simple_self_optimize(self):
         dataset = LabExampleDataset(reference_system="INDIP")[:2]
-
-        # We mock the self optimize method of the LrcDummy to check that the pipeline calls it correctly
-        # We mock the self optimize method of the LrcDummy to check that the pipeline calls it correctly
         dummy_lrc = DummyLrc(None)
 
         with patch.object(dummy_lrc, "self_optimize", return_value=dummy_lrc) as mock_method:
@@ -93,6 +90,8 @@ class TestLrcEmulationPipeline:
         call_args = mock_method.call_args_list[0][0]
         call_kwargs = mock_method.call_args_list[0][1]
 
+        # Note: We don't test that the data is passed correctly, checking that would basically require to copy the
+        #       entire logic we have.
         assert isinstance(call_args[0], Iterable)
         assert isinstance(call_args[1], Iterable)
         assert isinstance(call_args[2], Iterable)
