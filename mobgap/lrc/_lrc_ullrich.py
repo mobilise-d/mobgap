@@ -31,7 +31,7 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
 
 @base_lrc_docfiller
 class LrcUllrich(BaseLRClassifier):
-    """Machine-Learning based algorithm for laterality clf_pipe of initial contacts.
+    """Machine-Learning based algorithm for laterality classification of initial contacts.
 
     This algorithm uses the band-pass filtered vertical ("gyr_x") and anterior-posterior ("gyr_z") angular velocity.
     For both axis a set of features consisting of the value, the first and second derivative are extracted at the time
@@ -39,7 +39,7 @@ class LrcUllrich(BaseLRClassifier):
     This results in a 6-dimensional feature vector for each IC.
     This feature set is normalized using the provided scaler and then classified using the provided model.
 
-    We provide a set of pre-trained models that are based on the MS-Project (TODO: Ref paper) dataset.
+    We provide a set of pre-trained models that are based on the MS-Project ([2]_) dataset.
     They all use a Min-Max Scaler in combination with a linear SVC classifier.
     The parameters of the SVC depend on the cohort and were tuned as explained in the paper ([1]_).
 
@@ -68,14 +68,21 @@ class LrcUllrich(BaseLRClassifier):
 
     Notes
     -----
-    Instead of using diff, this implementation uses numpy.gradient to calculate the first and second derivative of the
-    filtered signals.
-    Compared to diff, gradient can estimate reliable derivatives for values at the edges of the data, which is
-    important when the ICs are close to the beginning or end of the data.
+    Differences to original implementation:
+
+    - Instead of using :func:`numpy.diff`, this implementation uses :func:`~numpy.gradient` to calculate the first and
+      second derivative of the filtered signals.
+      Compared to diff, gradient can estimate reliable derivatives for values at the edges of the data, which is
+      important when the ICs are close to the beginning or end of the data.
 
     .. [1] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
            and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021,
            available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
+    .. [2] Angelini L, Hodgkinson W, Smith C, Dodd JM, Sharrack B, Mazzà C, Paling D. Wearable sensors can reliably
+           quantify gait alterations associated with disability in people with progressive multiple sclerosis in a
+           clinical setting. J Neurol. 2020 Oct;267(10):2897-2909. doi: 10.1007/s00415-020-09928-8. Epub 2020 May 28.
+           PMID: 32468119; PMCID: PMC7501113.
+
     """
 
     smoothing_filter: BaseFilter
