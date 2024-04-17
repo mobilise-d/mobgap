@@ -17,6 +17,14 @@ Algorithms
     LrcMcCamley
     LrcUllrich
 
+Pipelines
++++++++++
+.. automodule:: mobgap.lrc.pipeline
+    :no-members:
+    :no-inherited-members:
+
+    LrcEmulationPipeline
+
 Base Classes
 ++++++++++++
 .. automodule:: mobgap.lrc.base

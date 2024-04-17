@@ -2,9 +2,16 @@ import pandas as pd
 
 
 def test_mccamley(snapshot):
-    from examples.lrc._01_mccamley import detected_ics
+    from examples.lrc._01_lrc_mccamley import detected_ics
 
     snapshot.assert_match(detected_ics)
+
+
+def test_ullrich(snapshot):
+    from examples.lrc._02_lrc_ullrich import detected_ics, predictions
+
+    snapshot.assert_match(detected_ics)
+    snapshot.assert_match(predictions)
 
 
 def _merge_cv_nested_results(results_df):

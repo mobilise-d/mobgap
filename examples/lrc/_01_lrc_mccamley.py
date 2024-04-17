@@ -10,8 +10,6 @@ influence of noise on the detection.
 This example shows how to use the algorithm and compares the output to the reference labels on some example data.
 """
 
-import pandas as pd
-
 from mobgap.data import LabExampleDataset
 
 # %%
@@ -22,8 +20,7 @@ from mobgap.data import LabExampleDataset
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP "InitialContact_Event" output as ground truth.
 #
-# We only use the data from the "simulated daily living" activity test from a single particomand.
-
+# We only use the data from the "simulated daily living" activity test from a single particpant.
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
 single_test = example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
 
@@ -46,57 +43,21 @@ reference_wbs
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
 # Note, that we use the ``ic_list`` result key, as the output of all L/R detectors is identical to the output of the
 # IC-detectors, but with an additional ``lr_label`` column.
-from mobgap.lrc import LrdMcCamley
+from mobgap.lrc import LrcMcCamley
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
+algo = LrcMcCamley()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    result.ic_list = (
-        LrdMcCamley().predict(data, ic_list=ref_ics_rel_to_gs.loc[gs.id], sampling_rate_hz=sampling_rate_hz).ic_lr_list_
-    )
+    result.ic_list = algo.predict(
+        data, ic_list=ref_ics_rel_to_gs.loc[gs.id].drop("lr_label", axis=1), sampling_rate_hz=sampling_rate_hz
+    ).ic_lr_list_
 
 detected_ics = iterator.results_.ic_list
-detected_ics
+detected_ics.assign(ref_lr_label=ref_ics.lr_label)
 
 # %%
-# Compare the results to the reference
-# ------------------------------------
-# We compare the detected initial contacts to the reference labels.
-# One easy way to compare the results is to visualize them as colorful bars.
-
-import matplotlib.pyplot as plt
-
-
-def plot_lr(ref, detected):
-    fig, ax = plt.subplots(figsize=(15, 5))
-    # We plot one box either (red or blue depending on the laterality) for each detected IC ignoring the actual time
-    for (_, row), (_, ref_row) in zip(detected.iterrows(), ref.iterrows()):
-        ax.plot([row["ic"], row["ic"]], [0, 0.98], color="r" if row["lr_label"] == "left" else "b", linewidth=5)
-        ax.plot(
-            [ref_row["ic"], ref_row["ic"]], [1.02, 2], color="r" if ref_row["lr_label"] == "left" else "b", linewidth=5
-        )
-
-    ax.set_yticks([0.5, 1.5])
-    ax.set_yticklabels(["Detected", "Reference"])
-    return fig, ax
-
-
-fig, _ = plot_lr(ref_ics, detected_ics)
-fig.show()
-
-# %%
-# If we zoom in on a longer WB, we can see that for some ICs the L/R label does not match.
-# But, in particular for regular gait in the center of the WB, the labels match quite well.
-
-fig, ax = plot_lr(ref_ics, detected_ics)
-ax.set_xlim(12000, 15000)
-fig.show()
-
-# %%
-# We can also quantify the agreement between the detected and the reference labels using typical classification metrics.
-from sklearn.metrics import classification_report
-
-pd.DataFrame(
-    classification_report(ref_ics.lr_label, detected_ics.lr_label, target_names=["left", "right"], output_dict=True)
-).T
+# We can see that for most ICs we correctly identify the laterality.
+# If you want to learn more about evaluating the algorithm output, you can check the
+# :ref:`evaluation example <lrc_evaluation>`.
