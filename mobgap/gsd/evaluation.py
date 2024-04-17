@@ -114,7 +114,7 @@ def calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
-    zero_division_hint: Literal["warn", "raise", False] = "warn",
+    zero_division_hint: Literal["warn", "raise", "nan"] = "warn",
 ) -> dict[str, Union[float, int]]:
     """
     Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
@@ -147,11 +147,12 @@ def calculate_unmatched_gsd_performance_metrics(
        Should have the same format as `gsd_list_detected`.
     sampling_rate_hz
         Sampling frequency of the recording in Hz.
-    zero_division_hint : "warn", "raise" or False, default="warn"
+    zero_division_hint : "warn", "raise" or "nan", default="warn"
         Controls the behavior when there is a zero division. If set to "warn",
         affected metrics are set to NaN and a warning is raised.
         If set to "raise", a ZeroDivisionError is raised.
-        If set to False, the warning is suppressed and the affected metrics are set to NaN.
+        If set to "nan", the warning is suppressed and the affected metrics are set to NaN.
+        Zero division can occur if there are no gait sequences in the reference data, i.e., reference_gs_duration_s = 0
 
     Returns
     -------
@@ -182,8 +183,8 @@ def calculate_unmatched_gsd_performance_metrics(
 
     # check if reference gs are present to prevent zero division
     if reference_gs_duration_s == 0:
-        if zero_division_hint and zero_division_hint not in ["warn", "raise"]:
-            raise ValueError('"zero_division" must be set to "warn", "raise" or False!')
+        if zero_division_hint and zero_division_hint not in ["warn", "raise", "nan"]:
+            raise ValueError('"zero_division" must be set to "warn", "raise" or "nan"!')
         if zero_division_hint == "raise":
             raise ZeroDivisionError(
                 "Zero division occurred because no gait sequences were detected in the reference data."
