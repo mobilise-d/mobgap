@@ -114,7 +114,7 @@ def calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
-    zero_division_hint: Union[Literal["warn", "raise"], np.nan] = "warn",
+    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
 ) -> dict[str, Union[float, int]]:
     """
     Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
@@ -183,7 +183,7 @@ def calculate_unmatched_gsd_performance_metrics(
 
     # check if reference gs are present to prevent zero division
     if reference_gs_duration_s == 0:
-        if zero_division_hint and zero_division_hint not in ["warn", "raise", np.nan]:
+        if zero_division_hint not in ["warn", "raise", np.nan]:
             raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
         if zero_division_hint == "raise":
             raise ZeroDivisionError(
