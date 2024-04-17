@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
-from itertools import cycle
+from itertools import repeat
 from typing import Any, Final, Union
 
 import joblib
@@ -251,7 +251,7 @@ class LrcUllrich(BaseLRClassifier):
             )
 
         if isinstance(sampling_rate_hz, float):
-            sampling_rate_hz = cycle([sampling_rate_hz])
+            sampling_rate_hz = repeat(sampling_rate_hz)
 
         features = [
             self.extract_features(dp, ic, sr)
