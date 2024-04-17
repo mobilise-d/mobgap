@@ -13,10 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This was added to move all data related config (i.e. which sensor to use in a pipeline) to the dataset class, making
   it easier to implement dataset agnostic pipelines (https://github.com/mobilise-d/mobgap/pull/119)
 - A evaluation pipeline for GSD (https://github.com/mobilise-d/mobgap/pull/124)
+- ML based LR classification (https://github.com/mobilise-d/mobgap/pull/106)
+- A evaluation/optimization pipeline for LRC (https://github.com/mobilise-d/mobgap/pull/106)
 
 ### Changed
 
 - The loaded reference data now has stricter dtypes (https://github.com/mobilise-d/mobgap/pull/119)
+- Renamed LRD (left-right-detection) to LRC (left-right-classification) (https://github.com/mobilise-d/mobgap/pull/106)
 
 ### Fixed
 
