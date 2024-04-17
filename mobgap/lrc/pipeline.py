@@ -1,13 +1,13 @@
 """Helpful Pipelines to wrap the LRC algorithms for optimization and evaluation."""
 
 from collections.abc import Iterator
-from typing import Any, TypedDict, Unpack
+from typing import Any, TypedDict
 
 import pandas as pd
 from sklearn.metrics import accuracy_score
 from tpcp import OptimizableParameter, OptimizablePipeline
 from tpcp.validate import NoAgg
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.lrc.base import BaseLRClassifier
