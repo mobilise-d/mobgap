@@ -13,7 +13,7 @@ This is the API Reference for ``mobgap``.
     pipeline
     gsd
     icd
-    lrd
+    lrc
     cad
     wba
     aggregation

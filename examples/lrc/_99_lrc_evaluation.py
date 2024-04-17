@@ -1,8 +1,8 @@
 r"""
 
-.. _lrC_evaluation:
+.. _lrc_evaluation:
 
-LRD Evaluation
+LRC Evaluation
 ==============
 
 This example demonstrates how to evaluate an LRC algorithm.
@@ -63,14 +63,59 @@ calculated_ic_lr_list
 reference_ic_lr_list
 
 # %%
+# Visual comparison of the detected and reference labels
+# ------------------------------------------------------
+# One easy way to compare the results is to visualize them as colorful bars.
+
+import matplotlib.pyplot as plt
+
+
+def plot_lr(ref, detected):
+    fig, ax = plt.subplots(figsize=(15, 5))
+    # We plot one box either (red or blue depending on the laterality) for each detected IC ignoring the actual time
+    for (_, row), (_, ref_row) in zip(detected.iterrows(), ref.iterrows()):
+        ax.plot([row["ic"], row["ic"]], [0, 0.98], color="r" if row["lr_label"] == "left" else "b", linewidth=5)
+        ax.plot(
+            [ref_row["ic"], ref_row["ic"]], [1.02, 2], color="r" if ref_row["lr_label"] == "left" else "b", linewidth=5
+        )
+
+    ax.set_yticks([0.5, 1.5])
+    ax.set_yticklabels(["Detected", "Reference"])
+    return fig, ax
+
+
+fig, _ = plot_lr(reference_ic_lr_list, calculated_ic_lr_list)
+fig.show()
+
+# %%
+# If we zoom in on a longer WB, we can see that for some ICs the L/R label does not match.
+# But, in particular for regular gait in the center of the WB, the labels match quite well.
+
+fig, ax = plot_lr(reference_ic_lr_list, calculated_ic_lr_list)
+ax.set_xlim(12000, 15000)
+fig.show()
+
+# %%
 # Calculating evaluation metrics
 # ------------------------------
-# Using the two ``lr_label`` columns, we can calculate the accuracy of the L/R detection using the simple metric
-# functions from sklearn.
+# We can also quantify the agreement between the detected and the reference labels using typical classification metrics.
+from sklearn.metrics import classification_report
+
+pd.DataFrame(
+    classification_report(
+        reference_ic_lr_list["lr_label"],
+        calculated_ic_lr_list["lr_label"],
+        target_names=["left", "right"],
+        output_dict=True,
+    )
+).T
+
+# %%
+# In general we focus on the accuracy, as it is a balanced binary classification problem.
+# If you only want to calculate this you can just calculate the ``accuracy_score``
 from sklearn.metrics import accuracy_score
 
-accuracy = accuracy_score(reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"])
-accuracy
+accuracy_score(reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"])
 
 # %%
 # Similarly, we could create a confusion matrix to get more insights into the performance of the algorithm.
