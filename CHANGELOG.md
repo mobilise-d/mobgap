@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The loaded reference data now has stricter dtypes (https://github.com/mobilise-d/mobgap/pull/119)
 - Renamed LRD (left-right-detection) to LRC (left-right-classification) (https://github.com/mobilise-d/mobgap/pull/106)
+- For GSD and IC evaluation metrics it is now possible to configure what happens in case of 0-division 
+  (https://github.com/mobilise-d/mobgap/pull/127)
 
 ### Fixed
 
