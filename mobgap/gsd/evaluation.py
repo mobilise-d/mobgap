@@ -3,7 +3,7 @@
 import warnings
 from collections.abc import Sequence
 from itertools import product
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -474,7 +474,7 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
             ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
 
 
-def find_matches_with_min_overlap(
+def categorize_matches_with_min_overlap(
     *,
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
@@ -539,10 +539,10 @@ def find_matches_with_min_overlap(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import find_matches_with_min_overlap
+    >>> from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
     >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> result = find_matches_with_min_overlap(detected, reference)
+    >>> result = categorize_matches_with_min_overlap(detected, reference)
        gsd_id_detected  gs_id_reference match_type
     0               0               0         tp
     1               1               NaN       fp
@@ -716,12 +716,12 @@ def get_matching_gs(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import find_matches_with_min_overlap
+    >>> from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
     >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> reference = pd.DataFrame([[0, 10, 0], [21, 29, 1]], columns=["start", "end", "id"]).set_index("id")
     >>> detected_metrics = pd.DataFrame([[1, 2, 0], [1, 2, 1]], columns=["metric_1", "metric_2", "id"]).set_index("id")
     >>> reference_metrics = pd.DataFrame([[2, 3, 0], [2, 3, 1]], columns=["metric_1", "metric_2", "id"]).set_index("id")
-    >>> matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    >>> matches = categorize_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
     >>> matched_gs = get_matching_gs(
     ...     metrics_detected=detected_metrics, metrics_reference=reference_metrics, matches=matches
     ... )
@@ -791,8 +791,14 @@ def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: p
     return matches
 
 
-def assign_error(df: pd.DataFrame, metric: Union[str, list["str"]]) -> pd.DataFrame:
+def assign_error_metrics(df: pd.DataFrame, parameters: Union[str, list["str"]]) -> pd.DataFrame:
     """Derive error metrics from given columns of a DataFrame and add them to the DataFrame.
+
+    The error metrics that are calculated for each parameter are:
+    - error: The difference between the detected and reference value.
+    - rel_error: The relative error, calculated as the error divided by the reference value.
+    - abs_rel_error: The absolute value of the relative error.
+    - abs_error: The absolute value of the error.
 
     Parameters
     ----------
@@ -802,13 +808,18 @@ def assign_error(df: pd.DataFrame, metric: Union[str, list["str"]]) -> pd.DataFr
         or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
         Needs to have a MultiIndex column structure with the first level being the metric name and the second level
         being the origin of the metric (e.g., "detected" or "reference").
-    metric : Union[str, list[str]]
-        The name of the metric or a list of metric names for which the error metrics should be calculated.
-        Each of the specified metrics must be present in `df` together with a reference and a detected value.
+    parameters : Union[str, list[str]]
+        The name of the gait parameters or a list of parameter names for which the error metrics should be calculated.
+        Each of the specified parameters must be present in `df` together with a reference and a detected value.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        The input DataFrame with the error metrics for the specified parameters added in-place.
     """
-    if isinstance(metric, str):
-        metric = [metric]
-    for value in metric:
+    if isinstance(parameters, str):
+        parameters = [parameters]
+    for value in parameters:
         if value not in df.columns.get_level_values("metric"):
             raise ValueError(f"Column '{value}' not found in DataFrame.")
         try:
@@ -856,7 +867,7 @@ def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tu
 
 
 def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
-    """Calculate the limit of agreement of a measure."""
+    """Calculate the limits of agreement of a measure."""
     mean = series.mean()
     std = series.std()
     return mean - std * agreement, mean + std * agreement
@@ -936,7 +947,7 @@ def get_aggregator(
     return aggregator
 
 
-def get_default_aggregator() -> dict[tuple[str], list[Callable]]:
+def get_default_aggregator() -> dict[tuple[str], list[str]]:
     """
     Return a dictionary containing all important aggregations utilized in Mobilise-D.
 
@@ -964,7 +975,7 @@ def apply_aggregations(df: pd.DataFrame, aggregate_funcs: dict[tuple[str], list[
         Needs to have a MultiIndex column structure with the first level being the metric name and the second level
         being the origin of the metric (e.g., "detected" or "reference").
         If error metrics are of interest, they can also be included
-        by calling ~func:`~mobgap.gsd.evaluation.assign_error` beforehand.
+        by calling ~func:`~mobgap.gsd.evaluation.assign_error_metrics` beforehand.
 
     aggregate_funcs : dict[tuple[str], list[str]]
         A dictionary containing the aggregation functions for each metric and origin combination in the form of
@@ -996,13 +1007,13 @@ def _sanitize_combined_metrics(df: pd.DataFrame, metric_origin_combinations: lis
 
 __all__ = [
     "categorize_intervals",
-    "find_matches_with_min_overlap",
+    "categorize_matches_with_min_overlap",
     "calculate_matched_gsd_performance_metrics",
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
     "combine_det_with_ref_without_matching",
     "get_matching_gs",
-    "assign_error",
+    "assign_error_metrics",
     "quantiles",
     "loa",
     "mdc",
@@ -1015,14 +1026,14 @@ if __name__ == "__main__":
     """
     detected = pd.DataFrame([[0, 10, 0], [11, 12, 1], [20, 30, 2]], columns=["start", "end", "id"]).set_index("id")
     reference = pd.DataFrame([[0, 10, 0], [13, 14, 1], [21, 29, 2]], columns=["start", "end", "id"]).set_index("id")
-    matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    matches = categorize_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
     detected_metrics = pd.DataFrame(
         [[1, 2, 0], [1, 2, 1], [3, 4, 2]], columns=["metric_1", "metric_2", "id"]
     ).set_index("id")
     matched_gs = get_matching_gs(
         gsd_list_detected=detected_metrics, gsd_list_reference=detected_metrics, matches=matches
     )
-    matches_with_err = matched_gs.pipe(lambda df_: assign_error(df_, ["metric_1", "metric_2"]))
+    matches_with_err = matched_gs.pipe(lambda df_: assign_error_metrics(df_, ["metric_1", "metric_2"]))
     print(matches_with_err)
     aggregator = get_default_aggregator()
     # TODO: values are overwritten when keys are reused - is this a problem?
@@ -1047,14 +1058,16 @@ if __name__ == "__main__":
     reference_metrics = pd.DataFrame(
         [[3, 4, 0, 0], [3, 4, 0, 1]], columns=["metric_2", "metric_1", "id_0", "id_1"]
     ).set_index(["id_0", "id_1"])
-    matches = find_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    matches = categorize_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
     matched_gs = get_matching_gs(
         metrics_detected=detected_metrics, metrics_reference=reference_metrics, matches=matches
     )
     matches = combine_det_with_ref_without_matching(
         metrics_detected=detected_metrics, metrics_reference=reference_metrics
     )
-    matches_with_err = matches.pipe(lambda df_: assign_error(df_, ["metric_1", "metric_2"]))
+
+    # matches_with_err = matches.pipe(lambda df_: assign_error_metrics(df_, ["metric_1", "metric_2"]))
+    matches_with_err = assign_error_metrics(matches, ["metric_1", "metric_2"])
     aggregator = get_default_aggregator()
-    agg_results = matches_with_err.pipe(apply_aggregations, aggregator)
+    agg_results = apply_aggregations(matches_with_err, aggregator)
     print(agg_results)

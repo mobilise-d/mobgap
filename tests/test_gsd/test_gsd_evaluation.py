@@ -9,7 +9,7 @@ from mobgap.gsd.evaluation import (
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
-    find_matches_with_min_overlap,
+    categorize_matches_with_min_overlap,
 )
 
 
@@ -208,16 +208,18 @@ class TestCategorizeIntervals:
 
 
 class TestMatchIntervals:
-    """`Tests for find_matches_with_min_overlap` method for gsd validation."""
+    """`Tests for categorize_matches_with_min_overlap` method for gsd validation."""
 
     def test_raise_type_error_no_df(self, intervals_example):
         with pytest.raises(TypeError):
-            find_matches_with_min_overlap(gsd_list_detected=intervals_example, gsd_list_reference=intervals_example)
+            categorize_matches_with_min_overlap(
+                gsd_list_detected=intervals_example, gsd_list_reference=intervals_example
+            )
 
     def test_raise_value_error_wrong_input_columns(self, intervals_example, intervals_example_with_id):
         with pytest.raises(ValueError):
             # only default columns
-            find_matches_with_min_overlap(
+            categorize_matches_with_min_overlap(
                 gsd_list_detected=pd.DataFrame(intervals_example),
                 gsd_list_reference=pd.DataFrame(intervals_example_with_id),
             )
@@ -225,7 +227,7 @@ class TestMatchIntervals:
     @pytest.mark.parametrize("min_overlap", [0, 0.5, 2])
     def test_raise_value_error_invalid_overlap(self, intervals_example_with_id, min_overlap):
         with pytest.raises(ValueError):
-            find_matches_with_min_overlap(
+            categorize_matches_with_min_overlap(
                 gsd_list_detected=self._to_interval_df(intervals_example_with_id),
                 gsd_list_reference=self._to_interval_df(intervals_example_with_id),
                 overlap_threshold=min_overlap,
@@ -236,7 +238,7 @@ class TestMatchIntervals:
         index_not_unique["id"] = ["id"] * len(intervals_example_with_id)
         index_not_unique = index_not_unique.set_index("id")
         with pytest.raises(ValueError):
-            find_matches_with_min_overlap(
+            categorize_matches_with_min_overlap(
                 gsd_list_detected=index_not_unique, gsd_list_reference=index_not_unique, overlap_threshold=1
             )
 
@@ -244,33 +246,37 @@ class TestMatchIntervals:
         multiindex = intervals_example_with_id.copy()
         multiindex.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["something", "gsd_id"])
         with pytest.warns(Warning):
-            find_matches_with_min_overlap(gsd_list_detected=multiindex, gsd_list_reference=intervals_example_with_id)
+            categorize_matches_with_min_overlap(
+                gsd_list_detected=multiindex, gsd_list_reference=intervals_example_with_id
+            )
         with pytest.warns(Warning):
-            find_matches_with_min_overlap(gsd_list_detected=intervals_example_with_id, gsd_list_reference=multiindex)
+            categorize_matches_with_min_overlap(
+                gsd_list_detected=intervals_example_with_id, gsd_list_reference=multiindex
+            )
         with pytest.warns(Warning):
-            find_matches_with_min_overlap(gsd_list_detected=multiindex, gsd_list_reference=multiindex)
+            categorize_matches_with_min_overlap(gsd_list_detected=multiindex, gsd_list_reference=multiindex)
 
     def test_input_multiindex_warning_suppressed(self, intervals_example_with_id):
         multiindex = intervals_example_with_id.copy()
         multiindex.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["something", "ic_id"])
         with pytest.warns(None) as record:
-            find_matches_with_min_overlap(
+            categorize_matches_with_min_overlap(
                 gsd_list_detected=multiindex, gsd_list_reference=intervals_example_with_id, multiindex_warning=False
             )
             assert len(record) == 0
         with pytest.warns(None) as record:
-            find_matches_with_min_overlap(
+            categorize_matches_with_min_overlap(
                 gsd_list_detected=intervals_example_with_id, gsd_list_reference=multiindex, multiindex_warning=False
             )
             assert len(record) == 0
         with pytest.warns(None) as record:
-            find_matches_with_min_overlap(
+            categorize_matches_with_min_overlap(
                 gsd_list_detected=multiindex, gsd_list_reference=multiindex, multiindex_warning=False
             )
             assert len(record) == 0
 
     def test_validation_all_tp(self, intervals_example):
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example),
             gsd_list_reference=self._to_interval_df(intervals_example),
             overlap_threshold=1,
@@ -284,7 +290,7 @@ class TestMatchIntervals:
         ic_list_multiindex.index = pd.MultiIndex.from_tuples(
             [("a", 1), ("a", 2)], names=["something", "something_else"]
         )
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=ic_list_multiindex, gsd_list_reference=ic_list_multiindex
         )
         assert np.all(matches["match_type"] == "tp")
@@ -295,7 +301,7 @@ class TestMatchIntervals:
     def test_validation_all_tp_with_id(self, intervals_example_with_id):
         ref = intervals_example_with_id.copy()
         ref["id"] = ["ref"] * len(ref)
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=intervals_example_with_id, gsd_list_reference=ref, overlap_threshold=1
         )
         assert len(matches) == len(intervals_example_with_id)
@@ -308,7 +314,7 @@ class TestMatchIntervals:
 
     def test_validation_all_false(self, intervals_example):
         intervals_no_overlap_with_example = [[0, 1], [3, 5]]
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example),
             gsd_list_reference=self._to_interval_df(intervals_no_overlap_with_example),
             overlap_threshold=1,
@@ -327,7 +333,7 @@ class TestMatchIntervals:
         intervals_partial_overlap_with_example = [[0, 3]]  # overlapping region is [[1, 3]]
 
         # threshold small enough for overlap
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example),
             gsd_list_reference=self._to_interval_df(intervals_partial_overlap_with_example),
             overlap_threshold=0.6,
@@ -341,7 +347,7 @@ class TestMatchIntervals:
 
     def test_min_overlap_not_reached(self, intervals_example):
         intervals_partial_overlap_with_example = [[0, 3]]  # overlapping region is [[1, 3]]
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example),
             gsd_list_reference=self._to_interval_df(intervals_partial_overlap_with_example),
             overlap_threshold=1,
@@ -357,7 +363,7 @@ class TestMatchIntervals:
     def test_partial_overlap_start_and_end(self, intervals_example_more_samples):
         intervals_partial_overlap_with_example = [[2, 6], [7, 11]]  # overlapping regions are [[2, 5], [8, 11]]
 
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example_more_samples),
             gsd_list_reference=self._to_interval_df(intervals_partial_overlap_with_example),
             overlap_threshold=0.6,
@@ -370,7 +376,7 @@ class TestMatchIntervals:
     def test_partial_overlap_start_or_end(self, intervals_example_more_samples):
         intervals_partial_overlap_with_example = [[2, 5], [8, 11]]  # overlapping regions are [[2, 5], [8, 11]]
 
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example_more_samples),
             gsd_list_reference=self._to_interval_df(intervals_partial_overlap_with_example),
             overlap_threshold=0.6,
@@ -382,7 +388,7 @@ class TestMatchIntervals:
 
     def test_several_intervals_overlap_one(self, intervals_example_more_samples):
         interval_several_overlaps_with_example = [[0, 9]]  # overlapping regions are [[0, 5], [8, 9]]
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example_more_samples),
             gsd_list_reference=self._to_interval_df(interval_several_overlaps_with_example),
             overlap_threshold=5 / 9,
@@ -396,7 +402,7 @@ class TestMatchIntervals:
 
     def test_several_intervals_overlap_several(self, intervals_example_more_samples):
         intervals_several_overlaps_with_example = [[0, 9], [9, 12]]  # overlapping regions are [[0, 5], [8, 9], [9, 12]]
-        matches = find_matches_with_min_overlap(
+        matches = categorize_matches_with_min_overlap(
             gsd_list_detected=self._to_interval_df(intervals_example_more_samples),
             gsd_list_reference=self._to_interval_df(intervals_several_overlaps_with_example),
             overlap_threshold=5 / 9,
