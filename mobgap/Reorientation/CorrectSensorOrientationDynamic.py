@@ -30,8 +30,9 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     Notes
     -----
     Points of deviation from the MATLAB implementation:
-    -The signal is allready sliced before calling this function. Thus, this script has been simplified
-    -All parameters are expressed in the units used in gaitlink, as opposed to matlab.
+    - The Madgwick filter is applied to the entire data array at once, as opposed to row by row.
+    - The signal is allready sliced before calling this function. Thus, this script has been simplified
+    - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
       Specifically, we use m/s^2 instead of g.
 
     '''
@@ -39,13 +40,16 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     Acc = data.iloc[:, 0:3]
     Gyr = data.iloc[:, 3:6]
 
-    # Initiating Madwick with the default initial orientation in the MATLAB implementation
-    # (in MATLAB quaternions are represented as xyzw but Madgwick in gaitmap requires wxyz)
-    mad = MadgwickAHRS(beta=0.1, initial_orientation=np.array([0.75, 0, 0, 0.8]) / norm(np.array([0.75, 0, 0, 0.8])))
+    # Madwick is called with the initial orientation specified inside the Matlab Madgwick function used in the Matlab
+    # implementation (UpdateIMUslt2). This choise was made since the first "initial orientation" specified in the Matlab implementation
+    # is overwriten in the UpdateIMUslt2 function which was used in Mobilise-D.
+    # Note that in MATLAB quaternions are represented as xyzw but Madgwick in gaitmap requires wxyz.
+    mad = MadgwickAHRS(beta=0.1, initial_orientation=np.array([-0.0863212587840360, -0.639984676042049, 0, 0.763523578361070]))
 
     chosenacc = Acc
     chosengyr = Gyr
 
+    # Not sure why the Matlab implementation calculated "mytime", since the length is used for the loop it would not make any difference
     mytime = np.arange(len(chosenacc)) / sampling_rate_hz
     quaternion = np.zeros((len(mytime), 4))
 
