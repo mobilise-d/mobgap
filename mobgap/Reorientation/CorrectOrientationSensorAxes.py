@@ -28,6 +28,13 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
     corIMUdataSequence
         Sequence of the corrected IMU data including start and stop of each walking bout.
 
+    Notes
+    -----
+    Deviations from the MATLAB implementation:
+    - th constant was ammended to 0.65 * 9.81 to convert it to m/s^2 from g-units
+    - Simple rotation applied in areas of the signal without a walking bout has been moved out od the loop.
+    Now it is applied to the whole signal even if walking bouts are less than 2.
+
     """
 
     Acc = data.iloc[:, 0:3]
@@ -94,16 +101,16 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                     corIMUdataSequence.loc[k, ['Start', 'End']] = [gs.loc[i, 'start'], gs.loc[i, 'end']]
                     k = k + 1
 
-            ind_noGS = groupfind(gsLabel == 0)
+        ind_noGS = groupfind(gsLabel == 0)
 
-            for i in range(1, len(ind_noGS[:, 0])):
-                l1 = ind_noGS[i, 0]
-                l2 = ind_noGS[i, 1]
-                avm = np.mean(av_filt1[l1 : l2])
+        for i in range(0, len(ind_noGS[:, 0])):
+            l1 = ind_noGS[i, 0]
+            l2 = ind_noGS[i, 1]
+            avm = np.mean(av_filt1[l1 : l2])
 
-                if avm >= th:
-                    corIMUdata.iloc[l1:l2, 0:3] = Acc.iloc[l1:l2, :]
-                elif avm <= -th:
-                    corIMUdata.iloc[l1:l2, 0] = -Acc.iloc[l1:l2, 0]
+            if avm >= th:
+                corIMUdata.iloc[l1:l2, 0:3] = Acc.iloc[l1:l2, :]
+            elif avm <= -th:
+                corIMUdata.iloc[l1:l2, 0] = -Acc.iloc[l1:l2, 0]
 
     return corIMUdata, corIMUdataSequence
