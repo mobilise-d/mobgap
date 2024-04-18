@@ -103,7 +103,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
 
         ind_noGS = groupfind(gsLabel == 0)
 
-        for i in range(0, len(ind_noGS[:, 0])):
+        for i in range(len(ind_noGS[:, 0])):
             l1 = ind_noGS[i, 0]
             l2 = ind_noGS[i, 1]
             avm = np.mean(av_filt1[l1 : l2])
