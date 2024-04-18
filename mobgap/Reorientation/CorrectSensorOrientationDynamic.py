@@ -46,21 +46,14 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     # Note that in MATLAB quaternions are represented as xyzw but Madgwick in gaitmap requires wxyz.
     mad = MadgwickAHRS(beta=0.1, initial_orientation=np.array([-0.0863212587840360, -0.639984676042049, 0, 0.763523578361070]))
 
-    chosenacc = Acc
-    chosengyr = Gyr
+    chosenacc = Acc.copy()
+    chosengyr = Gyr.copy()
 
-    # Not sure why the Matlab implementation calculated "mytime", since the length is used for the loop it would not make any difference
+    # Not sure why the Matlab implementation calculates "mytime", since the length is used for the loop it would not make any difference
     mytime = np.arange(len(chosenacc)) / sampling_rate_hz
     quaternion = np.zeros((len(mytime), 4))
 
-    # applying the madgwick filter to each row of the data array
-    # for t in range(len(mytime)):
-    #     data = pd.concat([chosenacc.iloc[[t]], chosengyr.iloc[[t]]], axis=1) # In Mobilise-D data are already in m/s2 and deg/s as required by the gaitlab_map package
-    #     mad = mad.estimate(data, sampling_rate_hz=sampling_rate_hz)
-    #     quaternion[t, :] = mad.orientation_.iloc[1, :]
-
-
-    # applying the madgwick filter to the entire data array at once
+    # applying the madgwick algo to the entire data array
     data = pd.concat((chosenacc, chosengyr), axis=1)
     mad = mad.estimate(data, sampling_rate_hz=sampling_rate_hz)
     quaternion = mad.orientation_.iloc[1:, :]
@@ -69,8 +62,6 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     # Adjust quaternion as from x, y, z, w to w, x, y, z
     quaternion = quaternion[:, [3, 0, 1, 2]]
 
-
-    data = pd.concat((chosenacc, chosengyr), axis=1)
     av = acceleration(data, quaternion)
 
     #Principal component analysis
@@ -102,10 +93,10 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     sig4 = (av[:, 1] - np.mean(av[:, 1])) / np.std(av[:, 1])
 
     # Assigning av_pca
-    av_pca = av_magpca
+    av_pca = av_magpca.copy()
 
     # Assigning gyr_pca
-    gyr_pca = gyr_magpca
+    gyr_pca = gyr_magpca.copy()
 
     # Calculating correlations
     cor1 = np.dot(sig1.T, sig2)
@@ -139,7 +130,6 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
         else:
             av_pca[:, 1] = -newAcc[:, 1]  # ML
             gyr_pca[:, 1] = newGyr[:, 1]
-
 
     # Refinement to provide the IMU axes as standard data matrix
     av_pca_final = av_pca.copy()
