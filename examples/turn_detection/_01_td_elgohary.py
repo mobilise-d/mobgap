@@ -6,8 +6,6 @@ matlab implementation.
 """
 
 import pandas as pd
-from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
-from gaitmap.utils.rotations import rotate_dataset_series
 from matplotlib import pyplot as plt
 
 from mobgap.data import LabExampleDataset
@@ -54,7 +52,7 @@ single_wb_data = imu_data.iloc[single_wb["start"] : single_wb["end"]]
 
 algo = turning_detector.detect(single_wb_data, sampling_rate_hz=sampling_rate_hz)
 yaw_angle = algo.yaw_angle_
-raw_turns = algo.raw_turns_
+raw_turns = algo.raw_turn_list_
 
 print(raw_turns)
 
