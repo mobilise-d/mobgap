@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Loading the reference data from a trial without identified WBs will not raise an error anymore, but will correctly
   return an empty DataFrame (https://github.com/mobilise-d/mobgap/pull/119)
 - We use operating system independent pandas dtypes everywhere (https://github.com/mobilise-d/mobgap/pull/118)
+- Fixed issue with multi-groupby, that grouping by just a subset of the index cols resulted in cryptic error messages
+  (https://github.com/mobilise-d/mobgap/pull/132)
 
 ### Development
 
