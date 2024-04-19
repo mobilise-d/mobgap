@@ -146,6 +146,10 @@ class FullPipelinePerGsResult:
         The initial contacts for each gait-sequence.
         This is a dataframe with a column called ``ic``.
         The values of this ic-column are expected to be samples relative to the start of the gait-sequence.
+    turn_list
+        The turn list for each gait-sequence.
+        The dataframe has at least columns called ``start`` and ``end``.
+        The values of these columns are expected to be samples relative to the start of the gait-sequence.
     cad_per_sec
         The cadence values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
@@ -159,6 +163,7 @@ class FullPipelinePerGsResult:
     """
 
     ic_list: pd.DataFrame
+    turn_list: pd.DataFrame
     cad_per_sec: pd.DataFrame
     stride_length: pd.DataFrame
     gait_speed: pd.DataFrame
@@ -360,6 +365,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
             "aggregations": cf(
                 [
                     ("ic_list", create_aggregate_df("ic_list", ["ic"])),
+                    ("turn_list", create_aggregate_df("turn_list", ["start", "end", "center"])),
                     ("cad_per_sec", create_aggregate_df("cad_per_sec", [], fix_offset_index=True)),
                     ("stride_length", create_aggregate_df("stride_length")),
                     ("gait_speed", create_aggregate_df("gait_speed")),
@@ -371,6 +377,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
             "aggregations": cf(
                 [
                     ("ic_list", create_aggregate_df("ic_list", [])),
+                    ("turn_list", create_aggregate_df("turn_list", [])),
                     ("cad_per_sec", create_aggregate_df("cad_per_sec", [])),
                     ("stride_length", create_aggregate_df("stride_length", [])),
                     ("gait_speed", create_aggregate_df("gait_speed", [])),

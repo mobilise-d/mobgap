@@ -1,10 +1,27 @@
+from typing import Any
 
 import numpy as np
-from gaitmap.utils.signal_processing import butter_lowpass_filter_1d
+import pandas as pd
+from gaitmap.utils.array_handling import merge_intervals
+from scipy.integrate import cumulative_trapezoid
 from scipy.signal import find_peaks
+from tpcp import cf
+from typing_extensions import Self, Unpack
+
+from mobgap.data_transform import ButterworthFilter
+from mobgap.data_transform.base import BaseFilter
+from mobgap.turn_detection.base import BaseTurnDetector
+from mobgap.utils.conversions import as_samples
 
 
-class TurningDetection:
+def _merge_intervals(intervals: np.ndarray, max_distance: int) -> np.ndarray:
+    # TODO: Remove when updating to new gaitmap version. Workaround for now.
+    if len(intervals) == 0:
+        return intervals
+    return merge_intervals(intervals, max_distance)
+
+
+class TdElgohary(BaseTurnDetector):
     """
     performs turning detection according to El-Gohary et al.
 
@@ -14,7 +31,7 @@ class TurningDetection:
       velocity_dps: threshold for turning velocity_dps [deg/s]
       height: minimal height for turning peaks
       concat_length: maximal distance of turning sequences to be concatenated [in s]
-      min_duration: minimal length of a turning sequence [in s]
+      allowed_turn_duration_s: minimal length of a turning sequence [in s]
       max_duration: maximal length of a turning sequence [in s]
       angle_threshold_degrees: tuple with threshold for detected turning angle
 
@@ -26,6 +43,15 @@ class TurningDetection:
       suitable_angles_:  all corresponding turning angles of the turns in complete_turns_list
       all_turns_: all turns and their position within the signal
       all_angles_degrees: corresponding turning angles to all turns
+
+    Notes
+    -----
+    COmpared to original publication:
+
+        - We skip the global frame transformation and assume that the z axis roughly aligns with the turning axis.
+
+    Compared to matlab implementation:
+
     """
 
     # parameters required for turning detection
@@ -34,9 +60,8 @@ class TurningDetection:
     velocity_dps: float
     height: float
     concat_length: float
-    min_duration: float
-    max_duration: float
-    angle_threshold_degrees: tuple[int, int]
+    allowed_turn_duration_s: tuple[float, float]
+    angle_threshold_degrees: tuple[float, float]
     complete_turns_list_: list
     suitable_angles_: list
     all_turns_: list
@@ -48,112 +73,94 @@ class TurningDetection:
 
     def __init__(
         self,
-        fc_hz=1.5,
+        smoothing_filter: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=0.5, filter_type="lowpass")),
         velocity_dps=5,
         height=15,
         concat_length=0.05,
-        min_duration=0.5,
-        max_duration=10,
-        angle_threshold_degrees=45,
+        allowed_turn_duration_s: tuple[float, float] = (0.5, 10),
+        angle_threshold_degrees: tuple[float, float] = (45, np.inf),
     ):
-        self.turning_list = None
-        self.gyr_z_lp = None
+        self.smoothing_filter = smoothing_filter
         self.angle_threshold_degrees = angle_threshold_degrees
-        self.max_duration = max_duration
-        self.min_duration = min_duration
+        self.allowed_turn_duration_s = allowed_turn_duration_s
         self.concat_length = concat_length
         self.height = height
         self.velocity_dps = velocity_dps
-        self.fc_hz = fc_hz
 
-    def detect_turning_points(self, data_, fs_hz):
-        self.data_ = data_
-        gyr_z_lp = butter_lowpass_filter_1d(data=self.data_, sampling_rate_hz=fs_hz, cutoff_freq_hz=self.fc_hz, order=4)
-        peaks, _ = find_peaks(gyr_z_lp, height=self.height)
-        # compute turn durations
-        # find indicies of smaller gyr-z values
-        lower_idx = np.where(np.array(gyr_z_lp) < self.velocity_dps)[0]
-        turning_list = []
-        self.duration_list_seconds = []
-        self.duration_list_frames = []
-        # iterate over gyroscope peaks and determine borders by finding closest points deceeding threshold
-        for p in peaks:
-            # calculate distances in samples to peak index
-            distances = lower_idx - p
-            try:
-                # idx of left border is the closest point to p on the left, i.e the largest negative distance value
-                left_border_idx = list(distances).index(max(distances[distances < 0]))
-                # idx of right border is the closest point to p on the right, i.e the smallest positive distance value
-                right_border_idx = list(distances).index(min(distances[distances > 0]))
-            # in case the peak is a boundary value at the very beginning or end of gait sequence
-            # -> no border beneath turn threshold might be found
-            except ValueError:
-                continue
-            # calculate duration_frames of turn in samples
-            duration_frames = lower_idx[right_border_idx] - lower_idx[left_border_idx]
-            duration_seconds = duration_frames / fs_hz
-            # store turn as list [starting index, lenght]
-            turning_list.append([lower_idx[left_border_idx], duration_frames])
-            self.duration_list_frames.append([duration_frames])
-            self.duration_list_seconds.append([duration_seconds])
-        self.turning_list = turning_list
-        self.gyr_z_lp = gyr_z_lp
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
+        gyr_z = data["gyr_z"].to_numpy()
+        filtered_gyr_z = self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
+        abs_filtered_gyr_z = np.abs(filtered_gyr_z)
+        dominant_peaks, _ = find_peaks(abs_filtered_gyr_z, height=self.height)
 
-    def post_process(self, turning_list, fs_hz, gyr_z_lp):
-        # concatenate turns with less than 0.5 in between if they are facing in the same direction
-        concatenated_turns = []
-        if len(turning_list) == 0:
-            self.all_angles_degrees, self.all_turns_, self.complete_turns_list_ = [], [], []
+        if len(dominant_peaks) == 0:
+            self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "turn_angle_deg", "direction"])
+            self.raw_turns_ = self.turn_list_.copy()
+            return self
+        # Then we find the start and the end of the turn as the first and the last sample around each peak that is above
+        # the velocity threshold
+        # Note: The "abs" part here is missing in the original implementation
+        above_threshold = abs_filtered_gyr_z < self.velocity_dps
+        crossings = np.where(np.diff(above_threshold.astype(int)) != 0)[0]
+
+        if len(crossings) == 0:
+            self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "turn_angle_deg", "direction"])
+            self.raw_turns_ = self.turn_list_.copy()
             return self
 
-        # calculate endpoints_frames of turns
-        endpoints_frames = np.sum(turning_list, axis=1)
-        # extract starting points of turns
-        startpoints_frames = np.array(turning_list)[:, 0]
-        # calculate distances between succeeding turns
-        diffs = startpoints_frames[1:] - endpoints_frames[:-1]
-        # calculate indicies of turns that might belong together
-        concat_idx = np.where(diffs <= self.concat_length * fs_hz)[0]
+        # Vectorized search for start indices
+        start_indices = np.searchsorted(crossings, dominant_peaks, side="left") - 1
+        # When the index is negative (i.e. no value was before it, we set the start index to 0, aka the beginning of
+        # the WB)
+        starts = np.where(start_indices < 0, 0, crossings[start_indices.clip(0, len(crossings) - 1)])
 
-        self.Turn_End_seconds = endpoints_frames / fs_hz
-        self.Turn_Start_seconds = startpoints_frames / fs_hz
+        # Vectorized search for end indices
+        end_indices = np.searchsorted(crossings, dominant_peaks, side="right")
+        # When the index is out of bounds (i.e. no value was after it, we set the end index to the end of the WB)
+        ends = np.where(
+            end_indices >= len(crossings), len(data) - 1, crossings[end_indices.clip(0, len(crossings) - 1)]
+        )
+        # To make the end index inclusive, we add 1
+        ends += 1
 
-        ctr = 0
-        for i, label in enumerate(turning_list):
-            # turn has been processed already
-            if i < ctr:
-                continue
-            while ctr in concat_idx:
-                # check if turns are facing in the same direction
-                # calculate integral values
-                first = np.sum(self.data_[startpoints_frames[ctr] : endpoints_frames[ctr]])
-                second = np.sum(self.data_[startpoints_frames[ctr + 1] : endpoints_frames[ctr + 1]])
-                # check if they have the same sign
-                if np.sign(first) == np.sign(second):
-                    ctr += 1
-                    continue
-                break
-            # set new endpoint for elongated turn
-            new_endpoint = endpoints_frames[ctr]
-            # add new turn to list
-            concatenated_turns.append([label[0], new_endpoint])
-            ctr += 1
+        # TODO: Should that be calculated using the filtered or unfiltered signal?
+        yaw_angle = cumulative_trapezoid(gyr_z, dx=1 / sampling_rate_hz, initial=0)
+        self.yaw_angle_ = pd.DataFrame({"yaw_angle": yaw_angle}, index=data.index)
 
-        # exclude section if length is not suitable
-        lengths = np.diff(concatenated_turns, axis=1) / fs_hz
-        suitable_index_list = [
-            idx for idx, length in enumerate(lengths) if (self.min_duration <= length <= self.max_duration)
-        ]
-        self.all_turns_ = [concatenated_turns[t] for t in suitable_index_list]
+        def _calculate_metrics(df):
+            return df.assign(
+                duration_s=lambda df_: (df_["end"] - df_["start"]) / sampling_rate_hz,
+                turn_angle_deg=lambda df_: yaw_angle[df_["end"] - 1] - yaw_angle[df_["start"]],
+                direction=lambda df_: np.sign(df_["turn_angle_deg"]),
+                # TODO: Double check the sign directions
+            ).replace({"direction": {-1: "left", 1: "right"}})
 
-        # calculate turning angles and eliminate too small angles
-        turning_angles = []
-        for t in self.all_turns_:
-            # approximate integral by summing up the respective section
-            integral = np.sum(gyr_z_lp[t[0] : t[1]] / fs_hz)
-            turning_angles.append(integral)
-        self.all_angles_degrees = turning_angles
-        # store turns with turning angle within the range of angle threshold
-        suitable_angles = np.where(np.array(self.all_angles_degrees) > self.angle_threshold_degrees)[0]
-        self.complete_turns_list_ = [self.all_turns_[t] for t in suitable_angles]
-        self.suitable_angles_ = suitable_angles
+        # Create an array of turns
+        turns = pd.DataFrame({"start": starts, "end": ends}).pipe(_calculate_metrics)
+        self.raw_turns_ = turns.copy().assign(center=dominant_peaks.astype(int))
+
+        # For all left and all right turns, we merge turns that are closer than concat_length and have the same direction
+        # TODO: Convert into one groupby operation
+        left_turns = _merge_intervals(
+            turns.query("direction == 'left'")[["start", "end"]].to_numpy(),
+            as_samples(self.concat_length, sampling_rate_hz),
+        )
+        right_turns = _merge_intervals(
+            turns.query("direction == 'right'")[["start", "end"]].to_numpy(),
+            as_samples(self.concat_length, sampling_rate_hz),
+        )
+
+        # Then we combine all turns, sort them and recalculate the metrics.
+        # Recalculation is required as the merging might have changed the start and end indices, and we can not simply
+        # add the duration and angle columns, as we allow for merging of turns with a short break in between.
+        # So we need to account for movement that happened in between.
+        turns = pd.DataFrame(np.concatenate([left_turns, right_turns], axis=0), columns=["start", "end"]).pipe(
+            _calculate_metrics
+        )
+
+        # Finally we filter based on the durations and the angles
+        bool_map = turns["duration_s"].between(*self.allowed_turn_duration_s) & turns["turn_angle_deg"].abs().between(
+            *self.angle_threshold_degrees
+        )
+        self.turn_list_ = turns.loc[bool_map].copy()
+        return self
