@@ -66,6 +66,42 @@ class TestMultiGroupby:
             assert_frame_equal(df2, df_2.loc[[group]])
             assert_frame_equal(df3, df_3.loc[[group]])
 
+    @pytest.mark.parametrize(
+        "groupby",
+        [
+            "group1",
+            ["group1", "group2"],
+            ["group1", "group2", "group3"],
+            ["group1", "group3"],
+            ["group2", "group3"],
+            ["group2"],
+        ],
+    )
+    def test_groupby_group_subset(self, groupby):
+        all_groups = ["group1", "group2", "group3"]
+        df = pd.DataFrame(
+            {
+                "group1": [1, 1, 1],
+                "group2": [1, 1, 2],
+                "group3": [1, 2, 3],
+                "value": [1, 2, 3],
+            }
+        ).set_index(all_groups)
+        df_2 = df + 10
+
+        if isinstance(groupby, str):
+            groupby_as_list = [groupby]
+        else:
+            groupby_as_list = groupby
+
+        remaining_groups = list(set(all_groups) - set(groupby_as_list))
+
+        multi_groupby = create_multi_groupby(df, df_2, groupby)
+        for group, (df1, df2) in multi_groupby.groups.items():
+            for df_ in (df1, df2):
+                assert set(df_.reset_index(remaining_groups).index.to_list()) == {group}
+            assert_frame_equal(df1, df2 - 10)
+
     def test_iter_with_one_level_groupby(self):
         df = pd.DataFrame(
             {
