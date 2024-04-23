@@ -19,11 +19,11 @@ Algorithms
 
 Pipelines
 +++++++++
-.. automodule:: mobgap.lrc.pipeline
+.. automodule:: mobgap.lrc
     :no-members:
     :no-inherited-members:
 
-    LrcEmulationPipeline
+    pipeline.LrcEmulationPipeline
 
 Base Classes
 ++++++++++++

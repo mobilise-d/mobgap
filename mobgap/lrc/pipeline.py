@@ -176,3 +176,6 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         combined = predicted_lr_labels.assign(ref_lr_label=ref_labels)
 
         return {"accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]), "raw_results": NoAgg(combined)}
+
+
+__all__ = ["LrcEmulationPipeline"]

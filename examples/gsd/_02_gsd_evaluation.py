@@ -176,9 +176,9 @@ simulated_real_world_walking
 # Now we can use the :class:`~mobgap.gsd.evaluation.GsdEvaluationPipeline` class to directly run a Gsd algorithm on
 # a datapoint.
 # The pipeline takes care of extracting the required data.
-from mobgap.gsd.evaluation import GsdEvaluationPipeline
+from mobgap.gsd.pipeline import GsdEmulationPipeline
 
-pipeline = GsdEvaluationPipeline(GsdIluz())
+pipeline = GsdEmulationPipeline(GsdIluz())
 
 pipeline.safe_run(simulated_real_world_walking[0]).gs_list_
 
@@ -233,7 +233,7 @@ para_grid = ParameterGrid({"algo__window_length_s": [2, 3, 4]})
 
 cross_validate_results = pd.DataFrame(
     cross_validate(
-        GridSearch(GsdEvaluationPipeline(GsdIluz()), para_grid, return_optimized="precision"),
+        GridSearch(GsdEmulationPipeline(GsdIluz()), para_grid, return_optimized="precision"),
         simulated_real_world_walking,
         cv=3,
         return_train_score=True,
