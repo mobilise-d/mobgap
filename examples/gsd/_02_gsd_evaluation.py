@@ -138,7 +138,7 @@ unmatched_metrics_dict
 # In this case, matching gait sequences that cover the same gait regions allows proper comparison of these parameters.
 # For more information on this, see the example on the overall parameter evaluation on Walking-Bout level (TODO).
 #
-# For this purpose, the :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap` can be used.
+# For this purpose, the :func:`~gaitlink.gsd.evaluation.categorize_matches_with_min_overlap` can be used.
 # It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
 # given amount.
 # The index of the result dataframe indicated the index of the detected gait sequence.
@@ -150,9 +150,9 @@ unmatched_metrics_dict
 # If multiple detected gait sequences overlap with the same reference gait sequence, only the one with the highest
 # overlap is considered as a match.
 # If one gait sequence is covered by multiple smaller once, possibly none of them is considered as a match.
-from mobgap.gsd.evaluation import find_matches_with_min_overlap
+from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
 
-matches = find_matches_with_min_overlap(
+matches = categorize_matches_with_min_overlap(
     gsd_list_detected=detected_gsd_list,
     gsd_list_reference=reference_gsd_list,
     overlap_threshold=0.7,
