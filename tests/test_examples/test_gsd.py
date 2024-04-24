@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 
@@ -43,30 +44,17 @@ def test_gsd_dmo_evaluation_on_wb_level(snapshot):
     snapshot.assert_match(gs_errors, "gs_errors")
 
     # check index of agg_results using snapshot
-    snapshot.assert_match(agg_results.reset_index().drop(columns=[0]), "agg_results", check_dtype=False)
-    # use workaround for values of agg_results because tuples in cells can't be parsed by json reader
-    expected_agg_results = [
-        12.25,
-        4.27,
-        1.0,
-        0.82,
-        (-0.08, 0.44),
-        0.36,
-        (0.06, 0.33),
-        (-0.18, 0.48),
-        0.47,
-        (0.05, 0.36),
-    ]
-    _assert_float_tuples_list_almost_equal(agg_results.to_numpy(), expected_agg_results)
+    snapshot.assert_match(agg_results.reset_index().drop(columns=[0]), "agg_results_index")
+
+    # flatten values of agg_results because tuples can't be handled by snapshot utility
+    snapshot.assert_match(np.array(_flatten_float_tuple_results(agg_results)), "agg_results_data")
 
 
-def _assert_float_tuples_list_almost_equal(actual, expected):
-    assert len(actual) == len(expected)
-    for actual_val, expected_val in zip(actual, expected):
-        if isinstance(actual_val, tuple):
-            assert type(actual_val) == type(expected_val)
-            assert len(actual_val) == len(expected_val)
-            for a, e in zip(actual_val, expected_val):
-                assert round(a, 2) == e
+def _flatten_float_tuple_results(result_list):
+    flattened_list = []
+    for item in result_list:
+        if isinstance(item, (tuple, list)):
+            flattened_list.extend(item)
         else:
-            assert round(actual_val, 2) == expected_val
+            flattened_list.append(item)
+    return flattened_list
