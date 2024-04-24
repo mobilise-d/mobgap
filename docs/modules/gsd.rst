@@ -63,4 +63,13 @@ Evaluation
     categorize_intervals
     categorize_matches_with_min_overlap
     plot_categorized_intervals
+    combine_det_with_ref_without_matching
+    get_matching_gs
+    assign_error_metrics
+    quantiles
+    loa
+    mdc
+    get_aggregator
+    get_default_aggregator
+    apply_aggregations
 
