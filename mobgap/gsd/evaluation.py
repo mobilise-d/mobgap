@@ -3,6 +3,7 @@
 import warnings
 from collections.abc import Sequence
 from itertools import product
+from types import FunctionType
 from typing import Any, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
@@ -167,7 +168,7 @@ def calculate_unmatched_gsd_performance_metrics(
     if sampling_rate_hz <= 0:
         raise ValueError("The sampling rate must be larger than 0.")
 
-    # estimate basic duratnoch mit Isomatte dazugesellen will sollte kein Problem sein, ion metrics
+    # estimate basic duration metrics
     reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
     detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
@@ -910,7 +911,7 @@ def get_aggregator(
     aggregate: Union[str, Sequence[str]],
     metric: Union[str, Sequence[str]],
     origin: Union[str, Sequence[str]] = ("detected", "reference"),
-) -> dict[tuple[str], list[str]]:
+) -> dict[tuple[str], list[Union[str, FunctionType]]]:
     """Create a dictionary for collecting aggregated metrics.
 
     Contains the aggregation functions for a set of aggregations, metrics to aggregate,
@@ -932,7 +933,7 @@ def get_aggregator(
 
     Returns
     -------
-    aggregator : dict[tuple[str], list[str]]:
+    aggregator : dict[tuple[str], list[Union[str, FunctionType]]]:
         A dictionary containing the aggregation functions for each metric and origin combination in the form of
         {("metric", "origin"): [aggregation_function, ...], ...}.
 
@@ -956,16 +957,7 @@ def get_aggregator(
     # check if all aggregate strings are valid functions
     aggregate_funcs = []
     for agg in aggregate:
-        # custom functions
-        if agg in globals() and callable(globals()[agg]):
-            aggregate_funcs.append(globals()[agg])
-            continue
-        # built-in functions
-        try:
-            callable(getattr(pd.Series(), agg))
-        except AttributeError as e:
-            raise ValueError(f"Function '{agg}' is not implemented and thus not a valid aggregation function.") from e
-        aggregate_funcs.append(agg)
+        aggregate_funcs.append(_sanitize_agg(agg))
 
     aggregator = {}
     metric_origin = list(product(metric, origin))
@@ -974,7 +966,7 @@ def get_aggregator(
     return aggregator
 
 
-def get_default_aggregator() -> dict[tuple[str], list[str]]:
+def get_default_aggregator() -> dict[tuple[str], list[Union[str, FunctionType]]]:
     """
     Return a dictionary containing all important aggregations utilized in Mobilise-D.
 
@@ -990,7 +982,9 @@ def get_default_aggregator() -> dict[tuple[str], list[str]]:
     return default_agg
 
 
-def apply_aggregations(df: pd.DataFrame, aggregate_funcs: dict[tuple[str], list[str]]) -> pd.DataFrame:
+def apply_aggregations(
+    df: pd.DataFrame, aggregate_funcs: dict[tuple[str] : list[Union[str, FunctionType]]]
+) -> pd.DataFrame:
     """Apply a set of aggregation functions to a metrics DataFrame.
 
     Parameters
@@ -1004,14 +998,17 @@ def apply_aggregations(df: pd.DataFrame, aggregate_funcs: dict[tuple[str], list[
         If error metrics are of interest, they can also be included
         by calling ~func:`~mobgap.gsd.evaluation.assign_error_metrics` beforehand.
 
-    aggregate_funcs : dict[tuple[str], list[str]]
+    aggregate_funcs : dict[tuple[str], list[Union[str, FunctionType]]]
         A dictionary containing the aggregation functions for each metric and origin combination in the form of
         {("metric", "origin"): [aggregation_function, ...], ...}.
         Can be created using ~func:`~mobgap.gsd.evaluation.get_aggregator`
         or ~func:`~mobgap.gsd.evaluation.get_default_aggregator`.
     """
+    # input validation
     _sanitize_combined_metrics(df, aggregate_funcs.keys())
-    # TODO: input validation
+    for key, agg in aggregate_funcs.items():
+        aggregate_funcs[key] = [_sanitize_agg(a) for a in agg]
+
     agg_metrics = df.agg(aggregate_funcs)
     agg_metrics.index.name = "aggregate"
     agg_metrics = agg_metrics.stack(level=("metric", "origin"), future_stack=True).dropna()
@@ -1026,10 +1023,27 @@ def _sanitize_combined_metrics(df: pd.DataFrame, metric_origin_combinations: lis
     # check if input has the correct MultiIndex structure
     if not all([isinstance(df.columns, pd.MultiIndex), df.columns.names == ["metric", "origin"]]):
         raise ValueError("`df` must have a MultiIndex column structure.")
-    # check if all metric_origin_combinations are present in the input
+    # check if all metric_origin_combinations are valid and present in the input
     for metric_origin_comb in metric_origin_combinations:
+        if not isinstance(metric_origin_comb, tuple):
+            raise TypeError("All keys in `aggregate_funcs` must be tuples.")
         if metric_origin_comb not in df.columns:
             raise ValueError(f"Column '{metric_origin_comb}' not found in DataFrame.")
+
+
+def _sanitize_agg(agg: Union[str, FunctionType]) -> Union[FunctionType, str]:
+    # agg is function type already
+    if isinstance(agg, FunctionType):
+        return agg
+    # agg refers to custom function
+    if agg in globals() and callable(globals()[agg]):
+        return globals()[agg]
+    # built-in functions
+    try:
+        callable(getattr(pd.Series(), agg))
+    except AttributeError as e:
+        raise ValueError(f"Function '{agg}' is not implemented and thus not a valid aggregation function.") from e
+    return agg
 
 
 __all__ = [
