@@ -791,7 +791,11 @@ def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: p
     return matches
 
 
-def assign_error_metrics(df: pd.DataFrame, parameters: Union[str, list["str"]]) -> pd.DataFrame:
+def assign_error_metrics(
+    df: pd.DataFrame,
+    parameters: Union[str, list[str]],
+    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
+) -> pd.DataFrame:
     """Derive error metrics from given columns of a DataFrame and add them to the DataFrame.
 
     The error metrics that are calculated for each parameter are:
@@ -811,6 +815,12 @@ def assign_error_metrics(df: pd.DataFrame, parameters: Union[str, list["str"]]) 
     parameters : Union[str, list[str]]
         The name of the gait parameters or a list of parameter names for which the error metrics should be calculated.
         Each of the specified parameters must be present in `df` together with a reference and a detected value.
+    zero_division_hint : "warn", "raise" or np.nan, default="warn"
+        Controls the behavior when there is a zero division. If set to "warn",
+        affected metrics are set to NaN and a warning is raised.
+        If set to "raise", a ZeroDivisionError is raised.
+        If set to `np.nan`, the warning is suppressed and the affected metrics are set to NaN.
+        Zero division can occur if the reference value is zero for a given parameter, i.e., n_turns = 0
 
     Returns
     -------
@@ -827,12 +837,29 @@ def assign_error_metrics(df: pd.DataFrame, parameters: Union[str, list["str"]]) 
             reference_value = df[value]["reference"]
         except KeyError as e:
             raise ValueError(f"Column '{value}' does not contain both 'detected' and 'reference' values.") from e
+
         # explicitly calculate the insertion order to keep columns in a logical order
         insert_index = df.columns.get_loc(value).stop
         df.insert(insert_index, (value, "error"), detected_value - reference_value)
-        df.insert(insert_index + 1, (value, "rel_error"), df[value]["error"] / reference_value)
+        df.insert(
+            insert_index + 1, (value, "rel_error"), (df[value]["error"] / reference_value).replace(np.inf, np.nan)
+        )
         df.insert(insert_index + 2, (value, "abs_rel_error"), df[value]["rel_error"].abs())
         df.insert(insert_index + 3, (value, "abs_error"), df[value]["error"].abs())
+
+        # handle zero division
+        if (reference_value == 0).any():
+            if zero_division_hint not in ["warn", "raise", np.nan]:
+                raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
+            if zero_division_hint == "raise":
+                raise ZeroDivisionError(f"Zero division occurred because reference values of {value} contain zeroes.")
+            if zero_division_hint == "warn":
+                warnings.warn(
+                    f"Zero division occurred because because reference values of {value} contain zeroes. "
+                    "Affected error metrics are set to NaN.",
+                    UserWarning,
+                    stacklevel=2,
+                )
     return df
 
 
