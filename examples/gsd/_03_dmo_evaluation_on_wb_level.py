@@ -197,7 +197,7 @@ print(aggregations_default)
 
 from mobgap.gsd.evaluation import apply_aggregations
 
-agg_results = apply_aggregations(gs_errors, aggregations)
+agg_results = apply_aggregations(gs_errors, aggregations_default)
 
 # %%
 # The result is a dataframe containing the aggregated error metrics for each parameter and error type accumulated

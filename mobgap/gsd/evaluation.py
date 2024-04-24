@@ -903,6 +903,7 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
 
 def mdc(error: pd.Series) -> float:
     # TODO: isn't this supposed to be a tuple then?
+    # Is this metric even required?
     """Calculate the mean difference and the confidence interval of a measure."""
     return 1.96 * np.sqrt(2) * error.std()
 
@@ -973,12 +974,27 @@ def get_default_aggregator() -> dict[tuple[str], list[Union[str, FunctionType]]]
     This dictionary can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregate_funcs`
     parameter to calculate the desired metrics.
     """
-    # TODO: replace with meaningful default values
+    # TODO: are these all required parameters?
+
+    parameter_columns = [
+        "cadence_spm",
+        "duration_s",
+        "n_steps",
+        "n_turns",
+        "stride_duration_s",
+        "stride_length_m",
+        "walking_speed_mps",
+    ]
+
     default_agg = {
-        **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
-        **get_aggregator(aggregate="mean", metric="metric_1", origin="reference"),
-        **get_aggregator(aggregate="mean", metric="metric_2", origin="rel_error"),
+        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="detected"),
+        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="reference"),
+        **get_aggregator(aggregate=["mean", "loa"], metric=parameter_columns, origin="error"),
+        **get_aggregator(aggregate=["mean", "loa"], metric=parameter_columns, origin="rel_error"),
+        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="abs_error"),
+        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="abs_rel_error"),
     }
+
     return default_agg
 
 
