@@ -619,6 +619,7 @@ def categorize_matches_with_min_overlap(
         .reset_index(drop=True)
     )
 
+    matches.index.name = "match_id"
     matches.loc[~matches.isna().any(axis=1), "match_type"] = "tp"
     matches.loc[matches[reference_index_name].isna(), "match_type"] = "fp"
     matches.loc[matches[detected_index_name].isna(), "match_type"] = "fn"
@@ -740,8 +741,9 @@ def get_matching_gs(
     detected_matches = _extract_tp_matches(metrics_detected, tp_matches["gs_id_detected"])
     reference_matches = _extract_tp_matches(metrics_reference, tp_matches["gs_id_reference"])
 
-    matches = _combine_detected_and_reference_metrics(detected_matches, reference_matches)
-    return matches
+    combined_matches = _combine_detected_and_reference_metrics(detected_matches, reference_matches)
+    combined_matches.index = tp_matches.index
+    return combined_matches
 
 
 def _check_gs_level_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
