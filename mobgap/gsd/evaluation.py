@@ -774,6 +774,11 @@ def _extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.D
 
 
 def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: pd.DataFrame) -> pd.DataFrame:
+    # if wb_id in index, add it as a column to preserve it in the combined DataFrame
+    if "wb_id" in detected.index.names and "wb_id" in reference.index.names:
+        detected.insert(0, "wb_id", detected.index.get_level_values("wb_id"))
+        reference.insert(0, "wb_id", reference.index.get_level_values("wb_id"))
+
     common_columns = list(set(reference.columns).intersection(detected.columns))
     if len(common_columns) == 0:
         raise ValueError("No common columns found in `metrics_detected` and `metrics_reference`.")
