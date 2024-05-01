@@ -14,7 +14,7 @@
                 "type":"string"
             },
             {
-                "name":"level_3",
+                "name":"match_id",
                 "type":"integer"
             },
             {
@@ -34,7 +34,7 @@
             "visit_type",
             "participant_id",
             "measurement_date",
-            "level_3"
+            "match_id"
         ],
         "pandas_version":"1.4.0"
     },
@@ -43,7 +43,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":0,
+            "match_id":0,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -62,7 +62,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":1,
+            "match_id":1,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -76,7 +76,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":2,
+            "match_id":2,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -95,7 +95,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":3,
+            "match_id":3,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -109,7 +109,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":4,
+            "match_id":4,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -128,7 +128,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":5,
+            "match_id":5,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -142,7 +142,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":6,
+            "match_id":6,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -161,7 +161,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":7,
+            "match_id":7,
             "gs_id_detected":[
                 "T1",
                 12345,
@@ -175,7 +175,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":8,
+            "match_id":8,
             "gs_id_detected":null,
             "gs_id_reference":[
                 "T1",
@@ -189,7 +189,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":9,
+            "match_id":9,
             "gs_id_detected":null,
             "gs_id_reference":[
                 "T1",
@@ -203,7 +203,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":10,
+            "match_id":10,
             "gs_id_detected":null,
             "gs_id_reference":[
                 "T1",
@@ -217,7 +217,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":11,
+            "match_id":11,
             "gs_id_detected":null,
             "gs_id_reference":[
                 "T1",
@@ -231,7 +231,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":12,
+            "match_id":12,
             "gs_id_detected":null,
             "gs_id_reference":[
                 "T1",
@@ -245,7 +245,7 @@
             "visit_type":"T1",
             "participant_id":12345,
             "measurement_date":"2023-01-01",
-            "level_3":13,
+            "match_id":13,
             "gs_id_detected":null,
             "gs_id_reference":[
                 "T1",
