@@ -32,31 +32,18 @@ from mobgap import PACKAGE_ROOT
 
 DATA_PATH = PACKAGE_ROOT.parent / "example_data/dmo_data/dummy_dmo_data"
 
-detected_gs = pd.read_csv(DATA_PATH / "detected_gsd.csv").set_index(
-    ["visit_type", "participant_id", "measurement_date", "wb_id"]
-)
 detected_dmo = pd.read_csv(DATA_PATH / "detected_dmo_data.csv").set_index(
     ["visit_type", "participant_id", "measurement_date", "wb_id"]
 )
 
-reference_gs = pd.read_csv(DATA_PATH / "reference_gsd.csv").set_index(
-    ["visit_type", "participant_id", "measurement_date", "wb_id"]
-)
 reference_dmo = pd.read_csv(DATA_PATH / "reference_dmo_data.csv").set_index(
     ["visit_type", "participant_id", "measurement_date", "wb_id"]
 )
 
-# %%
-# The gsd data is a simple dataframe containing one gait sequence per row,
-# that is characterized by its start and end index in samples.
-# The index contains multiple levels, including the visit type, participant_id, measurement day, and gait sequence id.
-detected_gs
-
-# %%
-reference_gs
-
-# %% The corresponding DMO data is a dataframe with one row per gait sequence.
-# The index is identical to the index of the gait sequence data, i.e., refers to the same gait sequences.
+# %% The DMO data is a dataframe with one row per gait sequence.
+# The index contains multiple levels, including the visit type, participant_id, measurement day, and gait sequence id,
+# and the corresponding estimated DMOs.
+# Furthermore, the start and end index of each gait sequence in samples is contained in the columns `start` and `end`.
 detected_dmo
 
 # %%
@@ -78,7 +65,7 @@ reference_dmo
 from mobgap.utils.array_handling import create_multi_groupby
 
 per_trial_participant_day_grouper = create_multi_groupby(
-    detected_gs, reference_gs, groupby=["visit_type", "participant_id", "measurement_date"]
+    detected_dmo, reference_dmo, groupby=["visit_type", "participant_id", "measurement_date"]
 )
 
 print(per_trial_participant_day_grouper)
@@ -103,7 +90,7 @@ print(per_trial_participant_day_grouper)
 from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
 
 gs_tp_fp_fn = create_multi_groupby(
-    detected_gs, reference_gs, groupby=["visit_type", "participant_id", "measurement_date"]
+    detected_dmo, reference_dmo, groupby=["visit_type", "participant_id", "measurement_date"]
 ).apply(
     lambda det, ref: categorize_matches_with_min_overlap(
         gsd_list_detected=det, gsd_list_reference=ref, overlap_threshold=0.8, multiindex_warning=False

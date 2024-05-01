@@ -509,7 +509,7 @@ def categorize_matches_with_min_overlap(
     ----------
     gsd_list_detected: pd.DataFrame
        Each row contains a detected gait sequence interval as output from the GSD algorithms.
-       The respective start index is stored in the first and the stop index in the second column.
+       The respective start index is stored in a column named `start` and the stop index in a column named `stop`.
     gsd_list_reference: pd.DataFrame
        Gold standard to validate the detected gait sequences against.
        Should have the same format as `gsd_list_detected`.
