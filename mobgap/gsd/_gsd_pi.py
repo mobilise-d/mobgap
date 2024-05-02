@@ -26,6 +26,8 @@ from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 # TODO: Add version without hilbert transform
 
 
+# test
+
 @base_gsd_docfiller
 class GsdParaschivIonescu(BaseGsDetector):
     """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
