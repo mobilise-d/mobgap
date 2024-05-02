@@ -512,6 +512,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "end": "int64",
         "duration_s": "float64",
         "angle_deg": "float64",
+        "direction": pd.CategoricalDtype(categories=["left", "right"]),
     }
 
     stride_df_dtypes = {
