@@ -21,7 +21,7 @@ from mobgap.data import LabExampleDataset
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP "InitialContact_Event" output as ground truth.
 #
-# We only use the data from the "simulated daily living" activity test from a single particomand.
+# We only use the data from the "simulated daily living" activity test from a single participant.
 
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
 single_test = example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
@@ -44,7 +44,7 @@ ref_ics_rel_to_gs = single_test.reference_parameters_relative_to_wb_.ic_list
 # First, we need to set up an instance of our algorithm.
 # For ``LrcUllrich`` we provide a pre-trained model, which we can use to predict the L/R labels.
 # They are all trained on the MS-Project (University of Sheffield) dataset, just on different sub cohorts and can
-# be accessed using ``LrcUllrich.PredefinedParameters`.
+# be accessed using ``LrcUllrich.PredefinedParameters``.
 # We will use the model trained on all participants of the MS-Project dataset.
 from mobgap.lrc import LrcUllrich
 
