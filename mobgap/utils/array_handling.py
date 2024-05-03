@@ -84,7 +84,7 @@ class MultiGroupBy:
     """
 
     _primary_groupby: pd.core.groupby.DataFrameGroupBy
-    _scondary_groupbys: list[pd.core.groupby.DataFrameGroupBy]
+    _secondary_groupbys: list[pd.core.groupby.DataFrameGroupBy]
 
     def __init__(
         self,
