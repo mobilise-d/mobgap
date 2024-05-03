@@ -14,15 +14,24 @@ from mobgap.turn_detection.base import BaseTurnDetector
 
 
 def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:
-    # TODO: Add type conversions
-    df = df.reset_index(drop=True).rename_axis("turn_id")
+    df = df.reset_index(drop=True).rename_axis("turn_id").reset_index().astype(_turn_df_types).set_index("turn_id")
     # To ensure that the index is 1-based
     df.index += 1
     return df
 
 
+_turn_df_types = {
+    "turn_id": "int64",
+    "start": "int64",
+    "end": "int64",
+    "duration_s": "float64",
+    "angle_deg": "float64",
+    "direction": pd.CategoricalDtype(categories=["left", "right"]),
+}
+
+
 class TdElGohary(BaseTurnDetector):
-    """Detect turns in the continous yaw signal of a lower back IMU based on the algorithm by El-Gohary et al.
+    """Detect turns in the continuous yaw signal of a lower back IMU based on the algorithm by El-Gohary et al.
 
     This algorithm uses the lowpass filtered yaw-signal, then identifies peaks in its norm higher than
     ``min_peak_angle_velocity_dps``.
@@ -68,14 +77,17 @@ class TdElGohary(BaseTurnDetector):
       remove these turns from the list.
     - The turn angle is calculated by integrating the raw unfiltered signal.
 
-    COmpared to original publication:
+    Compared to original publication:
 
-        - We skip the global frame transformation and assume that the z axis roughly aligns with the turning axis.
+    - We skip the global frame transformation and assume that the z axis roughly aligns with the turning axis.
+      If you want to run the turn algorithm in the global frame, perform a orientation estimation and coordinate
+      system transformation before running this algorithm.
 
     Compared to matlab implementation:
-        - We fix a bug, that only the start and the end of a turn was detected on the normal signal instead of the
-          absolute signal.
-          This made it "harder" to detect turns in one direction than the other.
+
+    - We fix a bug, that only the start and the end of a turn was detected on the normal signal instead of the
+      absolute signal.
+      This made it "harder" to detect turns in one direction than the other.
     """
 
     smoothing_filter: BaseFilter
@@ -109,7 +121,7 @@ class TdElGohary(BaseTurnDetector):
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
         gyr_z = data["gyr_z"].to_numpy()
         filtered_gyr_z = self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
-        # Note: The "abs" part here is missing in the original implementation.
+        # Note: The "abs" part here is missing in the original matlab implementation.
         abs_filtered_gyr_z = np.abs(filtered_gyr_z)
         dominant_peaks, _ = find_peaks(abs_filtered_gyr_z, height=self.min_peak_angle_velocity_dps)
 
@@ -144,10 +156,9 @@ class TdElGohary(BaseTurnDetector):
         def _calculate_metrics(df):
             return df.assign(
                 duration_s=lambda df_: (df_["end"] - df_["start"]) / sampling_rate_hz,
-                turn_angle_deg=lambda df_: yaw_angle[df_["end"] - 1] - yaw_angle[df_["start"]],
-                direction=lambda df_: np.sign(df_["turn_angle_deg"]),
-                # TODO: Double check the sign directions
-            ).replace({"direction": {-1: "left", 1: "right"}})
+                angle_deg=lambda df_: yaw_angle[df_["end"] - 1] - yaw_angle[df_["start"]],
+                direction=lambda df_: np.sign(df_["angle_deg"]),
+            ).replace({"direction": {1: "left", -1: "right"}})
 
         # Create an array of turns
         turns = pd.DataFrame({"start": starts, "end": ends}).pipe(_calculate_metrics)
@@ -170,7 +181,7 @@ class TdElGohary(BaseTurnDetector):
         )
 
         # Finally we filter based on the durations and the angles
-        bool_map = turns["duration_s"].between(*self.allowed_turn_duration_s) & turns["turn_angle_deg"].abs().between(
+        bool_map = turns["duration_s"].between(*self.allowed_turn_duration_s) & turns["angle_deg"].abs().between(
             *self.allowed_turn_angle_deg
         )
         self.turn_list_ = _as_valid_turn_list(turns.loc[bool_map].copy())

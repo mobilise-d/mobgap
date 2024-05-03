@@ -9,7 +9,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 from mobgap.data import LabExampleDataset
-from mobgap.turn_detection import TdElgohary
+from mobgap.turn_detection import TdElGohary
 
 # %%
 # Loading data
@@ -27,7 +27,7 @@ reference_wbs = single_test.reference_parameters_.wb_list
 sampling_rate_hz = single_test.sampling_rate_hz
 ref_turns = single_test.reference_parameters_.turn_parameters
 
-turning_detector = TdElgohary()
+turning_detector = TdElGohary()
 
 
 reference_wbs

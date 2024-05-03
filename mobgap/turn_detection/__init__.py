@@ -1,3 +1,3 @@
-__all__ = ["TdElgohary"]
+__all__ = ["TdElGohary"]
 
-from mobgap.turn_detection._td_elgohary import TdElgohary
+from mobgap.turn_detection._td_elgohary import TdElGohary
