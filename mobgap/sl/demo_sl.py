@@ -1,12 +1,15 @@
 # Import useful modules and packages
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import butter, filtfilt
+from hampel import hampel
+import pandas as pd
+from sklearn.decomposition import PCA
+from scipy.signal import butter, filtfilt, lfilter, medfilt
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
 from gaitmap.utils.rotations import rotate_dataset_series
 from mobgap.data import LabExampleDataset
 
-fs = 100 # sampling frequency (Hz)
+sampling_rate_hz = 100 # sampling frequency (Hz)
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")  # alternatively: "StereoPhoto"
 single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
 imu_data = single_test.data["LowerBack"]
@@ -23,61 +26,48 @@ start = reference_wbs['start']
 end = reference_wbs['end']
 # [acc_x acc_y acc_z gyr_x gyr_y gyr_z]
 imu_data_gs = imu_data[start:end]
-# plot raw data over gait sequence
-fig, axs = plt.subplots(2)
-fig.tight_layout(pad=5.0)
-fig.suptitle('Raw data')
-# Acceleration
-for i in imu_data_gs.columns[0:3]:
-    axs[0].plot(imu_data_gs[i], label=i)
-axs[0].set(xlabel='Samples', ylabel='(m/s^2)')
-axs[0].set_title('Acceleration')
-axs[0].legend()
-# Angular velocity
-for i in imu_data_gs.columns[3:]:
-    axs[1].plot(imu_data_gs[i], label=i)
-axs[1].set(xlabel='Samples', ylabel='(dps)')
-axs[1].set_title('Angular rate')
-axs[1].legend()
+acc = imu_data_gs[['acc_x','acc_y','acc_z']]/9.81
+gyr = imu_data_gs[['gyr_x','gyr_y','gyr_z']]
+# plot raw acceleration over gait sequence
+plt.plot(acc,label = ['acc_x','acc_y','acc_z'])
+plt.title('Raw data')
+plt.ylabel('Acceleration (m/s^2)')
+plt.xlabel('Samples')
+plt.legend()
 # Displaying the plot
 plt.show()
 
 # Sensor alignment
-sampling_rate_hz = 100
 rotated_imu_data = rotate_dataset_series(imu_data_gs, MadgwickAHRS(beta = 0.1).estimate(imu_data_gs, sampling_rate_hz=sampling_rate_hz).orientation_object_[:-1])
-
-# plot rotated data over gait sequence
-fig, axs = plt.subplots(2)
-fig.tight_layout(pad=5.0)
-fig.suptitle('Rotated data')
-# Acceleration
-for i in rotated_imu_data.columns[0:3]:
-    axs[0].plot(rotated_imu_data[i], label=i)
-axs[0].set(xlabel='Samples', ylabel='(m/s^2)')
-axs[0].set_title('Acceleration')
-axs[0].legend()
-# Angular velocity
-for i in rotated_imu_data.columns[3:]:
-    axs[1].plot(rotated_imu_data[i], label=i)
-axs[1].set(xlabel='Samples', ylabel='(dps)')
-axs[1].set_title('Angular rate')
-axs[1].legend()
+pca = PCA(n_components=3)
+pca.fit(acc)
+pcaCoef = pca.components_
+newAcc = np.matmul(acc.to_numpy(), pcaCoef)
+newAcc = pd.DataFrame(newAcc, columns = ['acc_x', 'acc_y', 'acc_z'])
+# plot aligned acceleration over gait sequence
+plt.plot(newAcc,label = ['acc_x','acc_y','acc_z'])
+plt.title('Aligned data')
+plt.ylabel('Acceleration (m/s^2)')
+plt.xlabel('Samples')
+plt.legend()
 # Displaying the plot
 plt.show()
 # rotating data does not seem to change anything in the signals
-acc = imu_data_gs[['acc_x','acc_y','acc_z']]
-# gyroscope
-gyr = imu_data_gs[['gyr_x','gyr_y','gyr_z']]
 
 # FILTERING
-vacc=9.8*rotated_imu_data['acc_x']
+vacc=9.8 * newAcc['acc_x']
 fc=0.1
-[df,cf] = butter(4,fc/(fs/2),'high')
+[df,cf] = butter(4,fc/(sampling_rate_hz/2),'high')
 # Note: the Matlab implementation actually makes use of filter rather than filtfilt.
 # However, in the context of dedrifting, zero-phase distortion is preferred
 # because it maintains the temporal relationships between different parts
 # of the signal and preserves timing and phase information.
-vacc_high=filtfilt(df,cf,vacc)
+vacc_high=lfilter(df,cf,vacc)
+
+plt.plot(vacc, label = 'raw')
+plt.plot(vacc_high, label = 'filtered')
+plt.legend()
+plt.show()
 
 HSsamp= ics - start
 K = 4.587
@@ -105,7 +95,7 @@ def zjilsV3(LB_vacc_high, fs, K, HSsamp, LBh):
     # of the signal and preserves timing and phase information.
     fc = 1
     b, a = butter(4, fc / (fs / 2), 'high')
-    speed_high = filtfilt(b, a, vspeed)
+    speed_high = lfilter(b, a, vspeed)
     # estimate vertical displacement
     vdis_high_v2 = np.cumsum(speed_high) / fs
     # initialize the output array as an array of zeros having one less element
@@ -125,5 +115,62 @@ def zjilsV3(LB_vacc_high, fs, K, HSsamp, LBh):
 
     return sl_zjilstra_v3
 
-sl_zjilstra_v3 = zjilsV3(vacc_high, fs, K, HSsamp, LBh)
-sl_zjilstra_v3
+sl_zjilstra_v3 = zjilsV3(vacc_high, sampling_rate_hz, K, HSsamp, LBh)
+
+
+def stride2sec(ICtime, duration, stl):
+
+# if the number of SL values is lower than the one of ICs, replicate the last element of the SL array until they have the
+# same length.
+    if len(stl) < len(ICtime):
+        stl = np.concatenate([stl, np.tile(stl[-1], (len(ICtime) - len(stl), 1))])
+    # hampel filter: For each sample of stl, the function computes the
+    # median of a window composed of the sample and its four surrounding
+    # samples, two per side. It also estimates the standard deviation
+    # of each sample about its window median using the median absolute
+    # deviation. If a sample differs from the median by more than three
+    # standard deviations, it is replaced with the median.
+
+    # stl = medfilt(stl, kernel_size=3)
+    stl = hampel(stl, window_size=2).filtered_data
+    N = int(np.floor(duration)) # greater integer number of seconds included in the WB
+    winstart = np.arange(1, N + 1) - 0.5 # start of each second
+    winstop = np.arange(1, N + 1) + 0.5 # end of each second
+
+    stSec = np.zeros(N) # initialize array of SL values per second
+
+    for i in range(N): # consider each second
+        if winstop[i] < ICtime[0]:
+            stSec[i] = -1 # set SL value to -1 if current sec ends before the first IC occurs
+        elif winstart[i] > ICtime[-1]:
+            stSec[i] = -2 # set SL value to -2 if current sec starts after the last IC occurs
+        else: # if current sec is between the first and the last IC
+            ind = (winstart[i] <= ICtime) & (ICtime <= winstop[i]) # find indices of ICs that are included in the current sec.
+            if np.sum(ind) == 0: # if there are no ICs in the current sec...
+                inx = winstart[i] >= ICtime # indices of ICs that occur before sec starts
+                aa = stl[np.logical_or(np.abs(np.diff(inx)), False)] # take first SL value before current second starts
+                iny = ICtime >= winstop[i] # indices of ICs that occur after sec ends
+                bb = stl[np.logical_or(False, np.abs(np.diff(iny)))] # take first SL value after current second ends
+                stSec[i] = (aa + bb) / 2 # the SL value of the current second is the average of aa and bb
+            else: # if there are one or more ICs in the current sec
+                stSec[i] = np.nanmean(stl[ind]) # the SL value of the current sec is the average all SL values in the current sec
+
+    myInx = stSec == -1 # indices of seconds that happen before the first IC occurs
+    tempax = np.arange(1, N + 1) # array of seconds
+    tempax2 = tempax[~myInx] # # seconds that end before the first IC occurs
+    stSec[myInx] = stSec[tempax2[0]]
+
+    myInd = stSec == -2
+    tempax3 = tempax[~myInd]
+    stSec[myInd] = stSec[tempax3[-1]]
+
+    stSec = medfilt(stSec, kernel_size=3)
+
+    if len(stSec) < duration:
+        stSec = np.concatenate([stSec, np.tile(stSec[-1], (duration - len(stSec), 1))])
+    elif len(stSec) > duration:
+        stSec = stSec[:duration]
+
+    return stSec
+
+# stride2sec(ICtime, duration, stl)
