@@ -24,6 +24,8 @@ reference_sl = single_test.reference_parameters_.stride_parameters['length_m'].l
 # segment signal of current gs
 start = reference_wbs['start']
 end = reference_wbs['end']
+duration = np.floor(end/sampling_rate_hz) - np.floor(start/sampling_rate_hz) # bottom-rounded duration (s)
+
 # [acc_x acc_y acc_z gyr_x gyr_y gyr_z]
 imu_data_gs = imu_data[start:end]
 acc = imu_data_gs[['acc_x','acc_y','acc_z']]/9.81
@@ -70,6 +72,7 @@ plt.legend()
 plt.show()
 
 HSsamp= ics - start
+HStime = HSsamp/sampling_rate_hz
 K = 4.587
 
 def zjilsV3(LB_vacc_high, fs, K, HSsamp, LBh):
@@ -119,11 +122,11 @@ sl_zjilstra_v3 = zjilsV3(vacc_high, sampling_rate_hz, K, HSsamp, LBh)
 
 
 def stride2sec(ICtime, duration, stl):
-
 # if the number of SL values is lower than the one of ICs, replicate the last element of the SL array until they have the
 # same length.
     if len(stl) < len(ICtime):
-        stl = np.concatenate([stl, np.tile(stl[-1], (len(ICtime) - len(stl), 1))])
+        stl = np.concatenate([stl, np.tile(stl[-1], len(ICtime) - len(stl))])
+        # stl = np.concatenate([stl, np.tile(stl[-1], (len(ICtime) - len(stl), 1))])
     # hampel filter: For each sample of stl, the function computes the
     # median of a window composed of the sample and its four surrounding
     # samples, two per side. It also estimates the standard deviation
@@ -155,22 +158,25 @@ def stride2sec(ICtime, duration, stl):
             else: # if there are one or more ICs in the current sec
                 stSec[i] = np.nanmean(stl[ind]) # the SL value of the current sec is the average all SL values in the current sec
 
-    myInx = stSec == -1 # indices of seconds that happen before the first IC occurs
-    tempax = np.arange(1, N + 1) # array of seconds
-    tempax2 = tempax[~myInx] # # seconds that end before the first IC occurs
-    stSec[myInx] = stSec[tempax2[0]]
+    myInx = stSec == -1 # indices of seconds that end before the first IC occurs (empty seconds)
+    tempax = np.arange(0, N) # array of seconds
+    tempax2 = tempax[~myInx] # indices of seconds that end AFTER the first IC occurs
+    stSec[myInx] = stSec[tempax2[0]] # set SL values of empty seconds to the first SL value of non-empty seconds
 
-    myInd = stSec == -2
-    tempax3 = tempax[~myInd]
-    stSec[myInd] = stSec[tempax3[-1]]
+    myInd = stSec == -2 # indices of seconds that start after the last IC occurs (empty seconds)
+    tempax3 = tempax[~myInd] # indices of seconds that start BEFORE the last IC occurs
+    stSec[myInd] = stSec[tempax3[-1]] # set SL values of empty seconds to the last SL value of non-empty seconds
 
-    stSec = medfilt(stSec, kernel_size=3)
-
+    stSec = hampel(stSec, window_size=2).filtered_data # re-apply the same hampel filter to SL values per second
+    # if the number of SL values is lower than the one of ICs,
+    # replicate the last element of the SL array until they have the
+    # same length
     if len(stSec) < duration:
-        stSec = np.concatenate([stSec, np.tile(stSec[-1], (duration - len(stSec), 1))])
+        stSec = np.concatenate([stSec, np.tile(stSec[-1], (duration - len(stSec)))])
+    # if the number of SL values is lower than the one of ICs,
+    # truncates to the last element of the SL array that is included in duration
     elif len(stSec) > duration:
         stSec = stSec[:duration]
-
     return stSec
-
-# stride2sec(ICtime, duration, stl)
+slSec_zjilstra_v3 = stride2sec(HStime.to_numpy(), duration, sl_zjilstra_v3)
+slmat = slSec_zjilstra_v3[0:duration]
