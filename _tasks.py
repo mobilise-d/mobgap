@@ -7,6 +7,23 @@ from pathlib import Path
 HERE = Path(__file__).parent
 
 
+def task_no_long_file_names():
+    """Check that no files that are tracked by git are longer than 200 characters.
+
+    We use this check, as on Windows there are pathlimits by default of 260 characters.
+    To my understanding this includes the entire path.
+    So it depends on where the user clones the repo too.
+    Hence, we leave some room for the user path.
+    """
+    # Note: This only works on linux for now and we just run it in the CI.
+    return subprocess.run(
+        "git ls-files | awk 'length($0) > 200'",
+        shell=True,
+        check=True,
+        stdout=subprocess.PIPE,
+    )
+
+
 def task_update_example_data(raise_if_changes=False):
     import pooch
 

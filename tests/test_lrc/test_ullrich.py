@@ -135,4 +135,4 @@ class TestRegression:
             result.ic_list = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=sampling_rate_hz).ic_lr_list_
 
         predicted_ics = iterator.results_.ic_list
-        snapshot.assert_match(predicted_ics, f"{config_name}_{datapoint.group_label!s}")
+        snapshot.assert_match(predicted_ics, f"{config_name}_{tuple(datapoint.group_label)}")

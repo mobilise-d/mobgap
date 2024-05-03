@@ -57,7 +57,8 @@ format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
 _lint_ci = "ruff check mobgap --output-format=github"
 _check_format = "ruff format . --check"
-ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data"], help = "Check all potential format and linting issues." }
+_file_length = { "script" = "_tasks:task_no_long_file_names()", help = "Check the length of all files." }
+ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data", "_file_length"], help = "Check all potential format and linting issues." }
 test = { cmd = "pytest --cov=mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
 test_ci = { cmd = "pytest --cov=mobgap --cov-report=term-missing --cov-report=xml --snapshot-only-check", help = "Run Pytest with coverage and fail on missing snapshots." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
