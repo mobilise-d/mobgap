@@ -193,7 +193,7 @@ sphinx_gallery_conf = {
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
     "doc_module": ("mobgap",),
-    "filename_pattern": re.escape(os.sep),
+    "filename_pattern": r"^(?!.*_no_exc\.py$).*\.py$",  # ignore files with _no_exc
     "remove_config_comments": True,
     "show_memory": True,
     "subsection_order": ExplicitOrder(
