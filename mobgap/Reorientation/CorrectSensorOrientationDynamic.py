@@ -30,8 +30,8 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     Notes
     -----
     Points of deviation from the MATLAB implementation:
-    - The Madgwick filter is applied to the entire data array at once, as opposed to row by row.
-    - The signal is allready sliced before calling this function. Thus, this script has been simplified
+    - The Madgwick filter is applied to the entire data array at once, as opposed to row by row in the original implementation.
+    - The signal is allready sliced before calling the present function (CorrectSensorOrientationDynamic). Thus, this script has been simplified
     - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
       Specifically, we use m/s^2 instead of g.
 
