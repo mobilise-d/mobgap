@@ -1,7 +1,7 @@
 import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Callable, Generic, NamedTuple, Optional, TypeVar
 
 from tpcp import Algorithm, cf
 
@@ -14,7 +14,19 @@ class _NotSet:
         return "_NOT_SET"
 
 
-class BaseTypedIterator(Algorithm, Generic[DataclassT]):
+InputTypeT = TypeVar("InputTypeT")
+ResultT = TypeVar("ResultT")
+
+
+class TypedIteratorResultTuple(NamedTuple, Generic[InputTypeT, ResultT]):
+    iteration_name: str
+    uid: str
+    input: InputTypeT
+    result: ResultT
+    iteration_context: dict[str, Any]
+
+
+class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
     """A Base class to implement custom typed iterators.
 
     This class is missing the ``iterate`` method, which needs to be implemented by the child class.
@@ -61,28 +73,47 @@ class BaseTypedIterator(Algorithm, Generic[DataclassT]):
     """
 
     data_type: type[DataclassT]
-    aggregations: Sequence[tuple[str, Callable[[list, list], Any]]]
+    aggregations: Sequence[tuple[str, Callable[[TypedIteratorResultTuple[InputTypeT, Generic[ResultT]]], Any]]]
 
-    _raw_results: list[DataclassT]
+    _raw_results: list[TypedIteratorResultTuple[InputTypeT, DataclassT]]
     _result_fields: set[str]
-    done_: bool
-    inputs_: list
+    _raw_input_context: Any
+    done_: dict[str, bool]
 
     NULL_VALUE = _NotSet()
 
     def __init__(
-        self, data_type: type[DataclassT], aggregations: Sequence[tuple[str, Callable[[list, list], Any]]] = cf([])
+        self,
+        data_type: type[DataclassT],
+        aggregations: Sequence[
+            tuple[str, Callable[[TypedIteratorResultTuple[InputTypeT, Generic[ResultT]]], Any]]
+        ] = cf([]),
     ):
         self.data_type = data_type
         self.aggregations = aggregations
 
-    def _iterate(self, iterable: Iterable[T]) -> Iterator[tuple[T, DataclassT]]:
+    def _iterate(
+        self,
+        iterable: Iterable[tuple[str, T]],
+        *,
+        iteration_name: str = "__main__",
+        iteration_context: Optional[dict[str, Any]] = None,
+    ) -> Iterator[tuple[str, T, DataclassT]]:
         """Iterate over the given iterable and yield the input and a new empty result object for each iteration.
 
         Parameters
         ----------
         iterable
             The iterable to iterate over.
+            Note, that the iterable is expected to yield a tuple of the form `(unique_iteration_id, value)` for each
+            iteration.
+            The iteration id is used internally to keep track of what results belong to which iteration.
+        iteration_name
+            The name of the iteration.
+            This is an advanced feature and should only be used if you want to have multiple nested iterations.
+            See the iterator example for potential usecases.
+        iteration_context
+            This is any piece of information that you want to pass to all aggregation functions via the result object.
 
         Yields
         ------
@@ -95,69 +126,81 @@ class BaseTypedIterator(Algorithm, Generic[DataclassT]):
         if not is_dataclass(self.data_type):
             raise TypeError(f"Expected a dataclass as data_type, got {self.data_type}")
 
-        result_field_names = {f.name for f in fields(self.data_type)}
-        not_allowed_fields = {"results", "raw_results", "done", "inputs"}
-        if not_allowed_fields.intersection(result_field_names):
-            raise ValueError(
-                f"The result dataclass cannot have a field called {not_allowed_fields}. "
-                "These fields are used by the TypedIterator to store the results. "
-                "Having these fields in the result object will result in naming conflicts."
-            )
+        if iteration_name == "__main__":
+            self.done_ = {}
 
-        self._result_fields = result_field_names
+            result_field_names = {f.name for f in fields(self.data_type)}
+            not_allowed_fields = {"results", "raw_results", "done", "inputs"}
+            if not_allowed_fields.intersection(result_field_names):
+                raise ValueError(
+                    f"The result dataclass cannot have a field called {not_allowed_fields}. "
+                    "These fields are used by the TypedIterator to store the results. "
+                    "Having these fields in the result object will result in naming conflicts."
+                )
 
-        self._raw_results = []
-        self.inputs_ = []
-        self.done_ = False
-        for d in iterable:
+            self._result_fields = result_field_names
+            self._raw_results = []
+
+        self.done_[iteration_name] = False
+        for uid, d in iterable:
             result_object = self._get_new_empty_object()
-            self._report_new_result(result_object)
-            self._report_new_input(d)
-            yield d, result_object
-        self.done_ = True
-        self.results_ = self.data_type(**{k.name: self._agg_result(k.name) for k in fields(self.data_type)})
-
-    def _report_new_result(self, result: DataclassT):
-        self._raw_results.append(result)
-
-    def _report_new_input(self, input: T):
-        self.inputs_.append(input)
+            result_tuple = TypedIteratorResultTuple(iteration_name, uid, d, result_object, iteration_context or {})
+            self._report_new_result(result_tuple)
+            yield uid, d, result_object
+        self.done_[iteration_name] = True
 
     def _get_new_empty_object(self) -> DataclassT:
         init_dict = {k.name: self.NULL_VALUE for k in fields(self.data_type)}
         return self.data_type(**init_dict)
 
+    def _report_new_result(self, r: TypedIteratorResultTuple[InputTypeT, DataclassT]):
+        self._raw_results.append(r)
+
     @property
-    def raw_results_(self) -> list[DataclassT]:
-        if not self.done_:
+    def raw_results_(self) -> list[TypedIteratorResultTuple[InputTypeT, Any]]:
+        if "__main__" not in self.done_:
+            raise ValueError(
+                "The iterator has not been started yet. " "No results are available. Call the iterate method first."
+            )
+        if not self.done_["__main__"]:
             warnings.warn("The iterator is not done yet. The results might not be complete.", stacklevel=1)
 
-        return self._raw_results
+        # We invert the results. For each result we check if a result attribute is set and turn all results in a list
+        # for each attribute.
+        inverted_results = {}
+        for r in self._raw_results:
+            for a in fields(self.data_type):
+                result_copy = r._asdict()
+                result_copy["result"] = getattr(r.result, a.name)
+                inverted_results.setdefault(a.name, []).append(TypedIteratorResultTuple(**result_copy))
 
-    def _agg_result(self, name):
-        values = [getattr(r, name) for r in self.raw_results_]
-        # if an aggregator is defined for the specific item, we apply it
+        return self.data_type(**inverted_results)
+
+    def _agg_result(self, raw_results: DataclassT):
         aggregations = dict(self.aggregations)
-        if name in aggregations and all(v is not self.NULL_VALUE for v in values):
-            return aggregations[name](self.inputs_, values)
-        return values
+        agg_results = {}
+        for a in fields(self.data_type):
+            # if an aggregator is defined for the specific item, we apply it
+            name = a.name
+            values = getattr(raw_results, name)
+            if name in aggregations:
+                values = aggregations[name](values)
+            agg_results[name] = values
+        return agg_results
 
-    def __getattr__(self, item):
-        # We assume a correct result name ends with an underscore
-        if (actual_item := item[:-1]) in self._result_fields:
-            return self._agg_result(actual_item)
+    @property
+    def results_(self) -> DataclassT:
+        """The aggregated results.
 
-        result_field_names = [f + "_" for f in self._result_fields]
-
-        raise AttributeError(
-            f"Attribute {item} is not a valid attribute for {self.__class__.__name__} nor a dynamically generated "
-            "result attribute of the result dataclass. "
-            f"Valid result attributes are: {result_field_names}. "
-            "Note the trailing underscore!"
-        )
+        Note, that this returns an instance of the result object, even-though the datatypes of the attributes might be
+        different depending on the aggregation function.
+        We still decided it makes sense to return an instance of the result object, as it will allow to autocomplete
+        the attributes, even-though the associated times might not be correct.
+        """
+        return self.data_type(**self._agg_result(self.raw_results_))
 
 
-class TypedIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
+class TypedIterator(BaseTypedIterator[InputTypeT, DataclassT], Generic[InputTypeT, DataclassT]):
     """Helper to iterate over data and collect results.
 
     Parameters
@@ -190,7 +233,7 @@ class TypedIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
 
     """
 
-    def iterate(self, iterable: Iterable[T]) -> Iterator[tuple[T, DataclassT]]:
+    def iterate(self, iterable: Iterable[T]) -> Iterator[tuple[str, T, DataclassT]]:
         """Iterate over the given iterable and yield the input and a new empty result object for each iteration.
 
         Parameters
@@ -206,4 +249,4 @@ class TypedIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             All values of the result object are set to ``TypedIterator.NULL_VALUE`` by default.
 
         """
-        yield from self._iterate(iterable)
+        yield from self._iterate(((str(i), r) for i, r in enumerate(iterable)))

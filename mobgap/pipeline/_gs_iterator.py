@@ -6,21 +6,27 @@ from typing import (
     ClassVar,
     Generic,
     NamedTuple,
+    Optional,
     TypeVar,
     Union,
-    overload, Optional,
+    overload,
 )
 
 import pandas as pd
 from tpcp import cf
-from gaitlink.pipeline._overwrite_typed_iterator import BaseTypedIterator
 from tpcp.misc import set_defaults
 from typing_extensions import TypeAlias
+
+from mobgap.pipeline._overwrite_typed_iterator import BaseTypedIterator, TypedIteratorResultTuple
 
 DataclassT = TypeVar("DataclassT")
 
 
 class GaitSequence(NamedTuple):
+    @property
+    def _TAG(self) -> str:
+        return "GaitSequence"
+
     gs_id: str
     start: int
     end: int
@@ -31,6 +37,10 @@ class GaitSequence(NamedTuple):
 
 
 class WalkingBout(NamedTuple):
+    @property
+    def _TAG(self) -> str:
+        return "WalkingBout"
+
     wb_id: str
     start: int
     end: int
@@ -86,6 +96,13 @@ def iter_gs(
         yield named_tuple(*gs), data.iloc[gs.start : gs.end]
 
 
+def _iter_gs_with_id(
+    data: pd.DataFrame, gs_list: pd.DataFrame
+) -> Iterator[tuple[Union[str, int], tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]]]:
+    for gs, data in iter_gs(data, gs_list):
+        yield gs.id, (gs, data)
+
+
 @dataclass
 class FullPipelinePerGsResult:
     """Default expected result type for the gait-sequence iterator.
@@ -119,17 +136,20 @@ class FullPipelinePerGsResult:
     gait_speed: pd.DataFrame
 
 
-_inputs_type: TypeAlias = tuple[tuple, pd.DataFrame]
+InputType: TypeAlias = tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]
+ResultT = TypeVar("ResultT")
+GsIteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, ResultT]
+
 
 T = TypeVar("T")
-_aggregator_type: TypeAlias = Callable[[list[_inputs_type], list[pd.DataFrame]], T]
+_aggregator_type: TypeAlias = Callable[[list[GsIteratorResult[pd.DataFrame]]], T]
 
 
 def create_aggregate_df(
     fix_gs_offset_cols: Sequence[str] = ("start", "end"),
     *,
     fix_gs_offset_index: bool = False,
-    _potential_index_names: Sequence[str] = ("wb_id", "gs_id"),
+    _null_value: BaseTypedIterator.NULL_VALUE = BaseTypedIterator.NULL_VALUE,
 ) -> _aggregator_type[pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
@@ -145,43 +165,63 @@ def create_aggregate_df(
     fix_gs_offset_index
         If True, the index of the dataframes will be adapted to be relative to the start of the recording.
         This only makes sense, if the index represents sample values relative to the start of the gs.
-    _potential_index_names
-        The potential names of the index columns.
-        This usually does not need to be changed.
+    _null_value
+        A fixed value that should be indicate that no results where produced.
+        You don't need to change this, unless you are doing very advanced stuff
+
+    Notes
+    -----
+    Fixing the offset works by getting the start value of the gait-sequence and adding it to the respective columns.
+    This is "easy" for the main iteration, where the gait-sequences contains all the relevant information.
+    For sub-iteration, we need to consider the parent context.
+    For this, the GS-Iterator, places the parent gait-sequence in the iteration context.
 
     """
-    if len(_potential_index_names) == 0:
-        raise ValueError("You need to provide at least one potential index name.")
 
-    def aggregate_df(
-        inputs: list[_inputs_type], outputs: list[pd.DataFrame]
-    ) -> pd.DataFrame:
-        sequences, _ = zip(*inputs)
+    def aggregate_df(values: list[GsIteratorResult[Union[pd.DataFrame, _null_value]]]) -> pd.DataFrame:
+        non_null_results = [v for v in values if not (v.result is _null_value or v.result.empty)]
+        if len(non_null_results) == 0:
+            # TODO: We don't have a way to properly know the names of the index cols or the cols themselve here...
+            return pd.DataFrame()
 
-        for iter_index_name in _potential_index_names:
-            if iter_index_name in sequences[0]._fields:
-                break
+        # We assume that all elements have the same iteration context.
+        iter_index_name = non_null_results[0].iteration_context.get("id_col_name", "gs_id")
+        if not isinstance(iter_index_name, list):
+            iter_index_name = [iter_index_name]
 
         to_concat = {}
-        for gs, o in zip(sequences, outputs):
-            if not isinstance(o, pd.DataFrame):
-                raise TypeError(
-                    f"Expected dataframe for this aggregator, but got {type(o)}"
-                )
-            o = o.copy()  # noqa: PLW2901
-            if fix_gs_offset_cols:
-                cols_to_fix = set(fix_gs_offset_cols).intersection(o.columns)
-                o[list(cols_to_fix)] += gs.start
-            if fix_gs_offset_index:
-                o.index += gs.start
-            to_concat[gs[0]] = o
+        for rt in non_null_results:
+            df = rt.result
+            gs_id = rt.uid
+            offset = rt.input[0].start
 
-        return pd.concat(to_concat, names=[iter_index_name, *outputs[0].index.names])
+            parent_gs: Optional[Union[WalkingBout, GaitSequence]] = rt.iteration_context.get("parent_gs", None)
+
+            if rt.iteration_name == "__sub_iter__":
+                if not parent_gs:
+                    raise RuntimeError("Sub-iteration without parent GS.")
+                offset += parent_gs.start
+                gs_id = (parent_gs.id, gs_id)
+            elif rt.iteration_name == "__main__":
+                if parent_gs:
+                    raise RuntimeError("Main iteration with parent GS should not exist.")
+            else:
+                raise RuntimeError("Unexpected iteration type")
+
+            df = df.copy()
+            if fix_gs_offset_cols:
+                cols_to_fix = set(fix_gs_offset_cols).intersection(df.columns)
+                df[list(cols_to_fix)] += offset
+            if fix_gs_offset_index:
+                df.index += offset
+            to_concat[gs_id] = df
+
+        return pd.concat(to_concat, names=[*iter_index_name, *next(iter(to_concat.values())).index.names])
 
     return aggregate_df
 
 
-class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
+class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
     """Iterator to split data into gait-sequences and iterate over them individually.
 
     This can be used to easily iterate over gait-sequences and apply algorithms to them, and then collect the results
@@ -320,16 +360,9 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
     ) -> None:
         super().__init__(data_type, aggregations)
 
-    _sub_iteration: Optional[Union[WalkingBout, GaitSequence]] = None
-    _sub_results: dict[Union[WalkingBout, GaitSequence], list[DataclassT]]
-    _sub_inputs: dict[Union[WalkingBout, GaitSequence], list[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame]]]
-
-
     def iterate(
         self, data: pd.DataFrame, gs_list: pd.DataFrame
-    ) -> Iterator[
-        tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]
-    ]:
+    ) -> Iterator[tuple[str, tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
         """Iterate over the gait sequences one by one.
 
         Parameters
@@ -351,49 +384,28 @@ class GsIterator(BaseTypedIterator[DataclassT], Generic[DataclassT]):
             iteration.
 
         """
-        yield from self._iterate(iter_gs(data, gs_list))
+        context = {"id_col_name": "wb_id" if "wb_id" in gs_list.index.names else "gs_id"}
+        yield from self._iterate(_iter_gs_with_id(data, gs_list), iteration_context=context)
 
     def iterate_subregions(self, gs_list: pd.DataFrame):
-        print(self.raw_results_)
-        if not hasattr(self, "_sub_results"):
-            self._sub_results = {}
-        if not hasattr(self, "_sub_inputs"):
-            self._sub_inputs = {}
-        self._sub_iteration = self._current_gs
-        yield from self.iterate(self._current_data, gs_list)
-        self._sub_iteration = None
+        # We only allow sub iterations, when there are no other subiterations running.
+        if self.done_.get("__main__", True):
+            raise ValueError("Sub-iterations can only be started, when the main iteration is still running")
+        if not self.done_.get("__sub_iter__", True):
+            raise ValueError("Sub-iterations are not allowed within sub-iterations.")
+        current_gs = self._current_gs
+        parent_id_name = "wb_id" if getattr(current_gs, "_TAG", None) == "WalkingBout" else "gs_id"
+        id_col_names = [parent_id_name, "sub_gs_id"]
+        yield from self._iterate(
+            _iter_gs_with_id(self._current_data, gs_list),
+            iteration_name="__sub_iter__",
+            iteration_context={"id_col_name": id_col_names, "parent_gs": current_gs},
+        )
 
     @property
     def _current_data(self):
-        return self.inputs_[-1][1]
+        return self._raw_results[-1].input[1]
 
     @property
     def _current_gs(self):
-        return self.inputs_[-1][0]
-
-    @property
-    def _current_result(self):
-        return self._raw_results[-1]
-
-    def _report_new_result(self, result: DataclassT):
-        if self._sub_iteration:
-            self._sub_results.setdefault(self._sub_iteration, []).append(result)
-        else:
-            return super()._report_new_result(result)
-
-    def _report_new_input(self, input: T):
-        if self._sub_iteration:
-            self._sub_inputs.setdefault(self._sub_iteration, []).append(input)
-        else:
-            return super()._report_new_input(input)
-
-    def _agg_result(self, name):
-        values = [getattr(r, name) for r in self.raw_results_]
-        input_overwrites = self.input_overwrite_.get(name, {})
-
-        inputs = [input_overwrites.get(i[0], i) for i in self.inputs_]
-        # if an aggregator is defined for the specific item, we apply it
-        aggregations = dict(self.aggregations)
-        if name in aggregations and all(v is not self.NULL_VALUE for v in values):
-            return aggregations[name](inputs, values)
-        return values
+        return self._raw_results[-1].input[0]

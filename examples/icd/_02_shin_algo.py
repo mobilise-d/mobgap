@@ -10,9 +10,9 @@ matlab implementation.
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from mobgap.cad import CadFromIc
 from mobgap.data import LabExampleDataset
 from mobgap.icd import IcdShinImproved
-from mobgap.pipeline._gs_iterator import GaitSequence
 
 # %%
 # Loading data
@@ -41,19 +41,26 @@ from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
-for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
+for gs_id, (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     icd = IcdShinImproved()
     icd.detect(data, sampling_rate_hz=sampling_rate_hz)
-    result.ic_list = icd.ic_list_
-    refined_gs_list = pd.DataFrame({"start": [5], "end": [gs.end - gs.start - 5]})
+    # TODO: Need a version of IC-list that has the "refined GS ID in the index"
+    result.ic_list = (
+        icd.ic_list_.assign(refined_gs_id=0)
+        .set_index("refined_gs_id", append=True)
+        .reorder_levels(["refined_gs_id", "step_id"])
+    )
 
-    for (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
-        refined_result.cad_per_sec = pd.DataFrame()
-        refined_result.stride_length = pd.DataFrame()
+    refined_gs_list = pd.DataFrame({"start": [5], "end": [gs.end - gs.start - 5]}).rename_axis(index="gs_id")
+
+    for rgs_id, (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
+        refined_result.cad_per_sec = (
+            CadFromIc()
+            .calculate(refined_data, result.ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz)
+            .cad_per_sec_
+        )
 
     result.gait_speed = pd.DataFrame()
-
-print(iterator._sub_results)
 
 
 detected_ics = iterator.results_.ic_list
