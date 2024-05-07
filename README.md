@@ -45,7 +45,6 @@ If you need the latest unreleased version of mobgap, install the package using p
 pip install "git+https://github.com/mobilise-d/mobgap.git" --upgrade
 ```
 
-You might need to set your git credentials to install the package.
 If you run into problems, clone the repository and install the package locally.
 
 ```bash
@@ -55,6 +54,11 @@ pip install .
 ```
 
 Or the equivalent commands of the python package manager you are using to install local dependencies.
+
+## Development Setup
+
+If you are planning to make any changes to the code, follow 
+[this guide](https://mobgap.readthedocs.io/en/latest/guides/developer_guide.html)
 
 ## Usage Recommendation
 

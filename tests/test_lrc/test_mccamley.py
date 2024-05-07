@@ -4,28 +4,28 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.lrd import LrdMcCamley
+from mobgap.lrc import LrcMcCamley
 
 
-class TestMetaLrdMcCamley(TestAlgorithmMixin):
+class TestMetaLrcMcCamley(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = LrdMcCamley
+    ALGORITHM_CLASS = LrcMcCamley
 
     @pytest.fixture()
     def after_action_instance(self):
-        return self.ALGORITHM_CLASS().detect(
+        return self.ALGORITHM_CLASS().predict(
             pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"]),
             ic_list=pd.DataFrame({"ic": [5, 10, 15]}),
             sampling_rate_hz=40.0,
         )
 
 
-class TestLrdMcCamley:
+class TestLrcMcCamley:
     def test_empty_ic(self):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": []})
-        output = LrdMcCamley().detect(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
+        output = LrcMcCamley().predict(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
         assert len(output) == 0
         assert list(output.columns) == ["ic", "lr_label"]
 
@@ -33,7 +33,7 @@ class TestLrdMcCamley:
         # In the edge case of "zero" at a IC the respective label should be "left"
         data = pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        output = LrdMcCamley().detect(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
+        output = LrcMcCamley().predict(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == "left").all()
@@ -46,7 +46,7 @@ class TestLrdMcCamley:
             {"gyr_x": np.sin(np.linspace(0, 2 * np.pi, 100)), "gyr_z": -np.sin(np.linspace(0, 2 * np.pi, 100))}
         )
         ic_list = pd.DataFrame({"ic": [5, 15, 25]})
-        output = LrdMcCamley(axis).detect(data, ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
+        output = LrcMcCamley(axis).predict(data, ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == ["right", "left", "right"]).all()
@@ -55,7 +55,7 @@ class TestLrdMcCamley:
     def test_correct_ouput_format(self, axis):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        output = LrdMcCamley(axis).detect(data, ic_list=ic_list, sampling_rate_hz=100.0)
+        output = LrcMcCamley(axis).predict(data, ic_list=ic_list, sampling_rate_hz=100.0)
 
         assert_frame_equal(output.ic_lr_list_[["ic"]], ic_list)
 
@@ -63,7 +63,7 @@ class TestLrdMcCamley:
 
     def test_invalid_axis(self):
         with pytest.raises(ValueError):
-            LrdMcCamley(axis="invalid").detect(
+            LrcMcCamley(axis="invalid").predict(
                 pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"]),
                 ic_list=pd.DataFrame({"ic": [5, 10, 15]}),
                 sampling_rate_hz=100.0,

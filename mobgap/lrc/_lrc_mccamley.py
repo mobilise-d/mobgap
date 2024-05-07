@@ -7,11 +7,11 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrd.base import BaseLRDetector, base_lrd_docfiller
+from mobgap.lrc.base import BaseLRClassifier, base_lrc_docfiller
 
 
-@base_lrd_docfiller
-class LrdMcCamley(BaseLRDetector):
+@base_lrc_docfiller
+class LrcMcCamley(BaseLRClassifier):
     """McCamley algorithm for laterality detection of initial contacts.
 
     The McCamley algorithm [1]_ uses the sign of the angular velocity either yaw or roll (or a combination of both) as
@@ -75,8 +75,8 @@ class LrdMcCamley(BaseLRDetector):
         self.axis = axis
         self.smoothing_filter = smoothing_filter
 
-    @base_lrd_docfiller
-    def detect(
+    @base_lrc_docfiller
+    def predict(
         self,
         data: pd.DataFrame,
         ic_list: pd.DataFrame,
@@ -95,6 +95,8 @@ class LrdMcCamley(BaseLRDetector):
         self.sampling_rate_hz = sampling_rate_hz
         self.data = data
         self.ic_list = ic_list
+
+        # TODO: Handle no data or no ICs
 
         # create a copy of ic_list, otherwise they will get modified when adding the predicted labels
         # We also remove the "lr_label" column, if it exists, to avoid conflicts

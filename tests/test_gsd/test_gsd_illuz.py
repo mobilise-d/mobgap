@@ -52,4 +52,4 @@ class TestGsdIluzRegression:
         sampling_rate_hz = datapoint.sampling_rate_hz
 
         gs_list = GsdIluz().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
-        snapshot.assert_match(gs_list, str(datapoint.group_label))
+        snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))

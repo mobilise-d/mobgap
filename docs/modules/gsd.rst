@@ -25,7 +25,7 @@ Pipelines
    :toctree: generated/gsd
    :template: class.rst
 
-    evaluation.GsdEvaluationPipeline
+    pipeline.GsdEmulationPipeline
 
 Base Classes
 ++++++++++++

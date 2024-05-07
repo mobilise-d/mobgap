@@ -1,6 +1,7 @@
 """Class to validate gait sequence detection results."""
 
-from typing import Any, Optional, Union
+import warnings
+from typing import Any, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,12 +10,8 @@ from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from tpcp import OptimizablePipeline
-from tpcp.validate import Aggregator, NoAgg
-from typing_extensions import Self, Unpack
+from typing_extensions import Unpack
 
-from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
@@ -26,7 +23,7 @@ from mobgap.utils.evaluation import (
 
 
 def calculate_matched_gsd_performance_metrics(
-    matches: pd.DataFrame,
+    matches: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate commonly known performance metrics for based on the matched overlap with the reference.
@@ -69,6 +66,9 @@ def calculate_matched_gsd_performance_metrics(
         A DataFrame as returned by :func:`~mobgap.gsd.evaluation.categorize_intervals`.
         It contains the matched intervals between algorithm output and reference with their `start` and `end` index
         and the respective `match_type`.
+    zero_division : "warn", 0 or 1, default="warn"
+        Sets the value to return when there is a zero division. If set to
+        "warn", this acts as 0, but warnings are also raised.
 
     Returns
     -------
@@ -91,16 +91,16 @@ def calculate_matched_gsd_performance_metrics(
     tn_samples = count_samples_in_match_intervals(matches, match_type="tn")
 
     # estimate performance metrics
-    precision_recall_f1 = precision_recall_f1_score(matches)
+    precision_recall_f1 = precision_recall_f1_score(matches, zero_division=zero_division)
 
     gsd_metrics = {"tp_samples": tp_samples, "fp_samples": fp_samples, "fn_samples": fn_samples, **precision_recall_f1}
 
     # tn-dependent metrics
     if tn_samples != 0:
         gsd_metrics["tn_samples"] = tn_samples
-        gsd_metrics["specificity"] = specificity_score(matches)
-        gsd_metrics["accuracy"] = accuracy_score(matches)
-        gsd_metrics["npv"] = npv_score(matches)
+        gsd_metrics["specificity"] = specificity_score(matches, zero_division=zero_division)
+        gsd_metrics["accuracy"] = accuracy_score(matches, zero_division=zero_division)
+        gsd_metrics["npv"] = npv_score(matches, zero_division=zero_division)
 
     return gsd_metrics
 
@@ -110,6 +110,7 @@ def calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
+    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
 ) -> dict[str, Union[float, int]]:
     """
     Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
@@ -142,6 +143,12 @@ def calculate_unmatched_gsd_performance_metrics(
        Should have the same format as `gsd_list_detected`.
     sampling_rate_hz
         Sampling frequency of the recording in Hz.
+    zero_division_hint : "warn", "raise" or np.nan, default="warn"
+        Controls the behavior when there is a zero division. If set to "warn",
+        affected metrics are set to NaN and a warning is raised.
+        If set to "raise", a ZeroDivisionError is raised.
+        If set to `np.nan`, the warning is suppressed and the affected metrics are set to NaN.
+        Zero division can occur if there are no gait sequences in the reference data, i.e., reference_gs_duration_s = 0
 
     Returns
     -------
@@ -155,22 +162,49 @@ def calculate_unmatched_gsd_performance_metrics(
         For categorizing the detected and reference gait sequences on a sample-wise level.
 
     """
-    # estimate duration metrics
+    if sampling_rate_hz <= 0:
+        raise ValueError("The sampling rate must be larger than 0.")
+
+    # estimate basic duratnoch mit Isomatte dazugesellen will sollte kein Problem sein, ion metrics
     reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
     detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
-    gs_relative_duration_error = np.array(gs_duration_error_s) / reference_gs_duration_s
     gs_absolute_duration_error_s = abs(gs_duration_error_s)
-    gs_absolute_relative_duration_error = np.array(gs_absolute_duration_error_s) / reference_gs_duration_s
-    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
 
-    # estimate gs count metrics
+    # estimate basic gs count metrics
     detected_num_gs = len(gsd_list_detected)
     reference_num_gs = len(gsd_list_reference)
     num_gs_error = detected_num_gs - reference_num_gs
-    num_gs_relative_error = num_gs_error / np.array(reference_num_gs)
     num_gs_absolute_error = abs(num_gs_error)
-    num_gs_absolute_relative_error = num_gs_absolute_error / np.array(reference_num_gs)
+
+    # check if reference gs are present to prevent zero division
+    if reference_gs_duration_s == 0:
+        if zero_division_hint not in ["warn", "raise", np.nan]:
+            raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
+        if zero_division_hint == "raise":
+            raise ZeroDivisionError(
+                "Zero division occurred because no gait sequences were detected in the reference data."
+            )
+        if zero_division_hint == "warn":
+            warnings.warn(
+                "Zero division occurred because no gait sequences were detected in the reference data. "
+                "Affected metrics are set to NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+        gs_relative_duration_error = np.nan
+        gs_absolute_relative_duration_error = np.nan
+        num_gs_relative_error = np.nan
+        num_gs_absolute_relative_error = np.nan
+    # no zero division, calculate relative metrics
+    else:
+        gs_relative_duration_error = np.array(gs_duration_error_s) / reference_gs_duration_s
+        gs_absolute_relative_duration_error = np.array(gs_absolute_duration_error_s) / reference_gs_duration_s
+        num_gs_relative_error = num_gs_error / np.array(reference_num_gs)
+        num_gs_absolute_relative_error = num_gs_absolute_error / np.array(reference_num_gs)
+
+    # logarithmic relative metrics
+    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
     num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)
 
     gsd_metrics = {
@@ -508,154 +542,10 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
             ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
 
 
-@base_gsd_docfiller
-class GsdEvaluationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
-    """Pipeline that can be used during evaluation of Gsd algorithms.
-
-    This wraps any GSD algorithm and allows to apply it to a single datapoint of a Gait Dataset or optimize it
-    based on a whole dataset.
-
-    This pipeline can be used in combination with the ``tpcp.validate`` and ``tpcp.optimize`` modules to evaluate and
-    improve the performance of a GSD algorithm.
-
-    Parameters
-    ----------
-    algo
-        The GSD algorithm that should be run/evaluated.
-
-    Attributes
-    ----------
-    %(gs_list_)s
-    algo_
-        The GSD algo instance with all results after running the algorithm.
-        This can be helpful for debugging or further analysis.
-
-    """
-
-    algo: BaseGsDetector
-
-    algo_: BaseGsDetector
-
-    def __init__(self, algo: BaseGsDetector) -> None:
-        self.algo = algo
-
-    @property
-    def gs_list_(self) -> pd.DataFrame:  # noqa: D102
-        return self.algo_.gs_list_
-
-    def run(self, datapoint: BaseGaitDatasetWithReference) -> Self:
-        """Run the pipeline on a single data point.
-
-        This extracts the imu_data (``data_ss``) and the sampling rate (``sampling_rate_hz``) from the datapoint and
-        uses the ``detect`` method of the GSD algorithm to detect the gait sequences.
-
-        Parameters
-        ----------
-        datapoint
-            A single datapoint of a Gait Dataset with reference information.
-
-        Returns
-        -------
-        self
-            The pipeline instance with the detected gait sequences stored in the ``gs_list_`` attribute.
-
-        """
-        single_sensor_imu_data = datapoint.data_ss
-        sampling_rate_hz = datapoint.sampling_rate_hz
-
-        self.algo_ = self.algo.clone().detect(single_sensor_imu_data, sampling_rate_hz=sampling_rate_hz)
-
-        return self
-
-    def self_optimize(self, dataset: BaseGaitDatasetWithReference, **kwargs: Unpack[dict[str, Any]]) -> Self:
-        """Run a "self-optimization" of a GSD-algorithm (if it implements the respective method).
-
-        This method extracts all data and reference gait sequences from the dataset and uses them to optimize the
-        algorithm by calling the ``self_optimize`` method of the GSD algorithm (if it is implemented).
-
-        Note, that this is only useful for algorithms with "internal" optimization logic (i.e. ML-based algorithms).
-        If you want to optimize the hyperparameters of the algorithm, you should use the ``tpcp.optimize`` module.
-
-        Parameters
-        ----------
-        dataset
-            A Gait Dataset with reference information.
-        kwargs
-            Additional parameters required for the optimization process.
-            This will be passed to the ``self_optimize`` method of the GSD algorithm.
-
-        Returns
-        -------
-        self
-            The pipeline instance with the optimized GSD algorithm.
-
-        """
-        all_data = [d.data_ss for d in dataset]
-        reference_wbs = [d.reference_parameters_.wb_list for d in dataset]
-        sampling_rate_hz = [d.sampling_rate_hz for d in dataset]
-
-        self.algo.self_optimize(all_data, reference_wbs, sampling_rate_hz=sampling_rate_hz, **kwargs)
-
-        return self
-
-    def score(
-        self, datapoint: BaseGaitDatasetWithReference
-    ) -> Union[float, dict[str, Union[float, Aggregator]], Aggregator]:
-        """Score the performance of the GSD algorithm of a single datapoint using standard metrics.
-
-        This method applies the GSD algorithm to the datapoint (using the implemented ``run`` method) and calculates
-        the performance metrics based on the detected gait sequences and the reference gait sequences.
-
-        This method can be used as a scoring function in the ``tpcp.validate`` module.
-
-        Parameters
-        ----------
-        datapoint
-            A single datapoint of a Gait Dataset with reference information.
-
-        Returns
-        -------
-        dict
-            Dictionary of performance metrics.
-
-        See Also
-        --------
-        calculate_matched_gsd_performance_metrics
-            For calculating performance metrics based on the matched overlap with the reference.
-        calculate_unmatched_gsd_performance_metrics
-            For calculating performance metrics without matching the detected and reference gait sequences.
-        categorize_intervals
-            For categorizing the detected and reference gait sequences on a sample-wise level.
-
-        """
-        detected_gs_list = self.safe_run(datapoint).gs_list_
-        reference_gs_list = datapoint.reference_parameters_.wb_list[["start", "end"]]
-        n_datapoints = len(datapoint.data_ss)
-        sampling_rate_hz = datapoint.sampling_rate_hz
-
-        matches = categorize_intervals(
-            gsd_list_detected=detected_gs_list, gsd_list_reference=reference_gs_list, n_overall_samples=n_datapoints
-        )
-
-        all_metrics = {
-            **calculate_unmatched_gsd_performance_metrics(
-                gsd_list_detected=detected_gs_list,
-                gsd_list_reference=reference_gs_list,
-                sampling_rate_hz=sampling_rate_hz,
-            ),
-            **calculate_matched_gsd_performance_metrics(matches),
-            "detected": NoAgg(detected_gs_list),
-            "reference": NoAgg(reference_gs_list),
-        }
-
-        return all_metrics
-
-
 __all__ = [
     "categorize_intervals",
     "find_matches_with_min_overlap",
     "calculate_matched_gsd_performance_metrics",
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
-    "GsdEvaluationPipeline",
 ]

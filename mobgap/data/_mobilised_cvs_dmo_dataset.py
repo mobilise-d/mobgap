@@ -125,7 +125,7 @@ def _load_dmo_data(
         "If you are seeing this message multiple times, you might want to consider using a joblib memory by "
         "passing ``memory=Memory('some/cache/path)`` to the dataset constructor to cache the index creation "
         "between script executions.",
-        stacklevel=2,
+        stacklevel=1,
     )
 
     dmos = [
