@@ -1,10 +1,10 @@
 import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
-from typing import Any, Callable, Generic, NamedTuple, NoReturn, Optional, TypeVar
+from typing import Any, Callable, Generic, NoReturn, Optional, TypeVar
 
 from tpcp import Algorithm, cf
-from typing_extensions import TypeAlias
+from typing_extensions import NamedTuple, TypeAlias
 
 DataclassT = TypeVar("DataclassT")
 InputTypeT = TypeVar("InputTypeT")
