@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, asdict
 from typing import Any
 
 import pandas as pd
@@ -132,6 +132,18 @@ class TestGsIterator:
                 ),
             ),
         )
+
+    def test_empty(self):
+        dummy_sections = pd.DataFrame({"start": [], "end": [], "wb_id": []}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": []})
+
+        iterator = GsIterator()
+
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            continue
+
+        for v in asdict(iterator.results_).values():
+            assert v.empty
 
 
 class TestAggregateDf:

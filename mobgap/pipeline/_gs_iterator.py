@@ -221,7 +221,7 @@ def create_aggregate_df(
         )
 
         to_concat = {}
-        for rt in non_null_results:
+        for rt in (v for v in non_null_results if not v.result.empty):
             df = rt.result
             region_id, offset, *_ = rt.input.region
 
