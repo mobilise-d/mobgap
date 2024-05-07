@@ -20,7 +20,6 @@ ResultT = TypeVar("ResultT")
 
 class TypedIteratorResultTuple(NamedTuple, Generic[InputTypeT, ResultT]):
     iteration_name: str
-    uid: str
     input: InputTypeT
     result: ResultT
     iteration_context: dict[str, Any]
@@ -94,11 +93,11 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
 
     def _iterate(
         self,
-        iterable: Iterable[tuple[str, T]],
+        iterable: Iterable[tuple[T]],
         *,
         iteration_name: str = "__main__",
         iteration_context: Optional[dict[str, Any]] = None,
-    ) -> Iterator[tuple[str, T, DataclassT]]:
+    ) -> Iterator[tuple[T, DataclassT]]:
         """Iterate over the given iterable and yield the input and a new empty result object for each iteration.
 
         Parameters
@@ -142,11 +141,11 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
             self._raw_results = []
 
         self.done_[iteration_name] = False
-        for uid, d in iterable:
+        for d in iterable:
             result_object = self._get_new_empty_object()
-            result_tuple = TypedIteratorResultTuple(iteration_name, uid, d, result_object, iteration_context or {})
+            result_tuple = TypedIteratorResultTuple(iteration_name, d, result_object, iteration_context or {})
             self._report_new_result(result_tuple)
-            yield uid, d, result_object
+            yield d, result_object
         self.done_[iteration_name] = True
 
     def _get_new_empty_object(self) -> DataclassT:
@@ -160,7 +159,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
     def raw_results_(self) -> list[TypedIteratorResultTuple[InputTypeT, Any]]:
         if "__main__" not in self.done_:
             raise ValueError(
-                "The iterator has not been started yet. " "No results are available. Call the iterate method first."
+                "The iterator has not been started yet. No results are available. Call the iterate method first."
             )
         if not self.done_["__main__"]:
             warnings.warn("The iterator is not done yet. The results might not be complete.", stacklevel=1)
@@ -233,7 +232,7 @@ class TypedIterator(BaseTypedIterator[InputTypeT, DataclassT], Generic[InputType
 
     """
 
-    def iterate(self, iterable: Iterable[T]) -> Iterator[tuple[str, T, DataclassT]]:
+    def iterate(self, iterable: Iterable[T]) -> Iterator[tuple[T, DataclassT]]:
         """Iterate over the given iterable and yield the input and a new empty result object for each iteration.
 
         Parameters
@@ -249,4 +248,4 @@ class TypedIterator(BaseTypedIterator[InputTypeT, DataclassT], Generic[InputType
             All values of the result object are set to ``TypedIterator.NULL_VALUE`` by default.
 
         """
-        yield from self._iterate(((str(i), r) for i, r in enumerate(iterable)))
+        yield from self._iterate(iterable)

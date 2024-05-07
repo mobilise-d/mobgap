@@ -23,6 +23,7 @@ DataclassT = TypeVar("DataclassT")
 
 
 class GaitSequence(NamedTuple):
+    """A simple tuple representing a Gait Sequence."""
     @property
     def _tag(self) -> str:
         return "GaitSequence"
@@ -37,6 +38,7 @@ class GaitSequence(NamedTuple):
 
 
 class WalkingBout(NamedTuple):
+    """A simple tuple representing a Walking Bout."""
     @property
     def _tag(self) -> str:
         return "WalkingBout"
@@ -72,13 +74,14 @@ def iter_gs(
        A named tuple representing the gait-sequence or walking-bout.
        Note, that only the start, end and id attributes are present.
        If other columns are present in the gs_list, they will be ignored.
-       Independent of the "type" a unique id attribute is present, that represents either the ``gs_id`` or
+       Independent of the "type" a unique ``id`` attribute is present, that represents either the ``gs_id`` or
        the ``wb_id``.
     pd.DataFrame
         The data of a single gait-sequence.
         Note, that we don't change the index of the data.
-        If the data was using an index that started at the beginning of the recording, the index of the individual
-        sequences will still be relative to the beginning of the recording.
+        If the data was using an index that started at the beginning of the recording, the index (aka ``.loc``) of the
+        individual sequences will still be relative to the beginning of the recording.
+        The first sample in the returned data (aka ``.iloc``) will correcly correspond to the first sample of the GS.
 
     """
     # TODO: Add validation that we passed a valid gs_list
@@ -94,14 +97,6 @@ def iter_gs(
     for gs in gs_list[relevant_cols].itertuples(index=False):
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
         yield named_tuple(*gs), data.iloc[gs.start : gs.end]
-
-
-def _iter_gs_with_id(
-    data: pd.DataFrame, gs_list: pd.DataFrame
-) -> Iterator[tuple[Union[str, int], tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]]]:
-    for gs, d in iter_gs(data, gs_list):
-        yield gs.id, (gs, d)
-
 
 @dataclass
 class FullPipelinePerGsResult:
@@ -166,8 +161,8 @@ def create_aggregate_df(
         If True, the index of the dataframes will be adapted to be relative to the start of the recording.
         This only makes sense, if the index represents sample values relative to the start of the gs.
     _null_value
-        A fixed value that should be indicate that no results where produced.
-        You don't need to change this, unless you are doing very advanced stuff
+        A fixed value that should indicate that no results were produced.
+        You don't need to change this, unless you are doing very advanced stuff.
 
     Notes
     -----
@@ -192,7 +187,7 @@ def create_aggregate_df(
         to_concat = {}
         for rt in non_null_results:
             df = rt.result
-            gs_id = rt.uid
+            gs_id = rt.input[0].id
             offset = rt.input[0].start
 
             parent_gs: Optional[Union[WalkingBout, GaitSequence]] = rt.iteration_context.get("parent_gs", None)
@@ -362,7 +357,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
 
     def iterate(
         self, data: pd.DataFrame, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[str, tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
+    ) -> Iterator[tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
         """Iterate over the gait sequences one by one.
 
         Parameters
@@ -385,11 +380,11 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
 
         """
         context = {"id_col_name": "wb_id" if "wb_id" in gs_list.index.names else "gs_id"}
-        yield from self._iterate(_iter_gs_with_id(data, gs_list), iteration_context=context)
+        yield from self._iterate(iter_gs(data, gs_list), iteration_context=context)
 
     def iterate_subregions(
         self, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[str, tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
+    ) -> Iterator[tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
         # We only allow sub iterations, when there are no other subiterations running.
         if self.done_.get("__main__", True):
             raise ValueError("Sub-iterations can only be started, when the main iteration is still running")
@@ -399,14 +394,14 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         parent_id_name = "wb_id" if getattr(current_gs, "_tag", None) == "WalkingBout" else "gs_id"
         id_col_names = [parent_id_name, "sub_gs_id"]
         yield from self._iterate(
-            _iter_gs_with_id(self._current_data, gs_list),
+            iter_gs(self._current_data, gs_list),
             iteration_name="__sub_iter__",
             iteration_context={"id_col_name": id_col_names, "parent_gs": current_gs},
         )
 
     def with_subregion(
         self, gs_list: pd.DataFrame
-    ) -> tuple[str, tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]:
+    ) -> tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]:
         if len(gs_list) != 1:
             raise ValueError(
                 "``with_subregions`` can only be used with single-subregions. "
