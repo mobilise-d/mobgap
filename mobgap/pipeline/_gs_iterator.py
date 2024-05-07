@@ -17,13 +17,14 @@ from tpcp import cf
 from tpcp.misc import set_defaults
 from typing_extensions import TypeAlias
 
-from mobgap.pipeline._overwrite_typed_iterator import BaseTypedIterator, TypedIteratorResultTuple
+from mobgap.pipeline._overwrite_typed_iterator import BaseTypedIterator, TypedIteratorResultTuple, _NotSet
 
 DataclassT = TypeVar("DataclassT")
 
 
 class GaitSequence(NamedTuple):
     """A simple tuple representing a Gait Sequence."""
+
     @property
     def _tag(self) -> str:
         return "GaitSequence"
@@ -39,6 +40,7 @@ class GaitSequence(NamedTuple):
 
 class WalkingBout(NamedTuple):
     """A simple tuple representing a Walking Bout."""
+
     @property
     def _tag(self) -> str:
         return "WalkingBout"
@@ -98,6 +100,7 @@ def iter_gs(
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
         yield named_tuple(*gs), data.iloc[gs.start : gs.end]
 
+
 @dataclass
 class FullPipelinePerGsResult:
     """Default expected result type for the gait-sequence iterator.
@@ -133,18 +136,22 @@ class FullPipelinePerGsResult:
 
 InputType: TypeAlias = tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]
 ResultT = TypeVar("ResultT")
-GsIteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, ResultT]
+# TODO: Move and adjust that type alias
+GsIteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, FullPipelinePerGsResult]
+GsIteratorResultT: TypeAlias = TypedIteratorResultTuple[InputType, ResultT]
 
 
 T = TypeVar("T")
-_aggregator_type: TypeAlias = Callable[[list[GsIteratorResult[pd.DataFrame]]], T]
+_aggregator_type: TypeAlias = Callable[[list[GsIteratorResult]], T]
 
 
 def create_aggregate_df(
+    result_name: str,
     fix_gs_offset_cols: Sequence[str] = ("start", "end"),
     *,
     fix_gs_offset_index: bool = False,
-    _null_value: BaseTypedIterator.NULL_VALUE = BaseTypedIterator.NULL_VALUE,
+    _null_value: _NotSet = BaseTypedIterator.NULL_VALUE,
+    _cls: BaseTypedIterator = BaseTypedIterator,
 ) -> _aggregator_type[pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
@@ -153,6 +160,8 @@ def create_aggregate_df(
 
     Parameters
     ----------
+    result_name
+        The name of the result key within the result object, the aggregation is applied to
     fix_gs_offset_cols
         The columns that should be adapted to be relative to the start of the recording.
         By default, this is ``("start", "end")``.
@@ -173,8 +182,10 @@ def create_aggregate_df(
 
     """
 
-    def aggregate_df(values: list[GsIteratorResult[Union[pd.DataFrame, _null_value]]]) -> pd.DataFrame:
-        non_null_results = [v for v in values if not (v.result is _null_value or v.result.empty)]
+    def aggregate_df(values: list[GsIteratorResult]) -> pd.DataFrame:
+        non_null_results: list[GsIteratorResultT[pd.DataFrame]] = _cls.filter_iterator_results(
+            values, result_name, _null_value
+        )
         if len(non_null_results) == 0:
             # Note: We don't have a way to properly know the names of the index cols or the cols themselve here...
             return pd.DataFrame()
@@ -277,6 +288,9 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
 
     """
 
+    # This is required to correctly interfere the new bound type
+    IteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, DataclassT]
+
     class PredefinedParameters:
         """Predefined parameters for the gait-sequence iterator.
 
@@ -296,10 +310,10 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
             "data_type": FullPipelinePerGsResult,
             "aggregations": cf(
                 [
-                    ("ic_list", create_aggregate_df(["ic"])),
-                    ("cad_per_sec", create_aggregate_df([], fix_gs_offset_index=True)),
-                    ("stride_length", create_aggregate_df()),
-                    ("gait_speed", create_aggregate_df()),
+                    ("ic_list", create_aggregate_df("ic_list", ["ic"])),
+                    ("cad_per_sec", create_aggregate_df("cad_per_sec", [], fix_gs_offset_index=True)),
+                    ("stride_length", create_aggregate_df("stride_length")),
+                    ("gait_speed", create_aggregate_df("gait_speed")),
                 ]
             ),
         }
@@ -307,10 +321,10 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
             "data_type": FullPipelinePerGsResult,
             "aggregations": cf(
                 [
-                    ("ic_list", create_aggregate_df([])),
-                    ("cad_per_sec", create_aggregate_df([])),
-                    ("stride_length", create_aggregate_df([])),
-                    ("gait_speed", create_aggregate_df([])),
+                    ("ic_list", create_aggregate_df("ic_list", [])),
+                    ("cad_per_sec", create_aggregate_df("cad_per_sec", [])),
+                    ("stride_length", create_aggregate_df("stride_length", [])),
+                    ("gait_speed", create_aggregate_df("gait_speed", [])),
                 ]
             ),
         }
@@ -417,3 +431,6 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
     @property
     def _current_gs(self):
         return self._raw_results[-1].input[0]
+
+
+__all__ = ["GaitSequence", "iter_gs", "GsIteratorResult", "filter_gs_results"]

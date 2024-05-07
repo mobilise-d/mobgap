@@ -1,7 +1,7 @@
 import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
-from typing import Any, Callable, Generic, NamedTuple, Optional, TypeVar
+from typing import Any, Callable, Generic, NamedTuple, Optional, TypeAlias, TypeVar
 
 from tpcp import Algorithm, cf
 
@@ -11,7 +11,7 @@ T = TypeVar("T")
 
 class _NotSet:
     def __repr__(self):
-        return "_NOT_SET"
+        return "NOT_SET"
 
 
 InputTypeT = TypeVar("InputTypeT")
@@ -23,6 +23,9 @@ class TypedIteratorResultTuple(NamedTuple, Generic[InputTypeT, ResultT]):
     input: InputTypeT
     result: ResultT
     iteration_context: dict[str, Any]
+
+
+_NULL_VALUE = _NotSet()
 
 
 class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
@@ -71,22 +74,23 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
 
     """
 
-    data_type: type[DataclassT]
-    aggregations: Sequence[tuple[str, Callable[[TypedIteratorResultTuple[InputTypeT, Generic[ResultT]]], Any]]]
+    IteratorResult: TypeAlias = TypedIteratorResultTuple[InputTypeT, DataclassT]
 
-    _raw_results: list[TypedIteratorResultTuple[InputTypeT, DataclassT]]
+    data_type: type[DataclassT]
+    aggregations: Sequence[tuple[str, Callable[[list[IteratorResult]], Any]]]
+
     _result_fields: set[str]
-    _raw_input_context: Any
+    # We use this as cache
+    _results: DataclassT
+
     done_: dict[str, bool]
 
-    NULL_VALUE = _NotSet()
+    NULL_VALUE = _NULL_VALUE
 
     def __init__(
         self,
         data_type: type[DataclassT],
-        aggregations: Sequence[
-            tuple[str, Callable[[TypedIteratorResultTuple[InputTypeT, Generic[ResultT]]], Any]]
-        ] = cf([]),
+        aggregations: Sequence[tuple[str, Callable[[list[IteratorResult]], Any]]] = cf([]),
     ):
         self.data_type = data_type
         self.aggregations = aggregations
@@ -126,6 +130,9 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
             raise TypeError(f"Expected a dataclass as data_type, got {self.data_type}")
 
         if iteration_name == "__main__":
+            # Reset all caches
+            if hasattr(self, "_results"):
+                del self._results
             self.done_ = {}
 
             result_field_names = {f.name for f in fields(self.data_type)}
@@ -164,26 +171,24 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         if not self.done_["__main__"]:
             warnings.warn("The iterator is not done yet. The results might not be complete.", stacklevel=1)
 
-        # We invert the results. For each result we check if a result attribute is set and turn all results in a list
-        # for each attribute.
-        inverted_results = {}
-        for r in self._raw_results:
-            for a in fields(self.data_type):
-                result_copy = r._asdict()
-                result_copy["result"] = getattr(r.result, a.name)
-                inverted_results.setdefault(a.name, []).append(TypedIteratorResultTuple(**result_copy))
+        return self._raw_results
 
-        return self.data_type(**inverted_results)
+    def _get_default_agg(self, field_name: str) -> Callable[[list[IteratorResult]], Any]:
+        def default_agg(values: list[BaseTypedIterator.IteratorResult]):
+            return list(v.result for v in self.filter_iterator_results(values, field_name))
 
-    def _agg_result(self, raw_results: DataclassT):
+        return default_agg
+
+    def _agg_result(self, raw_results: list[IteratorResult]):
         aggregations = dict(self.aggregations)
         agg_results = {}
         for a in fields(self.data_type):
             # if an aggregator is defined for the specific item, we apply it
             name = a.name
-            values = getattr(raw_results, name)
             if name in aggregations:
-                values = aggregations[name](values)
+                values = aggregations[name](raw_results)
+            else:
+                values = self._get_default_agg(name)(raw_results)
             agg_results[name] = values
         return agg_results
 
@@ -196,7 +201,18 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         We still decided it makes sense to return an instance of the result object, as it will allow to autocomplete
         the attributes, even-though the associated times might not be correct.
         """
-        return self.data_type(**self._agg_result(self.raw_results_))
+        if not hasattr(self, "_results"):
+            self._results = self.data_type(**self._agg_result(self.raw_results_))
+        return self._results
+
+    @classmethod
+    def filter_iterator_results(
+        cls,
+        values: list[IteratorResult[Any, Any]],
+        result_name: str,
+        _null_value: _NotSet = _NULL_VALUE,
+    ) -> list[IteratorResult[Any, Any]]:
+        return [v._replace(result=r) for v in values if (r := getattr(v.result, result_name)) is not _null_value]
 
 
 class TypedIterator(BaseTypedIterator[InputTypeT, DataclassT], Generic[InputTypeT, DataclassT]):

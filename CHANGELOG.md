@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The Gait Sequence iterator does not allow for dynamic attribute access anymore.
+  Only the use of the ``results_`` object is allowed.
+- Aggregations for Typed iterators/Gait Sequence iterators only take a single argument now.
+  This is a list of return type tuples that contain ALL results (before the agg funcs only got the values for one of 
+  the result attributes) and the input, but also additional context information that can be extended by the iterator 
+  object.
+
 ### Fixed
 
 - The check that we assume a gs to start and end with an IC was not correctly performed for the end IC and a warning

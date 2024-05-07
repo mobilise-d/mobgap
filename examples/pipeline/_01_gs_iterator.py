@@ -103,7 +103,7 @@ import inspect
 
 from IPython.core.display_functions import display
 
-display(inspect.getsource(iterator.data_type))
+display(inspect.getsource(dt))
 
 # %%
 # This means you are only allowed to use the available attributes.
@@ -128,13 +128,8 @@ for (gs, data), result in iterator.iterate(long_trial.data_ss, long_trial_gs):
     ).rename_axis(index="sec_center_samples")
 
 # %%
-# After the iteration, we can access the aggregated results either using the `results_` property of the iterator
+# After the iteration, we can access the aggregated results using the `results_` property of the iterator
 iterator.results_.ic_list
-
-# %%
-# Or via direct dynamic property access, where we add a trailing underscore to the name of the result
-# (`result.ic_list` -> `iterator.ic_list_`).
-iterator.ic_list_
 
 # %%
 # We can see that we only get a single dataframe with all the results.
@@ -181,12 +176,35 @@ class ResultType:
 # However, here we will create our own aggregation function.
 #
 # It might be nice to turn the ``n_samples`` into a pandas series with the gs identifier as index.
-# For this we define an aggregation function that expects the list of inputs and the list of results as inputs.
+# For this we define an aggregation function that expects the list of ``TypedIteratorResultTuple``.
+# These are named tuples of the following shape:
+from mobgap.pipeline._overwrite_typed_iterator import TypedIteratorResultTuple
+
+display(inspect.getsource(TypedIteratorResultTuple))
 
 
-def aggregate_n_samples(inputs, results):
-    gait_sequences, _ = zip(*inputs)
-    return pd.Series(results, index=[gs.id for gs in gait_sequences], name="N-Samples")
+# %%
+# The type of the ``input`` and the ``result`` depend on the dataclass you defined and the iterator you use.
+# For the gait sequence iterator the input-type will be ``tuple[GaitSequence, pd.DataFrame]`` and the result-type will
+# the dataclass you defined.
+# The other arguments provide additional context, that might be needed in advanced cases (see lower down in this
+# example).
+#
+# To simplify typing of functions that use these types, we provide ``GsIterator.IteratorResult`` which already has the
+# input type bound and is generic with respect to the output type.
+# We can see in the function below how to use it.
+#
+# As mentioned, an aggregation function will get a list of these named tuples.
+# Note, that the values get passed the entire result object and that parts of the result objects might be ``NOT_SET``.
+# To filter out the ``NOT_SET`` values and replace the ``result`` attribute with just one specific value, we provide
+# the ``GsIterator.filter_iterator_results`` function (see below).
+#
+# With that, out aggregate function, takes the gs-id from the inputs and the n_samples from the results and creates a
+# pandas series with the gs-id as index and the n_samples as values.
+def aggregate_n_samples(values: list[GsIterator.IteratorResult[ResultType]]):
+    non_null_results: GsIterator.IteratorResult[int] = GsIterator.filter_iterator_results(values, "n_samples")
+    results = {r.input[0].id: r.result for r in non_null_results}
+    return pd.Series(results, name="N-Samples")
 
 
 aggregations = [("n_samples", aggregate_n_samples)]
@@ -196,7 +214,6 @@ aggregations = [("n_samples", aggregate_n_samples)]
 # Note, that if we want to correctly infer the result type, we need to use the somewhat weird square bracket-typing
 # syntax, when creating the iterator.
 # This will allow to autocomplete the attributes of the result type.
-from mobgap.pipeline import GsIterator
 
 custom_iterator = GsIterator[ResultType](ResultType, aggregations=aggregations)
 
@@ -213,8 +230,15 @@ for (_, data), custom_result in custom_iterator.iterate(long_trial.data_ss, long
 
 # %%
 # Then we can easily inspect the aggregated results.
-custom_iterator.results_.n_samples
+# Note, while the typing system can correctly infer the available attributes of the result object, the typing of the
+# attributes might be wrong as Python can not infer the types based on the aggregations.
+# We have to explicitly cast the value if we care about the type-correctness,
+from typing import cast
+
+n_samples = cast(int, custom_iterator.results_.n_samples)
+n_samples
 
 # %%
 # For the filtered data, we did not apply any aggregation and hence just get a list of all results.
-custom_iterator.results_.filtered_data
+filtered_data = cast(list[pd.DataFrame], custom_iterator.results_.filtered_data)
+filtered_data
