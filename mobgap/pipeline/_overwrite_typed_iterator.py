@@ -6,16 +6,9 @@ from typing import Any, Callable, Generic, NamedTuple, Optional, TypeAlias, Type
 from tpcp import Algorithm, cf
 
 DataclassT = TypeVar("DataclassT")
-T = TypeVar("T")
-
-
-class _NotSet:
-    def __repr__(self):
-        return "NOT_SET"
-
-
 InputTypeT = TypeVar("InputTypeT")
 ResultT = TypeVar("ResultT")
+T = TypeVar("T")
 
 
 class TypedIteratorResultTuple(NamedTuple, Generic[InputTypeT, ResultT]):
@@ -23,6 +16,11 @@ class TypedIteratorResultTuple(NamedTuple, Generic[InputTypeT, ResultT]):
     input: InputTypeT
     result: ResultT
     iteration_context: dict[str, Any]
+
+
+class _NotSet:
+    def __repr__(self):
+        return "NOT_SET"
 
 
 _NULL_VALUE = _NotSet()
@@ -47,30 +45,55 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
     aggregations
         An optional list of aggregations to apply to the results.
         This has the form ``[(result_name, aggregation_function), ...]``.
-        If a result-name is in the list, the aggregation will be applied to it, when accessing the respective result
-        attribute (i.e. ``{result_name}_``).
+        Each aggregation function gets ``raw_results_`` provided as input and can return an arbitrary object.
+        If a result-name is in the list, the aggregation will be applied to it, when accessing the ``results_``
+        (i.e. ``results_.{result_name}``).
         If no aggregation is defined for a result, a simple list of all results will be returned.
     NULL_VALUE
         (Class attribute) The value that is used to initialize the result dataclass and will remain in the results, if
         no result was for a specific attribute in one or more iterations.
+    IteratorResult
+        (Class attribute) Type alias for the result-type of the iterator. ``raw_results_`` will be a list of these.
+        Note, that when using this outside of the class, this type will be a generic without a type for the ``input``
+        and ``result`` field.
 
     Attributes
     ----------
-    inputs_
-        List of all input elements that were iterated over.
-    raw_results_
-        List of all results as dataclass instances.
-        The attribute of the dataclass instance will have the a value of ``_NOT_SET`` if no result was set.
-        To check for this, you can use ``isinstance(val, TypedIterator.NULL_VALUE)``.
     results_
-        An instance of the result object with either the "inverted" results (i.e. a list of all results) per attribute
-        or the aggregated results (depending on the aggregation function).
-        Note, that the typing of the attributes of the result object will not be correct.
-    {result_name}_
-        The aggregated results for the respective result name.
+        The actual aggregated results.
+        This is an instance of the provided custom result type (``data_type``).
+        This makes it easy to access the individual result attributes.
+        Each value will be the result of the aggregation function registered for the specific field.
+        If no aggregation functions exist, simply a list of the result values for this field is provided.
+        The results can only be accessed once the iteration is done.
+    raw_results_
+        List of all results as ``TypedIteratorResultTuple`` instances.
+        This is the input to the aggregation functions.
+        The attribute of the ``result`` dataclass instance will have the value of ``_NOT_SET`` if no result was set.
+        To check for this, you can use ``isinstance(val, BaseTypedIterator.NULL_VALUE)`` or the
+        ``BaseTypedIterator.filter_iterator_results`` method to remove all results with a ``NULL_VALUE``.
     done_
-        True, if the iterator is done.
-        If the iterator is not done, but you try to access the results, a warning will be raised.
+        A dictionary indicating of a specific iterator is done.
+        This usually only has the key ``__main__`` for the main iteration triggered by ``iterate``.
+        However, subclasses can define nested iterations with more complex logic.
+        The value will be ``True`` if the respective iteration is done, ``False`` if it is currently running and
+        missing if it was never started.
+        If the main iterator is not done, but you try to access the results, an error will be raised.
+
+    Notes
+    -----
+    Under the hood, the iterator supports having multiple iterations at the same time by providing an ``iteration_name``
+    to the ``_iterate`` method.
+    This information is stored in the results and can be used to separate the results of different iterations.
+    Together with the ``iteration_context`` parameter, this allows for more complex iteration structures.
+    One example, would be the use of nested iterations, that are aware of the parent iteration.
+
+    In the ``mobilise-d/mobgap`` library this is used to support the iteration of multiple levels of interests within
+    data.
+    For example, the outer level iterates Gait-Tests, the inner level iterates gait sequences within each gait test
+    that are dynamically detected within the outer iteration.
+    The iterator can then still patch all results from the inner iteration together to provide a single result object
+    with times that are relative to the start of the entire recording.
 
     """
 
@@ -226,26 +249,40 @@ class TypedIterator(BaseTypedIterator[InputTypeT, DataclassT], Generic[InputType
     aggregations
         An optional list of aggregations to apply to the results.
         This has the form ``[(result_name, aggregation_function), ...]``.
-        If a result-name is in the list, the aggregation will be applied to it, when accessing the respective result
-        attribute (i.e. ``{result_name}_``).
+        Each aggregation function gets ``raw_results_`` provided as input and can return an arbitrary object.
+        If a result-name is in the list, the aggregation will be applied to it, when accessing the ``results_``
+        (i.e. ``results_.{result_name}``).
         If no aggregation is defined for a result, a simple list of all results will be returned.
     NULL_VALUE
         (Class attribute) The value that is used to initialize the result dataclass and will remain in the results, if
         no result was for a specific attribute in one or more iterations.
+    IteratorResult
+        (Class attribute) Type alias for the result-type of the iterator. ``raw_results_`` will be a list of these.
+        Note, that when using this outside of the class, this type will be a generic without a type for the ``input``
+        and ``result`` field.
 
     Attributes
     ----------
-    inputs_
-        List of all input elements that were iterated over.
+    results_
+        The actual aggregated results.
+        This is an instance of the provided custom result type (``data_type``).
+        This makes it easy to access the individual result attributes.
+        Each value will be the result of the aggregation function registered for the specific field.
+        If no aggregation functions exist, simply a list of the result values for this field is provided.
+        The results can only be accessed once the iteration is done.
     raw_results_
-        List of all results as dataclass instances.
-        The attribute of the dataclass instance will have the value of ``_NOT_SET`` if no result was set.
-        To check for this, you can use ``isinstance(val, TypedIterator.NULL_VALUE)``.
-    {result_name}_
-        The aggregated results for the respective result name.
+        List of all results as ``TypedIteratorResultTuple`` instances.
+        This is the input to the aggregation functions.
+        The attribute of the ``result`` dataclass instance will have the value of ``_NOT_SET`` if no result was set.
+        To check for this, you can use ``isinstance(val, TypedIterator.NULL_VALUE)`` or the
+        ``TypedIterator.filter_iterator_results`` method to remove all results with a ``NULL_VALUE``.
     done_
-        True, if the iterator is done.
-        If the iterator is not done, but you try to access the results, a warning will be raised.
+        A dictionary indicating of a specific iterator is done.
+        This usually only has the key ``__main__`` for the main iteration triggered by ``iterate``.
+        However, subclasses can define nested iterations with more complex logic.
+        The value will be ``True`` if the respective iteration is done, ``False`` if it is currently running and
+        missing if it was never started.
+        If the main iterator is not done, but you try to access the results, an error will be raised.
 
     """
 

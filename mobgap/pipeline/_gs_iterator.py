@@ -56,7 +56,7 @@ def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[GaitSeq
         Note, that we don't change the index of the data.
         If the data was using an index that started at the beginning of the recording, the index (aka ``.loc``) of the
         individual sequences will still be relative to the beginning of the recording.
-        The first sample in the returned data (aka ``.iloc``) will correcly correspond to the first sample of the GS.
+        The first sample in the returned data (aka ``.iloc``) will correctly correspond to the first sample of the GS.
 
     """
     # TODO: Add validation that we passed a valid gs_list
@@ -216,8 +216,9 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
     aggregations
         An optional list of aggregations to apply to the results.
         This has the form ``[(result_name, aggregation_function), ...]``.
-        If a result-name is in the list, the aggregation will be applied to it, when accessing the respective result
-        attribute (i.e. ``{result_name}_``).
+        Each aggregation function gets ``raw_results_`` provided as input and can return an arbitrary object.
+        If a result-name is in the list, the aggregation will be applied to it, when accessing the ``results_``
+        (i.e. ``results_.{result_name}``).
         If no aggregation is defined for a result, a simple list of all results will be returned.
         By default, this is ``GsIterator.DEFAULT_AGGREGATIONS``.
     NULL_VALUE
@@ -235,7 +236,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
     DefaultAggregators
         (Class attribute) Class that holds some aggregator functions that can be used to create custom aggregations.
     IteratorResult
-        (Class attribute) Type alias for the resultype of the iterator. ``raw_results_`` will be a list of these.
+        (Class attribute) Type alias for the result-type of the iterator. ``raw_results_`` will be a list of these.
         Note, that when using this outside of the class, this type will be a generic without a type for the ``result``
         field.
         You need to bind it as ``GsIterator.IteratorResult[MyCustomResultType]`` to get the correct type.
@@ -256,15 +257,15 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         List of all results as ``TypedIteratorResultTuple`` instances.
         This is the input to the aggregation functions.
         The attribute of the ``result`` dataclass instance will have the value of ``_NOT_SET`` if no result was set.
-        To check for this, you can use ``isinstance(val, TypedIterator.NULL_VALUE)`` or the
-        ``filter_iterator_results`` method to remove all results with a ``NULL_VALUE``.
+        To check for this, you can use ``isinstance(val, GsIterator.NULL_VALUE)`` or the
+        ``GsIterator.filter_iterator_results`` method to remove all results with a ``NULL_VALUE``.
     done_
         A dictionary indicating of a specific iterator is done.
         This can have the keys ``__main__`` or ``__sub_iter`` for the main iteration triggered by ``iterate`` or
         sub-iterations triggered by ``iterate_subregions`` or ``with_subregion``.
         The value will be ``True`` if the respective iteration is done, ``False`` if it is currently running and
         missing if it was never started.
-        If the iterator is not done, but you try to access the results, an error will be raised.
+        If the main iterator is not done, but you try to access the results, an error will be raised.
 
     See Also
     --------
@@ -391,8 +392,32 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         yield from self._iterate(iter_gs(data, gs_list), iteration_context=context)
 
     def iterate_subregions(
-        self, gs_list: pd.DataFrame
+        self, sub_gs_list: pd.DataFrame
     ) -> Iterator[tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]]:
+        """Iterate subregions within the current gait sequence.
+
+        This can be called within the for-loop created by the main iteration to trigger the iteration over subregions.
+        The provided subregions are expected to be relative to the current gait-sequence.
+        Working with subregions, can be a little tricky and we recommend you read through the respective pipeline
+        examples to avoid foot-guns.
+
+        .. note:: If you only have a single GS in your ``sub_gs_list`` you can also use the ``with_subregion`` method
+                  and avoid creating a nested for-loop.
+
+        Parameters
+        ----------
+        sub_gs_list
+            The list of subregions within the current gait-sequence.
+            The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
+
+        Returns
+        -------
+        iterator
+            An iterator over the nested gait sequences.
+            This has the same shape as the parent iterator and reuses the data internally.
+            Make sure that you don't overwrite the parent result object when consuming the iterator.
+
+        """
         # We only allow sub iterations, when there are no other subiterations running.
         if self.done_.get("__main__", True):
             raise ValueError("Sub-iterations can only be started, when the main iteration is still running")
@@ -403,16 +428,41 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         current_gs, current_data = current_result.input
         id_col_names = [current_result.iteration_context["id_col_name"], "sub_gs_id"]
         yield from self._iterate(
-            iter_gs(current_data, gs_list),
+            iter_gs(current_data, sub_gs_list),
             iteration_name="__sub_iter__",
             iteration_context={"id_col_name": id_col_names, "parent_gs": current_gs},
         )
 
-    def with_subregion(self, gs_list: pd.DataFrame) -> tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]:
-        if len(gs_list) != 1:
+    def with_subregion(self, sub_gs_list: pd.DataFrame) -> tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]:
+        """Get a subregion of the current gait sequence.
+
+        For details see ``iterate_subregions``.
+
+        Parameters
+        ----------
+        sub_gs_list
+            The list of subregions within the current gait-sequence.
+            The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
+            For the ``with_subregions`` method this must be just a single GS.
+            If you want to iterate multiple GSs see ``iterate_subregions``.
+
+        Returns
+        -------
+        inputs
+            A tuple with a gait-sequence object and the data corresponding to the subregion.
+        result_object
+            An empty result object for the subregion that can be used to provide results for it.
+
+        Notes
+        -----
+        Internally, this simply uses ``iterate_subregions``, but completes the iteration over the single GS and returns
+        it.
+
+        """
+        if len(sub_gs_list) != 1:
             raise ValueError(
                 "``with_subregions`` can only be used with single-subregions. "
                 "However, the passed ``gs_list`` has 0 or more than one GSs. "
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
-        return list(self.iterate_subregions(gs_list))[0]
+        return list(self.iterate_subregions(sub_gs_list))[0]
