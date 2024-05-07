@@ -32,7 +32,7 @@ def as_samples(sec_value, sampling_rate_hz: float):
 
     Returns
     -------
-    int or Sequence[int]
+    converted_samples
         The value in samples.
 
     """

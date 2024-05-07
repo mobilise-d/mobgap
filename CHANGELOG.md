@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The check that we assume a gs to start and end with an IC was not correctly performed for the end IC and a warning
+  was raised incorrectly. This is now fixed.
+
+
 ## [0.3.0] - 2024-04-23
 
 ### Added
