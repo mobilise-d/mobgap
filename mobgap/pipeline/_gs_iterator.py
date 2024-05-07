@@ -24,7 +24,7 @@ DataclassT = TypeVar("DataclassT")
 
 class GaitSequence(NamedTuple):
     @property
-    def _TAG(self) -> str:
+    def _tag(self) -> str:
         return "GaitSequence"
 
     gs_id: str
@@ -38,7 +38,7 @@ class GaitSequence(NamedTuple):
 
 class WalkingBout(NamedTuple):
     @property
-    def _TAG(self) -> str:
+    def _tag(self) -> str:
         return "WalkingBout"
 
     wb_id: str
@@ -99,8 +99,8 @@ def iter_gs(
 def _iter_gs_with_id(
     data: pd.DataFrame, gs_list: pd.DataFrame
 ) -> Iterator[tuple[Union[str, int], tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]]]:
-    for gs, data in iter_gs(data, gs_list):
-        yield gs.id, (gs, data)
+    for gs, d in iter_gs(data, gs_list):
+        yield gs.id, (gs, d)
 
 
 @dataclass
@@ -181,7 +181,7 @@ def create_aggregate_df(
     def aggregate_df(values: list[GsIteratorResult[Union[pd.DataFrame, _null_value]]]) -> pd.DataFrame:
         non_null_results = [v for v in values if not (v.result is _null_value or v.result.empty)]
         if len(non_null_results) == 0:
-            # TODO: We don't have a way to properly know the names of the index cols or the cols themselve here...
+            # Note: We don't have a way to properly know the names of the index cols or the cols themselve here...
             return pd.DataFrame()
 
         # We assume that all elements have the same iteration context.
@@ -394,7 +394,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         if not self.done_.get("__sub_iter__", True):
             raise ValueError("Sub-iterations are not allowed within sub-iterations.")
         current_gs = self._current_gs
-        parent_id_name = "wb_id" if getattr(current_gs, "_TAG", None) == "WalkingBout" else "gs_id"
+        parent_id_name = "wb_id" if getattr(current_gs, "_tag", None) == "WalkingBout" else "gs_id"
         id_col_names = [parent_id_name, "sub_gs_id"]
         yield from self._iterate(
             _iter_gs_with_id(self._current_data, gs_list),
