@@ -14,7 +14,7 @@ def test_gsd_iluz(snapshot):
 
 
 def test_gsd_evaluation(snapshot):
-    from examples.gsd._02_gsd_evaluation import (
+    from examples.gsd._03_gsd_evaluation import (
         categorized_intervals,
         cross_validate_results,
         matched_metrics_dict,
