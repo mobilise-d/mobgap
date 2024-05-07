@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import pandas as pd
@@ -138,7 +138,8 @@ class TestAggregateDf:
     """Some isolated tests for the create_aggregate_df function."""
 
     @pytest.mark.parametrize("fix_cols", [[], ["start", "end"], ["start"]])
-    def test_basic_aggregation(self, fix_cols):
+    @pytest.mark.parametrize("parent_region", [None, Region("0", 5, 10, "gs_id"), Region("1", 10, 10, "wb_id")])
+    def test_basic_aggregation(self, fix_cols, parent_region):
         aggregate_df = create_aggregate_df("test", fix_offset_cols=fix_cols)
 
         example_sequences = pd.DataFrame({"start": [0, 5], "end": [5, 10]}, index=["s1", "s2"]).rename_axis(index="id")
@@ -151,12 +152,15 @@ class TestAggregateDf:
         class DummyResultType:
             test: Any
 
+        context = {} if parent_region is None else {"parent_region": parent_region}
+        iter_type = "__main__" if parent_region is None else "__sub_iter__"
+
         example_results = [
             TypedIteratorResultTuple(
-                "__main__", example_inputs[0], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), {}
+                iter_type, example_inputs[0], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), context
             ),
             TypedIteratorResultTuple(
-                "__main__", example_inputs[1], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), {}
+                iter_type, example_inputs[1], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), context
             ),
         ]
 
@@ -165,13 +169,19 @@ class TestAggregateDf:
         expected_start = [1, 3, 6, 8] if "start" in fix_cols else [1, 3, 1, 3]
         expected_end = [3, 5, 8, 10] if "end" in fix_cols else [3, 5, 3, 5]
 
-        assert_frame_equal(
-            aggregated,
-            pd.DataFrame(
-                {"start": expected_start, "end": expected_end},
-                index=pd.MultiIndex.from_product((example_sequences.index, [0, 1]), names=["gs_id", None]),
-            ),
+        expected_df = pd.DataFrame(
+            {"start": expected_start, "end": expected_end},
         )
+        index = pd.MultiIndex.from_product((example_sequences.index, [0, 1]), names=["gs_id", None])
+        if parent_region:
+            expected_df[fix_cols] += parent_region.start
+            index = pd.MultiIndex.from_product(
+                ([parent_region.id], example_sequences.index, [0, 1]), names=[parent_region.id_origin, "gs_id", None]
+            )
+
+        expected_df.index = index
+
+        assert_frame_equal(aggregated, expected_df)
 
     @pytest.mark.parametrize("fix_index_offset", [True, False])
     def test_index_offset(self, fix_index_offset):
@@ -212,6 +222,44 @@ class TestAggregateDf:
                 index=expected_index,
             ),
         )
+
+    def test_agg_with_not_set(self):
+        example_sequences = pd.DataFrame(
+            {"start": [0, 5, 10], "end": [5, 10, 15]}, index=["s1", "s2", "s3"]
+        ).rename_axis(index="id")
+        example_inputs = [
+            RegionDataTuple(Region(*s, "gs_id"), pd.DataFrame())
+            for s in example_sequences.reset_index().itertuples(index=False)
+        ]
+
+        @dataclass
+        class DummyResultType:
+            test1: Any
+            test2: Any
+
+        base_result = DummyResultType(
+            pd.DataFrame({"start": [1, 3], "end": [3, 5]}), pd.DataFrame({"start": [1, 3], "end": [3, 5]})
+        )
+
+        example_results = [
+            TypedIteratorResultTuple("__main__", example_inputs[0], base_result, {}),
+            TypedIteratorResultTuple(
+                "__main__", example_inputs[1], replace(base_result, test1=GsIterator.NULL_VALUE), {}
+            ),
+            TypedIteratorResultTuple(
+                "__main__", example_inputs[2], replace(base_result, test2=GsIterator.NULL_VALUE), {}
+            ),
+        ]
+
+        agg_test1 = create_aggregate_df("test1", fix_offset_cols=[])
+        test_1_agg = agg_test1(example_results)
+
+        assert set(test_1_agg.index.get_level_values("gs_id")) == {"s1", "s3"}
+
+        agg_test2 = create_aggregate_df("test2", fix_offset_cols=[])
+        test_2_agg = agg_test2(example_results)
+
+        assert set(test_2_agg.index.get_level_values("gs_id")) == {"s1", "s2"}
 
     # TODO: Add tests for subiteration
     # TODO: Add tests for empty wbs.

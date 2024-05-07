@@ -1,7 +1,7 @@
 import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
-from typing import Any, Callable, Generic, NoReturn, Optional, TypeVar
+from typing import Any, Callable, Generic, Optional, TypeVar
 
 from tpcp import Algorithm, cf
 from typing_extensions import NamedTuple, TypeAlias
@@ -184,7 +184,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         init_dict = {k.name: self.NULL_VALUE for k in fields(self.data_type)}
         return self.data_type(**init_dict)
 
-    def _report_new_result(self, r: TypedIteratorResultTuple[InputTypeT, DataclassT]) -> NoReturn:
+    def _report_new_result(self, r: TypedIteratorResultTuple[InputTypeT, DataclassT]) -> None:
         self._raw_results.append(r)
 
     @property

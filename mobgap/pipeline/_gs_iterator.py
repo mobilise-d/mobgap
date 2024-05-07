@@ -8,7 +8,7 @@ from typing import (
     NamedTuple,
     Optional,
     TypeVar,
-    overload,
+    overload, NoReturn,
 )
 
 import pandas as pd
@@ -161,6 +161,14 @@ def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]
         iter_index_name = [parent_region.id_origin, *iter_index_name]
     return iter_index_name
 
+def _validate_iter_type(iter_type: str, parent_region: Optional[Region]) -> None:
+    if iter_type not in ["__sub_iter__", "__main__"]:
+        raise RuntimeError("Unexpected iteration type")
+    if parent_region and iter_type == "__main__":
+        raise RuntimeError("Main iteration with parent region should not exist.")
+    if not parent_region and iter_type == "__sub_iter__":
+        raise RuntimeError("Sub-iteration without parent region.")
+
 
 def create_aggregate_df(
     result_name: str,
@@ -219,13 +227,7 @@ def create_aggregate_df(
 
             parent_region: Optional[Region] = rt.iteration_context.get("parent_region", None)
 
-            # We write the error cases first
-            if rt.iteration_name not in ["__sub_iter__", "__main__"]:
-                raise RuntimeError("Unexpected iteration type")
-            if parent_region and rt.iteration_name == "__main__":
-                raise RuntimeError("Main iteration with parent region should not exist.")
-            if not parent_region and rt.iteration_name == "__sub_iter__":
-                raise RuntimeError("Sub-iteration without parent region.")
+            _validate_iter_type(rt.iteration_name, parent_region)
 
             if parent_region:
                 offset += parent_region.start
