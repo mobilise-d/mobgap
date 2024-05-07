@@ -76,6 +76,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
 
     IteratorResult: TypeAlias = TypedIteratorResultTuple[InputTypeT, DataclassT]
 
+    _raw_results: list[IteratorResult]
     data_type: type[DataclassT]
     aggregations: Sequence[tuple[str, Callable[[list[IteratorResult]], Any]]]
 
@@ -97,7 +98,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
 
     def _iterate(
         self,
-        iterable: Iterable[tuple[T]],
+        iterable: Iterable[T],
         *,
         iteration_name: str = "__main__",
         iteration_context: Optional[dict[str, Any]] = None,
@@ -175,7 +176,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
 
     def _get_default_agg(self, field_name: str) -> Callable[[list[IteratorResult]], Any]:
         def default_agg(values: list[BaseTypedIterator.IteratorResult]):
-            return list(v.result for v in self.filter_iterator_results(values, field_name))
+            return list(getattr(v.result, field_name) for v in values)
 
         return default_agg
 

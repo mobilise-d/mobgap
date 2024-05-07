@@ -37,7 +37,7 @@ long_trial_gs
 # The function yields the gait sequence information as tuple (i.e. the "row" of the gs dataframe as namedtuple) and the
 # data for each iteration.
 # Note that the index of the data is not changed.
-# Hence we recommend using `iloc` to access the data (`iloc[0]` will return the first sample of the gait sequence).
+# Hence, we recommend using `iloc` to access the data (`iloc[0]` will return the first sample of the gait sequence).
 #
 # Using our example data and gs, we can iterate over the data as follows:
 from mobgap.pipeline import iter_gs
@@ -51,10 +51,10 @@ for gs, data in iter_gs(long_trial.data_ss, long_trial_gs):
     print("First sample of gs:\n", data.iloc[0], end="\n\n")
 
 # %%
-# .. note:: The ``gs`` named-tuples returned by the iterator can either be of type ``GaitSequence`` or ``WalkingBout``.
-#           In both cases they contain the fields ``id``, ``start``, and ``end`` in this order.
-#           When using the named access the ``id`` field can also be accessed via the ``wb_id``/``gs_id`` field (
-#           depending on the type of the gait sequence).
+# .. note:: The ``gs`` named-tuples returned by the iterator is of type ``GaitSequence``.
+#           It contains the fields ``id``, ``start``, and ``end`` in this order.
+#           When using the named access the ``id`` field corresponds to either the ``gs_id`` or ``wb_id`` of the input
+#           dataframe, depending on what type of list was provided.
 #
 # You can see that this way it is pretty easy to iterate over the data.
 # However, if you are planning to run calculations on the data, you need to aggregate the results yourself.

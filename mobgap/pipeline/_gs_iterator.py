@@ -8,7 +8,6 @@ from typing import (
     NamedTuple,
     Optional,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -25,38 +24,12 @@ DataclassT = TypeVar("DataclassT")
 class GaitSequence(NamedTuple):
     """A simple tuple representing a Gait Sequence."""
 
-    @property
-    def _tag(self) -> str:
-        return "GaitSequence"
-
-    gs_id: str
+    id: str
     start: int
     end: int
 
-    @property
-    def id(self) -> str:
-        return self.gs_id
 
-
-class WalkingBout(NamedTuple):
-    """A simple tuple representing a Walking Bout."""
-
-    @property
-    def _tag(self) -> str:
-        return "WalkingBout"
-
-    wb_id: str
-    start: int
-    end: int
-
-    @property
-    def id(self) -> str:
-        return self.wb_id
-
-
-def iter_gs(
-    data: pd.DataFrame, gs_list: pd.DataFrame
-) -> Iterator[tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]]:
+def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[GaitSequence, pd.DataFrame]]:
     """Iterate over the data based on the given gait-sequences.
 
     This will yield a dataframe for each gait-sequence.
@@ -72,7 +45,7 @@ def iter_gs(
 
     Yields
     ------
-    Union[GaitSequence, WalkingBout]
+    GaitSequence
        A named tuple representing the gait-sequence or walking-bout.
        Note, that only the start, end and id attributes are present.
        If other columns are present in the gs_list, they will be ignored.
@@ -87,18 +60,16 @@ def iter_gs(
 
     """
     # TODO: Add validation that we passed a valid gs_list
-    gs: Union[GaitSequence, WalkingBout]
+    gs: GaitSequence
     gs_list = gs_list.reset_index()
     if "wb_id" in gs_list.columns:
-        named_tuple = WalkingBout
         index_col = "wb_id"
     else:
-        named_tuple = GaitSequence
         index_col = "gs_id"
     relevant_cols = [index_col, "start", "end"]
     for gs in gs_list[relevant_cols].itertuples(index=False):
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
-        yield named_tuple(*gs), data.iloc[gs.start : gs.end]
+        yield GaitSequence(*gs), data.iloc[gs.start : gs.end]
 
 
 @dataclass
@@ -134,7 +105,7 @@ class FullPipelinePerGsResult:
     gait_speed: pd.DataFrame
 
 
-InputType: TypeAlias = tuple[Union[GaitSequence, WalkingBout], pd.DataFrame]
+InputType: TypeAlias = tuple[GaitSequence, pd.DataFrame]
 ResultT = TypeVar("ResultT")
 # TODO: Move and adjust that type alias
 GsIteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, FullPipelinePerGsResult]
@@ -151,7 +122,6 @@ def create_aggregate_df(
     *,
     fix_gs_offset_index: bool = False,
     _null_value: _NotSet = BaseTypedIterator.NULL_VALUE,
-    _cls: BaseTypedIterator = BaseTypedIterator,
 ) -> _aggregator_type[pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
@@ -183,7 +153,7 @@ def create_aggregate_df(
     """
 
     def aggregate_df(values: list[GsIteratorResult]) -> pd.DataFrame:
-        non_null_results: list[GsIteratorResultT[pd.DataFrame]] = _cls.filter_iterator_results(
+        non_null_results: list[GsIteratorResultT[pd.DataFrame]] = GsIterator.filter_iterator_results(
             values, result_name, _null_value
         )
         if len(non_null_results) == 0:
@@ -201,7 +171,7 @@ def create_aggregate_df(
             gs_id = rt.input[0].id
             offset = rt.input[0].start
 
-            parent_gs: Optional[Union[WalkingBout, GaitSequence]] = rt.iteration_context.get("parent_gs", None)
+            parent_gs: Optional[GaitSequence] = rt.iteration_context.get("parent_gs", None)
 
             if rt.iteration_name == "__sub_iter__":
                 if not parent_gs:
@@ -252,7 +222,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         By default, this is ``GsIterator.DEFAULT_AGGREGATIONS``.
     NULL_VALUE
         (Class attribute) The value that is used to initialize the result dataclass and will remain in the results, if
-        no result was for a specific attribute in one or more iterations.
+        no result was provided for a specific attribute in one or more iterations.
     PredefinedParameters
         (Class attribute) Predefined parameters that can be used depending on which aggregation you want to use.
         In all provided cases the ``data_type`` is set to :class:`FullPipelinePerGsResult`.
@@ -264,23 +234,42 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         - ``gait_speed`` (pd.DataFrame): The gait speed values within each gait-sequence.
     DefaultAggregators
         (Class attribute) Class that holds some aggregator functions that can be used to create custom aggregations.
+    IteratorResult
+        (Class attribute) Type alias for the resultype of the iterator. ``raw_results_`` will be a list of these.
+        Note, that when using this outside of the class, this type will be a generic without a type for the ``result``
+        field.
+        You need to bind it as ``GsIterator.IteratorResult[MyCustomResultType]`` to get the correct type.
+        This will then be the correct result type of an iterator using the same ``data_type`` (i.e.
+        ``gs_iterator = GsIterator[MyCustomResultType](MyCustomResultType)``).
 
     Attributes
     ----------
-    inputs_
-        List of all input elements that were iterated over.
+    results_
+        The actual aggregated results.
+        This is an instance of the provided custom result type (``data_type``).
+        This makes it easy to access the individual result attributes.
+        Each value will be the result of the aggregation function registered for the specific field.
+        If no aggregation functions exist, simply a list of the result values for this field is provided.
+        The results can only be accessed once the iteration is done.
     raw_results_
-        List of all results as dataclass instances.
-        The attribute of the dataclass instance will have the value of ``_NOT_SET`` if no result was set.
-        To check for this, you can use ``isinstance(val, TypedIterator.NULL_VALUE)``.
-    {result_name}_
-        The aggregated results for the respective result name.
+        # TODO: Adapt path once tpcp PR is merged
+        List of all results as ``TypedIteratorResultTuple`` instances.
+        This is the input to the aggregation functions.
+        The attribute of the ``result`` dataclass instance will have the value of ``_NOT_SET`` if no result was set.
+        To check for this, you can use ``isinstance(val, TypedIterator.NULL_VALUE)`` or the
+        ``filter_iterator_results`` method to remove all results with a ``NULL_VALUE``.
     done_
-        True, if the iterator is done.
-        If the iterator is not done, but you try to access the results, a warning will be raised.
+        A dictionary indicating of a specific iterator is done.
+        This can have the keys ``__main__`` or ``__sub_iter`` for the main iteration triggered by ``iterate`` or
+        sub-iterations triggered by ``iterate_subregions`` or ``with_subregion``.
+        The value will be ``True`` if the respective iteration is done, ``False`` if it is currently running and
+        missing if it was never started.
+        If the iterator is not done, but you try to access the results, an error will be raised.
 
     See Also
     --------
+    tpcp.misb.BaseTypedIterator
+        Baseclass of this iterator
     tpcp.misc.TypedIterator
         Generic version of this iterator
     iter_gs
@@ -338,7 +327,12 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         Examples
         --------
         >>> from mobgap.pipeline import GsIterator
-        >>> my_aggregation = [("my_result", GsIterator.DefaultAggregators.create_aggregate_df(["my_col"]))]
+        >>> my_aggregation = [
+        ...     (
+        ...         "my_result",
+        ...         GsIterator.DefaultAggregators.create_aggregate_df("my_result", fix_gs_offset_cols=["my_col"]),
+        ...     )
+        ... ]
         >>> iterator = GsIterator(aggregations=my_aggregation)
 
         """
@@ -351,14 +345,14 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
     def __init__(
         self: "GsIterator[FullPipelinePerGsResult]",
         data_type: type[FullPipelinePerGsResult] = ...,
-        aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = ...,
+        aggregations: Sequence[tuple[str, Callable[[list[IteratorResult]], Any]]] = ...,
     ) -> None: ...
 
     @overload
     def __init__(
         self: "GsIterator[DataclassT]",
         data_type: type[DataclassT] = ...,
-        aggregations: Sequence[tuple[str, _aggregator_type[Any]]] = ...,
+        aggregations: Sequence[tuple[str, Callable[[list[IteratorResult]], Any]]] = ...,
     ) -> None: ...
 
     @set_defaults(**PredefinedParameters.default_aggregation)
@@ -371,7 +365,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
 
     def iterate(
         self, data: pd.DataFrame, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
+    ) -> Iterator[tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]]:
         """Iterate over the gait sequences one by one.
 
         Parameters
@@ -398,24 +392,23 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
 
     def iterate_subregions(
         self, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
+    ) -> Iterator[tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]]:
         # We only allow sub iterations, when there are no other subiterations running.
         if self.done_.get("__main__", True):
             raise ValueError("Sub-iterations can only be started, when the main iteration is still running")
         if not self.done_.get("__sub_iter__", True):
             raise ValueError("Sub-iterations are not allowed within sub-iterations.")
-        current_gs = self._current_gs
-        parent_id_name = "wb_id" if getattr(current_gs, "_tag", None) == "WalkingBout" else "gs_id"
-        id_col_names = [parent_id_name, "sub_gs_id"]
+
+        current_result = self._raw_results[-1]
+        current_gs, current_data = current_result.input
+        id_col_names = [current_result.iteration_context["id_col_name"], "sub_gs_id"]
         yield from self._iterate(
-            iter_gs(self._current_data, gs_list),
+            iter_gs(current_data, gs_list),
             iteration_name="__sub_iter__",
             iteration_context={"id_col_name": id_col_names, "parent_gs": current_gs},
         )
 
-    def with_subregion(
-        self, gs_list: pd.DataFrame
-    ) -> tuple[tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]:
+    def with_subregion(self, gs_list: pd.DataFrame) -> tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]:
         if len(gs_list) != 1:
             raise ValueError(
                 "``with_subregions`` can only be used with single-subregions. "
@@ -423,14 +416,3 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
         return list(self.iterate_subregions(gs_list))[0]
-
-    @property
-    def _current_data(self):
-        return self._raw_results[-1].input[1]
-
-    @property
-    def _current_gs(self):
-        return self._raw_results[-1].input[0]
-
-
-__all__ = ["GaitSequence", "iter_gs", "GsIteratorResult", "filter_gs_results"]

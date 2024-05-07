@@ -6,7 +6,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from mobgap.pipeline import GsIterator, create_aggregate_df, iter_gs
-from mobgap.pipeline._gs_iterator import GaitSequence, WalkingBout
+from mobgap.pipeline._gs_iterator import GaitSequence
 from mobgap.pipeline._overwrite_typed_iterator import TypedIteratorResultTuple
 
 
@@ -36,12 +36,8 @@ class TestGsIterationFunc:
         iterator = iter_gs(dummy_data, dummy_sections)
 
         first = next(iterator)[0]
-        if col_name == "wb_id":
-            assert isinstance(first, WalkingBout)
-            assert first.wb_id == first.id == "s1"
-        else:
-            assert isinstance(first, GaitSequence)
-            assert first.gs_id == first.id == "s1"
+        assert isinstance(first, GaitSequence)
+        assert first.id == "s1"
 
 
 class TestGsIterator:
