@@ -37,6 +37,7 @@ reference_wbs
 # ----------------------
 # Below we apply the shin algorithm to a lab trial.
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
+from mobgap.icd import refine_gs
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
@@ -44,14 +45,13 @@ iterator = GsIterator()
 for gs_id, (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     icd = IcdShinImproved()
     icd.detect(data, sampling_rate_hz=sampling_rate_hz)
-    # TODO: Need a version of IC-list that has the "refined GS ID in the index"
-    result.ic_list = icd.ic_list_per_sub_gs_
-    refined_gs_list = icd.sub_gs_list_
+    result.ic_list = icd.ic_list_
+    refined_gs_list, refined_ic_list = refine_gs(result.ic_list)
 
     for rgs_id, (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
         refined_result.cad_per_sec = (
             CadFromIc()
-            .calculate(refined_data, result.ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz)
+            .calculate(refined_data, refined_ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz)
             .cad_per_sec_
         )
 

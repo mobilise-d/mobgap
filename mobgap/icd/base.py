@@ -95,28 +95,5 @@ class BaseIcDetector(Algorithm):
         """
         raise NotImplementedError
 
-    @property
-    def sub_gs_list_(self):
-        ics = self.ic_list_["ic"]
-        return pd.DataFrame.from_records([{"gs_id": "1", "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]).set_index(
-            "gs_id"
-        )
-
-    @property
-    def ic_list_per_sub_gs_(self):
-        # Note: We provide an overkill implementation for the default case (just a single sub gs).
-        #       However, this way, you don't need to reimplement this method, when a more complex sub gs logic is
-        #       required.
-        # For each sub-gs, we get all ICs that are within the sub-gs.
-        gs_list = self.sub_gs_list_.copy().reset_index()
-        gs_list.index = pd.IntervalIndex.from_arrays(gs_list["start"], gs_list["end"], closed="left")
-
-        def ics_relative_to_gs(df):
-            matches = gs_list.loc[df["ic"]]
-            return df.assign(gs_id=matches["gs_id"].to_numpy(), ic=df["ic"] - matches["start"].to_numpy())
-
-        ics_with_gs_label = self.ic_list_.pipe(ics_relative_to_gs)
-        return ics_with_gs_label.set_index("gs_id", append=True).reorder_levels(["gs_id", "step_id"])
-
 
 __all__ = ["BaseIcDetector", "base_icd_docfiller"]

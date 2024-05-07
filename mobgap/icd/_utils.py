@@ -1,6 +1,7 @@
 from typing import Literal
 
 import numpy as np
+import pandas as pd
 
 
 def find_zero_crossings(
@@ -82,3 +83,37 @@ def find_zero_crossings(
     refined_crossings = crossings + np.abs(signal[crossings] / (signal[crossings] - signal[crossings + 1]))
 
     return refined_crossings
+
+
+def refine_gs(ic_list: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Get the start and end values of a refined gait sequence that starts at the first and ends at the last IC.
+
+    Parameters
+    ----------
+    ic_list
+        The original ic_list relative to the original gait sequence
+
+    Returns
+    -------
+    refined_gs_list
+        A gait sequence list with a single entry that corresponds to the start and the end of the new
+        refined gait sequence relative to the original gait sequence
+    refined_ic_list
+        The IC list with all IC values relative to the new refined gait sequence.
+        This means that the first IC should have the value 0.
+        The new ic-list also has a multi-index with the ``gs_id`` of the refined GS as first level.
+
+    """
+    ics = ic_list["ic"]
+    new_gs_id = "1"
+    refined_gs_list = pd.DataFrame.from_records(
+        [{"gs_id": "1", "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]
+    ).set_index("gs_id")
+
+    new_ics = (
+        ic_list.assign(ic=lambda df_: df_["ic"] - df_["ic"].iloc[0], gs_id=new_gs_id)
+        .set_index("gs_id", append=True)
+        .reorder_levels(["gs_id", "step_id"])
+    )
+
+    return refined_gs_list, new_ics
