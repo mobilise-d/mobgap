@@ -45,13 +45,8 @@ for gs_id, (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     icd = IcdShinImproved()
     icd.detect(data, sampling_rate_hz=sampling_rate_hz)
     # TODO: Need a version of IC-list that has the "refined GS ID in the index"
-    result.ic_list = (
-        icd.ic_list_.assign(refined_gs_id=0)
-        .set_index("refined_gs_id", append=True)
-        .reorder_levels(["refined_gs_id", "step_id"])
-    )
-
-    refined_gs_list = pd.DataFrame({"start": [5], "end": [gs.end - gs.start - 5]}).rename_axis(index="gs_id")
+    result.ic_list = icd.ic_list_per_sub_gs_
+    refined_gs_list = icd.sub_gs_list_
 
     for rgs_id, (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
         refined_result.cad_per_sec = (
@@ -64,6 +59,7 @@ for gs_id, (gs, data), result in iterator.iterate(imu_data, reference_wbs):
 
 
 detected_ics = iterator.results_.ic_list
+
 detected_ics
 # %%
 # Matlab Outputs
