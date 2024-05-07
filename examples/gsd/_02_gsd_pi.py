@@ -39,6 +39,7 @@ def plot_gsd_outputs(data, **kwargs):
     ax.legend()
     return fig, ax
 
+
 # %%
 # Loading some example data
 # -------------------------
@@ -51,7 +52,9 @@ def plot_gsd_outputs(data, **kwargs):
 # However, a good gait sequence detection algorithm should have high sensitivity (i.e. contain all the "WBs"
 # of the reference system).
 import json
+
 import pandas as pd
+
 from mobgap import PACKAGE_ROOT
 from mobgap.data import LabExampleDataset
 
@@ -61,8 +64,7 @@ lab_example_data = LabExampleDataset(reference_system="INDIP")
 def load_matlab_output(datapoint):
     p = datapoint.group_label
     with (
-        PACKAGE_ROOT.parent
-        / f"example_data/original_results/gsd_pi/lab/{p.cohort}/{p.participant_id}/GSDB_Output.json"
+        PACKAGE_ROOT.parent / f"example_data/original_results/gsd_pi/lab/{p.cohort}/{p.participant_id}/GSDB_Output.json"
     ).open() as f:
         original_results = json.load(f)["GSDB_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["GSD"]
 
@@ -138,9 +140,7 @@ fig.show()
 # See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.
 
 
-
-
-'''from mobgap.data import LabExampleDataset
+"""from mobgap.data import LabExampleDataset
 from mobgap.gsd import GsdParaschivIonescu
 
 # Load data
@@ -157,4 +157,4 @@ fs = long_trial.sampling_rate_hz
 # Run GSD_LowBackAcc
 gsd_output = GsdParaschivIonescu().detect(imu_data, sampling_rate_hz=fs).gs_list_
 
-print(gsd_output)'''
+print(gsd_output)"""

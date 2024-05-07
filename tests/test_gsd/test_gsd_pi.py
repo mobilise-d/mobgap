@@ -5,8 +5,9 @@ from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.gsd._gsd_pi import find_intersections
 from mobgap.gsd import GsdParaschivIonescu
+from mobgap.gsd._gsd_pi import find_intersections
+
 
 class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):
     __test__ = True
@@ -18,6 +19,7 @@ class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):
         return self.ALGORITHM_CLASS().detect(
             pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"]), sampling_rate_hz=40.0
         )
+
 
 class TestIntersect:
     def test_non_overlapping_intervals(self):
@@ -35,6 +37,7 @@ class TestIntersect:
         assert np.array_equal(
             result[: len(expected)], expected
         ), "Should return correct intersections for overlapping intervals"
+
 
 class TestGsdParaschivIonescu:
     """Tests for GsdParaschivIonescu.
@@ -66,6 +69,7 @@ class TestGsdParaschivIonescu:
         output = GsdParaschivIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert set(output.columns) == {"start", "end"}
+
 
 class TestGsdParaschivIonescuRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))

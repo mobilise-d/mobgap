@@ -28,6 +28,7 @@ from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 
 # test
 
+
 @base_gsd_docfiller
 class GsdParaschivIonescu(BaseGsDetector):
     """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
@@ -207,13 +208,18 @@ class GsdParaschivIonescu(BaseGsDetector):
             active_peak_threshold = self.active_signal_fallback_threshold
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
-                ("savgol_1", savgol_1,),
+                (
+                    "savgol_1",
+                    savgol_1,
+                ),
                 ("epfl_gait_filter", EpflDedriftedGaitFilter()),
                 ("cwt_1", cwt),
-                ("savol_2", savgol_2,),
+                (
+                    "savol_2",
+                    savgol_2,
+                ),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
-
 
         # Find extrema in signal that might represent steps
         min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
@@ -320,7 +326,7 @@ def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.nd
     #       We should test that out once we have a proper evaluation pipeline.
     for i in range(len(env) - duration + 1):
         # Update threshold 10% of the maximum peaks found
-        window = env[i: i + duration]
+        window = env[i : i + duration]
 
         if (window > threshold_sig).all():
             active[i] = max(env)
