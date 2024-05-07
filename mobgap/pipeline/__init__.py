@@ -3,7 +3,6 @@
 from mobgap.pipeline._gs_iterator import (
     FullPipelinePerGsResult,
     GsIterator,
-    GsIteratorResult,
     create_aggregate_df,
     iter_gs,
 )

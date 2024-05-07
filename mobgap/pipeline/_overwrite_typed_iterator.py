@@ -1,7 +1,7 @@
 import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import fields, is_dataclass
-from typing import Any, Callable, Generic, NamedTuple, Optional, TypeAlias, TypeVar
+from typing import Any, Callable, Generic, NamedTuple, NoReturn, Optional, TypeAlias, TypeVar
 
 from tpcp import Algorithm, cf
 
@@ -19,7 +19,7 @@ class TypedIteratorResultTuple(NamedTuple, Generic[InputTypeT, ResultT]):
 
 
 class _NotSet:
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "NOT_SET"
 
 
@@ -115,7 +115,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         self,
         data_type: type[DataclassT],
         aggregations: Sequence[tuple[str, Callable[[list[IteratorResult]], Any]]] = cf([]),
-    ):
+    ) -> None:
         self.data_type = data_type
         self.aggregations = aggregations
 
@@ -183,7 +183,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         init_dict = {k.name: self.NULL_VALUE for k in fields(self.data_type)}
         return self.data_type(**init_dict)
 
-    def _report_new_result(self, r: TypedIteratorResultTuple[InputTypeT, DataclassT]):
+    def _report_new_result(self, r: TypedIteratorResultTuple[InputTypeT, DataclassT]) -> NoReturn:
         self._raw_results.append(r)
 
     @property
@@ -198,12 +198,12 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         return self._raw_results
 
     def _get_default_agg(self, field_name: str) -> Callable[[list[IteratorResult]], Any]:
-        def default_agg(values: list[BaseTypedIterator.IteratorResult]):
-            return list(getattr(v.result, field_name) for v in values)
+        def default_agg(values: list[BaseTypedIterator.IteratorResult]) -> list[Any]:
+            return [getattr(v.result, field_name) for v in values]
 
         return default_agg
 
-    def _agg_result(self, raw_results: list[IteratorResult]):
+    def _agg_result(self, raw_results: list[IteratorResult]) -> dict[str, Any]:
         aggregations = dict(self.aggregations)
         agg_results = {}
         for a in fields(self.data_type):

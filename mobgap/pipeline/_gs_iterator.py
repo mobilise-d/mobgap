@@ -18,8 +18,6 @@ from typing_extensions import TypeAlias
 
 from mobgap.pipeline._overwrite_typed_iterator import BaseTypedIterator, TypedIteratorResultTuple, _NotSet
 
-DataclassT = TypeVar("DataclassT")
-
 
 class GaitSequence(NamedTuple):
     """A simple tuple representing a Gait Sequence."""
@@ -27,6 +25,11 @@ class GaitSequence(NamedTuple):
     id: str
     start: int
     end: int
+
+
+T = TypeVar("T")
+DataclassT = TypeVar("DataclassT")
+InputType: TypeAlias = tuple[GaitSequence, pd.DataFrame]
 
 
 def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[GaitSequence, pd.DataFrame]]:
@@ -62,10 +65,7 @@ def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[GaitSeq
     # TODO: Add validation that we passed a valid gs_list
     gs: GaitSequence
     gs_list = gs_list.reset_index()
-    if "wb_id" in gs_list.columns:
-        index_col = "wb_id"
-    else:
-        index_col = "gs_id"
+    index_col = "wb_id" if "wb_id" in gs_list.columns else "gs_id"
     relevant_cols = [index_col, "start", "end"]
     for gs in gs_list[relevant_cols].itertuples(index=False):
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
@@ -105,24 +105,13 @@ class FullPipelinePerGsResult:
     gait_speed: pd.DataFrame
 
 
-InputType: TypeAlias = tuple[GaitSequence, pd.DataFrame]
-ResultT = TypeVar("ResultT")
-# TODO: Move and adjust that type alias
-GsIteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, FullPipelinePerGsResult]
-GsIteratorResultT: TypeAlias = TypedIteratorResultTuple[InputType, ResultT]
-
-
-T = TypeVar("T")
-_aggregator_type: TypeAlias = Callable[[list[GsIteratorResult]], T]
-
-
 def create_aggregate_df(
     result_name: str,
     fix_gs_offset_cols: Sequence[str] = ("start", "end"),
     *,
     fix_gs_offset_index: bool = False,
     _null_value: _NotSet = BaseTypedIterator.NULL_VALUE,
-) -> _aggregator_type[pd.DataFrame]:
+) -> Callable[[list["GsIterator.IteratorResult[Any]"]], T][pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
 
     The aggregator will also fix the offset of the given columns by adding the start value of the gait-sequence.
@@ -152,8 +141,8 @@ def create_aggregate_df(
 
     """
 
-    def aggregate_df(values: list[GsIteratorResult]) -> pd.DataFrame:
-        non_null_results: list[GsIteratorResultT[pd.DataFrame]] = GsIterator.filter_iterator_results(
+    def aggregate_df(values: list[GsIterator.IteratorResult[Any]]) -> pd.DataFrame:
+        non_null_results: list[GsIterator.IteratorResult[pd.DataFrame]] = GsIterator.filter_iterator_results(
             values, result_name, _null_value
         )
         if len(non_null_results) == 0:
@@ -162,8 +151,7 @@ def create_aggregate_df(
 
         # We assume that all elements have the same iteration context.
         iter_index_name = non_null_results[0].iteration_context.get("id_col_name", "gs_id")
-        if not isinstance(iter_index_name, list):
-            iter_index_name = [iter_index_name]
+        iter_index_name = [iter_index_name] if not isinstance(iter_index_name, list) else iter_index_name
 
         to_concat = {}
         for rt in non_null_results:
@@ -173,16 +161,17 @@ def create_aggregate_df(
 
             parent_gs: Optional[GaitSequence] = rt.iteration_context.get("parent_gs", None)
 
-            if rt.iteration_name == "__sub_iter__":
-                if not parent_gs:
-                    raise RuntimeError("Sub-iteration without parent GS.")
+            # We write the error cases first
+            if rt.iteration_name not in ["__sub_iter__", "__main__"]:
+                raise RuntimeError("Unexpected iteration type")
+            if parent_gs and rt.iteration_name == "__main__":
+                raise RuntimeError("Main iteration with parent GS should not exist.")
+            if not parent_gs and rt.iteration_name == "__sub_iter__":
+                raise RuntimeError("Sub-iteration without parent GS.")
+
+            if parent_gs:
                 offset += parent_gs.start
                 gs_id = (parent_gs.id, gs_id)
-            elif rt.iteration_name == "__main__":
-                if parent_gs:
-                    raise RuntimeError("Main iteration with parent GS should not exist.")
-            else:
-                raise RuntimeError("Unexpected iteration type")
 
             df = df.copy()
             if fix_gs_offset_cols:
@@ -465,4 +454,4 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
                 "However, the passed ``gs_list`` has 0 or more than one GSs. "
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
-        return list(self.iterate_subregions(sub_gs_list))[0]
+        return next(iter(self.iterate_subregions(sub_gs_list)))
