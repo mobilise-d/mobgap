@@ -387,7 +387,9 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         context = {"id_col_name": "wb_id" if "wb_id" in gs_list.index.names else "gs_id"}
         yield from self._iterate(_iter_gs_with_id(data, gs_list), iteration_context=context)
 
-    def iterate_subregions(self, gs_list: pd.DataFrame):
+    def iterate_subregions(
+        self, gs_list: pd.DataFrame
+    ) -> Iterator[tuple[str, tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]]:
         # We only allow sub iterations, when there are no other subiterations running.
         if self.done_.get("__main__", True):
             raise ValueError("Sub-iterations can only be started, when the main iteration is still running")
@@ -401,6 +403,17 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
             iteration_name="__sub_iter__",
             iteration_context={"id_col_name": id_col_names, "parent_gs": current_gs},
         )
+
+    def with_subregion(
+        self, gs_list: pd.DataFrame
+    ) -> tuple[str, tuple[Union[WalkingBout, GaitSequence], pd.DataFrame], DataclassT]:
+        if len(gs_list) != 1:
+            raise ValueError(
+                "``with_subregions`` can only be used with single-subregions. "
+                "However, the passed ``gs_list`` has 0 or more than one GSs. "
+                "If you want to process multiple sub-regions, use ``iterate_subregions``."
+            )
+        return list(self.iterate_subregions(gs_list))[0]
 
     @property
     def _current_data(self):

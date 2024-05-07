@@ -48,12 +48,17 @@ for gs_id, (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     result.ic_list = icd.ic_list_
     refined_gs_list, refined_ic_list = refine_gs(result.ic_list)
 
-    for rgs_id, (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
-        refined_result.cad_per_sec = (
-            CadFromIc()
-            .calculate(refined_data, refined_ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz)
-            .cad_per_sec_
-        )
+    rgs_id, (_, refined_data), refined_result = iterator.with_subregion(refined_gs_list)
+    refined_result.cad_per_sec = (
+        CadFromIc().calculate(refined_data, refined_ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz).cad_per_sec_
+    )
+
+    # for rgs_id, (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
+    #     refined_result.cad_per_sec = (
+    #         CadFromIc()
+    #         .calculate(refined_data, refined_ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz)
+    #         .cad_per_sec_
+    #     )
 
     result.gait_speed = pd.DataFrame()
 
