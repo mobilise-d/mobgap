@@ -187,7 +187,7 @@ class BaseTypedIterator(Algorithm, Generic[InputTypeT, DataclassT]):
         self._raw_results.append(r)
 
     @property
-    def raw_results_(self) -> list[TypedIteratorResultTuple[InputTypeT, Any]]:
+    def raw_results_(self) -> list[IteratorResult]:
         if "__main__" not in self.done_:
             raise ValueError(
                 "The iterator has not been started yet. No results are available. Call the iterate method first."

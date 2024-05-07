@@ -141,7 +141,7 @@ def create_aggregate_df(
 
     """
 
-    def aggregate_df(values: list[GsIterator.IteratorResult[Any]]) -> pd.DataFrame:
+    def aggregate_df(values: list["GsIterator.IteratorResult[Any]"]) -> pd.DataFrame:
         non_null_results: list[GsIterator.IteratorResult[pd.DataFrame]] = GsIterator.filter_iterator_results(
             values, result_name, _null_value
         )
@@ -454,4 +454,4 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
                 "However, the passed ``gs_list`` has 0 or more than one GSs. "
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
-        return next(iter(self.iterate_subregions(sub_gs_list)))
+        return list(self.iterate_subregions(sub_gs_list))[0]  # noqa: RUF015
