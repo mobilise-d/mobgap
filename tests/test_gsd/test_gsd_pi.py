@@ -77,6 +77,6 @@ class TestGsdParaschivIonescuRegression:
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        gs_list = GsdParaschivIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
-        snapshot.assert_match(gs_list, str(datapoint.group_label))
+        detected_ics = GsdParaschivIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).detected_ics
+        snapshot.assert_match(detected_ics, str(tuple(datapoint.group_label)))
 
