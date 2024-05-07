@@ -51,7 +51,7 @@ for gs, data in iter_gs(long_trial.data_ss, long_trial_gs):
     print("First sample of gs:\n", data.iloc[0], end="\n\n")
 
 # %%
-# .. note:: The ``gs`` named-tuples returned by the iterator is of type ``GaitSequence``.
+# .. note:: The ``gs`` named-tuples returned by the iterator is of type ``Region``.
 #           It contains the fields ``id``, ``start``, and ``end`` in this order.
 #           When using the named access the ``id`` field corresponds to either the ``gs_id`` or ``wb_id`` of the input
 #           dataframe, depending on what type of list was provided.
@@ -185,7 +185,7 @@ display(inspect.getsource(TypedIteratorResultTuple))
 
 # %%
 # The type of the ``input`` and the ``result`` depend on the dataclass you defined and the iterator you use.
-# For the gait sequence iterator the input-type will be ``tuple[GaitSequence, pd.DataFrame]`` and the result-type will
+# For the gait sequence iterator the input-type will be ``tuple[Region, pd.DataFrame]`` and the result-type will
 # the dataclass you defined.
 # The other arguments provide additional context, that might be needed in advanced cases (see lower down in this
 # example).
@@ -291,13 +291,16 @@ outer_regions_agg = GsIterator.DefaultAggregators.create_aggregate_df("outer_reg
 # %%
 # For the second, we will use a modified version of the aggregator we used before.
 # The only difference is that we will make use of the ``iteration_context``.
-# In case of a nested iteration, the context will contain the parent-GS and recommended column names for the iteration
-# levels.
+# In case of a nested iteration, the context will contain the parent-GS.
 def aggregate_n_samples(values: list[GsIterator.IteratorResult[ResultType]]):
     non_null_results: list[GsIterator.IteratorResult[int]] = GsIterator.filter_iterator_results(values, "n_samples")
     results = [r.result for r in non_null_results]
-    ids = [(r.iteration_context["parent_gs"].id, r.input[0].id) for r in non_null_results]
-    index = pd.MultiIndex.from_tuples(ids, names=non_null_results[0].iteration_context["id_col_name"])
+    ids = [(r.iteration_context["parent_region"].id, r.input[0].id) for r in non_null_results]
+    index_col_names = [
+        non_null_results[0].iteration_context["parent_region"].id_origin,
+        non_null_results[0].input.region.id_origin,
+    ]
+    index = pd.MultiIndex.from_tuples(ids, names=index_col_names)
     return pd.Series(results, index=index, name="N-Samples")
 
 
@@ -323,7 +326,7 @@ for (_, data), r in nested_iterator.iterate(long_trial.data_ss, long_trial_gs):
             "start": [0, len(data) // 3, 2 * len(data) // 3],
             "end": [len(data) // 3, 2 * len(data) // 3, len(data)],
         }
-    ).rename_axis("gs_id")
+    ).rename_axis("sub_roi_id")
 
     # Then we iterate over the sub-regions and calculate the length of each sub-region and identify fake events
     for (_, nested_data), nr in nested_iterator.iterate_subregions(r.outer_regions):
@@ -378,7 +381,7 @@ for (_, data), r in flat_nested_iterator.iterate(long_trial.data_ss, long_trial_
             "start": [5],
             "end": [len(data) - 5],
         }
-    ).rename_axis("gs_id")
+    ).rename_axis("refined_gs_id")
 
     (_, refined_data), refined_result = flat_nested_iterator.with_subregion(r.outer_regions.iloc[[0]])
     refined_result.n_samples = len(refined_data)

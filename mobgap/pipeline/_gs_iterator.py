@@ -19,20 +19,64 @@ from typing_extensions import TypeAlias
 from mobgap.pipeline._overwrite_typed_iterator import BaseTypedIterator, TypedIteratorResultTuple, _NotSet
 
 
-class GaitSequence(NamedTuple):
+class Region(NamedTuple):
     """A simple tuple representing a Gait Sequence."""
 
     id: str
     start: int
     end: int
+    id_origin: Optional[str] = None
+
+
+class RegionDataTuple(NamedTuple):
+    """A simple tuple representing the input of the Gait Sequence Iterator."""
+
+    region: Region
+    data: pd.DataFrame
 
 
 T = TypeVar("T")
 DataclassT = TypeVar("DataclassT")
-InputType: TypeAlias = tuple[GaitSequence, pd.DataFrame]
 
 
-def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[GaitSequence, pd.DataFrame]]:
+def _infer_id_col(region_list: pd.DataFrame, id_col: Optional[str] = None) -> str:
+    """Infer the id column from the given gait-sequence list.
+
+    Parameters
+    ----------
+    region_list
+        The gait-sequence/region_list list.
+    id_col
+        The name of the column/index level that should be used as the id of the returned Region objects.
+        If None, we try to automatically infer the name.
+        If the input contains ``wb_id`` or ``gs_id``, we will use this.
+        When a single index column exists, we will use this.
+        If multiple index columns exist, we will raise an error and you need to specify the column.
+
+    Returns
+    -------
+    str
+        The name of the column/index level that should be used as the id of the returned Region objects.
+
+    """
+    if id_col:
+        return id_col
+    region_list_all_cols = region_list.reset_index().columns
+    if "wb_id" in region_list_all_cols:
+        return "wb_id"
+    if "gs_id" in region_list_all_cols:
+        return "gs_id"
+    if len(region_list.index.names) == 1 and (name := region_list.index.names[0]) is not None:
+        return name
+    raise ValueError(
+        "Could not infer the id column from the gait-sequence list. "
+        "Please specify the column/index level that should be used as the id."
+    )
+
+
+def iter_gs(
+    data: pd.DataFrame, region_list: pd.DataFrame, *, id_col: Optional[str] = None
+) -> Iterator[tuple[Region, pd.DataFrame]]:
     """Iterate over the data based on the given gait-sequences.
 
     This will yield a dataframe for each gait-sequence.
@@ -43,33 +87,39 @@ def iter_gs(data: pd.DataFrame, gs_list: pd.DataFrame) -> Iterator[tuple[GaitSeq
     ----------
     data
         The data to iterate over.
-    gs_list
+    region_list
         The list of gait-sequences.
+    id_col
+        The name of the column/index level that should be used as the id of the returned Region objects.
+        If None, we try to automatically infer the name.
+        If the input contains ``wb_id`` or ``gs_id``, we will use this.
+        When a single index column exists, we will use this.
+        If multiple index columns exist, we will raise an error and you need to specify the column.
 
     Yields
     ------
-    GaitSequence
+    Region
        A named tuple representing the gait-sequence or walking-bout.
        Note, that only the start, end and id attributes are present.
-       If other columns are present in the gs_list, they will be ignored.
+       If other columns are present in the region_list, they will be ignored.
        Independent of the "type" a unique ``id`` attribute is present, that represents either the ``gs_id`` or
        the ``wb_id``.
     pd.DataFrame
-        The data of a single gait-sequence.
+        The data of a single gait-sequence/region.
         Note, that we don't change the index of the data.
         If the data was using an index that started at the beginning of the recording, the index (aka ``.loc``) of the
         individual sequences will still be relative to the beginning of the recording.
         The first sample in the returned data (aka ``.iloc``) will correctly correspond to the first sample of the GS.
 
     """
-    # TODO: Add validation that we passed a valid gs_list
-    gs: GaitSequence
-    gs_list = gs_list.reset_index()
-    index_col = "wb_id" if "wb_id" in gs_list.columns else "gs_id"
+    # TODO: Add validation that we passed a valid region_list
+    gs: Region
+    index_col = _infer_id_col(region_list, id_col)
+    region_list = region_list.reset_index()
     relevant_cols = [index_col, "start", "end"]
-    for gs in gs_list[relevant_cols].itertuples(index=False):
+    for gs in region_list[relevant_cols].itertuples(index=False):
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
-        yield GaitSequence(*gs), data.iloc[gs.start : gs.end]
+        yield RegionDataTuple(Region(*gs, index_col), data.iloc[gs.start : gs.end])
 
 
 @dataclass
@@ -105,11 +155,18 @@ class FullPipelinePerGsResult:
     gait_speed: pd.DataFrame
 
 
+def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
+    iter_index_name = [region.id_origin]
+    if parent_region is not None:
+        iter_index_name = [parent_region.id_origin, *iter_index_name]
+    return iter_index_name
+
+
 def create_aggregate_df(
     result_name: str,
-    fix_gs_offset_cols: Sequence[str] = ("start", "end"),
+    fix_offset_cols: Sequence[str] = ("start", "end"),
     *,
-    fix_gs_offset_index: bool = False,
+    fix_offset_index: bool = False,
     _null_value: _NotSet = BaseTypedIterator.NULL_VALUE,
 ) -> Callable[[list["GsIterator.IteratorResult[Any]"]], T][pd.DataFrame]:
     """Create an aggregator for the GS iterator that aggregates dataframe results into a single dataframe.
@@ -121,11 +178,11 @@ def create_aggregate_df(
     ----------
     result_name
         The name of the result key within the result object, the aggregation is applied to
-    fix_gs_offset_cols
+    fix_offset_cols
         The columns that should be adapted to be relative to the start of the recording.
         By default, this is ``("start", "end")``.
         If you don't want to fix any columns, you can set this to an empty list.
-    fix_gs_offset_index
+    fix_offset_index
         If True, the index of the dataframes will be adapted to be relative to the start of the recording.
         This only makes sense, if the index represents sample values relative to the start of the gs.
     _null_value
@@ -150,43 +207,44 @@ def create_aggregate_df(
             return pd.DataFrame()
 
         # We assume that all elements have the same iteration context.
-        iter_index_name = non_null_results[0].iteration_context.get("id_col_name", "gs_id")
-        iter_index_name = [iter_index_name] if not isinstance(iter_index_name, list) else iter_index_name
+        first_element = non_null_results[0]
+        iter_index_name = _build_id_cols(
+            first_element.input.region, first_element.iteration_context.get("parent_region", None)
+        )
 
         to_concat = {}
         for rt in non_null_results:
             df = rt.result
-            gs_id = rt.input[0].id
-            offset = rt.input[0].start
+            region_id, offset, *_ = rt.input.region
 
-            parent_gs: Optional[GaitSequence] = rt.iteration_context.get("parent_gs", None)
+            parent_region: Optional[Region] = rt.iteration_context.get("parent_region", None)
 
             # We write the error cases first
             if rt.iteration_name not in ["__sub_iter__", "__main__"]:
                 raise RuntimeError("Unexpected iteration type")
-            if parent_gs and rt.iteration_name == "__main__":
-                raise RuntimeError("Main iteration with parent GS should not exist.")
-            if not parent_gs and rt.iteration_name == "__sub_iter__":
-                raise RuntimeError("Sub-iteration without parent GS.")
+            if parent_region and rt.iteration_name == "__main__":
+                raise RuntimeError("Main iteration with parent region should not exist.")
+            if not parent_region and rt.iteration_name == "__sub_iter__":
+                raise RuntimeError("Sub-iteration without parent region.")
 
-            if parent_gs:
-                offset += parent_gs.start
-                gs_id = (parent_gs.id, gs_id)
+            if parent_region:
+                offset += parent_region.start
+                region_id = (parent_region.id, region_id)
 
             df = df.copy()
-            if fix_gs_offset_cols:
-                cols_to_fix = set(fix_gs_offset_cols).intersection(df.columns)
+            if fix_offset_cols:
+                cols_to_fix = set(fix_offset_cols).intersection(df.columns)
                 df[list(cols_to_fix)] += offset
-            if fix_gs_offset_index:
+            if fix_offset_index:
                 df.index += offset
-            to_concat[gs_id] = df
+            to_concat[region_id] = df
 
         return pd.concat(to_concat, names=[*iter_index_name, *next(iter(to_concat.values())).index.names])
 
     return aggregate_df
 
 
-class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
+class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[DataclassT]):
     """Iterator to split data into gait-sequences and iterate over them individually.
 
     This can be used to easily iterate over gait-sequences and apply algorithms to them, and then collect the results
@@ -268,7 +326,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
     """
 
     # This is required to correctly interfere the new bound type
-    IteratorResult: TypeAlias = TypedIteratorResultTuple[InputType, DataclassT]
+    IteratorResult: TypeAlias = TypedIteratorResultTuple[RegionDataTuple, DataclassT]
 
     class PredefinedParameters:
         """Predefined parameters for the gait-sequence iterator.
@@ -290,7 +348,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
             "aggregations": cf(
                 [
                     ("ic_list", create_aggregate_df("ic_list", ["ic"])),
-                    ("cad_per_sec", create_aggregate_df("cad_per_sec", [], fix_gs_offset_index=True)),
+                    ("cad_per_sec", create_aggregate_df("cad_per_sec", [], fix_offset_index=True)),
                     ("stride_length", create_aggregate_df("stride_length")),
                     ("gait_speed", create_aggregate_df("gait_speed")),
                 ]
@@ -320,7 +378,7 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         >>> my_aggregation = [
         ...     (
         ...         "my_result",
-        ...         GsIterator.DefaultAggregators.create_aggregate_df("my_result", fix_gs_offset_cols=["my_col"]),
+        ...         GsIterator.DefaultAggregators.create_aggregate_df("my_result", fix_offset_cols=["my_col"]),
         ...     )
         ... ]
         >>> iterator = GsIterator(aggregations=my_aggregation)
@@ -354,57 +412,59 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         super().__init__(data_type, aggregations)
 
     def iterate(
-        self, data: pd.DataFrame, gs_list: pd.DataFrame
-    ) -> Iterator[tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]]:
+        self, data: pd.DataFrame, region_list: pd.DataFrame
+    ) -> Iterator[tuple[tuple[Region, pd.DataFrame], DataclassT]]:
         """Iterate over the gait sequences one by one.
 
         Parameters
         ----------
         data
             The data to iterate over.
-        gs_list
+        region_list
             The list of gait-sequences.
             The "start" and "end" columns are expected to match the units of the data index.
 
         Yields
         ------
-        gs_data : tuple[str, pd.DataFrame]
+        region_data : tuple[Region, pd.DataFrame]
             The data per gait-sequence.
-            This is a tuple where the first element is the gait-sequence-id (i.e. the index from the gs-dataframe)
-            and the second element is the data cut from the data dataframe.
+            This is a tuple where the first element is a ``Region`` object that contains the relevant information
+            about the current GS/WB/region and the second element is the data cut from the data dataframe.
         result_object
             The empty result object (instance of the provided Dataclass) that should be filled with the results during
             iteration.
 
         """
-        context = {"id_col_name": "wb_id" if "wb_id" in gs_list.index.names else "gs_id"}
-        yield from self._iterate(iter_gs(data, gs_list), iteration_context=context)
+        yield from self._iterate(iter_gs(data, region_list))
 
     def iterate_subregions(
-        self, sub_gs_list: pd.DataFrame
-    ) -> Iterator[tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]]:
+        self, sub_region_list: pd.DataFrame
+    ) -> Iterator[tuple[tuple[Region, pd.DataFrame], DataclassT]]:
         """Iterate subregions within the current gait sequence.
 
         This can be called within the for-loop created by the main iteration to trigger the iteration over subregions.
         The provided subregions are expected to be relative to the current gait-sequence.
-        Working with subregions, can be a little tricky and we recommend you read through the respective pipeline
+        Working with subregions, can be a little tricky, and we recommend you read through the respective pipeline
         examples to avoid foot-guns.
 
-        .. note:: If you only have a single GS in your ``sub_gs_list`` you can also use the ``with_subregion`` method
-                  and avoid creating a nested for-loop.
+        .. note:: If you only have a single GS in your ``sub_region_list`` you can also use the ``with_subregion``
+                  method and avoid creating a nested for-loop.
 
         Parameters
         ----------
-        sub_gs_list
-            The list of subregions within the current gait-sequence.
+        sub_region_list
+            The list of subregions within the current region.
             The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
 
         Returns
         -------
-        iterator
-            An iterator over the nested gait sequences.
-            This has the same shape as the parent iterator and reuses the data internally.
-            Make sure that you don't overwrite the parent result object when consuming the iterator.
+        region_data : tuple[Region, pd.DataFrame]
+            The data per gait-sequence.
+            This is a tuple where the first element is a ``Region`` object that contains the relevant information
+            about the current GS/WB/region and the second element is the data cut from the data dataframe.
+        result_object
+            The empty result object (instance of the provided Dataclass) that should be filled with the results during
+            iteration.
 
         """
         # We only allow sub iterations, when there are no other subiterations running.
@@ -414,22 +474,21 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
             raise ValueError("Sub-iterations are not allowed within sub-iterations.")
 
         current_result = self._raw_results[-1]
-        current_gs, current_data = current_result.input
-        id_col_names = [current_result.iteration_context["id_col_name"], "sub_gs_id"]
+        current_region, current_data = current_result.input
         yield from self._iterate(
-            iter_gs(current_data, sub_gs_list),
+            iter_gs(current_data, sub_region_list),
             iteration_name="__sub_iter__",
-            iteration_context={"id_col_name": id_col_names, "parent_gs": current_gs},
+            iteration_context={"parent_region": current_region},
         )
 
-    def with_subregion(self, sub_gs_list: pd.DataFrame) -> tuple[tuple[GaitSequence, pd.DataFrame], DataclassT]:
+    def with_subregion(self, sub_region_list: pd.DataFrame) -> tuple[tuple[Region, pd.DataFrame], DataclassT]:
         """Get a subregion of the current gait sequence.
 
         For details see ``iterate_subregions``.
 
         Parameters
         ----------
-        sub_gs_list
+        sub_region_list
             The list of subregions within the current gait-sequence.
             The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
             For the ``with_subregions`` method this must be just a single GS.
@@ -448,10 +507,10 @@ class GsIterator(BaseTypedIterator[InputType, DataclassT], Generic[DataclassT]):
         it.
 
         """
-        if len(sub_gs_list) != 1:
+        if len(sub_region_list) != 1:
             raise ValueError(
                 "``with_subregions`` can only be used with single-subregions. "
-                "However, the passed ``gs_list`` has 0 or more than one GSs. "
+                "However, the passed ``region_list`` has 0 or more than one GSs. "
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
-        return list(self.iterate_subregions(sub_gs_list))[0]  # noqa: RUF015
+        return list(self.iterate_subregions(sub_region_list))[0]  # noqa: RUF015

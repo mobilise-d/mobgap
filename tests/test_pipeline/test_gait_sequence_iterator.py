@@ -6,7 +6,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from mobgap.pipeline import GsIterator, create_aggregate_df, iter_gs
-from mobgap.pipeline._gs_iterator import GaitSequence
+from mobgap.pipeline._gs_iterator import Region, RegionDataTuple
 from mobgap.pipeline._overwrite_typed_iterator import TypedIteratorResultTuple
 
 
@@ -18,15 +18,16 @@ class TestGsIterationFunc:
         iterator = iter_gs(dummy_data, dummy_sections)
 
         first = next(iterator)
-        assert first[0] == ("s1", 0, 5)
+        assert first[0][:3] == ("s1", 0, 5)
         assert_frame_equal(first[1], pd.DataFrame({"data": [1, 2, 3, 4, 5]}, index=[0, 1, 2, 3, 4]))
 
         second = next(iterator)
-        assert second[0] == ("s2", 5, 10)
+        assert second[0][:3] == ("s2", 5, 10)
         assert_frame_equal(second[1], pd.DataFrame({"data": [6, 7, 8, 9, 10]}, index=[5, 6, 7, 8, 9]))
 
-    @pytest.mark.parametrize("col_name", ["wb_id", "gs_id"])
-    @pytest.mark.parametrize("as_index", [True, False])
+    @pytest.mark.parametrize(
+        "col_name, as_index", [("wb_id", True), ("wb_id", False), ("gs_id", True), ("gs_id", False), ("bla", True)]
+    )
     def test_correct_dtype(self, col_name, as_index):
         dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
         dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], col_name: ["s1", "s2"]})
@@ -36,8 +37,24 @@ class TestGsIterationFunc:
         iterator = iter_gs(dummy_data, dummy_sections)
 
         first = next(iterator)[0]
-        assert isinstance(first, GaitSequence)
+        assert isinstance(first, Region)
         assert first.id == "s1"
+        assert first.id_origin == col_name
+
+    def test_custom_id_col(self):
+        custom_name = "custom_id"
+        dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], custom_name: ["s1", "s2"]})
+
+        # Just as dummy, check that this would fail without specifying the custom id column
+        with pytest.raises(ValueError):
+            list(iter_gs(dummy_data, dummy_sections))
+
+        iterator = iter_gs(dummy_data, dummy_sections, id_col=custom_name)
+
+        first = next(iterator)[0]
+        assert first.id == "s1"
+        assert first.id_origin == custom_name
 
 
 class TestGsIterator:
@@ -67,7 +84,7 @@ class TestGsIterator:
         assert iterator.results_.s_id == ["s1", "s2"]
 
         inputs, input_dfs = zip(*(v.input for v in iterator.raw_results_))
-        assert inputs == (("s1", 0, 5), ("s2", 5, 10))
+        assert inputs == (("s1", 0, 5, "gs_id"), ("s2", 5, 10, "gs_id"))
         assert_frame_equal(input_dfs[0], pd.DataFrame({"data": [1, 2, 3, 4, 5]}, index=[0, 1, 2, 3, 4]))
         assert_frame_equal(
             input_dfs[1],
@@ -121,25 +138,25 @@ class TestAggregateDf:
     """Some isolated tests for the create_aggregate_df function."""
 
     @pytest.mark.parametrize("fix_cols", [[], ["start", "end"], ["start"]])
-    @pytest.mark.parametrize("id_col_name", (None, "bla"))
-    def test_basic_aggregation(self, fix_cols, id_col_name):
-        aggregate_df = create_aggregate_df("test", fix_gs_offset_cols=fix_cols)
+    def test_basic_aggregation(self, fix_cols):
+        aggregate_df = create_aggregate_df("test", fix_offset_cols=fix_cols)
 
         example_sequences = pd.DataFrame({"start": [0, 5], "end": [5, 10]}, index=["s1", "s2"]).rename_axis(index="id")
-        example_inputs = [(s, pd.DataFrame()) for s in example_sequences.reset_index().itertuples(index=False)]
+        example_inputs = [
+            RegionDataTuple(Region(*s, "gs_id"), pd.DataFrame())
+            for s in example_sequences.reset_index().itertuples(index=False)
+        ]
 
         @dataclass
         class DummyResultType:
             test: Any
 
-        context = {"id_col_name": id_col_name} if id_col_name else {}
-
         example_results = [
             TypedIteratorResultTuple(
-                "__main__", example_inputs[0], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), context
+                "__main__", example_inputs[0], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), {}
             ),
             TypedIteratorResultTuple(
-                "__main__", example_inputs[1], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), context
+                "__main__", example_inputs[1], DummyResultType(pd.DataFrame({"start": [1, 3], "end": [3, 5]})), {}
             ),
         ]
 
@@ -148,20 +165,21 @@ class TestAggregateDf:
         expected_start = [1, 3, 6, 8] if "start" in fix_cols else [1, 3, 1, 3]
         expected_end = [3, 5, 8, 10] if "end" in fix_cols else [3, 5, 3, 5]
 
-        real_id_col_name = id_col_name or "gs_id"
-
         assert_frame_equal(
             aggregated,
             pd.DataFrame(
                 {"start": expected_start, "end": expected_end},
-                index=pd.MultiIndex.from_product((example_sequences.index, [0, 1]), names=[real_id_col_name, None]),
+                index=pd.MultiIndex.from_product((example_sequences.index, [0, 1]), names=["gs_id", None]),
             ),
         )
 
     @pytest.mark.parametrize("fix_index_offset", [True, False])
     def test_index_offset(self, fix_index_offset):
         example_sequences = pd.DataFrame({"start": [1, 5], "end": [5, 10]}, index=["s1", "s2"]).rename_axis(index="id")
-        example_inputs = [(s, pd.DataFrame()) for s in example_sequences.reset_index().itertuples(index=False)]
+        example_inputs = [
+            RegionDataTuple(Region(*s, "gs_id"), pd.DataFrame())
+            for s in example_sequences.reset_index().itertuples(index=False)
+        ]
 
         @dataclass
         class DummyResultType:
@@ -176,7 +194,7 @@ class TestAggregateDf:
             ),
         ]
 
-        aggregate_df = create_aggregate_df("test", fix_gs_offset_index=fix_index_offset)
+        aggregate_df = create_aggregate_df("test", fix_offset_index=fix_index_offset)
         aggregated = aggregate_df(example_results)
 
         if fix_index_offset:

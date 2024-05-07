@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The ``iter_gs`` method now has a new argument ``id_col_name`` to specify the column of the gs_list that should be 
+  used to infer the id of the returned regions.
+  This allows the use with other region lists besides gs/wb lists.
+
 ### Removed
 
 - The Gait Sequence iterator does not allow for dynamic attribute access anymore.
