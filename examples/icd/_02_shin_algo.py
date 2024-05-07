@@ -10,7 +10,6 @@ matlab implementation.
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from mobgap.cad import CadFromIc
 from mobgap.data import LabExampleDataset
 from mobgap.icd import IcdShinImproved
 
@@ -37,36 +36,14 @@ reference_wbs
 # ----------------------
 # Below we apply the shin algorithm to a lab trial.
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
-from mobgap.icd import refine_gs
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    icd = IcdShinImproved()
-    icd.detect(data, sampling_rate_hz=sampling_rate_hz)
-    result.ic_list = icd.ic_list_
-    refined_gs_list, refined_ic_list = refine_gs(result.ic_list)
-
-    (refined_gs, refined_data), refined_result = iterator.with_subregion(refined_gs_list)
-    refined_result.cad_per_sec = (
-        CadFromIc()
-        .calculate(refined_data, refined_ic_list.loc[refined_gs.id], sampling_rate_hz=sampling_rate_hz)
-        .cad_per_sec_
-    )
-
-    # for rgs_id, (refined_gs, refined_data), refined_result in iterator.iterate_subregions(refined_gs_list):
-    #     refined_result.cad_per_sec = (
-    #         CadFromIc()
-    #         .calculate(refined_data, refined_ic_list.loc[rgs_id], sampling_rate_hz=sampling_rate_hz)
-    #         .cad_per_sec_
-    #     )
-
-    result.gait_speed = pd.DataFrame()
-
+    result.ic_list = IcdShinImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
 detected_ics = iterator.results_.ic_list
-
 detected_ics
 # %%
 # Matlab Outputs
