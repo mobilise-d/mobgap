@@ -12,7 +12,8 @@ You can skip them for now and jump directly to "Performance on a single lab tria
 apply the algorithm.
 """
 
-# Plotting Helper
+# TODO: generate matlab output then uncomment below
+'''# Plotting Helper
 # ---------------
 # We define a helper function to plot the results of the algorithm.
 # Just ignore this function for now.
@@ -137,10 +138,11 @@ fig.show()
 # Evaluation of the algorithm against a reference
 # --------------------------------------------------
 # To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
-# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.
+# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.'''
 
 
-"""from mobgap.data import LabExampleDataset
+# TODO: Once matlab output is generated, remove below
+from mobgap.data import LabExampleDataset
 from mobgap.gsd import GsdParaschivIonescu
 
 # Load data
@@ -157,4 +159,4 @@ fs = long_trial.sampling_rate_hz
 # Run GSD_LowBackAcc
 gsd_output = GsdParaschivIonescu().detect(imu_data, sampling_rate_hz=fs).gs_list_
 
-print(gsd_output)"""
+print(gsd_output)

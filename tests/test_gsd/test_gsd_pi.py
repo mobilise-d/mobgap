@@ -74,14 +74,8 @@ class TestGsdParaschivIonescu:
 class TestGsdParaschivIonescuRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
-        print(datapoint)
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        print(data)
-        print(sampling_rate_hz)
-
         gs_list = GsdParaschivIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
-        print(gs_list)
-        print(datapoint.group_label)
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))
