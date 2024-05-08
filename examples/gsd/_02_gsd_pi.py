@@ -13,7 +13,7 @@ apply the algorithm.
 """
 
 # TODO: generate matlab output then uncomment below
-'''# Plotting Helper
+"""# Plotting Helper
 # ---------------
 # We define a helper function to plot the results of the algorithm.
 # Just ignore this function for now.
@@ -138,7 +138,7 @@ fig.show()
 # Evaluation of the algorithm against a reference
 # --------------------------------------------------
 # To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
-# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.'''
+# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details."""
 
 
 # TODO: Once matlab output is generated, remove below
