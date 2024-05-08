@@ -266,7 +266,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         combined_final = np.clip(combined_final, 0, len(acc))
 
         # Compile the df
-        self.gs_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype(int)
+        self.gs_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype("int64")
 
         return self
 
