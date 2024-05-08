@@ -336,8 +336,7 @@ def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.nd
             noise = np.mean(window)
         elif noise_buff.any():
             noise = np.mean(noise_buff)
-        else:
-            raise ValueError("Error in threshold update")
+        # NOTE: no else case in the original implementation
 
         noise_buff[i] = noise
 
