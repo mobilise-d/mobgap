@@ -19,14 +19,8 @@ from mobgap.data_transform import (
 )
 from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 
-# TODO: Add tests (Metatests, some basic tests to trigger most of the error cases, some regression tests on the real
-#       world data, some simple tests on artificial data (e.g. no GS detected if just 0 input)
 # TODO: Potentially rework find_pulse_trains
-# TODO: Complete narrative example including comparison with original Matlab and Ground Truth. See GSD-A example
 # TODO: Add version without hilbert transform
-
-
-# test
 
 
 @base_gsd_docfiller
