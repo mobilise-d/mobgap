@@ -178,7 +178,7 @@ class PartialMobilisedMetadata(TypedDict):
     """
 
     start_date_time_iso: str
-    time_zone: str
+    time_zone: Optional[str]
     sampling_rate_hz: Optional[float]
     reference_sampling_rate_hz: Optional[float]
 
@@ -405,6 +405,7 @@ def _load_test_data_without_checks(
             reference_system=reference_system,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
+            path=path,
         )
         available_data_per_test[test_name] = MobilisedAvailableData(
             available_sensors=_extract_available_sensor_pos_(test_data),
@@ -447,6 +448,7 @@ def _process_test_data(  # noqa: C901, PLR0912
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
+    path: PathLike,
 ) -> MobilisedTestData:
     # Note, this function ignores all missing sensor loadings, as we expect the caller to handle this.
     meta_data = {}
@@ -454,12 +456,16 @@ def _process_test_data(  # noqa: C901, PLR0912
     try:
         meta_data["start_date_time_iso"] = test_data.StartDateTime
     except AttributeError as e:
-        raise ValueError(f"Start time information is missing from the data file for test {test_name}.") from e
+        # TODO: Make this handling conditional, so that you have to specify, if you assume a start time or not.
+        meta_data["start_date_time_iso"] = None
+        # raise ValueError(f"Start time information is missing from the data file for test {test_name} in {path}.") from e
 
     try:
         meta_data["time_zone"] = test_data.TimeZone
-    except AttributeError as e:
-        raise ValueError(f"Time zone information is missing from the data file for test {test_name}.") from e
+    except AttributeError:
+        # TODO: Make this handling conditional, so that you have to specify, if you assume a time zone or not.
+        meta_data["time_zone"] = None
+        # raise ValueError(f"Time zone information is missing from the data file for test {test_name} in {path}.") from e
 
     if raw_data_sensor:
         all_sensor_data = getattr(test_data, raw_data_sensor, {})
@@ -511,11 +517,18 @@ def _process_test_data(  # noqa: C901, PLR0912
         reference_data = {}
         try:
             reference_data["lwb"] = _parse_reference_parameters(reference_data_mat.MicroWB)
+        except AttributeError as e:
+            raise ValueError(
+                f"Reference data using the reference system {reference_system} for test {test_name} in {path} is "
+                "missing results for LWBs/MicroWBs or parsing of the respective data failed."
+            ) from e
+
+        try:
             reference_data["wb"] = _parse_reference_parameters(reference_data_mat.ContinuousWalkingPeriod)
         except AttributeError as e:
             raise ValueError(
-                f"Reference data using the reference system {reference_system} for test {test_name} is missing results "
-                "for either LWBs/MicroWBs or WBs/ContinuousWalkingPeriods or parsing of the respective data failed."
+                f"Reference data using the reference system {reference_system} for test {test_name} in {path} is "
+                "missing results for WBs/ContinuousWalkingPeriods or parsing of the respective data failed."
             ) from e
     else:
         reference_data = None
