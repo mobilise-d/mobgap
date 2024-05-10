@@ -8,7 +8,7 @@ from typing import (
     NamedTuple,
     Optional,
     TypeVar,
-    overload, NoReturn,
+    overload,
 )
 
 import pandas as pd
@@ -160,6 +160,7 @@ def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]
     if parent_region is not None:
         iter_index_name = [parent_region.id_origin, *iter_index_name]
     return iter_index_name
+
 
 def _validate_iter_type(iter_type: str, parent_region: Optional[Region]) -> None:
     if iter_type not in ["__sub_iter__", "__main__"]:

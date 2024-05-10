@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace, asdict
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 import pandas as pd
