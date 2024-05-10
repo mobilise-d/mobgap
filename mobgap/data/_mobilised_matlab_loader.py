@@ -17,6 +17,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from pandas._libs.missing import NAType
 from tpcp.caching import hybrid_cache
 
 from mobgap._docutils import make_filldoc
@@ -536,7 +537,7 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
-def _empty_list_to_nan(value: list) -> Union[list, pd.NA]:
+def _empty_list_to_nan(value: list) -> Union[list, NAType]:
     if not value:
         return pd.NA
     return value
