@@ -30,4 +30,7 @@ __all__ = [
     "LabExampleDataset",
     "BaseGenericMobilisedDataset",
     "matlab_dataset_docfiller",
+    "MsProjectDataset",
 ]
+
+from mobgap.data._ms_project import MsProjectDataset
