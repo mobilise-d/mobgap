@@ -1,0 +1,2 @@
+# Declare test data files that will always have LF line endings on checkout (even on Windows).
+example_data/** text eol=lf

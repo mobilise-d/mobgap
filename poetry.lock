@@ -1526,12 +1526,14 @@ poetry-plugin = ["poetry (>=1.0,<2.0)"]
 
 [[package]]
 name = "pooch"
-version = "0.0.post279+gfcdd6ae"
-description = "A friend to fetch your data files"
+version = "1.8.1"
+description = "\"Pooch manages your Python library's sample data files: it automatically downloads and stores them in a local directory, with support for versioning and corruption checks.\""
 optional = false
 python-versions = ">=3.7"
-files = []
-develop = false
+files = [
+    {file = "pooch-1.8.1-py3-none-any.whl", hash = "sha256:6b56611ac320c239faece1ac51a60b25796792599ce5c0b1bb87bf01df55e0a9"},
+    {file = "pooch-1.8.1.tar.gz", hash = "sha256:27ef63097dd9a6e4f9d2694f5cfbf2f0a5defa44fccafec08d601e731d746270"},
+]
 
 [package.dependencies]
 packaging = ">=20.0"
@@ -1542,12 +1544,6 @@ requests = ">=2.19.0"
 progress = ["tqdm (>=4.41.0,<5.0.0)"]
 sftp = ["paramiko (>=2.7.0)"]
 xxhash = ["xxhash (>=1.4.3)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/AKuederle/pooch"
-reference = "HEAD"
-resolved_reference = "fcdd6ae603fc50518ff483568429773f9f316f16"
 
 [[package]]
 name = "prompt-toolkit"
@@ -2498,4 +2494,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "c0a7425c355609c32375f1a341a15f956e9940d90698e801aa75fe42c4f46b56"
+content-hash = "e210d0cf4aa554af01dda722cee8586689bdc80f81a32824c20d39194a99d56a"
