@@ -5,7 +5,7 @@ from typing import Literal, Optional, Union
 import joblib
 import pandas as pd
 
-from mobgap.data import BaseGenericMobilisedDataset
+from mobgap.data._mobilised_matlab_loader import BaseGenericMobilisedDataset, GenericMobilisedDataset
 
 
 class MsProjectDataset(BaseGenericMobilisedDataset):
@@ -40,11 +40,7 @@ class MsProjectDataset(BaseGenericMobilisedDataset):
             subset_index=subset_index,
         )
 
-    @property
-    def _test_level_names(self) -> tuple[str, ...]:
-        # TODO: Figure out how this works for MS Project
-        return
-        # return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
+    _test_level_names = GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
 
     @property
     def _paths_list(self) -> list[Path]:
