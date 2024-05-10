@@ -11,7 +11,7 @@ from mobgap.data import BaseGenericMobilisedDataset
 class MsProjectDataset(BaseGenericMobilisedDataset):
     def __init__(
         self,
-        base_path: Union[str, Path],
+        base_path: Union[Path, str],
         *,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
@@ -19,7 +19,8 @@ class MsProjectDataset(BaseGenericMobilisedDataset):
         sensor_positions: Sequence[str] = ("LowerBack",),
         single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"] = "skip",
+        missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"] = "ignore",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -33,6 +34,7 @@ class MsProjectDataset(BaseGenericMobilisedDataset):
             single_sensor_position=single_sensor_position,
             sensor_types=sensor_types,
             missing_sensor_error_type=missing_sensor_error_type,
+            missing_reference_error_type=missing_reference_error_type,
             memory=memory,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
