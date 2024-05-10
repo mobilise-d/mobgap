@@ -17,6 +17,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from pandas._libs.missing import NAType
 from tpcp.caching import hybrid_cache
 from tqdm.auto import tqdm
 
@@ -400,12 +401,10 @@ def _load_test_data_without_checks(
     for test_name, test_data in data_per_test:
         data_per_test_parsed[test_name] = _process_test_data(
             test_data,
-            test_name,
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
-            path=path,
         )
         available_data_per_test[test_name] = MobilisedAvailableData(
             available_sensors=_extract_available_sensor_pos_(test_data),
@@ -442,30 +441,30 @@ def _parse_until_test_level(
 
 def _process_test_data(  # noqa: C901, PLR0912
     test_data: sio.matlab.mat_struct,
-    test_name: tuple[str, ...],
     *,
     raw_data_sensor: Optional[str],
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
-    path: PathLike,
 ) -> MobilisedTestData:
     # Note, this function ignores all missing sensor loadings, as we expect the caller to handle this.
     meta_data = {}
 
     try:
         meta_data["start_date_time_iso"] = test_data.StartDateTime
-    except AttributeError as e:
+    except AttributeError:
         # TODO: Make this handling conditional, so that you have to specify, if you assume a start time or not.
         meta_data["start_date_time_iso"] = None
-        # raise ValueError(f"Start time information is missing from the data file for test {test_name} in {path}.") from e
+        # raise ValueError(f"Start time information is missing from the data file for test {test_name} in {path}.")
+        # from e
 
     try:
         meta_data["time_zone"] = test_data.TimeZone
     except AttributeError:
         # TODO: Make this handling conditional, so that you have to specify, if you assume a time zone or not.
         meta_data["time_zone"] = None
-        # raise ValueError(f"Time zone information is missing from the data file for test {test_name} in {path}.") from e
+        # raise ValueError(f"Time zone information is missing from the data file for test {test_name} in {path}.")
+        # from e
 
     if raw_data_sensor:
         all_sensor_data = getattr(test_data, raw_data_sensor, {})
@@ -515,21 +514,10 @@ def _process_test_data(  # noqa: C901, PLR0912
         # TODO: I don't know, if any newer data files actually use the new naming.
         #       We just check for the old names and rename them to the new ones.
         reference_data = {}
-        try:
-            reference_data["lwb"] = _parse_reference_parameters(reference_data_mat.MicroWB)
-        except AttributeError as e:
-            raise ValueError(
-                f"Reference data using the reference system {reference_system} for test {test_name} in {path} is "
-                "missing results for LWBs/MicroWBs or parsing of the respective data failed."
-            ) from e
-
-        try:
-            reference_data["wb"] = _parse_reference_parameters(reference_data_mat.ContinuousWalkingPeriod)
-        except AttributeError as e:
-            raise ValueError(
-                f"Reference data using the reference system {reference_system} for test {test_name} in {path} is "
-                "missing results for WBs/ContinuousWalkingPeriods or parsing of the respective data failed."
-            ) from e
+        for name, new_name in [("MicroWB", "lwb"), ("ContinuousWalkingPeriod", "wb")]:
+            if not hasattr(reference_data_mat, name):
+                continue
+            reference_data[new_name] = _parse_reference_parameters(getattr(reference_data_mat, name))
     else:
         reference_data = None
         meta_data["reference_sampling_rate_hz"] = None
@@ -631,12 +619,19 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
+def _empty_list_to_nan(value: list) -> Union[list, NAType]:
+    if not value:
+        return pd.NA
+    return value
+
+
 def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
     *,
     ref_sampling_rate_hz: float,
     data_sampling_rate_hz: float,
     relative_to_wb: bool = False,
+    not_expected_fields: Optional[Sequence[str]] = None,
 ) -> ReferenceData:
     """Parse the reference data (stored per WB) into the per recording data structures used in mobgap.
 
@@ -676,6 +671,12 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         Whether to convert all values to be relative to the start of each individual WB.
         This will of course not affect the WB start and end values, but all other values (events, strides, ...) will be
         converted.
+    not_expected_fields
+        A list of fields that are not expected in the reference data.
+        This can be used to skip the parsing of certain fields.
+        This is useful, if the reference data is incomplete and certain fields are not available.
+        The names of the fields are equivalent to the keys in the ``ReferenceData`` object.
+
 
     Returns
     -------
@@ -748,13 +749,15 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     def _unify_stride_df(df: pd.DataFrame) -> pd.DataFrame:
         return df.astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
 
+    expect_none = {k: None for k in not_expected_fields} if not_expected_fields else {}
+
     if len(ref_data) == 0:
         return ReferenceData(
             _unify_wb_df(pd.DataFrame(columns=list(wb_df_dtypes.keys()))),
             _unify_ic_df(pd.DataFrame(columns=list(ic_df_dtypes.keys()))),
             _unify_turn_df(pd.DataFrame(columns=list(turn_df_dtypes.keys()))),
             _unify_stride_df(pd.DataFrame(columns=list(stride_df_dtypes.keys()))),
-        )
+        )._replace(**expect_none)
 
     for wb_id, wb in enumerate(ref_data):
         walking_bouts.append(
@@ -768,11 +771,11 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 "avg_walking_speed_mps": wb["WalkingSpeed"],
                 "avg_cadence_spm": wb["Cadence"],
                 "avg_stride_length_m": wb["AverageStrideLength"],
-                "termination_reason": wb["TerminationReason"],
+                "termination_reason": wb.get("TerminationReason", "Not Specified"),
             }
         )
 
-        if "InitialContact_Event" in wb:
+        if "initial_contacts" not in expect_none:
             ic_vals = _ensure_is_list(wb["InitialContact_Event"])
             ics.append(
                 pd.DataFrame.from_dict(
@@ -784,7 +787,9 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                     }
                 )
             )
-        if "Turn_Start" in wb:
+        else:
+            ics.append(pd.DataFrame(columns=list(set(ic_df_dtypes.keys()) - {"step_id"})))
+        if "turn_parameters" not in expect_none:
             turn_starts = _ensure_is_list(wb["Turn_Start"])
             turn_paras.append(
                 pd.DataFrame.from_dict(
@@ -798,7 +803,10 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                     }
                 )
             )
-        if "Stride_InitialContacts" in wb:
+        else:
+            turn_paras.append(pd.DataFrame(columns=list(set(turn_df_dtypes.keys()) - {"turn_id"})))
+
+        if "stride_parameters" not in expect_none:
             starts, ends = zip(*_ensure_is_list(wb["Stride_InitialContacts"]))
             stride_paras.append(
                 pd.DataFrame.from_dict(
@@ -809,14 +817,16 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                         "end": ends,
                         # For some reason, the matlab files contains empty arrays to signal a "missing" value in the
                         # data columns for the Stereo-photo system. We replace them with NaN using `to_numeric`.
-                        "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
-                        "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
-                        "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),
-                        "stance_time_s": pd.to_numeric(_ensure_is_list(wb["Stance_Duration"])),
-                        "swing_time_s": pd.to_numeric(_ensure_is_list(wb["Swing_Duration"])),
+                        "duration_s": pd.to_numeric(_empty_list_to_nan(_ensure_is_list(wb["Stride_Duration"]))),
+                        "length_m": pd.to_numeric(_empty_list_to_nan(_ensure_is_list(wb["Stride_Length"]))),
+                        "speed_mps": pd.to_numeric(_empty_list_to_nan(_ensure_is_list(wb["Stride_Speed"]))),
+                        "stance_time_s": pd.to_numeric(_empty_list_to_nan(_ensure_is_list(wb["Stance_Duration"]))),
+                        "swing_time_s": pd.to_numeric(_empty_list_to_nan(_ensure_is_list(wb["Swing_Duration"]))),
                     }
                 )
             )
+        else:
+            stride_paras.append(pd.DataFrame(columns=list(set(stride_df_dtypes.keys()) - {"s_id"})))
 
     walking_bouts = pd.DataFrame.from_records(walking_bouts)
     # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
@@ -941,7 +951,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         turn_paras = _relative_to_gs(turn_paras, walking_bouts, "wb_id", columns_to_cut=["start", "end"])
         stride_paras = _relative_to_gs(stride_paras, walking_bouts, "wb_id", columns_to_cut=["start", "end"])
 
-    return ReferenceData(walking_bouts, ics, turn_paras, stride_paras)
+    return ReferenceData(walking_bouts, ics, turn_paras, stride_paras)._replace(**expect_none)
 
 
 def _relative_to_gs(
@@ -1016,6 +1026,8 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"]
     memory: joblib.Memory
 
+    _not_expected_per_ref_system: ClassVar[Optional[list[tuple[str, list[str]]]]] = None
+
     def __init__(
         self,
         *,
@@ -1074,6 +1086,11 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     def data_ss(self) -> pd.DataFrame:
         return self.data[self.single_sensor_position]
 
+    def _get_not_expected_for_ref_system(self, ref_system: Optional[str]) -> list[str]:
+        if not self._not_expected_per_ref_system:
+            return []
+        return dict(self._not_expected_per_ref_system).get(ref_system, [])
+
     @property
     def raw_reference_parameters_(self) -> MobilisedTestData.raw_reference_parameters:
         if self.reference_system is None:
@@ -1098,6 +1115,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             data_sampling_rate_hz=self.sampling_rate_hz,
             ref_sampling_rate_hz=self.reference_sampling_rate_hz_,
             relative_to_wb=False,
+            not_expected_fields=self._get_not_expected_for_ref_system(self.reference_system),
         )
 
     @property
@@ -1107,6 +1125,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             data_sampling_rate_hz=self.sampling_rate_hz,
             ref_sampling_rate_hz=self.reference_sampling_rate_hz_,
             relative_to_wb=True,
+            not_expected_fields=self._get_not_expected_for_ref_system(self.reference_system),
         )
 
     @property

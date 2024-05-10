@@ -1,8 +1,9 @@
 from mobgap.data import MsProjectDataset
-import matplotlib.pyplot as plt
 
-#new_dataset = MsProjectDataset(base_path="./").get_subset(test="Test11")
-new_dataset = MsProjectDataset(base_path="C:/Users/syrin/Documents/Studium/PhD/MS_Project/MsProject_data/Data", reference_system="SU_LowerShanks")
+# new_dataset = MsProjectDataset(base_path="./").get_subset(test="Test11")
+new_dataset = MsProjectDataset(
+    base_path="C:/Users/syrin/Documents/Studium/PhD/MS_Project/MsProject_data/Data", reference_system="SU_LowerShanks"
+)
 
 print(new_dataset)
 
@@ -19,5 +20,5 @@ single_datapoint = new_dataset[0]
 
 # %%
 # Note: this works
-single_datapoint.data_ss#[["gyr_x", "gyr_y", "gyr_z"]].plot(subplots=True)
+single_datapoint.data_ss  # [["gyr_x", "gyr_y", "gyr_z"]].plot(subplots=True)
 # plt.show()
