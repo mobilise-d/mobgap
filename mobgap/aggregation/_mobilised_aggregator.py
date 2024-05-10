@@ -149,7 +149,6 @@ class MobilisedAggregator(BaseAggregator):
         "walking_speed_mps",
         "stride_length_m",
         "cadence_spm",
-        "stride_duration_s",
     ]
 
     _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
