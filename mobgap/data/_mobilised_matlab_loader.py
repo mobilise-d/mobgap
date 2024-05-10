@@ -597,12 +597,6 @@ def _parse_matlab_struct(struct: sio.matlab.mat_struct) -> dict[str, Any]:
     return {k: getattr(struct, k) for k in struct._fieldnames}
 
 
-@lru_cache(maxsize=1)
-def cached_load_current(selected_file: PathLike, loader_function: Callable[[PathLike], T]) -> T:
-    # TODO: Check if we actually get a proper cache hit here and it really helps performance.
-    return loader_function(selected_file)
-
-
 def _ensure_is_list(value: Any) -> list:
     if isinstance(value, np.ndarray):
         value = value.tolist()
