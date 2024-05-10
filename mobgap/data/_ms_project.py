@@ -53,3 +53,6 @@ class MsProjectDataset(BaseGenericMobilisedDataset):
 
     def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
         return path.parents[1].name, path.parents[0].name
+
+
+ms_project = MsProjectDataset("/home/arne/Downloads/MsProject")
