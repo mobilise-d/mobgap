@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import ClassVar, Literal, Optional, Union
 
 import joblib
 import pandas as pd
@@ -9,6 +9,9 @@ from mobgap.data._mobilised_matlab_loader import BaseGenericMobilisedDataset, Ge
 
 
 class MsProjectDataset(BaseGenericMobilisedDataset):
+    _not_expected_per_ref_system: ClassVar = [("SU_LowerShanks", ["turn_parameters"])]
+    _test_level_names: ClassVar = GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
+
     def __init__(
         self,
         base_path: Union[Path, str],
@@ -40,8 +43,6 @@ class MsProjectDataset(BaseGenericMobilisedDataset):
             subset_index=subset_index,
         )
 
-    _test_level_names = GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
-
     @property
     def _paths_list(self) -> list[Path]:
         all_participants = sorted(Path(self.base_path).rglob("data.mat"))
@@ -53,6 +54,3 @@ class MsProjectDataset(BaseGenericMobilisedDataset):
 
     def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
         return path.parents[1].name, path.parents[0].name
-
-
-ms_project = MsProjectDataset("/home/arne/Downloads/MsProject")

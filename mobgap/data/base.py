@@ -1,6 +1,6 @@
 """Base classes for all fundamental dataset types."""
 
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Optional
 
 import pandas as pd
 from tpcp import Dataset
@@ -86,7 +86,7 @@ class ReferenceData(NamedTuple):
 
     wb_list: pd.DataFrame
     ic_list: pd.DataFrame
-    turn_parameters: pd.DataFrame
+    turn_parameters: Optional[pd.DataFrame]
     stride_parameters: pd.DataFrame
 
 
