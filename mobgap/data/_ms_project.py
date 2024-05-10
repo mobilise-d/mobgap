@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Optional, Union, ClassVar
+from typing import ClassVar, Literal, Optional, Union
 
 import joblib
 import pandas as pd
