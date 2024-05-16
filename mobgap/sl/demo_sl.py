@@ -24,7 +24,7 @@ reference_sl = single_test.reference_parameters_.stride_parameters['length_m'].l
 # segment signal of current gs
 start = reference_wbs['start']
 end = reference_wbs['end']
-duration = np.floor(end/sampling_rate_hz) - np.floor(start/sampling_rate_hz) # bottom-rounded duration (s)
+duration = int(np.floor(end/sampling_rate_hz) - np.floor(start/sampling_rate_hz)) # bottom-rounded duration (s)
 
 # [acc_x acc_y acc_z gyr_x gyr_y gyr_z]
 imu_data_gs = imu_data[start:end]
@@ -180,3 +180,4 @@ def stride2sec(ICtime, duration, stl):
     return stSec
 slSec_zjilstra_v3 = stride2sec(HStime.to_numpy(), duration, sl_zjilstra_v3)
 slmat = slSec_zjilstra_v3[0:duration]
+slmat

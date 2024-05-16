@@ -1,16 +1,19 @@
 import matplotlib.pyplot as plt
-import numpy as np
+import numpy as np #TODO: check that all packages are actually needed
 from hampel import hampel
 import pandas as pd
 from sklearn.decomposition import PCA
-from scipy.signal import butter, filtfilt, lfilter, medfilt
+from scipy.signal import butter, lfilter
+from typing import Any
+from typing_extensions import Self, Unpack
+
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
 from gaitmap.utils.rotations import rotate_dataset_series
 from mobgap.data import LabExampleDataset
-from mobgap.sl.base import BaseSlDetector, base_sl_docfiller
+from mobgap.sl.base import BaseSlCalculator, base_sl_docfiller
 
 @base_sl_docfiller
-class SlZijlstra(BaseSlDetector): # NOTE: Shouldn't it be called "Estimator" rather than "Detector"?
+class SlZijlstra(BaseSlCalculator):
     """Implementation of the sl algorithm by Zijlstra and Hof (2003) [1]_ modified by Soltani et al. (2021) [2]_.
 
     The algorithm includes the following steps starting from vertical acceleration
@@ -27,7 +30,9 @@ class SlZijlstra(BaseSlDetector): # NOTE: Shouldn't it be called "Estimator" rat
         StepLength = A * 2 * sqrt(2 * LBh * d_step - d_step^2)
         A: tuning coefficient, optimized by training for each population
         LBh: sensor height in meters, representative of the height of the center of mass
-    8. 
+    8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
+    9. Interpolation of StepLength values --> Length per second values
+    10. Remove length per second outliers during the gait sequence --> Hampel filter based on median absolute deviation
 
 
     This is based on the implementation published as part of the mobilised project [3]_.
@@ -36,10 +41,9 @@ class SlZijlstra(BaseSlDetector): # NOTE: Shouldn't it be called "Estimator" rat
 
     Parameters
     ----------
-    pre_filter
-        A pre-processing filter to apply to the data before the icd algorithm is applied.
-    cwt_width
-        The width of the wavelet
+
+    beta
+        The beta value for the (optional) reorientation with Madgwick filter.
 
     Other Parameters
     ----------------
@@ -47,16 +51,13 @@ class SlZijlstra(BaseSlDetector): # NOTE: Shouldn't it be called "Estimator" rat
 
     Attributes
     ----------
-    %(ic_list_)s
+    %(sl_list_)s
 
     Notes
     -----
     Points of deviation from the original implementation and their reasons:
 
-    - We use a different downsampling method, which should be "more" correct from a signal theory perspective,
-      but will yield slightly different results.
-    - We use a slightly different approach when it comes to the detection of the peaks between the zero crossings.
-      However, the results of this step are identical to the matlab implementation.
+    -
 
     .. [1] W. Zijlstra, & A. L. Hof, "Assessment of spatio-temporal gait parameters from trunk accelerations during
         human walking" Gait & posture, vol. 18, no. 2, pp. 1-10, 2003.
@@ -66,17 +67,15 @@ class SlZijlstra(BaseSlDetector): # NOTE: Shouldn't it be called "Estimator" rat
 
     """
 
-    pre_filter: BaseFilter
-    cwt_width: float
+    beta: float
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
-    def __init__(self, *, pre_filter: BaseFilter = cf(EpflDedriftedGaitFilter()), cwt_width: float = 9.0) -> None:
-        self.pre_filter = pre_filter
-        self.cwt_width = cwt_width
+    def __init__(self, *, beta: float = 0.1) -> None:
+        self.beta = beta
 
-    @base_icd_docfiller
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+    @base_sl_docfiller
+    def calculate(self, data: pd.DataFrame, *, initial_contacts: pd.DataFrame, sensor_height: float, sampling_rate_hz: float, tuning_coefficient: float, orientation_method = MadgwickAHRS(beta=0.1), **_: Unpack[dict[str, Any]]) -> Self: # TODO: which default value for orientation method?
         """%(detect_short)s.
 
         %(detect_info)s
@@ -91,55 +90,39 @@ class SlZijlstra(BaseSlDetector): # NOTE: Shouldn't it be called "Estimator" rat
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        # 0. SELECT RELEVANT COLUMNS
-        # For the icd algorithm only vertical acceleration (i.e. x-component) is required.
-        relevant_columns = ["acc_x"]  # acc_x: vertical acceleration
-        acc_v = data[relevant_columns]
-        acc_v = acc_v.to_numpy()
+        # 1. Sensor alignment (optional): Madgwick complementary filter
+        newAcc = data[['acc_x', 'acc_y', 'acc_z']] # consider acceleration
+        if orientation_method != False: # TODO: how to make rotation optional?
+            # perform rotation
+            rotated_data = rotate_dataset_series(data, orientation_method.estimate(data,sampling_rate_hz=sampling_rate_hz).orientation_object_[:-1])
+            newAcc = rotated_data[['acc_x','acc_y','acc_z']] # consider acceleration
 
-        # 1. RESAMPLING
-        signal_downsampled = (
-            Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transform(data=acc_v, sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_.squeeze()
-        )
-        # 2. BAND-PASS FILTERING
-        # Padding for short data: this is required because the length of the input vector must be greater
-        # than padlen argument of the filtfilt function (3*max(b,a) = 306 by deafult), otherwise a
-        # ValueError is raised.
-        n_coefficients = len(EpflGaitFilter().coefficients[0])
-        len_pad = 4 * n_coefficients
-        signal_downsampled_padded = np.pad(signal_downsampled, (len_pad, len_pad), "wrap")
-        # The clone() method is used in order to ensure that the new second instance is independent
-        acc_v_40_bpf = (
-            self.pre_filter.clone()
-            .filter(signal_downsampled_padded, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .filtered_data_.squeeze()
-        )
-        # Remove the padding
-        acc_v_40_bpf_rmzp = acc_v_40_bpf[len_pad - 1 : -len_pad]
-        # 3. CUMULATIVE INTEGRAL
-        acc_v_lp_int = cumtrapz(acc_v_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-        # 4. CONTINUOUS WAVELET TRANSFORM (CWT)
-        acc_v_lp_int_cwt, _ = cwt(
-            acc_v_lp_int.squeeze(),
-            [self.cwt_width],
-            "gaus2",
-            sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
-        )
-        acc_v_lp_int_cwt = acc_v_lp_int_cwt.squeeze()
-        # Remove the mean from accVLPIntCwt
-        acc_v_lp_int_cwt -= acc_v_lp_int_cwt.mean()
+        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, filter order: 4
+        vacc = newAcc['acc_x'] # TODO: check that acceleration is passed to the calculate method in m/s^2
+        fc = 0.1 # cut-off frequency
+        [df, cf] = butter(4, fc / (sampling_rate_hz / 2), 'high') # design high-pass filter
+        vacc_high = lfilter(df, cf, vacc) # filtering
 
-        # 5. INTRA-ZERO-CROSSINGS PEAK DETECTION
-        # Detect the extrema between the zero crossings
-        icd_array = _find_minima_between_zero_crossings(acc_v_lp_int_cwt)
+        # 3. Integration of vertical acceleration --> vertical speed
+        # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, filter order: 4
+        # 5. Integration of vertical speed --> vertical displacement d(t)
+        # 6. Compute total vertical displacement during the step (d_step):
+        # d_step = |max(d(t)) - min(d(t))|
+        # 7. Biomechanical model:
+        # StepLength = A * 2 * sqrt(2 * LBh * d_step - d_step^2)
+        # A: tuning coefficient, optimized by training for each population
+        # LBh: sensor height in meters, representative of the height of the center of mass
+        #TODO: Which is the correct way to pass tuning_coefficient, initial_contacts, sensor_height?
+        sl_zjilstra_v3 = zjilsV3(vacc_high, sampling_rate_hz, tuning_coefficient, initial_contacts, sensor_height)
 
-        detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="step_id")
-        detected_ics_unsampled = (
-            (detected_ics * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ).round().astype(int)
-        )
-        self.ic_list_ = detected_ics_unsampled
+        # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
+        # 9. Interpolation of StepLength values --> Length per second values
+        # 10. Remove length per second outliers during the gait sequence --> Hampel filter based on median absolute deviation
+        duration = int(np.floor((len(vacc) / sampling_rate_hz))) # bottom-rounded duration (s)
+        HStime = initial_contacts / sampling_rate_hz # initial contacts: samples -> sec
+        slSec_zjilstra_v3 = stride2sec(HStime.to_numpy(), duration, sl_zjilstra_v3)
+        slmat = slSec_zjilstra_v3[0:duration]
+        self.sl_list_ = slmat
 
         return self
 

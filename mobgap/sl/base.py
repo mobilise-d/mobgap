@@ -48,8 +48,8 @@ base_sl_docfiller = make_filldoc(
 
 
 @base_sl_docfiller
-class BaseSlDetector(Algorithm):
-    """Base class for SL-detectors.
+class BaseSlCalculator(Algorithm):
+    """Base class for SL-calculators.
 
     This base class should be used for all stride length estimation algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
@@ -77,7 +77,7 @@ class BaseSlDetector(Algorithm):
     See the source of this class for an example.
     """
 
-    _action_methods = ("detect",)
+    _action_methods = ("calculate",)
 
     # Other Parameters
     data: pd.DataFrame
@@ -87,7 +87,7 @@ class BaseSlDetector(Algorithm):
     slSec_list_: pd.DataFrame
 
     @base_sl_docfiller
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
+    def calculate(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(detect_short)s.
 
         Parameters
@@ -98,4 +98,4 @@ class BaseSlDetector(Algorithm):
         raise NotImplementedError
 
 
-__all__ = ["BaseSlDetector", "base_sl_docfiller"]
+__all__ = ["BaseSlCalculator", "base_sl_docfiller"]
