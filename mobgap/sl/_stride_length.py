@@ -1,15 +1,12 @@
-import matplotlib.pyplot as plt
 import numpy as np #TODO: check that all packages are actually needed
 from hampel import hampel
 import pandas as pd
-from sklearn.decomposition import PCA
 from scipy.signal import butter, lfilter
 from typing import Any
 from typing_extensions import Self, Unpack
 
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
 from gaitmap.utils.rotations import rotate_dataset_series
-from mobgap.data import LabExampleDataset
 from mobgap.sl.base import BaseSlCalculator, base_sl_docfiller
 
 @base_sl_docfiller
@@ -68,8 +65,6 @@ class SlZijlstra(BaseSlCalculator):
     """
 
     beta: float
-
-    _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
     def __init__(self, *, beta: float = 0.1) -> None:
         self.beta = beta
