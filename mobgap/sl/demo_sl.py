@@ -3,11 +3,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from hampel import hampel
 import pandas as pd
+from tpcp import cf
 from sklearn.decomposition import PCA
-from scipy.signal import butter, filtfilt, lfilter, medfilt
+from scipy.signal import butter, lfilter
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
 from gaitmap.utils.rotations import rotate_dataset_series
 from mobgap.data import LabExampleDataset
+from mobgap.data_transform import HampelFilter
+from mobgap.data_transform.base import BaseFilter
+from mobgap.utils.conversions import as_samples
+from mobgap.utils.interpolation import robust_step_para_to_sec
 
 sampling_rate_hz = 100 # sampling frequency (Hz)
 example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")  # alternatively: "StereoPhoto"
@@ -24,12 +29,12 @@ reference_sl = single_test.reference_parameters_.stride_parameters['length_m'].l
 # segment signal of current gs
 start = reference_wbs['start']
 end = reference_wbs['end']
-duration = int(np.floor(end/sampling_rate_hz) - np.floor(start/sampling_rate_hz)) # bottom-rounded duration (s)
 
 # [acc_x acc_y acc_z gyr_x gyr_y gyr_z]
-imu_data_gs = imu_data[start:end]
+imu_data_gs = imu_data[start:end-1]
 acc = imu_data_gs[['acc_x','acc_y','acc_z']]/9.81
 gyr = imu_data_gs[['gyr_x','gyr_y','gyr_z']]
+duration = len(imu_data_gs) // sampling_rate_hz # bottom-rounded duration (s)
 # plot raw acceleration over gait sequence
 plt.plot(acc,label = ['acc_x','acc_y','acc_z'])
 plt.title('Raw data')
@@ -59,12 +64,12 @@ plt.show()
 # FILTERING
 vacc=9.8 * newAcc['acc_x']
 fc=0.1
-[df,cf] = butter(4,fc/(sampling_rate_hz/2),'high')
+[df_,cf_] = butter(4,fc/(sampling_rate_hz/2),'high')
 # Note: the Matlab implementation actually makes use of filter rather than filtfilt.
 # However, in the context of dedrifting, zero-phase distortion is preferred
 # because it maintains the temporal relationships between different parts
 # of the signal and preserves timing and phase information.
-vacc_high=lfilter(df,cf,vacc)
+vacc_high=lfilter(df_,cf_,vacc)
 
 plt.plot(vacc, label = 'raw')
 plt.plot(vacc_high, label = 'filtered')
@@ -178,6 +183,15 @@ def stride2sec(ICtime, duration, stl):
     elif len(stSec) > duration:
         stSec = stSec[:duration]
     return stSec
+# sec_centers = np.arange(0, duration) + 0.5
+sec_centers = np.arange(0, duration) + 1
+step_time_smoothing: BaseFilter = HampelFilter(2, 3.0)
+max_interpolation_gap_s: int = 3
+stl = sl_zjilstra_v3
+
+if len(stl) < len(HSsamp):
+    stl = np.concatenate([stl, np.tile(stl[-1], len(HSsamp) - len(stl))])
+slSec_zjilstra_v3_2 = robust_step_para_to_sec(HStime, stl, sec_centers, max_interpolation_gap_s, step_time_smoothing)
 slSec_zjilstra_v3 = stride2sec(HStime.to_numpy(), duration, sl_zjilstra_v3)
 slmat = slSec_zjilstra_v3[0:duration]
 slmat
