@@ -1,4 +1,5 @@
 from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -13,6 +14,7 @@ from typing import (
 
 import pandas as pd
 from tpcp import cf
+from tpcp._hash import custom_hash
 from tpcp.misc import set_defaults
 from typing_extensions import TypeAlias
 
@@ -492,7 +494,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         Parameters
         ----------
         sub_region_list
-            The list of subregions within the current gait-sequence.
+            A region list containing a SINGLE subregion (i.e. on row) within the current region.
             The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
             For the ``with_subregions`` method this must be just a single GS.
             If you want to iterate multiple GSs see ``iterate_subregions``.
@@ -509,6 +511,16 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         Internally, this simply uses ``iterate_subregions``, but completes the iteration over the single GS and returns
         it.
 
+        Examples
+        --------
+        >>> gs_list = pd.DataFrame({"start": [0, 10, 20], "end": [10, 20, 30]}).rename_axis("gs_id")
+        >>> gs_iterator = GsIterator()
+        >>> for (gs, data), r in gs_iterator.iterate(data, gs_list):
+        ...     sub_region = pd.DataFrame({"start": [3], "end": [len(data) - 3]}).rename_axis("gs_id")
+        ...     (sub_gs, sub_data), sub_r = gs_iterator.with_subregion(sub_region)
+        ...     # Do something with the subregion data
+        ...     sub_r.my_result = pd.DataFrame({"my_col": [1, 2, 3]})
+
         """
         if len(sub_region_list) != 1:
             raise ValueError(
@@ -517,3 +529,58 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
         return list(self.iterate_subregions(sub_region_list))[0]  # noqa: RUF015
+
+    @contextmanager
+    def subregion(self, sub_region_list: pd.DataFrame) -> tuple[tuple[Region, pd.DataFrame], DataclassT]:
+        """Context manager for handling a subregion of the current gait sequence.
+
+        This is basically just syntactic sugar for the ``with_subregion`` method.
+        However, it also performs a check that you are only writing to the intended result object while within the
+        ``with`` block, which hopefully prevents some mistakes.
+
+        Parameters
+        ----------
+        sub_region_list
+            The list of subregions within the current gait-sequence.
+            The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
+            For the ``with_subregions`` method this must be just a single GS.
+            If you want to iterate multiple GSs see ``iterate_subregions``.
+
+        Yields
+        ------
+        inputs
+            A tuple with a gait-sequence object and the data corresponding to the subregion.
+        result_object
+            An empty result object for the subregion that can be used to provide results for it.
+
+        Notes
+        -----
+        Internally, this simply uses ``iterate_subregions``, but completes the iteration over the single GS and returns
+        it.
+
+        Examples
+        --------
+        >>> gs_list = pd.DataFrame({"start": [0, 10, 20], "end": [10, 20, 30]}).rename_axis("gs_id")
+        >>> gs_iterator = GsIterator()
+        >>> for (gs, data), r in gs_iterator.iterate(data, gs_list):
+        ...     sub_region = pd.DataFrame({"start": [3], "end": [len(data) - 3]}).rename_axis("gs_id")
+        ...     with gs_iterator.subregion(sub_region) as ((sub_gs, sub_data), sub_r):
+        ...         # Do something with the subregion data
+        ...         sub_r.my_result = pd.DataFrame({"my_col": [1, 2, 3]})
+
+        """
+        # TODO: We could use that in the future to perform some more checks. For example we could block writing to the
+        #  subregion result after the context is done.
+        outer_result = self._raw_results[-1].result
+        before_result_hash = custom_hash(outer_result)
+
+        try:
+            yield self.with_subregion(sub_region_list)
+        finally:
+            after_result_hash = custom_hash(outer_result)
+            if before_result_hash != after_result_hash:
+                raise RuntimeError(
+                    "It looks like you accessed the old result object of the main iteration within the subregion "
+                    "context. "
+                    "Use the result object returned by the context manager!"
+                )

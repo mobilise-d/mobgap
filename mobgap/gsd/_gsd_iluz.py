@@ -204,7 +204,7 @@ class GsdIluz(BaseGsDetector):
 
         # We shortcut here, if there are no activity windows
         if not activity_windows.any():
-            self.gs_list_ = pd.DataFrame(columns=["start", "end"])
+            self.gs_list_ = pd.DataFrame(columns=["start", "end"]).rename_axis("gs_id")
             return self
 
         # Convolve the data with sin signal
@@ -284,6 +284,6 @@ class GsdIluz(BaseGsDetector):
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
 
-        self.gs_list_ = gs_list.copy()
+        self.gs_list_ = gs_list.copy().rename_axis("gs_id")
 
         return self
