@@ -3,6 +3,8 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from mobgap.gsd.base import _unify_gs_df
+
 
 def find_zero_crossings(
     signal: np.ndarray,
@@ -105,11 +107,10 @@ def refine_gs(ic_list: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     """
     ics = ic_list["ic"]
-    new_gs_id = "1"
-    refined_gs_list = pd.DataFrame.from_records(
-        [{"gs_id": new_gs_id, "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]
-    ).set_index("gs_id")
-
+    new_gs_id = 1
+    refined_gs_list = _unify_gs_df(
+        pd.DataFrame.from_records([{"gs_id": new_gs_id, "start": ics.iloc[0], "end": ics.iloc[-1] + 1}])
+    )
     new_ics = (
         ic_list.assign(ic=lambda df_: df_["ic"] - df_["ic"].iloc[0], gs_id=new_gs_id)
         .set_index("gs_id", append=True)
