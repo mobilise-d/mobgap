@@ -119,14 +119,16 @@ def iter_gs(
     index_col = _infer_id_col(region_list, id_col)
     region_list = region_list.reset_index()
     relevant_cols = [index_col, "start", "end"]
+
+    # Perform checks on the entire DataFrame
+    if (region_list["start"] < 0).any():
+        raise ValueError("The start of a gait-sequence should not be negative.")
+    if (region_list["end"] < region_list["start"]).any():
+        raise ValueError("The end of a gait-sequence should be larger than the start.")
+    if (region_list["end"] > len(data)).any():
+        raise ValueError("The end of a gait-sequence should not be larger than the length of the data.")
+
     for gs in region_list[relevant_cols].itertuples(index=False):
-        # We make some checks to prevent common issues
-        if gs.start < 0:
-            raise ValueError("The start of a gait-sequence should not be negative.")
-        if gs.end < gs.start:
-            raise ValueError("The end of a gait-sequence should be larger than the start.")
-        if gs.end > len(data):
-            raise ValueError("The end of a gait-sequence should not be larger than the length of the data.")
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
         yield RegionDataTuple(Region(*gs, index_col), data.iloc[gs.start : gs.end])
 
