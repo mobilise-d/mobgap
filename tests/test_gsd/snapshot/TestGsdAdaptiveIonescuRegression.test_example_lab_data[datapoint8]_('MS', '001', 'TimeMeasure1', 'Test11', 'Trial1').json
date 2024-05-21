@@ -2,7 +2,7 @@
     "schema":{
         "fields":[
             {
-                "name":"index",
+                "name":"gs_id",
                 "type":"integer"
             },
             {
@@ -15,38 +15,38 @@
             }
         ],
         "primaryKey":[
-            "index"
+            "gs_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "index":0,
+            "gs_id":0,
             "start":805,
             "end":1925
         },
         {
-            "index":1,
+            "gs_id":1,
             "start":4485,
             "end":6012
         },
         {
-            "index":2,
+            "gs_id":2,
             "start":9550,
             "end":10675
         },
         {
-            "index":3,
+            "gs_id":3,
             "start":11402,
             "end":11967
         },
         {
-            "index":4,
+            "gs_id":4,
             "start":12882,
             "end":14692
         },
         {
-            "index":5,
+            "gs_id":5,
             "start":19952,
             "end":22507
         }

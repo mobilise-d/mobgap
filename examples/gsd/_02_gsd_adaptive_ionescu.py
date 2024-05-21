@@ -80,13 +80,13 @@ lab_example_data = LabExampleDataset(reference_system="INDIP")
 # Performance on a single lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
-from mobgap.gsd import GsdParaschivIonescu
+from mobgap.gsd import GsdAdaptiveIonescu
 
 short_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test5", trial="Trial2")
 # short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
-short_trial_output = GsdParaschivIonescu().detect(short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz)
+short_trial_output = GsdAdaptiveIonescu().detect(short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 # print("\nMatlab Output:\n\n", short_trial_matlab_output)
@@ -113,7 +113,7 @@ long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test
 # long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
-long_trial_output = GsdParaschivIonescu().detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
+long_trial_output = GsdAdaptiveIonescu().detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 # print("\nMatlab Output:\n\n", long_trial_matlab_output)

@@ -5,14 +5,14 @@ from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.gsd import GsdParaschivIonescu
-from mobgap.gsd._gsd_pi import find_intersections
+from mobgap.gsd import GsdAdaptiveIonescu
+from mobgap.gsd._gsd_adaptive_ionescu import find_intersections
 
 
 class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = GsdParaschivIonescu
+    ALGORITHM_CLASS = GsdAdaptiveIonescu
 
     @pytest.fixture()
     def after_action_instance(self):
@@ -39,8 +39,8 @@ class TestIntersect:
         ), "Should return correct intersections for overlapping intervals"
 
 
-class TestGsdParaschivIonescu:
-    """Tests for GsdParaschivIonescu.
+class TestGsdAdaptiveIonescu:
+    """Tests for GsdAdaptiveIonescu.
 
     Note, we don't test the influence of any single parameter here.
     We don't even really know, how they all influence the results.
@@ -51,14 +51,14 @@ class TestGsdParaschivIonescu:
     def test_no_gsds(self):
         data = pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"])
 
-        output = GsdParaschivIonescu().detect(data, sampling_rate_hz=40.0).gs_list_
+        output = GsdAdaptiveIonescu().detect(data, sampling_rate_hz=40.0).gs_list_
 
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end"]).astype(int))
 
     def test_single_gsd(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
 
-        output = GsdParaschivIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
+        output = GsdAdaptiveIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert len(output) == 1
         assert set(output.columns) == {"start", "end"}
@@ -66,16 +66,16 @@ class TestGsdParaschivIonescu:
     def test_random_signal(self):
         data = pd.DataFrame(np.random.rand(1000, 3), columns=["acc_x", "acc_y", "acc_z"])
 
-        output = GsdParaschivIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
+        output = GsdAdaptiveIonescu().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert set(output.columns) == {"start", "end"}
 
 
-class TestGsdParaschivIonescuRegression:
+class TestGsdAdaptiveIonescuRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        gs_list = GsdParaschivIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
+        gs_list = GsdAdaptiveIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))

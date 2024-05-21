@@ -17,14 +17,15 @@ from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
-from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
+from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller, _unify_gs_df
+
 
 # TODO: Potentially rework find_pulse_trains
 # TODO: Add version without hilbert transform
 
 
 @base_gsd_docfiller
-class GsdParaschivIonescu(BaseGsDetector):
+class GsdAdaptiveIonescu(BaseGsDetector):
     """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
 
     This algorithm is for the detection of gait (walking) sequences using body acceleration recorded with a tri-axial
@@ -42,10 +43,8 @@ class GsdParaschivIonescu(BaseGsDetector):
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section.
 
-    Note that this algorithm is referred as GSDB in the validation study [4]_ and in the original implementation.
+    Note that this algorithm is referred as GSDB in the validation study [4]_ and in the original implementation [3]_.
 
-    Abbreviations:
-    gs = gait sequence
 
     Parameters
     ----------
@@ -109,7 +108,6 @@ class GsdParaschivIonescu(BaseGsDetector):
     min_n_steps: int
     active_signal_fallback_threshold: float
     max_gap_s: float
-    # TODO: Padding is in multiples of the average step time of the respective gait sequence.
     padding: float
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
@@ -245,7 +243,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
 
         if combined_final.size == 0:  # Check if all gs removed
-            self.gs_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
             return self
 
         # Merge gs if time (in seconds) between consecutive gs is smaller than max_gap_s
@@ -260,7 +258,7 @@ class GsdParaschivIonescu(BaseGsDetector):
         combined_final = np.clip(combined_final, 0, len(acc))
 
         # Compile the df
-        self.gs_list_ = pd.DataFrame(combined_final, columns=["start", "end"]).astype("int64")
+        self.gs_list_ = _unify_gs_df(pd.DataFrame(combined_final, columns=["start", "end"]))
 
         return self
 

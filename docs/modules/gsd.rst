@@ -15,7 +15,7 @@ Algorithms
    :template: class.rst
 
     GsdIluz
-    GsdParaschivIonescu
+    GsdAdaptiveIonescu
 
 Pipelines
 +++++++++

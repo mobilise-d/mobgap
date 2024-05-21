@@ -14,7 +14,7 @@ def test_gsd_iluz(snapshot):
 
 
 def test_gsd_b(snapshot):
-    from examples.gsd._02_gsd_pi import long_trial_output, short_trial_output
+    from examples.gsd._02_gsd_adaptive_ionescu import long_trial_output, short_trial_output
 
     snapshot.assert_match(long_trial_output.gs_list_, "long_trial_output")
     snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
