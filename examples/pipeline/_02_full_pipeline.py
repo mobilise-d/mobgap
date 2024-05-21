@@ -113,7 +113,7 @@ gait_sequences = gsd.gs_list_
 
 # %%
 # Then we use the nested iterator to go through all the gait sequences and process them.
-# Note, that we use the special `r` object to store the results of each step and the ``with_subregion`` method to
+# Note, that we use the special ``r`` object to store the results of each step and the ``with_subregion`` method to
 # elegantly handle the refined gait sequence.
 from mobgap.pipeline import GsIterator
 
@@ -122,10 +122,10 @@ gs_iterator = GsIterator()
 for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
     icd.detect(gs_data, sampling_rate_hz=sampling_rate_hz)
     lrc.predict(gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz)
-
     r.ic_list = lrc.ic_lr_list_
 
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
+
     with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
         cad.calculate(refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz)
         rr.cad_per_sec = cad.cad_per_sec_

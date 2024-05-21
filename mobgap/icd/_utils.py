@@ -107,7 +107,7 @@ def refine_gs(ic_list: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     ics = ic_list["ic"]
     new_gs_id = "1"
     refined_gs_list = pd.DataFrame.from_records(
-        [{"gs_id": "1", "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]
+        [{"gs_id": new_gs_id, "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]
     ).set_index("gs_id")
 
     new_ics = (
