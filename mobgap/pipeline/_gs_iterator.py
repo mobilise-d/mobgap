@@ -120,6 +120,13 @@ def iter_gs(
     region_list = region_list.reset_index()
     relevant_cols = [index_col, "start", "end"]
     for gs in region_list[relevant_cols].itertuples(index=False):
+        # We make some checks to prevent common issues
+        if gs.start < 0:
+            raise ValueError("The start of a gait-sequence should not be negative.")
+        if gs.end < gs.start:
+            raise ValueError("The end of a gait-sequence should be larger than the start.")
+        if gs.end > len(data):
+            raise ValueError("The end of a gait-sequence should not be larger than the length of the data.")
         # We explicitly cast GS to the right type to allow for `gs.id` to work.
         yield RegionDataTuple(Region(*gs, index_col), data.iloc[gs.start : gs.end])
 
@@ -472,27 +479,29 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
             iteration.
 
         """
-        # We calculate the hash of the last outer result to check if it was changed during the sub-iteration.
-        # Note, that when you are using the ``subregion`` context manager, this check is duplicated.
-        # The reason for that is that with the context manager, we have a clear entry and exist point that we would
-        # not otherwise have, when we simply iterate a single subregion.
-        outer_result = self._raw_results[-1].result
-        before_result_hash = custom_hash(outer_result)
         # We only allow sub iterations, when there are no other subiterations running.
-        if self.done_.get("__main__", True):
+        if getattr(self, "done_", {}).get("__main__", True):
             raise ValueError("Sub-iterations can only be started, when the main iteration is still running")
         if not self.done_.get("__sub_iter__", True):
             raise ValueError("Sub-iterations are not allowed within sub-iterations.")
 
         current_result = self._raw_results[-1]
         current_region, current_data = current_result.input
+
+        # We calculate the hash of the last outer result to check if it was changed during the sub-iteration.
+        # Note, that when you are using the ``subregion`` context manager, this check is duplicated.
+        # The reason for that is that with the context manager, we have a clear entry and exist point that we would
+        # not otherwise have, when we simply iterate a single subregion.
+        current_result_obj = current_result.result
+        before_result_hash = custom_hash(current_result_obj)
+
         yield from self._iterate(
             iter_gs(current_data, sub_region_list),
             iteration_name="__sub_iter__",
             iteration_context={"parent_region": current_region},
         )
 
-        after_result_hash = custom_hash(outer_result)
+        after_result_hash = custom_hash(current_result_obj)
         if before_result_hash != after_result_hash:
             raise RuntimeError(
                 "It looks like you accessed the result of the main iteration within the subregion iteration. "

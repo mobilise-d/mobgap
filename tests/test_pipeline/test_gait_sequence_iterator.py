@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -55,6 +56,27 @@ class TestGsIterationFunc:
         first = next(iterator)[0]
         assert first.id == "s1"
         assert first.id_origin == custom_name
+
+    def test_start_value_smaller_0(self):
+        dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        dummy_sections = pd.DataFrame({"start": [-1, 5], "end": [5, 10], "gs_id": ["s1", "s2"]}).set_index("gs_id")
+
+        with pytest.raises(ValueError):
+            list(iter_gs(dummy_data, dummy_sections))
+
+    def test_end_smaller_start(self):
+        dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 4], "gs_id": ["s1", "s2"]}).set_index("gs_id")
+
+        with pytest.raises(ValueError):
+            list(iter_gs(dummy_data, dummy_sections))
+
+    def test_end_larger_data(self):
+        dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 11], "gs_id": ["s1", "s2"]}).set_index("gs_id")
+
+        with pytest.raises(ValueError):
+            list(iter_gs(dummy_data, dummy_sections))
 
 
 class TestGsIterator:
@@ -144,6 +166,143 @@ class TestGsIterator:
 
         for v in asdict(iterator.results_).values():
             assert v.empty
+
+
+class TestSubregionIteration:
+    def test_subregions_iterate(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+
+        expected_ic_pos = [1, 4, 7, 9]
+
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame(
+                {"start": [0, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1", "2"]}
+            ).set_index("sub_gs_id")
+
+            for (_, sd), sr in iterator.iterate_subregions(subregions):
+                sr.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
+
+        ic_list_sub_iterate = iterator.results_.ic_list
+
+        assert np.all(ic_list_sub_iterate.to_numpy().flatten() == expected_ic_pos)
+
+        assert list(ic_list_sub_iterate.index.names) == ["wb_id", "sub_gs_id", "step_id"]
+
+    def test_single_subregion(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+
+        expected_ic_pos = [1, 4, 7, 9]
+
+        # Version 1: Actual iteration
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame({"start": [1], "end": [len_data - 1], "sub_gs_id": ["1"]}).set_index("sub_gs_id")
+
+            for (_, sd), sr in iterator.iterate_subregions(subregions):
+                sr.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
+
+        ic_list_sub_iterate = iterator.results_.ic_list
+
+        # Version 2: with_subregion
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame({"start": [1], "end": [len_data - 1], "sub_gs_id": ["1"]}).set_index("sub_gs_id")
+
+            (_, sd), sr = iterator.with_subregion(subregions)
+            sr.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
+
+        ic_list_with_subregion = iterator.results_.ic_list
+
+        # Version 3: subregion contextmanager
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame({"start": [1], "end": [len_data - 1], "sub_gs_id": ["1"]}).set_index("sub_gs_id")
+
+            with iterator.subregion(subregions) as ((_, sd), sr):
+                sr.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
+
+        ic_list_subregion_cm = iterator.results_.ic_list
+
+        assert_frame_equal(ic_list_sub_iterate, ic_list_with_subregion)
+        assert_frame_equal(ic_list_sub_iterate, ic_list_subregion_cm)
+
+        assert np.all(ic_list_sub_iterate.to_numpy().flatten() == expected_ic_pos)
+
+    def test_subregion_only_with_single_allowed(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame(
+                {"start": [1, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1", "2"]}
+            ).set_index("sub_gs_id")
+
+            with pytest.raises(ValueError):
+                with iterator.subregion(subregions) as ((_, sd), sr):
+                    pass
+
+    def test_no_nested_subregion_allowed(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame(
+                {"start": [1, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1", "2"]}
+            ).set_index("sub_gs_id")
+
+            for (_, sd), sr in iterator.iterate_subregions(subregions):
+                with pytest.raises(ValueError):
+                    for (_, ssd), ssr in iterator.iterate_subregions(subregions):
+                        pass
+
+    def test_no_subregion_outside_main_region(self):
+        iterator = GsIterator()
+
+        with pytest.raises(ValueError):
+            list(
+                iterator.iterate_subregions(
+                    pd.DataFrame({"start": [1], "end": [2], "sub_gs_id": ["1"]}).set_index("sub_gs_id")
+                )
+            )
+
+    def test_error_when_main_result_used(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame(
+                {"start": [0, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1"]}
+            ).set_index("sub_gs_id")
+
+            with pytest.raises(RuntimeError):
+                for (_, sd), sr in iterator.iterate_subregions(subregions):
+                    # We use the outer result object here, which should raise an error.
+                    r.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
+
+    def test_error_when_main_result_used_contextmanager(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            len_data = len(d)
+            subregions = pd.DataFrame({"start": [1], "end": [len_data - 1], "sub_gs_id": ["1"]}).set_index("sub_gs_id")
+
+            with pytest.raises(RuntimeError):
+                with iterator.subregion(subregions) as ((_, sd), sr):
+                    # We use the outer result object here, which should raise an error.
+                    r.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
 
 
 class TestAggregateDf:
@@ -272,6 +431,3 @@ class TestAggregateDf:
         test_2_agg = agg_test2(example_results)
 
         assert set(test_2_agg.index.get_level_values("gs_id")) == {"s1", "s2"}
-
-    # TODO: Add tests for subiteration
-    # TODO: Add tests for empty wbs.
