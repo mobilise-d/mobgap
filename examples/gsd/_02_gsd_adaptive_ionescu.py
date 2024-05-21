@@ -101,9 +101,9 @@ print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
 print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # %%
-# When we plot the output, we can see that the python version is a little more sensitive than the matlab version.
-# It includes a section of the signal before the region classified as WB by the reference system.
-# Both algorithm implementations produce a gait sequence that extends beyond the end of the reference system.
+# When we plot the output, we can see that the python version is more accurate and cuts the gait sequence roughly at
+# the same time as the reference system, while the matlab version calssifies the small movement after the gait sequence
+# as a gait as well.
 
 fig, ax = plot_gsd_outputs(
     short_trial.data_ss,
@@ -129,8 +129,9 @@ print("\nMatlab Output:\n\n", long_trial_matlab_output)
 print("\nPython Output:\n\n", long_trial_output.gs_list_)
 
 # %%
-# When we plot the output, we can see again that the python version is more sensitive.
+# When we plot the output, we can see that the python version is more sensitive.
 # It detects longer gait sequences and even one entire gait sequence that is not detected by the matlab version.
+# But, like before, the Python version seems to provide the better results when compared to the reference system.
 
 fig, _ = plot_gsd_outputs(
     long_trial.data_ss,
