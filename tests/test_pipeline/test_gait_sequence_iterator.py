@@ -283,7 +283,7 @@ class TestSubregionIteration:
         for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
             len_data = len(d)
             subregions = pd.DataFrame(
-                {"start": [0, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1"]}
+                {"start": [0, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1", "2"]}
             ).set_index("sub_gs_id")
 
             with pytest.raises(RuntimeError):
