@@ -53,7 +53,7 @@ class TestGsdAdaptiveIonescu:
 
         output = GsdAdaptiveIonescu().detect(data, sampling_rate_hz=40.0).gs_list_
 
-        assert_frame_equal(output, pd.DataFrame(columns=["start", "end"]).astype(int))
+        assert_frame_equal(output, pd.DataFrame(columns=["start", "end", "gs_id"]).astype("int64").set_index("gs_id"))
 
     def test_single_gsd(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
