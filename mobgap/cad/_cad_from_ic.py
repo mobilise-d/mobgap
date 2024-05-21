@@ -209,7 +209,7 @@ class CadFromIc(BaseCadCalculator):
         ic_series = initial_contacts["ic"]
         if len(ic_series) == 0:
             warnings.warn("No initial contacts provided. Cad will be NaN", stacklevel=2)
-        if len(ic_series) > 0 and (ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data)):
+        if len(ic_series) > 0 and (ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data) - 1):
             warnings.warn(
                 "Usually we assume that gait sequences are cut to the first and last detected initial "
                 "contact. "
