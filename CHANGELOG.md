@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- The ``iter_gs`` method now has a new argument ``id_col_name`` to specify the column of the gs_list that should be 
+  used to infer the id of the returned regions.
+  Even without the argument, the method will try to infer the id column.
+  This allows the use with other region lists besides gs/wb lists.
+  (https://github.com/mobilise-d/mobgap/pull/135)
+- The ``GsIterator`` now has a way to iterate sub-regions using ``iter_subregions``, the ``subregion`` context manager
+  and the ``with_subregion`` method.
+  This allows for nested iteration over regions and is the basis of our support for "refined GaitSequence".
+  (https://github.com/mobilise-d/mobgap/pull/135)
+- A ``refine_gs`` method that returns a new gait sequence that starts from the first IC and ends at the last IC.
+  This can be used with the new subregion iteration to iterate over the subregions of a gait sequence.
+  (https://github.com/mobilise-d/mobgap/pull/135)
+
+### Removed
+
+- The Gait Sequence iterator does not allow for dynamic attribute access anymore.
+  Only the use of the ``results_`` object is allowed.
+  (https://github.com/mobilise-d/mobgap/pull/135)
+- Aggregations for Typed iterators/Gait Sequence iterators only take a single argument now.
+  This is a list of return type tuples that contain ALL results (before the agg funcs only got the values for one of 
+  the result attributes) and the input, but also additional context information that can be extended by the iterator 
+  object.
+  (https://github.com/mobilise-d/mobgap/pull/135)
+
+### Fixed
+
+- The check that we assume a gs to start and end with an IC was not correctly performed for the end IC and a warning
+  was raised incorrectly. This is now fixed.
+  (https://github.com/mobilise-d/mobgap/pull/135)
+- The ``GsIterator`` does not throw an error anymore, if the GS list was empty.
+  (https://github.com/mobilise-d/mobgap/pull/135)
+
 ## [0.3.0] - 2024-04-23
 
 ### Added

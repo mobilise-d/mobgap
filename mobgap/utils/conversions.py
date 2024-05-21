@@ -20,7 +20,7 @@ def as_samples(sec_value: Union[Sequence[int], Sequence[float]], sampling_rate_h
 def as_samples(sec_value: np.ndarray, sampling_rate_hz: float) -> np.ndarray: ...
 
 
-def as_samples(sec_value, sampling_rate_hz: float):
+def as_samples(sec_value, sampling_rate_hz):
     """Convert seconds to samples.
 
     Parameters
@@ -32,7 +32,7 @@ def as_samples(sec_value, sampling_rate_hz: float):
 
     Returns
     -------
-    int or Sequence[int]
+    converted_samples
         The value in samples.
 
     """
