@@ -1,114 +1,69 @@
-r"""
-.. _sl_zijlstra:
-
+"""
 SL Zijlstra
-===========
+=============================
 
-This example shows how to use the sl Zijlstra algorithm and how its results compare to the original
-matlab implementation.
+This example shows how to use the Zijlstra algorithm for calculating step length
+and how its results compare to the original matlab implementation.
+
+Below we will demonstrate the usage of both methods. But first we load some data.
+
+Example Data
+------------
+We load example data from the lab dataset together with the INDIP reference system.
+We will use a single short-trail from the "HA" participant for this example, as it only contains a single gait sequence.
+The stride length algorithm is designed to work on a single gait sequence at a time.
 
 """
 
-# %%
-# Import useful modules and packages
-import matplotlib.pyplot as plt
-import pandas as pd
-
 from mobgap.data import LabExampleDataset
-# from mobgap.icd import SlZijlstra
+
+lab_example_data = LabExampleDataset(reference_system="INDIP")
+short_trial: LabExampleDataset = lab_example_data.get_subset(
+    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+)
 
 # %%
-# Loading some example data
-# -------------------------
-# .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
-#
-# We load example data from the lab dataset together with the INDIP reference system.
-# We will use the INDIP "InitialContact_Event" output as ground truth.
-
-example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")  # alternatively: "StereoPhoto"
+# SlZijlstra
+# ---------
+# To demonstrate the usage of :class:`~mobgap.algorithm.SlZijlstra` we use the detected initial contacts from the
+# reference system as input.
+reference_ic = short_trial.reference_parameters_relative_to_wb_.ic_list
+reference_ic
 
 # %%
-# Performance on a single lab trial
-# ---------------------------------
-# Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
-single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
-imu_data = single_test.data["LowerBack"]
-reference_wbs = single_test.reference_parameters_.wb_list
-
-sampling_rate_hz = single_test.sampling_rate_hz
-ref_ics = single_test.reference_parameters_.ic_list
-
-reference_wbs
+reference_gs = short_trial.reference_parameters_relative_to_wb_.wb_list
+reference_gs
 
 # %%
-# Applying the algorithm
-# ----------------------
-# Below we apply the shin algorithm to a lab trial.
-# We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
-from mobgap.pipeline import GsIterator
+# Then we initialize the algorithm and call the ``calculate`` method.
+# Note that we use the ``sampling_rate_hz`` of the actual data and not the reference system.
+# This is because, the reference parameters are already converted to the data sampling rate.
+from mobgap.sl import SlZijlstra
 
-iterator = GsIterator()
+sl_zijlstra = SlZijlstra()
 
-for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    result.ic_list = IcdIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+gs_id = reference_gs.index[0]
+data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
+ics_in_gs = reference_ic[["ic"]].loc[gs_id]
 
-detected_ics = iterator.results_.ic_list
-detected_ics
-
-# %%
-# Matlab Outputs
-# --------------
-# To check if the algorithm was implemented correctly, we compare the results to the matlab implementation.
-import json
-
-from mobgap import PACKAGE_ROOT
-
-
-def load_matlab_output(datapoint):
-    p = datapoint.group_label
-    with (
-        PACKAGE_ROOT.parent
-        / f"example_data/original_results/icd_ionescu/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
-    ).open() as f:
-        original_results = json.load(f)["SD_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["SD"]
-
-    if not isinstance(original_results, list):
-        original_results = [original_results]
-
-    ics = {}
-    for i, gs in enumerate(original_results, start=1):
-        ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="step_id")
-
-    return (pd.concat(ics, names=["wb_id", ics[1].index.name]) * datapoint.sampling_rate_hz).astype(int)
-
-
-detected_ics_matlab = load_matlab_output(single_test)
-detected_ics_matlab
-# %%
-# Plotting the results
-# --------------------
-# With that we can compare the python, matlab and ground truth results.
-# We zoom in into one of the gait sequences to better see the output.
-# We can make a couple of main observations:
-#
-# 1. The python version finds the same ICs as the matlab version, but wil a small shift to the left (around 2-5
-#    samples/20-50 ms).
-#    This is likely due to some differences in the downsampling process.
-# 2. Compared to the ground truth reference, both versions detect the IC too early most of the time.
-# 3. Both algorithms can not detect the first IC of the gait sequence.
-#    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
-#    Hence, there are no samples before that point the algorithm can use to detect the IC.
-imu_data.reset_index(drop=True).plot(y="acc_x")
-
-plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
-plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="icd_ionescu_py")
-plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="icd_ionescu_matlab")
-plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
-plt.legend()
-plt.show()
+sensor_height = 0.964
+tuning_coefficient = 4.587
+sl_zijlstra.calculate(data=data_in_gs,
+                      initial_contacts=ics_in_gs,
+                      sensor_height = sensor_height,
+                      sampling_rate_hz=short_trial.sampling_rate_hz,
+                      tuning_coefficient = tuning_coefficient,
+                      align_flag = False)
 
 # %%
-# Evaluation of the algorithm against a reference
-# --------------------------------------------------
-# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
-# See the :ref:`example on ICD evaluation <icd_evaluation>` for more details.
+# We get an output that contains the cadence for each second of the gaits sequence.
+# The index represents the sample of the center of the second the cadence value belongs to.
+sl_zijlstra.sl_list_
+
+# %%
+# To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
+# reference system.
+reference_sl = reference_gs["avg_stride_length_m"].loc[gs_id]
+zijlstra_avg_sl = sl_zijlstra.sl_list_["length_m"].mean()
+print(f"Average step length from reference: {reference_sl:.2f} m")
+print(f"Calculated average per-sec step length: {zijlstra_avg_sl:.2f} m")

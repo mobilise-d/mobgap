@@ -69,12 +69,11 @@ class SlZijlstra(BaseSlCalculator):
     """
 
     beta: float
-    step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0))
-
+    step_length_smoothing: BaseFilter
+    max_interpolation_gap_s: int
     def __init__(self, *, beta: float = 0.1,
                  step_length_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
                  max_interpolation_gap_s: int = 3) -> None:
-        self.sl_list_ = None
         self.beta = beta # TODO: understand how to pass beta and rotation method
         self.step_length_smoothing = step_length_smoothing  # TODO: understand how to pass step_length_smoothing to _stride2sec
         self.max_interpolation_gap_s = max_interpolation_gap_s
@@ -82,20 +81,18 @@ class SlZijlstra(BaseSlCalculator):
     def calculate(self,
                   data: pd.DataFrame, *,
                   initial_contacts: pd.Series,
-                  sensor_height: float,
                   sampling_rate_hz: float,
+                  sensor_height: float,
                   tuning_coefficient: float,
-                  orientation_method=MadgwickAHRS(beta=0.1), **_: Unpack[dict[str, Any]] # TODO: which default value for orientation method?
+                  align_flag: bool = False, **_: Unpack[dict[str, Any]] # TODO: which default value for orientation method?
                   ) -> Self:
-        """%(detect_short)s.
-
-        %(detect_info)s
+        """%(calculate_short)s.
 
         Parameters
         ----------
-        %(detect_para)s
+        %(calculate_para)s
 
-        %(detect_return)s
+        %(calculate_return)s
 
         """
         self.data = data
@@ -103,10 +100,11 @@ class SlZijlstra(BaseSlCalculator):
         self.sampling_rate_hz = sampling_rate_hz
         self.sensor_height = sensor_height
         self.tuning_coefficient = tuning_coefficient # TODO: Should the tuning coefficient be user selectable?
-
+        self.aligned = align_flag
         # 1. Sensor alignment (optional): Madgwick complementary filter
         newAcc = data[['acc_x', 'acc_y', 'acc_z']]  # consider acceleration
-        if orientation_method:  # TODO: how to make rotation optional?
+        if align_flag:  # TODO: how to make rotation optional?
+            orientation_method = MadgwickAHRS(beta = 0.1)
             # perform rotation
             rotated_data = rotate_dataset_series(data, orientation_method.estimate(data, sampling_rate_hz=sampling_rate_hz).orientation_object_[:-1])
             newAcc = rotated_data[['acc_x', 'acc_y', 'acc_z']]  # consider acceleration
@@ -127,23 +125,31 @@ class SlZijlstra(BaseSlCalculator):
         # A: tuning coefficient, optimized by training for each population
         # LBh: sensor height in meters, representative of the height of the center of mass
         # TODO: Which is the correct way to pass tuning_coefficient, initial_contacts, sensor_height?
-        sl_zjilstra_v3 = _zjilsV3(vacc_high, sampling_rate_hz, tuning_coefficient, initial_contacts, sensor_height)
+        initial_contacts = np.squeeze(initial_contacts.astype(int))
+        sl_zjilstra_v3 = _zjilsV3(vacc_high,
+                                  sampling_rate_hz,
+                                  tuning_coefficient,
+                                  initial_contacts,
+                                  sensor_height)
 
         # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
         # 9. Interpolation of StepLength values --> Length per second values
         # 10. Remove length per second outliers during the gait sequence --> Hampel filter based on median absolute deviation
         duration = int(np.floor((len(vacc) / sampling_rate_hz)))  # bottom-rounded duration (s)
         ICtime = initial_contacts / sampling_rate_hz  # initial contacts: samples -> sec
-        # slSec_zjilstra_v3 = _stride2sec(ICtime.to_numpy(), duration, sl_zjilstra_v3)
         sec_centers = np.arange(0, duration) + 1 # TODO: +1 is to stick to the original implementation
+        # padding last value of the calculated step length values so that sl_zjilstra_v3 is as long as ICtime
+        if len(sl_zjilstra_v3) < len(ICtime):
+            sl_zjilstra_v3 = np.concatenate([sl_zjilstra_v3, np.tile(sl_zjilstra_v3[-1], len(ICtime) - len(sl_zjilstra_v3))])
+
         slSec_zjilstra_v3 = robust_step_para_to_sec(ICtime,
                                                     sl_zjilstra_v3,
                                                     sec_centers,
                                                     self.max_interpolation_gap_s,
-                                                    self.step_time_smoothing.clone())
+                                                    self.step_length_smoothing.clone())
 
         slSec = slSec_zjilstra_v3[0:duration]
-        self.sl_list_ = pd.DataFrame({'length_spm':slSec},
+        self.sl_list_ = pd.DataFrame({'length_m':slSec},
                                      index = as_samples(sec_centers, sampling_rate_hz)
                                      ).rename_axis(index="sec_center_samples")
 

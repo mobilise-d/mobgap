@@ -1,4 +1,4 @@
-"""Base class for ICs detectors."""
+"""Base class for step length calculators."""
 
 from typing import Any
 
@@ -12,38 +12,36 @@ base_sl_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
-        The raw IMU data of the gait sequence passed to the ``detect`` method.
+        The raw IMU data of the gait sequence passed to the ``calculate`` method.
     sampling_rate_hz
-        The sampling rate of the IMU data in Hz passed to the ``detect`` method.
+        The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
     """,
-        "slSec_list_": """
-    slSec_list_
-        A pandas dataframe with the values of stride length per second in the input data.
-        It only has one column, ``slSec``, which contains the values of stride length per second.
+        "sl_list_": """
+    sl_list_
+        The main output of the step length calculation.
+        It provides a DataFrame with the column ``length_m`` that contains the length values with one value per full
+        second of the provided data. The unit is ``m``.
+        The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
+        each second.    """,
+        "calculate_short": """
+    Calculate per-sec length values in the passed data.
     """,
-        "detect_short": """
-    Detect Stride length values in the passed data
-    """,
-        "detect_info": """
-    We expect the data to be a single gait sequence with detected Initial contacts.
-    If the data does not contain any gait sequences, the algorithm might behave unexpectedly.
-    """,
-        "detect_para": """
+        "calculate_para": """
     data
-        The raw IMU of a single sensor.
+        The raw IMU data of a single sensor.
+    initial_contacts
+        The indices of the detected initial contacts in the input data.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
-    ic_list_
-        The indices of the detected initial contacts in the input data.
-    """,
-        "detect_return": """
+        """,
+        "calculate_return": """
     Returns
     -------
     self
-        The instance of the class with the ``slSec_list_`` attribute set to the estimated length per second values.
+        The instance of the class with the ``sl_list_`` attribute set to the estimated length per second values.
     """,
     },
-    doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseSlDetector`.",
+    doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseSlCalculator`.",
 )
 
 
@@ -51,17 +49,17 @@ base_sl_docfiller = make_filldoc(
 class BaseSlCalculator(Algorithm):
     """Base class for SL-calculators.
 
-    This base class should be used for all stride length estimation algorithms.
-    Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, `slSec_list_`` attribute set to the estimated length per
+    This base class should be used for all step length estimation algorithms.
+    Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
+    The method should then return the instance of the class, `sl_list_`` attribute set to the estimated length per
     second values
-    Further, the detect method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
+    Further, the calculate method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
-    We allow that subclasses specify further parameters for the detect methods (hence, this baseclass supports
+    We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
     ``**kwargs``).
     However, you should only use them, if you really need them and apply active checks, that they are passed correctly.
     In 99%% of the time, you should add a new parameter to the algorithm itself, instead of adding a new parameter to
-    the detect method.
+    the calculate method.
 
     Other Parameters
     ----------------
@@ -69,7 +67,7 @@ class BaseSlCalculator(Algorithm):
 
     Attributes
     ----------
-    %(slSec_list_)s
+    %(sl_list_)s
 
     Notes
     -----
@@ -81,19 +79,20 @@ class BaseSlCalculator(Algorithm):
 
     # Other Parameters
     data: pd.DataFrame
+    initial_contacts: pd.DataFrame
     sampling_rate_hz: float
 
     # results
-    slSec_list_: pd.DataFrame
+    sl_list_: pd.DataFrame
 
     @base_sl_docfiller
-    def calculate(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
-        """%(detect_short)s.
+    def calculate(self, data: pd.DataFrame, *, initial_contacts: pd.DataFrame, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
+        """%(calculate_short)s.
 
         Parameters
         ----------
-        %(detect_para)s
-        %(detect_return)s
+        %(calculate_para)s
+        %(calculate_return)s
         """
         raise NotImplementedError
 

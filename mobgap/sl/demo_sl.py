@@ -129,6 +129,7 @@ sl_zjilstra_v3 = zjilsV3(vacc_high, sampling_rate_hz, K, HSsamp, LBh)
 def stride2sec(ICtime, duration, stl):
 # if the number of SL values is lower than the one of ICs, replicate the last element of the SL array until they have the
 # same length.
+    smoothing_filter = HampelFilter(2, 3.0)
     if len(stl) < len(ICtime):
         stl = np.concatenate([stl, np.tile(stl[-1], len(ICtime) - len(stl))])
         # stl = np.concatenate([stl, np.tile(stl[-1], (len(ICtime) - len(stl), 1))])
@@ -140,7 +141,8 @@ def stride2sec(ICtime, duration, stl):
     # standard deviations, it is replaced with the median.
 
     # stl = medfilt(stl, kernel_size=3)
-    stl = hampel(stl, window_size=2).filtered_data
+    # stl = hampel(stl, window_size=2).filtered_data
+    stl = smoothing_filter.filter(stl).transformed_data_
     N = int(np.floor(duration)) # greater integer number of seconds included in the WB
     winstart = np.arange(1, N + 1) - 0.5 # start of each second
     winstop = np.arange(1, N + 1) + 0.5 # end of each second
@@ -172,7 +174,8 @@ def stride2sec(ICtime, duration, stl):
     tempax3 = tempax[~myInd] # indices of seconds that start BEFORE the last IC occurs
     stSec[myInd] = stSec[tempax3[-1]] # set SL values of empty seconds to the last SL value of non-empty seconds
 
-    stSec = hampel(stSec, window_size=2).filtered_data # re-apply the same hampel filter to SL values per second
+    # stSec = hampel(stSec, window_size=2).filtered_data # re-apply the same hampel filter to SL values per second
+    stSec = pd.Series(smoothing_filter.filter(stSec).transformed_data_)
     # if the number of SL values is lower than the one of ICs,
     # replicate the last element of the SL array until they have the
     # same length
