@@ -361,9 +361,12 @@ nested_iterator.results_.events
 # -----------------------------------------------
 # In some cases, you might want to iterate over a single sub-region of the gait sequence.
 # While you could use the ``iterate_subregions`` method, this is a bit cumbersome and makes the code harder to read.
-# For this we provide the ``with_subregion`` method.
-# It simply returns the same output that you would get per iteration, but simply once.
+# For this we provide the ``with_subregion`` and the ``subregion`` method, where the latter is syntactic sugar for the
+# former.
+# Both methods simply return the same output that you would get per iteration, but simply once.
 # Below a short example on how this works.
+# We start with the ``subregion`` version, as this is actually the recommended way to use it, as we think it is easier
+# to read, even though it might be a bit surprising that Python allows this.
 #
 # We are going to reuse most of the setup from the previous example.
 flat_nested_iterator = GsIterator[CustomNestedResults](
@@ -375,6 +378,27 @@ flat_nested_iterator = GsIterator[CustomNestedResults](
     ],
 )
 
+# %%
+# But then we will use the ``subregion`` to run some computations in the context of the refined GS.
+# The return value of ``subregion`` acts as contextmanager, that allows to visually encapsulate the code that is run in
+# the context of the refined GS.
+for (_, data), r in flat_nested_iterator.iterate(long_trial.data_ss, long_trial_gs):
+    r.outer_regions = pd.DataFrame(
+        {
+            "start": [5],
+            "end": [len(data) - 5],
+        }
+    ).rename_axis("refined_gs_id")
+
+    with flat_nested_iterator.subregion(r.outer_regions.iloc[[0]]) as ((_, refined_data), refined_result):
+        refined_result.n_samples = len(refined_data)
+        refined_result.events = pd.DataFrame({"ev": np.linspace(0, len(refined_data), 3, dtype="int64")}).rename_axis(
+            "step_id"
+        )
+
+
+# %%
+# This is equivalent to the following code, using ``with_subregion``:
 for (_, data), r in flat_nested_iterator.iterate(long_trial.data_ss, long_trial_gs):
     r.outer_regions = pd.DataFrame(
         {
@@ -390,7 +414,7 @@ for (_, data), r in flat_nested_iterator.iterate(long_trial.data_ss, long_trial_
     )
 
 # %%
-# And everything is aggregated as expected.
+# And in both cases everything is aggregated as expected.
 flat_nested_iterator.results_.outer_regions
 
 # %%
