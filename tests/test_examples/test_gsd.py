@@ -13,6 +13,13 @@ def test_gsd_iluz(snapshot):
     snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
 
 
+def test_gsd_adaptive_ionescu(snapshot):
+    from examples.gsd._02_gsd_adaptive_ionescu import long_trial_output, short_trial_output
+
+    snapshot.assert_match(long_trial_output.gs_list_, "long_trial_output")
+    snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
+
+
 def test_gsd_evaluation(snapshot):
     from examples.gsd._03_gsd_evaluation import (
         categorized_intervals,
