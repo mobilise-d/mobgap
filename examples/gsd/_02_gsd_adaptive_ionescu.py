@@ -12,12 +12,16 @@ You can skip them for now and jump directly to "Performance on a single lab tria
 apply the algorithm.
 """
 
-# TODO: generate matlab output then uncomment below
 # Plotting Helper
 # ---------------
 # We define a helper function to plot the results of the algorithm.
 # Just ignore this function for now.
+import json
+
 import matplotlib.pyplot as plt
+import pandas as pd
+
+from mobgap import PACKAGE_ROOT
 
 
 def plot_gsd_outputs(data, **kwargs):
@@ -59,21 +63,26 @@ from mobgap.data import LabExampleDataset
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 
 
-# def load_matlab_output(datapoint):
-#     p = datapoint.group_label
-#     with (
-#         PACKAGE_ROOT.parent / f"example_data/original_results/gsd_pi/lab/{p.cohort}/{p.participant_id}/GSDB_Output.json"
-#     ).open() as f:
-#         original_results = json.load(f)["GSDB_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["GSD"]
-#
-#     if not isinstance(original_results, list):
-#         original_results = [original_results]
-#     return (
-#         pd.DataFrame.from_records(original_results).rename(
-#             {"GaitSequence_Start": "start", "GaitSequence_End": "end"}, axis=1
-#         )[["start", "end"]]
-#         * datapoint.sampling_rate_hz
-#     )
+def load_matlab_output(datapoint):
+    p = datapoint.group_label
+    with (
+        PACKAGE_ROOT.parent
+        / f"example_data/original_results/gsd_adaptive_ionescu/lab/{p.cohort}/{p.participant_id}/GSDB_Output.json"
+    ).open() as f:
+        original_results = json.load(f)["GSDB_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["GSD"]
+
+    if not isinstance(original_results, list):
+        original_results = [original_results]
+    return (
+        (
+            pd.DataFrame.from_records(original_results).rename({"Start": "start", "End": "end"}, axis=1)[
+                ["start", "end"]
+            ]
+            * datapoint.sampling_rate_hz
+        )
+        .round()
+        .astype("int64")
+    )
 
 
 # %%
@@ -83,13 +92,13 @@ lab_example_data = LabExampleDataset(reference_system="INDIP")
 from mobgap.gsd import GsdAdaptiveIonescu
 
 short_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test5", trial="Trial2")
-# short_trial_matlab_output = load_matlab_output(short_trial)
+short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
 short_trial_output = GsdAdaptiveIonescu().detect(short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
-# print("\nMatlab Output:\n\n", short_trial_matlab_output)
+print("\nMatlab Output:\n\n", short_trial_matlab_output)
 print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # %%
 # When we plot the output, we can see that the python version is a little more sensitive than the matlab version.
@@ -99,7 +108,7 @@ print("\nPython Output:\n\n", short_trial_output.gs_list_)
 fig, ax = plot_gsd_outputs(
     short_trial.data_ss,
     reference=short_trial_reference_parameters,
-    # matlab=short_trial_matlab_output,
+    matlab=short_trial_matlab_output,
     python=short_trial_output.gs_list_,
 )
 fig.show()
@@ -110,13 +119,13 @@ fig.show()
 # Below we apply the algorithm to a lab trail that contains activities of daily living.
 # This is a more challenging scenario, as we expect multiple gait sequences.
 long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
-# long_trial_matlab_output = load_matlab_output(long_trial)
+long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
 long_trial_output = GsdAdaptiveIonescu().detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
-# print("\nMatlab Output:\n\n", long_trial_matlab_output)
+print("\nMatlab Output:\n\n", long_trial_matlab_output)
 print("\nPython Output:\n\n", long_trial_output.gs_list_)
 
 # %%
@@ -126,7 +135,7 @@ print("\nPython Output:\n\n", long_trial_output.gs_list_)
 fig, _ = plot_gsd_outputs(
     long_trial.data_ss,
     reference=long_trial_reference_parameters,
-    # matlab=long_trial_matlab_output,
+    matlab=long_trial_matlab_output,
     python=long_trial_output.gs_list_,
 )
 fig.show()

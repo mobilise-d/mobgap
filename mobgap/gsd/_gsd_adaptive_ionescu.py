@@ -17,8 +17,7 @@ from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
-from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller, _unify_gs_df
-
+from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 
 # TODO: Potentially rework find_pulse_trains
 # TODO: Add version without hilbert transform
@@ -227,7 +226,7 @@ class GsdAdaptiveIonescu(BaseGsDetector):
 
         # Check if all gs removed
         if combined_final.size == 0:
-            self.gs_list_ = pd.DataFrame(columns=["start", "end"]).astype(int)  # Return empty df if no gs
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
             return self
 
         # Find all max_peaks within each final gs
