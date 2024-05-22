@@ -1,3 +1,4 @@
+"""Base class for turn detection algorithms."""
 from typing import Any
 
 import pandas as pd

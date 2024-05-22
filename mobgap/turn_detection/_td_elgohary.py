@@ -104,7 +104,7 @@ class TdElGohary(BaseTurnDetector):
         min_gap_between_turns_s: float = 0.05,
         allowed_turn_duration_s: tuple[float, float] = (0.5, 10),
         allowed_turn_angle_deg: tuple[float, float] = (45, np.inf),
-    ):
+    ) -> None:
         self.smoothing_filter = smoothing_filter
         self.allowed_turn_angle_deg = allowed_turn_angle_deg
         self.allowed_turn_duration_s = allowed_turn_duration_s
@@ -112,7 +112,7 @@ class TdElGohary(BaseTurnDetector):
         self.min_peak_angle_velocity_dps = min_peak_angle_velocity_dps
         self.lower_threshold_velocity_dps = lower_threshold_velocity_dps
 
-    def _return_empty(self):
+    def _return_empty(self) -> Self:
         self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "turn_angle_deg", "direction"])
         self.raw_turn_list_ = self.turn_list_.copy().assign(center=[])
         self.yaw_angle_ = pd.DataFrame(columns=["angle_deg"])
@@ -153,7 +153,7 @@ class TdElGohary(BaseTurnDetector):
         yaw_angle = cumulative_trapezoid(gyr_z, dx=1 / sampling_rate_hz, initial=0)
         self.yaw_angle_ = pd.DataFrame({"angle_deg": yaw_angle}, index=data.index)
 
-        def _calculate_metrics(df):
+        def _calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
             return df.assign(
                 duration_s=lambda df_: (df_["end"] - df_["start"]) / sampling_rate_hz,
                 angle_deg=lambda df_: yaw_angle[df_["end"] - 1] - yaw_angle[df_["start"]],
