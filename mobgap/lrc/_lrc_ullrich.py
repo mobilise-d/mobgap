@@ -167,15 +167,15 @@ class LrcUllrich(BaseLRClassifier):
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """
-        %(detect_short)s.
+        %(predict_short)s.
 
         Parameters
         ----------
-        %(detect_para)s
+        %(predict_para)s
         kwargs
             Additional kwargs that are passed to the ``self.clf_pipe.predict`` method.
 
-        %(detect_return)s
+        %(predict_return)s
         """
         self.data = data
         self.ic_list = ic_list
