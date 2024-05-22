@@ -24,6 +24,17 @@
             {
                 "name":"angle_deg",
                 "type":"number"
+            },
+            {
+                "name":"direction",
+                "type":"any",
+                "constraints":{
+                    "enum":[
+                        "left",
+                        "right"
+                    ]
+                },
+                "ordered":false
             }
         ],
         "primaryKey":[

@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This can be used with the new subregion iteration to iterate over the subregions of a gait sequence.
   (https://github.com/mobilise-d/mobgap/pull/135)
 
-### Removed
+### Changed
 
 - The Gait Sequence iterator does not allow for dynamic attribute access anymore.
   Only the use of the ``results_`` object is allowed.
@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the result attributes) and the input, but also additional context information that can be extended by the iterator 
   object.
   (https://github.com/mobilise-d/mobgap/pull/135)
+- Reference WB ids now start at 0 again instead of 1.
+- Reference parameters like turns and initial contacts that exist per WB are now numbered per WB.
 
 ### Fixed
 
@@ -40,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/135)
 - The ``GsIterator`` does not throw an error anymore, if the GS list was empty.
   (https://github.com/mobilise-d/mobgap/pull/135)
+- The reference parameters for turns loaded from Matlab files now have the correct units.
 
 ## [0.3.0] - 2024-04-23
 

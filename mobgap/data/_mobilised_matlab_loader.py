@@ -530,13 +530,13 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         return df.astype(wb_df_dtypes).set_index("wb_id")
 
     def _unify_ic_df(df: pd.DataFrame) -> pd.DataFrame:
-        return df.reset_index().astype(ic_df_dtypes).set_index(["wb_id", "step_id"])
+        return df.astype(ic_df_dtypes).set_index(["wb_id", "step_id"])
 
     def _unify_turn_df(df: pd.DataFrame) -> pd.DataFrame:
-        return df.reset_index().astype(turn_df_dtypes).set_index(["wb_id", "turn_id"])
+        return df.astype(turn_df_dtypes).set_index(["wb_id", "turn_id"])
 
     def _unify_stride_df(df: pd.DataFrame) -> pd.DataFrame:
-        return df.reset_index().astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
+        return df.astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
 
     if len(ref_data) == 0:
         return ReferenceData(
@@ -546,7 +546,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             _unify_stride_df(pd.DataFrame(columns=list(stride_df_dtypes.keys()))),
         )
 
-    for wb_id, wb in enumerate(ref_data, start=1):
+    for wb_id, wb in enumerate(ref_data):
         walking_bouts.append(
             {
                 "wb_id": wb_id,
@@ -567,6 +567,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(ic_vals),
+                    "step_id": np.arange(0, len(ic_vals)),
                     "ic": ic_vals,
                     "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
                 }
@@ -577,6 +578,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(turn_starts),
+                    "turn_id": np.arange(0, len(turn_starts)),
                     "start": turn_starts,
                     "end": _ensure_is_list(wb["Turn_End"]),
                     "duration_s": _ensure_is_list(wb["Turn_Duration"]),
@@ -589,6 +591,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(starts),
+                    "s_id": np.arange(0, len(starts)),
                     "start": starts,
                     "end": ends,
                     # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
@@ -626,12 +629,15 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
     ics = ics[~ics_is_na].drop_duplicates()
     # make left-right labels lowercase
     ics["lr_label"] = ics["lr_label"].str.lower()
-    ics.index.name = "step_id"
     ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
     ics = _unify_ic_df(ics)
 
-    turn_paras = pd.concat(turn_paras, ignore_index=True)
-    turn_paras.index.name = "turn_id"
+    turn_paras = (
+        pd.concat(turn_paras, ignore_index=True)
+        .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
+        .replace({"direction": {1: "left", -1: "right"}})
+    )
+    turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
     turn_paras = _unify_turn_df(turn_paras)
 
     stride_paras = pd.concat(stride_paras, ignore_index=True)
@@ -681,7 +687,6 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             stacklevel=2,
         )
     stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
-    stride_paras.index.name = "s_id"
     stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.

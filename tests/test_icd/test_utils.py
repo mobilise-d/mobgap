@@ -17,10 +17,10 @@ class TestRefineGs:
         # The output is_list is expected to be the input ic_list with the offset applied.
         refined_gs_list, refined_ic_list = refine_gs(input_ic_list)
 
-        assert_frame_equal(refined_gs_list, pd.DataFrame({"start": [5], "end": [41], "gs_id": [1]}).set_index("gs_id"))
+        assert_frame_equal(refined_gs_list, pd.DataFrame({"start": [5], "end": [41], "gs_id": [0]}).set_index("gs_id"))
         assert_frame_equal(
             refined_ic_list,
-            pd.DataFrame({"ic": [0, 5, 15, 25, 35], "step_id": [0, 1, 2, 3, 4], "gs_id": [1, 1, 1, 1, 1]}).set_index(
+            pd.DataFrame({"ic": [0, 5, 15, 25, 35], "step_id": [0, 1, 2, 3, 4], "gs_id": [0, 0, 0, 0, 0]}).set_index(
                 ["gs_id", "step_id"]
             ),
         )
