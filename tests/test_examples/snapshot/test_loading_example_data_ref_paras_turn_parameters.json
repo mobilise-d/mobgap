@@ -27,14 +27,7 @@
             },
             {
                 "name":"direction",
-                "type":"any",
-                "constraints":{
-                    "enum":[
-                        "left",
-                        "right"
-                    ]
-                },
-                "ordered":false
+                "type":"number"
             }
         ],
         "primaryKey":[
