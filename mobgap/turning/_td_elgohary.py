@@ -10,7 +10,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.turn_detection.base import BaseTurnDetector
+from mobgap.turning.base import BaseTurnDetector
 
 
 def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:

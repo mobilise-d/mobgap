@@ -9,7 +9,7 @@ from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from matplotlib import pyplot as plt
 
 from mobgap.data import LabExampleDataset
-from mobgap.turn_detection import TdElGohary
+from mobgap.turning import TdElGohary
 
 # %%
 # Loading data
