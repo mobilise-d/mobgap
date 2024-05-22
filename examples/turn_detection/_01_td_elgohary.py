@@ -5,7 +5,7 @@ This example shows how to use the Elgohary turning algorithm and some examples o
 matlab implementation.
 """
 
-import pandas as pd
+from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from matplotlib import pyplot as plt
 
 from mobgap.data import LabExampleDataset
@@ -15,8 +15,11 @@ from mobgap.turn_detection import TdElGohary
 # Loading data
 # ------------
 # .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
+#
 # We load example data from the lab dataset together with the INDIP reference system.
-# We will use the INDIP output for turns ("td") as ground truth.
+# We will use the Stereophoto output for turns ("td") as ground truth.
+# Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
+# Hence, it can not really be considered a reference system, in this context.
 
 example_data = LabExampleDataset(reference_system="Stereophoto", reference_para_level="wb")
 
@@ -27,63 +30,94 @@ reference_wbs = single_test.reference_parameters_.wb_list
 sampling_rate_hz = single_test.sampling_rate_hz
 ref_turns = single_test.reference_parameters_.turn_parameters
 
-turning_detector = TdElGohary()
-
-
-reference_wbs
-
 # %%
 # Applying the algorithm
 # ----------------------
-# Below we apply the shin algorithm to a lab trial.
-# We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
+# In a typical pipeline, we first identify the gait sequences and then apply the turning detection algorithm to each
+# gait sequence individually.
+# However, the turning algorithm can also be applied to the whole dataset at once.
+# It might produce false positives, in "non-walking" segments.
+#
+# Below we show both approaches, starting with the whole dataset.
+# This allows us to visualize how the algorithm works.
+imu_data_rot = MadgwickAHRS().estimate(imu_data, sampling_rate_hz=sampling_rate_hz).rotated_data_
+
+
+turning_detector = TdElGohary()
+
+algo = turning_detector.detect(imu_data_rot, sampling_rate_hz=sampling_rate_hz)
+turn_list = algo.turn_list_
+turn_list
+
+# %%
+# We can also extract additional debug information from the algorithm.
+# The yaw-angle gives us the estimated orientation of the lower back in the axis of the turning.
+# The ``raw_turn_list_`` gives us the raw detected turns, before filtering them based on duration and angle.
+yaw_angle = algo.yaw_angle_
+raw_turns = algo.raw_turn_list_
+raw_turns
+# %%
+# To better understand, how things work, we can plot all the results together.
+#
+# We can see that after filtering the signal, the algorithm identifies peaks in the signal that are higher in absolute
+# values than the ``min_peak_angle_velocity_dps`` (dotted lines).
+# Around these "turn-centers" the turn is defined as the region until the signal drops below the
+# ``lower_threshold_velocity_dps`` (dashed lines).
+#
+# We then look at the duration and the angle of the detected turns and filter them based on the provided thresholds.
+# We can see that at the end, only a small number of turns remain.
+# Most of the raw turns are filtered out by the ``allowed_turn_angle_deg`` threshold, which is set to 45 degrees.
+fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
+axs[0].set_title("Raw gyr_z data")
+axs[0].set_ylabel("gyr_z [dps]")
+imu_data_rot.reset_index(drop=True).plot(y="gyr_z", ax=axs[0])
+
+axs[1].set_title("Filtered IMU signal with raw turns and thresholds.")
+axs[1].set_ylabel("filtered gyr_z [dps]")
+filtered_data = (
+    turning_detector.smoothing_filter.clone()
+    .filter(imu_data_rot["gyr_z"], sampling_rate_hz=sampling_rate_hz)
+    .filtered_data_
+)
+filtered_data.reset_index(drop=True).plot(ax=axs[1])
+# Plot turn centeres
+axs[1].plot(raw_turns["center"], filtered_data.iloc[raw_turns["center"]], "o")
+# Plot start and end of turns as regions
+for i, row in raw_turns.iterrows():
+    axs[1].axvspan(row["start"], row["end"], alpha=0.5, color="gray" if row["direction"] == "left" else "blue")
+
+# Draw dashed line at +/- velocity_dps
+axs[1].axhline(turning_detector.lower_threshold_velocity_dps, color="green", linestyle="--", label="velocity_dps")
+axs[1].axhline(-turning_detector.lower_threshold_velocity_dps, color="gray", linestyle="--")
+
+# Draw dottet line at +/- height
+axs[1].axhline(turning_detector.min_peak_angle_velocity_dps, color="green", linestyle=":", label="height")
+axs[1].axhline(-turning_detector.min_peak_angle_velocity_dps, color="gray", linestyle=":")
+
+axs[2].set_title("Yaw angle with final turns")
+axs[2].set_ylabel("Yaw angle [deg]")
+axs[2].set_xlabel("samples [#]")
+yaw_angle.reset_index(drop=True).plot(ax=axs[2])
+
+# Plot start and end of turns as regions
+for i, row in turn_list.iterrows():
+    axs[2].axvspan(row["start"], row["end"], alpha=0.5, color="gray" if row["direction"] == "left" else "blue")
+
+
+fig.show()
+
+# %%
+# Now that we understand how the algorithm works, we apply it in the context of a typical pipeline using the
+# ``GsIterator`` in combination with the reference WBs.
+# This allows us to compare the results to the reference system.
 
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
-single_wb = reference_wbs.loc[3]
-single_wb_data = imu_data.iloc[single_wb["start"] : single_wb["end"]]
+imu_data_rot = MadgwickAHRS().estimate(imu_data, sampling_rate_hz=sampling_rate_hz).rotated_data_
 
-
-# single_wb_data = rotate_dataset_series(
-#     single_wb_data, MadgwickAHRS().estimate(single_wb_data, sampling_rate_hz=sampling_rate_hz).orientation_object_[:-1]
-# )
-
-algo = turning_detector.detect(single_wb_data, sampling_rate_hz=sampling_rate_hz)
-yaw_angle = algo.yaw_angle_
-raw_turns = algo.raw_turn_list_
-
-print(raw_turns)
-
-# Plot gyr_z data
-fig, axs = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
-single_wb_data.reset_index(drop=True).plot(y="gyr_z", ax=axs[0])
-filtered_data = (
-    turning_detector.smoothing_filter.clone()
-    .filter(single_wb_data["gyr_z"], sampling_rate_hz=sampling_rate_hz)
-    .filtered_data_
-)
-pd.Series(filtered_data).reset_index(drop=True).plot(ax=axs[1])
-# Plot turn centeres
-axs[1].plot(raw_turns["center"], filtered_data.iloc[raw_turns["center"]], "o", label="Turn_Start")
-# Plot start and end of turns as regions
-for i, row in raw_turns.iterrows():
-    axs[1].axvspan(row["start"], row["end"], alpha=0.5, color="gray" if row["direction"] == "left" else "green")
-
-# Draw dashed line at +/- velocity_dps
-axs[1].axhline(turning_detector.velocity_dps, color="green", linestyle="--", label="velocity_dps")
-axs[1].axhline(-turning_detector.velocity_dps, color="gray", linestyle="--")
-
-# Draw dottet line at +/- height
-axs[1].axhline(turning_detector.height, color="green", linestyle=":", label="height")
-axs[1].axhline(-turning_detector.height, color="gray", linestyle=":")
-
-fig.show()
-
-
-for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    # Store the turns info onto results list
+for (gs, data), result in iterator.iterate(imu_data_rot, reference_wbs):
     td = turning_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
     result.turn_list = td.turn_list_
 
@@ -91,69 +125,25 @@ turns = iterator.results_.turn_list
 turns
 
 # %%
-# Matlab Outputs
-# --------------
-# To check if the algorithm was implemented correctly, we compare the results to the matlab implementation.
-import json
-
-from mobgap import PACKAGE_ROOT
-
-
-def load_matlab_output(datapoint):
-    p = datapoint.group_label
-    with (
-        PACKAGE_ROOT.parent
-        / f"example_data/original_results/td_elgohary/lab/{p.cohort}/{p.participant_id}/TD_Output.json"
-    ).open() as f:
-        original_results = json.load(f)["TD_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["TD"]
-
-    if not isinstance(original_results, list):
-        original_results = [original_results]
-
-    turns = {}
-    turns_end = {}
-    turns_duration = {}
-    turns_angle = {}
-    for i, gs in enumerate(original_results):
-        turns[i] = pd.DataFrame({"TurnStart": [gs["Turn_Start"]]}, index=["td_id"]).rename_axis(index="td_id")
-        turns_end[i] = pd.DataFrame({"TurnEnd": [gs["Turn_End"]]}, index=["td_id"]).rename_axis(index="td_id")
-        turns_duration[i] = pd.DataFrame({"TurnDuration": [gs["Turn_Duration"]]}, index=["td_id"]).rename_axis(
-            index="td_id"
-        )
-        turns_angle[i] = pd.DataFrame({"Turn_Angle": [gs["Turn_Angle"]]}, index=["td_id"]).rename_axis(index="td_id")
-
-    return (
-        pd.concat(
-            [
-                pd.concat(turns, names=["wb_id", turns[0].index.name]) * datapoint.sampling_rate_hz,
-                pd.concat(turns_end, names=["wb_id", turns_end[0].index.name]) * datapoint.sampling_rate_hz,
-                pd.concat(turns_duration, names=["wb_id", turns_duration[0].index.name]) * datapoint.sampling_rate_hz,
-                pd.concat(turns_angle, names=["wb_id", turns_angle[0].index.name]),
-            ],
-            axis=1,
-        )
-    ).astype(int)
-
-
-detected_turns_matlab = load_matlab_output(single_test)
-detected_turns_matlab
+# We can compare this to the reference turns.
+ref_turns
 
 # %%
 # Plotting the results
 # --------------------
-imu_data.reset_index(drop=True).plot(y="gyr_x")
-
-plt.plot(ref_turns_frames["start"], imu_data.iloc[ref_turns_frames["start"]], "o", label="ref_start")
-plt.plot(ref_turns_frames["end"], imu_data.iloc[ref_turns_frames["end"]], "o", label="ref_end")
-plt.plot(detected_turns_py["td"], imu_data.iloc[detected_turns_py["td"]], "x", label="TD_Start_py")
-plt.plot(detected_end_py["td"], imu_data.iloc[detected_end_py["td"]], "x", label="TD_End_py")
-plt.plot(
-    detected_turns_matlab["TurnStart"], imu_data.iloc[detected_turns_matlab["TurnStart"]], "+", label="TD_Start_matlab"
-)
-plt.plot(detected_turns_matlab["TurnEnd"], imu_data.iloc[detected_turns_matlab["TurnEnd"]], "+", label="TD_End_matlab")
-plt.xlim(reference_wbs.iloc[5]["start"] - 50, reference_wbs.iloc[5]["end"] + 50)
-plt.legend()
-plt.show()
+# imu_data.reset_index(drop=True).plot(y="gyr_x")
+#
+# plt.plot(ref_turns_frames["start"], imu_data.iloc[ref_turns_frames["start"]], "o", label="ref_start")
+# plt.plot(ref_turns_frames["end"], imu_data.iloc[ref_turns_frames["end"]], "o", label="ref_end")
+# plt.plot(detected_turns_py["td"], imu_data.iloc[detected_turns_py["td"]], "x", label="TD_Start_py")
+# plt.plot(detected_end_py["td"], imu_data.iloc[detected_end_py["td"]], "x", label="TD_End_py")
+# plt.plot(
+#     detected_turns_matlab["TurnStart"], imu_data.iloc[detected_turns_matlab["TurnStart"]], "+", label="TD_Start_matlab"
+# )
+# plt.plot(detected_turns_matlab["TurnEnd"], imu_data.iloc[detected_turns_matlab["TurnEnd"]], "+", label="TD_End_matlab")
+# plt.xlim(reference_wbs.iloc[5]["start"] - 50, reference_wbs.iloc[5]["end"] + 50)
+# plt.legend()
+# plt.show()
 
 # With that we can compare the python, matlab and ground truth results.
 # We zoom in into one of the gait sequences to better see the output.
