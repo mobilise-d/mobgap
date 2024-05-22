@@ -10,14 +10,11 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.turning.base import BaseTurnDetector
+from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
 
 
 def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.reset_index(drop=True).rename_axis("turn_id").reset_index().astype(_turn_df_types).set_index("turn_id")
-    # To ensure that the index is 1-based
-    df.index += 1
-    return df
+    return df.reset_index(drop=True).rename_axis("turn_id").reset_index().astype(_turn_df_types).set_index("turn_id")
 
 
 _turn_df_types = {
@@ -30,6 +27,7 @@ _turn_df_types = {
 }
 
 
+@base_turning_docfiller
 class TdElGohary(BaseTurnDetector):
     """Detect turns in the continuous yaw signal of a lower back IMU based on the algorithm by El-Gohary et al.
 
@@ -65,7 +63,19 @@ class TdElGohary(BaseTurnDetector):
 
     Attributes
     ----------
-    turn_list_
+    %(turn_list_)s
+    raw_turn_list_
+        The detected turns before filtering based on duration and angle.
+        This df also contains an additional ``center`` column, which marks the position of the originally detected peak.
+        This might be helpful for debugging or further analysis.
+    yaw_angle_
+        The yaw angle of the IMU signal estimated through the integration of the ``gyr_z`` signal.
+        This is used to estimate the turn angle.
+        This might be helpful for debugging or further analysis.
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
 
     Notes
     -----
@@ -118,7 +128,17 @@ class TdElGohary(BaseTurnDetector):
         self.yaw_angle_ = pd.DataFrame(columns=["angle_deg"])
         return self
 
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        """%(detect_short)s.
+
+        Parameters
+        ----------
+        %(detect_para)s
+        %(detect_return)s
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
         gyr_z = data["gyr_z"].to_numpy()
         filtered_gyr_z = self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # Note: The "abs" part here is missing in the original matlab implementation.
