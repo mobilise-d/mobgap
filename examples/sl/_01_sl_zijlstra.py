@@ -19,7 +19,7 @@ from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 short_trial: LabExampleDataset = lab_example_data.get_subset(
-    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+    cohort="HA", participant_id="001", test="Test5", trial="Trial2"
 )
 
 # %%
@@ -40,7 +40,7 @@ reference_gs
 # This is because, the reference parameters are already converted to the data sampling rate.
 from mobgap.sl import SlZijlstra
 
-sl_zijlstra = SlZijlstra()
+sl_zijlstra = SlZijlstra(beta = 0.3)
 
 gs_id = reference_gs.index[0]
 data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
@@ -52,18 +52,17 @@ sl_zijlstra.calculate(data=data_in_gs,
                       initial_contacts=ics_in_gs,
                       sensor_height = sensor_height,
                       sampling_rate_hz=short_trial.sampling_rate_hz,
-                      tuning_coefficient = tuning_coefficient,
-                      align_flag = False)
+                      tuning_coefficient = tuning_coefficient)
 
 # %%
 # We get an output that contains the cadence for each second of the gaits sequence.
 # The index represents the sample of the center of the second the cadence value belongs to.
-sl_zijlstra.sl_list_
+sl_zijlstra.sl_sec_list_
 
 # %%
 # To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
 # reference system.
 reference_sl = reference_gs["avg_stride_length_m"].loc[gs_id]
-zijlstra_avg_sl = sl_zijlstra.sl_list_["length_m"].mean()
+zijlstra_avg_sl = sl_zijlstra.sl_sec_list_["length_m"].mean()
 print(f"Average step length from reference: {reference_sl:.2f} m")
 print(f"Calculated average per-sec step length: {zijlstra_avg_sl:.2f} m")
