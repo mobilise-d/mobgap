@@ -178,7 +178,7 @@ class ResultType:
 # It might be nice to turn the ``n_samples`` into a pandas series with the gs identifier as index.
 # For this we define an aggregation function that expects the list of ``TypedIteratorResultTuple``.
 # These are named tuples of the following shape:
-from mobgap.pipeline._overwrite_typed_iterator import TypedIteratorResultTuple
+from tpcp.misc import TypedIteratorResultTuple
 
 display(inspect.getsource(TypedIteratorResultTuple))
 

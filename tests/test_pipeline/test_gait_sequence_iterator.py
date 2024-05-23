@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from tpcp.misc import TypedIteratorResultTuple
 
 from mobgap.pipeline import GsIterator, create_aggregate_df, iter_gs
 from mobgap.pipeline._gs_iterator import Region, RegionDataTuple
-from tpcp.misc import TypedIteratorResultTuple
+
 
 class TestGsIterationFunc:
     def test_simple(self):
@@ -88,7 +89,7 @@ class TestGsIterator:
         dummy_data = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
         dummy_sections = pd.DataFrame({"start": [0, 5], "end": [5, 10], "gs_id": ["s1", "s2"]}).set_index("gs_id")
 
-        iterator = GsIterator(DummyResultType)
+        iterator = GsIterator(DummyResultType, aggregations=[])
 
         for ((s_id, *_), d), r in iterator.iterate(dummy_data, dummy_sections):
             r.n_samples = len(d)

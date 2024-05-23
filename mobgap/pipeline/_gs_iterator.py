@@ -14,12 +14,9 @@ from typing import (
 
 import pandas as pd
 from tpcp import cf
-from tpcp.misc import custom_hash
-from tpcp.misc import set_defaults
-from typing_extensions import TypeAlias
-
-from tpcp.misc import BaseTypedIterator, TypedIteratorResultTuple
+from tpcp.misc import BaseTypedIterator, TypedIteratorResultTuple, custom_hash, set_defaults
 from tpcp.misc._typed_iterator import _NotSet
+from typing_extensions import TypeAlias
 
 
 class Region(NamedTuple):
