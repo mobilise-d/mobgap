@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,7 @@ from typing_extensions import Self, Unpack
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
+from mobgap.utils.conversions import as_samples
 
 
 def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:
@@ -100,7 +101,7 @@ class TdElGohary(BaseTurnDetector):
       This made it "harder" to detect turns in one direction than the other.
     """
 
-    smoothing_filter: BaseFilter
+    smoothing_filter: Optional[BaseFilter]
 
     raw_turn_list_: pd.DataFrame
     yaw_angle_: pd.DataFrame
@@ -108,7 +109,9 @@ class TdElGohary(BaseTurnDetector):
     def __init__(
         self,
         *,
-        smoothing_filter: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=0.5, filter_type="lowpass")),
+        smoothing_filter: Optional[BaseFilter] = cf(
+            ButterworthFilter(order=4, cutoff_freq_hz=0.5, filter_type="lowpass")
+        ),
         min_peak_angle_velocity_dps: float = 15,
         lower_threshold_velocity_dps: float = 5,
         min_gap_between_turns_s: float = 0.05,
@@ -140,7 +143,12 @@ class TdElGohary(BaseTurnDetector):
         self.sampling_rate_hz = sampling_rate_hz
 
         gyr_z = data["gyr_z"].to_numpy()
-        filtered_gyr_z = self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
+        if self.smoothing_filter is None:
+            filtered_gyr_z = gyr_z
+        else:
+            filtered_gyr_z = (
+                self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
+            )
         # Note: The "abs" part here is missing in the original matlab implementation.
         abs_filtered_gyr_z = np.abs(filtered_gyr_z)
         dominant_peaks, _ = find_peaks(abs_filtered_gyr_z, height=self.min_peak_angle_velocity_dps)
@@ -162,7 +170,9 @@ class TdElGohary(BaseTurnDetector):
         starts = np.where(start_indices < 0, 0, crossings[start_indices.clip(0, len(crossings) - 1)])
 
         # Vectorized search for end indices
-        end_indices = np.searchsorted(crossings, dominant_peaks, side="right")
+        # +1 here is required to make the end index inclusive and ensure that if for some reasone the peak is directly
+        # the sample before the crossing, we still include the peak in the turn
+        end_indices = np.searchsorted(crossings + 1, dominant_peaks, side="right")
         # When the index is out of bounds (i.e. no value was after it, we set the end index to the end of the WB)
         ends = np.where(
             end_indices >= len(crossings), len(data) - 1, crossings[end_indices.clip(0, len(crossings) - 1)]
@@ -184,12 +194,15 @@ class TdElGohary(BaseTurnDetector):
         turns = pd.DataFrame({"start": starts, "end": ends}).pipe(_calculate_metrics)
         self.raw_turn_list_ = _as_valid_turn_list(turns.copy().assign(center=dominant_peaks.astype(int)))
 
+        min_gap_turn_samples = as_samples(self.min_gap_between_turns_s, sampling_rate_hz)
         turns = (
             # For all left and all right turns, we merge turns that are closer than min_gap_between_turns_s and have the
             # same direction
             turns.groupby("direction")
             .apply(
-                lambda df_: pd.DataFrame(merge_intervals(df_[["start", "end"]].to_numpy()), columns=["start", "end"])
+                lambda df_: pd.DataFrame(
+                    merge_intervals(df_[["start", "end"]].to_numpy(), min_gap_turn_samples), columns=["start", "end"]
+                )
             )
             # Then we combine all turns, sort them and recalculate the metrics.
             # Recalculation is required as the merging might have changed the start and end indices, and we can not
