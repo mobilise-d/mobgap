@@ -244,7 +244,7 @@ evaluation_results_with_opti.loc[:, ~evaluation_results_with_opti.columns.str.en
 # We simply evaluate the pre-trained model on exactly the same test sets as the optimized model.
 from tpcp.optimize import DummyOptimize
 
-optimizer = DummyOptimize(LrcEmulationPipeline(LrcUllrich()))
+optimizer = DummyOptimize(LrcEmulationPipeline(LrcUllrich()), ignore_potential_user_error_warning=True)
 
 evaluation_results_pre_trained = pd.DataFrame(cross_validate(optimizer, simulated_real_world_walking, cv=3))
 evaluation_results_pre_trained.loc[:, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")].T

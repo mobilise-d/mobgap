@@ -8,8 +8,7 @@ from pandas.testing import assert_frame_equal
 
 from mobgap.pipeline import GsIterator, create_aggregate_df, iter_gs
 from mobgap.pipeline._gs_iterator import Region, RegionDataTuple
-from mobgap.pipeline._overwrite_typed_iterator import TypedIteratorResultTuple
-
+from tpcp.misc import TypedIteratorResultTuple
 
 class TestGsIterationFunc:
     def test_simple(self):
