@@ -131,7 +131,7 @@ class TdElGohary(BaseTurnDetector):
         self.lower_threshold_velocity_dps = lower_threshold_velocity_dps
 
     def _return_empty(self) -> Self:
-        self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "turn_angle_deg", "direction"])
+        self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "angle_deg", "direction"])
         self.raw_turn_list_ = self.turn_list_.copy().assign(center=[])
         return self
 
