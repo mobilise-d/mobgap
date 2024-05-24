@@ -32,6 +32,11 @@ _turn_df_types = {
 class TdElGohary(BaseTurnDetector):
     """Detect turns in the continuous yaw signal of a lower back IMU based on the algorithm by El-Gohary et al.
 
+    .. warning:: There are some issues with matching the results of the ElGohary algorithm to the reference system.
+             The performance, we are observing here is far below the expected performance.
+             We are investigating this currently, but until then, we recommend to do your own testing and validation
+             before using this algorithm in production.
+
     This algorithm uses the lowpass filtered yaw-signal, then identifies peaks in its norm higher than
     ``min_peak_angle_velocity_dps``.
     Each peak is considered a turn-candidate and the start and end of each turn is identified as the first and last
@@ -128,7 +133,6 @@ class TdElGohary(BaseTurnDetector):
     def _return_empty(self) -> Self:
         self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "turn_angle_deg", "direction"])
         self.raw_turn_list_ = self.turn_list_.copy().assign(center=[])
-        self.yaw_angle_ = pd.DataFrame(columns=["angle_deg"])
         return self
 
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
@@ -149,6 +153,13 @@ class TdElGohary(BaseTurnDetector):
             filtered_gyr_z = (
                 self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
             )
+
+        # We pre-calculate the yaw-angle here, eventhough we might not need it, if no peaks were detected.
+        # This has some performance overhead, but it ensures that the yaw angle is always available as output, which
+        # might be helpful for debugging, in particular when no turns were detected unexpectedly.
+        yaw_angle = cumulative_trapezoid(gyr_z, dx=1 / sampling_rate_hz, initial=0)
+        self.yaw_angle_ = pd.DataFrame({"angle_deg": yaw_angle}, index=data.index)
+
         # Note: The "abs" part here is missing in the original matlab implementation.
         abs_filtered_gyr_z = np.abs(filtered_gyr_z)
         dominant_peaks, _ = find_peaks(abs_filtered_gyr_z, height=self.min_peak_angle_velocity_dps)
@@ -179,9 +190,6 @@ class TdElGohary(BaseTurnDetector):
         )
         # To make the end index inclusive, we add 1
         ends += 1
-
-        yaw_angle = cumulative_trapezoid(gyr_z, dx=1 / sampling_rate_hz, initial=0)
-        self.yaw_angle_ = pd.DataFrame({"angle_deg": yaw_angle}, index=data.index)
 
         def _calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
             return df.assign(

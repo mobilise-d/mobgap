@@ -32,8 +32,6 @@ single_test = example_data.get_subset(cohort="HA", participant_id="001", test="T
 imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
-print(single_test.participant_metadata)
-
 sampling_rate_hz = single_test.sampling_rate_hz
 ref_turns = single_test.reference_parameters_.turn_parameters
 
@@ -60,6 +58,7 @@ turn_list
 yaw_angle = turning_detector.yaw_angle_
 raw_turns = turning_detector.raw_turn_list_
 raw_turns
+
 
 # %%
 # To better understand, how things work, we can plot all the results together.
@@ -112,6 +111,7 @@ def plot_turns(algo_with_results: TdElGohary):
         axs[2].axvspan(row["start"], row["end"], alpha=0.5, color="gray" if row["direction"] == "left" else "blue")
 
     fig.show()
+
 
 plot_turns(turning_detector)
 
