@@ -1,0 +1,42 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"wb_id",
+                "type":"integer"
+            },
+            {
+                "name":"level_1",
+                "type":"integer"
+            },
+            {
+                "name":"start",
+                "type":"string"
+            },
+            {
+                "name":"end",
+                "type":"string"
+            },
+            {
+                "name":"duration_s",
+                "type":"string"
+            },
+            {
+                "name":"angle_deg",
+                "type":"string"
+            },
+            {
+                "name":"direction",
+                "type":"string"
+            }
+        ],
+        "primaryKey":[
+            "wb_id",
+            "level_1"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+
+    ]
+}

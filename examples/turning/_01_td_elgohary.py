@@ -208,10 +208,10 @@ imu_data = (
 # %%
 # Now we can apply the algorithm again.
 # We are going to apply it to the entire recording to show the step-by-step process.
-turning_detector = TdElGohary()
+turning_detector_global = TdElGohary()
 
-turning_detector.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
-plot_turns(turning_detector)
+turning_detector_global.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
+plot_turns(turning_detector_global)
 
 # %%
 # Compared to the previous results, we can see that the algorithm now detects significantly more turns.

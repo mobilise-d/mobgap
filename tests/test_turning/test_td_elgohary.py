@@ -3,6 +3,8 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap.data import LabExampleDataset
+from mobgap.pipeline import GsIterator
 from mobgap.turning import TdElGohary
 
 
@@ -97,3 +99,21 @@ class TestTdElGohary:
         assert len(output.turn_list_) == 3
         assert np.allclose(output.turn_list_["duration_s"].to_numpy(), [105 / 20, 50 / 20, 50 / 20], atol=1)
         assert output.turn_list_["direction"].to_list() == ["left", "right", "left"]
+
+
+class TestElGoharyRegression:
+    @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
+    def test_example_lab_data(self, datapoint, snapshot):
+        data = datapoint.data_ss
+        ref_walk_bouts = datapoint.reference_parameters_.wb_list
+        if len(ref_walk_bouts) == 0:
+            pytest.skip("No reference parameters available.")
+        sampling_rate_hz = datapoint.sampling_rate_hz
+
+        iterator = GsIterator()
+
+        for (gs, data), result in iterator.iterate(data, ref_walk_bouts):
+            result.turn_list = TdElGohary().detect(data, sampling_rate_hz=sampling_rate_hz).turn_list_
+
+        detected_turns = iterator.results_.turn_list
+        snapshot.assert_match(detected_turns, str(tuple(datapoint.group_label)))
