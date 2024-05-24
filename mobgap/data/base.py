@@ -1,6 +1,6 @@
 """Base classes for all fundamental dataset types."""
 
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, TypedDict
 
 import pandas as pd
 from tpcp import Dataset
@@ -90,6 +90,12 @@ class ReferenceData(NamedTuple):
     stride_parameters: pd.DataFrame
 
 
+class ParticipantMetadata(TypedDict):
+    """Type definition for the participant metadata."""
+    height_m: float
+    cohort: str
+
+
 @base_gait_dataset_docfiller
 class BaseGaitDataset(Dataset):
     """Basic subclass for all normal gait datasets.
@@ -133,7 +139,9 @@ class BaseGaitDataset(Dataset):
     data: IMU_DATA_DTYPE
     data_ss: pd.DataFrame
     # TODO: Make that more specific, once we know what metadata is needed for the pipelines
-    participant_metadata: dict[str, Any]
+    # TODO: Split this into required and additional metadata
+    participant_metadata: ParticipantMetadata
+    measurement_condition: str
 
 
 @base_gait_dataset_docfiller

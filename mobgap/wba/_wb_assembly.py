@@ -135,6 +135,17 @@ class WbAssembly(Algorithm):
         return {k: v.reset_index("wb_id", drop=True) for k, v in self.annotated_stride_list_.groupby("wb_id")}
 
     @property
+    def wb_meta_parameters_(self) -> pd.DataFrame:
+        if len(self.annotated_stride_list_) == 0:
+            return pd.DataFrame()
+
+        n_strides = self.annotated_stride_list_.groupby("wb_id").size().rename("n_strides")
+        parameters = self.termination_reasons_
+        start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
+
+        return pd.concat([start_end, n_strides, parameters], axis=1)
+
+    @property
     def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
         if len(self.excluded_stride_list_) == 0:
             return {}
@@ -195,8 +206,8 @@ class WbAssembly(Algorithm):
         wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
         # After we have the final wbs, we rewrite the wb_ids to be easier to read.
         self._wb_id_map = {k: i for i, k in enumerate(wb_list.keys(), 1)}
-        stride_index_col_name = filtered_stride_list.index.name
-        new_index_cols = ["wb_id", stride_index_col_name]
+        stride_index_col_name = filtered_stride_list.index.names
+        new_index_cols = ["wb_id", *stride_index_col_name]
         if len(wb_list) > 0:
             self.annotated_stride_list_ = pd.concat(wb_list, names=new_index_cols).reset_index()
             self.annotated_stride_list_["wb_id"] = self.annotated_stride_list_["wb_id"].map(self._wb_id_map)
@@ -204,7 +215,7 @@ class WbAssembly(Algorithm):
             self.annotated_stride_list_ = pd.DataFrame(columns=[*filtered_stride_list.columns, *new_index_cols])
         self.annotated_stride_list_ = self.annotated_stride_list_.set_index(new_index_cols)
 
-        pre_id_index_cols = ["pre_wb_id", stride_index_col_name]
+        pre_id_index_cols = ["pre_wb_id", *stride_index_col_name]
         if (
             len(
                 combined_excluded_stride_list := {

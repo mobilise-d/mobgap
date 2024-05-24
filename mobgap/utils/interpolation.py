@@ -4,6 +4,8 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from scipy.integrate import cumulative_trapezoid
+from scipy.interpolate import interp1d
 
 from mobgap.data_transform import HampelFilter
 from mobgap.data_transform.base import BaseFilter
@@ -135,3 +137,51 @@ def robust_step_para_to_sec(
         .mask(n_nan_mask > max_interpolation_gap_s)
     )
     return step_time_per_sec_smooth.to_numpy()
+
+
+def naive_sec_paras_to_regions(region_list: pd.DataFrame, sec_paras: pd.DataFrame) -> pd.DataFrame:
+    """Map per-second parameters to regions.
+
+    This will map the per-second parameters to the regions specified in the region list.
+    The per-second parameters are then "gap-filled" by linear interpolation.
+    The final per-second parameter is then smoothed again.
+
+    Parameters
+    ----------
+    region_list
+        The list of regions.
+        The dataframe must have a "start" and "end" column specifying the start and end indices of the regions.
+        The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
+    sec_paras
+        The per-second parameter.
+        Must have the same length as the number of seconds in the recording.
+        The index must be the center of the second in samples.
+
+    Returns
+    -------
+    region_list_with_paras
+        The region list with all columns from ``sec_paras`` interpolated to seconds added to it.
+
+    """
+    region_start_end = region_list[["start", "end"]].to_numpy().T
+    sec_index = sec_paras.index.get_level_values("sec_center_samples").to_numpy()
+    sec_values = sec_paras.to_numpy()
+    # We use an interpolation trick here.
+    # By integrating (cumulative_trapezoid) the values and then using linear interpolation, we can get the average value per region,
+    # even if the region is not exactly aligned with the second.
+    # We will basically linear interpolate between the second values.
+    inter_vals = interp1d(
+        sec_index,
+        (cumulative_trapezoid(sec_values, sec_index, axis=0, initial=0) + sec_values[0]),
+        fill_value="extrapolate",
+        axis=0,
+    )(region_start_end)
+    # This gives us the values for all start and end values. The shape is (2, n_regions, n_columns)
+    # We can now calculate the mean per region by subtracting the values at the start from the values at the end and
+    # dividing by the duration of the region.
+    mean_per_region = np.diff(inter_vals, axis=0)[0] / np.diff(region_start_end, axis=0)[0][:, None]
+
+    mean_per_region = pd.DataFrame(mean_per_region, columns=sec_paras.columns, index=region_list.index).astype(
+        sec_paras.dtypes
+    )
+    return pd.concat([region_list, mean_per_region], axis=1)

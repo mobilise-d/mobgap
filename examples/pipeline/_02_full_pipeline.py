@@ -7,14 +7,17 @@ Note, that we provide pre-built pipelines for common use-cases in the package.
 Checkout the examples for those, if you want to understand how to use them.
 
 """
-# TODO: This example is WIP and will be expanded once the respective algorithms are implemented.
 
+import pandas as pd
+
+# TODO: This example is WIP and will be expanded once the respective algorithms are implemented.
 # %%
 # Load example data
 # -----------------
 # We load example data from the lab dataset, and we will use a single long-trail from a "MS" participant for this
 # example.
 from mobgap.data import LabExampleDataset
+from mobgap.utils.interpolation import naive_sec_paras_to_regions
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 long_trial = lab_example_data.get_subset(
@@ -157,7 +160,7 @@ results.cad_per_sec
 # the per-second values into per-stride values by using interpolation.
 from mobgap.lrc import strides_list_from_ic_lr_list
 
-stride_list = results.ic_list.groupby("gs_id", as_index=False).apply(
+stride_list = results.ic_list.groupby("gs_id", group_keys=False).apply(
     strides_list_from_ic_lr_list
 )
 stride_list
@@ -165,14 +168,60 @@ stride_list
 # This initial stride list is completely unfiltered, and might contain very long strides, in areas where initial
 # contacts were not detected, or the participant was not walking for a short moment.
 # The stride list will be filtered later as part of the WB assembly.
-#
-# TODO: This is not implemented yet.
-# stride_list_with_paras = interpolate_per_stride(
-#     stride_list, cad_per_sec=results.cad_per_sec, stride_length=results.stride_length
-# )
-#
-#
-# from mobgap.wba import StrideSelection, WbAssembly
-#
-# ss = StrideSelection().filter()
-# wba = WbAssembly().assemble()
+from mobgap.utils.array_handling import create_multi_groupby
+
+stride_list_with_paras = create_multi_groupby(
+    stride_list,
+    pd.concat([results.cad_per_sec.reset_index("r_gs_id", drop=True)]),
+    "gs_id",
+).apply(naive_sec_paras_to_regions)
+
+stride_list_with_paras
+# %%
+# Now the final strides are regrouped into walking bouts.
+# For this we ignore which gait sequence the strides belong to, hence we remove the ``gs_id`` from the index, but keep
+# it around as column for debugging.
+# However, to keep a unique stride identifier, we combine the ``gs_id`` and the stride index.
+from mobgap.wba import IntervalDurationCriteria, StrideSelection, WbAssembly
+
+stride_list_with_paras = stride_list_with_paras.reset_index("gs_id").rename(columns={"gs_id": "original_gs_id"})
+
+ss = StrideSelection(
+    rules=[
+        (
+            "stride_duration_thres",
+            IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
+        )
+    ]
+).filter(stride_list_with_paras, sampling_rate_hz=sampling_rate_hz)
+wba = WbAssembly().assemble(
+    ss.filtered_stride_list_, sampling_rate_hz=sampling_rate_hz
+)
+
+final_strides = wba.annotated_stride_list_
+final_strides
+# %%
+# We also have meta information about the WBs available.
+per_wb_params = wba.wb_meta_parameters_
+per_wb_params
+
+# %%
+# We extend them further with the per-stride parameters.
+params_to_aggregate = ["cad_spm", "duration_s", "stride_length_m"]
+per_wb_params = pd.concat([per_wb_params, final_strides.reindex(columns=params_to_aggregate).groupby(["wb_id"]).mean()], axis=1)
+
+per_wb_params
+
+# %%
+# For each WB we can then apply thresholds to check if the calculated parameters are within the expected range.
+from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
+
+thresholds = get_mobilised_dmo_thresholds()
+
+per_wb_params_mask = apply_thresholds(
+    per_wb_params,
+    thresholds,
+    cohort=long_trial.participant_metadata["cohort"],
+    height_m=long_trial.participant_metadata["Height"],
+    measurement_condition="laboratory",
+)

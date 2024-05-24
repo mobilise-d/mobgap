@@ -101,7 +101,7 @@ class MobilisedMetadata(NamedTuple):
         None, if no reference data is available or loaded.
 
     """
-
+    # TODO: Add measurement condition
     start_date_time_iso: str
     time_zone: str
     sampling_rate_hz: Optional[float]

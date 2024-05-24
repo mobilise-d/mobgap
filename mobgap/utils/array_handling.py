@@ -92,26 +92,20 @@ class MultiGroupBy:
         secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
         groupby: Union[str, list[str]],
     ) -> None:
+        if isinstance(groupby, str):
+            groupby_as_list = [groupby]
+        else:
+            groupby_as_list = groupby
+
+        primary_index_cols = primary_df.index.names
+        if not set(groupby_as_list).issubset(primary_index_cols):
+            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
+
         self.primary_df = primary_df
         self.secondary_dfs = secondary_dfs
         if not isinstance(secondary_dfs, list):
             self.secondary_dfs = [secondary_dfs]
         self.groupby = groupby
-        if isinstance(groupby, str):
-            self.groupby = [groupby]
-
-        # For the approach to work, all dfs need to have the same index columns with the `level` columns as the first
-        # index levels.
-        primary_index_cols = primary_df.index.names
-        if not set(self.groupby).issubset(primary_index_cols):
-            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
-        primary_index_cols_reorderd = [
-            *self.groupby,
-            *[col for col in primary_index_cols if col not in groupby],
-        ]
-
-        self.primary_df = primary_df.reorder_levels(primary_index_cols_reorderd)
-        self.secondary_dfs = [df.reorder_levels(primary_index_cols_reorderd) for df in self.secondary_dfs]
 
     @property
     def primary_groupby(self) -> pd.core.groupby.DataFrameGroupBy:
@@ -120,7 +114,7 @@ class MultiGroupBy:
         This is the grouper created from the primary dataframe.
         """
         if not hasattr(self, "_primary_groupby"):
-            self._primary_groupby = self.primary_df.groupby(level=self.groupby)
+            self._primary_groupby = self.primary_df.groupby(level=self.groupby, group_keys=False)
         return self._primary_groupby
 
     @property
@@ -130,7 +124,7 @@ class MultiGroupBy:
         These are the groupers created from the secondary dataframes.
         """
         if not hasattr(self, "_secondary_groupbys"):
-            self._secondary_groupbys = [df.groupby(level=self.groupby) for df in self.secondary_dfs]
+            self._secondary_groupbys = [df.groupby(level=self.groupby, group_keys=False) for df in self.secondary_dfs]
         return self._secondary_groupbys
 
     def _get_secondary_vals(self, name: Union[str, tuple[str, ...]]) -> list[pd.DataFrame]:
