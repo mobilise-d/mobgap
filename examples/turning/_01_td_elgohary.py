@@ -11,11 +11,6 @@ This example shows how to use the ElGohary turning algorithm.
 It uses the angular velocity around the SI axis of a lower back IMU to detect turns.
 """
 
-from gaitmap.trajectory_reconstruction import MadgwickAHRS
-from matplotlib import pyplot as plt
-from mobgap.data import LabExampleDataset
-from mobgap.turning import TdElGohary
-
 # %%
 # Loading data
 # ------------
@@ -25,6 +20,8 @@ from mobgap.turning import TdElGohary
 # We will use the Stereophoto output for turns ("td") as ground truth.
 # Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
 # Hence, it can not really be considered a reference system, in this context.
+from mobgap.data import LabExampleDataset
+
 example_data = LabExampleDataset(
     reference_system="Stereophoto", reference_para_level="wb"
 )
@@ -48,6 +45,8 @@ ref_turns = single_test.reference_parameters_.turn_parameters
 #
 # Below we show both approaches, starting with the whole recording.
 # This allows us to visualize how the algorithm works.
+from mobgap.turning import TdElGohary
+
 turning_detector = TdElGohary()
 
 turning_detector.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
@@ -74,6 +73,9 @@ raw_turns
 # We then look at the duration and the angle of the detected turns and filter them based on the provided thresholds.
 # We can see that at the end, only a small number of turns remain.
 # Most of the raw turns are filtered out by the ``allowed_turn_angle_deg`` threshold, which is set to 45 degrees.
+import matplotlib.pyplot as plt
+
+
 def plot_turns(algo_with_results: TdElGohary):
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
     axs[0].set_title("Raw gyr_z data")
@@ -158,12 +160,6 @@ from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
-imu_data = (
-    MadgwickAHRS()
-    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
-    .rotated_data_
-)
-
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     td = turning_detector.clone().detect(
         data, sampling_rate_hz=sampling_rate_hz
@@ -199,7 +195,7 @@ ref_turns
 # data into the global coordinate system.
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
 
-imu_data = (
+imu_data_global = (
     MadgwickAHRS()
     .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
     .rotated_data_
@@ -210,10 +206,27 @@ imu_data = (
 # We are going to apply it to the entire recording to show the step-by-step process.
 turning_detector_global = TdElGohary()
 
-turning_detector_global.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
+turning_detector_global.detect(
+    imu_data_global, sampling_rate_hz=sampling_rate_hz
+)
 plot_turns(turning_detector_global)
 
 # %%
 # Compared to the previous results, we can see that the algorithm now detects significantly more turns.
-# However, this does not necessarily mean that the results are better, nor that this finding is consistent across all
-# recordings.
+# However, this finding is consistent across all recordings.
+#
+# When we apply the algorithm in the context of the pipeline, we can see that the results are closer to the reference
+# system, eventhough we are still missing some turns.
+iterator = GsIterator()
+
+for (gs, data), result in iterator.iterate(imu_data_global, reference_wbs):
+    td = turning_detector.clone().detect(
+        data, sampling_rate_hz=sampling_rate_hz
+    )
+    result.turn_list = td.turn_list_
+
+turns_global = iterator.results_.turn_list
+turns_global
+
+# %%
+# If the global frame should be used generally, further investigation is needed.
