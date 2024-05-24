@@ -155,8 +155,18 @@ results.cad_per_sec
 # Using the combined results, we want to define walking bouts.
 # As walking bouts in the context of Mobilise-D are defined based on strides, we need to turn the ICs into strides and
 # the per-second values into per-stride values by using interpolation.
+from mobgap.lrc import strides_list_from_ic_lr_list
+
+stride_list = results.ic_list.groupby("gs_id", as_index=False).apply(
+    strides_list_from_ic_lr_list
+)
+stride_list
+# %%
+# This initial stride list is completely unfiltered, and might contain very long strides, in areas where initial
+# contacts were not detected, or the participant was not walking for a short moment.
+# The stride list will be filtered later as part of the WB assembly.
+#
 # TODO: This is not implemented yet.
-# stride_list = stride_from_ic_list(results.ic_list)
 # stride_list_with_paras = interpolate_per_stride(
 #     stride_list, cad_per_sec=results.cad_per_sec, stride_length=results.stride_length
 # )
