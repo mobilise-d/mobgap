@@ -151,7 +151,7 @@ def _unify_gs_df(df: pd.DataFrame) -> pd.DataFrame:
         df = df.rename_axis("gs_id").reset_index()
     elif "gs_id" not in df.columns:
         df = df.reset_index()
-    return df.astype(_gs_df_dtypes).set_index("gs_id")
+    return df.astype(_gs_df_dtypes)[list(_gs_df_dtypes.keys())].set_index("gs_id")
 
 
 __all__ = ["BaseGsDetector", "base_gsd_docfiller"]

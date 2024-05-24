@@ -7,7 +7,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrc.base import BaseLRClassifier, base_lrc_docfiller
+from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
 
 
 @base_lrc_docfiller
@@ -96,7 +96,11 @@ class LrcMcCamley(BaseLRClassifier):
         self.data = data
         self.ic_list = ic_list
 
-        # TODO: Handle no data or no ICs
+        if data.empty or ic_list.empty:
+            self.ic_lr_list_ = (
+                pd.DataFrame(columns=["ic", "lr_label"], index=ic_list.index).dropna().pipe(_unify_ic_lr_list_df)
+            )
+            return self
 
         # create a copy of ic_list, otherwise they will get modified when adding the predicted labels
         # We also remove the "lr_label" column, if it exists, to avoid conflicts
@@ -123,5 +127,5 @@ class LrcMcCamley(BaseLRClassifier):
 
         ic_list["lr_label"] = np.where(data_at_ic <= 0, "left", "right")
 
-        self.ic_lr_list_ = ic_list
+        self.ic_lr_list_ = _unify_ic_lr_list_df(ic_list)
         return self
