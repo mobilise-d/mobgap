@@ -14,8 +14,7 @@ Algorithms
    :toctree: generated/turning
    :template: class.rst
 
-    CadFromIc
-    CadFromIcDetector
+    TdElGohary
 
 Base Classes
 ++++++++++++
@@ -29,7 +28,7 @@ Base Classes
    :toctree: generated/turning
    :template: class.rst
 
-    BaseCadCalculator
+    BaseTurnDetector
 
 Docu-helper
 -----------
