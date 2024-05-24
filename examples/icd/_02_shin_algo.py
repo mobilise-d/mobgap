@@ -9,7 +9,6 @@ matlab implementation.
 
 import pandas as pd
 from matplotlib import pyplot as plt
-
 from mobgap.data import LabExampleDataset
 from mobgap.icd import IcdShinImproved
 
@@ -21,9 +20,13 @@ from mobgap.icd import IcdShinImproved
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP output for initial contacts ("ic") as ground truth.
 
-example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
+example_data = LabExampleDataset(
+    reference_system="INDIP", reference_para_level="wb"
+)
 
-single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
+single_test = example_data.get_subset(
+    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+)
 imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
@@ -41,7 +44,11 @@ from mobgap.pipeline import GsIterator
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    result.ic_list = IcdShinImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+    result.ic_list = (
+        IcdShinImproved()
+        .detect(data, sampling_rate_hz=sampling_rate_hz)
+        .ic_list_
+    )
 
 detected_ics = iterator.results_.ic_list
 detected_ics
@@ -60,7 +67,9 @@ def load_matlab_output(datapoint):
         PACKAGE_ROOT.parent
         / f"example_data/original_results/icd_shin_improved/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
     ).open() as f:
-        original_results = json.load(f)["SD_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["SD"]
+        original_results = json.load(f)["SD_Output"][p.time_measure][p.test][
+            p.trial
+        ]["SU"]["LowerBack"]["SD"]
 
     if not isinstance(original_results, list):
         original_results = [original_results]
@@ -69,7 +78,10 @@ def load_matlab_output(datapoint):
     for i, gs in enumerate(original_results, start=1):
         ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="step_id")
 
-    return (pd.concat(ics, names=["wb_id", ics[1].index.name]) * datapoint.sampling_rate_hz).astype("int64")
+    return (
+        pd.concat(ics, names=["wb_id", ics[1].index.name])
+        * datapoint.sampling_rate_hz
+    ).astype("int64")
 
 
 detected_ics_matlab = load_matlab_output(single_test)
@@ -93,8 +105,18 @@ detected_ics_matlab
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
-plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="shin_algo_py")
-plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="shin_algo_matlab")
+plt.plot(
+    detected_ics["ic"],
+    imu_data["acc_x"].iloc[detected_ics["ic"]],
+    "x",
+    label="shin_algo_py",
+)
+plt.plot(
+    detected_ics_matlab["ic"],
+    imu_data["acc_x"].iloc[detected_ics_matlab["ic"]],
+    "+",
+    label="shin_algo_matlab",
+)
 plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()

@@ -18,15 +18,16 @@ This example shows how to use the :class:`.MobilisedAggregator` class to aggrega
 # The columns contain the DMO parameters estimated for each walking bout, such as duration, stride length, etc.
 
 import pandas as pd
-
 from mobgap import PACKAGE_ROOT
 from mobgap.aggregation import MobilisedAggregator
 
-DATA_PATH = PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
-
-data = pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0).set_index(
-    ["visit_type", "participant_id", "measurement_date", "wb_id"]
+DATA_PATH = (
+    PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
 )
+
+data = pd.read_csv(
+    DATA_PATH / "aggregation_test_input.csv", index_col=0
+).set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
 data.head()
 
 # %%
@@ -46,7 +47,13 @@ from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
 thresholds = get_mobilised_dmo_thresholds()
 # Note: The height is "artificially" set to 1.75m, as the example data does not contain this information.
-data_mask = apply_thresholds(data, thresholds, cohort="HA", height_m=1.75, measurement_condition="free_living")
+data_mask = apply_thresholds(
+    data,
+    thresholds,
+    cohort="HA",
+    height_m=1.75,
+    measurement_condition="free_living",
+)
 
 # %%
 # Performing the aggregation
@@ -55,7 +62,9 @@ data_mask = apply_thresholds(data, thresholds, cohort="HA", height_m=1.75, measu
 # walking bouts from one participant, or over all walking bouts per participant and day, week, or other criteria.
 # The data is grouped using additional columns in the input data, which are not used for the aggregation itself.
 # In this example, the data is grouped by participant (`subject_code`) and day (`visit_date`).
-agg = MobilisedAggregator(groupby=("visit_type", "participant_id", "measurement_date"))
+agg = MobilisedAggregator(
+    groupby=("visit_type", "participant_id", "measurement_date")
+)
 agg.aggregate(data, wb_dmos_mask=data_mask)
 
 # %%
@@ -77,9 +86,24 @@ agg.aggregated_data_
 # To get the Weekly Aggregations, the Daily results are averaged over all recording days per participant and rounded
 # depending on the aggregation metric. Obviously, in this example, the results are identical to the Daily Aggregations,
 # as there is only data from one day contained.
-weekly_agg = agg.aggregated_data_.groupby("participant_id").mean(numeric_only=True).reset_index()
-round_to_int = ["steps_all_sum", "turns_all_sum", "wb_all_sum", "wb_10_sum", "wb_30_sum", "wb_60_sum"]
-round_to_three_decimals = weekly_agg.columns[~weekly_agg.columns.isin(round_to_int)]
+weekly_agg = (
+    agg.aggregated_data_.groupby("participant_id")
+    .mean(numeric_only=True)
+    .reset_index()
+)
+round_to_int = [
+    "steps_all_sum",
+    "turns_all_sum",
+    "wb_all_sum",
+    "wb_10_sum",
+    "wb_30_sum",
+    "wb_60_sum",
+]
+round_to_three_decimals = weekly_agg.columns[
+    ~weekly_agg.columns.isin(round_to_int)
+]
 weekly_agg[round_to_int] = weekly_agg[round_to_int].round()
-weekly_agg[round_to_three_decimals] = weekly_agg[round_to_three_decimals].round(3)
+weekly_agg[round_to_three_decimals] = weekly_agg[round_to_three_decimals].round(
+    3
+)
 weekly_agg

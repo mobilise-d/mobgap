@@ -20,7 +20,6 @@ import json
 
 import matplotlib.pyplot as plt
 import pandas as pd
-
 from mobgap import PACKAGE_ROOT
 
 
@@ -33,13 +32,21 @@ def plot_gsd_outputs(data, **kwargs):
 
     y_max = 1.1
     plot_props = [
-        {"data": v, "label": k, "alpha": 0.2, "ymax": (y_max := y_max - 0.1), "color": next(color_cycle)["color"]}
+        {
+            "data": v,
+            "label": k,
+            "alpha": 0.2,
+            "ymax": (y_max := y_max - 0.1),
+            "color": next(color_cycle)["color"],
+        }
         for k, v in kwargs.items()
     ]
 
     for props in plot_props:
         for gsd in props.pop("data").itertuples(index=False):
-            ax.axvspan(gsd.start, gsd.end, label=props.pop("label", None), **props)
+            ax.axvspan(
+                gsd.start, gsd.end, label=props.pop("label", None), **props
+            )
 
     ax.legend()
     return fig, ax
@@ -69,15 +76,17 @@ def load_matlab_output(datapoint):
         PACKAGE_ROOT.parent
         / f"example_data/original_results/gsd_adaptive_ionescu/lab/{p.cohort}/{p.participant_id}/GSDB_Output.json"
     ).open() as f:
-        original_results = json.load(f)["GSDB_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["GSD"]
+        original_results = json.load(f)["GSDB_Output"][p.time_measure][p.test][
+            p.trial
+        ]["SU"]["LowerBack"]["GSD"]
 
     if not isinstance(original_results, list):
         original_results = [original_results]
     return (
         (
-            pd.DataFrame.from_records(original_results).rename({"Start": "start", "End": "end"}, axis=1)[
-                ["start", "end"]
-            ]
+            pd.DataFrame.from_records(original_results).rename(
+                {"Start": "start", "End": "end"}, axis=1
+            )[["start", "end"]]
             * datapoint.sampling_rate_hz
         )
         .round()
@@ -91,11 +100,15 @@ def load_matlab_output(datapoint):
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
 from mobgap.gsd import GsdAdaptiveIonescu
 
-short_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test5", trial="Trial2")
+short_trial = lab_example_data.get_subset(
+    cohort="MS", participant_id="001", test="Test5", trial="Trial2"
+)
 short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
-short_trial_output = GsdAdaptiveIonescu().detect(short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz)
+short_trial_output = GsdAdaptiveIonescu().detect(
+    short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz
+)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
@@ -118,11 +131,15 @@ fig.show()
 # ---------------------------------
 # Below we apply the algorithm to a lab trail that contains activities of daily living.
 # This is a more challenging scenario, as we expect multiple gait sequences.
-long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
+long_trial = lab_example_data.get_subset(
+    cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+)
 long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
-long_trial_output = GsdAdaptiveIonescu().detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
+long_trial_output = GsdAdaptiveIonescu().detect(
+    long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz
+)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nMatlab Output:\n\n", long_trial_matlab_output)

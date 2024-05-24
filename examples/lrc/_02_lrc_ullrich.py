@@ -23,8 +23,12 @@ from mobgap.data import LabExampleDataset
 #
 # We only use the data from the "simulated daily living" activity test from a single participant.
 
-example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
-single_test = example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
+example_data = LabExampleDataset(
+    reference_system="INDIP", reference_para_level="wb"
+)
+single_test = example_data.get_subset(
+    cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+)
 
 imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
@@ -61,7 +65,9 @@ iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     result.ic_list = algo.predict(
-        data, ic_list=ref_ics_rel_to_gs.loc[gs.id].drop("lr_label", axis=1), sampling_rate_hz=sampling_rate_hz
+        data,
+        ic_list=ref_ics_rel_to_gs.loc[gs.id].drop("lr_label", axis=1),
+        sampling_rate_hz=sampling_rate_hz,
     ).ic_lr_list_
 
 detected_ics = iterator.results_.ic_list
@@ -106,12 +112,19 @@ for (gs, data), _ in iterator.iterate(imu_data, reference_wbs):
 
 # %%
 # We will use all sequences but the last as trainings data.
-algo = algo.self_optimize(per_gs_data[:-1], per_gs_ic[:-1], per_gs_ic_lr[:-1], sampling_rate_hz=sampling_rate_hz)
+algo = algo.self_optimize(
+    per_gs_data[:-1],
+    per_gs_ic[:-1],
+    per_gs_ic_lr[:-1],
+    sampling_rate_hz=sampling_rate_hz,
+)
 
 # %%
 # We can now use our trained model and make predictions on the sequence we did not train on.
 # We will use the last sequence for this.
-predictions = algo.predict(per_gs_data[-1], ic_list=per_gs_ic[-1], sampling_rate_hz=sampling_rate_hz).ic_lr_list_
+predictions = algo.predict(
+    per_gs_data[-1], ic_list=per_gs_ic[-1], sampling_rate_hz=sampling_rate_hz
+).ic_lr_list_
 predictions.assign(ref_lr_label=per_gs_ic_lr[-1]["lr_label"])
 
 # %%

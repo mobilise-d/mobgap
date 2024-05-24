@@ -17,7 +17,9 @@ Checkout the examples for those, if you want to understand how to use them.
 from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
-long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
+long_trial = lab_example_data.get_subset(
+    cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+)
 imu_data = long_trial.data_ss
 sampling_rate_hz = long_trial.sampling_rate_hz
 
@@ -36,7 +38,9 @@ gait_sequences
 # Starting from here, all the processing will happen per gait sequence.
 # We will go through the steps just for a single gait sequence first and later put everything in a loop.
 first_gait_sequence = gait_sequences.iloc[0]
-first_gait_sequence_data = imu_data.iloc[first_gait_sequence.start : first_gait_sequence.end]
+first_gait_sequence_data = imu_data.iloc[
+    first_gait_sequence.start : first_gait_sequence.end
+]
 
 # %%
 # Step 2: Initial Contact Detection
@@ -56,7 +60,9 @@ ic_list
 from mobgap.lrc import LrcUllrich
 
 lrc = LrcUllrich()
-lrc.predict(first_gait_sequence_data, ic_list, sampling_rate_hz=sampling_rate_hz)
+lrc.predict(
+    first_gait_sequence_data, ic_list, sampling_rate_hz=sampling_rate_hz
+)
 ic_list = lrc.ic_lr_list_
 
 # %%
@@ -78,7 +84,11 @@ refined_gait_sequence_data = first_gait_sequence_data.iloc[
 from mobgap.cad import CadFromIc
 
 cad = CadFromIc()
-cad.calculate(refined_gait_sequence_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz)
+cad.calculate(
+    refined_gait_sequence_data,
+    refined_ic_list,
+    sampling_rate_hz=sampling_rate_hz,
+)
 
 cad_per_sec = cad.cad_per_sec_
 cad_per_sec
@@ -127,7 +137,9 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
     with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
-        cad.calculate(refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz)
+        cad.calculate(
+            refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz
+        )
         rr.cad_per_sec = cad.cad_per_sec_
 
 # %%

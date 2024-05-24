@@ -442,8 +442,12 @@ def find_matches_with_min_overlap(
     Examples
     --------
     >>> from mobgap.gsd.evaluation import find_matches_with_min_overlap
-    >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
+    >>> detected = pd.DataFrame(
+    ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
+    ... ).set_index("id")
+    >>> reference = pd.DataFrame(
+    ...     [[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]
+    ... ).set_index("id")
     >>> result = find_matches_with_min_overlap(detected, reference)
        start  end
     id

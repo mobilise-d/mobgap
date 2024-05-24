@@ -390,7 +390,9 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         >>> my_aggregation = [
         ...     (
         ...         "my_result",
-        ...         GsIterator.DefaultAggregators.create_aggregate_df("my_result", fix_offset_cols=["my_col"]),
+        ...         GsIterator.DefaultAggregators.create_aggregate_df(
+        ...             "my_result", fix_offset_cols=["my_col"]
+        ...         ),
         ...     )
         ... ]
         >>> iterator = GsIterator(aggregations=my_aggregation)
@@ -536,10 +538,14 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
 
         Examples
         --------
-        >>> gs_list = pd.DataFrame({"start": [0, 10, 20], "end": [10, 20, 30]}).rename_axis("gs_id")
+        >>> gs_list = pd.DataFrame({"start": [0, 10, 20], "end": [10, 20, 30]}).rename_axis(
+        ...     "gs_id"
+        ... )
         >>> gs_iterator = GsIterator()
         >>> for (gs, data), r in gs_iterator.iterate(data, gs_list):
-        ...     sub_region = pd.DataFrame({"start": [3], "end": [len(data) - 3]}).rename_axis("gs_id")
+        ...     sub_region = pd.DataFrame(
+        ...         {"start": [3], "end": [len(data) - 3]}
+        ...     ).rename_axis("gs_id")
         ...     (sub_gs, sub_data), sub_r = gs_iterator.with_subregion(sub_region)
         ...     # Do something with the subregion data
         ...     sub_r.my_result = pd.DataFrame({"my_col": [1, 2, 3]})
@@ -583,10 +589,14 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
 
         Examples
         --------
-        >>> gs_list = pd.DataFrame({"start": [0, 10, 20], "end": [10, 20, 30]}).rename_axis("gs_id")
+        >>> gs_list = pd.DataFrame({"start": [0, 10, 20], "end": [10, 20, 30]}).rename_axis(
+        ...     "gs_id"
+        ... )
         >>> gs_iterator = GsIterator()
         >>> for (gs, data), r in gs_iterator.iterate(data, gs_list):
-        ...     sub_region = pd.DataFrame({"start": [3], "end": [len(data) - 3]}).rename_axis("gs_id")
+        ...     sub_region = pd.DataFrame(
+        ...         {"start": [3], "end": [len(data) - 3]}
+        ...     ).rename_axis("gs_id")
         ...     with gs_iterator.subregion(sub_region) as ((sub_gs, sub_data), sub_r):
         ...         # Do something with the subregion data
         ...         sub_r.my_result = pd.DataFrame({"my_col": [1, 2, 3]})

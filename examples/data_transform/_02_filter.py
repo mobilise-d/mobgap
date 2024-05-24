@@ -28,7 +28,9 @@ We load some example data to apply the filters to.
 from mobgap.data import LabExampleDataset
 from mobgap.data_transform import Resample
 
-data_point = LabExampleDataset().get_subset(cohort="HA", participant_id="002", test="Test5", trial="Trial2")
+data_point = LabExampleDataset().get_subset(
+    cohort="HA", participant_id="002", test="Test5", trial="Trial2"
+)
 example_data = data_point.data_ss
 sampling_rate_hz = data_point.sampling_rate_hz
 
@@ -42,7 +44,9 @@ example_data
 # Hence, we need to resample the data first.
 
 example_data_resampled = (
-    Resample(target_sampling_rate_hz=40).transform(example_data, sampling_rate_hz=sampling_rate_hz).transformed_data_
+    Resample(target_sampling_rate_hz=40)
+    .transform(example_data, sampling_rate_hz=sampling_rate_hz)
+    .transformed_data_
 )
 example_data_resampled
 
@@ -82,7 +86,9 @@ plt.show()
 # once backward.
 from mobgap.data_transform import ButterworthFilter
 
-butterworth_filter = ButterworthFilter(order=4, cutoff_freq_hz=2.0, zero_phase=True)
+butterworth_filter = ButterworthFilter(
+    order=4, cutoff_freq_hz=2.0, zero_phase=True
+)
 
 butterworth_filter.filter(example_data_resampled, sampling_rate_hz=40)
 

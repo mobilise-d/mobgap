@@ -37,7 +37,9 @@ ha_example_data
 # %%
 # Once you selected only a single row of the dataset (either by repeated ``get_subset`` or by iteration), you can load
 # the actual data.
-single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
+single_test = ha_example_data.get_subset(
+    participant_id="002", test="Test5", trial="Trial2"
+)
 single_test
 
 # %%
@@ -109,7 +111,10 @@ ref_paras.stride_parameters
 # ++++++++++++++++++++
 # We can get the local path to the example data using :func:`~mobgap.data.get_all_lab_example_data_paths`
 # and then use :func:`~mobgap.data.load_mobilised_matlab_format` to load the data.
-from mobgap.data import get_all_lab_example_data_paths, load_mobilised_matlab_format
+from mobgap.data import (
+    get_all_lab_example_data_paths,
+    load_mobilised_matlab_format,
+)
 
 all_example_data_paths = get_all_lab_example_data_paths()
 list(all_example_data_paths.keys())
@@ -144,7 +149,9 @@ test_11_data.metadata
 #
 # The available reference systems will depend on the data.
 
-data_with_reference = load_mobilised_matlab_format(example_participant_path / "data.mat", reference_system="INDIP")
+data_with_reference = load_mobilised_matlab_format(
+    example_participant_path / "data.mat", reference_system="INDIP"
+)
 selected_test = data_with_reference[test_list[2]]
 
 # %%
@@ -164,7 +171,9 @@ from mobgap.data import parse_reference_parameters
 data_sampling_rate_hz = selected_test.metadata.sampling_rate_hz
 
 ref_paras_functional = parse_reference_parameters(
-    raw_reference_data["wb"], data_sampling_rate_hz=data_sampling_rate_hz, ref_sampling_rate_hz=ref_sampling_rate_hz
+    raw_reference_data["wb"],
+    data_sampling_rate_hz=data_sampling_rate_hz,
+    ref_sampling_rate_hz=ref_sampling_rate_hz,
 )
 
 # %%

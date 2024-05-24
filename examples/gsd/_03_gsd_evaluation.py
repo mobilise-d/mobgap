@@ -8,7 +8,6 @@ This example shows how to apply evaluation algorithms to GSD and thus how to rat
 """
 
 import pandas as pd
-
 from mobgap.data import LabExampleDataset
 from mobgap.gsd import GsdIluz
 
@@ -23,13 +22,22 @@ from mobgap.gsd import GsdIluz
 
 def load_data():
     lab_example_data = LabExampleDataset(reference_system="INDIP")
-    single_test = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
+    single_test = lab_example_data.get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
     return single_test
 
 
 def calculate_gsd_iluz_output(single_test_data):
     """Calculate the GSD Iluz output for one sensor from the test data."""
-    det_gsd = GsdIluz().detect(single_test_data.data_ss, sampling_rate_hz=single_test_data.sampling_rate_hz).gs_list_
+    det_gsd = (
+        GsdIluz()
+        .detect(
+            single_test_data.data_ss,
+            sampling_rate_hz=single_test_data.sampling_rate_hz,
+        )
+        .gs_list_
+    )
     return det_gsd
 
 
@@ -107,7 +115,9 @@ categorized_intervals
 # specificity, negative predictive value, and accuracy will additionally be reported.
 from mobgap.gsd.evaluation import calculate_matched_gsd_performance_metrics
 
-matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
+matched_metrics_dict = calculate_matched_gsd_performance_metrics(
+    categorized_intervals
+)
 
 matched_metrics_dict
 
@@ -169,7 +179,9 @@ matches
 #
 # But let's start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
-simulated_real_world_walking = LabExampleDataset(reference_system="INDIP").get_subset(test="Test11")
+simulated_real_world_walking = LabExampleDataset(
+    reference_system="INDIP"
+).get_subset(test="Test11")
 
 simulated_real_world_walking
 # %%
@@ -192,7 +204,9 @@ pipeline.safe_run(simulated_real_world_walking[0]).gs_list_
 # All mean and individual results are returned in huge dictionary that can be easily converted to a pandas DataFrame.
 from tpcp.validate import validate
 
-evaluation_results = pd.DataFrame(validate(pipeline, simulated_real_world_walking))
+evaluation_results = pd.DataFrame(
+    validate(pipeline, simulated_real_world_walking)
+)
 
 evaluation_results.drop(["single_reference", "single_detected"], axis=1).T
 # %%
@@ -233,7 +247,11 @@ para_grid = ParameterGrid({"algo__window_length_s": [2, 3, 4]})
 
 cross_validate_results = pd.DataFrame(
     cross_validate(
-        GridSearch(GsdEmulationPipeline(GsdIluz()), para_grid, return_optimized="precision"),
+        GridSearch(
+            GsdEmulationPipeline(GsdIluz()),
+            para_grid,
+            return_optimized="precision",
+        ),
         simulated_real_world_walking,
         cv=3,
         return_train_score=True,
@@ -241,7 +259,13 @@ cross_validate_results = pd.DataFrame(
 )
 
 cross_validate_results.drop(
-    ["test_single_reference", "test_single_detected", "train_single_reference", "train_single_detected"], axis=1
+    [
+        "test_single_reference",
+        "test_single_detected",
+        "train_single_reference",
+        "train_single_detected",
+    ],
+    axis=1,
 ).T
 
 # %%
