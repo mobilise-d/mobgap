@@ -46,7 +46,7 @@ def strides_list_from_ic_lr_list(ic_lr_list: pd.DataFrame) -> pd.DataFrame:
     return (
         ic_lr_list.sort_values("ic")
         .groupby("lr_label", as_index=False, group_keys=False)
-        .apply(_to_stride_list_per_foot)
+        .apply(_to_stride_list_per_foot, include_groups=True)
         .sort_values("start")
         .pipe(_unify_stride_list)
     )
