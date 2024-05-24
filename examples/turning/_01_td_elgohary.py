@@ -13,7 +13,6 @@ It uses the angular velocity around the SI axis of a lower back IMU to detect tu
 
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from matplotlib import pyplot as plt
-
 from mobgap.data import LabExampleDataset
 from mobgap.turning import TdElGohary
 
@@ -26,9 +25,13 @@ from mobgap.turning import TdElGohary
 # We will use the Stereophoto output for turns ("td") as ground truth.
 # Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
 # Hence, it can not really be considered a reference system, in this context.
-example_data = LabExampleDataset(reference_system="Stereophoto", reference_para_level="wb")
+example_data = LabExampleDataset(
+    reference_system="Stereophoto", reference_para_level="wb"
+)
 
-single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
+single_test = example_data.get_subset(
+    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+)
 imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
@@ -88,18 +91,45 @@ def plot_turns(algo_with_results: TdElGohary):
 
     raw_turn_list = algo_with_results.raw_turn_list_
     # Plot turn centeres
-    axs[1].plot(raw_turn_list["center"], filtered_data.iloc[raw_turn_list["center"]], "o")
+    axs[1].plot(
+        raw_turn_list["center"],
+        filtered_data.iloc[raw_turn_list["center"]],
+        "o",
+    )
     # Plot start and end of turns as regions
     for i, row in raw_turn_list.iterrows():
-        axs[1].axvspan(row["start"], row["end"], alpha=0.5, color="gray" if row["direction"] == "left" else "blue")
+        axs[1].axvspan(
+            row["start"],
+            row["end"],
+            alpha=0.5,
+            color="gray" if row["direction"] == "left" else "blue",
+        )
 
     # Draw dashed line at +/- velocity_dps
-    axs[1].axhline(algo_with_results.lower_threshold_velocity_dps, color="green", linestyle="--", label="velocity_dps")
-    axs[1].axhline(-algo_with_results.lower_threshold_velocity_dps, color="gray", linestyle="--")
+    axs[1].axhline(
+        algo_with_results.lower_threshold_velocity_dps,
+        color="green",
+        linestyle="--",
+        label="velocity_dps",
+    )
+    axs[1].axhline(
+        -algo_with_results.lower_threshold_velocity_dps,
+        color="gray",
+        linestyle="--",
+    )
 
     # Draw dottet line at +/- height
-    axs[1].axhline(algo_with_results.min_peak_angle_velocity_dps, color="green", linestyle=":", label="height")
-    axs[1].axhline(-algo_with_results.min_peak_angle_velocity_dps, color="gray", linestyle=":")
+    axs[1].axhline(
+        algo_with_results.min_peak_angle_velocity_dps,
+        color="green",
+        linestyle=":",
+        label="height",
+    )
+    axs[1].axhline(
+        -algo_with_results.min_peak_angle_velocity_dps,
+        color="gray",
+        linestyle=":",
+    )
 
     axs[2].set_title("Yaw angle with final turns")
     axs[2].set_ylabel("Yaw angle [deg]")
@@ -108,7 +138,12 @@ def plot_turns(algo_with_results: TdElGohary):
 
     # Plot start and end of turns as regions
     for i, row in algo_with_results.turn_list_.iterrows():
-        axs[2].axvspan(row["start"], row["end"], alpha=0.5, color="gray" if row["direction"] == "left" else "blue")
+        axs[2].axvspan(
+            row["start"],
+            row["end"],
+            alpha=0.5,
+            color="gray" if row["direction"] == "left" else "blue",
+        )
 
     fig.show()
 
@@ -123,10 +158,16 @@ from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
 
-imu_data = MadgwickAHRS().estimate(imu_data, sampling_rate_hz=sampling_rate_hz).rotated_data_
+imu_data = (
+    MadgwickAHRS()
+    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
+    .rotated_data_
+)
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    td = turning_detector.clone().detect(data, sampling_rate_hz=sampling_rate_hz)
+    td = turning_detector.clone().detect(
+        data, sampling_rate_hz=sampling_rate_hz
+    )
     result.turn_list = td.turn_list_
 
 turns = iterator.results_.turn_list
@@ -158,7 +199,11 @@ ref_turns
 # data into the global coordinate system.
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
 
-imu_data = MadgwickAHRS().estimate(imu_data, sampling_rate_hz=sampling_rate_hz).rotated_data_
+imu_data = (
+    MadgwickAHRS()
+    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
+    .rotated_data_
+)
 
 # %%
 # Now we can apply the algorithm again.
