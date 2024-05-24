@@ -1,9 +1,9 @@
-"""Base class for step length calculators."""
+"""Base class for stride length calculators."""
 
 from typing import Any
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
@@ -19,18 +19,18 @@ base_sl_docfiller = make_filldoc(
     """,
         "sl_sec_list_": """
     sl_sec_list_
-        The main output of the step length calculation.
-        It provides a DataFrame with the column ``length_m`` that contains the length values with one value per full
+        The main output of the stride length calculation.
+        It provides a DataFrame with the column ``stride_length_m`` that contains the stride length values with one value per full
         second of the provided data. The unit is ``m``.
         The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
         each second.    """,
-        "sl_list_": """
-    sl_list_
-        The secondary output of the step length calculation.
+        "stpl_list_": """
+    stpl_list_
+        Secondary output.
         It provides a Numpy array that contains the raw step length values. The unit is ``m``.
         """,
         "calculate_short": """
-    Calculate per-sec length values in the passed data.
+    Calculate per-sec stride length values in the passed data.
     """,
         "calculate_para": """
     data
@@ -44,7 +44,7 @@ base_sl_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``sl_sec_list_`` attribute set to the estimated length per second values.
+        The instance of the class with the ``sl_sec_list_`` attribute set to the estimated stride length per second values.
     """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseSlCalculator`.",
@@ -55,10 +55,10 @@ base_sl_docfiller = make_filldoc(
 class BaseSlCalculator(Algorithm):
     """Base class for SL-calculators.
 
-    This base class should be used for all step length estimation algorithms.
+    This base class should be used for all stride length estimation algorithms.
     Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, `sl_sec_list_`` attribute set to the estimated length per
-    second values
+    The method should then return the instance of the class, `sl_sec_list_`` attribute set to the estimated stride length
+    per second values
     Further, the calculate method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
@@ -90,10 +90,17 @@ class BaseSlCalculator(Algorithm):
 
     # results
     sl_sec_list_: pd.DataFrame
-    sl_list_: np.ndarray
+    stpl_list_: np.ndarray
 
     @base_sl_docfiller
-    def calculate(self, data: pd.DataFrame, *, initial_contacts: pd.DataFrame, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
+    def calculate(
+        self,
+        data: pd.DataFrame,
+        *,
+        initial_contacts: pd.DataFrame,
+        sampling_rate_hz: float,
+        **kwargs: Unpack[dict[str, Any]],
+    ) -> Self:
         """%(calculate_short)s.
 
         Parameters
