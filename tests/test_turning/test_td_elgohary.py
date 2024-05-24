@@ -44,17 +44,7 @@ class TestTdElGohary:
         output.detect(data, sampling_rate_hz=100.0)
         assert output.turn_list_.empty
         assert output.raw_turn_list_.empty
-        assert output.yaw_angle_.empty
-
-    # def test_peaks_but_no_thres_crossing(self):
-    #     # TODO: FIx this works for the wrong reasons!
-    #     data = pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
-    #     data["gyr_z"] = np.sin(np.linspace(0, 2 * np.pi, 100)) * 15 + 6 + 15
-    #     output = TdElGohary()
-    #     output.detect(data, sampling_rate_hz=100.0)
-    #     assert output.turn_list_.empty
-    #     assert output.raw_turn_list_.empty
-    #     assert output.yaw_angle_.empty
+        assert len(output.yaw_angle_) == len(data)
 
     def test_sin_wave_turns(self):
         data = pd.DataFrame(np.zeros((1000, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
