@@ -33,7 +33,11 @@ imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz
-ref_turns = single_test.reference_parameters_.turn_parameters
+
+# %%
+# Note, that the reference turns don't use the 45 deg lower cutoff for turns by default.
+# Hence, we apply this here for consistency.
+ref_turns = single_test.reference_parameters_.turn_parameters.query("angle_deg >= 45")
 
 # %%
 # Applying the algorithm
@@ -216,7 +220,7 @@ plot_turns(turning_detector_global)
 # However, this finding is consistent across all recordings.
 #
 # When we apply the algorithm in the context of the pipeline, we can see that the results are closer to the reference
-# system, eventhough we are still missing some turns.
+# system, even though we are still missing some turns.
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data_global, reference_wbs):
