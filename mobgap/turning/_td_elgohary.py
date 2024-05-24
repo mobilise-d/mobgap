@@ -135,12 +135,14 @@ class TdElGohary(BaseTurnDetector):
         self.raw_turn_list_ = self.turn_list_.copy().assign(center=[])
         return self
 
+    @base_turning_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         """%(detect_short)s.
 
         Parameters
         ----------
         %(detect_para)s
+
         %(detect_return)s
         """
         self.data = data
