@@ -13,19 +13,21 @@ from mobgap.data_transform.base import BaseFilter
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
 from mobgap.utils.conversions import as_samples
 
-
-def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:
-    return df.reset_index(drop=True).rename_axis("turn_id").reset_index().astype(_turn_df_types).set_index("turn_id")
-
-
 _turn_df_types = {
     "turn_id": "int64",
     "start": "int64",
     "end": "int64",
+    "center": "int64",
     "duration_s": "float64",
     "angle_deg": "float64",
     "direction": pd.CategoricalDtype(categories=["left", "right"]),
 }
+
+
+def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:
+    tmp = df.reset_index(drop=True).rename_axis("turn_id").reset_index()
+    dtypes_for_check = {col: _turn_df_types[col] for col in tmp.columns}
+    return tmp.astype(dtypes_for_check)[list(dtypes_for_check.keys())].set_index("turn_id")
 
 
 @base_turning_docfiller
@@ -131,8 +133,10 @@ class TdElGohary(BaseTurnDetector):
         self.lower_threshold_velocity_dps = lower_threshold_velocity_dps
 
     def _return_empty(self) -> Self:
-        self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "angle_deg", "direction"])
-        self.raw_turn_list_ = self.turn_list_.copy().assign(center=[])
+        self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "angle_deg", "direction"]).pipe(
+            _as_valid_turn_list
+        )
+        self.raw_turn_list_ = self.turn_list_.copy().assign(center=[]).pipe(_as_valid_turn_list)
         return self
 
     @base_turning_docfiller
@@ -202,7 +206,7 @@ class TdElGohary(BaseTurnDetector):
 
         # Create an array of turns
         turns = pd.DataFrame({"start": starts, "end": ends}).pipe(_calculate_metrics)
-        self.raw_turn_list_ = _as_valid_turn_list(turns.copy().assign(center=dominant_peaks.astype(int)))
+        self.raw_turn_list_ = turns.copy().assign(center=dominant_peaks.astype(int)).pipe(_as_valid_turn_list)
 
         min_gap_turn_samples = as_samples(self.min_gap_between_turns_s, sampling_rate_hz)
         turns = (
@@ -211,8 +215,10 @@ class TdElGohary(BaseTurnDetector):
             turns.groupby("direction")
             .apply(
                 lambda df_: pd.DataFrame(
-                    merge_intervals(df_[["start", "end"]].to_numpy(), min_gap_turn_samples), columns=["start", "end"]
-                )
+                    merge_intervals(df_[["start", "end"]].to_numpy(), min_gap_turn_samples),
+                    columns=["start", "end"],
+                ),
+                include_groups=False,
             )
             # Then we combine all turns, sort them and recalculate the metrics.
             # Recalculation is required as the merging might have changed the start and end indices, and we can not
@@ -227,6 +233,6 @@ class TdElGohary(BaseTurnDetector):
         bool_map = turns["duration_s"].between(*self.allowed_turn_duration_s) & turns["angle_deg"].abs().between(
             *self.allowed_turn_angle_deg
         )
-        self.turn_list_ = _as_valid_turn_list(turns.loc[bool_map].copy())
+        self.turn_list_ = turns.loc[bool_map].copy().pipe(_as_valid_turn_list)
 
         return self

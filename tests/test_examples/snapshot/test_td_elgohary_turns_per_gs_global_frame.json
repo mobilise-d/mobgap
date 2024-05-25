@@ -6,16 +6,16 @@
                 "type":"integer"
             },
             {
-                "name":"level_1",
+                "name":"turn_id",
                 "type":"integer"
             },
             {
                 "name":"start",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"end",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"duration_s",
@@ -39,14 +39,14 @@
         ],
         "primaryKey":[
             "wb_id",
-            "level_1"
+            "turn_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":1,
-            "level_1":0,
+            "turn_id":0,
             "start":3833,
             "end":3933,
             "duration_s":1.0,
@@ -55,7 +55,7 @@
         },
         {
             "wb_id":1,
-            "level_1":1,
+            "turn_id":1,
             "start":3939,
             "end":4162,
             "duration_s":2.23,
@@ -64,7 +64,7 @@
         },
         {
             "wb_id":1,
-            "level_1":2,
+            "turn_id":2,
             "start":4169,
             "end":4545,
             "duration_s":3.76,
@@ -73,7 +73,7 @@
         },
         {
             "wb_id":1,
-            "level_1":3,
+            "turn_id":3,
             "start":4555,
             "end":4803,
             "duration_s":2.48,
@@ -82,7 +82,7 @@
         },
         {
             "wb_id":2,
-            "level_1":0,
+            "turn_id":0,
             "start":7777,
             "end":8137,
             "duration_s":3.6,
@@ -91,7 +91,7 @@
         },
         {
             "wb_id":3,
-            "level_1":0,
+            "turn_id":0,
             "start":9381,
             "end":9628,
             "duration_s":2.47,

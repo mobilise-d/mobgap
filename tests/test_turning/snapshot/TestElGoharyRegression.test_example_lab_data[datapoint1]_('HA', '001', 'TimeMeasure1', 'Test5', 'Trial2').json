@@ -6,33 +6,40 @@
                 "type":"integer"
             },
             {
-                "name":"level_1",
+                "name":"turn_id",
                 "type":"integer"
             },
             {
                 "name":"start",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"end",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"duration_s",
-                "type":"string"
+                "type":"number"
             },
             {
                 "name":"angle_deg",
-                "type":"string"
+                "type":"number"
             },
             {
                 "name":"direction",
-                "type":"string"
+                "type":"any",
+                "constraints":{
+                    "enum":[
+                        "left",
+                        "right"
+                    ]
+                },
+                "ordered":false
             }
         ],
         "primaryKey":[
             "wb_id",
-            "level_1"
+            "turn_id"
         ],
         "pandas_version":"1.4.0"
     },

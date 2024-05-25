@@ -6,16 +6,16 @@
                 "type":"integer"
             },
             {
-                "name":"level_1",
+                "name":"turn_id",
                 "type":"integer"
             },
             {
                 "name":"start",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"end",
-                "type":"string"
+                "type":"integer"
             },
             {
                 "name":"duration_s",
@@ -39,14 +39,14 @@
         ],
         "primaryKey":[
             "wb_id",
-            "level_1"
+            "turn_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
             "wb_id":2,
-            "level_1":0,
+            "turn_id":0,
             "start":4200,
             "end":4504,
             "duration_s":3.04,
@@ -55,7 +55,7 @@
         },
         {
             "wb_id":2,
-            "level_1":1,
+            "turn_id":1,
             "start":4532,
             "end":4779,
             "duration_s":2.47,
