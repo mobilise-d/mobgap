@@ -38,7 +38,7 @@ sampling_rate_hz = single_test.sampling_rate_hz
 # Note, that the reference turns don't use the 45 deg lower cutoff for turns by default.
 # Hence, we apply this here for consistency.
 ref_turns = single_test.reference_parameters_.turn_parameters.query(
-    "angle_deg >= 45"
+    "angle_deg.abs() >= 45"
 )
 
 # %%
