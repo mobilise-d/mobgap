@@ -92,10 +92,7 @@ class MultiGroupBy:
         secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
         groupby: Union[str, list[str]],
     ) -> None:
-        if isinstance(groupby, str):
-            groupby_as_list = [groupby]
-        else:
-            groupby_as_list = groupby
+        groupby_as_list = [groupby] if isinstance(groupby, str) else groupby
 
         primary_index_cols = primary_df.index.names
         if not set(groupby_as_list).issubset(primary_index_cols):

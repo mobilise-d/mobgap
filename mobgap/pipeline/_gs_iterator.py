@@ -149,10 +149,10 @@ class FullPipelinePerGsResult:
     cad_per_sec
         The cadence values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
-    stride_length
+    sl_per_sec
         The stride length values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
-    gait_speed
+    ws_per_sec
         The gait speed values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
 
@@ -160,8 +160,8 @@ class FullPipelinePerGsResult:
 
     ic_list: pd.DataFrame
     cad_per_sec: pd.DataFrame
-    stride_length: pd.DataFrame
-    gait_speed: pd.DataFrame
+    sl_per_sec: pd.DataFrame
+    ws_per_sec: pd.DataFrame
 
 
 def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
@@ -361,8 +361,8 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 [
                     ("ic_list", create_aggregate_df("ic_list", ["ic"])),
                     ("cad_per_sec", create_aggregate_df("cad_per_sec", [], fix_offset_index=True)),
-                    ("stride_length", create_aggregate_df("stride_length")),
-                    ("gait_speed", create_aggregate_df("gait_speed")),
+                    ("sl_per_sec", create_aggregate_df("sl_per_sec", [], fix_offset_index=True)),
+                    ("ws_per_sec", create_aggregate_df("ws_per_sec", [], fix_offset_index=True)),
                 ]
             ),
         }
@@ -372,8 +372,8 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 [
                     ("ic_list", create_aggregate_df("ic_list", [])),
                     ("cad_per_sec", create_aggregate_df("cad_per_sec", [])),
-                    ("stride_length", create_aggregate_df("stride_length", [])),
-                    ("gait_speed", create_aggregate_df("gait_speed", [])),
+                    ("sl_per_sec", create_aggregate_df("stride_length", [])),
+                    ("ws_per_sec", create_aggregate_df("gait_speed", [])),
                 ]
             ),
         }

@@ -139,7 +139,7 @@ class BaseGsDetector(Algorithm):
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
-def get_gs_df_dtypes(expected_id_name):
+def get_gs_df_dtypes(expected_id_name: str) -> dict[str, str]:
     return {
         expected_id_name: "int64",
         "start": "int64",

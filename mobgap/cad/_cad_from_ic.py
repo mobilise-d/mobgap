@@ -188,7 +188,7 @@ class CadFromIc(BaseCadCalculator):
         sec_centers = np.arange(0, n_secs) + 0.5
         self.cad_per_sec_ = pd.DataFrame(
             {
-                "cad_spm": _robust_ic_to_cad_per_sec(
+                "cadence_spm": _robust_ic_to_cad_per_sec(
                     initial_contacts_in_seconds,
                     sec_centers,
                     self.max_interpolation_gap_s,

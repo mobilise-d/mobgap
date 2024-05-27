@@ -160,6 +160,7 @@ results.cad_per_sec
 # the per-second values into per-stride values by using interpolation.
 from mobgap.lrc import strides_list_from_ic_lr_list
 
+# TODO: We need to properly test the stride list creation!
 stride_list = results.ic_list.groupby("gs_id", group_keys=False).apply(
     strides_list_from_ic_lr_list
 )
@@ -168,38 +169,57 @@ stride_list
 # This initial stride list is completely unfiltered, and might contain very long strides, in areas where initial
 # contacts were not detected, or the participant was not walking for a short moment.
 # The stride list will be filtered later as part of the WB assembly.
+#
+# For now, we are using linear interpolation to map the per-second cadence values to per-stride values and derive
+# approximated stride parameters.
+# We also calculate the stride duration here.
 from mobgap.utils.array_handling import create_multi_groupby
 
-stride_list_with_paras = create_multi_groupby(
-    stride_list,
-    pd.concat([results.cad_per_sec.reset_index("r_gs_id", drop=True)]),
-    "gs_id",
-).apply(naive_sec_paras_to_regions)
+combined_results = pd.concat(
+    [results.cad_per_sec, results.sl_per_sec, results.ws_per_sec], axis=1
+).reset_index("r_gs_id", drop=True)
 
-stride_list_with_paras
+stride_list_with_approx_paras = (
+    create_multi_groupby(
+        stride_list,
+        combined_results,
+        "gs_id",
+    )
+    .apply(naive_sec_paras_to_regions)
+    .assign(
+        stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz
+    )
+)
+
+stride_list_with_approx_paras
 # %%
 # Now the final strides are regrouped into walking bouts.
 # For this we ignore which gait sequence the strides belong to, hence we remove the ``gs_id`` from the index, but keep
 # it around as column for debugging.
-# However, to keep a unique stride identifier, we combine the ``gs_id`` and the stride index.
-from mobgap.wba import IntervalDurationCriteria, StrideSelection, WbAssembly
+from mobgap.wba import StrideSelection, WbAssembly
 
-stride_list_with_paras = stride_list_with_paras.reset_index("gs_id").rename(columns={"gs_id": "original_gs_id"})
+stride_list_with_approx_paras = stride_list_with_approx_paras.reset_index(
+    "gs_id"
+).rename(columns={"gs_id": "original_gs_id"})
 
-ss = StrideSelection(
-    rules=[
-        (
-            "stride_duration_thres",
-            IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
-        )
-    ]
-).filter(stride_list_with_paras, sampling_rate_hz=sampling_rate_hz)
+# %%
+# Then we apply the stride selection (note that we have additional rules in case the stride length is available) and
+# then group the remaining strides into walking bouts.
+ss_rules = (
+    StrideSelection.PredefinedParameters.mobilised
+    if "stride_length_m" in stride_list_with_approx_paras.columns
+    else StrideSelection.PredefinedParameters.mobilised_no_stride_length
+)
+ss = StrideSelection(**ss_rules).filter(
+    stride_list_with_approx_paras, sampling_rate_hz=sampling_rate_hz
+)
 wba = WbAssembly().assemble(
     ss.filtered_stride_list_, sampling_rate_hz=sampling_rate_hz
 )
 
 final_strides = wba.annotated_stride_list_
 final_strides
+
 # %%
 # We also have meta information about the WBs available.
 per_wb_params = wba.wb_meta_parameters_
@@ -207,8 +227,22 @@ per_wb_params
 
 # %%
 # We extend them further with the per-stride parameters.
-params_to_aggregate = ["cad_spm", "duration_s", "stride_length_m"]
-per_wb_params = pd.concat([per_wb_params, final_strides.reindex(columns=params_to_aggregate).groupby(["wb_id"]).mean()], axis=1)
+params_to_aggregate = [
+    "stride_duration_s",
+    "cadence_spm",
+    "stride_length_m",
+    "walking_speed_mps",
+]
+per_wb_params = pd.concat(
+    [
+        per_wb_params,
+        final_strides.reindex(columns=params_to_aggregate)
+        .groupby(["wb_id"])
+        # TODO: Decide if we should use mean or trim_mean here!
+        .mean(),
+    ],
+    axis=1,
+)
 
 per_wb_params
 
@@ -221,7 +255,27 @@ thresholds = get_mobilised_dmo_thresholds()
 per_wb_params_mask = apply_thresholds(
     per_wb_params,
     thresholds,
-    cohort=long_trial.participant_metadata["cohort"],
+    # TODO: We need better ways to get the metadata here!
+    cohort=long_trial.group_label.cohort,
     height_m=long_trial.participant_metadata["Height"],
     measurement_condition="laboratory",
 )
+per_wb_params_mask
+
+# %%
+# We can see that we either get NaN (for parameters that are not checked) or True/False values for each parameter.
+#
+# This output together with the per-WB parameters would then normally be used in some aggregation step to calculate
+# single values per participant, day, or other grouping criteria.
+# Depending on the use-case, this aggregation can be performed withing the "per-recording" pipeline or as a separate
+# step after processing all recordings.
+#
+# Here, we perform it per recording and calculate a single values from all the WBs.
+from mobgap.aggregation import MobilisedAggregator
+
+agg_results = (
+    MobilisedAggregator(groupby=None)
+    .aggregate(per_wb_params, wb_dmos_mask=per_wb_params_mask)
+    .aggregated_data_
+)
+agg_results

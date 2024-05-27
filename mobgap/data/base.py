@@ -1,6 +1,6 @@
 """Base classes for all fundamental dataset types."""
 
-from typing import Any, NamedTuple, TypedDict
+from typing import NamedTuple, TypedDict
 
 import pandas as pd
 from tpcp import Dataset
@@ -92,6 +92,7 @@ class ReferenceData(NamedTuple):
 
 class ParticipantMetadata(TypedDict):
     """Type definition for the participant metadata."""
+
     height_m: float
     cohort: str
 

@@ -114,7 +114,7 @@ class WbAssembly(Algorithm):
     _wb_id_map: dict[str, int]
 
     class PredefinedParameters:
-        mobilise_wb: ClassVar = {
+        mobilised: ClassVar = {
             "rules": [
                 (
                     "min_strides",
@@ -124,7 +124,7 @@ class WbAssembly(Algorithm):
             ]
         }
 
-    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_wb.items()})
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]]) -> None:
         self.rules = rules
 
@@ -143,7 +143,9 @@ class WbAssembly(Algorithm):
         parameters = self.termination_reasons_
         start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
 
-        return pd.concat([start_end, n_strides, parameters], axis=1)
+        return pd.concat([start_end, n_strides, parameters], axis=1).assign(
+            duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz
+        )
 
     @property
     def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
@@ -205,7 +207,7 @@ class WbAssembly(Algorithm):
         ) = self._apply_termination_rules(stride_list_sorted)
         wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
         # After we have the final wbs, we rewrite the wb_ids to be easier to read.
-        self._wb_id_map = {k: i for i, k in enumerate(wb_list.keys(), 1)}
+        self._wb_id_map = {k: i for i, k in enumerate(wb_list.keys())}
         stride_index_col_name = filtered_stride_list.index.names
         new_index_cols = ["wb_id", *stride_index_col_name]
         if len(wb_list) > 0:

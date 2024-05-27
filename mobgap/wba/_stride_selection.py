@@ -1,4 +1,4 @@
-from typing import ClassVar, Optional
+from typing import Final, Optional
 
 import pandas as pd
 from tpcp import Algorithm, cf
@@ -67,7 +67,7 @@ class StrideSelection(Algorithm):
     check_results_: pd.DataFrame
 
     class PredefinedParameters:
-        mobilise_stride_selection: ClassVar = {
+        mobilised: Final = {
             "rules": [
                 (
                     "stride_duration_thres",
@@ -80,7 +80,16 @@ class StrideSelection(Algorithm):
             ],
         }
 
-    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_stride_selection.items()})
+        mobilised_no_stride_length: Final = {
+            "rules": [
+                (
+                    "stride_duration_thres",
+                    IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
+                ),
+            ],
+        }
+
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
         self.rules = rules
 

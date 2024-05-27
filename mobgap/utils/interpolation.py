@@ -167,8 +167,8 @@ def naive_sec_paras_to_regions(region_list: pd.DataFrame, sec_paras: pd.DataFram
     sec_index = sec_paras.index.get_level_values("sec_center_samples").to_numpy()
     sec_values = sec_paras.to_numpy()
     # We use an interpolation trick here.
-    # By integrating (cumulative_trapezoid) the values and then using linear interpolation, we can get the average value per region,
-    # even if the region is not exactly aligned with the second.
+    # By integrating (cumulative_trapezoid) the values and then using linear interpolation, we can get the average
+    # value per region, even if the region is not exactly aligned with the second.
     # We will basically linear interpolate between the second values.
     inter_vals = interp1d(
         sec_index,
