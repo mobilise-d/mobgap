@@ -56,7 +56,7 @@ The respective time-period is then defined as [start, end), meaning starting wit
 end sample (exclusive).
 This follows the Python convention for indices and therefore, you can extract a region from the dataset as follows:
 
-```python
+```python-repl
 >>> dataset.iloc[start : end]
 ```
 
