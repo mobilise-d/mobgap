@@ -44,7 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The result attribute for Cadence in all Cadence algorithms and the GSIteration is now called 
   `cadence_per_sec` instead of `cad_per_sec`.
   (https://github.com/mobilise-d/mobgap/pull/141)
-
+- The Mobilise-D datasets `metadata` attribute is renamed to `recording_metadata` and is now a dictionary instead of a 
+  named tuple.
+  It also contains more information about the recording.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- All file/directory based versions of the Mobilise-D datasets now require a `measurement_condition` argument.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- All datasets now have a `participant_metadata` attribute that contains information about the participant.
+  (https://github.com/mobilise-d/mobgap/pull/141)
 
 ### Fixed
 
