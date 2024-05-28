@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
@@ -7,7 +8,7 @@ from typing import Any, Final, Union
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.exceptions import NotFittedError
+from sklearn.exceptions import InconsistentVersionWarning, NotFittedError
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
@@ -26,7 +27,9 @@ from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScale
 def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
     file_path = files("mobgap") / "lrc" / "_ullrich_pretrained_models" / file_name
     with file_path.open("rb") as file:
-        return joblib.load(file)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", InconsistentVersionWarning)
+            return joblib.load(file)
 
 
 @base_lrc_docfiller
