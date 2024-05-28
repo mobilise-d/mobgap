@@ -31,7 +31,7 @@ class TestMetaCadFromIcDetector(TestAlgorithmMixin):
 
     @pytest.fixture()
     def after_action_instance(self):
-        return self.ALGORITHM_CLASS().calculate(
+        return self.ALGORITHM_CLASS(silence_ic_warning=True).calculate(
             pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
             initial_contacts=pd.DataFrame({"ic": np.arange(0, 100, 5)}),
             sampling_rate_hz=40.0,
@@ -435,7 +435,7 @@ class TestCadFromIcDetector:
 
         with pytest.raises(ValueError) as e:
             icd = _DummyIcDetector(initial_contacts)
-            cad = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=40.0)
+            _ = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=40.0)
 
         assert "Initial contacts must be sorted" in str(e.value)
 
