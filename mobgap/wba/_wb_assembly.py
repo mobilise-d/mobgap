@@ -39,6 +39,9 @@ class WbAssembly(Algorithm):
         A dictionary containing all walking bouts that were assembled.
         The keys are the ids of the walking bouts.
         The values are dataframes containing the strides that are part of the respective walking bout.
+    wb_meta_parameters_
+        A dataframe containing the general parameters per WB.
+        This includes the start, the end, the number of strides and the duration of the WB.
     excluded_stride_list_
         A dataframe containing all strides that are considered invalid, as they are not part of a WB.
         This can happen, because strides were part of a preliminary WB that was later discarded or because they were
@@ -140,7 +143,7 @@ class WbAssembly(Algorithm):
             return pd.DataFrame()
 
         n_strides = self.annotated_stride_list_.groupby("wb_id").size().rename("n_strides")
-        parameters = self.termination_reasons_
+        parameters = self.termination_reasons_.loc[n_strides.index]
         start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
 
         return pd.concat([start_end, n_strides, parameters], axis=1).assign(
