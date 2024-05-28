@@ -23,8 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/135)
 - The MobiliseDAggregator can now take `None` as grouping parameter, which results in all WBs being aggregated together.
   (https://github.com/mobilise-d/mobgap/pull/141)
-- The MobilseDAggregator now uses new more expressive names by default.
-  (https://github.com/mobilise-d/mobgap/pull/141)
 
 
 ### Changed
@@ -39,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/135)
 - Reference WB ids now start at 0 again instead of 1.
 - Reference parameters like turns and initial contacts that exist per WB are now numbered per WB.
+- The MobilseDAggregator now uses new more expressive names by default.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The expected Cadence output now has a new column name `cadence_spm` instead of `cad_spm`.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The result attribute for Cadence in all Cadence algorithms and the GSIteration is now called 
+  `cadence_per_sec` instead of `cad_per_sec`.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+
 
 ### Fixed
 

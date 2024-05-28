@@ -78,13 +78,13 @@ cad_from_ic.calculate(
 # %%
 # We get an output that contains the cadence for each second of the gaits sequence.
 # The index represents the sample of the center of the second the cadence value belongs to.
-cad_from_ic.cad_per_sec_
+cad_from_ic.cadence_per_sec_
 
 # %%
 # To show that the approach results in roughly the "correct" cadence value, we can compare the average cadence to the
 # reference system.
 reference_cad = reference_gs["avg_cadence_spm"].loc[gs_id]
-cad_from_ic_avg_cad = cad_from_ic.cad_per_sec_["cad_spm"].mean()
+cad_from_ic_avg_cad = cad_from_ic.cadence_per_sec_["cadence_spm"].mean()
 print(f"Average stride cadence from reference: {reference_cad:.2f} steps/min")
 print(
     f"Calculated average per-sec cadence: {cad_from_ic_avg_cad:.2f} steps/min"
@@ -124,7 +124,7 @@ cad_from_ic_detector.calculate(
 #           True on the ``CadFromIcDetector`` object.
 #
 # We get the same output structure as before.
-cad_from_ic_detector.cad_per_sec_
+cad_from_ic_detector.cadence_per_sec_
 
 # %%
 # But we can also access the detected initial contacts.
@@ -140,8 +140,8 @@ cad_from_ic_detector.ic_detector_
 #
 # .. note:: Compared to the previous method, the cadence value are more different, as we actually run a IC
 #          detection algorithm to find the ICs and not just used the values provided by the reference.
-cad_from_ic_detector_avg_cad = cad_from_ic_detector.cad_per_sec_[
-    "cad_spm"
+cad_from_ic_detector_avg_cad = cad_from_ic_detector.cadence_per_sec_[
+    "cadence_spm"
 ].mean()
 print(f"Average stride cadence from reference: {reference_cad:.2f} steps/min")
 print(

@@ -138,7 +138,7 @@ class CadFromIc(BaseCadCalculator):
 
     Attributes
     ----------
-    %(cad_per_sec_)s
+    %(cadence_per_sec_)s
 
     Other Parameters
     ----------------
@@ -186,7 +186,7 @@ class CadFromIc(BaseCadCalculator):
         initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
         n_secs = len(data) // sampling_rate_hz
         sec_centers = np.arange(0, n_secs) + 0.5
-        self.cad_per_sec_ = pd.DataFrame(
+        self.cadence_per_sec_ = pd.DataFrame(
             {
                 "cadence_spm": _robust_ic_to_cad_per_sec(
                     initial_contacts_in_seconds,
@@ -247,7 +247,7 @@ class CadFromIcDetector(CadFromIc):
 
     Attributes
     ----------
-    %(cad_per_sec_)s
+    %(cadence_per_sec_)s
     ic_detector_
         The IC detector used to detect the initial contacts with the results attached.
         This is only available after the ``detect`` method was called.

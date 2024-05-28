@@ -93,7 +93,7 @@ cad.calculate(
     sampling_rate_hz=sampling_rate_hz,
 )
 
-cad_per_sec = cad.cad_per_sec_
+cad_per_sec = cad.cadence_per_sec_
 cad_per_sec
 
 # %%
@@ -143,7 +143,7 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         cad.calculate(
             refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz
         )
-        rr.cad_per_sec = cad.cad_per_sec_
+        rr.cadence_per_sec = cad.cadence_per_sec_
 
 # %%
 # Now we can access all accumulated and offset-corrected results from the iterator.
@@ -152,7 +152,7 @@ results = gs_iterator.results_
 results.ic_list
 
 # %%
-results.cad_per_sec
+results.cadence_per_sec
 
 # %%
 # Using the combined results, we want to define walking bouts.
@@ -176,7 +176,12 @@ stride_list
 from mobgap.utils.array_handling import create_multi_groupby
 
 combined_results = pd.concat(
-    [results.cad_per_sec, results.sl_per_sec, results.ws_per_sec], axis=1
+    [
+        results.cadence_per_sec,
+        results.stride_length_per_sec,
+        results.walking_speed_per_sec,
+    ],
+    axis=1,
 ).reset_index("r_gs_id", drop=True)
 
 stride_list_with_approx_paras = (

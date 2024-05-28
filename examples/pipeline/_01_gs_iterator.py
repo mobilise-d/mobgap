@@ -122,9 +122,9 @@ for (gs, data), result in iterator.iterate(long_trial.data_ss, long_trial_gs):
     ).rename_axis(index="step_id")
     # For cadence, we just set a dummy value to the wb_id for each 1 second bout of the data.
     n_seconds = int(len(data) // long_trial.sampling_rate_hz)
-    result.cad_per_sec = pd.DataFrame(
+    result.cadence_per_sec = pd.DataFrame(
         [gs.id] * n_seconds,
-        columns=["cad_spm"],
+        columns=["cadence_spm"],
         index=as_samples(
             np.arange(0, n_seconds) + 0.5, long_trial.sampling_rate_hz
         ),
@@ -142,7 +142,7 @@ iterator.results_.ic_list
 # For the cadence value, the index represents the sample of the center of the second the cadence value belongs to.
 # This value was originally relative to the start of the GS.
 # We can see that in the aggregated results this is transformed back to be relative to the start of the recording.
-iterator.results_.cad_per_sec
+iterator.results_.cadence_per_sec
 
 
 # %%
