@@ -1,4 +1,3 @@
-import multiprocessing
 import warnings
 from functools import lru_cache
 from pathlib import Path
@@ -505,17 +504,6 @@ class MobilisedCvsDmoDataset(Dataset):
         return self._get_participant_site_metadata().loc[p_id, "timezone"]
 
     def create_index(self) -> pd.DataFrame:
-        if multiprocessing.parent_process() is None:
-            warnings.warn(
-                "The `MobilisedCvsDmoDataset` class still lacks extensive testing and might not load all data "
-                "as expected. "
-                "It was only tested manually on the DMO data of the T1 study using the newest available McRoberts "
-                "format for weartime reports available in Dec. 2023. "
-                "If you encounter any issues, please report them on GitHub: ",
-                UserWarning,
-                stacklevel=1,
-            )
-
         return hybrid_cache(self.memory, 1)(_create_index)(
             Path(self.dmo_path),
             Path(self.site_pid_map_path),
