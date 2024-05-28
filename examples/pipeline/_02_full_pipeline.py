@@ -261,9 +261,11 @@ per_wb_params_mask = apply_thresholds(
     per_wb_params,
     thresholds,
     # TODO: We need better ways to get the metadata here!
-    cohort=long_trial.group_label.cohort,
-    height_m=long_trial.participant_metadata["Height"],
-    measurement_condition="laboratory",
+    cohort=long_trial.participant_metadata["cohort"],
+    height_m=long_trial.participant_metadata["height_m"],
+    measurement_condition=long_trial.recording_metadata[
+        "measurement_condition"
+    ],
 )
 per_wb_params_mask
 

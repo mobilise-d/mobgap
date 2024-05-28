@@ -9,6 +9,7 @@ from typing import (
     Literal,
     NamedTuple,
     Optional,
+    TypedDict,
     TypeVar,
     Union,
 )
@@ -21,6 +22,8 @@ import scipy.io as sio
 from mobgap._docutils import make_filldoc
 from mobgap.data.base import (
     BaseGaitDatasetWithReference,
+    ParticipantMetadata,
+    RecordingMetadata,
     ReferenceData,
     base_gait_dataset_docfiller_dict,
 )
@@ -84,7 +87,7 @@ matlab_dataset_docfiller = make_filldoc(
 )
 
 
-class MobilisedMetadata(NamedTuple):
+class PartialMobilisedMetadata(TypedDict):
     """Metadata of each individual test/recording.
 
     Parameters
@@ -102,11 +105,34 @@ class MobilisedMetadata(NamedTuple):
 
     """
 
-    # TODO: Add measurement condition
     start_date_time_iso: str
     time_zone: str
     sampling_rate_hz: Optional[float]
     reference_sampling_rate_hz: Optional[float]
+
+
+class MobilisedMetadata(PartialMobilisedMetadata, RecordingMetadata):
+    """Metadata of each individual test/recording.
+
+    Parameters
+    ----------
+    measurement_condition
+        The measurement condition of the test (e.g. "laboratory" or "free_living").
+    start_date_time_iso
+        The start date and time of the test in ISO format.
+    time_zone
+        The time zone of the test (e.g. "Europe/Berlin").
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+        None, if no IMU data is available or loaded.
+    reference_sampling_rate_hz
+        The sampling rate of the reference data in Hz.
+        None, if no reference data is available or loaded.
+    recording_identifier
+        A tuple with the measurment, test, trial name
+    """
+
+    recording_identifier: tuple[str, ...]
 
 
 class MobilisedTestData(NamedTuple):
@@ -131,7 +157,7 @@ class MobilisedTestData(NamedTuple):
 
     imu_data: Optional[dict[str, pd.DataFrame]]
     raw_reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
-    metadata: MobilisedMetadata
+    metadata: PartialMobilisedMetadata
 
 
 def load_mobilised_participant_metadata_file(
@@ -364,7 +390,7 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
     return MobilisedTestData(
         imu_data=all_imu_data,
         raw_reference_parameters=reference_data,
-        metadata=MobilisedMetadata(**meta_data),
+        metadata=PartialMobilisedMetadata(**meta_data),
     )
 
 
@@ -755,6 +781,23 @@ def _relative_to_gs(
     return event_data
 
 
+class MobilisedParticipantMetadata(ParticipantMetadata):
+    """Participant metadata for the Mobilise-D dataset.
+
+    This is a subclass of :class:`~ParticipantMetadata` and adds some additional fields that are specific to the
+    Mobilise-D dataset.
+
+    """
+
+    foot_size_eu: float
+    weight_kg: float
+    handedness: Optional[Literal["left", "right"]]
+    indip_data_used: str
+    sensor_attachment_su: str
+    sensor_type_su: str
+    walking_aid_used: Optional[bool]
+
+
 @matlab_dataset_docfiller
 class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     """Common base class for Datasets based on the Mobilise-D matlab format.
@@ -867,18 +910,28 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
     @property
     def sampling_rate_hz(self) -> float:
-        return self._load_selected_data("sampling_rate_hz").metadata.sampling_rate_hz
+        return self._load_selected_data("sampling_rate_hz").metadata["sampling_rate_hz"]
 
     @property
     def reference_sampling_rate_hz_(self) -> float:
-        return self._load_selected_data("reference_sampling_rate_hz_").metadata.reference_sampling_rate_hz
+        return self._load_selected_data("reference_sampling_rate_hz_").metadata["reference_sampling_rate_hz"]
+
+    def _get_measurement_condition(self, path: Path) -> str:
+        """Return the measurement condition for a single file."""
+        raise NotImplementedError
 
     @property
-    def metadata(self) -> MobilisedMetadata:
-        return self._load_selected_data("metadata").metadata
+    def recording_metadata(self) -> MobilisedMetadata:
+        self.assert_is_single(None, "recording_metadata")
+        recording_identifier = tuple(getattr(self.group_label, s) for s in self._test_level_names)
+        return {
+            **self._load_selected_data("metadata").metadata,
+            "measurement_condition": self._get_measurement_condition(self.selected_data_file),
+            "recording_identifier": recording_identifier,
+        }
 
     @property
-    def participant_metadata(self) -> dict[str, Any]:
+    def participant_metadata(self) -> MobilisedParticipantMetadata:
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
         info_for_algo_file = self.selected_meta_data_file
 
@@ -886,7 +939,20 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         first_level_selected_test_name = self.index.iloc[0][next(iter(self._test_level_names))]
 
-        return participant_metadata[first_level_selected_test_name]
+        meta_data = participant_metadata[first_level_selected_test_name]
+        final_dict: MobilisedParticipantMetadata = {
+            "sensor_height_m": meta_data["SensorHeight"] / 100,
+            "height_m": meta_data["Height"] / 100,
+            "weight_kg": meta_data["Weight"],
+            "cohort": self.group_label.cohort,
+            "handedness": {"L": "left", "R": "right"}.get(meta_data["Handedness"], None),
+            "foot_size_eu": meta_data["FootSize"],
+            "indip_data_used": meta_data["INDIP_DataUsed"],
+            "sensor_attachment_su": meta_data["SensorAttachment_SU"],
+            "sensor_type_su": meta_data["SensorType_SU"],
+            "walking_aid_used": {0: False, 1: True}.get(int(meta_data["WalkingAid_01"]), None),
+        }
+        return final_dict
 
     @property
     def _cached_data_load(
@@ -1049,6 +1115,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         Usually, this will be something like ("TimeMeasure", "Test", "Trial").
         The number of levels can vary between datasets.
         For typically Mobilise-D datasets, check the ``COMMON_TEST_LEVEL_NAMES`` class variable.
+    measurement_condition
+        Whether the data was recorded under laboratory or free-living conditions.
+        At the moment, we only support creating datasets with a single measurement condition.
     parent_folders_as_metadata
         When multiple data files are provided, you need metadata to distinguish them.
         This class implementation expects the names of the parend folder(s) to be used as metadata.
@@ -1084,6 +1153,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     paths_list: Union[PathLike, Sequence[PathLike]]
     test_level_names: Sequence[str]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
+    measurement_condition: Literal["laboratory", "free_living"]
 
     COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
@@ -1096,6 +1166,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         test_level_names: Sequence[str],
         parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
+        measurement_condition: Literal["laboratory", "free_living"],
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
@@ -1109,6 +1180,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         self.paths_list = paths_list
         self.test_level_names = test_level_names
         self.parent_folders_as_metadata = parent_folders_as_metadata
+        self.measurement_condition = measurement_condition
         super().__init__(
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
@@ -1141,6 +1213,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     @property
     def _test_level_names(self) -> tuple[str, ...]:
         return tuple(self.test_level_names)
+
+    def _get_measurement_condition(self, path: Path) -> str:
+        return self.measurement_condition
 
     @property
     def _metadata_level_names(self) -> Optional[tuple[str, ...]]:

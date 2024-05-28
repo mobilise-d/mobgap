@@ -68,7 +68,7 @@ plt.show()
 
 # %%
 # Test-level metadata:
-single_test.metadata
+single_test.recording_metadata
 
 # %%
 # Participant-level metadata:
@@ -160,7 +160,7 @@ raw_reference_data = selected_test.raw_reference_parameters
 
 # %%
 # And metadata about the reference system is available as well.
-ref_sampling_rate_hz = selected_test.metadata.reference_sampling_rate_hz
+ref_sampling_rate_hz = selected_test.metadata["reference_sampling_rate_hz"]
 ref_sampling_rate_hz
 
 # %%
@@ -168,7 +168,7 @@ ref_sampling_rate_hz
 # :func:`~mobgap.data.parse_reference_parameters` function.
 from mobgap.data import parse_reference_parameters
 
-data_sampling_rate_hz = selected_test.metadata.sampling_rate_hz
+data_sampling_rate_hz = selected_test.metadata["sampling_rate_hz"]
 
 ref_paras_functional = parse_reference_parameters(
     raw_reference_data["wb"],

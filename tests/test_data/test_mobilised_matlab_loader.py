@@ -37,17 +37,17 @@ def test_simple_file_loading(example_data_path, recwarn, snapshot):
         assert len(name) == 3
 
         # Test basic metadata
-        assert test_data.metadata.time_zone == "Europe/Berlin"
+        assert test_data.metadata["time_zone"] == "Europe/Berlin"
 
-        assert test_data.metadata.sampling_rate_hz == 100
-        assert isinstance(test_data.metadata.start_date_time_iso, str)
+        assert test_data.metadata["sampling_rate_hz"] == 100
+        assert isinstance(test_data.metadata["start_date_time_iso"], str)
         # First sample should be equivalent to the start date time
         assert (
             test_data.imu_data["LowerBack"]
-            .index.tz_convert(test_data.metadata.time_zone)
+            .index.tz_convert(test_data.metadata["time_zone"])
             .round("ms")[0]
             .isoformat(timespec="milliseconds")
-            == test_data.metadata.start_date_time_iso
+            == test_data.metadata["start_date_time_iso"]
         )
 
         # Test IMU data
@@ -61,7 +61,7 @@ def test_simple_file_loading(example_data_path, recwarn, snapshot):
 
         # By default, there should be no reference parameter
         assert test_data.raw_reference_parameters is None
-        assert test_data.metadata.reference_sampling_rate_hz is None
+        assert test_data.metadata["reference_sampling_rate_hz"] is None
 
 
 def test_error_if_nothing_to_load(example_data_path):
@@ -79,10 +79,10 @@ def test_load_only_reference(example_data_path, recwarn):
 
     for _name, test_data in data.items():
         assert test_data.imu_data is None
-        assert test_data.metadata.sampling_rate_hz is None
+        assert test_data.metadata["sampling_rate_hz"] is None
 
         assert test_data.raw_reference_parameters is not None
-        assert test_data.metadata.reference_sampling_rate_hz == 100
+        assert test_data.metadata["reference_sampling_rate_hz"] == 100
 
 
 def test_reference_system_loading(example_data_path):
@@ -97,7 +97,7 @@ def test_reference_system_loading(example_data_path):
         if test_data.raw_reference_parameters is not None:
             number_of_tests_with_reference += 1
 
-            assert test_data.metadata.reference_sampling_rate_hz == 100
+            assert test_data.metadata["reference_sampling_rate_hz"] == 100
             assert set(test_data.raw_reference_parameters.keys()) == {"lwb", "wb"}
             for _key, value in test_data.raw_reference_parameters.items():
                 assert isinstance(value, list)
@@ -192,6 +192,7 @@ class TestDatasetClass:
             sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
             GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
             ("cohort", "participant_id"),
+            measurement_condition="laboratory",
         )
 
         manually_loaded_participant_index = list(get_all_lab_example_data_paths().keys())
@@ -209,6 +210,7 @@ class TestDatasetClass:
             example_data_path / "data.mat",
             GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
             None,
+            measurement_condition="laboratory",
             reference_system="INDIP",
             reference_para_level=reference_para_level,
         )
@@ -219,9 +221,10 @@ class TestDatasetClass:
 
         for test_ds, test in zip(ds, manually_data.values()):
             test_ds: GenericMobilisedDataset
-            assert test_ds.metadata == test.metadata
-            assert test_ds.sampling_rate_hz == test.metadata.sampling_rate_hz
-            assert test_ds.reference_sampling_rate_hz_ == test.metadata.reference_sampling_rate_hz
+            # Test.metadata should be a subset of recording_metadata
+            assert {k: v for k, v in test_ds.recording_metadata.items() if k in test.metadata} == test.metadata
+            assert test_ds.sampling_rate_hz == test.metadata["sampling_rate_hz"]
+            assert test_ds.reference_sampling_rate_hz_ == test.metadata["reference_sampling_rate_hz"]
             assert test_ds.data.keys() == test.imu_data.keys()
             for sensor in test_ds.data:
                 assert_frame_equal(test_ds.data[sensor], test.imu_data[sensor])
@@ -255,6 +258,7 @@ class TestDatasetClass:
             GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
             # With these setting, we will get duplicated metadata, because just the p_id is not unique
             (None, "participant_id"),
+            measurement_condition="laboratory",
         )
 
         with pytest.raises(ValueError, match="The metadata for each file path must be unique."):
@@ -264,6 +268,7 @@ class TestDatasetClass:
         ds = GenericMobilisedDataset(
             sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
             GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            measurement_condition="laboratory",
             # With these setting, we will get duplicated metadata, because just the p_id is not unique
         )
 
@@ -274,6 +279,7 @@ class TestDatasetClass:
         ds = GenericMobilisedDataset(
             (PACKAGE_ROOT / "example_data/data/lab").rglob("data.mat"),
             test_level_names=GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            measurement_condition="laboratory",
         )
 
         with pytest.raises(TypeError, match="paths_list must be a PathLike or a Sequence of PathLikes"):
@@ -285,6 +291,7 @@ class TestDatasetClass:
             GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
             ("cohort", "participant_id"),
             sensor_positions=("UnkownSensor",),
+            measurement_condition="laboratory",
         )
 
         with pytest.raises(
@@ -300,6 +307,7 @@ class TestDatasetClass:
             ("cohort", "participant_id"),
             sensor_positions=("UnkownSensor",),
             missing_sensor_error_type="raise",
+            measurement_condition="laboratory",
         )
 
         with pytest.raises(
@@ -315,6 +323,7 @@ class TestDatasetClass:
             ("cohort", "participant_id"),
             sensor_positions=("UnkownSensor",),
             missing_sensor_error_type="warn",
+            measurement_condition="laboratory",
         )
 
         with pytest.warns(
@@ -353,7 +362,7 @@ class TestDatasetClass:
         assert str(w[1].message) == "Expected at least one valid sensor position for SU. Given: ('LowerBack',)"
 
         assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
-        assert result[("TimeMeasure1", "Test11", "Trial1")].metadata.sampling_rate_hz is None
+        assert result[("TimeMeasure1", "Test11", "Trial1")].metadata["sampling_rate_hz"] is None
 
     def test_error_missing_sensor_ignore(self, example_missing_data_path):
         """Test missing sensor data for missing_sensor_error_type='ignore'. No Warning should be emitted"""
@@ -367,4 +376,4 @@ class TestDatasetClass:
         assert len(w) == 0
 
         assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
-        assert result[("TimeMeasure1", "Test11", "Trial1")].metadata.sampling_rate_hz is None
+        assert result[("TimeMeasure1", "Test11", "Trial1")].metadata["sampling_rate_hz"] is None

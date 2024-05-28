@@ -1,6 +1,6 @@
 """Base classes for all fundamental dataset types."""
 
-from typing import NamedTuple, TypedDict
+from typing import Literal, NamedTuple, TypedDict, Union
 
 import pandas as pd
 from tpcp import Dataset
@@ -34,7 +34,10 @@ base_gait_dataset_docfiller_dict = {
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     participant_metadata
-        The participant metadata loaded from the `infoForAlgo.mat` file.
+        General participant metadata.
+    required_participant_metadata
+        A subset of the metadata with strictly defined names and types.
+        These are the minimal set of metadata required for the algorithms.
     """,
     "common_dataset_reference_attrs": """
     reference_parameters_
@@ -91,10 +94,47 @@ class ReferenceData(NamedTuple):
 
 
 class ParticipantMetadata(TypedDict):
-    """Type definition for the participant metadata."""
+    """The required minimal set of meta-data for the algorithms.
+
+    If your dataset has additional metadata, you can subclass this for the type-checking.
+
+    Attributes
+    ----------
+    height_m
+        The height of the participant in meters.
+    sensor_height_m
+        The height of the lower back sensor in meters.
+    cohort
+        The cohort of the participant.
+        If the Mobilise-D data thresholds are used, this should be one of the following:
+        - "HA": Healthy Adult
+        - "MS": Multiple Sclerosis
+        - "PD": Parkinson's Disease
+        - "COPD": Chronic Obstructive Pulmonary Disease
+        - "CHF": Chronic Heart Failure
+        - "PFF": Primary Frailty Fracture
+
+        Otherwise, it can be any string.
+    """
 
     height_m: float
-    cohort: str
+    sensor_height_m: float
+    cohort: Union[Literal["HA", "MS", "PD", "COPD", "CHF", "PFF"], str]
+
+
+class RecordingMetadata(TypedDict):
+    """The required minimal set of recording meta-data for the algorithms.
+
+    Attributes
+    ----------
+    measurement_condition
+        The measurement condition of the recording.
+        If Mobilise-D DMO thresholds are used, this should be one of the following:
+        - "laboratory": The recording was done in a laboratory setting.
+        - "free_living": The recording was done in a free-living setting.
+    """
+
+    measurement_condition: Union[Literal["laboratory", "free_living"], str]
 
 
 @base_gait_dataset_docfiller
@@ -139,10 +179,9 @@ class BaseGaitDataset(Dataset):
     sampling_rate_hz: float
     data: IMU_DATA_DTYPE
     data_ss: pd.DataFrame
-    # TODO: Make that more specific, once we know what metadata is needed for the pipelines
-    # TODO: Split this into required and additional metadata
     participant_metadata: ParticipantMetadata
-    measurement_condition: str
+    recording_metadata: RecordingMetadata
+    measurement_condition: Union[Literal["laboratory", "free_living"], str]
 
 
 @base_gait_dataset_docfiller
@@ -173,6 +212,8 @@ class BaseGaitDatasetWithReference(BaseGaitDataset):
 __all__ = [
     "BaseGaitDataset",
     "BaseGaitDatasetWithReference",
+    "ParticipantMetadata",
+    "RecordingMetadata",
     "ReferenceData",
     "IMU_DATA_DTYPE",
     "base_gait_dataset_docfiller",

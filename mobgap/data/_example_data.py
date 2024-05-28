@@ -146,6 +146,9 @@ class LabExampleDataset(BaseGenericMobilisedDataset):
     def _test_level_names(self) -> tuple[str, ...]:
         return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
 
+    def _get_measurement_condition(self, path: Path) -> str:
+        return "laboratory"
+
     @property
     def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
         return "cohort", "participant_id"
