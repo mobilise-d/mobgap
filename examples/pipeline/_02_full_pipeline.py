@@ -189,6 +189,7 @@ stride_list_with_approx_paras = (
         stride_list,
         combined_results,
         "gs_id",
+        group_keys=False,
     )
     .apply(naive_sec_paras_to_regions)
     .assign(

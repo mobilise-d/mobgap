@@ -93,7 +93,7 @@ reference_ics
 from mobgap.utils.array_handling import create_multi_groupby
 
 per_wb_grouper = create_multi_groupby(
-    detected_ics, reference_ics, groupby=["wb_id"]
+    detected_ics, reference_ics, groupby="wb_id"
 )
 
 # %%
@@ -124,7 +124,7 @@ tolerance_samples
 from mobgap.icd.evaluation import categorize_ic_list
 
 matches_per_wb = create_multi_groupby(
-    detected_ics, reference_ics, groupby=["wb_id"]
+    detected_ics, reference_ics, groupby="wb_id"
 ).apply(
     lambda df1, df2: categorize_ic_list(
         ic_list_detected=df1,

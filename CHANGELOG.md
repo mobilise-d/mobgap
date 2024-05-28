@@ -23,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/135)
 - The MobiliseDAggregator can now take `None` as grouping parameter, which results in all WBs being aggregated together.
   (https://github.com/mobilise-d/mobgap/pull/141)
-
+- The Multi-Df groupby now has a way to pass parameters to the underlying `.groupby` call.
+  (https://github.com/mobilise-d/mobgap/pull/141)
 
 ### Changed
 
