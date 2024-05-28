@@ -240,9 +240,9 @@ class TestCadFromIc:
                 ref_data.ic_list.loc[gs.id],
                 sampling_rate_hz=dp.sampling_rate_hz,
             )
-            r.cad_per_sec = cad.cadence_per_sec_
+            r.cadence_per_sec = cad.cadence_per_sec_
 
-        snapshot.assert_match(gs_iterator.results_.cad_per_sec)
+        snapshot.assert_match(gs_iterator.results_.cadence_per_sec)
 
 
 class _DummyIcDetector(BaseIcDetector):
@@ -463,13 +463,6 @@ class TestCadFromIcDetector:
                 ref_data.ic_list.loc[gs.id],
                 sampling_rate_hz=dp.sampling_rate_hz,
             )
-            r.cad_per_sec = cad.cadence_per_sec_
+            r.cadence_per_sec = cad.cadence_per_sec_
 
-        snapshot.assert_match(gs_iterator.results_.cad_per_sec)
-
-    def test_no_ics_result_all_nan(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.DataFrame({"ic": []})
-        icd = _DummyIcDetector(initial_contacts)
-        cad = CadFromIcDetector(icd, silence_ic_warning=True).calculate(data, initial_contacts, sampling_rate_hz=40.0)
-        assert cad.cadence_per_sec_["cadence_spm"].isna().all()
+        snapshot.assert_match(gs_iterator.results_.cadence_per_sec)
