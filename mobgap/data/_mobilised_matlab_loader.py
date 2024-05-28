@@ -1245,7 +1245,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     def _test_level_names(self) -> tuple[str, ...]:
         return tuple(self.test_level_names)
 
-    def _get_measurement_condition(self, path: Path) -> str:
+    def _get_measurement_condition(self) -> str:
         return self.measurement_condition
 
     @property

@@ -26,10 +26,9 @@ from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScale
 @cache
 def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
     file_path = files("mobgap") / "lrc" / "_ullrich_pretrained_models" / file_name
-    with file_path.open("rb") as file:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", InconsistentVersionWarning)
-            return joblib.load(file)
+    with file_path.open("rb") as file, warnings.catch_warnings():
+        warnings.simplefilter("ignore", InconsistentVersionWarning)
+        return joblib.load(file)
 
 
 @base_lrc_docfiller
