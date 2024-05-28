@@ -133,7 +133,7 @@ class RecordingMetadata(TypedDict):
         - "free_living": The recording was done in a free-living setting.
     """
 
-    measurement_condition: Union[Literal["laboratory", "free_living"], str]
+    measurement_condition: Literal["laboratory", "free_living"]
 
 
 @base_gait_dataset_docfiller

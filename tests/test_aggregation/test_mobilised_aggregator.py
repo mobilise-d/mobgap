@@ -133,7 +133,7 @@ class TestMobilisedAggregator:
     def test_nan_considered_true(self, example_dmo_data, dummy_dmo_data_mask):
         data = example_dmo_data.copy()
         data_mask = dummy_dmo_data_mask.copy()
-        with pd.option_context('future.no_silent_downcasting', True):
+        with pd.option_context("future.no_silent_downcasting", True):
             data_mask_wit_nan = data_mask.copy().replace(True, np.nan).infer_objects(copy=False)
 
         agg_with_nan = MobilisedAggregator(
