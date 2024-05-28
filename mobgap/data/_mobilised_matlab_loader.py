@@ -87,10 +87,58 @@ matlab_dataset_docfiller = make_filldoc(
 )
 
 
+class MobilisedParticipantMetadata(ParticipantMetadata):
+    """Participant metadata for the Mobilise-D dataset.
+
+    This is a subclass of :class:`~ParticipantMetadata` and adds some additional fields that are specific to the
+    Mobilise-D dataset.
+
+    Attributes
+    ----------
+    height_m
+        The height of the participant in meters.
+    sensor_height_m
+        The height of the lower back sensor in meters.
+    cohort
+        The cohort of the participant.
+        One of:
+        - "HA": Healthy Adult
+        - "MS": Multiple Sclerosis
+        - "PD": Parkinson's Disease
+        - "COPD": Chronic Obstructive Pulmonary Disease
+        - "CHF": Chronic Heart Failure
+        - "PFF": Primary Frailty Fracture
+    foot_size_eu
+        The foot size of the participant in EU sizes.
+    weight_kg
+        The weight of the participant in kg.
+    handedness
+        The handedness of the participant.
+        Either "left" or "right".
+    indip_data_used
+        Whether all INDIP data was used, or just partial data, as some sensors failed.
+    sensor_attachment_su
+        Where and how the SU was attached
+    sensor_type_su
+        The type of SU used (usually MM+ or AX6)
+    walking_aid_used
+        Whether a walking aid was used during the test.
+
+    """
+
+    foot_size_eu: float
+    weight_kg: float
+    handedness: Optional[Literal["left", "right"]]
+    indip_data_used: str
+    sensor_attachment_su: str
+    sensor_type_su: str
+    walking_aid_used: Optional[bool]
+
+
 class PartialMobilisedMetadata(TypedDict):
     """Metadata of each individual test/recording.
 
-    Parameters
+    Attributes
     ----------
     start_date_time_iso
         The start date and time of the test in ISO format.
@@ -114,7 +162,7 @@ class PartialMobilisedMetadata(TypedDict):
 class MobilisedMetadata(PartialMobilisedMetadata, RecordingMetadata):
     """Metadata of each individual test/recording.
 
-    Parameters
+    Attributes
     ----------
     measurement_condition
         The measurement condition of the test (e.g. "laboratory" or "free_living").
@@ -129,7 +177,7 @@ class MobilisedMetadata(PartialMobilisedMetadata, RecordingMetadata):
         The sampling rate of the reference data in Hz.
         None, if no reference data is available or loaded.
     recording_identifier
-        A tuple with the measurment, test, trial name
+        A tuple with the measurement, test, trial name
     """
 
     recording_identifier: tuple[str, ...]
@@ -781,23 +829,6 @@ def _relative_to_gs(
     return event_data
 
 
-class MobilisedParticipantMetadata(ParticipantMetadata):
-    """Participant metadata for the Mobilise-D dataset.
-
-    This is a subclass of :class:`~ParticipantMetadata` and adds some additional fields that are specific to the
-    Mobilise-D dataset.
-
-    """
-
-    foot_size_eu: float
-    weight_kg: float
-    handedness: Optional[Literal["left", "right"]]
-    indip_data_used: str
-    sensor_attachment_su: str
-    sensor_type_su: str
-    walking_aid_used: Optional[bool]
-
-
 @matlab_dataset_docfiller
 class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     """Common base class for Datasets based on the Mobilise-D matlab format.
@@ -916,7 +947,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     def reference_sampling_rate_hz_(self) -> float:
         return self._load_selected_data("reference_sampling_rate_hz_").metadata["reference_sampling_rate_hz"]
 
-    def _get_measurement_condition(self, path: Path) -> str:
+    def _get_measurement_condition(self) -> str:
         """Return the measurement condition for a single file."""
         raise NotImplementedError
 
@@ -926,7 +957,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         recording_identifier = tuple(getattr(self.group_label, s) for s in self._test_level_names)
         return {
             **self._load_selected_data("metadata").metadata,
-            "measurement_condition": self._get_measurement_condition(self.selected_data_file),
+            "measurement_condition": self._get_measurement_condition(),
             "recording_identifier": recording_identifier,
         }
 

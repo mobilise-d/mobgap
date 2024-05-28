@@ -109,7 +109,16 @@ Datatypes
    :template: namedtuple.rst
 
     MobilisedTestData
+
+.. autosummary::
+   :toctree: generated/data
+   :template: typed_dict.rst
+
+    base.ParticipantMetadata
+    MobilisedParticipantMetadata
+    base.RecordingMetadata
     MobilisedMetadata
+
 
 Docfiller
 ---------
