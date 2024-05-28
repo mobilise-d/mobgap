@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A ``refine_gs`` method that returns a new gait sequence that starts from the first IC and ends at the last IC.
   This can be used with the new subregion iteration to iterate over the subregions of a gait sequence.
   (https://github.com/mobilise-d/mobgap/pull/135)
+- The MobiliseDAggregator can now take `None` as grouping parameter, which results in all WBs being aggregated together.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The MobilseDAggregator now uses new more expressive names by default.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+
 
 ### Changed
 

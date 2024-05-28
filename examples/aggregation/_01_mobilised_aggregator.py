@@ -91,7 +91,7 @@ weekly_agg = (
     .mean(numeric_only=True)
     .reset_index()
 )
-round_to_int = [
+round_to_int_original_cols = [
     "steps_all_sum",
     "turns_all_sum",
     "wb_all_sum",
@@ -99,6 +99,21 @@ round_to_int = [
     "wb_30_sum",
     "wb_60_sum",
 ]
+round_to_int_new_cols = [
+    "wb_all__n_steps__sum",
+    "wb_all__n_turns__sum",
+    "wb_all__count",
+    "wb_10__count",
+    "wb_30__count",
+    "wb_60__count",
+]
+
+round_to_int = (
+    round_to_int_original_cols
+    if agg.use_original_names
+    else round_to_int_new_cols
+)
+
 round_to_three_decimals = weekly_agg.columns[
     ~weekly_agg.columns.isin(round_to_int)
 ]
