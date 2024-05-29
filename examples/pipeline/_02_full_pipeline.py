@@ -191,7 +191,7 @@ stride_list_with_approx_paras = (
         "gs_id",
         group_keys=False,
     )
-    .apply(naive_sec_paras_to_regions)
+    .apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
     .assign(
         stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz
     )

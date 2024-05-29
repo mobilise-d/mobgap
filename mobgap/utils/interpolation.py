@@ -4,7 +4,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from scipy.integrate import cumulative_trapezoid
+from pandas.core.dtypes.common import is_float_dtype
 from scipy.interpolate import interp1d
 
 from mobgap.data_transform import HampelFilter
@@ -139,7 +139,9 @@ def robust_step_para_to_sec(
     return step_time_per_sec_smooth.to_numpy()
 
 
-def naive_sec_paras_to_regions(region_list: pd.DataFrame, sec_paras: pd.DataFrame) -> pd.DataFrame:
+def naive_sec_paras_to_regions(
+    region_list: pd.DataFrame, sec_paras: pd.DataFrame, *, sampling_rate_hz: float
+) -> pd.DataFrame:
     """Map per-second parameters to regions.
 
     This will map the per-second parameters to the regions specified in the region list.
@@ -155,7 +157,11 @@ def naive_sec_paras_to_regions(region_list: pd.DataFrame, sec_paras: pd.DataFram
     sec_paras
         The per-second parameter.
         Must have the same length as the number of seconds in the recording.
-        The index must be the center of the second in samples.
+        The index have a level called ``sec_center_samples`` that contains the center of the second in samples for each
+        row.
+    sampling_rate_hz
+        The sampling rate of the recording in Hz.
+        This is required to calculate the maximum extrapolation range.
 
     Returns
     -------
@@ -163,17 +169,35 @@ def naive_sec_paras_to_regions(region_list: pd.DataFrame, sec_paras: pd.DataFram
         The region list with all columns from ``sec_paras`` interpolated to seconds added to it.
 
     """
+    if region_list.empty:
+        return region_list.reindex(columns=[*region_list.columns, *sec_paras.columns])
+
+    if sec_paras.empty:
+        # If no second parameters are available, we return NaNs for all regions
+        return pd.concat([region_list, pd.DataFrame(index=region_list.index, columns=sec_paras.columns)], axis=1)
+
+    if non_float_dtypes := [k for k, v in sec_paras.dtypes.items() if not is_float_dtype(v)]:
+        raise ValueError(
+            f"The following columns of sec_paras are not of float dytpe: {non_float_dtypes}. "
+            "Cast to float dtype before interpolation."
+        )
     region_start_end = region_list[["start", "end"]].to_numpy().T
     sec_index = sec_paras.index.get_level_values("sec_center_samples").to_numpy()
     sec_values = sec_paras.to_numpy()
     # We use an interpolation trick here.
-    # By integrating (cumulative_trapezoid) the values and then using linear interpolation, we can get the average
+    # By integrating (cumsum) the values and then using linear interpolation, we can get the average
     # value per region, even if the region is not exactly aligned with the second.
     # We will basically linear interpolate between the second values.
+    # For this we need to shift the second values, so that they mark the end and not the start of the second.
+    sec_index = sec_index + sampling_rate_hz * 0.5
+    # The problem is, that the approach does not work when we have only a single second or regions that start in the
+    # second before the first value.
+    # Hence, we pad the left edge.
+    sec_values = np.pad(sec_values, ((1, 0), (0, 0)), mode="edge")
+    sec_index = np.pad(sec_index, (1, 0), mode="constant", constant_values=(sec_index[0] - sampling_rate_hz))
     inter_vals = interp1d(
         sec_index,
-        (cumulative_trapezoid(sec_values, sec_index, axis=0, initial=0) + sec_values[0]),
-        fill_value="extrapolate",
+        np.cumsum(sec_values, axis=0) * sampling_rate_hz,
         axis=0,
     )(region_start_end)
     # This gives us the values for all start and end values. The shape is (2, n_regions, n_columns)

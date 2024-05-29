@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/141)
 - The Multi-Df groupby now has a way to pass parameters to the underlying `.groupby` call.
   (https://github.com/mobilise-d/mobgap/pull/141)
+- A method to generate a stride list from initial contacts (`strides_list_from_ic_lr_list`).
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- A method to interpolate per-sec values to regions (usually strides) (`naive_sec_paras_to_regions`).
+  (https://github.com/mobilise-d/mobgap/pull/141)
+
 
 ### Changed
 
