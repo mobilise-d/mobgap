@@ -31,6 +31,10 @@
         {
             "sec_center_samples":350,
             "cadence_spm":97.5609756098
+        },
+        {
+            "sec_center_samples":450,
+            "cadence_spm":95.2380952381
         }
     ]
 }

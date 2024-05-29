@@ -57,11 +57,11 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         assert_frame_equal(
             cadence,
             pd.DataFrame(
@@ -92,11 +92,11 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         expected_output[1:3] = np.nan
 
@@ -127,11 +127,11 @@ class TestCadFromIc:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         assert_frame_equal(cadence, pd.DataFrame({"cadence_spm": expected_output}, index=expected_index))
 
@@ -160,13 +160,13 @@ class TestCadFromIc:
         assert len(w) == 1
         assert "gait sequences are cut to the first and last detected initial" in str(w[0])
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         expected_output[0] = np.nan
-        expected_output[-1] = np.nan
+        expected_output[-2:] = np.nan
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
@@ -184,15 +184,11 @@ class TestCadFromIc:
         assert len(w) == 2
         assert "Can not calculate cadence with only one or zero initial contacts" in str(w[1])
 
-        assert len(cad.cadence_per_sec_) == len(data) // 40
+        assert len(cad.cadence_per_sec_) == np.ceil(len(data) / 40)
         assert cad.cadence_per_sec_["cadence_spm"].isna().all()
 
     @pytest.mark.parametrize("n_ics", [2, 3, 4])
     def test_small_n_ics(self, n_ics):
-        """We test that things work with a small number of ICs.
-
-        This could likely trigger some edge cases in the code.
-        """
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         initial_contacts = initial_contacts.iloc[:n_ics]
@@ -202,7 +198,7 @@ class TestCadFromIc:
 
         assert len(w) == 1
 
-        assert len(cad.cadence_per_sec_) == len(data) // 40
+        assert len(cad.cadence_per_sec_) == np.ceil(len(data) / 40)
         # We just test that not all values are NaN
         assert not cad.cadence_per_sec_["cadence_spm"].isna().all()
 
@@ -223,7 +219,7 @@ class TestCadFromIc:
         sampling_rate_hz = 40.0
         cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
         assert cad.cadence_per_sec_["cadence_spm"].isna().all()
-        assert len(cad.cadence_per_sec_) == len(data) // sampling_rate_hz
+        assert len(cad.cadence_per_sec_) == np.ceil(len(data) / sampling_rate_hz)
 
     def test_regression_on_longer_data(self, snapshot):
         dp = LabExampleDataset(reference_system="INDIP").get_subset(
@@ -273,11 +269,11 @@ class TestCadFromIcDetector:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         assert_frame_equal(
             cadence,
             pd.DataFrame(
@@ -309,11 +305,11 @@ class TestCadFromIcDetector:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         expected_output[1:3] = np.nan
 
@@ -345,11 +341,11 @@ class TestCadFromIcDetector:
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         assert_frame_equal(cadence, pd.DataFrame({"cadence_spm": expected_output}, index=expected_index))
 
@@ -377,13 +373,13 @@ class TestCadFromIcDetector:
         )
         cadence = cad.cadence_per_sec_
 
-        assert len(cadence) == len(data) // sampling_rate_hz
+        assert len(cadence) == np.ceil(len(data) / sampling_rate_hz)
         expected_output = np.ones(len(cadence)) * 1 / (fixed_step_size / sampling_rate_hz) * 60
         expected_output[0] = np.nan
-        expected_output[-1] = np.nan
+        expected_output[-2:] = np.nan
 
         expected_index = pd.Index(
-            np.arange(0.5 * sampling_rate_hz, n_samples, sampling_rate_hz),
+            np.arange(0.5 * sampling_rate_hz, n_samples + 0.5 * sampling_rate_hz, sampling_rate_hz),
             name="sec_center_samples",
         ).astype("int64")
 
@@ -404,7 +400,7 @@ class TestCadFromIcDetector:
         assert len(w) == 1
         assert "Can not calculate cadence with only one or zero initial contacts" in str(w[0])
 
-        assert len(cad.cadence_per_sec_) == len(data) // 40
+        assert len(cad.cadence_per_sec_) == np.ceil(len(data) / 40)
         assert cad.cadence_per_sec_["cadence_spm"].isna().all()
 
     @pytest.mark.parametrize("n_ics", [2, 3, 4])
@@ -423,7 +419,7 @@ class TestCadFromIcDetector:
 
         assert len(w) == 1
 
-        assert len(cad.cadence_per_sec_) == len(data) // 40
+        assert len(cad.cadence_per_sec_) == np.ceil(len(data) / 40)
         # We just test that not all values are NaN
         assert not cad.cadence_per_sec_["cadence_spm"].isna().all()
 
@@ -446,7 +442,7 @@ class TestCadFromIcDetector:
         sampling_rate_hz = 40.0
         cad = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
         assert cad.cadence_per_sec_["cadence_spm"].isna().all()
-        assert len(cad.cadence_per_sec_) == len(data) // sampling_rate_hz
+        assert len(cad.cadence_per_sec_) == np.ceil(len(data) / sampling_rate_hz)
 
     def test_regression_on_longer_data(self, snapshot):
         dp = LabExampleDataset(reference_system="INDIP").get_subset(

@@ -21,7 +21,7 @@ ic2cad_docfiller = make_filldoc(
         "ic2cad_short": """
     This uses a robust outlier removal approach to deal with missing initial contacts.
     The output cadence is reported as the average for each 1 second bin within the data.
-    An incomplete second at the end is removed.
+    Note that an incomplete second at the end is included, to make sure that the entire data range is covered.
 
     Regions (i.e. second bouts) with no initial contacts are interpolated linearly based on the surrounding values, if
     the gap is smaller than the specified maximum interpolation gap.
@@ -184,7 +184,7 @@ class CadFromIc(BaseCadCalculator):
         if not initial_contacts.is_monotonic_increasing:
             raise ValueError("Initial contacts must be sorted in ascending order.")
         initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
-        n_secs = len(data) // sampling_rate_hz
+        n_secs = len(data) / sampling_rate_hz
         sec_centers = np.arange(0, n_secs) + 0.5
         self.cadence_per_sec_ = pd.DataFrame(
             {

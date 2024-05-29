@@ -30,7 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A method to interpolate per-sec values to regions (usually strides) (`naive_sec_paras_to_regions`).
   (https://github.com/mobilise-d/mobgap/pull/141)
 
-
 ### Changed
 
 - The Gait Sequence iterator does not allow for dynamic attribute access anymore.
@@ -58,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/141)
 - All datasets now have a `participant_metadata` attribute that contains information about the participant.
   (https://github.com/mobilise-d/mobgap/pull/141)
+- The Cadence method does now include "incomplete" seconds.
+  This means the "partial" last second of a recording is now included in the output.
+  This ensures that all strides are covered by the output.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+
 
 ### Fixed
 
