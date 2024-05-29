@@ -139,19 +139,21 @@ class BaseGsDetector(Algorithm):
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
-_gs_df_dtypes = {
-    "gs_id": "int64",
-    "start": "int64",
-    "end": "int64",
-}
+def get_gs_df_dtypes(expected_id_name: str) -> dict[str, str]:
+    return {
+        expected_id_name: "int64",
+        "start": "int64",
+        "end": "int64",
+    }
 
 
-def _unify_gs_df(df: pd.DataFrame) -> pd.DataFrame:
-    if "gs_id" not in df.columns and "gs_id" not in df.index.names:
-        df = df.rename_axis("gs_id").reset_index()
-    elif "gs_id" not in df.columns:
+def _unify_gs_df(df: pd.DataFrame, expected_id_name: str = "gs_id") -> pd.DataFrame:
+    if expected_id_name not in df.columns and expected_id_name not in df.index.names:
+        df = df.rename_axis(expected_id_name).reset_index()
+    elif expected_id_name not in df.columns:
         df = df.reset_index()
-    return df.astype(_gs_df_dtypes).set_index("gs_id")
+    gs_df_dtypes = get_gs_df_dtypes(expected_id_name)
+    return df.astype(gs_df_dtypes)[list(gs_df_dtypes.keys())].set_index(expected_id_name)
 
 
 __all__ = ["BaseGsDetector", "base_gsd_docfiller"]

@@ -1,4 +1,4 @@
-from typing import ClassVar, Optional
+from typing import Final, Optional
 
 import pandas as pd
 from tpcp import Algorithm, cf
@@ -67,7 +67,7 @@ class StrideSelection(Algorithm):
     check_results_: pd.DataFrame
 
     class PredefinedParameters:
-        mobilise_stride_selection: ClassVar = {
+        mobilised: Final = {
             "rules": [
                 (
                     "stride_duration_thres",
@@ -80,7 +80,16 @@ class StrideSelection(Algorithm):
             ],
         }
 
-    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_stride_selection.items()})
+        mobilised_no_stride_length: Final = {
+            "rules": [
+                (
+                    "stride_duration_thres",
+                    IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
+                ),
+            ],
+        }
+
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
         self.rules = rules
 
@@ -142,6 +151,10 @@ class StrideSelection(Algorithm):
             axis=1,
         )
 
+        def _get_rule_obj(rule_names: pd.Series) -> pd.Series:
+            with pd.option_context("future.no_silent_downcasting", True):
+                return rule_names.replace(rules_as_dict).infer_objects(copy=False)
+
         # find first rule that fails:
         # idxmin will return the first False, but will always return a rule, even if everything is True
         self._exclusion_reasons = (
@@ -152,7 +165,7 @@ class StrideSelection(Algorithm):
             .rename("rule_name")
             .to_frame()
             # And find the corresponding rule object
-            .assign(rule_obj=lambda df_: df_["rule_name"].replace(rules_as_dict))
+            .assign(rule_obj=lambda df_: df_["rule_name"].pipe(_get_rule_obj))
         )
 
         return self

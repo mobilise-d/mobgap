@@ -18,10 +18,10 @@ base_cad_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
     """,
-        "cad_per_sec_": """
-    cad_per_sec_
+        "cadence_per_sec_": """
+    cadence_per_sec_
         The main output of the cadence calculation.
-        It provides a DataFrame with the column ``cad_spm`` that contains the cadence values with one value per full
+        It provides a DataFrame with the column ``cadence_spm`` that contains the cadence values with one value per full
         second of the provided data. The unit is ``1/min``.
         The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
         each second.
@@ -43,7 +43,7 @@ base_cad_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``cad_per_sec_`` attribute set to the calculated cadence.
+        The instance of the class with the ``cadence_per_sec_`` attribute set to the calculated cadence.
     """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseCadenceCalculator`.",
@@ -56,7 +56,7 @@ class BaseCadCalculator(Algorithm):
 
     This base class should be used for all cadence calculation algorithms.
     Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, with the ``cad_per_sec_`` attribute set to the
+    The method should then return the instance of the class, with the ``cadence_per_sec_`` attribute set to the
     calculated cadence.
     Further, the calculate method should set ``self.data``, ``self.sampling_rate_hz`` and ``self.initial_contacts``
     to the parameters passed to the method.
@@ -73,7 +73,7 @@ class BaseCadCalculator(Algorithm):
 
     Attributes
     ----------
-    %(cad_per_sec_)s
+    %(cadence_per_sec_)s
 
     Notes
     -----
@@ -86,7 +86,7 @@ class BaseCadCalculator(Algorithm):
     sampling_rate_hz: float
     initial_contacts: pd.DataFrame
 
-    cad_per_sec_: pd.DataFrame
+    cadence_per_sec_: pd.DataFrame
 
     _action_methods = ("calculate",)
 

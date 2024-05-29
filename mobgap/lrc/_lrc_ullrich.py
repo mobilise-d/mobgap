@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
@@ -7,7 +8,7 @@ from typing import Any, Final, Union
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.exceptions import NotFittedError
+from sklearn.exceptions import InconsistentVersionWarning, NotFittedError
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
@@ -18,14 +19,15 @@ from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrc.base import BaseLRClassifier, base_lrc_docfiller
+from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
 from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScaler
 
 
 @cache
 def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
     file_path = files("mobgap") / "lrc" / "_ullrich_pretrained_models" / file_name
-    with file_path.open("rb") as file:
+    with file_path.open("rb") as file, warnings.catch_warnings():
+        warnings.simplefilter("ignore", InconsistentVersionWarning)
         return joblib.load(file)
 
 
@@ -182,8 +184,10 @@ class LrcUllrich(BaseLRClassifier):
         self.sampling_rate_hz = sampling_rate_hz
 
         if data.empty or ic_list.empty:
-            self.ic_lr_list_ = pd.DataFrame(columns=["ic", "lr_label"])
-            self.feature_matrix_ = pd.DataFrame(columns=self._feature_matrix_cols)
+            self.ic_lr_list_ = (
+                pd.DataFrame(columns=["ic", "lr_label"], index=ic_list.index).dropna().pipe(_unify_ic_lr_list_df)
+            )
+            self.feature_matrix_ = pd.DataFrame(columns=self._feature_matrix_cols, index=ic_list.index).dropna()
             return self
 
         # create a copy of ic_list, otherwise, they will get modified when adding the predicted labels
@@ -211,7 +215,7 @@ class LrcUllrich(BaseLRClassifier):
         ic_list["lr_label"] = self.clf_pipe.predict(feature_matrix, **kwargs)
         ic_list = ic_list.replace({"lr_label": {0: "left", 1: "right"}})
 
-        self.ic_lr_list_ = ic_list
+        self.ic_lr_list_ = _unify_ic_lr_list_df(ic_list)
 
         return self
 

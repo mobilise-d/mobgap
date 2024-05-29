@@ -11,7 +11,14 @@
             },
             {
                 "name":"lr_label",
-                "type":"string"
+                "type":"any",
+                "constraints":{
+                    "enum":[
+                        "left",
+                        "right"
+                    ]
+                },
+                "ordered":false
             }
         ],
         "primaryKey":[
