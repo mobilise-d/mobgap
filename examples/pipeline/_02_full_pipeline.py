@@ -160,7 +160,6 @@ results.cadence_per_sec
 # the per-second values into per-stride values by using interpolation.
 from mobgap.lrc import strides_list_from_ic_lr_list
 
-# TODO: We need to properly test the stride list creation!
 stride_list = results.ic_list.groupby("gs_id", group_keys=False).apply(
     strides_list_from_ic_lr_list
 )
@@ -173,6 +172,10 @@ stride_list
 # For now, we are using linear interpolation to map the per-second cadence values to per-stride values and derive
 # approximated stride parameters.
 # We also calculate the stride duration here.
+#
+# Note, that we remove the ``r_gs_id`` index, as we don't need it anymore and each normal ``gs`` is mapped to a single
+# refined ``gs`` anyway.
+# In case we would have multiple refined ``gs`` per normal ``gs``, we might need to keep the ``r_gs_id`` index around.
 from mobgap.utils.array_handling import create_multi_groupby
 
 combined_results = pd.concat(

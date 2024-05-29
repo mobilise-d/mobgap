@@ -78,6 +78,11 @@ cad_from_ic.calculate(
 # %%
 # We get an output that contains the cadence for each second of the gaits sequence.
 # The index represents the sample of the center of the second the cadence value belongs to.
+#
+# Note, that there might be NaNs in the output, if there are breaks in the gait sequence and further, that the final
+# second might only be partially covered by the gait sequence.
+# We still calculate a cadence value for the entire second, but it is only based on the steps that occur in the part
+# that was actually covered by the gait sequence.
 cad_from_ic.cadence_per_sec_
 
 # %%
