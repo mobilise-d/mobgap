@@ -60,17 +60,18 @@ sl_docfiller = make_filldoc(
        We decided to use linear interpolation instead, as this is more robust to outliers.
        These approaches are identical, if we only need to interpolate a single value, but for larger gaps, linear
        interpolation will start favoring the "closer" neighboring values, which we think is more appropriate.
+    Moreover, differently from how it is done for cadence, here we consider second bins going from 0.5 to 1.5,
+    from 1.5 to 2.5, etc...
     """,
         "sl_common_paras": """
     orientation_method
-        The orientation method for aligning the sensor axes with the global reference system. If this argument is not passed, 
-        orientation is not performed (default value: None).  
-        
+        The orientation method for aligning the sensor axes with the global reference system. If this argument is not
+        passed, orientation is not performed (default value: None).
     step_length_smoothing
         The filter used to smooth the step length.
         This is used to remove outliers in the step length (e.g. when initial contacts are not detected).
-        The filter is applied twice, once to the raw step length and a second time on the interpolated step length values
-        per second.
+        The filter is applied twice, once to the raw step length and a second time on the interpolated step length 
+        values per second.
         We recommend to use a Hampel filter for this.
     max_interpolation_gap_s
         The maximum gap in seconds that is interpolated.
@@ -85,11 +86,12 @@ sl_docfiller = make_filldoc(
 
 @sl_docfiller
 class SlZijlstra(BaseSlCalculator):
-    """Implementation of the stride length algorithm by Zijlstra and Hof (2003) [1]_ modified by Soltani et al. (2021) [2]_.
+    """
+    Implementation of the stride length algorithm by Zijlstra and Hof (2003) [1]_
+    modified by Soltani et al. (2021) [2]_.
 
     The algorithm includes the following stages starting from vertical acceleration
     of the lower-back during a gait sequence:
-
     1. Sensor alignment (optional): Madgwick complementary filter
     2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, filter order: 4
     3. Integration of vertical acceleration --> vertical speed
@@ -105,7 +107,6 @@ class SlZijlstra(BaseSlCalculator):
     9. Interpolation of StepLength values --> Step length per second values.
     10. Remove length per second outliers during the gait sequence --> Hampel filter based on median absolute deviation.
     11. Approximated stride length per second values = 2* step length per second values
-
 
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
@@ -154,6 +155,8 @@ class SlZijlstra(BaseSlCalculator):
 
     class PredefinedParameters:
         """
+        Predefined factors for scaling the step length model.
+
         The step length scaling factor to be used in the biomechanical model.
         The reported parameters were previously accessed with model.K.ziljsV3.
         Coefficients are divided by four to separate the coefficient from
@@ -161,10 +164,10 @@ class SlZijlstra(BaseSlCalculator):
         in [1, 2].
         """
 
-        step_length_scaling_factor_MS_MS = {"step_length_scaling_factor": 4.587 / 4}
-        step_length_scaling_factor_MS_ALL = {"step_length_scaling_factor": 4.739 / 4}
+        step_length_scaling_factor_ms_ms = {"step_length_scaling_factor": 4.587 / 4}
+        step_length_scaling_factor_ms_all = {"step_length_scaling_factor": 4.739 / 4}
 
-    @set_defaults(**PredefinedParameters.step_length_scaling_factor_MS_MS)
+    @set_defaults(**PredefinedParameters.step_length_scaling_factor_ms_ms)
     def __init__(
         self,
         *,
@@ -205,19 +208,19 @@ class SlZijlstra(BaseSlCalculator):
         self.sensor_height_m = sensor_height_m
 
         # 1. Sensor alignment (optional): Madgwick complementary filter
-        newAcc = data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
-        if self.orientation_method != None:  # TODO: how to make rotation optional?
+        new_acc = data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
+        if self.orientation_method is not None:  # TODO: how to make rotation optional?
             # perform rotation
             rotated_data = rotate_dataset_series(
                 data, self.orientation_method.estimate(data, sampling_rate_hz=sampling_rate_hz).orientation_object_[:-1]
             )
-            newAcc = rotated_data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
-        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, filter order: 4
-        vacc = newAcc["acc_x"]  # TODO: check that acceleration is passed to the calculate method in m/s^2
-        HP_filter = ButterworthFilter(order=4, cutoff_freq_hz=0.1, filter_type="highpass")
-        vacc_high = HP_filter.filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
+            new_acc = rotated_data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
+        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, order: 4
+        vacc = new_acc["acc_x"]  # TODO: check that acceleration is passed to the calculate method in m/s^2
+        hp_filter = ButterworthFilter(order=4, cutoff_freq_hz=0.1, filter_type="highpass")
+        vacc_high = hp_filter.filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # 3. Integration of vertical acceleration --> vertical speed
-        # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, filter order: 4
+        # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, order: 4
         # 5. Integration of vertical speed --> vertical displacement d(t)
         # 6. Compute total vertical displacement during the step (d_step):
         # d_step = |max(d(t)) - min(d(t))|
@@ -227,43 +230,44 @@ class SlZijlstra(BaseSlCalculator):
         # LBh: sensor height in meters, representative of the height of the center of mass
         # TODO: Which is the correct way to pass step_length_scaling_factor, initial_contacts, sensor_height?
         initial_contacts = np.squeeze(initial_contacts.astype(int))
-        sl_zjilstra_v3 = _zjilsV3(
+        sl_zjilstra_v3 = _zjilsv3(
             vacc_high, sampling_rate_hz, self.step_length_scaling_factor, initial_contacts, sensor_height_m
         )
 
         # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
         # 9. Interpolation of StepLength values --> Step length per second values
-        # 10. Remove step length per second outliers during the gait sequence --> Hampel filter based on median absolute deviation
+        # 10. Remove step length per second outliers during the gait sequence --> Hampel filter based on median
+        # absolute deviation
         duration = int(np.floor(len(vacc) / sampling_rate_hz))  # bottom-rounded duration (s)
-        ICtime = initial_contacts / sampling_rate_hz  # initial contacts: samples -> sec
+        ictime = initial_contacts / sampling_rate_hz  # initial contacts: samples -> sec
         sec_centers = (
             np.arange(0, duration) + 1
-        )  # TODO: Differently from how it is done for cadence, here we consider second bins going from 0.5 to 1.5, from 1.5 to 2.5, etc...
-        # padding last value of the calculated step length values so that sl_zjilstra_v3 is as long as ICtime
-        if len(sl_zjilstra_v3) < len(ICtime):
+        )
+        # padding last value of the calculated step length values so that sl_zjilstra_v3 is as long as ictime
+        if len(sl_zjilstra_v3) < len(ictime):
             sl_zjilstra_v3 = np.concatenate(
-                [sl_zjilstra_v3, np.tile(sl_zjilstra_v3[-1], len(ICtime) - len(sl_zjilstra_v3))]
+                [sl_zjilstra_v3, np.tile(sl_zjilstra_v3[-1], len(ictime) - len(sl_zjilstra_v3))]
             )
 
-        slSec_zjilstra_v3 = robust_step_para_to_sec(
-            ICtime, sl_zjilstra_v3, sec_centers, self.max_interpolation_gap_s, self.step_length_smoothing.clone()
+        sl_sec_zjilstra_v3 = robust_step_para_to_sec(
+            ictime, sl_zjilstra_v3, sec_centers, self.max_interpolation_gap_s, self.step_length_smoothing.clone()
         )
         # 11. Approximated stride length per second values = 2* step length per second values
-        slSec = slSec_zjilstra_v3[0:duration] * 2
+        sl_sec = sl_sec_zjilstra_v3[0:duration] * 2
 
         # Results
         # Primary output: interpolated stride length per second
         self.stride_length_per_sec_list_ = pd.DataFrame(
-            {"stride_length_m": slSec}, index=as_samples(sec_centers, sampling_rate_hz)
+            {"stride_length_m": sl_sec}, index=as_samples(sec_centers, sampling_rate_hz)
         ).rename_axis(index="sec_center_samples")
         # Secondary outputs
         self.step_length_list_ = sl_zjilstra_v3  # raw step length values
-        self.step_length_per_sec_list_ = slSec_zjilstra_v3  # interpolated step length per second
+        self.step_length_per_sec_list_ = sl_sec_zjilstra_v3  # interpolated step length per second
 
         return self
 
 
-def _zjilsV3(
+def _zjilsv3(
     vacc_high: np.ndarray,
     sampling_rate_hz: float,
     step_length_scaling_factor: float,
@@ -271,6 +275,7 @@ def _zjilsV3(
     sensor_height_m: float,
 ) -> np.ndarray:
     """
+
     Step length estimation using the biomechanical model propose by Zijlstra & Hof [1]
     [1] Zijlstra, W., & Hof, A. L. (2003). Assessment of spatio-temporal gait parameters from trunk accelerations
     during human walking. Gait & posture, 18(2), 1-10.
@@ -287,8 +292,8 @@ def _zjilsV3(
     # estimate vertical speed
     vspeed = -np.cumsum(vacc_high) / sampling_rate_hz
     # drift removal (high pass filtering)
-    HP_filter = ButterworthFilter(order=4, cutoff_freq_hz=1, filter_type="highpass")
-    speed_high = HP_filter.filter(vspeed, sampling_rate_hz=sampling_rate_hz).filtered_data_
+    hp_filter = ButterworthFilter(order=4, cutoff_freq_hz=1, filter_type="highpass")
+    speed_high = hp_filter.filter(vspeed, sampling_rate_hz=sampling_rate_hz).filtered_data_
 
     # speed_high = lfilter(b, a, vspeed)
     # estimate vertical displacement
@@ -301,8 +306,8 @@ def _zjilsV3(
         # the k-th step length value is initially estimated as the absolute difference between the maximum and the
         # minimum (range) of the vertical displacement between the k-th and (k+1)-th IC
         h_jilstra_v3[k] = np.abs(
-            max(vdis_high_v2[initial_contacts[k] : initial_contacts[k + 1]])
-            - min(vdis_high_v2[initial_contacts[k] : initial_contacts[k + 1]])
+            max(vdis_high_v2[initial_contacts[k]: initial_contacts[k + 1]])
+            - min(vdis_high_v2[initial_contacts[k]: initial_contacts[k + 1]])
         )
     # biomechanical model formula
     sl_zjilstra_v3 = (

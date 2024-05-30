@@ -44,12 +44,12 @@ from mobgap.sl import SlZijlstra
 
 # Initially, we apply the algorithm without re-orienting the sensor frame to the global frame
 MS_MS_params = (
-    SlZijlstra.PredefinedParameters.step_length_scaling_factor_MS_MS
+    SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_ms
 )  # default predefined parameters for the biomechanical model
 sl_zijlstra = SlZijlstra(**MS_MS_params)
 
 gs_id = reference_gs.index[0]
-data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
+data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0]: reference_gs.end.iloc[0]]
 ics_in_gs = reference_ic[["ic"]].loc[gs_id]  # reference initial contacts
 sensor_height = short_trial.participant_metadata["SensorHeight"] / 100  # sensor height (cm)
 
@@ -66,8 +66,8 @@ sl_zijlstra.calculate(
 sl_zijlstra.stride_length_per_sec_list_
 
 # %%
-# To show that the approach results in roughly the "correct" stride length value, we can compare the average stride length to the
-# reference system.
+# To show that the approach results in roughly the "correct" stride length value, we can compare the average stride
+# length to the reference system.
 reference_sl = reference_gs["avg_stride_length_m"].loc[gs_id]
 zijlstra_avg_sl = sl_zijlstra.stride_length_per_sec_list_["stride_length_m"].mean()
 print("Sensor frame:")
@@ -95,8 +95,8 @@ sl_zijlstra_reoriented.calculate(
 sl_zijlstra_reoriented.stride_length_per_sec_list_
 
 # %%
-# To show that the approach results in roughly the "correct" stride length value, we can compare the average stride length to the
-# reference system.
+# To show that the approach results in roughly the "correct" stride length value, we can compare the average stride
+# length to the reference system.
 zijlstra_reoriented_avg_sl = sl_zijlstra_reoriented.stride_length_per_sec_list_["stride_length_m"].mean()
 print("")
 print("Global frame:")
