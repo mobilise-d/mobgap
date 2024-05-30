@@ -4,18 +4,16 @@ import numpy as np
 import pandas as pd
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
 from gaitmap.utils.rotations import rotate_dataset_series
-from scipy.signal import butter, lfilter
 from tpcp import cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
-from mobgap.data_transform import HampelFilter
+from mobgap.data_transform import HampelFilter, ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.sl.base import BaseSlCalculator, base_sl_docfiller
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.interpolation import robust_step_para_to_sec
-
 sl_docfiller = make_filldoc(
     {
         **base_sl_docfiller._dict,
@@ -124,9 +122,13 @@ class SlZijlstra(BaseSlCalculator):
 
     Attributes
     ----------
-    %(sl_sec_list_)s
-    %(stpl_list_)s
-
+    %(stride_length_per_sec_list_)s
+    step_length_list_
+        Secondary output.
+        It provides a Numpy array that contains the raw step length values. The unit is ``m``.
+    step_length_per_sec_list_
+        Secondary output.
+        It provides a Numpy array that contains the interpolated step length values per second. The unit is ``m``.
     Notes
     -----
     %(sl_notes)s
@@ -144,40 +146,42 @@ class SlZijlstra(BaseSlCalculator):
     orientation_method: MadgwickAHRS
     step_length_smoothing: BaseFilter
     max_interpolation_gap_s: int
+
+    step_length_list_: np.ndarray
+    step_length_per_sec_list_: np.ndarray
+
     class PredefinedParameters:
         """
-        The tuning coefficients to be used in the biomechanical model.
+        The step length scaling factor to be used in the biomechanical model.
         The reported parameters were previously accessed with model.K.ziljsV3.
         Coefficients are divided by four to separate the coefficient from
         the conversion from step length to stride length and from the x2 factor of the formula declared
         in [1, 2].
         """
-        tuning_coefficient_MS_MS = {"tuning_coefficient": 4.587/4, "tuning_cohort": "MS_MS"}
-        tuning_coefficient_MS_ALL = {"tuning_coefficient": 4.739/4, "tuning_cohort": "MS_ALL"}
-    @set_defaults(**PredefinedParameters.tuning_coefficient_MS_MS)
+        step_length_scaling_factor_MS_MS = {"step_length_scaling_factor": 4.587/4}
+        step_length_scaling_factor_MS_ALL = {"step_length_scaling_factor": 4.739/4}
+    @set_defaults(**PredefinedParameters.step_length_scaling_factor_MS_MS)
     def __init__(
         self,
         *,
         orientation_method: MadgwickAHRS = None,
         step_length_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
         max_interpolation_gap_s: int = 3,
-        tuning_coefficient: float,
-        tuning_cohort: str,
+        step_length_scaling_factor: float,
     ) -> None:
         self.step_length_smoothing = step_length_smoothing  # TODO: understand how to pass step_length_smoothing to _stride2sec
         self.max_interpolation_gap_s = max_interpolation_gap_s
         self.orientation_method = orientation_method  # TODO: understand how to optionally perform rotation
-        self.tuning_coefficient = tuning_coefficient
-        self.tuning_cohort = tuning_cohort
+        self.step_length_scaling_factor = step_length_scaling_factor
 
     @sl_docfiller
     def calculate(
         self,
         data: pd.DataFrame,
         *,
-        initial_contacts: pd.Series,
+        initial_contacts: pd.DataFrame,
         sampling_rate_hz: float,
-        sensor_height: float,
+        sensor_height_m: float,
         **_: Unpack[dict[str, Any]],  # TODO: which default value for orientation method?
     ) -> Self:
         """%(calculate_short)s.
@@ -192,7 +196,7 @@ class SlZijlstra(BaseSlCalculator):
         self.data = data
         self.initial_contacts = initial_contacts
         self.sampling_rate_hz = sampling_rate_hz
-        self.sensor_height = sensor_height
+        self.sensor_height_m = sensor_height_m
 
         # 1. Sensor alignment (optional): Madgwick complementary filter
         newAcc = data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
@@ -202,13 +206,10 @@ class SlZijlstra(BaseSlCalculator):
                 data, self.orientation_method.estimate(data, sampling_rate_hz=sampling_rate_hz).orientation_object_[:-1]
             )
             newAcc = rotated_data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
-            print("Reorientation performed!")
         # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, filter order: 4
         vacc = newAcc["acc_x"]  # TODO: check that acceleration is passed to the calculate method in m/s^2
-        fc = 0.1  # cut-off frequency
-        [df_, cf_] = butter(4, fc / (sampling_rate_hz / 2), "high")  # design high-pass filter
-        vacc_high = lfilter(df_, cf_, vacc)  # filtering
-
+        HP_filter = ButterworthFilter(order=4, cutoff_freq_hz=0.1, filter_type="highpass")
+        vacc_high = HP_filter.filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # 3. Integration of vertical acceleration --> vertical speed
         # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, filter order: 4
         # 5. Integration of vertical speed --> vertical displacement d(t)
@@ -216,11 +217,11 @@ class SlZijlstra(BaseSlCalculator):
         # d_step = |max(d(t)) - min(d(t))|
         # 7. Biomechanical model:
         # StepLength = A * 2 * sqrt(2 * LBh * d_step - d_step^2)
-        # A: tuning coefficient, optimized by training for each population
+        # A: step length scaling factor, optimized by training for each population
         # LBh: sensor height in meters, representative of the height of the center of mass
-        # TODO: Which is the correct way to pass tuning_coefficient, initial_contacts, sensor_height?
+        # TODO: Which is the correct way to pass step_length_scaling_factor, initial_contacts, sensor_height?
         initial_contacts = np.squeeze(initial_contacts.astype(int))
-        sl_zjilstra_v3 = _zjilsV3(vacc_high, sampling_rate_hz, self.tuning_coefficient, initial_contacts, sensor_height)
+        sl_zjilstra_v3 = _zjilsV3(vacc_high, sampling_rate_hz, self.step_length_scaling_factor, initial_contacts, sensor_height_m)
 
         # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
         # 9. Interpolation of StepLength values --> Step length per second values
@@ -243,10 +244,13 @@ class SlZijlstra(BaseSlCalculator):
         slSec = slSec_zjilstra_v3[0:duration]*2
 
         # Results
-        self.sl_sec_list_ = pd.DataFrame(
+        # Primary output: interpolated stride length per second
+        self.stride_length_per_sec_list_ = pd.DataFrame(
             {"stride_length_m": slSec}, index=as_samples(sec_centers, sampling_rate_hz)
         ).rename_axis(index="sec_center_samples")
-        self.stpl_list_ = sl_zjilstra_v3
+        # Secondary outputs
+        self.step_length_list_ = sl_zjilstra_v3 # raw step length values
+        self.step_length_per_sec_list_ = slSec_zjilstra_v3 # interpolated step length per second
 
         return self
 
@@ -254,9 +258,9 @@ class SlZijlstra(BaseSlCalculator):
 def _zjilsV3(
     vacc_high: np.ndarray,
     sampling_rate_hz: float,
-    tuning_coefficient: float,
-    initial_contacts: pd.Series,
-    sensor_height: float,
+    step_length_scaling_factor: float,
+    initial_contacts: np.ndarray,
+    sensor_height_m: float,
 ) -> np.ndarray:
     """
     Step length estimation using the biomechanical model propose by Zijlstra & Hof [1]
@@ -265,9 +269,9 @@ def _zjilsV3(
     Inputs:
     - vacc_high: vertical acceleration recorded on lower back, high-pass filtered.
     - sampling_rate_hz: sampling frequency of the acc signal.
-    - tuning_coefficient: correction factor estimated by data from various clinical populations
+    - step_length_scaling_factor: tuning factor estimated by data from various clinical populations
     - initial_contacts: vector containing the timing of initial contacts events (samples)
-    - sensor_height: Low Back height, i.e., the distance from ground to sensor location on lower back (in m)
+    - sensor_height_m: Low Back height, i.e., the distance from ground to sensor location on lower back (in m)
 
     Output:
     - sl_zjilstra_v3: estimated step length.
@@ -275,9 +279,10 @@ def _zjilsV3(
     # estimate vertical speed
     vspeed = -np.cumsum(vacc_high) / sampling_rate_hz
     # drift removal (high pass filtering)
-    fc = 1
-    b, a = butter(4, Wn=fc / (sampling_rate_hz / 2), btype="high", output="ba")  # TODO: why this causes a warning?
-    speed_high = lfilter(b, a, vspeed)
+    HP_filter = ButterworthFilter(order=4, cutoff_freq_hz=1, filter_type="highpass")
+    speed_high = HP_filter.filter(vspeed, sampling_rate_hz = sampling_rate_hz).filtered_data_
+
+    # speed_high = lfilter(b, a, vspeed)
     # estimate vertical displacement
     vdis_high_v2 = np.cumsum(speed_high) / sampling_rate_hz
     # initialize the output array as an array of zeros having one less element
@@ -292,5 +297,5 @@ def _zjilsV3(
             - min(vdis_high_v2[initial_contacts[k] : initial_contacts[k + 1]])
         )
     # biomechanical model formula
-    sl_zjilstra_v3 = tuning_coefficient *2 * np.sqrt(np.abs((2 * sensor_height * h_jilstra_v3) - (h_jilstra_v3**2)))
+    sl_zjilstra_v3 = step_length_scaling_factor *2 * np.sqrt(np.abs((2 * sensor_height_m * h_jilstra_v3) - (h_jilstra_v3**2)))
     return sl_zjilstra_v3

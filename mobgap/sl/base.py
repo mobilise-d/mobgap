@@ -2,7 +2,6 @@
 
 from typing import Any
 
-import numpy as np
 import pandas as pd
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
@@ -17,18 +16,13 @@ base_sl_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
     """,
-        "sl_sec_list_": """
-    sl_sec_list_
+        "stride_length_per_sec_list_": """
+    stride_length_per_sec_list_
         The main output of the stride length calculation.
         It provides a DataFrame with the column ``stride_length_m`` that contains the stride length values with one value per full
         second of the provided data. The unit is ``m``.
         The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
         each second.    """,
-        "stpl_list_": """
-    stpl_list_
-        Secondary output.
-        It provides a Numpy array that contains the raw step length values. The unit is ``m``.
-        """,
         "calculate_short": """
     Calculate per-sec stride length values in the passed data.
     """,
@@ -44,7 +38,7 @@ base_sl_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``sl_sec_list_`` attribute set to the estimated stride length per second values.
+        The instance of the class with the ``stride_length_per_sec_list_`` attribute set to the estimated stride length per second values.
     """,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseSlCalculator`.",
@@ -57,7 +51,7 @@ class BaseSlCalculator(Algorithm):
 
     This base class should be used for all stride length estimation algorithms.
     Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, `sl_sec_list_`` attribute set to the estimated stride length
+    The method should then return the instance of the class, `stride_length_per_sec_list_`` attribute set to the estimated stride length
     per second values
     Further, the calculate method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
@@ -73,7 +67,7 @@ class BaseSlCalculator(Algorithm):
 
     Attributes
     ----------
-    %(sl_sec_list_)s
+    %(stride_length_per_sec_list_)s
 
     Notes
     -----
@@ -89,8 +83,7 @@ class BaseSlCalculator(Algorithm):
     sampling_rate_hz: float
 
     # results
-    sl_sec_list_: pd.DataFrame
-    stpl_list_: np.ndarray
+    stride_length_per_sec_list_: pd.DataFrame
 
     @base_sl_docfiller
     def calculate(
