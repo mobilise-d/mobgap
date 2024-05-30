@@ -9,11 +9,12 @@ from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
-from mobgap.data_transform import HampelFilter, ButterworthFilter
+from mobgap.data_transform import ButterworthFilter, HampelFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.sl.base import BaseSlCalculator, base_sl_docfiller
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.interpolation import robust_step_para_to_sec
+
 sl_docfiller = make_filldoc(
     {
         **base_sl_docfiller._dict,
@@ -129,6 +130,7 @@ class SlZijlstra(BaseSlCalculator):
     step_length_per_sec_list_
         Secondary output.
         It provides a Numpy array that contains the interpolated step length values per second. The unit is ``m``.
+
     Notes
     -----
     %(sl_notes)s
@@ -158,8 +160,10 @@ class SlZijlstra(BaseSlCalculator):
         the conversion from step length to stride length and from the x2 factor of the formula declared
         in [1, 2].
         """
-        step_length_scaling_factor_MS_MS = {"step_length_scaling_factor": 4.587/4}
-        step_length_scaling_factor_MS_ALL = {"step_length_scaling_factor": 4.739/4}
+
+        step_length_scaling_factor_MS_MS = {"step_length_scaling_factor": 4.587 / 4}
+        step_length_scaling_factor_MS_ALL = {"step_length_scaling_factor": 4.739 / 4}
+
     @set_defaults(**PredefinedParameters.step_length_scaling_factor_MS_MS)
     def __init__(
         self,
@@ -169,7 +173,9 @@ class SlZijlstra(BaseSlCalculator):
         max_interpolation_gap_s: int = 3,
         step_length_scaling_factor: float,
     ) -> None:
-        self.step_length_smoothing = step_length_smoothing  # TODO: understand how to pass step_length_smoothing to _stride2sec
+        self.step_length_smoothing = (
+            step_length_smoothing  # TODO: understand how to pass step_length_smoothing to _stride2sec
+        )
         self.max_interpolation_gap_s = max_interpolation_gap_s
         self.orientation_method = orientation_method  # TODO: understand how to optionally perform rotation
         self.step_length_scaling_factor = step_length_scaling_factor
@@ -221,7 +227,9 @@ class SlZijlstra(BaseSlCalculator):
         # LBh: sensor height in meters, representative of the height of the center of mass
         # TODO: Which is the correct way to pass step_length_scaling_factor, initial_contacts, sensor_height?
         initial_contacts = np.squeeze(initial_contacts.astype(int))
-        sl_zjilstra_v3 = _zjilsV3(vacc_high, sampling_rate_hz, self.step_length_scaling_factor, initial_contacts, sensor_height_m)
+        sl_zjilstra_v3 = _zjilsV3(
+            vacc_high, sampling_rate_hz, self.step_length_scaling_factor, initial_contacts, sensor_height_m
+        )
 
         # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
         # 9. Interpolation of StepLength values --> Step length per second values
@@ -241,7 +249,7 @@ class SlZijlstra(BaseSlCalculator):
             ICtime, sl_zjilstra_v3, sec_centers, self.max_interpolation_gap_s, self.step_length_smoothing.clone()
         )
         # 11. Approximated stride length per second values = 2* step length per second values
-        slSec = slSec_zjilstra_v3[0:duration]*2
+        slSec = slSec_zjilstra_v3[0:duration] * 2
 
         # Results
         # Primary output: interpolated stride length per second
@@ -249,8 +257,8 @@ class SlZijlstra(BaseSlCalculator):
             {"stride_length_m": slSec}, index=as_samples(sec_centers, sampling_rate_hz)
         ).rename_axis(index="sec_center_samples")
         # Secondary outputs
-        self.step_length_list_ = sl_zjilstra_v3 # raw step length values
-        self.step_length_per_sec_list_ = slSec_zjilstra_v3 # interpolated step length per second
+        self.step_length_list_ = sl_zjilstra_v3  # raw step length values
+        self.step_length_per_sec_list_ = slSec_zjilstra_v3  # interpolated step length per second
 
         return self
 
@@ -280,7 +288,7 @@ def _zjilsV3(
     vspeed = -np.cumsum(vacc_high) / sampling_rate_hz
     # drift removal (high pass filtering)
     HP_filter = ButterworthFilter(order=4, cutoff_freq_hz=1, filter_type="highpass")
-    speed_high = HP_filter.filter(vspeed, sampling_rate_hz = sampling_rate_hz).filtered_data_
+    speed_high = HP_filter.filter(vspeed, sampling_rate_hz=sampling_rate_hz).filtered_data_
 
     # speed_high = lfilter(b, a, vspeed)
     # estimate vertical displacement
@@ -297,5 +305,7 @@ def _zjilsV3(
             - min(vdis_high_v2[initial_contacts[k] : initial_contacts[k + 1]])
         )
     # biomechanical model formula
-    sl_zjilstra_v3 = step_length_scaling_factor *2 * np.sqrt(np.abs((2 * sensor_height_m * h_jilstra_v3) - (h_jilstra_v3**2)))
+    sl_zjilstra_v3 = (
+        step_length_scaling_factor * 2 * np.sqrt(np.abs((2 * sensor_height_m * h_jilstra_v3) - (h_jilstra_v3**2)))
+    )
     return sl_zjilstra_v3

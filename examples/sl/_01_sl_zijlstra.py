@@ -38,18 +38,20 @@ reference_gs
 # Then we initialize the algorithm and call the ``calculate`` method.
 # Note that we use the ``sampling_rate_hz`` of the actual data and not the reference system.
 # This is because, the reference parameters are already converted to the data sampling rate.
-from mobgap.sl import SlZijlstra
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
 
+from mobgap.sl import SlZijlstra
 
 # Initially, we apply the algorithm without re-orienting the sensor frame to the global frame
-MS_MS_params = SlZijlstra.PredefinedParameters.step_length_scaling_factor_MS_MS # default predefined parameters for the biomechanical model
+MS_MS_params = (
+    SlZijlstra.PredefinedParameters.step_length_scaling_factor_MS_MS
+)  # default predefined parameters for the biomechanical model
 sl_zijlstra = SlZijlstra(**MS_MS_params)
 
 gs_id = reference_gs.index[0]
 data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
-ics_in_gs = reference_ic[["ic"]].loc[gs_id] # reference initial contacts
-sensor_height = short_trial.participant_metadata['SensorHeight']/100 # sensor height (cm)
+ics_in_gs = reference_ic[["ic"]].loc[gs_id]  # reference initial contacts
+sensor_height = short_trial.participant_metadata["SensorHeight"] / 100  # sensor height (cm)
 
 sl_zijlstra.calculate(
     data=data_in_gs,
@@ -80,7 +82,7 @@ available in the IMU devices and correct the sensor orientation using complement
 """
 # Now we do the same thing but we correct the sensor orientation to the global frame using a Madgwick
 # complementary filter, to show the improvement of performing re-orientation.
-sl_zijlstra_reoriented = SlZijlstra(orientation_method = MadgwickAHRS(beta=0.2), **MS_MS_params)
+sl_zijlstra_reoriented = SlZijlstra(orientation_method=MadgwickAHRS(beta=0.2), **MS_MS_params)
 sl_zijlstra_reoriented.calculate(
     data=data_in_gs,
     initial_contacts=ics_in_gs,
