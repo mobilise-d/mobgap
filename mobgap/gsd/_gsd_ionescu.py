@@ -9,6 +9,7 @@ from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
 from typing_extensions import Self, Unpack
 
+from mobgap._docutils import make_filldoc
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -20,11 +21,174 @@ from mobgap.data_transform import (
 from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 
 # TODO: Potentially rework find_pulse_trains
-# TODO: Add version without hilbert transform
+
+_gsd_ionescu_docfiller = make_filldoc(
+    base_gsd_docfiller._dict
+    | {
+        "common_parameters": """
+    min_n_steps
+        The minimum number of steps allowed in a gait sequence (walking bout).
+        Only walking bouts with equal or more detected steps are considered for further processing.
+    padding
+        A float multiplied by the mean of the step times to pad the start and end of the detected gait sequences.
+        The gait sequences are filtered again by number of steps after this padding, removing any gs with too few steps.
+    max_gap_s
+        Maximum time (in seconds) between consecutive gait sequences.
+        If a gap is smaller than max_gap_s, the two consecutive gait sequences are merged into one.
+        This is applied after the gait sequences are detected.
+"""
+    }
+)
 
 
-@base_gsd_docfiller
-class GsdAdaptiveIonescu(BaseGsDetector):
+class _BaseGsdIonescu(BaseGsDetector):
+    min_n_steps: int
+    active_signal_threshold: float
+    max_gap_s: float
+    padding: float
+
+    _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
+
+    def __init__(
+        self,
+        *,
+        min_n_steps: int,
+        max_gap_s: float,
+        padding: float,
+    ) -> None:
+        self.min_n_steps = min_n_steps
+        self.max_gap_s = max_gap_s
+        self.padding = padding
+
+    def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
+        raise NotImplementedError()
+
+    @base_gsd_docfiller
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
+        """%(detect_short)s.
+
+        Parameters
+        ----------
+        %(detect_para)s
+
+        %(detect_return)s
+
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
+        acc = data[["acc_x", "acc_y", "acc_z"]].to_numpy()
+
+        # Signal vector magnitude
+        acc_norm = np.linalg.norm(acc, axis=1)
+
+        min_peaks, max_peaks = self._find_step_candidates(acc_norm, sampling_rate_hz)
+
+        # Combine steps detected by the maxima and minima
+        gs_from_max = find_pulse_trains(max_peaks)
+        gs_from_min = find_pulse_trains(min_peaks)
+        gs_from_max = gs_from_max[gs_from_max[:, 2] >= self.min_n_steps]
+        gs_from_min = gs_from_min[gs_from_min[:, 2] >= self.min_n_steps]
+
+        # Combine the gs from the maxima and minima
+        combined_final = find_intersections(gs_from_max[:, :2], gs_from_min[:, :2])
+
+        # Check if all gs removed
+        if combined_final.size == 0:
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
+            return self
+
+        # Find all max_peaks within each final gs
+        steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
+        n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
+        mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
+
+        # Pad each gs by padding*mean_step_times before and after
+        combined_final[:, 0] = np.fix(combined_final[:, 0] - self.padding * mean_step_times)
+        combined_final[:, 1] = np.fix(combined_final[:, 1] + self.padding * mean_step_times)
+
+        # Filter again by number of steps, remove any gs with too few steps
+        combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
+
+        if combined_final.size == 0:  # Check if all gs removed
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
+            return self
+
+        # Merge gs if time (in seconds) between consecutive gs is smaller than max_gap_s
+        combined_final = merge_intervals(
+            combined_final, int(np.round(self._INTERNAL_FILTER_SAMPLING_RATE_HZ * self.max_gap_s))
+        )
+
+        # Convert back to original sampling rate
+        combined_final = combined_final * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+
+        # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
+        combined_final = np.clip(combined_final, 0, len(acc))
+
+        # Compile the df
+        self.gs_list_ = _unify_gs_df(pd.DataFrame(combined_final, columns=["start", "end"]))
+
+        return self
+
+
+@_gsd_ionescu_docfiller
+class GsdIonescu(_BaseGsdIonescu):
+    active_signal_threshold: float
+
+    def __init__(
+        self,
+        *,
+        min_n_steps: int = 5,
+        active_signal_threshold: float = 0.1,
+        max_gap_s: float = 3,
+        padding: float = 0.75,
+    ) -> None:
+        self.active_signal_threshold = active_signal_threshold
+        super().__init__(min_n_steps=min_n_steps, max_gap_s=max_gap_s, padding=padding)
+
+    def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
+        #   CWT - Filter
+        #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
+        #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
+        #   Here, 10 is the scale, gaus2 is the second derivative of a Gaussian wavelet, aka a Mexican Hat or Ricker
+        #   wavelet.
+        #   This frequency this scale corresponds to depends on the sampling rate of the data.
+        #   As the mobgap cwt method uses the center frequency instead of the scale, we need to calculate the
+        #   frequency that scale corresponds to at 40 Hz sampling rate.
+        #   Turns out that this is 1.2 Hz
+        cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
+        # Savgol filters
+        # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
+        # sampling-rate independent units used for the parameters of our classes.
+        # The parameters from the matlab code are: (1, 3)
+        savgol_win_size_samples = 3
+        savgol = SavgolFilter(
+            window_length_s=savgol_win_size_samples / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            polyorder_rel=1 / savgol_win_size_samples,
+        )
+
+        active_peak_threshold = self.active_signal_threshold
+        fallback_filter_chain = [
+            ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            (
+                "savgol_1",
+                savgol.clone(),
+            ),
+            ("epfl_gait_filter", EpflDedriftedGaitFilter()),
+            ("cwt", cwt),
+            (
+                "savol_2",
+                savgol.clone(),
+            ),
+        ]
+        signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
+
+        # Find extrema in signal that might represent steps
+        return find_min_max_above_threshold(signal, active_peak_threshold)
+
+
+@_gsd_ionescu_docfiller
+class GsdAdaptiveIonescu(_BaseGsdIonescu):
     """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
 
     This algorithm is for the detection of gait (walking) sequences using body acceleration recorded with a tri-axial
@@ -47,19 +211,10 @@ class GsdAdaptiveIonescu(BaseGsDetector):
 
     Parameters
     ----------
-    min_n_steps
-        The minimum number of steps allowed in a gait sequence (walking bout).
-        Only walking bouts with equal or more detected steps are considered for further processing.
     active_signal_fallback_threshold
         An upper threshold applied to the filtered signal. Minima and maxima beyond this threshold are considered as
         detected steps.
-    padding
-        A float multiplied by the mean of the step times to pad the start and end of the detected gait sequences.
-        The gait sequences are filtered again by number of steps after this padding, removing any gs with too few steps.
-    max_gap_s
-        Maximum time (in seconds) between consecutive gait sequences.
-        If a gap is smaller than max_gap_s, the two consecutive gait sequences are merged into one.
-        This is applied after the gait sequences are detected.
+    %(common_parameters)s
 
     Other Parameters
     ----------------
@@ -83,7 +238,7 @@ class GsdAdaptiveIonescu(BaseGsDetector):
       - min_n_steps>=4 after find_pulse_trains(MaxPeaks) and find_pulse_trains(MinPeaks)
       - min_n_steps>=3 during the gs padding (NOTE: not implemented in this algorithm since it is redundant here)
       - min_n_steps>=5 before merging gait sequences if time (in seconds) between consecutive gs is smaller
-      than max_gap_s
+        than max_gap_s
 
       This means that original implementation cannot be perfectly replicated with definition of min_n_steps
 
@@ -104,12 +259,7 @@ class GsdAdaptiveIonescu(BaseGsDetector):
 
     """
 
-    min_n_steps: int
     active_signal_fallback_threshold: float
-    max_gap_s: float
-    padding: float
-
-    _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
     def __init__(
         self,
@@ -119,30 +269,10 @@ class GsdAdaptiveIonescu(BaseGsDetector):
         max_gap_s: float = 3,
         padding: float = 0.75,
     ) -> None:
-        self.min_n_steps = min_n_steps
         self.active_signal_fallback_threshold = active_signal_fallback_threshold
-        self.max_gap_s = max_gap_s
-        self.padding = padding
+        super().__init__(min_n_steps=min_n_steps, max_gap_s=max_gap_s, padding=padding)
 
-    @base_gsd_docfiller
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
-        """%(detect_short)s.
-
-        Parameters
-        ----------
-        %(detect_para)s
-
-        %(detect_return)s
-
-        """
-        self.data = data
-        self.sampling_rate_hz = sampling_rate_hz
-
-        acc = data[["acc_x", "acc_y", "acc_z"]].to_numpy()
-
-        # Signal vector magnitude
-        acc_norm = np.linalg.norm(acc, axis=1)
-
+    def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
         #   CWT - Filter
         #   Original MATLAB code calls old version of cwt (open wavelet.internal.cwt in MATLAB to inspect) in
         #   accN_filt3=cwt(accN_filt2,10,'gaus2',1/40);
@@ -213,53 +343,7 @@ class GsdAdaptiveIonescu(BaseGsDetector):
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
 
         # Find extrema in signal that might represent steps
-        min_peaks, max_peaks = find_min_max_above_threshold(signal, active_peak_threshold)
-
-        # Combine steps detected by the maxima and minima
-        gs_from_max = find_pulse_trains(max_peaks)
-        gs_from_min = find_pulse_trains(min_peaks)
-        gs_from_max = gs_from_max[gs_from_max[:, 2] >= self.min_n_steps]
-        gs_from_min = gs_from_min[gs_from_min[:, 2] >= self.min_n_steps]
-
-        # Combine the gs from the maxima and minima
-        combined_final = find_intersections(gs_from_max[:, :2], gs_from_min[:, :2])
-
-        # Check if all gs removed
-        if combined_final.size == 0:
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
-            return self
-
-        # Find all max_peaks within each final gs
-        steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
-        n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
-        mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
-
-        # Pad each gs by padding*mean_step_times before and after
-        combined_final[:, 0] = np.fix(combined_final[:, 0] - self.padding * mean_step_times)
-        combined_final[:, 1] = np.fix(combined_final[:, 1] + self.padding * mean_step_times)
-
-        # Filter again by number of steps, remove any gs with too few steps
-        combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
-
-        if combined_final.size == 0:  # Check if all gs removed
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
-            return self
-
-        # Merge gs if time (in seconds) between consecutive gs is smaller than max_gap_s
-        combined_final = merge_intervals(
-            combined_final, int(np.round(self._INTERNAL_FILTER_SAMPLING_RATE_HZ * self.max_gap_s))
-        )
-
-        # Convert back to original sampling rate
-        combined_final = combined_final * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
-
-        # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
-        combined_final = np.clip(combined_final, 0, len(acc))
-
-        # Compile the df
-        self.gs_list_ = _unify_gs_df(pd.DataFrame(combined_final, columns=["start", "end"]))
-
-        return self
+        return find_min_max_above_threshold(signal, active_peak_threshold)
 
 
 def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:

@@ -6,7 +6,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
 from mobgap.gsd import GsdAdaptiveIonescu
-from mobgap.gsd._gsd_adaptive_ionescu import find_intersections
+from mobgap.gsd._gsd_ionescu import find_intersections
 
 
 class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):

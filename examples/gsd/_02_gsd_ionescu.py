@@ -2,10 +2,13 @@ r"""
 .. _gsd_pi:
 
 GSD Paraschiv-Ionescu
-========
+=====================
 
-This example shows how to use the GSD Paraschiv-Ionescu algorithm and some examples on how the results compare to the original
-matlab implementation.
+This example shows how to use the two variants of the Gait Sequence Detection (GSD) algorithm by
+Paraschiv-Ionescu et al.
+The normal version called ``GsdIonescu`` uses a fixed signal activity threshold and a simplified filter chain and the
+adaptive version called ``GsdAdaptiveIonescu``, uses a "automatic" threshold calculation and a more complex filter
+chain.
 
 We start by defining some helpers for plotting and loading the data.
 You can skip them for now and jump directly to "Performance on a single lab trial", if you just want to see how to
@@ -63,8 +66,8 @@ def plot_gsd_outputs(data, **kwargs):
 # This means we expect Gait Sequences to contain some false positives compared to the "WB" output.
 # However, a good gait sequence detection algorithm should have high sensitivity (i.e. contain all the "WBs"
 # of the reference system).
-
-
+#
+# We also load the original Matlab results for the adaptive version of the algorithm.
 from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
@@ -98,7 +101,7 @@ def load_matlab_output(datapoint):
 # Performance on a single lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
-from mobgap.gsd import GsdAdaptiveIonescu
+from mobgap.gsd import GsdAdaptiveIonescu, GsdIonescu
 
 short_trial = lab_example_data.get_subset(
     cohort="MS", participant_id="001", test="Test5", trial="Trial2"
@@ -106,13 +109,20 @@ short_trial = lab_example_data.get_subset(
 short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
-short_trial_output = GsdAdaptiveIonescu().detect(
+short_trial_output_normal = GsdIonescu().detect(
+    short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz
+)
+short_trial_output_adaptive = GsdAdaptiveIonescu().detect(
     short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz
 )
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
-print("\nMatlab Output:\n\n", short_trial_matlab_output)
-print("\nPython Output:\n\n", short_trial_output.gs_list_)
+print("\nMatlab Adaptive Ionescu Output:\n\n", short_trial_matlab_output)
+print("\nPython Normal Ionescu Output:\n\n", short_trial_output_normal.gs_list_)
+print(
+    "\nPython Adaptive Ionescu Output:\n\n",
+    short_trial_output_adaptive.gs_list_,
+)
 # %%
 # When we plot the output, we can see that the python version is more accurate and cuts the gait sequence roughly at
 # the same time as the reference system, while the matlab version calssifies the small movement after the gait sequence
@@ -121,8 +131,9 @@ print("\nPython Output:\n\n", short_trial_output.gs_list_)
 fig, ax = plot_gsd_outputs(
     short_trial.data_ss,
     reference=short_trial_reference_parameters,
-    matlab=short_trial_matlab_output,
-    python=short_trial_output.gs_list_,
+    matlab_adaptive=short_trial_matlab_output,
+    python_adaptive=short_trial_output_adaptive.gs_list_,
+    python_normal=short_trial_output_normal.gs_list_,
 )
 fig.show()
 
@@ -137,13 +148,19 @@ long_trial = lab_example_data.get_subset(
 long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
-long_trial_output = GsdAdaptiveIonescu().detect(
+long_trial_output_normal = GsdIonescu().detect(
+    long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz
+)
+long_trial_output_adaptive = GsdAdaptiveIonescu().detect(
     long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz
 )
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
-print("\nMatlab Output:\n\n", long_trial_matlab_output)
-print("\nPython Output:\n\n", long_trial_output.gs_list_)
+print("\nMatlab Adaptive Ionescu Output:\n\n", long_trial_matlab_output)
+print("\nPython Normal Ionescu Output:\n\n", long_trial_output_normal.gs_list_)
+print(
+    "\nPython Adaptive Ionescu Output:\n\n", long_trial_output_adaptive.gs_list_
+)
 
 # %%
 # When we plot the output, we can see that the python version is more sensitive.
@@ -154,7 +171,8 @@ fig, _ = plot_gsd_outputs(
     long_trial.data_ss,
     reference=long_trial_reference_parameters,
     matlab=long_trial_matlab_output,
-    python=long_trial_output.gs_list_,
+    python_normal=long_trial_output_normal.gs_list_,
+    python_adaptive=long_trial_output_adaptive.gs_list_,
 )
 fig.show()
 

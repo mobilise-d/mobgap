@@ -14,10 +14,10 @@ def test_gsd_iluz(snapshot):
 
 
 def test_gsd_adaptive_ionescu(snapshot):
-    from examples.gsd._02_gsd_adaptive_ionescu import long_trial_output, short_trial_output
+    from examples.gsd._02_gsd_ionescu import long_trial_output_adaptive, short_trial_output_adaptive
 
-    snapshot.assert_match(long_trial_output.gs_list_, "long_trial_output")
-    snapshot.assert_match(short_trial_output.gs_list_, "short_trial_output")
+    snapshot.assert_match(long_trial_output_adaptive.gs_list_, "long_trial_output_adaptive")
+    snapshot.assert_match(short_trial_output_adaptive.gs_list_, "short_trial_output_adaptive")
 
 
 def test_gsd_evaluation(snapshot):
