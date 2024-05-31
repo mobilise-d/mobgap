@@ -103,7 +103,7 @@ class TdElGohary(BaseTurnDetector):
 
     Compared to matlab implementation:
 
-    - We fix a bug, that only the start and the end of a turn was detected on the normal signal instead of the
+    - We fix a bug, that only the start and the end of a turn was detected on the signed signal instead of the
       absolute signal.
       This made it "harder" to detect turns in one direction than the other.
     """
