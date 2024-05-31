@@ -15,4 +15,4 @@ def test_gs_iterator(snapshot):
     snapshot.assert_match(filtered_data, "filtered_data")
 
     snapshot.assert_match(iterator.results_.ic_list, "initial_contacts")
-    snapshot.assert_match(iterator.results_.cad_per_sec, "cadence")
+    snapshot.assert_match(iterator.results_.cadence_per_sec, "cadence")

@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A ``refine_gs`` method that returns a new gait sequence that starts from the first IC and ends at the last IC.
   This can be used with the new subregion iteration to iterate over the subregions of a gait sequence.
   (https://github.com/mobilise-d/mobgap/pull/135)
+- The MobiliseDAggregator can now take `None` as grouping parameter, which results in all WBs being aggregated together.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The Multi-Df groupby now has a way to pass parameters to the underlying `.groupby` call.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- A method to generate a stride list from initial contacts (`strides_list_from_ic_lr_list`).
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- A method to interpolate per-sec values to regions (usually strides) (`naive_sec_paras_to_regions`).
+  (https://github.com/mobilise-d/mobgap/pull/141)
 
 ### Changed
 
@@ -34,6 +42,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/135)
 - Reference WB ids now start at 0 again instead of 1.
 - Reference parameters like turns and initial contacts that exist per WB are now numbered per WB.
+- The MobilseDAggregator now uses new more expressive names by default.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The expected Cadence output now has a new column name `cadence_spm` instead of `cad_spm`.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The result attribute for Cadence in all Cadence algorithms and the GSIteration is now called 
+  `cadence_per_sec` instead of `cad_per_sec`.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The Mobilise-D datasets `metadata` attribute is renamed to `recording_metadata` and is now a dictionary instead of a 
+  named tuple.
+  It also contains more information about the recording.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- All file/directory based versions of the Mobilise-D datasets now require a `measurement_condition` argument.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- All datasets now have a `participant_metadata` attribute that contains information about the participant.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+- The Cadence method does now include "incomplete" seconds.
+  This means the "partial" last second of a recording is now included in the output.
+  This ensures that all strides are covered by the output.
+  (https://github.com/mobilise-d/mobgap/pull/141)
+
 
 ### Fixed
 

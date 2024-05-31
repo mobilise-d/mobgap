@@ -150,13 +150,13 @@ class FullPipelinePerGsResult:
         The turn list for each gait-sequence.
         The dataframe has at least columns called ``start`` and ``end``.
         The values of these columns are expected to be samples relative to the start of the gait-sequence.
-    cad_per_sec
+    cadence_per_sec
         The cadence values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
-    stride_length
+    stride_length_per_sec
         The stride length values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
-    gait_speed
+    walking_speed_per_sec
         The gait speed values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
 
@@ -164,9 +164,9 @@ class FullPipelinePerGsResult:
 
     ic_list: pd.DataFrame
     turn_list: pd.DataFrame
-    cad_per_sec: pd.DataFrame
-    stride_length: pd.DataFrame
-    gait_speed: pd.DataFrame
+    cadence_per_sec: pd.DataFrame
+    stride_length_per_sec: pd.DataFrame
+    walking_speed_per_sec: pd.DataFrame
 
 
 def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
@@ -366,9 +366,9 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 [
                     ("ic_list", create_aggregate_df("ic_list", ["ic"])),
                     ("turn_list", create_aggregate_df("turn_list", ["start", "end", "center"])),
-                    ("cad_per_sec", create_aggregate_df("cad_per_sec", [], fix_offset_index=True)),
-                    ("stride_length", create_aggregate_df("stride_length")),
-                    ("gait_speed", create_aggregate_df("gait_speed")),
+                    ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [], fix_offset_index=True)),
+                    ("stride_length_per_sec", create_aggregate_df("stride_length_per_sec", [], fix_offset_index=True)),
+                    ("walking_speed_per_sec", create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True)),
                 ]
             ),
         }
@@ -378,9 +378,9 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 [
                     ("ic_list", create_aggregate_df("ic_list", [])),
                     ("turn_list", create_aggregate_df("turn_list", [])),
-                    ("cad_per_sec", create_aggregate_df("cad_per_sec", [])),
-                    ("stride_length", create_aggregate_df("stride_length", [])),
-                    ("gait_speed", create_aggregate_df("gait_speed", [])),
+                    ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [])),
+                    ("stride_length_per_sec", create_aggregate_df("stride_length", [])),
+                    ("walking_speed_per_sec", create_aggregate_df("gait_speed", [])),
                 ]
             ),
         }

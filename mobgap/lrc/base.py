@@ -158,4 +158,14 @@ class BaseLRClassifier(Algorithm):
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
+_ic_lr_list_dtypes = {
+    "ic": "int64",
+    "lr_label": pd.CategoricalDtype(categories=["left", "right"]),
+}
+
+
+def _unify_ic_lr_list_df(df: pd.DataFrame) -> pd.DataFrame:
+    return df.astype(_ic_lr_list_dtypes)[list(_ic_lr_list_dtypes.keys())]
+
+
 __all__ = ["BaseLRClassifier", "base_lrc_docfiller"]

@@ -109,12 +109,13 @@ def refine_gs(ic_list: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     ics = ic_list["ic"]
     new_gs_id = 0
     refined_gs_list = _unify_gs_df(
-        pd.DataFrame.from_records([{"gs_id": new_gs_id, "start": ics.iloc[0], "end": ics.iloc[-1] + 1}])
+        pd.DataFrame.from_records([{"r_gs_id": new_gs_id, "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]),
+        expected_id_name="r_gs_id",
     )
     new_ics = (
-        ic_list.assign(ic=lambda df_: df_["ic"] - df_["ic"].iloc[0], gs_id=new_gs_id)
-        .set_index("gs_id", append=True)
-        .reorder_levels(["gs_id", "step_id"])
+        ic_list.assign(ic=lambda df_: df_["ic"] - df_["ic"].iloc[0], r_gs_id=new_gs_id)
+        .set_index("r_gs_id", append=True)
+        .reorder_levels(["r_gs_id", "step_id"])
     )
 
     return refined_gs_list, new_ics

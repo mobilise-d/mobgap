@@ -74,7 +74,7 @@ class TestMobilisedAggregator:
         data = request.getfixturevalue(data)
         reference = request.getfixturevalue(reference).sort_index(axis=1)
 
-        agg = MobilisedAggregator().aggregate(data)
+        agg = MobilisedAggregator(use_original_names=True).aggregate(data)
         output = agg.aggregated_data_.sort_index(axis=1)
 
         assert_frame_equal(
@@ -88,7 +88,9 @@ class TestMobilisedAggregator:
         dummy_dmo_data_mask = dummy_dmo_data_mask.copy()
         # If all durations are false, all data should be dropped
         dummy_dmo_data_mask.loc[:, "duration_s"] = False
-        agg = MobilisedAggregator().aggregate(example_dmo_data, wb_dmos_mask=dummy_dmo_data_mask)
+        agg = MobilisedAggregator(
+            use_original_names=True,
+        ).aggregate(example_dmo_data, wb_dmos_mask=dummy_dmo_data_mask)
         assert (agg.aggregated_data_["wb_all_sum"] == 0).all()
         # Check for some columns that they are all none
         for col in ["wbdur_all_avg", "wbdur_all_var", "strdur_30_avg", "ws_30_var"]:
@@ -96,24 +98,32 @@ class TestMobilisedAggregator:
 
     def test_raise_error_on_wrong_data(self):
         with pytest.raises(ValueError):
-            MobilisedAggregator().aggregate(pd.DataFrame(np.random.rand(10, 10)))
+            MobilisedAggregator(
+                use_original_names=True,
+            ).aggregate(pd.DataFrame(np.random.rand(10, 10)))
 
     def test_raise_error_on_wrong_groupby(self, example_dmo_data):
         with pytest.raises(ValueError):
-            MobilisedAggregator(groupby=["do", "not", "exist"]).aggregate(example_dmo_data)
+            MobilisedAggregator(use_original_names=True, groupby=["do", "not", "exist"]).aggregate(example_dmo_data)
 
     def test_raise_error_on_wrong_data_mask(self, example_dmo_data, dummy_dmo_data_mask):
         with pytest.raises(ValueError):
-            MobilisedAggregator().aggregate(example_dmo_data, wb_dmos_mask=dummy_dmo_data_mask.iloc[:10])
+            MobilisedAggregator(
+                use_original_names=True,
+            ).aggregate(example_dmo_data, wb_dmos_mask=dummy_dmo_data_mask.iloc[:10])
 
     def test_raise_warning_on_missing_duration_column(self, example_dmo_data):
         with pytest.warns(UserWarning):
-            MobilisedAggregator().aggregate(example_dmo_data.drop(columns=["duration_s"]))
+            MobilisedAggregator(
+                use_original_names=True,
+            ).aggregate(example_dmo_data.drop(columns=["duration_s"]))
 
     def test_input_not_modified(self, example_dmo_data, dummy_dmo_data_mask):
         data = example_dmo_data.copy()
         data_mask = dummy_dmo_data_mask.copy()
-        agg = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask)
+        agg = MobilisedAggregator(
+            use_original_names=True,
+        ).aggregate(data, wb_dmos_mask=data_mask)
         # check that no rows were dropped
         assert data.shape == agg.filtered_wb_dmos_.shape
         # check that input data is still the same
@@ -123,9 +133,32 @@ class TestMobilisedAggregator:
     def test_nan_considered_true(self, example_dmo_data, dummy_dmo_data_mask):
         data = example_dmo_data.copy()
         data_mask = dummy_dmo_data_mask.copy()
-        data_mask_wit_nan = data_mask.copy().replace(True, np.nan)
+        with pd.option_context("future.no_silent_downcasting", True):
+            data_mask_wit_nan = data_mask.copy().replace(True, np.nan).infer_objects(copy=False)
 
-        agg_with_nan = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask_wit_nan)
-        agg_without_nan = MobilisedAggregator().aggregate(data, wb_dmos_mask=data_mask)
+        agg_with_nan = MobilisedAggregator(
+            use_original_names=True,
+        ).aggregate(data, wb_dmos_mask=data_mask_wit_nan)
+        agg_without_nan = MobilisedAggregator(
+            use_original_names=True,
+        ).aggregate(data, wb_dmos_mask=data_mask)
 
         assert_frame_equal(agg_with_nan.aggregated_data_, agg_without_nan.aggregated_data_)
+
+    def test_no_grouping(self, example_dmo_data, dummy_dmo_data_mask):
+        data = example_dmo_data.copy()
+        data_mask = dummy_dmo_data_mask.copy()
+        agg = MobilisedAggregator(use_original_names=True, groupby=None).aggregate(data, wb_dmos_mask=data_mask)
+
+        assert len(agg.aggregated_data_) == 1
+        assert agg.aggregated_data_.index[0] == "all_wbs"
+
+    def test_alternative_names(self, example_dmo_data):
+        data = example_dmo_data.copy()
+        # With alternative names
+        agg = MobilisedAggregator().aggregate(data)
+        # Without alternative names
+        agg_original = MobilisedAggregator(use_original_names=True).aggregate(data)
+
+        assert len(set(agg.aggregated_data_.columns).intersection(set(agg_original.aggregated_data_.columns))) == 0
+        assert len(agg_original.aggregated_data_.columns) == len(agg.aggregated_data_.columns)

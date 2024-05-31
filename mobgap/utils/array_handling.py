@@ -85,33 +85,27 @@ class MultiGroupBy:
 
     _primary_groupby: pd.core.groupby.DataFrameGroupBy
     _secondary_groupbys: list[pd.core.groupby.DataFrameGroupBy]
+    _kwargs: dict[str, Any]
 
     def __init__(
         self,
         primary_df: pd.DataFrame,
         secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
         groupby: Union[str, list[str]],
+        **kwargs: Unpack[dict[str, Any]],
     ) -> None:
+        groupby_as_list = [groupby] if isinstance(groupby, str) else groupby
+        self._kwargs = kwargs
+
+        primary_index_cols = primary_df.index.names
+        if not set(groupby_as_list).issubset(primary_index_cols):
+            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
+
         self.primary_df = primary_df
         self.secondary_dfs = secondary_dfs
         if not isinstance(secondary_dfs, list):
             self.secondary_dfs = [secondary_dfs]
         self.groupby = groupby
-        if isinstance(groupby, str):
-            self.groupby = [groupby]
-
-        # For the approach to work, all dfs need to have the same index columns with the `level` columns as the first
-        # index levels.
-        primary_index_cols = primary_df.index.names
-        if not set(self.groupby).issubset(primary_index_cols):
-            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
-        primary_index_cols_reorderd = [
-            *self.groupby,
-            *[col for col in primary_index_cols if col not in groupby],
-        ]
-
-        self.primary_df = primary_df.reorder_levels(primary_index_cols_reorderd)
-        self.secondary_dfs = [df.reorder_levels(primary_index_cols_reorderd) for df in self.secondary_dfs]
 
     @property
     def primary_groupby(self) -> pd.core.groupby.DataFrameGroupBy:
@@ -120,7 +114,7 @@ class MultiGroupBy:
         This is the grouper created from the primary dataframe.
         """
         if not hasattr(self, "_primary_groupby"):
-            self._primary_groupby = self.primary_df.groupby(level=self.groupby)
+            self._primary_groupby = self.primary_df.groupby(level=self.groupby, **self._kwargs)
         return self._primary_groupby
 
     @property
@@ -130,7 +124,7 @@ class MultiGroupBy:
         These are the groupers created from the secondary dataframes.
         """
         if not hasattr(self, "_secondary_groupbys"):
-            self._secondary_groupbys = [df.groupby(level=self.groupby) for df in self.secondary_dfs]
+            self._secondary_groupbys = [df.groupby(level=self.groupby, **self._kwargs) for df in self.secondary_dfs]
         return self._secondary_groupbys
 
     def _get_secondary_vals(self, name: Union[str, tuple[str, ...]]) -> list[pd.DataFrame]:
@@ -189,6 +183,7 @@ def create_multi_groupby(
     primary_df: pd.DataFrame,
     secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
     groupby: Union[Hashable, list[str]],
+    **kwargs: Unpack[dict[str, Any]],
 ) -> MultiGroupBy:
     """Group multiple dataframes by the same index levels to apply a function to each group across all dataframes.
 
@@ -216,6 +211,8 @@ def create_multi_groupby(
         The secondary dataframes to group by.
     groupby
         The names of the index levels to group by.
+    kwargs
+        All further arguments will be passed to ``.groupby`` of all dataframes.
 
     Examples
     --------
@@ -264,7 +261,7 @@ def create_multi_groupby(
     Index: []
 
     """
-    return MultiGroupBy(primary_df, secondary_dfs, groupby)
+    return MultiGroupBy(primary_df, secondary_dfs, groupby, **kwargs)
 
 
 __all__ = ["sliding_window_view", "create_multi_groupby", "MultiGroupBy"]

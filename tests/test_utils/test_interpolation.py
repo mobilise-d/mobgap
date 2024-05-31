@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_equal
+from pandas._testing import assert_series_equal
 
-from mobgap.utils.interpolation import interval_mean
+from mobgap.utils.interpolation import interval_mean, naive_sec_paras_to_regions
 
 
 class TestIntervalMean:
@@ -83,3 +85,70 @@ class TestIntervalMean:
 
         assert_equal(interval_values, expected)
         assert len(interval_values) == len(interval_start_ends)
+
+
+class TestNaiveSecParasToRegions:
+    def test_empty_inputs(self):
+        region_list = pd.DataFrame(columns=["start", "end"])
+        sec_paras = pd.DataFrame(columns=["sec_center_samples", "value"]).set_index("sec_center_samples")
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=1)
+        assert result.empty
+        assert result.columns.tolist() == ["start", "end", "value"]
+
+    def test_empty_region_list(self):
+        region_list = pd.DataFrame(columns=["start", "end"])
+        sec_paras = pd.DataFrame({"sec_center_samples": [0.5], "value": [1]}, index=[0]).set_index("sec_center_samples")
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=1)
+        assert result.empty
+        assert result.columns.tolist() == ["start", "end", "value"]
+
+    def test_empty_sec_paras(self):
+        region_list = pd.DataFrame({"start": [0], "end": [1]}, index=[0])
+        sec_paras = pd.DataFrame(columns=["sec_center_samples", "value"]).set_index("sec_center_samples")
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=1)
+        assert result["value"].isna().all()
+        assert len(result) == len(region_list)
+
+    @pytest.mark.parametrize("n_values", [1, 2, 3, 10])
+    def test_exact_second_interpolation(self, n_values):
+        values_per_sec = 10
+        starts = np.arange(n_values) * values_per_sec
+        ends = starts + values_per_sec
+        centers = starts + values_per_sec / 2
+        region_list = pd.DataFrame({"start": starts, "end": ends})
+        sec_paras = pd.DataFrame({"sec_center_samples": centers, "value": starts.astype(float)}).set_index(
+            "sec_center_samples"
+        )
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=values_per_sec)
+        assert not result.empty
+        assert_series_equal(result["value"], sec_paras["value"], check_index=False)
+
+    @pytest.mark.parametrize("n_values", [1, 2, 3, 10])
+    def test_half_sec_interpolation(self, n_values):
+        values_per_sec = 10
+        starts = np.arange(n_values) * values_per_sec
+        ends = starts + values_per_sec / 2
+        centers = starts + values_per_sec / 2
+        region_list = pd.DataFrame({"start": starts, "end": ends})
+        sec_paras = pd.DataFrame({"sec_center_samples": centers, "value": starts.astype(float)}).set_index(
+            "sec_center_samples"
+        )
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=values_per_sec)
+        assert not result.empty
+        assert_series_equal(result["value"], sec_paras["value"], check_index=False)
+
+    @pytest.mark.parametrize("n_values", [1, 2, 3, 10])
+    def test_shifted_half_sec_interpolation(self, n_values):
+        values_per_sec = 10
+        sec_starts = np.arange(n_values + 1) * values_per_sec
+        # We can only have one less
+        starts = sec_starts[:-1] + values_per_sec / 2
+        ends = starts + values_per_sec
+        centers = sec_starts + values_per_sec / 2
+        region_list = pd.DataFrame({"start": starts, "end": ends})
+        sec_paras = pd.DataFrame({"sec_center_samples": centers, "value": centers.astype(float)}).set_index(
+            "sec_center_samples"
+        )
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=values_per_sec)
+        assert not result.empty
+        assert_series_equal(result["value"], sec_paras["value"].iloc[:-1] + values_per_sec / 2, check_index=False)
