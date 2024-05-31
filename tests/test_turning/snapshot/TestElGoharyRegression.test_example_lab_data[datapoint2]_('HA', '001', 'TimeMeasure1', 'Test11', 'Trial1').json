@@ -44,6 +44,23 @@
         "pandas_version":"1.4.0"
     },
     "data":[
-
+        {
+            "wb_id":2,
+            "turn_id":0,
+            "start":4200,
+            "end":4504,
+            "duration_s":3.04,
+            "angle_deg":-53.3357244163,
+            "direction":"right"
+        },
+        {
+            "wb_id":2,
+            "turn_id":1,
+            "start":4532,
+            "end":4779,
+            "duration_s":2.47,
+            "angle_deg":77.2410133194,
+            "direction":"left"
+        }
     ]
 }

@@ -587,6 +587,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "end": "int64",
         "duration_s": "float64",
         "angle_deg": "float64",
+        "direction": pd.CategoricalDtype(categories=["left", "right"]),
     }
 
     stride_df_dtypes = {
@@ -669,8 +670,8 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
                     "s_id": np.arange(0, len(starts)),
                     "start": starts,
                     "end": ends,
-                    # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
-                    # columns for the Stereiphoto system. We replace them with NaN using `to_numeric`.
+                    # For some reason, the matlab files contains empty arrays to signal a "missing" value in the data
+                    # columns for the Stereo-photo system. We replace them with NaN using `to_numeric`.
                     "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
                     "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
                     "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),

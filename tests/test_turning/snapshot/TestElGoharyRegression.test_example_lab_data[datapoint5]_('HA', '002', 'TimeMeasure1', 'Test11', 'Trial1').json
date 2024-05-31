@@ -44,6 +44,41 @@
         "pandas_version":"1.4.0"
     },
     "data":[
-
+        {
+            "wb_id":0,
+            "turn_id":0,
+            "start":650,
+            "end":952,
+            "duration_s":3.02,
+            "angle_deg":55.3283665,
+            "direction":"left"
+        },
+        {
+            "wb_id":1,
+            "turn_id":0,
+            "start":2871,
+            "end":3457,
+            "duration_s":5.86,
+            "angle_deg":-169.5610225,
+            "direction":"right"
+        },
+        {
+            "wb_id":2,
+            "turn_id":0,
+            "start":6112,
+            "end":6456,
+            "duration_s":3.44,
+            "angle_deg":-72.445982,
+            "direction":"right"
+        },
+        {
+            "wb_id":2,
+            "turn_id":1,
+            "start":6963,
+            "end":7179,
+            "duration_s":2.16,
+            "angle_deg":64.9848815,
+            "direction":"left"
+        }
     ]
 }

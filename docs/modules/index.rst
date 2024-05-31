@@ -14,6 +14,7 @@ This is the API Reference for ``mobgap``.
     gsd
     icd
     lrc
+    turning
     cad
     wba
     aggregation

@@ -84,13 +84,13 @@ class LrcMcCamley(BaseLRClassifier):
         sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        """%(detect_short)s.
+        """%(predict_short)s.
 
         Parameters
         ----------
-        %(detect_para)s
+        %(predict_para)s
 
-        %(detect_return)s
+        %(predict_return)s
         """
         self.sampling_rate_hz = sampling_rate_hz
         self.data = data
