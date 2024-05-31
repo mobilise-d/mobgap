@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -147,7 +147,7 @@ class SlZijlstra(BaseSlCalculator):
     """
 
     orientation_method: MadgwickAHRS
-    step_length_smoothing: BaseFilter
+    step_length_smoothing: Optional[BaseFilter]
     max_interpolation_gap_s: int
 
     step_length_list_: np.ndarray
@@ -172,7 +172,7 @@ class SlZijlstra(BaseSlCalculator):
         self,
         *,
         orientation_method: MadgwickAHRS = None,
-        step_length_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
+        step_length_smoothing: Optional[BaseFilter] = cf(HampelFilter(2, 3.0)),
         max_interpolation_gap_s: int = 3,
         step_length_scaling_factor: float,
     ) -> None:
