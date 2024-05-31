@@ -16,8 +16,10 @@ It uses the angular velocity around the SI axis of a lower back IMU to detect tu
 # ------------
 # .. note :: More infos about data loading can be found in the :ref:`data loading example <data_loading_example>`.
 #
-# We load example data from the lab dataset together with the INDIP reference system.
-# We will use the Stereophoto output for turns ("td") as ground truth.
+# We load example data from the lab dataset together with the Stereophoto reference system.
+# We will use the Stereophoto output for turns ("td") as ground truth, as it is the most accurate reference system
+# available in the dataset.
+# Still, the turn detection might not be fully reliable.
 # Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
 # Hence, it can not really be considered a reference system, in this context.
 from mobgap.data import LabExampleDataset
