@@ -1,22 +1,28 @@
-from typing import Optional
+from types import MappingProxyType
+from typing import Final, Optional
 
 import pandas as pd
-from tpcp import Pipeline
+from tpcp import Pipeline, cf
+from tpcp.misc import set_defaults
 from typing_extensions import Self
 
-from mobgap.aggregation import apply_thresholds
+from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
+from mobgap.cad import CadFromIcDetector
 from mobgap.cad.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
+from mobgap.gsd import GsdAdaptiveIonescu, GsdIluz
 from mobgap.gsd.base import BaseGsDetector
-from mobgap.icd import refine_gs
+from mobgap.icd import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
 from mobgap.icd.base import BaseIcDetector
-from mobgap.lrc import strides_list_from_ic_lr_list
+from mobgap.lrc import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.lrc.base import BaseLRClassifier
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.utils.array_handling import create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.wba import StrideSelection, WbAssembly
+
+# TODO: Add turning detection
 
 
 class MobilisedPipeline(Pipeline[BaseGaitDataset]):
@@ -38,6 +44,39 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
     per_wb_parameters_: pd.DataFrame
     per_wb_parameter_mask_: Optional[pd.DataFrame]
     aggregated_parameters_: pd.DataFrame
+
+    class PredefinedParameters:
+        normal_walking: Final = MappingProxyType(
+            {
+                "gait_sequence_detection": GsdIluz(),
+                "initial_contacts_detection": IcdIonescu(),
+                # TODO: Check correct model used
+                "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
+                "cadence_calculation": CadFromIcDetector(IcdShinImproved()),
+                "stride_length_calculation": None,
+                "walking_speed_calculation": None,
+                "stride_selection": StrideSelection(),
+                "wba": WbAssembly(),
+                "dmo_thresholds": get_mobilised_dmo_thresholds(),
+                "dmo_aggregation": MobilisedAggregator(groupby=None),
+            }
+        )
+
+        impaired_walking: Final = MappingProxyType(
+            {
+                # TODO: UPdate once we have the normal GSD Ionescu implemented
+                "gait_sequence_detection": GsdAdaptiveIonescu(),
+                "initial_contacts_detection": IcdIonescu(),
+                "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
+                "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved()),
+                "stride_length_calculation": None,
+                "walking_speed_calculation": None,
+                "stride_selection": StrideSelection(),
+                "wba": WbAssembly(),
+                "dmo_thresholds": get_mobilised_dmo_thresholds(),
+                "dmo_aggregation": MobilisedAggregator(groupby=None),
+            }
+        )
 
     def __init__(
         self,
@@ -195,4 +234,62 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
                 .mean(),
             ],
             axis=1,
+        )
+
+
+class MobilisedPipelineHealthy(MobilisedPipeline):
+    @set_defaults(**{k: cf(v) for k, v in MobilisedPipeline.PredefinedParameters.normal_walking.items()})
+    def __init__(
+        self,
+        gait_sequence_detection: BaseGsDetector,
+        initial_contacts_detection: BaseIcDetector,
+        laterality_classification: BaseLRClassifier,
+        cadence_calculation: Optional[BaseCadCalculator],
+        stride_length_calculation: None,
+        walking_speed_calculation: None,
+        stride_selection: StrideSelection,
+        wba: WbAssembly,
+        dmo_thresholds: Optional[pd.DataFrame],
+        dmo_aggregation: BaseAggregator,
+    ) -> None:
+        super().__init__(
+            gait_sequence_detection,
+            initial_contacts_detection,
+            laterality_classification,
+            cadence_calculation,
+            stride_length_calculation,
+            walking_speed_calculation,
+            stride_selection,
+            wba,
+            dmo_thresholds,
+            dmo_aggregation,
+        )
+
+
+class MobilisedPipelineImpaired(MobilisedPipeline):
+    @set_defaults(**{k: cf(v) for k, v in MobilisedPipeline.PredefinedParameters.impaired_walking.items()})
+    def __init__(
+        self,
+        gait_sequence_detection: BaseGsDetector,
+        initial_contacts_detection: BaseIcDetector,
+        laterality_classification: BaseLRClassifier,
+        cadence_calculation: Optional[BaseCadCalculator],
+        stride_length_calculation: None,
+        walking_speed_calculation: None,
+        stride_selection: StrideSelection,
+        wba: WbAssembly,
+        dmo_thresholds: Optional[pd.DataFrame],
+        dmo_aggregation: BaseAggregator,
+    ) -> None:
+        super().__init__(
+            gait_sequence_detection,
+            initial_contacts_detection,
+            laterality_classification,
+            cadence_calculation,
+            stride_length_calculation,
+            walking_speed_calculation,
+            stride_selection,
+            wba,
+            dmo_thresholds,
+            dmo_aggregation,
         )
