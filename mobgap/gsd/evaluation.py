@@ -1,10 +1,10 @@
 """Class to validate gait sequence detection results."""
 
 import warnings
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from itertools import product
 from types import FunctionType
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, NamedTuple, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +13,7 @@ from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from pingouin import intraclass_corr
 from typing_extensions import Unpack
 
 from mobgap.utils.evaluation import (
@@ -23,6 +24,18 @@ from mobgap.utils.evaluation import (
     precision_recall_f1_score,
     specificity_score,
 )
+
+
+class CustomOperationTuple(NamedTuple):
+    """Metadata for custom aggregations and transformations."""
+
+    identifier: Union[Hashable, Sequence, str]
+    function: Union[Callable, list[Callable]]
+    column_name: Union[str, tuple[str, ...]]
+
+    @property
+    def _TAG(self) -> str:  # noqa: N802
+        return "CustomOperationTuple"
 
 
 def calculate_matched_gsd_performance_metrics(
@@ -792,7 +805,7 @@ def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: p
 
     # construct MultiIndex columns
     matches.columns = pd.MultiIndex.from_product(
-        [["detected", "reference"], common_columns], names=["origin", "metric"]
+        [["detected", "reference"], common_columns]  # , names=["origin", "metric"]
     )
     # make 'metrics' level the uppermost level and sort columns accordingly for readability
     matches = matches.swaplevel(axis=1).sort_index(axis=1, level=0)
@@ -804,6 +817,10 @@ def assign_error_metrics(
     parameters: Union[str, list[str]],
     zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
 ) -> pd.DataFrame:
+    # TODO:
+    # problems when integrating this with a more generalized aggregation syntax:
+    # - what to do with the "origin" level?
+    # - where to set "zero_division_hint"?
     """Derive error metrics from given columns of a DataFrame and add them to the DataFrame.
 
     The error metrics that are calculated for each parameter are:
@@ -837,9 +854,10 @@ def assign_error_metrics(
     """
     if isinstance(parameters, str):
         parameters = [parameters]
+
     for value in parameters:
-        if value not in df.columns.get_level_values("metric"):
-            raise ValueError(f"Column '{value}' not found in DataFrame.")
+        # if value not in df.columns.get_level_values("metric"):
+        #    raise ValueError(f"Column '{value}' not found in DataFrame.")
         try:
             detected_value = df[value]["detected"]
             reference_value = df[value]["reference"]
@@ -871,29 +889,106 @@ def assign_error_metrics(
     return df
 
 
-# TODO: how to handle icc?
-"""
-def icc(matches_df: pd.DataFrame, formatter:str="{icc:#.2f} {_a}[{q05:.2f}, {q95:.2f}]") -> str:
-    Calculate the ICC.
+def _get_data_from_identifier(
+    df: pd.DataFrame, identifier: Union[Hashable, Sequence, str], num_levels: Union[int, None] = 1
+) -> pd.DataFrame:
+    try:
+        data = df.loc[:, identifier]
+    # except KeyError:
+    # handle cases where extracting multiple columns at once fails,
+    # e.g., due to columns differing in number of levels
+    # data_cols = []
+    # for col in identifier:
+    # try:
+    # data_cols.append(df.loc[:,[col]])
+    # except KeyError as e:
+    # raise ValueError(f"Identifier '{identifier}' not found in DataFrame.") from e
+    except KeyError as e:
+        raise ValueError(f"Column(s) '{identifier}' not found in DataFrame.") from e
 
-    We expect the df to the "AverageStrideSpeed_ref", "AverageStrideSpeed_single" columns.
+        # data = pd.concat(data_cols, axis=1)
+    if num_levels:
+        data_num_levels = 1 if isinstance(data, pd.Series) else data.columns.nlevels
+        if data_num_levels != num_levels:
+            raise ValueError(f"Data selected by '{identifier}' must have {num_levels} level(s).")
+    return data
 
-    only_speed = matches_df.loc[:, ["AverageStrideSpeed_ref", "AverageStrideSpeed_single"]].rename(
-        columns=lambda c: tuple(c.split("_"))
+
+def _handle_zero_division(
+    divisor: Union[pd.Series, pd.DataFrame],
+    zero_division_hint: Union[Literal["warn", "raise"], float],
+    caller_fct_name: str,
+) -> None:
+    if (divisor == 0).any():
+        if zero_division_hint not in ["warn", "raise", np.nan]:
+            raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
+        if zero_division_hint == "raise":
+            raise ZeroDivisionError(f"Zero division occurred in {caller_fct_name} because divisor contains zeroes.")
+        if zero_division_hint == "warn":
+            warnings.warn(
+                f"Zero division occurred in {caller_fct_name} because divisor contains zeroes. "
+                "Affected error metrics are set to NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+
+def error(df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected") -> pd.Series:
+    ref, det = _get_data_from_identifier(df, reference_col_name), _get_data_from_identifier(df, detected_col_name)
+    return det - ref
+
+
+def rel_error(
+    df: pd.DataFrame,
+    reference_col_name: str = "reference",
+    detected_col_name: str = "detected",
+    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
+) -> pd.Series:
+    ref, det = (
+        _get_data_from_identifier(df, reference_col_name),
+        _get_data_from_identifier(df, detected_col_name).replace(np.inf, np.nan),
     )
-    only_speed.columns = pd.MultiIndex.from_tuples(only_speed.columns, names=("measure", "system"))
-    only_speed = (
-        only_speed.assign(wb_uid=lambda df_: pd.factorize(df_.index)[0])
-        .set_index("wb_uid", append=True)
-        .stack("system")
-        .reset_index(["system", "wb_uid"])
-        .astype({"AverageStrideSpeed": float})
+    # inform about zero division if it occurs
+    _handle_zero_division(ref, zero_division_hint, "rel_error")
+    return (det - ref) / ref
+
+
+def abs_error(
+    df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected"
+) -> pd.Series:
+    ref, det = _get_data_from_identifier(df, reference_col_name), _get_data_from_identifier(df, detected_col_name)
+    return abs(det - ref)
+
+
+def abs_rel_error(
+    df: pd.DataFrame,
+    reference_col_name: str = "reference",
+    detected_col_name: str = "detected",
+    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
+) -> pd.Series:
+    ref, det = (
+        _get_data_from_identifier(df, reference_col_name),
+        _get_data_from_identifier(df, detected_col_name).replace(np.inf, np.nan),
     )
-    icc, ci95 = intraclass_corr(only_speed, ratings="AverageStrideSpeed", raters="system", targets="wb_uid").loc[
-        0, ["ICC", "CI95%"]
-    ]
-    return formatter.format(icc=icc, _a=NO_BREAK_SPACE, **dict(zip(("q05", "q95"), ci95)))
-    """
+    # inform about zero division if it occurs
+    _handle_zero_division(ref, zero_division_hint, "rel_error")
+    return abs((det - ref) / det)
+
+
+def icc(
+    df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected"
+) -> tuple[float, float]:
+    df = _get_data_from_identifier(df, [reference_col_name, detected_col_name], num_levels=1)
+    df = (
+        df.reset_index(drop=0)
+        .rename_axis("targets", axis=0)
+        .rename_axis("rater", axis=1)
+        .stack()
+        .rename("value")
+        .reset_index()
+    )
+    icc, ci95 = intraclass_corr(data=df, targets="targets", raters="rater", ratings="value").loc[0, ["ICC", "CI95%"]]
+    return icc, ci95
 
 
 def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tuple[float, float]:
@@ -906,13 +1001,6 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
     mean = series.mean()
     std = series.std()
     return mean - std * agreement, mean + std * agreement
-
-
-def mdc(error: pd.Series) -> float:
-    # TODO: isn't this supposed to be a tuple then?
-    # Is this metric even required?
-    """Calculate the mean difference and the confidence interval of a measure."""
-    return 1.96 * np.sqrt(2) * error.std()
 
 
 def get_aggregator(
@@ -974,7 +1062,14 @@ def get_aggregator(
     return aggregator
 
 
-def get_default_aggregator() -> dict[tuple[str], list[Union[str, FunctionType]]]:
+def get_default_error_metrics() -> list[CustomOperationTuple]:
+    metrics = ["metric_1", "metric_2"]
+    default_errors = [error, rel_error, abs_error, abs_rel_error]
+    error_metrics = [*((m, default_errors) for m in metrics)]
+    return error_metrics
+
+
+def get_default_aggregations() -> dict[tuple[str], list[Union[str, FunctionType]]]:
     """
     Return a dictionary containing all important aggregations utilized in Mobilise-D.
 
@@ -1005,8 +1100,40 @@ def get_default_aggregator() -> dict[tuple[str], list[Union[str, FunctionType]]]
     return default_agg
 
 
+def apply_transformations(
+    df: pd.DataFrame,
+    transformations: list[
+        Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]
+    ],
+) -> pd.DataFrame:
+    transformation_results = []
+    column_names = []
+    for transformation in transformations:
+        if getattr(transformation, "_TAG", None) == "CustomOperationTuple":
+            data = _get_data_from_identifier(df, transformation.identifier, num_levels=None)
+            result = transformation.function(data)
+            transformation_results.append(result)
+            column_names.append(transformation.column_name)
+        else:
+            metric, functions = transformation
+            if not isinstance(functions, list):
+                functions = [functions]
+            data = _get_data_from_identifier(df, metric, num_levels=None)
+            for fct in functions:
+                result = fct(data)
+                transformation_results.append(result)
+                column_names.append((metric, fct.__name__))
+    # combine results
+    transformation_results = pd.concat(transformation_results, axis=1)
+    transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
+    return transformation_results
+
+
 def apply_aggregations(
-    df: pd.DataFrame, aggregate_funcs: dict[tuple[str] : list[Union[str, FunctionType]]]
+    df: pd.DataFrame,
+    aggregations: list[
+        Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]
+    ],
 ) -> pd.DataFrame:
     """Apply a set of aggregation functions to a metrics DataFrame.
 
@@ -1021,22 +1148,90 @@ def apply_aggregations(
         If error metrics are of interest, they can also be included
         by calling ~func:`~mobgap.gsd.evaluation.assign_error_metrics` beforehand.
 
-    aggregate_funcs : dict[tuple[str], list[Union[str, FunctionType]]]
+    aggregations : dict[tuple[str], list[Union[str, FunctionType]]]
+        TODO
         A dictionary containing the aggregation functions for each metric and origin combination in the form of
         {("metric", "origin"): [aggregation_function, ...], ...}.
         Can be created using ~func:`~mobgap.gsd.evaluation.get_aggregator`
-        or ~func:`~mobgap.gsd.evaluation.get_default_aggregator`.
+        or ~func:`~mobgap.gsd.evaluation.get_default_aggregations`.
     """
-    # input validation
-    _sanitize_combined_metrics(df, aggregate_funcs.keys())
-    for key, agg in aggregate_funcs.items():
-        aggregate_funcs[key] = [_sanitize_agg(a) for a in agg]
+    # todo: input validation
+    # _sanitize_combined_metrics(df, aggregate_funcs.keys())
 
-    agg_metrics = df.agg(aggregate_funcs)
-    agg_metrics.index.name = "aggregate"
-    agg_metrics = agg_metrics.stack(level=("metric", "origin"), future_stack=True).dropna()
-    agg_metrics = agg_metrics.reorder_levels(["metric", "origin", "aggregate"]).sort_index(level=0)
-    return agg_metrics
+    manual_aggregations, agg_aggregations = _collect_manual_and_agg_aggregations(aggregations)
+
+    # apply built-in aggregations
+    agg_aggregation_results = pd.DataFrame()
+    if len(agg_aggregations) != 0:
+        agg_aggregation_results = df.agg(agg_aggregations)
+
+    # calculate the number of levels for custom aggregations
+    num_levels = 0
+    if not agg_aggregation_results.empty:
+        num_levels = agg_aggregation_results.columns.nlevels
+
+    manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations, num_levels)
+
+    # combine manual and agg results
+    aggregation_results = pd.concat([manual_aggregation_results, agg_aggregation_results])
+    aggregation_results = aggregation_results.stack(level=np.arange(num_levels).tolist(), future_stack=True).dropna()
+
+    return aggregation_results
+
+
+def _collect_manual_and_agg_aggregations(
+    aggregations: list[
+        Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]
+    ],
+) -> tuple[list[CustomOperationTuple], dict[tuple[str, str], list[Union[str, Callable]]]]:
+    manual_aggregations = []
+    agg_aggregations = {}
+    for agg in aggregations:
+        if getattr(agg, "_TAG", None) == "CustomOperationTuple":
+            manual_aggregations.append(agg)
+        else:
+            key, aggregation = agg
+            if not isinstance(aggregation, list):
+                aggregation = [aggregation]
+            if isinstance(key, tuple):
+                agg_aggregations.setdefault(key, []).extend(aggregation)
+    return manual_aggregations, agg_aggregations
+
+
+def _apply_manual_aggregations(
+    df: pd.DataFrame, manual_aggregations: list[CustomOperationTuple], num_levels: int
+) -> pd.DataFrame:
+    # apply manual aggregations
+    manual_aggregation_names = []
+    manual_aggregation_dict = {}
+    for agg in manual_aggregations:
+        # if num_levels == 0:
+        #    if isinstance(agg.column_name, list) or isinstance(agg.column_name, tuple):
+        #        num_levels = len(agg.column_name)
+        #    else:
+        #        num_levels = 1
+        # if not agg_aggregation_results.empty and len(agg.column_name) != num_levels:
+        #    raise ValueError(f"All aggregations must have the same number of levels. "
+        #                     f"{agg.column_name} has only {len(agg.column_name)} levels,
+        #                     but is expected to have {num_levels} levels.")
+        agg_functions = agg.function
+        if not isinstance(agg_functions, list):
+            agg_functions = [agg_functions]
+
+        data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
+        for fct in agg_functions:
+            result = fct(data)
+            manual_aggregation_names.append(fct.__name__)
+            manual_aggregation_dict.setdefault(agg.column_name, []).append(result)
+
+    manual_aggregation_results = pd.DataFrame(manual_aggregation_dict)
+
+    if not manual_aggregation_results.empty:
+        if num_levels > 1:
+            manual_aggregation_results.columns = pd.MultiIndex.from_tuples(manual_aggregation_dict.keys())
+        manual_aggregation_results.index = manual_aggregation_names
+
+    return manual_aggregation_results
 
 
 def _sanitize_combined_metrics(df: pd.DataFrame, metric_origin_combinations: list[tuple[str]]) -> None:
@@ -1080,9 +1275,8 @@ __all__ = [
     "assign_error_metrics",
     "quantiles",
     "loa",
-    "mdc",
     "get_aggregator",
-    "get_default_aggregator",
+    "get_default_aggregations",
     "apply_aggregations",
 ]
 
@@ -1099,11 +1293,11 @@ if __name__ == "__main__":
     )
     matches_with_err = matched_gs.pipe(lambda df_: assign_error_metrics(df_, ["metric_1", "metric_2"]))
     print(matches_with_err)
-    aggregator = get_default_aggregator()
+    aggregator = get_default_aggregations()
     # TODO: values are overwritten when keys are reused - is this a problem?
     aggregator = {
         **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
-        **get_aggregator(aggregate=["loa", "mdc", "quantiles"], metric="metric_2", origin="rel_error"),
+        **get_aggregator(aggregate=["loa", "quantiles"], metric="metric_2", origin="rel_error"),
     }
     print(aggregator)
     agg_results = matches_with_err.pipe(apply_aggregations, aggregator)
@@ -1130,8 +1324,30 @@ if __name__ == "__main__":
         metrics_detected=detected_metrics, metrics_reference=reference_metrics
     )
 
-    # matches_with_err = matches.pipe(lambda df_: assign_error_metrics(df_, ["metric_1", "metric_2"]))
-    matches_with_err = assign_error_metrics(matches, ["metric_1", "metric_2"])
-    aggregator = get_default_aggregator()
-    agg_results = apply_aggregations(matches_with_err, aggregator)
-    print(agg_results)
+    # matches_with_err = assign_error_metrics(matches, ["metric_1", "metric_2"])
+    error_agg = get_default_error_metrics()
+    matches_with_err_2 = apply_transformations(matches, get_default_error_metrics())
+    print(matches_with_err_2)
+    matches_with_err_2 = pd.concat([matches, matches_with_err_2], axis=1)
+
+    # aggregator = get_default_aggregations()
+    # aggregator = {
+    #    **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
+    #    **get_aggregator(aggregate=["loa", "quantiles"], metric="metric_2", origin="rel_error"),
+    # }
+    aggregations = [
+        *(((m, o), ["mean", "std"]) for m in ["metric_1", "metric_2"] for o in ["detected", "reference"]),
+        (("metric_2", "rel_error"), [loa, quantiles]),
+        CustomOperationTuple(identifier="metric_1", function=icc, column_name=("metric_1", "all")),
+        # AggTuple(identifier="metric_2", aggregation=icc, name=("metric_2", "all")),
+        # ([("metric_2", "reference"), ("metric_1", "detected")], icc),
+        # (["metric_2", ["reference", "detected"]], icc),
+    ]
+    print(aggregations)
+    # agg_results = apply_aggregations(matches_with_err, aggregations)
+    # agg_results.index.names = ["aggregation", "metric", "origin"]
+    # agg_results = agg_results.reorder_levels(["metric", "origin", "aggregation"]).sort_index(level=0)
+
+    # print(agg_results)
+
+    print(apply_aggregations(matches_with_err_2, aggregations))
