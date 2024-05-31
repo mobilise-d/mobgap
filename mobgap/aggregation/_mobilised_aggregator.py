@@ -1,9 +1,13 @@
 import typing
 import warnings
+from types import MappingProxyType
+from typing import Final
 
 import numpy as np
 import pandas as pd
 from pandas import option_context
+from tpcp import cf
+from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
@@ -261,12 +265,30 @@ class MobilisedAggregator(BaseAggregator):
 
     filtered_wb_dmos_: pd.DataFrame
 
+    class PredefinedParameters:
+        cvs_dmo_data: Final = MappingProxyType(
+            {
+                "groupby": ["visit_type", "participant_id", "measurement_date"],
+                "unique_wb_id_column": "wb_id",
+                "use_original_names": True,
+            }
+        )
+
+        single_recording: Final = MappingProxyType(
+            {
+                "groupby": None,
+                "unique_wb_id_column": "wb_id",
+                "use_original_names": False,
+            }
+        )
+
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.single_recording.items()})
     def __init__(
         self,
-        groupby: typing.Optional[typing.Sequence[str]] = ("visit_type", "participant_id", "measurement_date"),
+        groupby: typing.Optional[typing.Sequence[str]],
         *,
-        unique_wb_id_column: str = "wb_id",
-        use_original_names: bool = False,
+        unique_wb_id_column: str,
+        use_original_names: bool,
     ) -> None:
         self.groupby = groupby
         self.unique_wb_id_column = unique_wb_id_column

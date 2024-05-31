@@ -63,7 +63,8 @@ data_mask = apply_thresholds(
 # The data is grouped using additional columns in the input data, which are not used for the aggregation itself.
 # In this example, the data is grouped by participant (`subject_code`) and day (`visit_date`).
 agg = MobilisedAggregator(
-    groupby=("visit_type", "participant_id", "measurement_date")
+    **MobilisedAggregator.PredefinedParameters.cvs_dmo_data,
+    use_original_names=False,
 )
 agg.aggregate(data, wb_dmos_mask=data_mask)
 
