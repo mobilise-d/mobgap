@@ -238,19 +238,22 @@ stride_list_with_approx_paras
 # it around as column for debugging.
 from mobgap.wba import StrideSelection, WbAssembly
 
+flat_index = pd.Index(
+    [
+        "_".join(str(e) for e in s_id)
+        for s_id in stride_list_with_approx_paras.index
+    ],
+    name="s_id",
+)
 stride_list_with_approx_paras = stride_list_with_approx_paras.reset_index(
     "gs_id"
 ).rename(columns={"gs_id": "original_gs_id"})
+stride_list_with_approx_paras.index = flat_index
 
 # %%
 # Then we apply the stride selection (note that we have additional rules in case the stride length is available) and
 # then group the remaining strides into walking bouts.
-ss_rules = (
-    StrideSelection.PredefinedParameters.mobilised
-    if "stride_length_m" in stride_list_with_approx_paras.columns
-    else StrideSelection.PredefinedParameters.mobilised_no_stride_length
-)
-ss = StrideSelection(**ss_rules).filter(
+ss = StrideSelection().filter(
     stride_list_with_approx_paras, sampling_rate_hz=sampling_rate_hz
 )
 wba = WbAssembly().assemble(
@@ -321,3 +324,23 @@ agg_results = (
     .aggregated_data_
 )
 agg_results
+
+
+# %%
+# Running as a single pipeline
+from mobgap.pipeline import MobilisedPipeline
+
+pipeline = MobilisedPipeline(
+    gait_sequence_detection=gsd,
+    initial_contacts_detection=icd,
+    laterality_classification=lrc,
+    cadence_calculation=cad,
+    stride_length_calculation=None,
+    walking_speed_calculation=None,
+    stride_selection=ss,
+    wba=wba,
+    dmo_thresholds=thresholds,
+    dmo_aggregation=MobilisedAggregator(groupby=None),
+)
+
+pipeline.run(long_trial)

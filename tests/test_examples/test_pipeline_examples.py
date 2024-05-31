@@ -2,6 +2,7 @@ from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
+from pandas._testing import assert_frame_equal
 
 
 def test_gs_iterator(snapshot):
@@ -19,6 +20,14 @@ def test_gs_iterator(snapshot):
 
     snapshot.assert_match(iterator.results_.ic_list, "initial_contacts")
     snapshot.assert_match(iterator.results_.cadence_per_sec, "cadence")
+
+
+def test_full_mobilise_pipeline():
+    from examples.pipeline._02_full_pipeline import agg_results, final_strides, per_wb_params, pipeline
+
+    assert_frame_equal(pipeline.per_stride_parameters_, final_strides)
+    assert_frame_equal(pipeline.per_wb_parameters_.drop(columns="rule_obj"), per_wb_params.drop(columns="rule_obj"))
+    assert_frame_equal(pipeline.aggregated_parameters_, agg_results)
 
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
