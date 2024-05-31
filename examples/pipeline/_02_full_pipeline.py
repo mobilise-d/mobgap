@@ -318,11 +318,12 @@ per_wb_params_mask
 # Here, we perform it per recording and calculate a single values from all the WBs.
 from mobgap.aggregation import MobilisedAggregator
 
-agg_results = (
-    MobilisedAggregator(groupby=None)
-    .aggregate(per_wb_params, wb_dmos_mask=per_wb_params_mask)
-    .aggregated_data_
+agg = MobilisedAggregator(
+    **MobilisedAggregator.PredefinedParameters.single_recording
 )
+agg_results = agg.aggregate(
+    per_wb_params, wb_dmos_mask=per_wb_params_mask
+).aggregated_data_
 agg_results
 
 
@@ -340,7 +341,7 @@ pipeline = MobilisedPipeline(
     stride_selection=ss,
     wba=wba,
     dmo_thresholds=thresholds,
-    dmo_aggregation=MobilisedAggregator(groupby=None),
+    dmo_aggregation=agg,
 )
 
 pipeline.run(long_trial)
