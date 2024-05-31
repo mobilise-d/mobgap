@@ -84,9 +84,14 @@ import matplotlib.pyplot as plt
 
 def plot_turns(algo_with_results: TdElGohary):
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
-    axs[0].set_title("Raw gyr_z data")
     axs[0].set_ylabel("gyr_z [dps]")
-    algo_with_results.data.reset_index(drop=True).plot(y="gyr_z", ax=axs[0])
+    if algo_with_results.global_frame_data_ is None:
+        data = algo_with_results.data
+        axs[0].set_title("Raw gyr_z data")
+    else:
+        data = algo_with_results.global_frame_data_
+        axs[0].set_title("Raw gyr_z data (global frame)")
+    data.reset_index(drop=True).plot(y="gyr_z", ax=axs[0])
 
     axs[1].set_title("Filtered IMU signal with raw turns and thresholds.")
     axs[1].set_ylabel("filtered gyr_z [dps]")
@@ -195,34 +200,58 @@ ref_turns
 # We did not use this approach within Mobilise-D, to avoid introducing an additional source of error through a sensor
 # fusion algorithm.
 # However, the result of the algorithms are significantly influenced by that decision.
-# Below we show how you could use the algorithm with a prior global frame estimation.
+# Below we show two approached on how you could use the algorithm with a global frame estimation.
 #
-# For this we are using the MadgwickAHRS algorithm to estimate the global orientation of the sensor and transform the
-# data into the global coordinate system.
+# 1. Using the internal global frame estimation
+# ---------------------------------------------
+# For this we pass an instance of the MadgwickAHRS algorithm to estimate the global orientation of the sensor to the
+# algorithm.
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
 
-imu_data_global = (
-    MadgwickAHRS()
-    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
-    .rotated_data_
-)
+orientation_estimator = MadgwickAHRS()
 
 # %%
 # Now we can apply the algorithm again.
 # We are going to apply it to the entire recording to show the step-by-step process.
-turning_detector_global = TdElGohary()
-
-turning_detector_global.detect(
-    imu_data_global, sampling_rate_hz=sampling_rate_hz
+turning_detector_global = TdElGohary(
+    orientation_estimation=orientation_estimator
 )
+
+turning_detector_global.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
 plot_turns(turning_detector_global)
 
 # %%
-# Compared to the previous results, we can see that the algorithm now detects significantly more turns.
-# However, this finding is consistent across all recordings.
+# Based on the plotted results, we can see that the algorithm not finds significantly more turns.
 #
-# When we apply the algorithm in the context of the pipeline, we can see that the results are closer to the reference
-# system, even though we are still missing some turns.
+# However, when we apply the algorithm per-gs (as shown below), we again only get a small number of turns.
+# The reason for that is, that the global frame estimation is not perfect and requires some time to converge when
+# applied to data.
+# Hence, the applying it to each GS individually might work less good.
+# Results could be improved, by tuning the initial orientation of the global frame estimation.
+iterator = GsIterator()
+
+for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
+    td = turning_detector.clone().detect(
+        data, sampling_rate_hz=sampling_rate_hz
+    )
+    result.turn_list = td.turn_list_
+
+turns_global_per_gs = iterator.results_.turn_list
+turns_global_per_gs
+
+# %%
+# Alternatively, we could also use the global frame estimation to transform the data into the global frame before
+# applying the algorithm.
+#
+# 2. Transforming the data into the global frame
+# ----------------------------------------------
+# For this, we first estimate the global frame for the entire recording.
+imu_data_global = (
+    orientation_estimator.clone()
+    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
+    .rotated_data_
+)
+
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data_global, reference_wbs):
@@ -238,4 +267,5 @@ turns_global
 ref_turns
 
 # %%
+# Which of the two approaches is better, depends on multiple factors.
 # If the global frame should be used generally, further investigation is needed.

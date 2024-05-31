@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
@@ -46,7 +47,14 @@ class TestTdElGohary:
         output.detect(data, sampling_rate_hz=100.0)
         assert output.turn_list_.empty
         assert output.raw_turn_list_.empty
+        assert output.global_frame_data_ is None
         assert len(output.yaw_angle_) == len(data)
+
+    def test_with_global_frame(self):
+        data = pd.DataFrame(np.zeros((100, 6)), columns=["gyr_x", "gyr_y", "gyr_z", "acc_x", "acc_y", "acc_z"])
+        output = TdElGohary(orientation_estimation=MadgwickAHRS())
+        output.detect(data, sampling_rate_hz=100.0)
+        assert len(output.global_frame_data_) == len(data)
 
     def test_sin_wave_turns(self):
         data = pd.DataFrame(np.zeros((1000, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])

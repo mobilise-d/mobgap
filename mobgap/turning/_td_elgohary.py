@@ -2,6 +2,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+from gaitmap.base import BaseOrientationMethod
 from gaitmap.utils.array_handling import merge_intervals
 from scipy.integrate import cumulative_trapezoid
 from scipy.signal import find_peaks
@@ -67,6 +68,11 @@ class TdElGohary(BaseTurnDetector):
     allowed_turn_angle_deg
         The allowed turning angle of a turn in degrees.
         This is evaluated as the final step of the algorithm.
+    orientation_estimation
+        An optional instance of an orientation estimation algorithm to transform the IMU signal to the global frame.
+        The version used in Mobilise-D did not use this, but the version described in the original publication did apply
+        the algorithm to data from the global frame.
+        This also makes the ``global_frame_data_`` attribute available, which contains the transformed data.
 
 
     Attributes
@@ -80,6 +86,9 @@ class TdElGohary(BaseTurnDetector):
         The yaw angle of the IMU signal estimated through the integration of the ``gyr_z`` signal.
         This is used to estimate the turn angle.
         This might be helpful for debugging or further analysis.
+    global_frame_data_
+        The data in the global frame, if an orientation estimation algorithm was used.
+        Otherwise, this is None.
 
     Other Parameters
     ----------------
@@ -109,7 +118,14 @@ class TdElGohary(BaseTurnDetector):
     """
 
     smoothing_filter: Optional[BaseFilter]
+    allowed_turn_angle_deg: tuple[float, float]
+    allowed_turn_duration_s: tuple[float, float]
+    min_gap_between_turns_s: float
+    min_peak_angle_velocity_dps: float
+    lower_threshold_velocity_dps: float
+    orientation_estimation: Optional[BaseOrientationMethod]
 
+    global_frame_data_: Optional[pd.DataFrame]
     raw_turn_list_: pd.DataFrame
     yaw_angle_: pd.DataFrame
 
@@ -124,6 +140,7 @@ class TdElGohary(BaseTurnDetector):
         min_gap_between_turns_s: float = 0.05,
         allowed_turn_duration_s: tuple[float, float] = (0.5, 10),
         allowed_turn_angle_deg: tuple[float, float] = (45, np.inf),
+        orientation_estimation: Optional[BaseOrientationMethod] = None,
     ) -> None:
         self.smoothing_filter = smoothing_filter
         self.allowed_turn_angle_deg = allowed_turn_angle_deg
@@ -131,6 +148,7 @@ class TdElGohary(BaseTurnDetector):
         self.min_gap_between_turns_s = min_gap_between_turns_s
         self.min_peak_angle_velocity_dps = min_peak_angle_velocity_dps
         self.lower_threshold_velocity_dps = lower_threshold_velocity_dps
+        self.orientation_estimation = orientation_estimation
 
     def _return_empty(self) -> Self:
         self.turn_list_ = pd.DataFrame(columns=["start", "end", "duration_s", "angle_deg", "direction"]).pipe(
@@ -151,6 +169,12 @@ class TdElGohary(BaseTurnDetector):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+
+        if self.orientation_estimation is not None:
+            data = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz).rotated_data_
+            self.global_frame_data_ = data
+        else:
+            self.global_frame_data_ = None
 
         gyr_z = data["gyr_z"].to_numpy()
         if self.smoothing_filter is None:
