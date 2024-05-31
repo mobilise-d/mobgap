@@ -1,6 +1,7 @@
 from collections.abc import Hashable
 from itertools import count
-from typing import ClassVar, Optional
+from types import MappingProxyType
+from typing import Final, Optional
 
 import numpy as np
 import pandas as pd
@@ -117,15 +118,17 @@ class WbAssembly(Algorithm):
     _wb_id_map: dict[str, int]
 
     class PredefinedParameters:
-        mobilised: ClassVar = {
-            "rules": [
-                (
-                    "min_strides",
-                    NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
-                ),
-                ("max_break", MaxBreakCriteria(max_break_s=3)),
-            ]
-        }
+        mobilised: Final = MappingProxyType(
+            {
+                "rules": [
+                    (
+                        "min_strides",
+                        NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
+                    ),
+                    ("max_break", MaxBreakCriteria(max_break_s=3)),
+                ]
+            }
+        )
 
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]]) -> None:

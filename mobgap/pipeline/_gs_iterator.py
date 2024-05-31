@@ -1,10 +1,11 @@
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import (
     Any,
     Callable,
-    ClassVar,
+    Final,
     Generic,
     NamedTuple,
     Optional,
@@ -360,30 +361,40 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
 
         """
 
-        default_aggregation: ClassVar[dict[str, Any]] = {
-            "data_type": FullPipelinePerGsResult,
-            "aggregations": cf(
-                [
-                    ("ic_list", create_aggregate_df("ic_list", ["ic"])),
-                    ("turn_list", create_aggregate_df("turn_list", ["start", "end", "center"])),
-                    ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [], fix_offset_index=True)),
-                    ("stride_length_per_sec", create_aggregate_df("stride_length_per_sec", [], fix_offset_index=True)),
-                    ("walking_speed_per_sec", create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True)),
-                ]
-            ),
-        }
-        default_aggregation_rel_to_gs: ClassVar[dict[str, Any]] = {
-            "data_type": FullPipelinePerGsResult,
-            "aggregations": cf(
-                [
-                    ("ic_list", create_aggregate_df("ic_list", [])),
-                    ("turn_list", create_aggregate_df("turn_list", [])),
-                    ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [])),
-                    ("stride_length_per_sec", create_aggregate_df("stride_length", [])),
-                    ("walking_speed_per_sec", create_aggregate_df("gait_speed", [])),
-                ]
-            ),
-        }
+        default_aggregation: Final = MappingProxyType(
+            {
+                "data_type": FullPipelinePerGsResult,
+                "aggregations": cf(
+                    [
+                        ("ic_list", create_aggregate_df("ic_list", ["ic"])),
+                        ("turn_list", create_aggregate_df("turn_list", ["start", "end", "center"])),
+                        ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [], fix_offset_index=True)),
+                        (
+                            "stride_length_per_sec",
+                            create_aggregate_df("stride_length_per_sec", [], fix_offset_index=True),
+                        ),
+                        (
+                            "walking_speed_per_sec",
+                            create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True),
+                        ),
+                    ]
+                ),
+            }
+        )
+        default_aggregation_rel_to_gs: Final = MappingProxyType(
+            {
+                "data_type": FullPipelinePerGsResult,
+                "aggregations": cf(
+                    [
+                        ("ic_list", create_aggregate_df("ic_list", [])),
+                        ("turn_list", create_aggregate_df("turn_list", [])),
+                        ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [])),
+                        ("stride_length_per_sec", create_aggregate_df("stride_length", [])),
+                        ("walking_speed_per_sec", create_aggregate_df("gait_speed", [])),
+                    ]
+                ),
+            }
+        )
 
     class DefaultAggregators:
         """Available aggregators for the gait-sequence iterator.

@@ -1,4 +1,5 @@
 import warnings
+from types import MappingProxyType
 from typing import Final, Literal, Optional
 
 import pandas as pd
@@ -76,19 +77,21 @@ class StrideSelection(Algorithm):
     check_results_: pd.DataFrame
 
     class PredefinedParameters:
-        mobilised: Final = {
-            "rules": [
-                (
-                    "stride_duration_thres",
-                    IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
-                ),
-                (
-                    "stride_length_thres",
-                    IntervalParameterCriteria("stride_length_m", lower_threshold=0.15, upper_threshold=None),
-                ),
-            ],
-            "incompatible_rules": "warn",
-        }
+        mobilised: Final = MappingProxyType(
+            {
+                "rules": [
+                    (
+                        "stride_duration_thres",
+                        IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
+                    ),
+                    (
+                        "stride_length_thres",
+                        IntervalParameterCriteria("stride_length_m", lower_threshold=0.15, upper_threshold=None),
+                    ),
+                ],
+                "incompatible_rules": "warn",
+            }
+        )
 
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(

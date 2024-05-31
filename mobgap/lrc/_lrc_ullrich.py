@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
 from itertools import repeat
+from types import MappingProxyType
 from typing import Any, Final, Union
 
 import joblib
@@ -124,12 +125,14 @@ class LrcUllrich(BaseLRClassifier):
             # TODO: Might be a good idea to resave both the models and scalers to the current sklearn version.
             scaler.clip = False
 
-            return {
-                "smoothing_filter": cls._BW_FILTER,
-                # Note, that we use names for the pipeline steps, that are allow us to identify, that these are the
-                # old pre-trained models.
-                "clf_pipe": Pipeline([("scaler_old", scaler), ("clf_old", model)]),
-            }
+            return MappingProxyType(
+                {
+                    "smoothing_filter": cls._BW_FILTER,
+                    # Note, that we use names for the pipeline steps, that are allow us to identify, that these are the
+                    # old pre-trained models.
+                    "clf_pipe": Pipeline([("scaler_old", scaler), ("clf_old", model)]),
+                }
+            )
 
         @classproperty
         def msproject_all(cls) -> _ModelConfig:  # noqa: N805
