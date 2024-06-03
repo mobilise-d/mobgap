@@ -19,8 +19,7 @@ from mobgap.data_transform import (
     chain_transformers,
 )
 from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
-
-# TODO: Potentially rework find_pulse_trains
+from mobgap.utils.conversions import as_samples
 
 _gsd_ionescu_docfiller = make_filldoc(
     base_gsd_docfiller._dict
@@ -36,6 +35,10 @@ _gsd_ionescu_docfiller = make_filldoc(
         Maximum time (in seconds) between consecutive gait sequences.
         If a gap is smaller than max_gap_s, the two consecutive gait sequences are merged into one.
         This is applied after the gait sequences are detected.
+    min_step_margin_s
+        The minimum time margin (in seconds) between two consecutive initial contacts within a gait sequence.
+        This is used when combining consecutive steps candidates into gait sequences.
+        The actual threshold is calculated as the mean of the step times plus this parameter.
 """
     }
 )
@@ -45,6 +48,7 @@ class _BaseGsdIonescu(BaseGsDetector):
     min_n_steps: int
     active_signal_threshold: float
     max_gap_s: float
+    min_step_margin_s: float
     padding: float
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
@@ -54,10 +58,12 @@ class _BaseGsdIonescu(BaseGsDetector):
         *,
         min_n_steps: int,
         max_gap_s: float,
+        min_step_margin_s: float,
         padding: float,
     ) -> None:
         self.min_n_steps = min_n_steps
         self.max_gap_s = max_gap_s
+        self.min_step_margin_s = min_step_margin_s
         self.padding = padding
 
     def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
@@ -82,20 +88,23 @@ class _BaseGsdIonescu(BaseGsDetector):
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
+        # Peaks are in samples based on internal sampling rate
         min_peaks, max_peaks = self._find_step_candidates(acc_norm, sampling_rate_hz)
 
         # Combine steps detected by the maxima and minima
-        gs_from_max = find_pulse_trains(max_peaks)
-        gs_from_min = find_pulse_trains(min_peaks)
-        gs_from_max = gs_from_max[gs_from_max[:, 2] >= self.min_n_steps]
-        gs_from_min = gs_from_min[gs_from_min[:, 2] >= self.min_n_steps]
+        allowed_distance_between_peaks = as_samples(self.min_step_margin_s, self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
+        step_margin = as_samples(self.min_step_margin_s, self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
+        gs_from_max = find_pulse_trains(max_peaks, allowed_distance_between_peaks, step_margin)
+        gs_from_min = find_pulse_trains(min_peaks, allowed_distance_between_peaks, step_margin)
+        gs_from_max = gs_from_max[gs_from_max[:, 2] > 1]
+        gs_from_min = gs_from_min[gs_from_min[:, 2] > 1]
 
         # Combine the gs from the maxima and minima
         combined_final = find_intersections(gs_from_max[:, :2], gs_from_min[:, :2])
 
         # Check if all gs removed
         if combined_final.size == 0:
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
             return self
 
         # Find all max_peaks within each final gs
@@ -111,18 +120,18 @@ class _BaseGsdIonescu(BaseGsDetector):
         combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
 
         if combined_final.size == 0:  # Check if all gs removed
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))  # Return empty df if no gs
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
             return self
 
         # Merge gs if time (in seconds) between consecutive gs is smaller than max_gap_s
         combined_final = merge_intervals(
-            combined_final, int(np.round(self._INTERNAL_FILTER_SAMPLING_RATE_HZ * self.max_gap_s))
+            combined_final, as_samples(self.max_gap_s, self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
         )
 
         # Convert back to original sampling rate
         combined_final = combined_final * sampling_rate_hz / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
 
-        # Cap the start and the end of the signal using clip, incase padding extended any gs past the signal length
+        # Cap the start and the end of the signal using clip, in case padding extended any gs past the signal length
         combined_final = np.clip(combined_final, 0, len(acc))
 
         # Compile the df
@@ -169,6 +178,8 @@ class GsdIonescu(_BaseGsdIonescu):
     While the signal filtering is based on the original implementation, this implementation adds the post-processing
     steps that originally were only implemented for the adaptive threshold version of the algorithm [2]_.
     We also remove the original "n-step-filter" in favor of this post-processing step.
+    Furthermore, we fixed a bug where the average step time during the "pulse train" identification was calculated
+    using n + 1 steps.
 
     .. [1] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
        validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
@@ -186,11 +197,14 @@ class GsdIonescu(_BaseGsdIonescu):
         *,
         min_n_steps: int = 5,
         active_signal_threshold: float = 0.1,
-        max_gap_s: float = 3,
+        max_gap_s: float = 3.5,
+        min_step_margin_s: float = 1.5,
         padding: float = 0.75,
     ) -> None:
         self.active_signal_threshold = active_signal_threshold
-        super().__init__(min_n_steps=min_n_steps, max_gap_s=max_gap_s, padding=padding)
+        super().__init__(
+            min_n_steps=min_n_steps, max_gap_s=max_gap_s, padding=padding, min_step_margin_s=min_step_margin_s
+        )
 
     def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
         #   CWT - Filter
@@ -274,6 +288,8 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     - All parameters and thresholds are converted the units used in mobgap.
       Specifically, we use m/s^2 instead of g.
     - We introduced a try/except incase no active periods were detected.
+    - We fixed a bug where the average step time during the "pulse train" identification was calculated using n + 1
+      steps.
     - In original implementation, stages for filtering by minimum number of steps are hardcoded as:
 
       - min_n_steps>=4 after find_pulse_trains(MaxPeaks) and find_pulse_trains(MinPeaks)
@@ -304,11 +320,14 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
         *,
         min_n_steps: int = 5,
         active_signal_fallback_threshold: float = 0.15,
-        max_gap_s: float = 3,
+        max_gap_s: float = 3.5,
+        min_step_margin_s: float = 1.5,
         padding: float = 0.75,
     ) -> None:
         self.active_signal_fallback_threshold = active_signal_fallback_threshold
-        super().__init__(min_n_steps=min_n_steps, max_gap_s=max_gap_s, padding=padding)
+        super().__init__(
+            min_n_steps=min_n_steps, max_gap_s=max_gap_s, padding=padding, min_step_margin_s=min_step_margin_s
+        )
 
     def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
         #   CWT - Filter
@@ -420,7 +439,12 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
         np.ones(smooth_window) / smooth_window,
         "same",  # Smooth
     )
+
+    active = np.zeros(len(env))
+
     env -= np.mean(env)  # Get rid of offset
+    if np.all(env == 0):
+        return active
     env /= np.max(env)  # Normalize
 
     threshold_sig = 4 * np.nanmean(env)
@@ -430,7 +454,6 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
 
     # Initialize Buffers
     noise_buff = np.zeros(len(env) - duration + 1)
-    active = np.zeros(len(env))
 
     if np.isnan(threshold_sig):
         return active
@@ -462,7 +485,7 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
 
 def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
     """
-    Identify the indices of local minima and maxima  where the values are beyond a specified threshold.
+    Identify the indices of local minima and maxima where the values are beyond a specified threshold.
 
     Parameters
     ----------
@@ -488,42 +511,43 @@ def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
     return minima, maxima
 
 
-def find_pulse_trains(x: np.ndarray) -> np.ndarray:
-    walkflag = 0
-    thd = 3.5 * 40
-    n = 0
+def _find_pulse_train_end(x: np.ndarray, step_threshold: float) -> np.ndarray:
+    start_val = x[0]
+    # We already know that the first two values belong to the pulse train, as this is determined by the caller so we
+    # start everything at index 1
+    for n_steps, (current_val, next_val) in enumerate(zip(x[1:], x[2:]), start=1):
+        # We update the threshold to be the mean step time + the step threshold
+        # Note: The original implementation uses effectively n_steps + 1 here, which likely a bug, as it counts the
+        # number of pulses within the pulse train and not the number of distances between pulses.
+        thd_step = (current_val - start_val) / n_steps + step_threshold
+        if next_val - current_val > thd_step:
+            return x[: n_steps + 1]
+    return x
 
-    start = [0]
-    steps = [0]
-    end = [0]
 
-    if len(x) > 2:
-        for i in range(len(x) - 1):
-            if x[i + 1] - x[i] < thd:
-                if walkflag == 0:
-                    start[n] = x[i]
-                    steps[n] = 1
-                    walkflag = 1
-                else:
-                    steps[n] = steps[n] + 1
-                    thd = 1.5 * 40 + (x[i] - start[n]) / steps[n]
-            elif walkflag == 1:
-                end[n] = x[i - 1]
-                n = n + 1
-                start = [*start, 0]
-                steps = [*steps, 0]
-                end = [*end, 0]
-                walkflag = 0
-                thd = 3.5 * 40
-
-    if walkflag == 1:
-        if x[-1] - x[-2] < thd:
-            end[-1] = x[-1]
-            steps[n] = steps[n] + 1
+def find_pulse_trains(
+    x: np.ndarray, initial_distance_threshold_samples: float, step_threshold_margin: float
+) -> np.ndarray:
+    start_ends = []
+    i = 0
+    while i < len(x) - 1:
+        # We search for a start of a pulse train
+        # This happens, in case 2 consecutive samples are closer than the initial distance threshold
+        if x[i + 1] - x[i] < initial_distance_threshold_samples:
+            # Then we search for the end of the pulse train
+            # This happens, in case 2 consecutive samples are further apart than the step threshold + the mean step time
+            # within the pulse train
+            start = x[i]
+            pulses = _find_pulse_train_end(x[i:], step_threshold_margin)
+            start_ends.append([start, pulses[-1], len(pulses) - 1])
+            i += len(pulses)
         else:
-            end[-1] = x[-1]
+            i += 1
 
-    return np.array([start, end, steps]).T
+    if len(start_ends) == 0:
+        return np.array([]).reshape(0, 3)
+
+    return np.array(start_ends)
 
 
 def find_intersections(intervals_a: np.ndarray, intervals_b: np.ndarray) -> np.ndarray:
@@ -549,7 +573,6 @@ def find_intersections(intervals_a: np.ndarray, intervals_b: np.ndarray) -> np.n
 
     overlap_intervals = []
 
-    # Calculate TP and FP
     for interval in intervals_b_tree:
         overlaps = sorted(intervals_a_tree.overlap(interval.begin, interval.end))
         if overlaps:
