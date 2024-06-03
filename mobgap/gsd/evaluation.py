@@ -2,7 +2,6 @@
 
 import warnings
 from collections.abc import Hashable, Sequence
-from itertools import product
 from types import FunctionType
 from typing import Any, Callable, Literal, NamedTuple, Optional, Union
 
@@ -812,101 +811,13 @@ def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: p
     return matches
 
 
-def assign_error_metrics(
-    df: pd.DataFrame,
-    parameters: Union[str, list[str]],
-    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
-) -> pd.DataFrame:
-    # TODO:
-    # problems when integrating this with a more generalized aggregation syntax:
-    # - what to do with the "origin" level?
-    # - where to set "zero_division_hint"?
-    """Derive error metrics from given columns of a DataFrame and add them to the DataFrame.
-
-    The error metrics that are calculated for each parameter are:
-    - error: The difference between the detected and reference value.
-    - rel_error: The relative error, calculated as the error divided by the reference value.
-    - abs_rel_error: The absolute value of the relative error.
-    - abs_error: The absolute value of the error.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame containing the columns to derive the error metrics from.
-        It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
-        or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
-        Needs to have a MultiIndex column structure with the first level being the metric name and the second level
-        being the origin of the metric (e.g., "detected" or "reference").
-    parameters : Union[str, list[str]]
-        The name of the gait parameters or a list of parameter names for which the error metrics should be calculated.
-        Each of the specified parameters must be present in `df` together with a reference and a detected value.
-    zero_division_hint : "warn", "raise" or np.nan, default="warn"
-        Controls the behavior when there is a zero division. If set to "warn",
-        affected metrics are set to NaN and a warning is raised.
-        If set to "raise", a ZeroDivisionError is raised.
-        If set to `np.nan`, the warning is suppressed and the affected metrics are set to NaN.
-        Zero division can occur if the reference value is zero for a given parameter, i.e., n_turns = 0
-
-    Returns
-    -------
-    df : pd.DataFrame
-        The input DataFrame with the error metrics for the specified parameters added in-place.
-    """
-    if isinstance(parameters, str):
-        parameters = [parameters]
-
-    for value in parameters:
-        # if value not in df.columns.get_level_values("metric"):
-        #    raise ValueError(f"Column '{value}' not found in DataFrame.")
-        try:
-            detected_value = df[value]["detected"]
-            reference_value = df[value]["reference"]
-        except KeyError as e:
-            raise ValueError(f"Column '{value}' does not contain both 'detected' and 'reference' values.") from e
-
-        # explicitly calculate the insertion order to keep columns in a logical order
-        insert_index = df.columns.get_loc(value).stop
-        df.insert(insert_index, (value, "error"), detected_value - reference_value)
-        df.insert(
-            insert_index + 1, (value, "rel_error"), (df[value]["error"] / reference_value).replace(np.inf, np.nan)
-        )
-        df.insert(insert_index + 2, (value, "abs_rel_error"), df[value]["rel_error"].abs())
-        df.insert(insert_index + 3, (value, "abs_error"), df[value]["error"].abs())
-
-        # handle zero division
-        if (reference_value == 0).any():
-            if zero_division_hint not in ["warn", "raise", np.nan]:
-                raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
-            if zero_division_hint == "raise":
-                raise ZeroDivisionError(f"Zero division occurred because reference values of {value} contain zeroes.")
-            if zero_division_hint == "warn":
-                warnings.warn(
-                    f"Zero division occurred because because reference values of {value} contain zeroes. "
-                    "Affected error metrics are set to NaN.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-    return df
-
-
 def _get_data_from_identifier(
     df: pd.DataFrame, identifier: Union[Hashable, Sequence, str], num_levels: Union[int, None] = 1
 ) -> pd.DataFrame:
     try:
         data = df.loc[:, identifier]
-    # except KeyError:
-    # handle cases where extracting multiple columns at once fails,
-    # e.g., due to columns differing in number of levels
-    # data_cols = []
-    # for col in identifier:
-    # try:
-    # data_cols.append(df.loc[:,[col]])
-    # except KeyError as e:
-    # raise ValueError(f"Identifier '{identifier}' not found in DataFrame.") from e
     except KeyError as e:
         raise ValueError(f"Column(s) '{identifier}' not found in DataFrame.") from e
-
-        # data = pd.concat(data_cols, axis=1)
     if num_levels:
         data_num_levels = 1 if isinstance(data, pd.Series) else data.columns.nlevels
         if data_num_levels != num_levels:
@@ -971,7 +882,7 @@ def abs_rel_error(
         _get_data_from_identifier(df, detected_col_name).replace(np.inf, np.nan),
     )
     # inform about zero division if it occurs
-    _handle_zero_division(ref, zero_division_hint, "rel_error")
+    _handle_zero_division(ref, zero_division_hint, "abs_rel_error")
     return abs((det - ref) / det)
 
 
@@ -980,7 +891,7 @@ def icc(
 ) -> tuple[float, float]:
     df = _get_data_from_identifier(df, [reference_col_name, detected_col_name], num_levels=1)
     df = (
-        df.reset_index(drop=0)
+        df.reset_index(drop=True)
         .rename_axis("targets", axis=0)
         .rename_axis("rater", axis=1)
         .stack()
@@ -1003,82 +914,31 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
     return mean - std * agreement, mean + std * agreement
 
 
-def get_aggregator(
-    aggregate: Union[str, Sequence[str]],
-    metric: Union[str, Sequence[str]],
-    origin: Union[str, Sequence[str]] = ("detected", "reference"),
-) -> dict[tuple[str], list[Union[str, FunctionType]]]:
-    """Create a dictionary for collecting aggregated metrics.
-
-    Contains the aggregation functions for a set of aggregations, metrics to aggregate,
-    and origins to extract the metrics from. The return value can directly be passed to
-    ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregate_funcs` parameter.
-
-    Parameters
-    ----------
-    aggregate : Union[str, Sequence[str]]
-        The aggregation functions to apply to the metrics, e.g. "mean" (mean), "std" (standard deviation),
-        "quantiles" (tuple of 5th and 95th percent quantile), "loa" (tuple of limits of agreement),
-        or "mdc" (mean difference).
-    metric : Union[str, Sequence[str]]
-        The metrics for which the aggregates should be applied.
-    origin : Union[str, Sequence[str]], optional
-        The origin of the data to aggregate over, e.g. "detected" or "reference" to directly aggregate over the data,
-        or "error", "rel_error", "abs_error", or "abs_rel_error" to aggregate over the errors between
-        detected and reference.
-
-    Returns
-    -------
-    aggregator : dict[tuple[str], list[Union[str, FunctionType]]]:
-        A dictionary containing the aggregation functions for each metric and origin combination in the form of
-        {("metric", "origin"): [aggregation_function, ...], ...}.
-
-    Note
-    ----
-    If you want to apply different aggregations to different metrics or origins,
-    you can call this function multiple times and merge the results.
-    However, be aware that the aggregations will be overwritten if the same metric and origin combinations
-    are used in multiple calls.
-    """
-    if isinstance(aggregate, str):
-        aggregate = [aggregate]
-    aggregate = list(set(aggregate))
-    if isinstance(metric, str):
-        metric = [metric]
-    metric = list(set(metric))
-    if isinstance(origin, str):
-        origin = [origin]
-    origin = list(set(origin))
-
-    # check if all aggregate strings are valid functions
-    aggregate_funcs = []
-    for agg in aggregate:
-        aggregate_funcs.append(_sanitize_agg(agg))
-
-    aggregator = {}
-    metric_origin = list(product(metric, origin))
-    for metric_origin_comb in metric_origin:
-        aggregator[metric_origin_comb] = aggregate_funcs
-    return aggregator
-
-
 def get_default_error_metrics() -> list[CustomOperationTuple]:
-    metrics = ["metric_1", "metric_2"]
+    metrics = [
+        "cadence_spm",
+        "duration_s",
+        "n_steps",
+        "n_turns",
+        "stride_duration_s",
+        "stride_length_m",
+        "walking_speed_mps",
+    ]
     default_errors = [error, rel_error, abs_error, abs_rel_error]
     error_metrics = [*((m, default_errors) for m in metrics)]
     return error_metrics
 
 
-def get_default_aggregations() -> dict[tuple[str], list[Union[str, FunctionType]]]:
+def get_default_aggregations() -> (
+    list[Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]]
+):
     """
-    Return a dictionary containing all important aggregations utilized in Mobilise-D.
+    Return a list containing all important aggregations utilized in Mobilise-D.
 
-    This dictionary can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregate_funcs`
+    This list can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregations`
     parameter to calculate the desired metrics.
     """
-    # TODO: are these all required parameters?
-
-    parameter_columns = [
+    metrics = [
         "cadence_spm",
         "duration_s",
         "n_steps",
@@ -1088,24 +948,59 @@ def get_default_aggregations() -> dict[tuple[str], list[Union[str, FunctionType]
         "walking_speed_mps",
     ]
 
-    default_agg = {
-        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="detected"),
-        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="reference"),
-        **get_aggregator(aggregate=["mean", "loa"], metric=parameter_columns, origin="error"),
-        **get_aggregator(aggregate=["mean", "loa"], metric=parameter_columns, origin="rel_error"),
-        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="abs_error"),
-        **get_aggregator(aggregate=["quantiles"], metric=parameter_columns, origin="abs_rel_error"),
-    }
+    default_agg = [
+        *(
+            ((m, o), ["mean", quantiles])
+            for m in metrics
+            for o in ["detected", "reference", "abs_error", "abs_rel_error"]
+        ),
+        *(((m, o), ["mean", loa]) for m in metrics for o in ["error", "rel_error"]),
+        *[CustomOperationTuple(identifier=m, function=icc, column_name=(m, "all")) for m in metrics],
+    ]
 
     return default_agg
 
 
 def apply_transformations(
-    df: pd.DataFrame,
-    transformations: list[
-        Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]
-    ],
+    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]], CustomOperationTuple]]]
 ) -> pd.DataFrame:
+    """Apply a set of transformations to a DMO DataFrame.
+
+    Returns a DataFrame with one column per transformation.
+    22
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the metrics to transform.
+        It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
+        or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
+        Needs to have a MultiIndex column structure with the first level being the metric name and the second level
+        being the origin of the metric (e.g., "detected" or "reference").
+
+    transformations : list[tuple[str, Union[callable, list[callable]], CustomOperationTuple]]
+
+        A list specifying which transformation functions are to be applied for which metrics and data origins.
+        There are two ways to define transformations:
+
+        1.  As a tuple in the format `(<metric>, <function>)`,
+            where `<metric>` is the metric column to evaluate,
+            and `<function>` is the function (or a list of functions) to apply.
+            The output dataframe will have a multilevel column consisting of a `metric` level and a `function` level.
+
+        2.  As a named tuple of type `CustomOperationTuple` taking three arguments:
+            `identifier`, `function`, and `column_name`.
+            `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
+            `function` is the (custom) transformation function or list of functions to apply,
+            and `column_name` is the name of the resulting column in the output dataframe.
+            In case of a single-level output column, `column_name` is a string, whereas for multi-level output columns,
+            it is a tuple of strings.
+            This allows for more complex transformations that require multiple columns as input.
+
+        The default list of aggregations can be retrieved
+        using ~func:`~mobgap.gsd.evaluation.get_default_transformations`.
+
+    """
     transformation_results = []
     column_names = []
     for transformation in transformations:
@@ -1124,6 +1019,7 @@ def apply_transformations(
                 transformation_results.append(result)
                 column_names.append((metric, fct.__name__))
     # combine results
+    # TODO: error handling for concat
     transformation_results = pd.concat(transformation_results, axis=1)
     transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
     return transformation_results
@@ -1132,10 +1028,12 @@ def apply_transformations(
 def apply_aggregations(
     df: pd.DataFrame,
     aggregations: list[
-        Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]
+        Union[tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperationTuple]
     ],
 ) -> pd.DataFrame:
-    """Apply a set of aggregation functions to a metrics DataFrame.
+    """Apply a set of aggregations to a DMO DataFrame.
+
+    Returns a DataFrame with one entry per aggregation.
 
     Parameters
     ----------
@@ -1145,19 +1043,36 @@ def apply_aggregations(
         or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
         Needs to have a MultiIndex column structure with the first level being the metric name and the second level
         being the origin of the metric (e.g., "detected" or "reference").
-        If error metrics are of interest, they can also be included
-        by calling ~func:`~mobgap.gsd.evaluation.assign_error_metrics` beforehand.
+        If further derived metrics, such as error metrics are of interest, they can also be included
+        by calling ~func:`~mobgap.gsd.evaluation.apply_transformations` beforehand.
 
-    aggregations : dict[tuple[str], list[Union[str, FunctionType]]]
-        TODO
-        A dictionary containing the aggregation functions for each metric and origin combination in the form of
-        {("metric", "origin"): [aggregation_function, ...], ...}.
-        Can be created using ~func:`~mobgap.gsd.evaluation.get_aggregator`
-        or ~func:`~mobgap.gsd.evaluation.get_default_aggregations`.
+    aggregations : Union[
+                    tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]],
+                    CustomOperationTuple
+                   ]
+        A list specifying which aggregation functions are to be applied for which metrics and data origins.
+        There are two ways to define aggregations:
+
+        1.  As a tuple in the format `((<metric>, <origin>), <aggregation>)`,
+            where `<metric>` is the metric column to evaluate,
+            `<origin>` is the specific column from which data should be utilized
+            (e.g., this example, `detected`, `reference`, or `error`),
+            and `<aggregation>` is the function or the list of functions to apply.
+            The output dataframe will have a multilevel column consisting of the `metric` level and the
+            `origin` level.
+
+        2.  As a named tuple of type `CustomOperationTuple` taking three arguments:
+            `identifier`, `function`, and `column_name`.
+            `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
+            `function` is the (custom) aggregation function or list of functions to apply,
+            and `column_name` is the name of the resulting column in the output dataframe.
+            In case of a single-level output column, `column_name` is a string, whereas for multi-level output columns,
+            it is a tuple of strings.
+            This allows for more complex aggregations that require multiple columns as input,
+            e.g., the intraclass correlation coefficient (ICC).
+
+        The default list of aggregations can be retrieved using ~func:`~mobgap.gsd.evaluation.get_default_aggregations`.
     """
-    # todo: input validation
-    # _sanitize_combined_metrics(df, aggregate_funcs.keys())
-
     manual_aggregations, agg_aggregations = _collect_manual_and_agg_aggregations(aggregations)
 
     # apply built-in aggregations
@@ -1165,23 +1080,21 @@ def apply_aggregations(
     if len(agg_aggregations) != 0:
         agg_aggregation_results = df.agg(agg_aggregations)
 
-    # calculate the number of levels for custom aggregations
-    num_levels = 0
-    if not agg_aggregation_results.empty:
-        num_levels = agg_aggregation_results.columns.nlevels
-
-    manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations, num_levels)
+    manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
 
     # combine manual and agg results
+    # TODO: test what makes concatenation fail
     aggregation_results = pd.concat([manual_aggregation_results, agg_aggregation_results])
-    aggregation_results = aggregation_results.stack(level=np.arange(num_levels).tolist(), future_stack=True).dropna()
+    aggregation_results = aggregation_results.stack(
+        level=np.arange(df.columns.nlevels).tolist(), future_stack=True
+    ).dropna()
 
     return aggregation_results
 
 
 def _collect_manual_and_agg_aggregations(
-    aggregations: list[
-        Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]
+    aggregations: Union[
+        tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperationTuple
     ],
 ) -> tuple[list[CustomOperationTuple], dict[tuple[str, str], list[Union[str, Callable]]]]:
     manual_aggregations = []
@@ -1198,38 +1111,31 @@ def _collect_manual_and_agg_aggregations(
     return manual_aggregations, agg_aggregations
 
 
-def _apply_manual_aggregations(
-    df: pd.DataFrame, manual_aggregations: list[CustomOperationTuple], num_levels: int
-) -> pd.DataFrame:
+def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperationTuple]) -> pd.DataFrame:
     # apply manual aggregations
     manual_aggregation_names = []
     manual_aggregation_dict = {}
     for agg in manual_aggregations:
-        # if num_levels == 0:
-        #    if isinstance(agg.column_name, list) or isinstance(agg.column_name, tuple):
-        #        num_levels = len(agg.column_name)
-        #    else:
-        #        num_levels = 1
-        # if not agg_aggregation_results.empty and len(agg.column_name) != num_levels:
-        #    raise ValueError(f"All aggregations must have the same number of levels. "
-        #                     f"{agg.column_name} has only {len(agg.column_name)} levels,
-        #                     but is expected to have {num_levels} levels.")
         agg_functions = agg.function
         if not isinstance(agg_functions, list):
             agg_functions = [agg_functions]
 
         data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
         for fct in agg_functions:
+            # TODO: error handling for invalid functions
             result = fct(data)
             manual_aggregation_names.append(fct.__name__)
-            manual_aggregation_dict.setdefault(agg.column_name, []).append(result)
+            column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
+            key = (fct.__name__, *column_name)
+            manual_aggregation_dict.setdefault(key, []).append(result)
 
     manual_aggregation_results = pd.DataFrame(manual_aggregation_dict)
 
     if not manual_aggregation_results.empty:
-        if num_levels > 1:
-            manual_aggregation_results.columns = pd.MultiIndex.from_tuples(manual_aggregation_dict.keys())
-        manual_aggregation_results.index = manual_aggregation_names
+        manual_aggregation_results.columns = pd.MultiIndex.from_tuples(manual_aggregation_dict.keys())
+        manual_aggregation_results = (
+            manual_aggregation_results.stack(level=0, future_stack=True).dropna().reset_index(level=0, drop=True)
+        )
 
     return manual_aggregation_results
 
@@ -1272,82 +1178,8 @@ __all__ = [
     "plot_categorized_intervals",
     "combine_det_with_ref_without_matching",
     "get_matching_gs",
-    "assign_error_metrics",
     "quantiles",
     "loa",
-    "get_aggregator",
     "get_default_aggregations",
     "apply_aggregations",
 ]
-
-if __name__ == "__main__":
-    """
-    detected = pd.DataFrame([[0, 10, 0], [11, 12, 1], [20, 30, 2]], columns=["start", "end", "id"]).set_index("id")
-    reference = pd.DataFrame([[0, 10, 0], [13, 14, 1], [21, 29, 2]], columns=["start", "end", "id"]).set_index("id")
-    matches = categorize_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
-    detected_metrics = pd.DataFrame(
-        [[1, 2, 0], [1, 2, 1], [3, 4, 2]], columns=["metric_1", "metric_2", "id"]
-    ).set_index("id")
-    matched_gs = get_matching_gs(
-        gsd_list_detected=detected_metrics, gsd_list_reference=detected_metrics, matches=matches
-    )
-    matches_with_err = matched_gs.pipe(lambda df_: assign_error_metrics(df_, ["metric_1", "metric_2"]))
-    print(matches_with_err)
-    aggregator = get_default_aggregations()
-    # TODO: values are overwritten when keys are reused - is this a problem?
-    aggregator = {
-        **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
-        **get_aggregator(aggregate=["loa", "quantiles"], metric="metric_2", origin="rel_error"),
-    }
-    print(aggregator)
-    agg_results = matches_with_err.pipe(apply_aggregations, aggregator)
-    print(agg_results)
-    """
-    # construct MultiIndex
-    detected = pd.DataFrame([[0, 10, 0, 0], [20, 30, 0, 1]], columns=["start", "end", "id_0", "id_1"]).set_index(
-        ["id_0", "id_1"]
-    )
-    reference = pd.DataFrame([[0, 10, 0, 0], [21, 29, 0, 1]], columns=["start", "end", "id_0", "id_1"]).set_index(
-        ["id_0", "id_1"]
-    )
-    detected_metrics = pd.DataFrame(
-        [[1, 2, 0, 0], [1, 2, 0, 1]], columns=["metric_1", "metric_2", "id_0", "id_1"]
-    ).set_index(["id_0", "id_1"])
-    reference_metrics = pd.DataFrame(
-        [[3, 4, 0, 0], [3, 4, 0, 1]], columns=["metric_2", "metric_1", "id_0", "id_1"]
-    ).set_index(["id_0", "id_1"])
-    matches = categorize_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
-    matched_gs = get_matching_gs(
-        metrics_detected=detected_metrics, metrics_reference=reference_metrics, matches=matches
-    )
-    matches = combine_det_with_ref_without_matching(
-        metrics_detected=detected_metrics, metrics_reference=reference_metrics
-    )
-
-    # matches_with_err = assign_error_metrics(matches, ["metric_1", "metric_2"])
-    error_agg = get_default_error_metrics()
-    matches_with_err_2 = apply_transformations(matches, get_default_error_metrics())
-    print(matches_with_err_2)
-    matches_with_err_2 = pd.concat([matches, matches_with_err_2], axis=1)
-
-    # aggregator = get_default_aggregations()
-    # aggregator = {
-    #    **get_aggregator(aggregate=["mean", "std"], metric=["metric_1", "metric_2"], origin="detected"),
-    #    **get_aggregator(aggregate=["loa", "quantiles"], metric="metric_2", origin="rel_error"),
-    # }
-    aggregations = [
-        *(((m, o), ["mean", "std"]) for m in ["metric_1", "metric_2"] for o in ["detected", "reference"]),
-        (("metric_2", "rel_error"), [loa, quantiles]),
-        CustomOperationTuple(identifier="metric_1", function=icc, column_name=("metric_1", "all")),
-        # AggTuple(identifier="metric_2", aggregation=icc, name=("metric_2", "all")),
-        # ([("metric_2", "reference"), ("metric_1", "detected")], icc),
-        # (["metric_2", ["reference", "detected"]], icc),
-    ]
-    print(aggregations)
-    # agg_results = apply_aggregations(matches_with_err, aggregations)
-    # agg_results.index.names = ["aggregation", "metric", "origin"]
-    # agg_results = agg_results.reorder_levels(["metric", "origin", "aggregation"]).sort_index(level=0)
-
-    # print(agg_results)
-
-    print(apply_aggregations(matches_with_err_2, aggregations))
