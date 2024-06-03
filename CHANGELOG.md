@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A new GSD algorithm called ``GsdIonescu`` (https://github.com/mobilise-d/mobgap/pull/143)
 - A new GSD algorithm called ``GsdAdaptiveIonescu`` (https://github.com/mobilise-d/mobgap/pull/53)
 - The ElGohary Turing Detection algorithm (https://github.com/mobilise-d/mobgap/pull/131)
 - The ``iter_gs`` method now has a new argument ``id_col_name`` to specify the column of the gs_list that should be 
