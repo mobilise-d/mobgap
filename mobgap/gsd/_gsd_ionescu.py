@@ -7,6 +7,7 @@ import pandas as pd
 import scipy
 from gaitmap.utils.array_handling import merge_intervals
 from intervaltree import IntervalTree
+from scipy.signal import find_peaks
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
@@ -94,13 +95,12 @@ class _BaseGsdIonescu(BaseGsDetector):
         # Combine steps detected by the maxima and minima
         allowed_distance_between_peaks = as_samples(self.min_step_margin_s, self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
         step_margin = as_samples(self.min_step_margin_s, self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
+
         gs_from_max = find_pulse_trains(max_peaks, allowed_distance_between_peaks, step_margin)
         gs_from_min = find_pulse_trains(min_peaks, allowed_distance_between_peaks, step_margin)
-        gs_from_max = gs_from_max[gs_from_max[:, 2] > 1]
-        gs_from_min = gs_from_min[gs_from_min[:, 2] > 1]
 
         # Combine the gs from the maxima and minima
-        combined_final = find_intersections(gs_from_max[:, :2], gs_from_min[:, :2])
+        combined_final = find_intersections(gs_from_max, gs_from_min)
 
         # Check if all gs removed
         if combined_final.size == 0:
@@ -244,7 +244,7 @@ class GsdIonescu(_BaseGsdIonescu):
         signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
         self.filtered_signal_ = signal
         # Find extrema in signal that might represent steps
-        return find_min_max_above_threshold(signal, active_peak_threshold)
+        return find_peaks(-signal, height=active_peak_threshold)[0], find_peaks(signal, height=active_peak_threshold)[0]
 
 
 @_gsd_ionescu_docfiller
@@ -400,7 +400,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
 
         # Find extrema in signal that might represent steps
-        return find_min_max_above_threshold(signal, active_peak_threshold)
+        return find_peaks(-signal, height=active_peak_threshold)[0], find_peaks(signal, height=active_peak_threshold)[0]
 
 
 def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:
@@ -483,34 +483,6 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
     return active
 
 
-def find_min_max_above_threshold(signal: np.ndarray, threshold: float) -> tuple:
-    """
-    Identify the indices of local minima and maxima where the values are beyond a specified threshold.
-
-    Parameters
-    ----------
-    signal
-        A 1D numpy array representing the signal.
-    threshold
-        A threshold value to filter the minima and maxima.
-
-    Returns
-    -------
-    tuple: Two numpy arrays containing the indices of local minima and maxima, respectively.
-    """
-    signal = signal.squeeze()
-    diff = np.diff(signal)
-    extrema_indices = np.nonzero(diff[1:] * diff[:-1] <= 0)[0] + 1
-
-    minima = extrema_indices[diff[extrema_indices] >= 0]
-    maxima = extrema_indices[diff[extrema_indices] < 0]
-
-    minima = minima[signal[minima] < -threshold]
-    maxima = maxima[signal[maxima] > threshold]
-
-    return minima, maxima
-
-
 def _find_pulse_train_end(x: np.ndarray, step_threshold: float) -> np.ndarray:
     start_val = x[0]
     # We already know that the first two values belong to the pulse train, as this is determined by the caller so we
@@ -539,13 +511,13 @@ def find_pulse_trains(
             # within the pulse train
             start = x[i]
             pulses = _find_pulse_train_end(x[i:], step_threshold_margin)
-            start_ends.append([start, pulses[-1], len(pulses) - 1])
+            start_ends.append([start, pulses[-1]])
             i += len(pulses)
         else:
             i += 1
 
     if len(start_ends) == 0:
-        return np.array([]).reshape(0, 3)
+        return np.array([]).reshape(0, 2)
 
     return np.array(start_ends)
 
@@ -614,8 +586,8 @@ def find_active_period_peak_threshold(signal: np.ndarray, sampling_rate_hz: int)
     if walk.size == 0:
         raise NoActivePeriodsDetectedError()
 
-    peaks_p, _ = scipy.signal.find_peaks(walk)
-    peaks_n, _ = scipy.signal.find_peaks(-walk)
+    peaks_p, _ = find_peaks(walk)
+    peaks_n, _ = find_peaks(-walk)
     pksp, pksn = walk[peaks_p], -walk[peaks_n]
     pks = np.concatenate([pksp[pksp > 0], pksn[pksn > 0]])
     return np.percentile(pks, 5)  # Data adaptive threshold
