@@ -242,7 +242,7 @@ aggregations = aggregations_simple + aggregations_custom
 agg_results = apply_aggregations(gs_matches_with_errors, aggregations)
 agg_results = agg_results.rename_axis(index=["aggregation", "metric", "origin"])
 agg_results = agg_results.reorder_levels(["metric", "origin", "aggregation"]).sort_index(level=0)
-pprint(agg_results)
+pd.DataFrame(agg_results)
 
 # %%
 # If you simply want to apply a standard set of aggregations to the error metrics, you can use the
@@ -263,7 +263,7 @@ aggregations_default_extended = aggregations_default + [
 default_agg_results = apply_aggregations(gs_matches_with_errors, aggregations_default_extended)
 default_agg_results = default_agg_results.rename_axis(index=["aggregation", "metric", "origin"])
 default_agg_results = default_agg_results.reorder_levels(["metric", "origin", "aggregation"]).sort_index(level=0)
-pprint(default_agg_results)
+pd.DataFrame(default_agg_results)
 
 # %%
 # .. note::
