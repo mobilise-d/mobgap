@@ -133,7 +133,53 @@ class _BaseGsdIonescu(BaseGsDetector):
 
 @_gsd_ionescu_docfiller
 class GsdIonescu(_BaseGsdIonescu):
+    """Implementation of the GSD algorithm developed by Paraschiv-Ionescu et al. (2014) [1]_.
+
+    .. note:: A version of this algorithm with adaptive threshold is also available as :class:`GsdAdaptiveIonescu`.
+
+    The method defines gait sequences based on the detected steps.
+    Steps are detected by identifying local minima and maxima in the filtered acceleration signal that are above a
+    specified threshold.
+    The outputs are further filtered by the number of steps and consecutive gait sequence with short breaks are merged.
+
+    Parameters
+    ----------
+    active_signal_threshold
+        A threshold applied to the filtered acceleration norm.
+        Minima and maxima beyond this threshold are considered as detected steps.
+        The unit of this threshold is techically m/s^2, but as the signal is heavily filtered the value range can not
+        be easily inferred.
+        To properly set this threshold, it is recommended to use the ``filtered_signal_`` debug attribute.
+    %(common_parameters)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(gs_list_)s
+        A dataframe containing the start and end times of the detected gait sequences.
+        Each row corresponds to a single gs.
+    filtered_signal_
+        The filtered acceleration norm used for step detection.
+
+    Notes
+    -----
+    While the signal filtering is based on the original implementation, this implementation adds the post-processing
+    steps that originally were only implemented for the adaptive threshold version of the algorithm [2]_.
+    We also remove the original "n-step-filter" in favor of this post-processing step.
+
+    .. [1] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
+       validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
+       rehabilitation 16.1 (2019): 1-11.
+    .. [2] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/GSDB/GSD_LowBackAcc.m
+
+    """
+
     active_signal_threshold: float
+
+    filtered_signal_: np.ndarray
 
     def __init__(
         self,
@@ -182,19 +228,17 @@ class GsdIonescu(_BaseGsdIonescu):
             ),
         ]
         signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
-
+        self.filtered_signal_ = signal
         # Find extrema in signal that might represent steps
         return find_min_max_above_threshold(signal, active_peak_threshold)
 
 
 @_gsd_ionescu_docfiller
 class GsdAdaptiveIonescu(_BaseGsdIonescu):
-    """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2014) [1]_.
+    """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2019) [1, 2]_ with adaptive threshold.
 
-    This algorithm is for the detection of gait (walking) sequences using body acceleration recorded with a tri-axial
-    accelerometer worn/fixed on the lower back (close to body center of mass). The algorithm was developed and validated
-    using data recorded in patients with impaired mobility (Parkinson's disease, multiple sclerosis, hip fracture,
-    post-stroke and cerebral palsy).
+    The algorithm was developed and validated using data recorded in patients with impaired mobility
+    (Parkinson's disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
 
     The algorithm detects the gait sequences based on identified steps. In order to enhance the step-related features
     (peaks in acceleration signal), the "active" periods potentially corresponding to locomotion are roughly detected
@@ -205,9 +249,6 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section.
-
-    Note that this algorithm is referred as GSDB in the validation study [4]_ and in the original implementation [3]_.
-
 
     Parameters
     ----------
@@ -252,10 +293,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     .. [2] Paraschiv-Ionescu, A, et al. "Locomotion and cadence detection using a single trunk-fixed accelerometer:
        validity for children with cerebral palsy in daily life-like conditions." Journal of neuroengineering and
        rehabilitation 16.1 (2019): 1-11.
-    .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/GSDA/Library/GSD_Iluz.m
-    .. [4] Micó-Amigo, M. E., Bonci, T., Paraschiv-Ionescu, A., Ullrich, M., Kirk, C., Soltani, A., ... & Del Din,
-       S. (2022). Assessing real-world gait with digital technology? Validation, insights and recommendations from the
-       Mobilise-D consortium.
+    .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/GSDB/GSD_LowBackAcc.m
 
     """
 
@@ -285,7 +323,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
         cwt = CwtFilter(wavelet="gaus2", center_frequency_hz=1.2)
 
         # Savgol filters
-        # The original Matlab code useses two savgol filter in the chain.
+        # The original Matlab code uses two savgol filter in the chain.
         # To replicate them with our classes we need to convert the sample-parameters of the original matlab code to
         # sampling-rate independent units used for the parameters of our classes.
         # The parameters from the matlab code are: (21, 7) and (11, 5)
@@ -346,7 +384,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
         return find_min_max_above_threshold(signal, active_peak_threshold)
 
 
-def hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:
+def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:
     """Apply hilbert transform to select dynamic threshold for activity detection.
 
     Calculates the analytical signal with the help of hilbert transform, takes the envelope and smooths the signal.
@@ -529,7 +567,7 @@ class NoActivePeriodsDetectedError(Exception):
 
 def find_active_period_peak_threshold(signal: np.ndarray, sampling_rate_hz: int) -> float:
     # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
-    alarm = hilbert_envelop(signal, sampling_rate_hz, sampling_rate_hz)
+    alarm = threshold_from_hilbert_envelop(signal, sampling_rate_hz, sampling_rate_hz)
 
     if not np.any(alarm):
         raise NoActivePeriodsDetectedError()
