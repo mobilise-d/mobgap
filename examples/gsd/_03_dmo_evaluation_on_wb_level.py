@@ -248,4 +248,4 @@ print(default_agg_results)
 # .. note::
 #   If you want to modify the default arguments of the aggregation functions, e.g. to change the calculated quantiles,
 #   you can either define custom aggregation functions or adapt the default functions as shown for the transformation
-#   functions in :ref:`section <Modify Transformation Functions>`.
+#   functions in the section `Modify Transformation Functions` above.

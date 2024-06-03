@@ -65,11 +65,15 @@ Evaluation
     plot_categorized_intervals
     combine_det_with_ref_without_matching
     get_matching_gs
-    assign_error_metrics
+    error
+    rel_error
+    abs_error
+    abs_rel_error
     quantiles
     loa
-    mdc
-    get_aggregator
-    get_default_aggregator
+    icc
+    get_default_error_metrics
+    get_default_aggregations
+    apply_transformations
     apply_aggregations
 

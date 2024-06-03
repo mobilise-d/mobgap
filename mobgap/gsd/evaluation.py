@@ -1046,10 +1046,7 @@ def apply_aggregations(
         If further derived metrics, such as error metrics are of interest, they can also be included
         by calling ~func:`~mobgap.gsd.evaluation.apply_transformations` beforehand.
 
-    aggregations : Union[
-                    tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]],
-                    CustomOperationTuple
-                   ]
+    aggregations : list
         A list specifying which aggregation functions are to be applied for which metrics and data origins.
         There are two ways to define aggregations:
 
