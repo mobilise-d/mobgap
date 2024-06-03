@@ -88,7 +88,7 @@ pprint(per_trial_participant_day_grouper)
 # It can be chosen according to your needs, whereby a value closer to 0.5 will yield more matches
 # than a value closer to 1.
 
-from mobgap.gsd.evaluation import CustomOperationTuple, categorize_matches_with_min_overlap, icc
+from mobgap.gsd.evaluation import CustomOperation, categorize_matches_with_min_overlap, icc
 
 gs_tp_fp_fn = create_multi_groupby(
     detected_dmo, reference_dmo, groupby=["visit_type", "participant_id", "measurement_date"]
@@ -228,7 +228,7 @@ pprint(aggregations_simple)
 #   correlation coefficient (ICC) for the DMOs.
 #   A valid aggregation list for calculating the ICC of all DMOs would look like this:
 
-aggregations_custom = [CustomOperationTuple(identifier=m, function=icc, column_name=(m, "all")) for m in metrics]
+aggregations_custom = [CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics]
 pprint(aggregations_custom)
 
 # %%

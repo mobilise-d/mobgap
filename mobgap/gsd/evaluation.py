@@ -25,7 +25,7 @@ from mobgap.utils.evaluation import (
 )
 
 
-class CustomOperationTuple(NamedTuple):
+class CustomOperation(NamedTuple):
     """Metadata for custom aggregations and transformations."""
 
     identifier: Union[Hashable, Sequence, str]
@@ -845,6 +845,23 @@ def _handle_zero_division(
 
 
 def error(df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected") -> pd.Series:
+    """
+    Calculate the error between the detected and reference values.
+
+    Parameters
+    ----------
+    df
+        The DataFrame containing the reference and detected values.
+    reference_col_name
+        The identifier of the column containing the reference values.
+    detected_col_name
+        The identifier of the column containing the detected values.
+
+    Returns
+    -------
+    error
+        The error between the detected and reference values in the form `detected` - `reference`
+    """
     ref, det = _get_data_from_identifier(df, reference_col_name), _get_data_from_identifier(df, detected_col_name)
     return det - ref
 
@@ -855,18 +872,58 @@ def rel_error(
     detected_col_name: str = "detected",
     zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
 ) -> pd.Series:
+    """
+    Calculate the relative error between the detected and reference values.
+
+    Parameters
+    ----------
+    df
+        The DataFrame containing the reference and detected values.
+    reference_col_name
+        The identifier of the column containing the reference values.
+    detected_col_name
+        The identifier of the column containing the detected values.
+    zero_division_hint
+        How to handle zero division errors. Can be one of "warn" (warning is given, respective values are set to NaN),
+        "raise" (error is raised), or "np.nan" (respective values are silently set to NaN).
+
+    Returns
+    -------
+    rel_error
+        The relative error between the detected and reference values
+        in the form (`detected` - `reference`) / `reference`.
+    """
     ref, det = (
         _get_data_from_identifier(df, reference_col_name),
-        _get_data_from_identifier(df, detected_col_name).replace(np.inf, np.nan),
+        _get_data_from_identifier(df, detected_col_name),
     )
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "rel_error")
-    return (det - ref) / ref
+    result = (det - ref) / ref
+    result = result.replace(np.inf, np.nan)
+    return result
 
 
 def abs_error(
     df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected"
 ) -> pd.Series:
+    """
+    Calculate the absolute error between the detected and reference values.
+
+    Parameters
+    ----------
+    df
+        The DataFrame containing the reference and detected values.
+    reference_col_name
+        The identifier of the column containing the reference values.
+    detected_col_name
+        The identifier of the column containing the detected values.
+
+    Returns
+    -------
+    abs_error
+        The absolute error between the detected and reference values in the form `abs(detected - reference)`.
+    """
     ref, det = _get_data_from_identifier(df, reference_col_name), _get_data_from_identifier(df, detected_col_name)
     return abs(det - ref)
 
@@ -877,18 +934,60 @@ def abs_rel_error(
     detected_col_name: str = "detected",
     zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
 ) -> pd.Series:
+    """
+    Calculate the absolute relative error between the detected and reference values.
+
+    Parameters
+    ----------
+    df
+        The DataFrame containing the reference and detected values.
+    reference_col_name
+        The identifier of the column containing the reference values.
+    detected_col_name
+        The identifier of the column containing the detected values.
+    zero_division_hint
+        How to handle zero division errors. Can be one of "warn" (warning is given, respective values are set to NaN),
+        "raise" (error is raised), or "np.nan" (respective values are silently set to NaN).
+
+    Returns
+    -------
+    abs_rel_error
+        The absolute relative error between the detected and reference values
+        in the form `abs((detected - reference) / reference)`.
+    """
     ref, det = (
         _get_data_from_identifier(df, reference_col_name),
-        _get_data_from_identifier(df, detected_col_name).replace(np.inf, np.nan),
+        _get_data_from_identifier(df, detected_col_name),
     )
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "abs_rel_error")
-    return abs((det - ref) / det)
+    result = abs((det - ref) / ref)
+    result = result.replace(np.inf, np.nan)
+    return result
 
 
 def icc(
     df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected"
 ) -> tuple[float, float]:
+    """
+    Calculate the intraclass correlation coefficient (ICC) for the detected and reference values.
+
+    Parameters
+    ----------
+    df
+        The DataFrame containing the reference and detected values.
+    reference_col_name
+        The identifier of the column containing the reference values.
+    detected_col_name
+        The identifier of the column containing the detected values.
+
+    Returns
+    -------
+    icc, ci95
+        A tuple containing the intraclass correlation coefficient (ICC) as first item
+        and the lower and upper bound of its 95% confidence interval (CI95%) as second item.
+
+    """
     df = _get_data_from_identifier(df, [reference_col_name, detected_col_name], num_levels=1)
     df = (
         df.reset_index(drop=True)
@@ -903,18 +1002,52 @@ def icc(
 
 
 def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tuple[float, float]:
-    """Calculate the quantiles of a measure."""
+    """Calculate the quantiles of a measure.
+
+    Parameters
+    ----------
+    series
+        The Series containing the data column of interest.
+    lower
+        The lower quantile to calculate.
+    upper
+        The upper quantile to calculate.
+
+    Returns
+    -------
+    quantiles
+        The lower and upper quantiles as a tuple.
+    """
     return tuple(series.quantile([lower, upper]).to_numpy())
 
 
 def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
-    """Calculate the limits of agreement of a measure."""
+    """Calculate the limits of agreement of a measure.
+
+    Parameters
+    ----------
+    series
+        The Series containing the data column of interest.
+    agreement
+        The agreement level for the limits of agreement.
+
+    Returns
+    -------
+    loa
+        The lower and upper limits of agreement as a tuple.
+    """
     mean = series.mean()
     std = series.std()
     return mean - std * agreement, mean + std * agreement
 
 
-def get_default_error_metrics() -> list[CustomOperationTuple]:
+def get_default_error_metrics() -> list[tuple[str, list[callable]]]:
+    """
+    Get all default error metrics used in Mobilise-D.
+
+    This list can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_transformations` as the `transformations`
+    parameter to calculate the desired metrics.
+    """
     metrics = [
         "cadence_spm",
         "duration_s",
@@ -930,7 +1063,7 @@ def get_default_error_metrics() -> list[CustomOperationTuple]:
 
 
 def get_default_aggregations() -> (
-    list[Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperationTuple]]
+    list[Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperation]]
 ):
     """
     Return a list containing all important aggregations utilized in Mobilise-D.
@@ -955,14 +1088,14 @@ def get_default_aggregations() -> (
             for o in ["detected", "reference", "abs_error", "abs_rel_error"]
         ),
         *(((m, o), ["mean", loa]) for m in metrics for o in ["error", "rel_error"]),
-        *[CustomOperationTuple(identifier=m, function=icc, column_name=(m, "all")) for m in metrics],
+        *[CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics],
     ]
 
     return default_agg
 
 
 def apply_transformations(
-    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]], CustomOperationTuple]]]
+    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]], CustomOperation]]]
 ) -> pd.DataFrame:
     """Apply a set of transformations to a DMO DataFrame.
 
@@ -978,7 +1111,7 @@ def apply_transformations(
         Needs to have a MultiIndex column structure with the first level being the metric name and the second level
         being the origin of the metric (e.g., "detected" or "reference").
 
-    transformations : list[tuple[str, Union[callable, list[callable]], CustomOperationTuple]]
+    transformations : list[tuple[str, Union[callable, list[callable]], CustomOperation]]
 
         A list specifying which transformation functions are to be applied for which metrics and data origins.
         There are two ways to define transformations:
@@ -1028,7 +1161,7 @@ def apply_transformations(
 def apply_aggregations(
     df: pd.DataFrame,
     aggregations: list[
-        Union[tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperationTuple]
+        Union[tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation]
     ],
 ) -> pd.DataFrame:
     """Apply a set of aggregations to a DMO DataFrame.
@@ -1091,9 +1224,9 @@ def apply_aggregations(
 
 def _collect_manual_and_agg_aggregations(
     aggregations: Union[
-        tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperationTuple
+        tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
     ],
-) -> tuple[list[CustomOperationTuple], dict[tuple[str, str], list[Union[str, Callable]]]]:
+) -> tuple[list[CustomOperation], dict[tuple[str, str], list[Union[str, Callable]]]]:
     manual_aggregations = []
     agg_aggregations = {}
     for agg in aggregations:
@@ -1108,7 +1241,7 @@ def _collect_manual_and_agg_aggregations(
     return manual_aggregations, agg_aggregations
 
 
-def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperationTuple]) -> pd.DataFrame:
+def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperation]) -> pd.DataFrame:
     # apply manual aggregations
     manual_aggregation_names = []
     manual_aggregation_dict = {}
@@ -1177,6 +1310,14 @@ __all__ = [
     "get_matching_gs",
     "quantiles",
     "loa",
+    "icc",
+    "error",
+    "rel_error",
+    "abs_error",
+    "abs_rel_error",
+    "get_default_error_metrics",
     "get_default_aggregations",
+    "apply_transformations",
     "apply_aggregations",
+    "CustomOperation",
 ]
