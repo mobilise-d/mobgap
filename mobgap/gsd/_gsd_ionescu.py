@@ -1,13 +1,11 @@
 import warnings
-from itertools import groupby
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import scipy
-from gaitmap.utils.array_handling import merge_intervals
+from gaitmap.utils.array_handling import bool_array_to_start_end_array, merge_intervals, start_end_array_to_bool_array
 from intervaltree import IntervalTree
-from scipy.signal import find_peaks
+from scipy.signal import find_peaks, hilbert
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
@@ -86,6 +84,9 @@ class _BaseGsdIonescu(BaseGsDetector):
 
         acc = data[["acc_x", "acc_y", "acc_z"]].to_numpy()
 
+        if not self.min_n_steps >= 1:
+            raise ValueError("min_n_steps must be at least 1")
+
         # Signal vector magnitude
         acc_norm = np.linalg.norm(acc, axis=1)
 
@@ -110,11 +111,16 @@ class _BaseGsdIonescu(BaseGsDetector):
         # Find all max_peaks within each final gs
         steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
         n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
-        mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
-
-        # Pad each gs by padding*mean_step_times before and after
-        combined_final[:, 0] = np.fix(combined_final[:, 0] - self.padding * mean_step_times)
-        combined_final[:, 1] = np.fix(combined_final[:, 1] + self.padding * mean_step_times)
+        # It can happen that we only have one step in a gs, in this case we can not calculate the mean step time
+        # Numpy will output NaN and throw a warning.
+        # We don't want ot see the warning, so we suppress it.
+        # GSs that don't have enough steps will be removed later anyway.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            mean_step_times = np.array([np.mean(np.diff(steps)) for steps in steps_per_gs])
+            # Pad each gs by padding*mean_step_times before and after
+            combined_final[:, 0] = np.fix(combined_final[:, 0] - self.padding * mean_step_times)
+            combined_final[:, 1] = np.fix(combined_final[:, 1] + self.padding * mean_step_times)
 
         # Filter again by number of steps, remove any gs with too few steps
         combined_final = combined_final[n_steps_per_gs >= self.min_n_steps]
@@ -280,6 +286,14 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     %(gs_list_)s
         A dataframe containing the start and end times of the detected gait sequences.
         Each row corresponds to a single gs.
+    filtered_signal_
+        The filtered acceleration norm used for step detection.
+        This signal will be different depending on whether the adaptive threshold estimation was successful or not.
+    threshold_
+        The threshold used for step detection.
+        This is either the adaptive threshold or the fallback threshold if no active periods were detected.
+    adaptive_threshold_success_
+        A boolean indicating whether the adaptive threshold estimation was successful.
 
     Notes
     -----
@@ -312,6 +326,10 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/GSDB/GSD_LowBackAcc.m
 
     """
+
+    filtered_signal_: np.ndarray
+    threshold_: float
+    adaptive_threshold_success_: bool
 
     active_signal_fallback_threshold: float
 
@@ -376,10 +394,14 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
 
         try:
             active_peak_threshold = find_active_period_peak_threshold(
-                acc_filtered, self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+                acc_filtered,
+                hilbert_window_size=as_samples(1, self._INTERNAL_FILTER_SAMPLING_RATE_HZ),
+                min_active_period_duration=as_samples(3, self._INTERNAL_FILTER_SAMPLING_RATE_HZ),
             )
             signal = acc_filtered
+            self.adaptive_threshold_success_ = True
         except NoActivePeriodsDetectedError:
+            self.adaptive_threshold_success_ = False
             # If we don't find the active periods, use a fallback threshold and use a less filtered signal for further
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
@@ -399,11 +421,14 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
 
+        self.filtered_signal_ = signal
+        self.threshold_ = active_peak_threshold
+
         # Find extrema in signal that might represent steps
         return find_peaks(-signal, height=active_peak_threshold)[0], find_peaks(signal, height=active_peak_threshold)[0]
 
 
-def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:
+def active_regions_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration: int) -> np.ndarray:
     """Apply hilbert transform to select dynamic threshold for activity detection.
 
     Calculates the analytical signal with the help of hilbert transform, takes the envelope and smooths the signal.
@@ -423,15 +448,15 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
     Returns
     -------
     active
-        A binary 1D numpy array, same length as sig, where 1 represents active periods and 0 represents non-active
-        periods.
+        A binary 1D numpy array, same length as sig, where True represents active periods and False represents
+        non-active periods.
 
     .. [1] Sedghamiz, H. BioSigKit: A Matlab Toolbox and Interface for Analysis of BioSignals Software • Review •
         Repository Archive. J. Open Source Softw. 2018, 3, 671
 
     """
     # Calculate the analytical signal and get the envelope
-    amplitude_envelope = np.abs(scipy.signal.hilbert(sig))
+    amplitude_envelope = np.abs(hilbert(sig))
 
     # Take the moving average of analytical signal
     env = np.convolve(
@@ -444,7 +469,7 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
 
     env -= np.mean(env)  # Get rid of offset
     if np.all(env == 0):
-        return active
+        return active.astype(bool)
     env /= np.max(env)  # Normalize
 
     threshold_sig = 4 * np.nanmean(env)
@@ -456,7 +481,7 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
     noise_buff = np.zeros(len(env) - duration + 1)
 
     if np.isnan(threshold_sig):
-        return active
+        return active.astype(bool)
 
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
@@ -480,7 +505,7 @@ def threshold_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, duration
         if update_threshold:
             threshold_sig = noise + 0.50 * (abs(threshold - noise))
 
-    return active
+    return active.astype(bool)
 
 
 def _find_pulse_train_end(x: np.ndarray, step_threshold: float) -> np.ndarray:
@@ -560,34 +585,27 @@ class NoActivePeriodsDetectedError(Exception):
     pass
 
 
-def find_active_period_peak_threshold(signal: np.ndarray, sampling_rate_hz: int) -> float:
+def find_active_period_peak_threshold(
+    signal: np.ndarray, *, min_active_period_duration: int, hilbert_window_size: int
+) -> float:
     # Find pre-detection of 'active' periods in order to estimate the amplitude of acceleration peaks
-    alarm = threshold_from_hilbert_envelop(signal, sampling_rate_hz, sampling_rate_hz)
+    active_regions = active_regions_from_hilbert_envelop(signal, hilbert_window_size, hilbert_window_size)
 
-    if not np.any(alarm):
+    if not np.any(active_regions):
         raise NoActivePeriodsDetectedError()
 
-    # TODO: What does all of this do?
-    # Length of each consecutive stretch of nonzero values in alarm
-    len_alarm = [len(list(s)) for v, s in groupby(alarm, key=lambda x: x > 0)]
-    end_alarm = np.cumsum(len_alarm)
-    start_alarm = np.concatenate([np.array([0]), end_alarm[:-1]])
-    # Whether each consecutive stretch of nonzero values in alarm is alarmed
-    alarmed = [v for v, s in groupby(alarm, key=lambda x: x > 0)]
+    active_regions_start_end = bool_array_to_start_end_array(active_regions)
+    to_short_active_regions = (
+        active_regions_start_end[:, 1] - active_regions_start_end[:, 0]
+    ) <= min_active_period_duration
+    active_regions_start_end = active_regions_start_end[~to_short_active_regions]
 
-    walk = np.array([])  # Initialise detected periods of walking variable
-    for s, e, a in zip(start_alarm, end_alarm, alarmed):  # Iterate through the consecutive periods
-        if a:  # If alarmed
-            if e - s <= 3 * sampling_rate_hz:  # If the length of the alarm period is too short
-                alarm[s:e] = 0  # Replace this section of alarm with zeros
-            else:
-                walk = np.concatenate([walk, signal[s - 1 : e - 1]])
-
-    if walk.size == 0:
+    if len(active_regions_start_end) == 0:
         raise NoActivePeriodsDetectedError()
 
-    peaks_p, _ = find_peaks(walk)
-    peaks_n, _ = find_peaks(-walk)
-    pksp, pksn = walk[peaks_p], -walk[peaks_n]
-    pks = np.concatenate([pksp[pksp > 0], pksn[pksn > 0]])
+    final_active_area = signal[start_end_array_to_bool_array(active_regions_start_end, len(active_regions))]
+
+    _, props_p = find_peaks(final_active_area, height=0)
+    _, props_n = find_peaks(-final_active_area, height=0)
+    pks = np.concatenate([props_p["peak_heights"], props_n["peak_heights"]])
     return np.percentile(pks, 5)  # Data adaptive threshold
