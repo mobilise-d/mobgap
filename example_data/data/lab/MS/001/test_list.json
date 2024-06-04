@@ -1,59 +1,62 @@
-[
-    {
-        "key": [
-            "TimeMeasure1",
-            "Test5",
-            "Trial1"
-        ],
-        "value": {
-            "available_sensors": [
-                [
-                    "SU",
-                    "LowerBack"
-                ]
+{
+    "data": [
+        {
+            "key": [
+                "TimeMeasure1",
+                "Test5",
+                "Trial1"
             ],
-            "available_reference_systems": [
-                "INDIP",
-                "Stereophoto"
-            ]
-        }
-    },
-    {
-        "key": [
-            "TimeMeasure1",
-            "Test5",
-            "Trial2"
-        ],
-        "value": {
-            "available_sensors": [
-                [
-                    "SU",
-                    "LowerBack"
+            "value": {
+                "available_sensors": [
+                    [
+                        "SU",
+                        "LowerBack"
+                    ]
+                ],
+                "available_reference_systems": [
+                    "INDIP",
+                    "Stereophoto"
                 ]
+            }
+        },
+        {
+            "key": [
+                "TimeMeasure1",
+                "Test5",
+                "Trial2"
             ],
-            "available_reference_systems": [
-                "INDIP",
-                "Stereophoto"
-            ]
-        }
-    },
-    {
-        "key": [
-            "TimeMeasure1",
-            "Test11",
-            "Trial1"
-        ],
-        "value": {
-            "available_sensors": [
-                [
-                    "SU",
-                    "LowerBack"
+            "value": {
+                "available_sensors": [
+                    [
+                        "SU",
+                        "LowerBack"
+                    ]
+                ],
+                "available_reference_systems": [
+                    "INDIP",
+                    "Stereophoto"
                 ]
+            }
+        },
+        {
+            "key": [
+                "TimeMeasure1",
+                "Test11",
+                "Trial1"
             ],
-            "available_reference_systems": [
-                "INDIP",
-                "Stereophoto"
-            ]
+            "value": {
+                "available_sensors": [
+                    [
+                        "SU",
+                        "LowerBack"
+                    ]
+                ],
+                "available_reference_systems": [
+                    "INDIP",
+                    "Stereophoto"
+                ]
+            }
         }
-    }
-]
+    ],
+    "__mobgap_version": "0.3.0"
+}
