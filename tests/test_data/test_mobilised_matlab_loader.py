@@ -204,6 +204,38 @@ class TestDatasetClass:
 
         assert ds.index.columns.tolist() == ["cohort", "participant_id", "time_measure", "test", "trial"]
 
+    def test_participant_metadata(self, example_data_path, snapshot):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("cohort", "participant_id"),
+            measurement_condition="bla",
+            reference_system="INDIP",
+        )
+
+        meta_data = ds[0].participant_metadata
+        recording_meta_data = ds[0].recording_metadata
+
+        assert meta_data["cohort"] == ds[0].group_label.cohort
+        assert recording_meta_data["measurement_condition"] == ds.measurement_condition
+
+        snapshot.assert_match(pd.Series(meta_data, name="metadata").to_frame())
+        snapshot.assert_match(pd.Series(recording_meta_data, name="recording_metadata").to_frame())
+
+    def test_participant_metadata_warning(self, example_data_path):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("NOT_COHORT", "participant_id"),
+            measurement_condition="bla",
+            reference_system="INDIP",
+        )
+
+        with pytest.warns(UserWarning, match="None of the index levels is called `cohort`."):
+            meta_data = ds[0].participant_metadata
+
+        assert meta_data["cohort"] == None
+
     @pytest.mark.parametrize("reference_para_level", ["wb", "lwb"])
     def test_loaded_data(self, example_data_path, reference_para_level):
         ds = GenericMobilisedDataset(

@@ -118,7 +118,7 @@ class ParticipantMetadata(TypedDict):
 
     height_m: float
     sensor_height_m: float
-    cohort: Union[Literal["HA", "MS", "PD", "COPD", "CHF", "PFF"], str]
+    cohort: Union[Literal["HA", "MS", "PD", "COPD", "CHF", "PFF"], str, None]
 
 
 class RecordingMetadata(TypedDict):

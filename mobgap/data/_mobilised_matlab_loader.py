@@ -1,10 +1,8 @@
 import warnings
 from collections.abc import Iterator, Sequence
-from functools import lru_cache
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     ClassVar,
     Literal,
     NamedTuple,
@@ -1074,8 +1072,22 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             "recording_identifier": recording_identifier,
         }
 
+    def _get_cohort(self) -> Optional[str]:
+        try:
+            return self.index_as_tuples()[0].cohort
+        except AttributeError:
+            warnings.warn(
+                "None of the index levels is called `cohort` so we could not extract the relevant metadata. "
+                "Cohort is set to `None`. "
+                "If you have cohort information for your participants, but there are not part of the index, "
+                "subclass the dataset and provide a custom implementation for the `_get_cohort` method.",
+                stacklevel=1,
+            )
+            return None
+
     @property
     def participant_metadata(self) -> MobilisedParticipantMetadata:
+        self.assert_is_single(None, "participant_metadata")
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
         info_for_algo_file = self.selected_meta_data_file
 
@@ -1088,7 +1100,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             "sensor_height_m": meta_data["SensorHeight"] / 100,
             "height_m": meta_data["Height"] / 100,
             "weight_kg": meta_data["Weight"],
-            "cohort": self.group_label.cohort,
+            "cohort": self._get_cohort(),
             "handedness": {"L": "left", "R": "right"}.get(meta_data["Handedness"], None),
             "foot_size_eu": meta_data["FootSize"],
             "indip_data_used": meta_data["INDIP_DataUsed"],
@@ -1109,13 +1121,19 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             sensor_types=self.sensor_types,
         )
 
-    def _create_precomputed_test_list(self) -> None:
+    def create_precomputed_test_list(self) -> None:
         """Compute and store a json test list for a data.mat file.
 
         This function should be used by Dataset developers to precompute the test list for a data.mat file.
         This can massively reduce initial loading time, as the dataset index can be generated without loading the data.
 
-        When this is used to generate the test-list, the `_relpath_to_precomputed_test_list` method must be implemented.
+        When this is used to generate the test-list, the ``_relpath_to_precomputed_test_list`` method must be
+        implemented.
+
+        .. warning:: Don't create test lists for datasets that are likely to be changed.
+           Otherwise, you might end up with outdated files and hard to debug errors.
+           If you want to recreate the test list (either because of a mobgap or a dataset update), delete all test list
+           files and recreate them using this method.
 
         """
         rel_out_path = self._relpath_to_precomputed_test_list()
@@ -1367,6 +1385,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         Note, however, that each file needs a unique combination of metadata.
         If the levels you supply don't result in unique combinations, you will get an error during index creation.
         If you only have a single data file, then you can simply set ``parent_folders_as_metadata=None``.
+
+        .. note:: Ideally one of the metadata levels should be called ``cohort`` otherwise, otherwise the cohort
+                  information in ``participant_metadata`` will be set to ``None``.
     %(file_loader_args)s
     %(dataset_memory_args)s
     %(general_dataset_args)s

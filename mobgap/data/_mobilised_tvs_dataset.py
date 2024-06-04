@@ -193,7 +193,7 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
 ds = TVSLabDataset(
     "/home/arne/Downloads/TVS_DATA_ALL/", missing_reference_error_type="ignore", reference_system="INDIP"
 )
-# ds._create_precomputed_test_list()
+# ds.create_precomputed_test_list()
 
 
 print(ds.unique_center_id)
