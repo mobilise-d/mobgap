@@ -190,7 +190,7 @@ gs_matches_with_errors
 
 # %% .. note::
 # If you want to introduce custom, more complex transformation functions, you can also define them as
-# `CustomOperationTuple` as shown for aggregations in the following section.
+# `CustomOperation` as shown for aggregations in the following section.
 
 # %%
 # Aggregate Results
@@ -219,7 +219,7 @@ pprint(aggregations_simple)
 
 # %%
 #
-# 2. As a named tuple of Type `CustomOperationTuple` taking three values: `identifier`, `function`, and `column_name`.
+# 2. As a named tuple of Type `CustomOperation` taking three values: `identifier`, `function`, and `column_name`.
 #   `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
 #   `function` is the (custom) aggregation function or list of functions to apply,
 #   and `column_name` is the name of the resulting column in the output dataframe
