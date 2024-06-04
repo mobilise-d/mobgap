@@ -1,15 +1,27 @@
+from itertools import product
+
 import numpy as np
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
-from pandas._testing import assert_frame_equal
+from pandas._testing import assert_frame_equal, assert_series_equal
 
 from mobgap.gsd.evaluation import (
+    CustomOperation,
     _get_tn_intervals,
+    abs_error,
+    abs_rel_error,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
     categorize_matches_with_min_overlap,
+    combine_det_with_ref_without_matching,
+    error,
+    get_matching_gs,
+    icc,
+    loa,
+    quantiles,
+    rel_error,
 )
 
 
@@ -24,8 +36,26 @@ def intervals_example_more_samples():
 
 
 @pytest.fixture()
-def intervals_example_with_id(intervals_example):
+def intervals_example_with_id():
     return pd.DataFrame([[1, 3, 0], [5, 7, 1]], columns=["start", "end", "id"]).set_index("id")
+
+
+@pytest.fixture()
+def dummy_dmo_df():
+    df = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=["metric_a", "metric_b", "metric_c"])
+    df.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["group", "wb_id"])
+    return df
+
+
+@pytest.fixture()
+def dummy_matches_df():
+    return pd.DataFrame(
+        {
+            "gs_id_detected": [("a", 1), ("a", 2), np.nan],
+            "gs_id_reference": [("a", 2), np.nan, ("a", 1)],
+            "match_type": ["tp", "fp", "fn"],
+        }
+    )
 
 
 class TestCategorizeIntervals:
@@ -563,3 +593,226 @@ class TestMobilisedGsdPerformanceMetrics:
             gsd_list_detected=detected, gsd_list_reference=reference, sampling_rate_hz=10
         )
         snapshot.assert_match(pd.DataFrame(metrics, index=[0]), "metrics_no_reference")
+
+
+class TestCombineDetectedReference:
+    @pytest.mark.parametrize(
+        "det_df, ref_df",
+        [(pd.DataFrame(), "dummy_dmo_df"), ("dummy_dmo_df", pd.DataFrame()), (pd.DataFrame(), pd.DataFrame())],
+    )
+    def test_combine_det_ref_no_matching_empty_df(self, ref_df, det_df, request):
+        ref_df = request.getfixturevalue(ref_df) if isinstance(ref_df, str) else ref_df
+        det_df = request.getfixturevalue(det_df) if isinstance(det_df, str) else det_df
+        with pytest.raises(ValueError):
+            combine_det_with_ref_without_matching(metrics_detected=det_df, metrics_reference=ref_df)
+
+    def test_combine_det_ref_no_matching_index_not_unique(self, dummy_dmo_df):
+        df = dummy_dmo_df.copy()
+        df.index = ["a"] * len(df)
+        with pytest.raises(ValueError):
+            combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=df)
+        with pytest.raises(ValueError):
+            combine_det_with_ref_without_matching(metrics_detected=dummy_dmo_df, metrics_reference=df)
+        with pytest.raises(ValueError):
+            combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=dummy_dmo_df)
+
+    def test_combine_det_ref_no_matches(self, dummy_dmo_df):
+        combined = combine_det_with_ref_without_matching(metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df)
+        assert combined.shape[0] == len(dummy_dmo_df)
+        assert combined.shape[1] == 2 * dummy_dmo_df.shape[1] + 2  # +2 for the wb_id columns
+        assert_array_equal(combined["wb_id"]["detected"].to_numpy(), combined["wb_id"]["reference"].to_numpy())
+        assert_array_equal(combined["wb_id"]["detected"].to_numpy(), dummy_dmo_df.reset_index()["wb_id"].to_numpy())
+        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "detected")].to_numpy(), dummy_dmo_df.to_numpy())
+        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "reference")].to_numpy(), dummy_dmo_df.to_numpy())
+
+    def test_combine_det_ref_no_matching_without_wb_id(self, dummy_dmo_df):
+        df_no_wb_id = dummy_dmo_df.rename_axis(index=["something", "else"])
+        combined = combine_det_with_ref_without_matching(metrics_detected=df_no_wb_id, metrics_reference=df_no_wb_id)
+        assert combined.shape[0] == len(dummy_dmo_df)
+        assert combined.shape[1] == 2 * dummy_dmo_df.shape[1]
+        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "detected")].to_numpy(), dummy_dmo_df.to_numpy())
+        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "reference")].to_numpy(), dummy_dmo_df.to_numpy())
+
+    def test_get_matching_gs_empty_df(self, dummy_dmo_df, dummy_matches_df):
+        with pytest.raises(ValueError):
+            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=dummy_dmo_df, matches=dummy_matches_df)
+        with pytest.raises(ValueError):
+            get_matching_gs(metrics_detected=dummy_dmo_df, metrics_reference=pd.DataFrame(), matches=dummy_matches_df)
+        with pytest.raises(ValueError):
+            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=pd.DataFrame(), matches=dummy_matches_df)
+
+    def test_get_matching_gs_no_matches(self, dummy_dmo_df, dummy_matches_df):
+        dummy_matches_df["match_type"] = "fp" * len(dummy_matches_df)
+        combined = get_matching_gs(
+            metrics_detected=dummy_dmo_df,
+            metrics_reference=dummy_dmo_df,
+            matches=pd.DataFrame(columns=dummy_matches_df.columns),
+        )
+        assert combined.empty
+        assert_array_equal(
+            list(combined.columns[:-2].to_numpy()), list(product(dummy_dmo_df.columns, ["detected", "reference"]))
+        )
+        assert_array_equal(list(combined.columns[-2:].to_numpy()), list(product(["wb_id"], ["detected", "reference"])))
+
+    def test_get_matching_gs_invalid_matches(self, dummy_dmo_df, dummy_matches_df):
+        with pytest.raises(TypeError):
+            get_matching_gs(metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches="wrong_type")
+
+        matches_wrong_columns = dummy_matches_df.copy()
+        matches_wrong_columns.columns = ["a", "b", "c"]
+        with pytest.raises(ValueError):
+            get_matching_gs(
+                metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches=matches_wrong_columns
+            )
+
+        matches_wrong_match_type = dummy_matches_df.copy()
+        matches_wrong_match_type["match_type"] = "wrong"
+        with pytest.raises(ValueError):
+            get_matching_gs(
+                metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches=matches_wrong_match_type
+            )
+
+    def test_get_matching_gs_no_common_columns(self, dummy_dmo_df, dummy_matches_df):
+        dummy_dmo_df_other_columns = dummy_dmo_df.copy()
+        dummy_dmo_df_other_columns.columns = ["a", "b", "c"]
+        dummy_dmo_df_other_columns.rename_axis(index=["something", "else"], inplace=True)
+        with pytest.raises(ValueError):
+            get_matching_gs(
+                metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df_other_columns, matches=dummy_matches_df
+            )
+        with pytest.raises(ValueError):
+            get_matching_gs(
+                metrics_detected=dummy_dmo_df_other_columns, metrics_reference=dummy_dmo_df, matches=dummy_matches_df
+            )
+
+    def test_get_matching_gs(self, snapshot, dummy_dmo_df, dummy_matches_df):
+        combined = get_matching_gs(
+            metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches=dummy_matches_df
+        )
+        assert combined.shape[0] == len(dummy_matches_df.query("match_type == 'tp'"))
+        assert combined.shape[1] == 2 * dummy_dmo_df.shape[1] + 2
+        assert_array_equal(combined.index, dummy_matches_df.query("match_type == 'tp'").index)
+        assert_array_equal(
+            list(combined.columns.to_numpy()),
+            list(product(dummy_dmo_df.columns, ["detected", "reference"]))
+            + [("wb_id", "detected"), ("wb_id", "reference")],
+        )
+        snapshot.assert_match(combined.to_numpy()[0], "combined")
+
+
+class TestTransformationAggregationFunctions:
+    def test_error_funcs(self):
+        df = pd.DataFrame([[0, 1], [1, 2], [2, 3]], columns=["detected", "reference"])
+        assert_series_equal(error(df), pd.Series([-1, -1, -1]))
+        assert_series_equal(abs_error(df), pd.Series([1, 1, 1]))
+        assert_series_equal(rel_error(df), pd.Series([-1, -1 / 2, -1 / 3]))
+        assert_series_equal(abs_rel_error(df), pd.Series([1, 1 / 2, 1 / 3]))
+
+    def test_error_funcs_with_zero_division(self):
+        df = pd.DataFrame([[0, 1], [1, 2], [2, 3]], columns=["reference", "detected"])
+        assert_series_equal(error(df), pd.Series([1, 1, 1]))
+        assert_series_equal(abs_error(df), pd.Series([1, 1, 1]))
+        assert_series_equal(rel_error(df, zero_division_hint=np.nan), pd.Series([np.nan, 1, 1 / 2]))
+        assert_series_equal(abs_rel_error(df, zero_division_hint=np.nan), pd.Series([np.nan, 1, 1 / 2]))
+        with pytest.warns(UserWarning):
+            assert_series_equal(rel_error(df), pd.Series([np.nan, 1, 1 / 2]))
+            assert_series_equal(abs_rel_error(df), pd.Series([np.nan, 1, 1 / 2]))
+        with pytest.raises(ZeroDivisionError):
+            rel_error(df, zero_division_hint="raise")
+            abs_rel_error(df, zero_division_hint="raise")
+        with pytest.raises(ValueError):
+            rel_error(df, zero_division_hint="invalid")
+            abs_rel_error(df, zero_division_hint="invalid")
+
+    @pytest.mark.parametrize(
+        "col_names", [["not_detected", "reference"], ["detected", "not_reference"], ["not_detected", "not_reference"]]
+    )
+    def test_error_funcs_with_wrong_columns(self, col_names):
+        df = pd.DataFrame([[0, 1], [1, 2], [2, 3]], columns=["not_detected", "not_reference"])
+        with pytest.raises(ValueError):
+            error(df)
+        with pytest.raises(ValueError):
+            rel_error(df)
+        with pytest.raises(ValueError):
+            abs_error(df)
+        with pytest.raises(ValueError):
+            abs_rel_error(df)
+
+    def test_error_funcs_with_wrong_num_columns(self):
+        df = pd.DataFrame(
+            [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]],
+            columns=[("detected", "a"), ("detected", "b"), ("reference", "a"), ("reference", "b")],
+        )
+        with pytest.raises(ValueError):
+            error(df)
+        with pytest.raises(ValueError):
+            rel_error(df)
+        with pytest.raises(ValueError):
+            abs_error(df)
+        with pytest.raises(ValueError):
+            abs_rel_error(df)
+
+    def test_agg_funcs(self):
+        df_quantiles = pd.Series(np.arange(0, 11))
+        assert quantiles(df_quantiles) == (0.5, 9.5)
+
+        df_loa = pd.Series(np.arange(0, 11))
+        df_loa = (df_loa - df_loa.mean()) / df_loa.std()
+        assert_array_equal(loa(df_loa), [-1.96, 1.96])
+
+        df_icc = pd.DataFrame([[0, 1], [0, 1], [0, 1]], columns=["detected", "reference"])
+        icc_val, ci_95 = icc(df_icc)
+        assert icc_val == -1
+        assert_array_equal(ci_95, [-1, -1])
+
+    def test_agg_funcs_with_nan(self):
+        # TODO: should nans be ignored or total result be nan?
+        df_quantiles = pd.Series(np.arange(0, 12))
+        df_quantiles.iloc[-1] = np.nan
+        assert quantiles(df_quantiles) == (0.5, 9.5)
+
+        df_loa = pd.Series(np.arange(0, 12))
+        df_loa.iloc[-1] = np.nan
+        df_loa = (df_loa - df_loa.mean()) / df_loa.std()
+        assert_array_equal(loa(df_loa), [-1.96, 1.96])
+
+        df_icc = pd.DataFrame([[0, 1], [0, 1], [0, 1], [np.nan, np.nan]], columns=["detected", "reference"])
+        icc_val, ci_95 = icc(df_icc)
+        assert icc_val == -1
+        assert_array_equal(ci_95, [-1, -1])
+
+    @pytest.mark.parametrize(
+        "col_names", [["not_detected", "reference"], ["detected", "not_reference"], ["not_detected", "not_reference"]]
+    )
+    def test_icc_wrong_columns(self, col_names):
+        df = pd.DataFrame([[0, 1], [0, 1], [0, 1]], columns=col_names)
+        with pytest.raises(ValueError):
+            icc(df)
+
+    def test_icc_wrong_num_columns(self):
+        df = pd.DataFrame(
+            [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]],
+            columns=[("detected", "a"), ("detected", "b"), ("reference", "a"), ("reference", "b")],
+        )
+        with pytest.raises(ValueError):
+            icc(df)
+
+
+class TestCustomOperation:
+    def test_correct_properties(self):
+        co = CustomOperation(identifier="test", function=lambda x: x, column_name="test")
+        assert co._TAG == "CustomOperation"
+        assert hasattr(co, "identifier")
+        assert hasattr(co, "function")
+        assert hasattr(co, "column_name")
+
+
+class TestApplyTransformations:
+    pass
+
+
+class TestApplyAggregations:
+    pass
+
+    # TODO Mock test
+    # TODO error handling: focus on reasonable inputs like empty df, df with nans
