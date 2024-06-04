@@ -34,7 +34,7 @@ class CustomOperation(NamedTuple):
 
     @property
     def _TAG(self) -> str:  # noqa: N802
-        return "CustomOperationTuple"
+        return "CustomOperation"
 
 
 def calculate_matched_gsd_performance_metrics(
@@ -753,8 +753,10 @@ def get_matching_gs(
     detected_matches = _extract_tp_matches(metrics_detected, tp_matches["gs_id_detected"])
     reference_matches = _extract_tp_matches(metrics_reference, tp_matches["gs_id_reference"])
 
-    combined_matches = _combine_detected_and_reference_metrics(detected_matches, reference_matches)
-    combined_matches.index = tp_matches.index
+    combined_matches = _combine_detected_and_reference_metrics(
+        detected_matches, reference_matches, tp_matches=tp_matches
+    )
+
     return combined_matches
 
 
@@ -787,7 +789,9 @@ def _extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.D
     return matches
 
 
-def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: pd.DataFrame) -> pd.DataFrame:
+def _combine_detected_and_reference_metrics(
+    detected: pd.DataFrame, reference: pd.DataFrame, tp_matches: Union[pd.DataFrame, None] = None
+) -> pd.DataFrame:
     # if wb_id in index, add it as a column to preserve it in the combined DataFrame
     if "wb_id" in detected.index.names and "wb_id" in reference.index.names:
         detected.insert(0, "wb_id", detected.index.get_level_values("wb_id"))
@@ -799,6 +803,10 @@ def _combine_detected_and_reference_metrics(detected: pd.DataFrame, reference: p
 
     detected = detected[common_columns]
     reference = reference[common_columns]
+
+    if tp_matches is not None:
+        detected.index = tp_matches.index
+        reference.index = tp_matches.index
 
     matches = detected.merge(reference, left_index=True, right_index=True, suffixes=("_det", "_ref"))
 
@@ -1121,7 +1129,7 @@ def apply_transformations(
             and `<function>` is the function (or a list of functions) to apply.
             The output dataframe will have a multilevel column consisting of a `metric` level and a `function` level.
 
-        2.  As a named tuple of type `CustomOperationTuple` taking three arguments:
+        2.  As a named tuple of type `CustomOperation` taking three arguments:
             `identifier`, `function`, and `column_name`.
             `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
             `function` is the (custom) transformation function or list of functions to apply,
@@ -1137,7 +1145,7 @@ def apply_transformations(
     transformation_results = []
     column_names = []
     for transformation in transformations:
-        if getattr(transformation, "_TAG", None) == "CustomOperationTuple":
+        if getattr(transformation, "_TAG", None) == "CustomOperation":
             data = _get_data_from_identifier(df, transformation.identifier, num_levels=None)
             result = transformation.function(data)
             transformation_results.append(result)
@@ -1191,7 +1199,7 @@ def apply_aggregations(
             The output dataframe will have a multilevel column consisting of the `metric` level and the
             `origin` level.
 
-        2.  As a named tuple of type `CustomOperationTuple` taking three arguments:
+        2.  As a named tuple of type `CustomOperation` taking three arguments:
             `identifier`, `function`, and `column_name`.
             `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
             `function` is the (custom) aggregation function or list of functions to apply,
@@ -1230,7 +1238,7 @@ def _collect_manual_and_agg_aggregations(
     manual_aggregations = []
     agg_aggregations = {}
     for agg in aggregations:
-        if getattr(agg, "_TAG", None) == "CustomOperationTuple":
+        if getattr(agg, "_TAG", None) == "CustomOperation":
             manual_aggregations.append(agg)
         else:
             key, aggregation = agg
