@@ -17,7 +17,9 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tpcp.caching import hybrid_cache
+from tqdm.auto import tqdm
 
+import mobgap
 from mobgap._docutils import make_filldoc
 from mobgap.data.base import (
     BaseGaitDatasetWithReference,
@@ -117,8 +119,8 @@ class MobilisedParticipantMetadata(ParticipantMetadata):
         - "COPD": Chronic Obstructive Pulmonary Disease
         - "CHF": Chronic Heart Failure
         - "PFF": Primary Frailty Fracture
-    foot_size_eu
-        The foot size of the participant in EU sizes.
+    foot_length_cm
+        The foot size in cm.
     weight_kg
         The weight of the participant in kg.
     handedness
@@ -135,12 +137,12 @@ class MobilisedParticipantMetadata(ParticipantMetadata):
 
     """
 
-    foot_size_eu: float
+    foot_length_cm: float
     weight_kg: float
     handedness: Optional[Literal["left", "right"]]
-    indip_data_used: str
-    sensor_attachment_su: str
-    sensor_type_su: str
+    indip_data_used: Optional[str]
+    sensor_attachment_su: Optional[str]
+    sensor_type_su: Optional[str]
     walking_aid_used: Optional[bool]
 
 
@@ -1087,7 +1089,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
     @property
     def participant_metadata(self) -> MobilisedParticipantMetadata:
-        self.assert_is_single(None, "participant_metadata")
+        self.assert_is_single(
+            list(self._metadata_level_names) if self._metadata_level_names else self.index.columns.to_list(),
+            "participant_metadata",
+        )
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
         info_for_algo_file = self.selected_meta_data_file
 
@@ -1102,13 +1107,26 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             "weight_kg": meta_data["Weight"],
             "cohort": self._get_cohort(),
             "handedness": {"L": "left", "R": "right"}.get(meta_data["Handedness"], None),
-            "foot_size_eu": meta_data["FootSize"],
-            "indip_data_used": meta_data["INDIP_DataUsed"],
-            "sensor_attachment_su": meta_data["SensorAttachment_SU"],
-            "sensor_type_su": meta_data["SensorType_SU"],
+            "foot_length_cm": meta_data["FootSize"],
+            "indip_data_used": meta_data.get("INDIP_DataUsed"),
+            "sensor_attachment_su": meta_data.get("SensorAttachment_SU"),
+            "sensor_type_su": meta_data.get("SensorType_SU"),
             "walking_aid_used": {0: False, 1: True}.get(int(meta_data["WalkingAid_01"]), None),
         }
         return final_dict
+
+    @property
+    def participant_metadata_as_df(self) -> pd.DataFrame:
+        if self._metadata_level_names:
+            names = list(self._metadata_level_names)
+            names.reverse()
+            participant_metadata = {p.group_label: pd.Series(p[0].participant_metadata) for p in self.groupby(names)}
+            df = pd.concat(participant_metadata, axis=1, names=names).T
+            index_correct_dtype = pd.MultiIndex.from_frame(df.index.to_frame().astype("string"))
+            df.index = index_correct_dtype
+            return df
+        # In this case we assume we just have a single participant
+        return pd.Series(self[0].participant_metadata).to_frame()
 
     def _cached_data_load_no_checks(
         self, path: PathLike
@@ -1121,7 +1139,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             sensor_types=self.sensor_types,
         )
 
-    def create_precomputed_test_list(self) -> None:
+    def create_precomputed_test_list(self, n_jobs: Optional[int] = None) -> None:
         """Compute and store a json test list for a data.mat file.
 
         This function should be used by Dataset developers to precompute the test list for a data.mat file.
@@ -1137,19 +1155,36 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         """
         rel_out_path = self._relpath_to_precomputed_test_list()
-        for p in self._paths_list:
+
+        import json
+
+        from joblib import Parallel, delayed
+
+        def process_path(p: str, rel_out_path: str) -> Path:
             _, available_data_per_test = _load_test_data_without_checks(p)
             # Reformat for json dumping:
-            available_data_per_test = [
-                {"key": test_name, "value": data._asdict()} for test_name, data in available_data_per_test.items()
-            ]
-
-            import json
+            available_data_per_test = {
+                "data": [
+                    {"key": test_name, "value": data._asdict()} for test_name, data in available_data_per_test.items()
+                ],
+                "__mobgap_version": mobgap.__version__,
+            }
 
             out_path = Path(p).parent / rel_out_path
             with out_path.open("w") as f:
                 json.dump(available_data_per_test, f, indent=4)
-            print(f"Test list for {p} stored at {out_path}")
+            return out_path
+
+        pbar = tqdm(
+            Parallel(n_jobs=n_jobs, return_as="generator")(
+                delayed(process_path)(p, rel_out_path) for p in self._paths_list
+            ),
+            total=len(self._paths_list),
+            desc="Creating precomputed test list.",
+        )
+
+        for path in pbar:
+            pbar.set_postfix_str(f"Processed {path}")
 
     def _get_precomputed_available_tests(self, path: PathLike) -> dict[tuple[str, ...], MobilisedAvailableData]:
         import json
@@ -1157,7 +1192,11 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         test_list_path = Path(path).parent / self._relpath_to_precomputed_test_list()
 
         with test_list_path.open() as f:
-            available_data_per_test = json.load(f)
+            content = json.load(f)
+
+        # Note: The files contain the mobgap version, that was used to create it. We don't use this yet, but we might
+        #       use this in the future, in case the format changes.
+        available_data_per_test = content["data"]
 
         out = {}
         for data in available_data_per_test:
@@ -1254,7 +1293,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         return meta_data_file
 
     def _get_selected_data_file(self, property_name: str) -> Path:
-        self.assert_is_single(None, property_name)
+        self.assert_is_single(
+            list(self._metadata_level_names) if self._metadata_level_names else self.index.columns.to_list(),
+            property_name,
+        )
         # We basically make an inverse lookup of the metadata.
         all_path_metadata = self._get_all_path_metadata()
 
@@ -1320,9 +1362,13 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         # Resolve metadata based on the implementation of the child class.
         metadata_per_level = self._get_all_path_metadata()
         if metadata_per_level is None:
-            return test_name_metadata.reset_index(drop=True)
+            return test_name_metadata.reset_index(drop=True).astype("string")
 
-        return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
+        return (
+            metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True)
+            .reset_index(drop=True)
+            .astype("string")
+        )
 
 
 @matlab_dataset_docfiller

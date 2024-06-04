@@ -6,33 +6,57 @@ from typing import Literal, Optional, Union
 import joblib
 import pandas as pd
 
+from mobgap._docutils import make_filldoc
 from mobgap.data import BaseGenericMobilisedDataset, GenericMobilisedDataset, matlab_dataset_docfiller
 
 # TODO:
-#  - [ ] Add version for Free Living
 #  - [ ] Think about how to represent "data quality" in the dataset
 #  - [ ] Check which tests should actually be used in the Clinical and the Free Living dataset for validation and only
 #        include those by default.
-# - [ ] Center=id will not work after changing the patient codes
+#  - [ ] Center=id will not work after changing the patient codes
+
+tvs_dataset_filler = make_filldoc(
+    {
+        **matlab_dataset_docfiller._dict,
+        "participant_information": """
+    participant_information
+        All demographic and clinical information of the participants.
+        Note, that this information is loaded from the ``participant_information.xlsx`` file in the data folder and
+        might be slightly different from the information available via the ``participant_metadata`` attribute.
+        The information there is loaded from the ``infoForAlgo.mat`` files and only contains the minimal set of
+        information relevant for the algorithms.
+    demographic_information
+        Subset of the participant information containing only the demographic information.
+    general_clinical_information
+        Subset of the participant information containing only the general clinical information.
+    cohort_clinical_information
+        Subset of the participant information containing only the cohort specific clinical information.
+    walking_aid_use_information
+        Subset of the participant information containing only the walking aid use information.
+    """,
+        "dataset_warning": """
+    .. warning:: The dataset is not yet available. The data will be made available end of June 2024. Then you need to
+        download the data from Zenodo and provide the path to the data folder.
+    """,
+    }
+)
 
 
 @lru_cache(maxsize=1)
 def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, list[str]], pd.DataFrame]:
-    clinical_info = (
-        pd.read_excel(
-            path,
-            sheet_name="Participant Characteristics",
-            engine="openpyxl",
-            header=[0, 1],
-            na_values=["N/A", "N.A.", "N.A"],
-        ).iloc[:-2]  # We need to remove the last two rows, as the Excel file contains "summary" rows at the end
+    clinical_info = pd.read_excel(
+        path,
+        sheet_name="Participant Characteristics",
+        engine="openpyxl",
+        header=[0, 1],
+        na_values=["N/A", "N.A.", "N.A"],
     )
     cols = clinical_info.columns.to_list()
     # We delay the setting of the index, as we need to set the correct dtypes first.
     # For some reason that is not possible in the loading step.
     clinical_info = (
         clinical_info.astype({cols[0]: int})
-        .astype({cols[0]: str})
+        .astype({cols[1]: str})
         .set_index(cols[:2])
         .rename_axis(["participant_id", "cohort"])
         .swaplevel()
@@ -45,8 +69,26 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
     # Set better dtypes
 
     clinical_info = clinical_info.rename(
-        columns=lambda c: c.lower().replace("(", "").replace(")", "").replace(" ", "_").replace("-", "_")
-    ).rename(columns={"updrsiii": "updrs3", "6mwt_distancewalked": "6mwt_distance_walked", "h&y": "h_and_y"})
+        columns=lambda c: c.lower()
+        .replace("(", "")
+        .replace(")", "")
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "p")
+        # Note we rename the height columns here, but the actually conversion to m is done later
+    ).rename(
+        columns={
+            "updrsiii": "updrs3",
+            "6mwt_distancewalked": "6mwt_distance_walked",
+            "h&y": "h_and_y",
+            "dominant_hand_l_or_r": "handedness",
+            "height_cm": "height_m",
+            "sensor_height_cm": "sensor_height_m",
+            "lab_based_assessment": "walking_aid_used_laboratory",
+            "real_world_outdoors": "walking_aid_used_free_living",
+            "real_world_indoors": "walking_aid_used_free_living_indoors",
+        }
+    )
     clinical_info_cols = clinical_info.columns.to_list()
     clinical_info_categories = {}
     for c in clinical_info_cols:
@@ -60,46 +102,32 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
             handedness=lambda df_: df_.handedness.str.strip(" '").replace({"R": "right", "L": "left"}),
             sex=lambda df_: df_.sex.str.lower(),
             fall_history=lambda df_: df_.fall_history.str.lower().replace({"yes": True, "no": False}),
+            height_m=lambda df_: df_.height_m / 100,
+            sensor_height_m=lambda df_: df_.sensor_height_m / 100,
         )[original_col_order]
         .assign()
+        .reset_index()
         .astype(
             {
                 "age": "Int8",
-                "bmi": "float32",
+                "bmi_kgpm2": "float32",
                 "sex": pd.CategoricalDtype(["female", "male"]),
                 "handedness": pd.CategoricalDtype(["left", "right"]),
                 "fall_history": "boolean",
+                "cohort": "string",
+                "participant_id": "string",
             }
         )
+        .set_index(["participant_id", "cohort"])
     )
 
     return clinical_info, clinical_info_categories, data_quality
 
 
-@matlab_dataset_docfiller
-class TVSLabDataset(BaseGenericMobilisedDataset):
-    """A dataset containing all Lab Data recorded within the Mobilise-D technical validation study.
+class BaseTVSDataset(BaseGenericMobilisedDataset):
+    """Base class for the TVS datasets."""
 
-    .. warning:: The dataset is not yet available. The data will be made available end of June 2024. Then you need to
-        download the data from Zenodo and provide the path to the data folder.
-
-    Parameters
-    ----------
-    base_path
-        The path to the folder containing the data.
-    %(file_loader_args)s
-    %(dataset_memory_args)s
-    %(general_dataset_args)s
-
-    Attributes
-    ----------
-    %(dataset_data_attrs)s
-
-    See Also
-    --------
-    %(dataset_see_also)s
-
-    """
+    _MEASUREMENT_CONDITION: str
 
     def __init__(
         self,
@@ -132,8 +160,6 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
             subset_index=subset_index,
         )
 
-    _MEASUREMENT_CONDITION = "Laboratory"
-
     def _relpath_to_precomputed_test_list(self) -> str:
         return "test_list.json"
 
@@ -145,7 +171,7 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
     def _test_level_names(self) -> tuple[str, ...]:
         if self._MEASUREMENT_CONDITION == "Laboratory":
             return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
-        return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_free"]
+        return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_2.5h"]
 
     @property
     def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
@@ -167,7 +193,9 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
     @property
     def participant_information(self) -> pd.DataFrame:
         info = _load_participant_information(Path(self.base_path) / "participant_information.xlsx")[0]
-        selected_values = info.loc[info.index.get_level_values("participant_id").isin(self.index["participant_id"])]
+        selected_values = info.reindex(
+            self.index[["participant_id", "cohort"]].drop_duplicates().set_index(["participant_id", "cohort"]).index
+        )
         return selected_values
 
     def _get_info_categories(self) -> dict[str, list[str]]:
@@ -190,10 +218,65 @@ class TVSLabDataset(BaseGenericMobilisedDataset):
         return self.participant_information[self._get_info_categories()["walking_aid_use"]]
 
 
+@tvs_dataset_filler
+class TVSLabDataset(BaseTVSDataset):
+    """A dataset containing all Lab Data recorded within the Mobilise-D technical validation study.
+
+    %(dataset_warning)s
+
+    Parameters
+    ----------
+    base_path
+        The path to the folder containing the data.
+    %(file_loader_args)s
+    %(dataset_memory_args)s
+    %(general_dataset_args)s
+
+    Attributes
+    ----------
+    %(dataset_data_attrs)s
+    %(participant_information)s
+
+    See Also
+    --------
+    %(dataset_see_also)s
+
+    """
+
+    _MEASUREMENT_CONDITION = "Laboratory"
+
+
+class TVSFreeLivingDataset(TVSLabDataset):
+    """A dataset containing all Free-Living (2.5 hour) Data recorded within the Mobilise-D technical validation study.
+
+    %(dataset_warning)s
+
+    Parameters
+    ----------
+    base_path
+        The path to the folder containing the data.
+    %(file_loader_args)s
+    %(dataset_memory_args)s
+    %(general_dataset_args)s
+
+    Attributes
+    ----------
+    %(dataset_data_attrs)s
+    %(participant_information)s
+
+    See Also
+    --------
+    %(dataset_see_also)s
+
+    """
+
+    _MEASUREMENT_CONDITION = "Free-living"
+
+
 ds = TVSLabDataset(
     "/home/arne/Downloads/TVS_DATA_ALL/", missing_reference_error_type="ignore", reference_system="INDIP"
 )
-# ds.create_precomputed_test_list()
 
-
-print(ds.unique_center_id)
+ds = TVSFreeLivingDataset(
+    "/home/arne/Downloads/TVS_DATA_ALL/", missing_reference_error_type="ignore", reference_system="INDIP"
+)
