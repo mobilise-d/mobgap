@@ -13,6 +13,8 @@ base_sl_docfiller = make_filldoc(
         "other_parameters": """
     data
         The raw IMU data of the gait sequence passed to the ``calculate`` method.
+    initial_contacts
+        The initial contacts passed to the ``calculate`` method.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
     """,
@@ -54,7 +56,7 @@ class BaseSlCalculator(Algorithm):
     Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
     The method should then return the instance of the class, `stride_length_per_sec_list_`` attribute set to the
     estimated stride length per second values
-    Further, the calculate method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
+    Further, the calculate method should set ``self.data``, ``self.initial_contacts``, ``self.sampling_rate_hz`` to the parameters passed to the
     method.
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
     ``**kwargs``).

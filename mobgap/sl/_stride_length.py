@@ -1,5 +1,5 @@
 from typing import Any, Optional
-
+import warnings
 import numpy as np
 import pandas as pd
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
@@ -78,6 +78,9 @@ sl_docfiller = make_filldoc(
         If the gap is larger than this value, the second is filled with NaNs.
         We don't fill "gaps" at the start and end of the recording, as we assume that gait sequences are cut anyway
         to start and end with a valid initial contact.
+    step_length_scaling_factor
+        The scaling factor for the Zijlstra biomechanical model. Possible attributes are step_length_scaling_factor_ms_ms
+        and step_length_scaling_factor_ms_all.
     """,
     },
     doc_summary="Decorator to fill the explanation of the stride length per second interpolation.",
@@ -121,6 +124,8 @@ class SlZijlstra(BaseSlCalculator):
     Other Parameters
     ----------------
     %(other_parameters)s
+    sensor_height_m
+            Height of the sensor mounted on the lower-back in meters.
 
     Attributes
     ----------
@@ -207,6 +212,8 @@ class SlZijlstra(BaseSlCalculator):
         self.sampling_rate_hz = sampling_rate_hz
         self.sensor_height_m = sensor_height_m
 
+        if not initial_contacts['ic'].is_monotonic_increasing:
+            raise ValueError("Initial contacts must be sorted in ascending order.")
         # 1. Sensor alignment (optional): Madgwick complementary filter
         new_acc = data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
         if self.orientation_method is not None:  # TODO: how to make rotation optional?
@@ -229,33 +236,42 @@ class SlZijlstra(BaseSlCalculator):
         # A: step length scaling factor, optimized by training for each population
         # LBh: sensor height in meters, representative of the height of the center of mass
         # TODO: Which is the correct way to pass step_length_scaling_factor, initial_contacts, sensor_height?
-        initial_contacts = np.squeeze(initial_contacts.astype(int))
-        sl_zjilstra_v3 = _zjilsv3(
-            vacc_high, sampling_rate_hz, self.step_length_scaling_factor, initial_contacts, sensor_height_m
-        )
-
-        # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
-        # 9. Interpolation of StepLength values --> Step length per second values
-        # 10. Remove step length per second outliers during the gait sequence --> Hampel filter based on median
-        # absolute deviation
-        duration = int(np.floor(len(vacc) / sampling_rate_hz))  # bottom-rounded duration (s)
-        ictime = initial_contacts / sampling_rate_hz  # initial contacts: samples -> sec
+        duration = int(np.floor(data.shape[0] / sampling_rate_hz))  # bottom-rounded duration (s)
         sec_centers = (
             np.arange(0, duration) + 1
         )
-        # padding last value of the calculated step length values so that sl_zjilstra_v3 is as long as ictime
-        if len(sl_zjilstra_v3) < len(ictime):
-            sl_zjilstra_v3 = np.concatenate(
-                [sl_zjilstra_v3, np.tile(sl_zjilstra_v3[-1], len(ictime) - len(sl_zjilstra_v3))]
+        if len(initial_contacts) <= 1:
+            # We can not calculate step length with only one initial contact
+            warnings.warn("Can not calculate step length with only one or zero initial contacts.", stacklevel=3)
+            sl_sec = np.full(len(sec_centers), np.nan)
+            sl_zjilstra_v3 = np.full(len(initial_contacts), np.nan)  # raw step length values
+            sl_sec_zjilstra_v3 = np.full(len(sec_centers), np.nan)  # interpolated step length per second
+
+        else:
+            initial_contacts = np.squeeze(initial_contacts.astype(int))
+            sl_zjilstra_v3 = _zjilsv3(
+                vacc_high, sampling_rate_hz, self.step_length_scaling_factor, initial_contacts, sensor_height_m
             )
-
-        sl_sec_zjilstra_v3 = robust_step_para_to_sec(
-            ictime, sl_zjilstra_v3, sec_centers, self.max_interpolation_gap_s, self.step_length_smoothing.clone()
-        )
-        # 11. Approximated stride length per second values = 2* step length per second values
-        sl_sec = sl_sec_zjilstra_v3[0:duration] * 2
-
-        # Results
+            duration = int(np.floor(len(vacc) / sampling_rate_hz))  # bottom-rounded duration (s)
+            ictime = initial_contacts / sampling_rate_hz  # initial contacts: samples -> sec
+            sec_centers = (
+                np.arange(0, duration) + 1
+            )
+            # padding last value of the calculated step length values so that sl_zjilstra_v3 is as long as ictime
+            if len(sl_zjilstra_v3) < len(ictime):
+                sl_zjilstra_v3 = np.concatenate(
+                    [sl_zjilstra_v3, np.tile(sl_zjilstra_v3[-1], len(ictime) - len(sl_zjilstra_v3))]
+                )
+            # 8. Remove step length outliers during the gait sequence --> Hampel filter based on median absolute deviation
+            # 9. Interpolation of StepLength values --> Step length per second values
+            # 10. Remove step length per second outliers during the gait sequence --> Hampel filter based on median
+            # absolute deviation
+            sl_sec_zjilstra_v3 = robust_step_para_to_sec(
+                ictime, sl_zjilstra_v3, sec_centers, self.max_interpolation_gap_s, self.step_length_smoothing.clone()
+            )
+            # 11. Approximated stride length per second values = 2* step length per second values
+            sl_sec = sl_sec_zjilstra_v3[0:duration] * 2
+            # Results
         # Primary output: interpolated stride length per second
         self.stride_length_per_sec_list_ = pd.DataFrame(
             {"stride_length_m": sl_sec}, index=as_samples(sec_centers, sampling_rate_hz)
@@ -263,7 +279,6 @@ class SlZijlstra(BaseSlCalculator):
         # Secondary outputs
         self.step_length_list_ = sl_zjilstra_v3  # raw step length values
         self.step_length_per_sec_list_ = sl_sec_zjilstra_v3  # interpolated step length per second
-
         return self
 
 
@@ -280,11 +295,16 @@ def _zjilsv3(
     [1] Zijlstra, W., & Hof, A. L. (2003). Assessment of spatio-temporal gait parameters from trunk accelerations
     during human walking. Gait & posture, 18(2), 1-10.
     Inputs:
-    - vacc_high: vertical acceleration recorded on lower back, high-pass filtered.
-    - sampling_rate_hz: sampling frequency of the acc signal.
-    - step_length_scaling_factor: tuning factor estimated by data from various clinical populations
-    - initial_contacts: vector containing the timing of initial contacts events (samples)
-    - sensor_height_m: Low Back height, i.e., the distance from ground to sensor location on lower back (in m)
+    vacc_high
+        vertical acceleration recorded on lower back, high-pass filtered.
+    sampling_rate_hz
+        sampling frequency of the acc signal.
+    step_length_scaling_factor
+        tuning factor estimated by data from various clinical populations
+    initial_contacts
+        vector containing the timing of initial contacts events (samples)
+    sensor_height_m
+        Low Back height, i.e., the distance from ground to sensor location on lower back (in m)
 
     Output:
     - sl_zjilstra_v3: estimated step length.
