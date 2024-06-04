@@ -1208,7 +1208,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         ):
             # If this returns false, aka test should be skipped, users have manipulated the index.
             raise RuntimeError(
-                "A text listed in the index was marked as skipped when loading. "
+                "A test listed in the index was marked as skipped when loading. "
                 "This should not happen and might indicate that the index was manually modified, or "
                 "the ``missing_sensor_error_type`` or ``missing_reference_error_type`` was set to "
                 "``skip`` AFTER the object was initialized. "
