@@ -46,7 +46,7 @@ install all development dependencies:
 ```bash
 # Check the linked install guide above to learn how to find the Python version
 poetry env use "path/to/python/you/want/to/use"
-poetry install
+poetry install --all-extras
 ```
 
 Depending on the configuration above this will create a new folder called `.venv` inside your project dir or a new venv
@@ -57,7 +57,7 @@ For PyCharm you can find information about this
 [here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html) and newer versions of PyCharm should also support Poetry environments directly.
 
 **In case you encounter any issues (with this command or any command below), please check the section on
- [trouble shooting](#trouble-shooting)**.
+ [troubleshooting](#trouble-shooting)**.
  
 To add new dependencies:
 
