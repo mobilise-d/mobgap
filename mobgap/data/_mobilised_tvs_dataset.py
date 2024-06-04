@@ -237,15 +237,11 @@ class TVSLabDataset(BaseTVSDataset):
     %(dataset_data_attrs)s
     %(participant_information)s
 
-    See Also
-    --------
-    %(dataset_see_also)s
-
     """
 
     _MEASUREMENT_CONDITION = "Laboratory"
 
-
+@tvs_dataset_filler
 class TVSFreeLivingDataset(TVSLabDataset):
     """A dataset containing all Free-Living (2.5 hour) Data recorded within the Mobilise-D technical validation study.
 
@@ -264,19 +260,6 @@ class TVSFreeLivingDataset(TVSLabDataset):
     %(dataset_data_attrs)s
     %(participant_information)s
 
-    See Also
-    --------
-    %(dataset_see_also)s
-
     """
 
     _MEASUREMENT_CONDITION = "Free-living"
-
-
-ds = TVSLabDataset(
-    "/home/arne/Downloads/TVS_DATA_ALL/", missing_reference_error_type="ignore", reference_system="INDIP"
-)
-
-ds = TVSFreeLivingDataset(
-    "/home/arne/Downloads/TVS_DATA_ALL/", missing_reference_error_type="ignore", reference_system="INDIP"
-)

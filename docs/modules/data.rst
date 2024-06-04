@@ -55,6 +55,28 @@ Load Functions
     parse_reference_parameters
 
 
+Technical Validation Study (TVS) Data Loader
+--------------------------------------------
+
+.. currentmodule:: mobgap.data
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    TVSLabDataset
+    TVSFreeLivingDataset
+
+
+Base Classes
+++++++++++++
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    BaseTVSDataset
+
+
 Example Data
 ------------
 
