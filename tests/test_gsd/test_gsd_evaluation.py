@@ -1,4 +1,5 @@
 from itertools import product
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -11,12 +12,16 @@ from mobgap.gsd.evaluation import (
     _get_tn_intervals,
     abs_error,
     abs_rel_error,
+    apply_aggregations,
+    apply_transformations,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
     categorize_matches_with_min_overlap,
     combine_det_with_ref_without_matching,
     error,
+    get_default_aggregations,
+    get_default_error_transformations,
     get_matching_gs,
     icc,
     loa,
@@ -41,14 +46,52 @@ def intervals_example_with_id():
 
 
 @pytest.fixture()
-def dummy_dmo_df():
+def dmo_df():
     df = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=["metric_a", "metric_b", "metric_c"])
     df.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["group", "wb_id"])
     return df
 
 
 @pytest.fixture()
-def dummy_matches_df():
+def combined_det_ref_dmo_df():
+    metrics = [
+        "cadence_spm",
+        "duration_s",
+        "n_steps",
+        "n_turns",
+        "stride_duration_s",
+        "stride_length_m",
+        "walking_speed_mps",
+        "wb_id",
+    ]
+    data = np.zeros((2, len(metrics) * 2))
+    df = pd.DataFrame(data)
+    df.columns = pd.MultiIndex.from_product([metrics, ["detected", "reference"]])
+    return df
+
+
+@pytest.fixture()
+def combined_det_ref_dmo_df_with_errors():
+    metrics = [
+        "cadence_spm",
+        "duration_s",
+        "n_steps",
+        "n_turns",
+        "stride_duration_s",
+        "stride_length_m",
+        "walking_speed_mps",
+        "wb_id",
+    ]
+    data = np.zeros((2, len(metrics) * 6))
+    df = pd.DataFrame(data)
+    df.columns = pd.MultiIndex.from_product(
+        [metrics, ["detected", "reference", "error", "abs_error", "rel_error", "abs_rel_error"]]
+    )
+    return df
+
+
+@pytest.fixture()
+def matches_df():
     return pd.DataFrame(
         {
             "gs_id_detected": [("a", 1), ("a", 2), np.nan],
@@ -598,7 +641,7 @@ class TestMobilisedGsdPerformanceMetrics:
 class TestCombineDetectedReference:
     @pytest.mark.parametrize(
         "det_df, ref_df",
-        [(pd.DataFrame(), "dummy_dmo_df"), ("dummy_dmo_df", pd.DataFrame()), (pd.DataFrame(), pd.DataFrame())],
+        [(pd.DataFrame(), "dmo_df"), ("dmo_df", pd.DataFrame()), (pd.DataFrame(), pd.DataFrame())],
     )
     def test_combine_det_ref_no_matching_empty_df(self, ref_df, det_df, request):
         ref_df = request.getfixturevalue(ref_df) if isinstance(ref_df, str) else ref_df
@@ -606,96 +649,85 @@ class TestCombineDetectedReference:
         with pytest.raises(ValueError):
             combine_det_with_ref_without_matching(metrics_detected=det_df, metrics_reference=ref_df)
 
-    def test_combine_det_ref_no_matching_index_not_unique(self, dummy_dmo_df):
-        df = dummy_dmo_df.copy()
+    def test_combine_det_ref_no_matching_index_not_unique(self, dmo_df):
+        df = dmo_df.copy()
         df.index = ["a"] * len(df)
         with pytest.raises(ValueError):
             combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=df)
         with pytest.raises(ValueError):
-            combine_det_with_ref_without_matching(metrics_detected=dummy_dmo_df, metrics_reference=df)
+            combine_det_with_ref_without_matching(metrics_detected=dmo_df, metrics_reference=df)
         with pytest.raises(ValueError):
-            combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=dummy_dmo_df)
+            combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=dmo_df)
 
-    def test_combine_det_ref_no_matches(self, dummy_dmo_df):
-        combined = combine_det_with_ref_without_matching(metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df)
-        assert combined.shape[0] == len(dummy_dmo_df)
-        assert combined.shape[1] == 2 * dummy_dmo_df.shape[1] + 2  # +2 for the wb_id columns
+    def test_combine_det_ref_no_matches(self, dmo_df):
+        combined = combine_det_with_ref_without_matching(metrics_detected=dmo_df, metrics_reference=dmo_df)
+        assert combined.shape[0] == len(dmo_df)
+        assert combined.shape[1] == 2 * dmo_df.shape[1] + 2  # +2 for the wb_id columns
         assert_array_equal(combined["wb_id"]["detected"].to_numpy(), combined["wb_id"]["reference"].to_numpy())
-        assert_array_equal(combined["wb_id"]["detected"].to_numpy(), dummy_dmo_df.reset_index()["wb_id"].to_numpy())
-        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "detected")].to_numpy(), dummy_dmo_df.to_numpy())
-        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "reference")].to_numpy(), dummy_dmo_df.to_numpy())
+        assert_array_equal(combined["wb_id"]["detected"].to_numpy(), dmo_df.reset_index()["wb_id"].to_numpy())
+        assert_array_equal(combined.loc[:, (dmo_df.columns, "detected")].to_numpy(), dmo_df.to_numpy())
+        assert_array_equal(combined.loc[:, (dmo_df.columns, "reference")].to_numpy(), dmo_df.to_numpy())
 
-    def test_combine_det_ref_no_matching_without_wb_id(self, dummy_dmo_df):
-        df_no_wb_id = dummy_dmo_df.rename_axis(index=["something", "else"])
+    def test_combine_det_ref_no_matching_without_wb_id(self, dmo_df):
+        df_no_wb_id = dmo_df.rename_axis(index=["something", "else"])
         combined = combine_det_with_ref_without_matching(metrics_detected=df_no_wb_id, metrics_reference=df_no_wb_id)
-        assert combined.shape[0] == len(dummy_dmo_df)
-        assert combined.shape[1] == 2 * dummy_dmo_df.shape[1]
-        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "detected")].to_numpy(), dummy_dmo_df.to_numpy())
-        assert_array_equal(combined.loc[:, (dummy_dmo_df.columns, "reference")].to_numpy(), dummy_dmo_df.to_numpy())
+        assert combined.shape[0] == len(dmo_df)
+        assert combined.shape[1] == 2 * dmo_df.shape[1]
+        assert_array_equal(combined.loc[:, (dmo_df.columns, "detected")].to_numpy(), dmo_df.to_numpy())
+        assert_array_equal(combined.loc[:, (dmo_df.columns, "reference")].to_numpy(), dmo_df.to_numpy())
 
-    def test_get_matching_gs_empty_df(self, dummy_dmo_df, dummy_matches_df):
+    def test_get_matching_gs_empty_df(self, dmo_df, matches_df):
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=dummy_dmo_df, matches=dummy_matches_df)
+            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=dmo_df, matches=matches_df)
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=dummy_dmo_df, metrics_reference=pd.DataFrame(), matches=dummy_matches_df)
+            get_matching_gs(metrics_detected=dmo_df, metrics_reference=pd.DataFrame(), matches=matches_df)
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=pd.DataFrame(), matches=dummy_matches_df)
+            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=pd.DataFrame(), matches=matches_df)
 
-    def test_get_matching_gs_no_matches(self, dummy_dmo_df, dummy_matches_df):
-        dummy_matches_df["match_type"] = "fp" * len(dummy_matches_df)
+    def test_get_matching_gs_no_matches(self, dmo_df, matches_df):
+        matches_df["match_type"] = "fp" * len(matches_df)
         combined = get_matching_gs(
-            metrics_detected=dummy_dmo_df,
-            metrics_reference=dummy_dmo_df,
-            matches=pd.DataFrame(columns=dummy_matches_df.columns),
+            metrics_detected=dmo_df,
+            metrics_reference=dmo_df,
+            matches=pd.DataFrame(columns=matches_df.columns),
         )
         assert combined.empty
         assert_array_equal(
-            list(combined.columns[:-2].to_numpy()), list(product(dummy_dmo_df.columns, ["detected", "reference"]))
+            list(combined.columns[:-2].to_numpy()), list(product(dmo_df.columns, ["detected", "reference"]))
         )
         assert_array_equal(list(combined.columns[-2:].to_numpy()), list(product(["wb_id"], ["detected", "reference"])))
 
-    def test_get_matching_gs_invalid_matches(self, dummy_dmo_df, dummy_matches_df):
+    def test_get_matching_gs_invalid_matches(self, dmo_df, matches_df):
         with pytest.raises(TypeError):
-            get_matching_gs(metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches="wrong_type")
+            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches="wrong_type")
 
-        matches_wrong_columns = dummy_matches_df.copy()
+        matches_wrong_columns = matches_df.copy()
         matches_wrong_columns.columns = ["a", "b", "c"]
         with pytest.raises(ValueError):
-            get_matching_gs(
-                metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches=matches_wrong_columns
-            )
+            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_wrong_columns)
 
-        matches_wrong_match_type = dummy_matches_df.copy()
+        matches_wrong_match_type = matches_df.copy()
         matches_wrong_match_type["match_type"] = "wrong"
         with pytest.raises(ValueError):
-            get_matching_gs(
-                metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches=matches_wrong_match_type
-            )
+            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_wrong_match_type)
 
-    def test_get_matching_gs_no_common_columns(self, dummy_dmo_df, dummy_matches_df):
-        dummy_dmo_df_other_columns = dummy_dmo_df.copy()
+    def test_get_matching_gs_no_common_columns(self, dmo_df, matches_df):
+        dummy_dmo_df_other_columns = dmo_df.copy()
         dummy_dmo_df_other_columns.columns = ["a", "b", "c"]
         dummy_dmo_df_other_columns.rename_axis(index=["something", "else"], inplace=True)
         with pytest.raises(ValueError):
-            get_matching_gs(
-                metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df_other_columns, matches=dummy_matches_df
-            )
+            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dummy_dmo_df_other_columns, matches=matches_df)
         with pytest.raises(ValueError):
-            get_matching_gs(
-                metrics_detected=dummy_dmo_df_other_columns, metrics_reference=dummy_dmo_df, matches=dummy_matches_df
-            )
+            get_matching_gs(metrics_detected=dummy_dmo_df_other_columns, metrics_reference=dmo_df, matches=matches_df)
 
-    def test_get_matching_gs(self, snapshot, dummy_dmo_df, dummy_matches_df):
-        combined = get_matching_gs(
-            metrics_detected=dummy_dmo_df, metrics_reference=dummy_dmo_df, matches=dummy_matches_df
-        )
-        assert combined.shape[0] == len(dummy_matches_df.query("match_type == 'tp'"))
-        assert combined.shape[1] == 2 * dummy_dmo_df.shape[1] + 2
-        assert_array_equal(combined.index, dummy_matches_df.query("match_type == 'tp'").index)
+    def test_get_matching_gs(self, snapshot, dmo_df, matches_df):
+        combined = get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_df)
+        assert combined.shape[0] == len(matches_df.query("match_type == 'tp'"))
+        assert combined.shape[1] == 2 * dmo_df.shape[1] + 2
+        assert_array_equal(combined.index, matches_df.query("match_type == 'tp'").index)
         assert_array_equal(
             list(combined.columns.to_numpy()),
-            list(product(dummy_dmo_df.columns, ["detected", "reference"]))
-            + [("wb_id", "detected"), ("wb_id", "reference")],
+            list(product(dmo_df.columns, ["detected", "reference"])) + [("wb_id", "detected"), ("wb_id", "reference")],
         )
         snapshot.assert_match(combined.to_numpy()[0], "combined")
 
@@ -808,11 +840,174 @@ class TestCustomOperation:
 
 
 class TestApplyTransformations:
-    pass
+    def test_apply_transform_with_unnamed_fct(self, combined_det_ref_dmo_df):
+        from functools import partial
+
+        unnamed_trafo_func = partial(error)
+        transformations = [(combined_det_ref_dmo_df.columns.get_level_values(0)[0], unnamed_trafo_func)]
+        with pytest.raises(ValueError):
+            apply_transformations(combined_det_ref_dmo_df, transformations)
+
+    @staticmethod
+    def _prepare_error_mock_functions(abs_rel_err_mock, abs_err_mock, rel_err_mock, err_mock, return_value):
+        # set names to mocked functions to prevent unnamed function error
+        err_mock.__name__ = "error"
+        abs_err_mock.__name__ = "abs_error"
+        rel_err_mock.__name__ = "rel_error"
+        abs_rel_err_mock.__name__ = "abs_rel_error"
+
+        # set return values for mocked functions
+        err_mock.return_value = return_value
+        abs_err_mock.return_value = return_value
+        rel_err_mock.return_value = return_value
+        abs_rel_err_mock.return_value = return_value
+
+        return err_mock, abs_err_mock, rel_err_mock, abs_rel_err_mock
+
+    @patch("mobgap.gsd.evaluation.error")
+    @patch("mobgap.gsd.evaluation.rel_error")
+    @patch("mobgap.gsd.evaluation.abs_error")
+    @patch("mobgap.gsd.evaluation.abs_rel_error")
+    def test_apply_transform_with_default_errors(
+        self, abs_rel_err_mock, abs_err_mock, rel_err_mock, err_mock, combined_det_ref_dmo_df
+    ):
+        return_value = pd.Series([0] * len(combined_det_ref_dmo_df))
+        err_mock, abs_err_mock, rel_err_mock, abs_rel_err_mock = self._prepare_error_mock_functions(
+            abs_rel_err_mock, abs_err_mock, rel_err_mock, err_mock, return_value
+        )
+
+        transformations = get_default_error_transformations()
+        res = apply_transformations(combined_det_ref_dmo_df, transformations)
+
+        # expected number of calls for error functions
+        # -2 because wb_id columns are not transformed
+        # // 2 because two cols are transformed at once
+        count = (combined_det_ref_dmo_df.shape[1] - 2) // 2
+
+        assert res.shape[0] == len(combined_det_ref_dmo_df)
+        assert res.shape[1] == 4 * count
+
+        assert err_mock.call_count == count
+        assert abs_err_mock.call_count == count
+        assert rel_err_mock.call_count == count
+        assert abs_rel_err_mock.call_count == count
+
+    @patch("mobgap.gsd.evaluation.error")
+    @patch("mobgap.gsd.evaluation.rel_error")
+    @patch("mobgap.gsd.evaluation.abs_error")
+    @patch("mobgap.gsd.evaluation.abs_rel_error")
+    def test_apply_transform_with_custom_transformations(
+        self, abs_rel_err_mock, abs_err_mock, rel_err_mock, err_mock, combined_det_ref_dmo_df
+    ):
+        return_value = pd.Series([0] * len(combined_det_ref_dmo_df))
+        err_mock, abs_err_mock, rel_err_mock, abs_rel_err_mock = self._prepare_error_mock_functions(
+            abs_rel_err_mock, abs_err_mock, rel_err_mock, err_mock, return_value
+        )
+
+        metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
+        transformations = [
+            CustomOperation(identifier=metric, function=err_mock, column_name=(metric, "test_1")),
+            CustomOperation(identifier=metric, function=abs_err_mock, column_name=(metric, "test_2")),
+            CustomOperation(identifier=metric, function=rel_err_mock, column_name=(metric, "test_3")),
+            CustomOperation(identifier=metric, function=abs_rel_err_mock, column_name=(metric, "test_4")),
+            (metric, err_mock),
+            (metric, abs_err_mock),
+            (metric, rel_err_mock),
+            (metric, abs_rel_err_mock),
+        ]
+        res = apply_transformations(combined_det_ref_dmo_df, transformations)
+        assert res.shape[0] == len(combined_det_ref_dmo_df)
+        assert res.shape[1] == len(transformations)
+
+        count = 2
+        assert err_mock.call_count == count
+        assert abs_err_mock.call_count == count
+        assert rel_err_mock.call_count == count
+        assert abs_rel_err_mock.call_count == count
+
+    @pytest.mark.parametrize("incompatible_trafo_func", [lambda x: x, lambda x: np.zeros(len(x))])
+    def test_apply_transform_with_incompatible_transformations(self, combined_det_ref_dmo_df, incompatible_trafo_func):
+        metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
+        transformations = [
+            (metric, error),
+            CustomOperation(identifier=metric, function=incompatible_trafo_func, column_name=(metric, "test")),
+        ]
+        with pytest.raises(ValueError):
+            apply_transformations(combined_det_ref_dmo_df, transformations)
+
+    def test_apply_transform_with_empty_df(self):
+        df = pd.DataFrame()
+        transformations = get_default_error_transformations()
+        with pytest.raises(ValueError):
+            apply_transformations(df, transformations)
 
 
 class TestApplyAggregations:
-    pass
+    def test_apply_agg_with_unnamed_fct(self, combined_det_ref_dmo_df):
+        from functools import partial
 
-    # TODO Mock test
-    # TODO error handling: focus on reasonable inputs like empty df, df with nans
+        unnamed_trafo_func = partial(loa)
+        aggs = [
+            CustomOperation(
+                identifier=(combined_det_ref_dmo_df.columns.get_level_values(0)[0], "reference"),
+                function=unnamed_trafo_func,
+                column_name=("test_a", "test_b"),
+            )
+        ]
+        with pytest.raises(ValueError):
+            print(apply_aggregations(combined_det_ref_dmo_df, aggs))
+
+    @staticmethod
+    def _prepare_aggregation_mock_functions(quantiles_mock, icc_mock, loa_mock, return_value):
+        # set names to mocked functions to prevent unnamed function error
+        quantiles_mock.__name__ = "quantiles"
+        icc_mock.__name__ = "icc"
+        loa_mock.__name__ = "loa"
+
+        # set return values for mocked functions
+        quantiles_mock.return_value = return_value
+        icc_mock.return_value = return_value
+        loa_mock.return_value = return_value
+
+        return quantiles_mock, icc_mock, loa_mock
+
+    @patch("mobgap.gsd.evaluation.loa")
+    @patch("mobgap.gsd.evaluation.icc")
+    @patch("mobgap.gsd.evaluation.quantiles")
+    def test_apply_default_aggregations(self, quantiles_mock, icc_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
+        # TODO: to be fixed
+        quantiles_mock, icc_mock, loa_mock = self._prepare_aggregation_mock_functions(
+            quantiles_mock, icc_mock, loa_mock, 0
+        )
+
+        aggregations = get_default_aggregations()
+        res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
+
+        count_metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).nunique()
+        # for "detected", "reference", "abs_error", "abs_rel_error"
+        count_quantiles = count_metrics * 4
+        # for each "detected", "reference" pair
+        count_icc = count_metrics
+        # for "error", "rel_error"
+        count_loa = count_metrics * 2
+
+        assert res.shape[0] == 1
+        # for all 6 origins: add calculation of built-in "mean" to the expected count
+        assert res.shape[1] == count_quantiles + count_icc + count_loa + count_metrics * 6
+
+    @pytest.mark.parametrize("incompatible_agg_func", [lambda x: 1])
+    def test_apply_agg_with_incompatible_aggregations(self, combined_det_ref_dmo_df, incompatible_agg_func):
+        metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
+        aggregations = [
+            ((metric, "reference"), "mean"),
+            CustomOperation(identifier=metric, function=incompatible_agg_func, column_name=(metric, "test", "test")),
+        ]
+        # with pytest.raises(ValueError):
+        # TODO: to be finished
+        print(apply_aggregations(combined_det_ref_dmo_df, aggregations))
+
+    def test_apply_agg_with_empty_df(self):
+        df = pd.DataFrame()
+        aggs = get_default_aggregations()
+        with pytest.raises(ValueError):
+            apply_aggregations(df, aggs)
