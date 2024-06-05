@@ -33,6 +33,16 @@ tvs_dataset_filler = make_filldoc(
         Subset of the participant information containing only the cohort specific clinical information.
     walking_aid_use_information
         Subset of the participant information containing only the walking aid use information.
+    data_quality
+        The data quality of the SU and the reference data per recording.
+        This is a simple quality score (0-3) + additional comments that is provided for each recording.
+        The numbers can be interpreted as follows:
+
+        - 0: Recording discarded completely (these recordings are likely not included in the dataset in the first place)
+        - 1: Recording has issues, but included in the dataset. Individual tests or trials might be missing, or might
+          have degraded quality.
+        - 2: Recording had some issues, but they could be fixed. Actual data should be good (INDIP only)
+        - 3: Recording is good
     """,
         "dataset_warning": """
     .. warning:: The dataset is not yet available. The data will be made available end of June 2024. Then you need to
@@ -247,19 +257,6 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
 
     @property
     def data_quality(self) -> pd.DataFrame:
-        """The data quality of the SU and the reference data per recording.
-
-        This is a simple quality score (0-3) + additional comments that is provided for each recording.
-
-        The numbers can be interpreted as follows:
-
-        - 0: Recording discarded completely (these recordings are likely not included in the dataset in the first place)
-        - 1: Recording has issues, but included in the dataset. Individual tests or trials might be missing, or might
-             have degraded quality.
-        - 2: Recording had some issues, but they could be fixed. Actual data should be good (INDIP only)
-        - 3: Recording is good
-
-        """
         info = _load_participant_information(Path(self.base_path) / "participant_information.xlsx")[2]
         selected_values = info.reindex(
             pd.MultiIndex.from_frame(self.index[["cohort", "participant_id"]].drop_duplicates())

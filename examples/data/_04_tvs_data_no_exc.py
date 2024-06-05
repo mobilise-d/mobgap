@@ -199,7 +199,7 @@ subset[0].recording_metadata
 #
 # - 0: Recording discarded completely (these recordings are likely not included in the dataset in the first place)
 # - 1: Recording has issues, but included in the dataset. Individual tests or trials might be missing, or might have
-#      degraded quality.
+#   degraded quality.
 # - 2: Recording had some issues, but they could be fixed. Actual data should be good (INDIP only)
 # - 3: Recording is good
 #

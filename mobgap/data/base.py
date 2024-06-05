@@ -34,9 +34,10 @@ base_gait_dataset_docfiller_dict = {
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     participant_metadata
-        General participant metadata. Contains at least the keys listed in class:`~mobgap.base.ParticipantMetadata`.
+        General participant metadata. Contains at least the keys listed in 
+        :class:`~mobgap.data.base.ParticipantMetadata`.
     recording_metadata
-        General recording metadata. Contains at least the keys listed in class:`~mobgap.base.RecordingMetadata`.
+        General recording metadata. Contains at least the keys listed in :class:`~mobgap.data.base.RecordingMetadata`.
     """,
     "common_dataset_reference_attrs": """
     reference_parameters_
