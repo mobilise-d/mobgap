@@ -62,9 +62,6 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         .swaplevel()
         .sort_index()
     )
-    data_quality = pd.read_excel(
-        path, sheet_name="Data Quality Summary", engine="openpyxl", header=[0, 1], index_col=[0, 1]
-    )
 
     # Set better dtypes
 
@@ -118,7 +115,35 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
                 "participant_id": "string",
             }
         )
-        .set_index(["participant_id", "cohort"])
+        .set_index(["cohort", "participant_id"])
+    )
+
+    data_quality = (
+        pd.read_excel(path, sheet_name="Data Quality Summary", engine="openpyxl", header=[0, 1], index_col=[0, 1])
+        # We are only interested in the first 7 columns
+        .iloc[:, :7]
+        .rename_axis(["participant_id", "cohort"])
+        .swaplevel()
+    )
+    index_with_dtypes = pd.MultiIndex.from_frame(
+        data_quality.index.to_frame().astype({"participant_id": "string", "cohort": "string"})
+    )
+    data_quality = (
+        data_quality.set_index(index_with_dtypes)
+        .rename(
+            columns={
+                "Lower back sensor": "SU",
+                "Lower back sensor2": "SU",
+                "INDIP2": "INDIP",
+                "Stereophotogrammetric": "Sterophoto",
+                "Comments2": "Comments",
+            },
+            level=1,
+        )
+        .rename(
+            columns={"Lab-based Assessment": "Laboratory", "Unstructured 2.5 hour Assessment": "Free-living"}, level=0
+        )
+        .sort_index()
     )
 
     return clinical_info, clinical_info_categories, data_quality
@@ -163,6 +188,9 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
     def _relpath_to_precomputed_test_list(self) -> str:
         return "test_list.json"
 
+    def _get_measurement_condition(self) -> str:
+        return self._MEASUREMENT_CONDITION
+
     @property
     def _paths_list(self) -> list[Path]:
         return sorted(Path(self.base_path).glob(f"**/{self._MEASUREMENT_CONDITION}/data.mat"))
@@ -194,7 +222,7 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
     def participant_information(self) -> pd.DataFrame:
         info = _load_participant_information(Path(self.base_path) / "participant_information.xlsx")[0]
         selected_values = info.reindex(
-            self.index[["participant_id", "cohort"]].drop_duplicates().set_index(["participant_id", "cohort"]).index
+            pd.MultiIndex.from_frame(self.index[["cohort", "participant_id"]].drop_duplicates())
         )
         return selected_values
 
@@ -216,6 +244,27 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
     @property
     def walking_aid_use_information(self) -> pd.DataFrame:
         return self.participant_information[self._get_info_categories()["walking_aid_use"]]
+
+    @property
+    def data_quality(self) -> pd.DataFrame:
+        """The data quality of the SU and the reference data per recording.
+
+        This is a simple quality score (0-3) + additional comments that is provided for each recording.
+
+        The numbers can be interpreted as follows:
+
+        - 0: Recording discarded completely (these recordings are likely not included in the dataset in the first place)
+        - 1: Recording has issues, but included in the dataset. Individual tests or trials might be missing, or might
+             have degraded quality.
+        - 2: Recording had some issues, but they could be fixed. Actual data should be good (INDIP only)
+        - 3: Recording is good
+
+        """
+        info = _load_participant_information(Path(self.base_path) / "participant_information.xlsx")[2]
+        selected_values = info.reindex(
+            pd.MultiIndex.from_frame(self.index[["cohort", "participant_id"]].drop_duplicates())
+        )
+        return selected_values
 
 
 @tvs_dataset_filler

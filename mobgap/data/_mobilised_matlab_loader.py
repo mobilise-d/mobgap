@@ -1074,6 +1074,14 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             "recording_identifier": recording_identifier,
         }
 
+    @property
+    def recording_metadata_as_df(self) -> pd.DataFrame:
+        recording_metadata = {p.group_label: pd.Series(p.recording_metadata) for p in self}
+        df = pd.concat(recording_metadata, axis=1, names=self.index.columns.to_list()).T
+        index_correct_dtype = pd.MultiIndex.from_frame(df.index.to_frame().astype("string"))
+        df.index = index_correct_dtype
+        return df
+
     def _get_cohort(self) -> Optional[str]:
         try:
             return self.index_as_tuples()[0].cohort
@@ -1120,7 +1128,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         if self._metadata_level_names:
             names = list(self._metadata_level_names)
             names.reverse()
-            participant_metadata = {p.group_label: pd.Series(p[0].participant_metadata) for p in self.groupby(names)}
+            participant_metadata = {p.group_label: pd.Series(p.participant_metadata) for p in self.groupby(names)}
             df = pd.concat(participant_metadata, axis=1, names=names).T
             index_correct_dtype = pd.MultiIndex.from_frame(df.index.to_frame().astype("string"))
             df.index = index_correct_dtype
