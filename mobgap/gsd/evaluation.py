@@ -1049,7 +1049,7 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
     return mean - std * agreement, mean + std * agreement
 
 
-def get_default_error_metrics() -> list[tuple[str, list[callable]]]:
+def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
     """
     Get all default error metrics used in Mobilise-D.
 
@@ -1103,12 +1103,11 @@ def get_default_aggregations() -> (
 
 
 def apply_transformations(
-    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]], CustomOperation]]]
+    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]]], CustomOperation]]
 ) -> pd.DataFrame:
     """Apply a set of transformations to a DMO DataFrame.
 
     Returns a DataFrame with one column per transformation.
-    22
 
     Parameters
     ----------
@@ -1156,13 +1155,35 @@ def apply_transformations(
                 functions = [functions]
             data = _get_data_from_identifier(df, metric, num_levels=None)
             for fct in functions:
+                try:
+                    fct_name = fct.__name__
+                except AttributeError as e:
+                    print(e)
+                    raise ValueError(
+                        f"Transformation function {fct} does not have a `__name__`-Attribute. "
+                        "Please use a named function or assign a name."
+                    ) from e
                 result = fct(data)
                 transformation_results.append(result)
-                column_names.append((metric, fct.__name__))
+                column_names.append((metric, fct_name))
     # combine results
-    # TODO: error handling for concat
-    transformation_results = pd.concat(transformation_results, axis=1)
-    transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
+    try:
+        transformation_results = pd.concat(transformation_results, axis=1)
+    except TypeError as e:
+        raise ValueError(
+            "The transformation results could not be concatenated. "
+            "This is likely due to an unexpected return type of a CustomOperation function."
+            "Please ensure that the return type is a pandas Series for all custom functions."
+        ) from e
+    try:
+        transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
+    except ValueError as e:
+        raise ValueError(
+            f"The expected number of column names {len(pd.MultiIndex.from_tuples(column_names))} "
+            f"does not match with the actual number {transformation_results.shape[1]} of columns "
+            "in the transformed DataFrame."
+            "This is likely due to an unexpected return shape of a CustomOperation function."
+        ) from e
     return transformation_results
 
 
@@ -1216,7 +1237,10 @@ def apply_aggregations(
     # apply built-in aggregations
     agg_aggregation_results = pd.DataFrame()
     if len(agg_aggregations) != 0:
-        agg_aggregation_results = df.agg(agg_aggregations)
+        try:
+            agg_aggregation_results = df.agg(agg_aggregations)
+        except KeyError as e:
+            raise ValueError("Column(s) specified in aggregations not found in DataFrame.") from e
 
     manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
 
@@ -1260,11 +1284,17 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
 
         data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
         for fct in agg_functions:
-            # TODO: error handling for invalid functions
             result = fct(data)
-            manual_aggregation_names.append(fct.__name__)
+            try:
+                fct_name = fct.__name__
+            except AttributeError as e:
+                raise ValueError(
+                    f"Transformation function {fct} does not have a `__name__`-Attribute. "
+                    "Please use a named function or assign a name."
+                ) from e
+            manual_aggregation_names.append(fct_name)
             column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
-            key = (fct.__name__, *column_name)
+            key = (fct_name, *column_name)
             manual_aggregation_dict.setdefault(key, []).append(result)
 
     manual_aggregation_results = pd.DataFrame(manual_aggregation_dict)
@@ -1323,7 +1353,7 @@ __all__ = [
     "rel_error",
     "abs_error",
     "abs_rel_error",
-    "get_default_error_metrics",
+    "get_default_error_transformations",
     "get_default_aggregations",
     "apply_transformations",
     "apply_aggregations",

@@ -125,10 +125,10 @@ gs_matches
 # Note that the columns of the detected and reference values are expected to be named `detected` and `reference`
 # per default.
 # For the standard error metrics (error, absolute error, relative error, absolute relative),
-# the :func:`~mobgap.gsd.evaluation.get_default_error_metrics` returns the correct transformations.
-from mobgap.gsd.evaluation import apply_transformations, get_default_error_metrics
+# the :func:`~mobgap.gsd.evaluation.get_default_error_transformations` returns the correct transformations.
+from mobgap.gsd.evaluation import apply_transformations, get_default_error_transformations
 
-default_errors = get_default_error_metrics()
+default_errors = get_default_error_transformations()
 pprint(default_errors)
 
 # %%
@@ -157,7 +157,9 @@ gs_errors
 # In the same manner, the default names `detected` and `reference` of the two input columns for the error functions
 # can be overwritten by custom names.
 # ..note:: The adapted functions are defined as lambda functions here for simplicity.
-# Naming them is required, since the function names are used as column names in the output dataframe.
+# The function argument `x` contains the detected and reference columns of the DMO of interest.
+# Naming these lambda function is required for this application,
+# since the function names are used as column names in the output dataframe.
 # It may seem counterintuitive that the adapted functions are named the same as the original functions.
 # However, for further processing including aggregations, those names are required for the default aggregations to work.
 from mobgap.gsd.evaluation import abs_error, abs_rel_error, error, rel_error
