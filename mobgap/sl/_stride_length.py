@@ -1,5 +1,6 @@
-from typing import Any, Optional
 import warnings
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
@@ -212,7 +213,7 @@ class SlZijlstra(BaseSlCalculator):
         self.sampling_rate_hz = sampling_rate_hz
         self.sensor_height_m = sensor_height_m
 
-        if not initial_contacts['ic'].is_monotonic_increasing:
+        if not initial_contacts["ic"].is_monotonic_increasing:
             raise ValueError("Initial contacts must be sorted in ascending order.")
         # 1. Sensor alignment (optional): Madgwick complementary filter
         new_acc = data[["acc_x", "acc_y", "acc_z"]]  # consider acceleration
