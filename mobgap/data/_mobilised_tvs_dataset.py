@@ -10,10 +10,9 @@ from mobgap._docutils import make_filldoc
 from mobgap.data import BaseGenericMobilisedDataset, GenericMobilisedDataset, matlab_dataset_docfiller
 
 # TODO:
-#  - [ ] Think about how to represent "data quality" in the dataset
 #  - [ ] Check which tests should actually be used in the Clinical and the Free Living dataset for validation and only
 #        include those by default.
-#  - [ ] Center=id will not work after changing the patient codes
+# - [ ] Add tests and find a way that the tests are not run by default, but only if the dataset exists.
 
 tvs_dataset_filler = make_filldoc(
     {
