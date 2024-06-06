@@ -203,6 +203,7 @@ sphinx_gallery_conf = {
             "../examples/icd",
             "../examples/lrc",
             "../examples/cad",
+            "../examples/stride_length",
             "../examples/turning",
             "../examples/wba",
             "../examples/aggregation",
