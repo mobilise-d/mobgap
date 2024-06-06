@@ -1245,11 +1245,22 @@ def apply_aggregations(
     manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
 
     # combine manual and agg results
-    # TODO: test what makes concatenation fail
-    aggregation_results = pd.concat([manual_aggregation_results, agg_aggregation_results])
-    aggregation_results = aggregation_results.stack(
-        level=np.arange(df.columns.nlevels).tolist(), future_stack=True
-    ).dropna()
+    try:
+        aggregation_results = pd.concat([manual_aggregation_results, agg_aggregation_results])
+    except AssertionError as e:
+        raise ValueError(
+            "The aggregation results could not be concatenated. "
+            "This is could be caused by a wrong number of columns specified in a CustomOperation function."
+        ) from e
+    try:
+        aggregation_results = aggregation_results.stack(
+            level=np.arange(df.columns.nlevels).tolist(), future_stack=True
+        ).dropna()
+    except IndexError as e:
+        raise ValueError(
+            "The aggregation results could not be stacked. "
+            "This is could be caused by a wrong number of columns specified in a CustomOperation function."
+        ) from e
 
     return aggregation_results
 
@@ -1301,8 +1312,8 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
 
     if not manual_aggregation_results.empty:
         manual_aggregation_results.columns = pd.MultiIndex.from_tuples(manual_aggregation_dict.keys())
-        manual_aggregation_results = (
-            manual_aggregation_results.stack(level=0, future_stack=True).dropna().reset_index(level=0, drop=True)
+        manual_aggregation_results = manual_aggregation_results.stack(level=0, future_stack=True).reset_index(
+            level=0, drop=True
         )
 
     return manual_aggregation_results

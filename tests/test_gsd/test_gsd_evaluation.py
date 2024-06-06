@@ -82,7 +82,7 @@ def combined_det_ref_dmo_df_with_errors():
         "walking_speed_mps",
         "wb_id",
     ]
-    data = np.zeros((2, len(metrics) * 6))
+    data = np.zeros((3, len(metrics) * 6))
     df = pd.DataFrame(data)
     df.columns = pd.MultiIndex.from_product(
         [metrics, ["detected", "reference", "error", "abs_error", "rel_error", "abs_rel_error"]]
@@ -798,7 +798,6 @@ class TestTransformationAggregationFunctions:
         assert_array_equal(ci_95, [-1, -1])
 
     def test_agg_funcs_with_nan(self):
-        # TODO: should nans be ignored or total result be nan?
         df_quantiles = pd.Series(np.arange(0, 12))
         df_quantiles.iloc[-1] = np.nan
         assert quantiles(df_quantiles) == (0.5, 9.5)
@@ -958,32 +957,22 @@ class TestApplyAggregations:
             print(apply_aggregations(combined_det_ref_dmo_df, aggs))
 
     @staticmethod
-    def _prepare_aggregation_mock_functions(quantiles_mock, icc_mock, loa_mock, return_value):
+    def _prepare_aggregation_mock_function(mock_fct, name, return_value):
         # set names to mocked functions to prevent unnamed function error
-        quantiles_mock.__name__ = "quantiles"
-        icc_mock.__name__ = "icc"
-        loa_mock.__name__ = "loa"
+        mock_fct.__name__ = name
 
         # set return values for mocked functions
-        quantiles_mock.return_value = return_value
-        icc_mock.return_value = return_value
-        loa_mock.return_value = return_value
+        mock_fct.return_value = return_value
 
-        return quantiles_mock, icc_mock, loa_mock
+        return mock_fct
 
-    @patch("mobgap.gsd.evaluation.loa")
-    @patch("mobgap.gsd.evaluation.icc")
-    @patch("mobgap.gsd.evaluation.quantiles")
-    def test_apply_default_aggregations(self, quantiles_mock, icc_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
-        # TODO: to be fixed
-        quantiles_mock, icc_mock, loa_mock = self._prepare_aggregation_mock_functions(
-            quantiles_mock, icc_mock, loa_mock, 0
-        )
+    def test_default_aggregations(self, combined_det_ref_dmo_df_with_errors):
+        aggs = get_default_aggregations()
+        res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggs)
 
-        aggregations = get_default_aggregations()
-        res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
-
-        count_metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).nunique()
+        count_metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).nunique() - 1
+        # for all origins
+        count_mean = count_metrics * 6
         # for "detected", "reference", "abs_error", "abs_rel_error"
         count_quantiles = count_metrics * 4
         # for each "detected", "reference" pair
@@ -991,20 +980,88 @@ class TestApplyAggregations:
         # for "error", "rel_error"
         count_loa = count_metrics * 2
 
-        assert res.shape[0] == 1
-        # for all 6 origins: add calculation of built-in "mean" to the expected count
-        assert res.shape[1] == count_quantiles + count_icc + count_loa + count_metrics * 6
+        assert isinstance(res, pd.Series)
+        assert len(res) == count_quantiles + count_icc + count_loa + count_mean
+        assert res.index.get_level_values(0).nunique() == 4  # function names mean, icc, quantiles, loa
+        assert res.index.get_level_values(1).nunique() == count_metrics
+        assert res.index.get_level_values(2).nunique() == 7  # all origins + "all"
 
-    @pytest.mark.parametrize("incompatible_agg_func", [lambda x: 1])
-    def test_apply_agg_with_incompatible_aggregations(self, combined_det_ref_dmo_df, incompatible_agg_func):
+    @patch("mobgap.gsd.evaluation.loa")
+    @patch("mobgap.gsd.evaluation.icc")
+    @patch("mobgap.gsd.evaluation.quantiles")
+    def test_apply_custom_aggregations(self, quantiles_mock, icc_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
+        quantiles_mock = self._prepare_aggregation_mock_function(quantiles_mock, "quantiles", 0)
+        icc_mock = self._prepare_aggregation_mock_function(icc_mock, "icc", 0)
+        loa_mock = self._prepare_aggregation_mock_function(loa_mock, "loa", 0)
+
+        metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).unique()
+        origins = combined_det_ref_dmo_df_with_errors.columns.get_level_values(1).unique()
+
+        aggregations = [
+            *[
+                CustomOperation(identifier=(metric, origin), function=quantiles_mock, column_name=(metric, origin))
+                for metric in metrics
+                for origin in origins
+            ],
+            *[
+                CustomOperation(identifier=(metric, origin), function=loa_mock, column_name=(metric, origin))
+                for metric in metrics
+                for origin in origins
+            ],
+            *[CustomOperation(identifier=metric, function=icc_mock, column_name=(metric, "all")) for metric in metrics],
+        ]
+
+        res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
+
+        assert isinstance(res, pd.Series)
+        # for all 6 origins: add calculation of built-in "mean" to the expected count
+        assert len(res) == len(aggregations)
+
+        assert loa_mock.call_count == len(metrics) * len(origins)
+        assert icc_mock.call_count == len(metrics)
+        assert quantiles_mock.call_count == len(metrics) * len(origins)
+
+    @patch("mobgap.gsd.evaluation.loa")
+    @patch("mobgap.gsd.evaluation.quantiles")
+    def test_apply_custom_agg_with_nan_results(self, quantiles_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
+        # TODO: fix this
+        quantiles_mock = self._prepare_aggregation_mock_function(quantiles_mock, "quantiles", 0)
+        loa_mock = self._prepare_aggregation_mock_function(loa_mock, "loa", np.nan)
+
+        metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).unique()
+        origins = combined_det_ref_dmo_df_with_errors.columns.get_level_values(1).unique()
+
+        aggregations = [
+            *[
+                CustomOperation(identifier=(metric, origin), function=quantiles_mock, column_name=(metric, origin))
+                for metric in metrics
+                for origin in origins
+            ],
+            *[
+                CustomOperation(identifier=(metric, origin), function=loa_mock, column_name=(metric, origin))
+                for metric in metrics
+                for origin in origins
+            ],
+        ]
+
+        res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
+
+        assert isinstance(res, pd.Series)
+        # for all 6 origins: add calculation of built-in "mean" to the expected count
+        assert len(res) == len(aggregations)
+
+        assert loa_mock.call_count == len(metrics) * len(origins)
+        assert quantiles_mock.call_count == len(metrics) * len(origins)
+
+    @pytest.mark.parametrize("incompatible_col_names", ["test", ("test", "test", "test")])
+    def test_apply_agg_with_incompatible_aggregations(self, combined_det_ref_dmo_df, incompatible_col_names):
         metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
         aggregations = [
             ((metric, "reference"), "mean"),
-            CustomOperation(identifier=metric, function=incompatible_agg_func, column_name=(metric, "test", "test")),
+            CustomOperation(identifier=metric, function=lambda x: 0, column_name=incompatible_col_names),
         ]
-        # with pytest.raises(ValueError):
-        # TODO: to be finished
-        print(apply_aggregations(combined_det_ref_dmo_df, aggregations))
+        with pytest.raises(ValueError):
+            apply_aggregations(combined_det_ref_dmo_df, aggregations)
 
     def test_apply_agg_with_empty_df(self):
         df = pd.DataFrame()
