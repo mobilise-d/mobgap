@@ -124,7 +124,8 @@ class TestSlZijlstra:
         ics_in_gs = reference_ic.loc[gs_id]  # reference initial contacts
         sensor_height = dp.participant_metadata["sensor_height_m"]
         # Add random white noise
-        data_in_gs_noise = data_in_gs_clean + np.random.normal(scale=noise_std, size=data_in_gs_clean.shape)
+        rng = np.random.default_rng(0)
+        data_in_gs_noise = data_in_gs_clean + rng.normal(scale=noise_std, size=data_in_gs_clean.shape)
 
         # Calculate stride lengths with and without noise
         sl_zijlstra_clean = SlZijlstra().calculate(
