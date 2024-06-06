@@ -11,13 +11,15 @@ from mobgap.aggregation.base import BaseAggregator
 from mobgap.cad import CadFromIcDetector
 from mobgap.cad.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
-from mobgap.gsd import GsdAdaptiveIonescu, GsdIluz
+from mobgap.gsd import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
 from mobgap.gsd.base import BaseGsDetector
 from mobgap.icd import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
 from mobgap.icd.base import BaseIcDetector
 from mobgap.lrc import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.lrc.base import BaseLRClassifier
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
+from mobgap.stride_length import SlZijlstra
+from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.utils.array_handling import create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.wba import StrideSelection, WbAssembly
@@ -53,7 +55,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
                 # TODO: Check correct model used
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdShinImproved()),
-                "stride_length_calculation": None,
+                "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": None,
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
@@ -64,12 +66,11 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
 
         impaired_walking: Final = MappingProxyType(
             {
-                # TODO: UPdate once we have the normal GSD Ionescu implemented
-                "gait_sequence_detection": GsdAdaptiveIonescu(),
+                "gait_sequence_detection": GsdIonescu(),
                 "initial_contacts_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved()),
-                "stride_length_calculation": None,
+                "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": None,
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
@@ -84,7 +85,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         initial_contacts_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
-        stride_length_calculation: None,
+        stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: None,
         stride_selection: StrideSelection,
         wba: WbAssembly,
@@ -245,7 +246,7 @@ class MobilisedPipelineHealthy(MobilisedPipeline):
         initial_contacts_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
-        stride_length_calculation: None,
+        stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: None,
         stride_selection: StrideSelection,
         wba: WbAssembly,
@@ -274,7 +275,7 @@ class MobilisedPipelineImpaired(MobilisedPipeline):
         initial_contacts_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
-        stride_length_calculation: None,
+        stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: None,
         stride_selection: StrideSelection,
         wba: WbAssembly,
