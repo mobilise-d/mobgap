@@ -72,7 +72,7 @@ Evaluation
     quantiles
     loa
     icc
-    get_default_error_metrics
+    get_default_error_transformations
     get_default_aggregations
     apply_transformations
     apply_aggregations
