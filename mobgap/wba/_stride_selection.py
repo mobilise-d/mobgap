@@ -75,7 +75,7 @@ class StrideSelection(Algorithm):
                 ),
                 (
                     "stride_length_thres",
-                    IntervalParameterCriteria("stride_length", lower_threshold=0.15, upper_threshold=None),
+                    IntervalParameterCriteria("stride_length_m", lower_threshold=0.15, upper_threshold=None),
                 ),
             ],
         }
