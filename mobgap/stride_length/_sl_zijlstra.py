@@ -11,7 +11,7 @@ from typing_extensions import Self, Unpack
 from mobgap._docutils import make_filldoc
 from mobgap.data_transform import ButterworthFilter, HampelFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.sl.base import BaseSlCalculator, base_sl_docfiller
+from mobgap.stride_length.base import BaseSlCalculator, base_sl_docfiller
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.interpolation import robust_step_para_to_sec
 

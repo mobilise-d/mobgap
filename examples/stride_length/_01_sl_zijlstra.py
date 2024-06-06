@@ -39,7 +39,7 @@ reference_gs
 # Note that we use the ``sampling_rate_hz`` of the actual data and not the reference system.
 # This is because, the reference parameters are already converted to the data sampling rate.
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
-from mobgap.sl import SlZijlstra
+from mobgap.stride_length import SlZijlstra
 
 # Initially, we apply the algorithm without re-orienting the sensor frame to the global frame
 MS_MS_params = (

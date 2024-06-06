@@ -114,7 +114,7 @@ from mobgap.cad import CadFromIc
 from mobgap.gsd import GsdIluz
 from mobgap.icd import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich
-from mobgap.sl import SlZijlstra
+from mobgap.stride_length import SlZijlstra
 
 gsd = GsdIluz()
 icd = IcdShinImproved()

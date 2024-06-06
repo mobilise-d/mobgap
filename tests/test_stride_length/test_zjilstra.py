@@ -4,7 +4,7 @@ import pytest
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.sl import SlZijlstra
+from mobgap.stride_length import SlZijlstra
 
 
 class TestMetaSlZijlstra(TestAlgorithmMixin):
