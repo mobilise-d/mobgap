@@ -213,6 +213,19 @@ class SlZijlstra(BaseSlCalculator):
 
         if not initial_contacts["ic"].is_monotonic_increasing:
             raise ValueError("Initial contacts must be sorted in ascending order.")
+
+        ic_list = initial_contacts["ic"].to_numpy()
+
+        if len(ic_list) > 0 and (ic_list[0] != 0 or ic_list[-1] != len(data) - 1):
+            warnings.warn(
+                "Usually we assume that gait sequences are cut to the first and last detected initial "
+                "contact. "
+                "This is not the case for the passed initial contacts and might lead to unexpected "
+                "results in the cadence calculation. "
+                "Specifically, you will get NaN values at the start and the end of the output.",
+                stacklevel=1,
+            )
+
         # 1. Sensor alignment (optional): Madgwick complementary filter
         vacc = data[["acc_x"]]
         if self.orientation_method is not None:
@@ -227,16 +240,15 @@ class SlZijlstra(BaseSlCalculator):
         duration = data.shape[0] / sampling_rate_hz
         sec_centers = np.arange(0, duration) + 0.5
 
-        if len(initial_contacts) <= 1:
+        if len(ic_list) <= 1:
             # We can not calculate step length with only one initial contact
             warnings.warn("Can not calculate step length with only one or zero initial contacts.", stacklevel=1)
             stride_length_per_sec = np.full(len(sec_centers), np.nan)
-            raw_step_length = np.full(len(initial_contacts) - 1, np.nan)
+            raw_step_length = np.full(np.clip(len(ic_list) - 1, 0, None), np.nan)
             step_length_per_sec = np.full(len(sec_centers), np.nan)
             self._unify_and_set_outputs(raw_step_length, step_length_per_sec, stride_length_per_sec, sec_centers)
             return self
 
-        initial_contacts = np.squeeze(initial_contacts["ic"].astype(int))
         # 3. Integration of vertical acceleration --> vertical speed
         # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, order: 4
         # 5. Integration of vertical speed --> vertical displacement d(t)
@@ -245,7 +257,7 @@ class SlZijlstra(BaseSlCalculator):
         # 7. Biomechanical model:
         # StepLength = A * 2 * sqrt(2 * LBh * d_step - d_step^2)
         # A: step length scaling factor, optimized by training for each population
-        raw_step_length = self._calc_step_length(vacc_filtered, initial_contacts)
+        raw_step_length = self._calc_step_length(vacc_filtered, ic_list)
 
         # We repeat the last step length to get the same number of step length as initial contacts for the
         # interpolation
@@ -255,7 +267,7 @@ class SlZijlstra(BaseSlCalculator):
         # 9. Interpolation of StepLength values --> Step length per second values
         # 10. Remove step length per second outliers during the gait sequence --> Hampel filter based on median
         # absolute deviation
-        initial_contacts_per_sec = initial_contacts / sampling_rate_hz
+        initial_contacts_per_sec = ic_list / sampling_rate_hz
         step_length_per_sec = robust_step_para_to_sec(
             initial_contacts_per_sec,
             raw_step_length_padded,

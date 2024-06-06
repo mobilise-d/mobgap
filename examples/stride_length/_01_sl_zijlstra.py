@@ -142,5 +142,5 @@ print(
 )
 
 # %%
-# Note, that in this case, the results got slightly worse compared to the version without Madgwick.
+# Note, that in this case, the results got slightly better compared to the version without Madgwick.
 # However, this is not a general statement, but heavily depends on the data characteristics.

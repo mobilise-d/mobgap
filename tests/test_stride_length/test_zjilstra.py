@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
 import pytest
+from numpy.testing import assert_array_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
+from mobgap.pipeline import GsIterator
 from mobgap.stride_length import SlZijlstra
 
 
@@ -44,6 +46,8 @@ class TestSlZijlstra:
         assert "Can not calculate step length with only one or zero initial contacts" in w.list[0].message.args[0]
         assert len(sl_zijlstra.stride_length_per_sec_) == np.ceil(data.shape[0] / 100)
         assert sl_zijlstra.stride_length_per_sec_["stride_length_m"].isna().all()
+        assert sl_zijlstra.step_length_per_sec_["step_length_m"].isna().all()
+        assert len(sl_zijlstra.raw_step_length_per_step_) == 0
 
     def test_raise_non_sorted_ics(self):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
@@ -83,6 +87,10 @@ class TestSlZijlstra:
         assert len(sl_zijlstra.stride_length_per_sec_) == np.ceil(data_in_gs.shape[0] / 100)
         # We just test that not all values are NaN
         assert not sl_zijlstra.stride_length_per_sec_["stride_length_m"].isna().all()
+        assert_array_equal(
+            sl_zijlstra.step_length_per_sec_["step_length_m"] * 2, sl_zijlstra.stride_length_per_sec_["stride_length_m"]
+        )
+        assert len(sl_zijlstra.raw_step_length_per_step_) == n_ics - 1
 
     def test_outlier_data(self):
         """Tests if the function handles outliers in accelerometer data."""
@@ -146,12 +154,37 @@ class TestSlZijlstra:
         ).mean()
         assert average_difference < 0.05
 
-    def test_no_ics_result_all_nan(self):
+    @pytest.mark.parametrize("n_ics", [0, 1])
+    def test_no_ics_result_all_nan(self, n_ics):
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
-        initial_contacts = pd.DataFrame({"ic": []})
+        initial_contacts = pd.DataFrame({"ic": np.linspace(0, 100, n_ics)})
         sampling_rate_hz = 100.0
-        sl_zijlstra_clean = SlZijlstra().calculate(
+        out = SlZijlstra().calculate(
             data, initial_contacts=initial_contacts, sensor_height_m=0.95, sampling_rate_hz=sampling_rate_hz
         )
-        assert sl_zijlstra_clean.stride_length_per_sec_["stride_length_m"].isna().all()
-        assert len(sl_zijlstra_clean.stride_length_per_sec_) == len(data) // sampling_rate_hz
+        assert out.stride_length_per_sec_["stride_length_m"].isna().all()
+        assert out.step_length_per_sec_["step_length_m"].isna().all()
+        assert len(out.raw_step_length_per_step_) == np.clip(n_ics - 1, 0, None)
+        assert len(out.stride_length_per_sec_) == np.ceil(len(data) / sampling_rate_hz)
+        assert len(out.step_length_per_sec_) == np.ceil(len(data) / sampling_rate_hz)
+
+    def test_regression_on_longer_data(self, snapshot):
+        dp = LabExampleDataset(reference_system="INDIP").get_subset(
+            cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+        )
+
+        gs_iterator = GsIterator()
+
+        ref_data = dp.reference_parameters_relative_to_wb_
+        meta_data = dp.participant_metadata
+
+        for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
+            sl = SlZijlstra().calculate(
+                data,
+                ref_data.ic_list.loc[gs.id],
+                sampling_rate_hz=dp.sampling_rate_hz,
+                **meta_data,
+            )
+            r.stride_length_per_sec = sl.stride_length_per_sec_
+
+        snapshot.assert_match(gs_iterator.results_.stride_length_per_sec)
