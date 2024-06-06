@@ -1,4 +1,6 @@
-"""
+r"""
+.. _gsd_iluz:
+
 GSD Iluz
 ========
 
@@ -27,13 +29,21 @@ def plot_gsd_outputs(data, **kwargs):
 
     y_max = 1.1
     plot_props = [
-        {"data": v, "label": k, "alpha": 0.2, "ymax": (y_max := y_max - 0.1), "color": next(color_cycle)["color"]}
+        {
+            "data": v,
+            "label": k,
+            "alpha": 0.2,
+            "ymax": (y_max := y_max - 0.1),
+            "color": next(color_cycle)["color"],
+        }
         for k, v in kwargs.items()
     ]
 
     for props in plot_props:
         for gsd in props.pop("data").itertuples(index=False):
-            ax.axvspan(gsd.start, gsd.end, label=props.pop("label", None), **props)
+            ax.axvspan(
+                gsd.start, gsd.end, label=props.pop("label", None), **props
+            )
 
     ax.legend()
     return fig, ax
@@ -53,7 +63,6 @@ def plot_gsd_outputs(data, **kwargs):
 import json
 
 import pandas as pd
-
 from mobgap import PACKAGE_ROOT
 from mobgap.data import LabExampleDataset
 
@@ -66,7 +75,9 @@ def load_matlab_output(datapoint):
         PACKAGE_ROOT.parent
         / f"example_data/original_results/gsd_iluz/lab/{p.cohort}/{p.participant_id}/GSDA_Output.json"
     ).open() as f:
-        original_results = json.load(f)["GSDA_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["GSD"]
+        original_results = json.load(f)["GSDA_Output"][p.time_measure][p.test][
+            p.trial
+        ]["SU"]["LowerBack"]["GSD"]
 
     if not isinstance(original_results, list):
         original_results = [original_results]
@@ -84,11 +95,15 @@ def load_matlab_output(datapoint):
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
 from mobgap.gsd import GsdIluz
 
-short_trial = lab_example_data.get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")
+short_trial = lab_example_data.get_subset(
+    cohort="HA", participant_id="001", test="Test5", trial="Trial2"
+)
 short_trial_matlab_output = load_matlab_output(short_trial)
 short_trial_reference_parameters = short_trial.reference_parameters_.wb_list
 
-short_trial_output = GsdIluz().detect(short_trial.data["LowerBack"], sampling_rate_hz=short_trial.sampling_rate_hz)
+short_trial_output = GsdIluz().detect(
+    short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz
+)
 
 print("Reference Parameters:\n\n", short_trial_reference_parameters)
 print("\nMatlab Output:\n\n", short_trial_matlab_output)
@@ -99,7 +114,7 @@ print("\nPython Output:\n\n", short_trial_output.gs_list_)
 # Both algorithm implementations produce a gait sequence that extends beyond the end of the reference system.
 
 fig, ax = plot_gsd_outputs(
-    short_trial.data["LowerBack"],
+    short_trial.data_ss,
     reference=short_trial_reference_parameters,
     matlab=short_trial_matlab_output,
     python=short_trial_output.gs_list_,
@@ -111,11 +126,15 @@ fig.show()
 # ---------------------------------
 # Below we apply the algorithm to a lab trail that contains activities of daily living.
 # This is a more challenging scenario, as we expect multiple gait sequences.
-long_trial = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
+long_trial = lab_example_data.get_subset(
+    cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+)
 long_trial_matlab_output = load_matlab_output(long_trial)
 long_trial_reference_parameters = long_trial.reference_parameters_.wb_list
 
-long_trial_output = GsdIluz().detect(long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz)
+long_trial_output = GsdIluz().detect(
+    long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz
+)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nMatlab Output:\n\n", long_trial_matlab_output)
@@ -126,7 +145,7 @@ print("\nPython Output:\n\n", long_trial_output.gs_list_)
 # It detects longer gait sequences and even one entire gait sequence that is not detected by the matlab version.
 
 fig, _ = plot_gsd_outputs(
-    long_trial.data["LowerBack"],
+    long_trial.data_ss,
     reference=long_trial_reference_parameters,
     matlab=long_trial_matlab_output,
     python=long_trial_output.gs_list_,
@@ -146,16 +165,16 @@ fig.show()
 # In this case, we can see that all GSDs are slightly longer and that we now detect a gait sequence that was not
 # detected before.
 
-long_trial_output_modified = GsdIluz(window_length_s=5, window_overlap=0.8).detect(
-    long_trial.data["LowerBack"], sampling_rate_hz=long_trial.sampling_rate_hz
-)
+long_trial_output_modified = GsdIluz(
+    window_length_s=5, window_overlap=0.8
+).detect(long_trial.data_ss, sampling_rate_hz=long_trial.sampling_rate_hz)
 
 print("Reference Parameters:\n\n", long_trial_reference_parameters)
 print("\nPython Output:\n\n", long_trial_output.gs_list_)
 print("\nPython Output Modified:\n\n", long_trial_output_modified.gs_list_)
 
 fig, _ = plot_gsd_outputs(
-    long_trial.data["LowerBack"],
+    long_trial.data_ss,
     reference=long_trial_reference_parameters,
     python=long_trial_output.gs_list_,
     python_modified=long_trial_output_modified.gs_list_,
@@ -163,76 +182,7 @@ fig, _ = plot_gsd_outputs(
 fig.show()
 
 # %%
-# Validation of algorithm output against a reference
+# Evaluation of the algorithm against a reference
 # --------------------------------------------------
-# Let's quantify how the Python output compares to the reference labels.
-# To do this, we use the `categorize_intervals` function to identify overlappting regions between the detected gait
-# sequences and the reference gait sequences.
-
-from mobgap.gsd.evaluation import categorize_intervals
-
-categorized_intervals = categorize_intervals(
-    gsd_list_detected=long_trial_output.gs_list_,
-    gsd_list_reference=long_trial_reference_parameters,
-    n_overall_samples=len(long_trial.data["LowerBack"]),
-)
-
-# %%
-# The function returns a DataFrame containing `start` and `end`  index of the resulting matched intervals together with
-# a `match_type` column that contains the type of match for each interval, i.e. `tp` for true positive, `fp` for false
-# positive, and `fn` for false negative.
-# These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
-# categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), and samples from the reference gsd
-# list that were not detected (`fn`).
-# Note that the true negative intervals are not explicitly calculated, but are inferred from the other intervals
-# and the total length of the data, as everything between them is considered as true negative.
-
-print("Matched Intervals:\n\n", categorized_intervals)
-
-# %%
-# Based on the tp, fp, and fn intervals, common performance metrics such as F1 score, precision,
-# and recall can be calculated.
-# For this purpose, the :func:`~mobgap.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
-# It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
-from mobgap.gsd.evaluation import calculate_matched_gsd_performance_metrics
-
-matched_metrics_dict = calculate_matched_gsd_performance_metrics(categorized_intervals)
-
-print("Matched Performance Metrics:\n\n", matched_metrics_dict)
-
-# %%
-# Furthermore, there is a range of performance metrics that only require the overall amount of gait detected.
-# These metrics can be calculated using the :func:`~mobgap.gsd.evaluation.calculate_unmatched_gsd_performance_metrics`
-# function.
-# It requires specifying the sampling frequency of the recorded data (to calculate the duration errors in seconds)
-# and returns a dictionary containing all metrics for the specified detected and reference gait sequences.
-
-from mobgap.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
-
-unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
-    gsd_list_detected=long_trial_output.gs_list_,
-    gsd_list_reference=long_trial_reference_parameters,
-    sampling_rate_hz=long_trial.sampling_rate_hz,
-)
-
-print("Unmatched Performance Metrics:\n\n", unmatched_metrics_dict)
-
-# %%
-# Another useful function for evaluation is :func:`~mobgap.gsd.evaluation.find_matches_with_min_overlap`.
-# It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
-# given amount.
-# We can see that with an overlap threshold of 0.7 (70%), three of the five detected gait sequences are considered as
-# matches with the reference gait sequences.
-# The remaining ones either contain too many false positive and/or false negative samples.
-#
-# This information can then be used further to compare aggregated parameters from within the respective gait sequences.
-
-from mobgap.gsd.evaluation import find_matches_with_min_overlap
-
-matches = find_matches_with_min_overlap(
-    gsd_list_detected=long_trial_output.gs_list_,
-    gsd_list_reference=long_trial_reference_parameters,
-    overlap_threshold=0.7,
-)
-
-print("Matches:\n\n", matches)
+# To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
+# See the :ref:`example on GSD evaluation <gsd_evaluation>` for more details.

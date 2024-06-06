@@ -26,20 +26,28 @@ from mobgap.pipeline import GsIterator
 
 def load_data():
     """Load example data and extract a single trial for demonstration purposes."""
-    example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")
-    single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
+    example_data = LabExampleDataset(
+        reference_system="INDIP", reference_para_level="wb"
+    )
+    single_test = example_data.get_subset(
+        cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+    )
     return single_test
 
 
 def calculate_icd_ionescu_output(single_test_data):
     """Calculate the ICD Ionescu output for one sensor from the test data."""
-    imu_data = single_test_data.data["LowerBack"]
+    imu_data = single_test_data.data_ss
     sampling_rate_hz = single_test_data.sampling_rate_hz
     reference_wbs = single_test_data.reference_parameters_.wb_list
 
     iterator = GsIterator()
     for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-        result.ic_list = IcdIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+        result.ic_list = (
+            IcdIonescu()
+            .detect(data, sampling_rate_hz=sampling_rate_hz)
+            .ic_list_
+        )
 
     det_ics = iterator.results_.ic_list
     return det_ics
@@ -84,7 +92,9 @@ reference_ics
 # This can be done using the :func:`~mobgap.utils.array_handling.create_multi_groupby` helper function.
 from mobgap.utils.array_handling import create_multi_groupby
 
-per_wb_grouper = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"])
+per_wb_grouper = create_multi_groupby(
+    detected_ics, reference_ics, groupby="wb_id"
+)
 
 # %%
 # The provides us with a groupby object that is similar to the normal pandas groupby object that can be created from a
@@ -113,9 +123,14 @@ tolerance_samples
 # So each of the tuples has the form ``(wb_id, ic_id)``.
 from mobgap.icd.evaluation import categorize_ic_list
 
-matches_per_wb = create_multi_groupby(detected_ics, reference_ics, groupby=["wb_id"]).apply(
+matches_per_wb = create_multi_groupby(
+    detected_ics, reference_ics, groupby="wb_id"
+).apply(
     lambda df1, df2: categorize_ic_list(
-        ic_list_detected=df1, ic_list_reference=df2, tolerance_samples=tolerance_samples, multiindex_warning=False
+        ic_list_detected=df1,
+        ic_list_reference=df2,
+        tolerance_samples=tolerance_samples,
+        multiindex_warning=False,
     )
 )
 matches_per_wb
@@ -127,7 +142,9 @@ matches_per_wb
 # This can be useful if the walking bouts between the two compared systems are not identical or the multiindex has
 # other columns that should not be taken into account for the matching.
 matched_all = categorize_ic_list(
-    ic_list_detected=detected_ics, ic_list_reference=reference_ics, tolerance_samples=tolerance_samples
+    ic_list_detected=detected_ics,
+    ic_list_reference=reference_ics,
+    tolerance_samples=tolerance_samples,
 )
 
 matched_all

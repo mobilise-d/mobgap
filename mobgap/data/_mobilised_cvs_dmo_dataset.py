@@ -1,4 +1,3 @@
-import multiprocessing
 import warnings
 from functools import lru_cache
 from pathlib import Path
@@ -74,7 +73,7 @@ def _create_index(
         dmo_data.index.to_frame()[["visit_type", "participant_id", "measurement_date"]]
         .drop_duplicates()
         .reset_index(drop=True)
-        .astype({"participant_id": "string", "measurement_date": "string"})[
+        .astype({"participant_id": "string", "measurement_date": "string", "visit_type": "string"})[
             ["visit_type", "participant_id", "measurement_date"]
         ]
     )
@@ -93,26 +92,30 @@ def _load_site_pid_map(site_pid_map_path: Path, timezones: dict[SITE_CODES, str]
     return site_data
 
 
+def _map_visit_names(names: pd.Series) -> pd.Series:
+    # We cut all the keys to the same length to make the comparison easier.
+
+    cut_names = names.str[:14]
+    start_with = {
+        "Baseline Visit": "T1",
+        "Follow-up (T2)": "T2",
+        "Follow-up (T3)": "T3",
+        "Follow-up (T4)": "T4",
+        "Follow-up (T5)": "T5",
+        "Follow-up (T6)": "T6",
+        "Unscheduled Vi": "UV",
+    }
+    return cut_names.map(start_with, None)
+
+
 @lru_cache(maxsize=1)
 def _load_pid_mid_map(compliance_report: Path) -> pd.DataFrame:
     return (
         pd.read_excel(compliance_report, sheet_name="compliance")[["participants", "results_id", "visit"]]
         .drop_duplicates()
         .rename(columns={"participants": "participant_id", "visit": "visit_type", "results_id": "measurement_id"})
-        .assign(
-            visit_type=lambda df_: df_["visit_type"].replace(
-                {
-                    "Baseline Visit – daily mobility": "T1",  # noqa: RUF001
-                    "Follow-up (T2) – daily mobility": "T2",  # noqa: RUF001
-                    "Follow-up (T3) – daily mobility": "T3",  # noqa: RUF001
-                    "Follow-up (T4) – daily mobility": "T4",  # noqa: RUF001
-                    "Follow-up (T5) – daily mobility": "T5",  # noqa: RUF001
-                    "Follow-up (T6) – daily mobility": "T6",  # noqa: RUF001
-                    "Unscheduled Visit (--) – daily mobility": "UV",  # noqa: RUF001
-                }
-            )
-        )
-        .astype({"participant_id": "string", "visit_type": "string", "measurement_id": int})
+        .assign(visit_type=lambda df_: _map_visit_names(df_["visit_type"]))
+        .astype({"participant_id": "string", "visit_type": "string", "measurement_id": "int64"})
         .set_index(["participant_id", "visit_type"])
     )
 
@@ -125,7 +128,7 @@ def _load_dmo_data(
         "If you are seeing this message multiple times, you might want to consider using a joblib memory by "
         "passing ``memory=Memory('some/cache/path)`` to the dataset constructor to cache the index creation "
         "between script executions.",
-        stacklevel=2,
+        stacklevel=1,
     )
 
     dmos = [
@@ -347,7 +350,14 @@ class MobilisedCvsDmoDataset(Dataset):
             wear_time = self._calculate_daily_weartime(files)
 
         # Ensure correct dtypes:
-        wear_time = wear_time.astype({"visit_type": "string", "participant_id": "string", "measurement_date": "string"})
+        wear_time = wear_time.astype(
+            {
+                "visit_type": "string",
+                "participant_id": "string",
+                "measurement_date": "string",
+                "measurement_id": "string",
+            }
+        )
 
         # We merge the weartime report with the dataset index to get NaNs for all participants that don't have any
         # weartime data, but are still in the dataset.
@@ -421,7 +431,7 @@ class MobilisedCvsDmoDataset(Dataset):
         results = (
             pd.concat(dict(results), names=["measurement_id", "measurement_date"])
             .reset_index()
-            .astype({"measurement_date": "string", "measurement_id": int})
+            .astype({"measurement_date": "string", "measurement_id": "int64"})
         )
 
         results = results.merge(pid_mid_map, on=["measurement_id"])
@@ -494,17 +504,6 @@ class MobilisedCvsDmoDataset(Dataset):
         return self._get_participant_site_metadata().loc[p_id, "timezone"]
 
     def create_index(self) -> pd.DataFrame:
-        if multiprocessing.parent_process() is None:
-            warnings.warn(
-                "The `MobilisedCvsDmoDataset` class still lacks extensive testing and might not load all data "
-                "as expected. "
-                "It was only tested manually on the DMO data of the T1 study using the newest available McRoberts "
-                "format for weartime reports available in Dec. 2023. "
-                "If you encounter any issues, please report them on GitHub: ",
-                UserWarning,
-                stacklevel=1,
-            )
-
         return hybrid_cache(self.memory, 1)(_create_index)(
             Path(self.dmo_path),
             Path(self.site_pid_map_path),

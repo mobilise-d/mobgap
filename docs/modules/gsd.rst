@@ -15,6 +15,18 @@ Algorithms
    :template: class.rst
 
     GsdIluz
+    GsdIonescu
+    GsdAdaptiveIonescu
+
+Pipelines
++++++++++
+.. currentmodule:: mobgap.gsd
+
+.. autosummary::
+   :toctree: generated/gsd
+   :template: class.rst
+
+    pipeline.GsdEmulationPipeline
 
 Base Classes
 ++++++++++++

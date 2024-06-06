@@ -1,6 +1,6 @@
 """Base classes for all fundamental dataset types."""
 
-from typing import Any, NamedTuple
+from typing import Literal, NamedTuple, TypedDict, Union
 
 import pandas as pd
 from tpcp import Dataset
@@ -24,11 +24,19 @@ base_gait_dataset_docfiller_dict = {
     """,
     "common_dataset_data_attrs": """
     data
-        The raw IMU data.
+        The raw IMU data of all available sensors.
+        This is a dictionary with the sensor name as key and the data as value.
+    data_ss
+        The IMU data of the "single sensor".
+        Compared to ``data``, this is only just the data of a single sensor.
+        Which sensor is considered the "single sensor" might be different for each dataset.
+        Most datasets use a configuration of ``single_sensor_name=...`` to allow the user to select the sensor.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     participant_metadata
-        The participant metadata loaded from the `infoForAlgo.mat` file.
+        General participant metadata. Contains at least the keys listed in class:`~mobgap.base.ParticipantMetadata`.
+    recording_metadata
+        General recording metadata. Contains at least the keys listed in class:`~mobgap.base.RecordingMetadata`.
     """,
     "common_dataset_reference_attrs": """
     reference_parameters_
@@ -84,6 +92,50 @@ class ReferenceData(NamedTuple):
     stride_parameters: pd.DataFrame
 
 
+class ParticipantMetadata(TypedDict):
+    """The required minimal set of meta-data for the algorithms.
+
+    If your dataset has additional metadata, you can subclass this for the type-checking.
+
+    Attributes
+    ----------
+    height_m
+        The height of the participant in meters.
+    sensor_height_m
+        The height of the lower back sensor in meters.
+    cohort
+        The cohort of the participant.
+        If the Mobilise-D data thresholds are used, this should be one of the following:
+        - "HA": Healthy Adult
+        - "MS": Multiple Sclerosis
+        - "PD": Parkinson's Disease
+        - "COPD": Chronic Obstructive Pulmonary Disease
+        - "CHF": Chronic Heart Failure
+        - "PFF": Primary Frailty Fracture
+
+        Otherwise, it can be any string.
+    """
+
+    height_m: float
+    sensor_height_m: float
+    cohort: Union[Literal["HA", "MS", "PD", "COPD", "CHF", "PFF"], str]
+
+
+class RecordingMetadata(TypedDict):
+    """The required minimal set of recording meta-data for the algorithms.
+
+    Attributes
+    ----------
+    measurement_condition
+        The measurement condition of the recording.
+        If Mobilise-D DMO thresholds are used, this should be one of the following:
+        - "laboratory": The recording was done in a laboratory setting.
+        - "free_living": The recording was done in a free-living setting.
+    """
+
+    measurement_condition: Literal["laboratory", "free_living"]
+
+
 @base_gait_dataset_docfiller
 class BaseGaitDataset(Dataset):
     """Basic subclass for all normal gait datasets.
@@ -125,8 +177,10 @@ class BaseGaitDataset(Dataset):
 
     sampling_rate_hz: float
     data: IMU_DATA_DTYPE
-    # TODO: Make that more specific, once we know what metadata is needed for the pipelines
-    participant_metadata: dict[str, Any]
+    data_ss: pd.DataFrame
+    participant_metadata: ParticipantMetadata
+    recording_metadata: RecordingMetadata
+    measurement_condition: Union[Literal["laboratory", "free_living"], str]
 
 
 @base_gait_dataset_docfiller
@@ -157,6 +211,8 @@ class BaseGaitDatasetWithReference(BaseGaitDataset):
 __all__ = [
     "BaseGaitDataset",
     "BaseGaitDatasetWithReference",
+    "ParticipantMetadata",
+    "RecordingMetadata",
     "ReferenceData",
     "IMU_DATA_DTYPE",
     "base_gait_dataset_docfiller",

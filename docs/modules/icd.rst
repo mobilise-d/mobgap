@@ -1,4 +1,4 @@
-Initial Contact Detection (LRD)
+Initial Contact Detection (ICD)
 ===============================
 
 .. automodule:: mobgap.icd
@@ -17,6 +17,27 @@ Algorithms
     IcdShinImproved
     IcdIonescu
     IcdHKLeeImproved
+
+Utils
++++++
+.. currentmodule:: mobgap.icd
+
+.. autosummary::
+   :toctree: generated/icd
+   :template: function.rst
+
+    refine_gs
+
+Evaluation
+++++++++++
+.. currentmodule:: mobgap.icd.evaluation
+
+.. autosummary::
+   :toctree: generated/icd
+   :template: func.rst
+
+    calculate_matched_icd_performance_metrics
+    categorize_ic_list
 
 Base Classes
 ++++++++++++
@@ -41,13 +62,3 @@ Docu-helper
 
     base_icd_docfiller
 
-Evaluation
-++++++++++
-.. currentmodule:: mobgap.icd.evaluation
-
-.. autosummary::
-   :toctree: generated/icd
-   :template: func.rst
-
-    calculate_matched_icd_performance_metrics
-    categorize_ic_list

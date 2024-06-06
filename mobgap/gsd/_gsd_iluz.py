@@ -10,7 +10,7 @@ from typing_extensions import Self, Unpack
 from mobgap.consts import GRAV_MS2
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
+from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.utils.array_handling import sliding_window_view
 
 
@@ -204,7 +204,7 @@ class GsdIluz(BaseGsDetector):
 
         # We shortcut here, if there are no activity windows
         if not activity_windows.any():
-            self.gs_list_ = pd.DataFrame(columns=["start", "end"])
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
             return self
 
         # Convolve the data with sin signal
@@ -267,7 +267,7 @@ class GsdIluz(BaseGsDetector):
         selected_windows_index = np.where(selected_windows)[0]
         # We initialize an empty array with two columns, where each row represents a gsd. First column is the start
         # index, second column is the end index.
-        gs_list = np.empty((len(selected_windows_index), 2), dtype=int)
+        gs_list = np.empty((len(selected_windows_index), 2), dtype="int64")
         # We convert the window indices to sample indices of the original data
         gs_list[:, 0] = selected_windows_index * (window_length_samples - window_overlap_samples)
         # We add one to make the end index inclusive
@@ -284,6 +284,6 @@ class GsdIluz(BaseGsDetector):
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
 
-        self.gs_list_ = gs_list.copy()
+        self.gs_list_ = _unify_gs_df(gs_list.copy())
 
         return self

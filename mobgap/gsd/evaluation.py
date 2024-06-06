@@ -1,6 +1,7 @@
 """Class to validate gait sequence detection results."""
 
-from typing import Any, Optional, Union
+import warnings
+from typing import Any, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,7 +23,7 @@ from mobgap.utils.evaluation import (
 
 
 def calculate_matched_gsd_performance_metrics(
-    matches: pd.DataFrame,
+    matches: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate commonly known performance metrics for based on the matched overlap with the reference.
@@ -65,6 +66,9 @@ def calculate_matched_gsd_performance_metrics(
         A DataFrame as returned by :func:`~mobgap.gsd.evaluation.categorize_intervals`.
         It contains the matched intervals between algorithm output and reference with their `start` and `end` index
         and the respective `match_type`.
+    zero_division : "warn", 0 or 1, default="warn"
+        Sets the value to return when there is a zero division. If set to
+        "warn", this acts as 0, but warnings are also raised.
 
     Returns
     -------
@@ -87,16 +91,16 @@ def calculate_matched_gsd_performance_metrics(
     tn_samples = count_samples_in_match_intervals(matches, match_type="tn")
 
     # estimate performance metrics
-    precision_recall_f1 = precision_recall_f1_score(matches)
+    precision_recall_f1 = precision_recall_f1_score(matches, zero_division=zero_division)
 
     gsd_metrics = {"tp_samples": tp_samples, "fp_samples": fp_samples, "fn_samples": fn_samples, **precision_recall_f1}
 
     # tn-dependent metrics
     if tn_samples != 0:
         gsd_metrics["tn_samples"] = tn_samples
-        gsd_metrics["specificity"] = specificity_score(matches)
-        gsd_metrics["accuracy"] = accuracy_score(matches)
-        gsd_metrics["npv"] = npv_score(matches)
+        gsd_metrics["specificity"] = specificity_score(matches, zero_division=zero_division)
+        gsd_metrics["accuracy"] = accuracy_score(matches, zero_division=zero_division)
+        gsd_metrics["npv"] = npv_score(matches, zero_division=zero_division)
 
     return gsd_metrics
 
@@ -106,6 +110,7 @@ def calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
     sampling_rate_hz: float,
+    zero_division_hint: Union[Literal["warn", "raise"], float] = "warn",
 ) -> dict[str, Union[float, int]]:
     """
     Calculate general performance metrics that don't rely on matching the detected and reference gait sequences.
@@ -138,6 +143,12 @@ def calculate_unmatched_gsd_performance_metrics(
        Should have the same format as `gsd_list_detected`.
     sampling_rate_hz
         Sampling frequency of the recording in Hz.
+    zero_division_hint : "warn", "raise" or np.nan, default="warn"
+        Controls the behavior when there is a zero division. If set to "warn",
+        affected metrics are set to NaN and a warning is raised.
+        If set to "raise", a ZeroDivisionError is raised.
+        If set to `np.nan`, the warning is suppressed and the affected metrics are set to NaN.
+        Zero division can occur if there are no gait sequences in the reference data, i.e., reference_gs_duration_s = 0
 
     Returns
     -------
@@ -151,22 +162,49 @@ def calculate_unmatched_gsd_performance_metrics(
         For categorizing the detected and reference gait sequences on a sample-wise level.
 
     """
-    # estimate duration metrics
+    if sampling_rate_hz <= 0:
+        raise ValueError("The sampling rate must be larger than 0.")
+
+    # estimate basic duratnoch mit Isomatte dazugesellen will sollte kein Problem sein, ion metrics
     reference_gs_duration_s = count_samples_in_intervals(gsd_list_reference) / sampling_rate_hz
     detected_gs_duration_s = count_samples_in_intervals(gsd_list_detected) / sampling_rate_hz
     gs_duration_error_s = detected_gs_duration_s - reference_gs_duration_s
-    gs_relative_duration_error = gs_duration_error_s / reference_gs_duration_s
     gs_absolute_duration_error_s = abs(gs_duration_error_s)
-    gs_absolute_relative_duration_error = gs_absolute_duration_error_s / reference_gs_duration_s
-    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
 
-    # estimate gs count metrics
+    # estimate basic gs count metrics
     detected_num_gs = len(gsd_list_detected)
     reference_num_gs = len(gsd_list_reference)
     num_gs_error = detected_num_gs - reference_num_gs
-    num_gs_relative_error = num_gs_error / reference_num_gs
     num_gs_absolute_error = abs(num_gs_error)
-    num_gs_absolute_relative_error = num_gs_absolute_error / reference_num_gs
+
+    # check if reference gs are present to prevent zero division
+    if reference_gs_duration_s == 0:
+        if zero_division_hint not in ["warn", "raise", np.nan]:
+            raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
+        if zero_division_hint == "raise":
+            raise ZeroDivisionError(
+                "Zero division occurred because no gait sequences were detected in the reference data."
+            )
+        if zero_division_hint == "warn":
+            warnings.warn(
+                "Zero division occurred because no gait sequences were detected in the reference data. "
+                "Affected metrics are set to NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
+        gs_relative_duration_error = np.nan
+        gs_absolute_relative_duration_error = np.nan
+        num_gs_relative_error = np.nan
+        num_gs_absolute_relative_error = np.nan
+    # no zero division, calculate relative metrics
+    else:
+        gs_relative_duration_error = np.array(gs_duration_error_s) / reference_gs_duration_s
+        gs_absolute_relative_duration_error = np.array(gs_absolute_duration_error_s) / reference_gs_duration_s
+        num_gs_relative_error = num_gs_error / np.array(reference_num_gs)
+        num_gs_absolute_relative_error = num_gs_absolute_error / np.array(reference_num_gs)
+
+    # logarithmic relative metrics
+    gs_absolute_relative_duration_error_log = np.log(1 + gs_absolute_relative_duration_error)
     num_gs_absolute_relative_error_log = np.log(1 + num_gs_absolute_relative_error)
 
     gsd_metrics = {
@@ -404,8 +442,12 @@ def find_matches_with_min_overlap(
     Examples
     --------
     >>> from mobgap.gsd.evaluation import find_matches_with_min_overlap
-    >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> reference = pd.DataFrame([[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]).set_index("id")
+    >>> detected = pd.DataFrame(
+    ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
+    ... ).set_index("id")
+    >>> reference = pd.DataFrame(
+    ...     [[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]
+    ... ).set_index("id")
     >>> result = find_matches_with_min_overlap(detected, reference)
        start  end
     id

@@ -11,10 +11,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # TODO: add 3.9 and 3.11 again at some point
-        python-version: ["3.10"]
-        # TODO: windows-latest again at some point
-        os: [ ubuntu-latest ]
+        python-version: ["3.9", "3.10", "3.11"]
+        os: [ ubuntu-latest, windows-latest]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -23,10 +21,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        virtualenvs-create: true
-        virtualenvs-in-project: true
+      run: |  
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry config virtualenvs.in-project true
     - name: Load cached venv
       id: cached-poetry-dependencies
       uses: actions/cache@v3
@@ -40,7 +38,7 @@ jobs:
       run: poetry install --no-interaction --all-extras
     - name: Testing
       run: |
-        poetry run poe test
+        poetry run poe test_ci
     - name: Upload coverage reports to Codecov
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'}}
       uses: codecov/codecov-action@v3
@@ -48,19 +46,22 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.10
       id: setup-python
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
     - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        virtualenvs-create: true
-        virtualenvs-in-project: true
+      run: |  
+        python -m pip install --upgrade pip
+        pip install poetry
+        poetry config virtualenvs.in-project true
     - name: Load cached venv
       id: cached-poetry-dependencies
       uses: actions/cache@v3

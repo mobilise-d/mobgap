@@ -4,6 +4,8 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from pandas.core.dtypes.common import is_float_dtype
+from scipy.interpolate import interp1d
 
 from mobgap.data_transform import HampelFilter
 from mobgap.data_transform.base import BaseFilter
@@ -135,3 +137,75 @@ def robust_step_para_to_sec(
         .mask(n_nan_mask > max_interpolation_gap_s)
     )
     return step_time_per_sec_smooth.to_numpy()
+
+
+def naive_sec_paras_to_regions(
+    region_list: pd.DataFrame, sec_paras: pd.DataFrame, *, sampling_rate_hz: float
+) -> pd.DataFrame:
+    """Map per-second parameters to regions.
+
+    This will map the per-second parameters to the regions specified in the region list.
+    The per-second parameters are then "gap-filled" by linear interpolation.
+    The final per-second parameter is then smoothed again.
+
+    Parameters
+    ----------
+    region_list
+        The list of regions.
+        The dataframe must have a "start" and "end" column specifying the start and end indices of the regions.
+        The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
+    sec_paras
+        The per-second parameter.
+        Must have the same length as the number of seconds in the recording.
+        The index have a level called ``sec_center_samples`` that contains the center of the second in samples for each
+        row.
+    sampling_rate_hz
+        The sampling rate of the recording in Hz.
+        This is required to calculate the maximum extrapolation range.
+
+    Returns
+    -------
+    region_list_with_paras
+        The region list with all columns from ``sec_paras`` interpolated to seconds added to it.
+
+    """
+    if region_list.empty:
+        return region_list.reindex(columns=[*region_list.columns, *sec_paras.columns])
+
+    if sec_paras.empty:
+        # If no second parameters are available, we return NaNs for all regions
+        return pd.concat([region_list, pd.DataFrame(index=region_list.index, columns=sec_paras.columns)], axis=1)
+
+    if non_float_dtypes := [k for k, v in sec_paras.dtypes.items() if not is_float_dtype(v)]:
+        raise ValueError(
+            f"The following columns of sec_paras are not of float dytpe: {non_float_dtypes}. "
+            "Cast to float dtype before interpolation."
+        )
+    region_start_end = region_list[["start", "end"]].to_numpy().T
+    sec_index = sec_paras.index.get_level_values("sec_center_samples").to_numpy()
+    sec_values = sec_paras.to_numpy()
+    # We use an interpolation trick here.
+    # By integrating (cumsum) the values and then using linear interpolation, we can get the average
+    # value per region, even if the region is not exactly aligned with the second.
+    # We will basically linear interpolate between the second values.
+    # For this we need to shift the second values, so that they mark the end and not the start of the second.
+    sec_index = sec_index + sampling_rate_hz * 0.5
+    # The problem is, that the approach does not work when we have only a single second or regions that start in the
+    # second before the first value.
+    # Hence, we pad the left edge.
+    sec_values = np.pad(sec_values, ((1, 0), (0, 0)), mode="edge")
+    sec_index = np.pad(sec_index, (1, 0), mode="constant", constant_values=(sec_index[0] - sampling_rate_hz))
+    inter_vals = interp1d(
+        sec_index,
+        np.cumsum(sec_values, axis=0) * sampling_rate_hz,
+        axis=0,
+    )(region_start_end)
+    # This gives us the values for all start and end values. The shape is (2, n_regions, n_columns)
+    # We can now calculate the mean per region by subtracting the values at the start from the values at the end and
+    # dividing by the duration of the region.
+    mean_per_region = np.diff(inter_vals, axis=0)[0] / np.diff(region_start_end, axis=0)[0][:, None]
+
+    mean_per_region = pd.DataFrame(mean_per_region, columns=sec_paras.columns, index=region_list.index).astype(
+        sec_paras.dtypes
+    )
+    return pd.concat([region_list, mean_per_region], axis=1)

@@ -11,7 +11,7 @@ from mobgap.utils.evaluation import precision_recall_f1_score
 
 
 def calculate_matched_icd_performance_metrics(
-    matches: pd.DataFrame,
+    matches: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] = "warn"
 ) -> dict[str, Union[float, int]]:
     """
     Calculate performance metrics for initial contact detection results.
@@ -38,6 +38,9 @@ def calculate_matched_icd_performance_metrics(
     matches: pd.DataFrame
         A dataframe containing the matches between detected and reference initial contacts as output
         by :func:`~mobgap.icd.evaluation.evaluate_initial_contact_list`.
+    zero_division : "warn", 0 or 1, default="warn"
+        Sets the value to return when there is a zero division. If set to
+        "warn", this acts as 0, but warnings are also raised.
 
     Returns
     -------
@@ -57,7 +60,7 @@ def calculate_matched_icd_performance_metrics(
     fn_samples = len(matches[matches["match_type"] == "fn"])
 
     # estimate performance metrics
-    precision_recall_f1 = precision_recall_f1_score(matches)
+    precision_recall_f1 = precision_recall_f1_score(matches, zero_division=zero_division)
 
     icd_metrics = {
         "tp_samples": tp_samples,
@@ -138,9 +141,17 @@ def categorize_ic_list(
 
     Examples
     --------
-    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis("ic_id")
-    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis("ic_id")
-    >>> result = categorize_ic_list(ic_list_detected=ic_detected, ic_list_reference=ic_reference, tolerance_samples=2)
+    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis(
+    ...     "ic_id"
+    ... )
+    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis(
+    ...     "ic_id"
+    ... )
+    >>> result = categorize_ic_list(
+    ...     ic_list_detected=ic_detected,
+    ...     ic_list_reference=ic_reference,
+    ...     tolerance_samples=2,
+    ... )
     >>> result
       ic_id_detected ic_id_reference match_type
     0    0                 0         tp

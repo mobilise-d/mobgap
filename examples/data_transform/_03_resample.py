@@ -11,7 +11,6 @@ Below we show how to apply the method.
 """
 
 import matplotlib.pyplot as plt
-
 from mobgap.data import LabExampleDataset
 from mobgap.data_transform import Resample
 
@@ -20,8 +19,10 @@ from mobgap.data_transform import Resample
 # -------------------------
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
-single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
-data = single_test.data["LowerBack"]
+single_test = ha_example_data.get_subset(
+    participant_id="002", test="Test5", trial="Trial2"
+)
+data = single_test.data_ss
 
 data.head()
 
@@ -34,7 +35,9 @@ resampler = Resample(target_sampling_rate)
 
 # %%
 # Then we can perform the resampling operation by calling the transform method
-resampled = resampler.transform(data, sampling_rate_hz=single_test.sampling_rate_hz)
+resampled = resampler.transform(
+    data, sampling_rate_hz=single_test.sampling_rate_hz
+)
 
 # %%
 # The results can be accessed via the transformed_data_ attribute.

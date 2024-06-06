@@ -39,7 +39,8 @@
             },
             {
                 "name":"termination_reason",
-                "type":"string"
+                "type":"any",
+                "extDtype":"string"
             }
         ],
         "primaryKey":[
@@ -49,7 +50,7 @@
     },
     "data":[
         {
-            "wb_id":1,
+            "wb_id":0,
             "start":227,
             "end":539,
             "n_strides":4,

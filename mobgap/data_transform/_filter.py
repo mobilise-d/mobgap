@@ -94,7 +94,9 @@ class EpflDedriftedGaitFilter(BaseFilter):
 
     .. code-block:: python
 
-        dedrifted_data = EpflDedriftFilter().filter(data, sampling_rate_hz=40.0).filtered_data_
+        dedrifted_data = (
+            EpflDedriftFilter().filter(data, sampling_rate_hz=40.0).filtered_data_
+        )
         result = EpflGaitFilter().filter(dedrifted_data, sampling_rate_hz=40.0)
 
     .. warning::

@@ -9,6 +9,7 @@ from typing import (
     Literal,
     NamedTuple,
     Optional,
+    TypedDict,
     TypeVar,
     Union,
 )
@@ -19,7 +20,13 @@ import pandas as pd
 import scipy.io as sio
 
 from mobgap._docutils import make_filldoc
-from mobgap.data.base import BaseGaitDatasetWithReference, ReferenceData, base_gait_dataset_docfiller_dict
+from mobgap.data.base import (
+    BaseGaitDatasetWithReference,
+    ParticipantMetadata,
+    RecordingMetadata,
+    ReferenceData,
+    base_gait_dataset_docfiller_dict,
+)
 
 T = TypeVar("T")
 
@@ -33,12 +40,18 @@ matlab_dataset_docfiller = make_filldoc(
         Which sensor to load the raw data for. One of "SU", "INDIP", "INDIP2".
         SU is usually the "normal" lower back sensor.
         INDIP and INDIP2 are only available under special circumstances for the Mobilise-D TVS data.
+        Note, that we don't support loading multiple sensors at once.
     reference_system
         When specified, reference gait parameters are loaded using the specified reference system.
     sensor_positions
         Which sensor positions to load the raw data for.
         For "SU", only "LowerBack" is available, but for other sensors, more positions might be available.
         If a sensor position is not available, an error is raised.
+    single_sensor_position
+        The sensor position that is considered the "single sensor".
+        This is the sensor that you expect to be the input to all pipelines and algorithms.
+        For most Mobilise-d datasets, this should be kept at "LowerBack".
+        But, we support using other sensors as well.
     sensor_types
         Which sensor types to load the raw data for.
         This can be used to reduce the amount of data loaded, if only e.g. acc and gyr data is required.
@@ -74,10 +87,58 @@ matlab_dataset_docfiller = make_filldoc(
 )
 
 
-class MobilisedMetadata(NamedTuple):
+class MobilisedParticipantMetadata(ParticipantMetadata):
+    """Participant metadata for the Mobilise-D dataset.
+
+    This is a subclass of :class:`~ParticipantMetadata` and adds some additional fields that are specific to the
+    Mobilise-D dataset.
+
+    Attributes
+    ----------
+    height_m
+        The height of the participant in meters.
+    sensor_height_m
+        The height of the lower back sensor in meters.
+    cohort
+        The cohort of the participant.
+        One of:
+        - "HA": Healthy Adult
+        - "MS": Multiple Sclerosis
+        - "PD": Parkinson's Disease
+        - "COPD": Chronic Obstructive Pulmonary Disease
+        - "CHF": Chronic Heart Failure
+        - "PFF": Primary Frailty Fracture
+    foot_size_eu
+        The foot size of the participant in EU sizes.
+    weight_kg
+        The weight of the participant in kg.
+    handedness
+        The handedness of the participant.
+        Either "left" or "right".
+    indip_data_used
+        Whether all INDIP data was used, or just partial data, as some sensors failed.
+    sensor_attachment_su
+        Where and how the SU was attached
+    sensor_type_su
+        The type of SU used (usually MM+ or AX6)
+    walking_aid_used
+        Whether a walking aid was used during the test.
+
+    """
+
+    foot_size_eu: float
+    weight_kg: float
+    handedness: Optional[Literal["left", "right"]]
+    indip_data_used: str
+    sensor_attachment_su: str
+    sensor_type_su: str
+    walking_aid_used: Optional[bool]
+
+
+class PartialMobilisedMetadata(TypedDict):
     """Metadata of each individual test/recording.
 
-    Parameters
+    Attributes
     ----------
     start_date_time_iso
         The start date and time of the test in ISO format.
@@ -96,6 +157,30 @@ class MobilisedMetadata(NamedTuple):
     time_zone: str
     sampling_rate_hz: Optional[float]
     reference_sampling_rate_hz: Optional[float]
+
+
+class MobilisedMetadata(PartialMobilisedMetadata, RecordingMetadata):
+    """Metadata of each individual test/recording.
+
+    Attributes
+    ----------
+    measurement_condition
+        The measurement condition of the test (e.g. "laboratory" or "free_living").
+    start_date_time_iso
+        The start date and time of the test in ISO format.
+    time_zone
+        The time zone of the test (e.g. "Europe/Berlin").
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+        None, if no IMU data is available or loaded.
+    reference_sampling_rate_hz
+        The sampling rate of the reference data in Hz.
+        None, if no reference data is available or loaded.
+    recording_identifier
+        A tuple with the measurement, test, trial name
+    """
+
+    recording_identifier: tuple[str, ...]
 
 
 class MobilisedTestData(NamedTuple):
@@ -120,10 +205,12 @@ class MobilisedTestData(NamedTuple):
 
     imu_data: Optional[dict[str, pd.DataFrame]]
     raw_reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
-    metadata: MobilisedMetadata
+    metadata: PartialMobilisedMetadata
 
 
-def load_mobilised_participant_metadata_file(path: PathLike) -> dict[str, dict[str, Any]]:
+def load_mobilised_participant_metadata_file(
+    path: PathLike,
+) -> dict[str, dict[str, Any]]:
     """Load the participant metadata file (usually called infoForAlgo.mat).
 
     This file contains various metadata about the participant and the measurement setup.
@@ -225,7 +312,9 @@ def load_mobilised_matlab_format(
 
 
 def _parse_until_test_level(
-    data: sio.matlab.mat_struct, test_level_marker: Sequence[str], _parent_key: tuple[str, ...] = ()
+    data: sio.matlab.mat_struct,
+    test_level_marker: Sequence[str],
+    _parent_key: tuple[str, ...] = (),
 ) -> Iterator[tuple[tuple[str, ...], sio.matlab.mat_struct]]:
     # If one of the test level markers is in the field names, we reached the level of a test.
     if any(marker in data._fieldnames for marker in test_level_marker):
@@ -347,12 +436,15 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
         meta_data["reference_sampling_rate_hz"] = None
 
     return MobilisedTestData(
-        imu_data=all_imu_data, raw_reference_parameters=reference_data, metadata=MobilisedMetadata(**meta_data)
+        imu_data=all_imu_data,
+        raw_reference_parameters=reference_data,
+        metadata=PartialMobilisedMetadata(**meta_data),
     )
 
 
 def _parse_single_sensor_data(
-    sensor_data: sio.matlab.mat_struct, sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    sensor_data: sio.matlab.mat_struct,
+    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
 ) -> pd.DataFrame:
     parsed_data = []
     for sensor_type in sensor_types:
@@ -405,7 +497,7 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
-def parse_reference_parameters(
+def parse_reference_parameters(  # noqa: C901, PLR0915
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
     *,
     ref_sampling_rate_hz: float,
@@ -468,7 +560,69 @@ def parse_reference_parameters(
     turn_paras = []
     stride_paras = []
 
-    for wb_id, wb in enumerate(ref_data, start=1):
+    wb_df_dtypes = {
+        "wb_id": "int64",
+        "start": "int64",
+        "end": "int64",
+        "n_strides": "int64",
+        "duration_s": "float64",
+        "length_m": "float64",
+        "avg_speed_mps": "float64",
+        "avg_cadence_spm": "float64",
+        "avg_stride_length_m": "float64",
+        "termination_reason": "string",
+    }
+
+    ic_df_dtypes = {
+        "wb_id": "int64",
+        "step_id": "int64",
+        "ic": "int64",
+        "lr_label": pd.CategoricalDtype(categories=["left", "right"]),
+    }
+
+    turn_df_dtypes = {
+        "wb_id": "int64",
+        "turn_id": "int64",
+        "start": "int64",
+        "end": "int64",
+        "duration_s": "float64",
+        "angle_deg": "float64",
+        "direction": pd.CategoricalDtype(categories=["left", "right"]),
+    }
+
+    stride_df_dtypes = {
+        "wb_id": "int64",
+        "s_id": "int64",
+        "start": "int64",
+        "end": "int64",
+        "duration_s": "float64",
+        "length_m": "float64",
+        "speed_mps": "float64",
+        "stance_time_s": "float64",
+        "swing_time_s": "float64",
+    }
+
+    def _unify_wb_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.astype(wb_df_dtypes).set_index("wb_id")
+
+    def _unify_ic_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.astype(ic_df_dtypes).set_index(["wb_id", "step_id"])
+
+    def _unify_turn_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.astype(turn_df_dtypes).set_index(["wb_id", "turn_id"])
+
+    def _unify_stride_df(df: pd.DataFrame) -> pd.DataFrame:
+        return df.astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
+
+    if len(ref_data) == 0:
+        return ReferenceData(
+            _unify_wb_df(pd.DataFrame(columns=list(wb_df_dtypes.keys()))),
+            _unify_ic_df(pd.DataFrame(columns=list(ic_df_dtypes.keys()))),
+            _unify_turn_df(pd.DataFrame(columns=list(turn_df_dtypes.keys()))),
+            _unify_stride_df(pd.DataFrame(columns=list(stride_df_dtypes.keys()))),
+        )
+
+    for wb_id, wb in enumerate(ref_data):
         walking_bouts.append(
             {
                 "wb_id": wb_id,
@@ -489,6 +643,7 @@ def parse_reference_parameters(
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(ic_vals),
+                    "step_id": np.arange(0, len(ic_vals)),
                     "ic": ic_vals,
                     "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
                 }
@@ -499,6 +654,7 @@ def parse_reference_parameters(
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(turn_starts),
+                    "turn_id": np.arange(0, len(turn_starts)),
                     "start": turn_starts,
                     "end": _ensure_is_list(wb["Turn_End"]),
                     "duration_s": _ensure_is_list(wb["Turn_Duration"]),
@@ -511,32 +667,54 @@ def parse_reference_parameters(
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(starts),
+                    "s_id": np.arange(0, len(starts)),
                     "start": starts,
                     "end": ends,
-                    "duration_s": _ensure_is_list(wb["Stride_Duration"]),
-                    "length_m": _ensure_is_list(wb["Stride_Length"]),
-                    "speed_mps": _ensure_is_list(wb["Stride_Speed"]),
-                    "stance_time_s": _ensure_is_list(wb["Stance_Duration"]),
-                    "swing_time_s": _ensure_is_list(wb["Swing_Duration"]),
+                    # For some reason, the matlab files contains empty arrays to signal a "missing" value in the data
+                    # columns for the Stereo-photo system. We replace them with NaN using `to_numeric`.
+                    "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
+                    "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
+                    "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),
+                    "stance_time_s": pd.to_numeric(_ensure_is_list(wb["Stance_Duration"])),
+                    "swing_time_s": pd.to_numeric(_ensure_is_list(wb["Swing_Duration"])),
                 }
             )
         )
 
-    walking_bouts = pd.DataFrame.from_records(walking_bouts).set_index("wb_id")
-    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
+    walking_bouts = pd.DataFrame.from_records(walking_bouts)
+    # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
+    # columns for the Stereiphoto system. We replace them with NaN using `to_numeric`.
+    for col in [
+        "n_strides",
+        "duration_s",
+        "n_strides",
+        "duration_s",
+        "length_m",
+        "avg_speed_mps",
+        "avg_cadence_spm",
+        "avg_stride_length_m",
+    ]:
+        walking_bouts[col] = pd.to_numeric(walking_bouts[col])
+    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round()
+
+    walking_bouts = walking_bouts.replace(np.array([]), np.nan)
+    walking_bouts = _unify_wb_df(walking_bouts)
 
     ics = pd.concat(ics, ignore_index=True)
     ics_is_na = ics["ic"].isna()
     ics = ics[~ics_is_na].drop_duplicates()
-    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round().astype(int)
-    ics.index.name = "step_id"
-    ics = ics.reset_index().set_index(["wb_id", "step_id"])
     # make left-right labels lowercase
     ics["lr_label"] = ics["lr_label"].str.lower()
+    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
+    ics = _unify_ic_df(ics)
 
-    turn_paras = pd.concat(turn_paras, ignore_index=True)
-    turn_paras.index.name = "turn_id"
-    turn_paras = turn_paras.reset_index().set_index(["wb_id", "turn_id"])
+    turn_paras = (
+        pd.concat(turn_paras, ignore_index=True)
+        .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
+        .replace({"direction": {1: "left", -1: "right"}})
+    )
+    turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
+    turn_paras = _unify_turn_df(turn_paras)
 
     stride_paras = pd.concat(stride_paras, ignore_index=True)
     stride_ics_is_na = stride_paras[["start", "end"]].isna().any(axis=1)
@@ -551,12 +729,14 @@ def parse_reference_parameters(
     # For the INDIP system, that shouldn't matter, as the sampling rates are the same, but hey you can never be too
     # safe.
     assume_stride_paras_in_samples = (
-        (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype(int)
+        (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
     )
     # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
     # parameters are also in seconds not in samples.
     if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
-        stride_paras[["start", "end"]] = (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype(int)
+        stride_paras[["start", "end"]] = (
+            (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
+        )
         # We check again, just to be sure and if they are still not there, we throw an error.
         if not stride_paras["start"].isin(ics["ic"]).all():
             raise ValueError(
@@ -566,7 +746,7 @@ def parse_reference_parameters(
             )
     else:
         stride_paras[["start", "end"]] = (
-            (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype(int)
+            (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
         )
 
     # We also get the correct LR-label for the stride parameters from the ICs.
@@ -583,8 +763,7 @@ def parse_reference_parameters(
             stacklevel=2,
         )
     stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
-    stride_paras.index.name = "s_id"
-    stride_paras = stride_paras.reset_index().set_index(["wb_id", "s_id"])
+    stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.
     # We need to fix 2 things:
@@ -610,7 +789,11 @@ def parse_reference_parameters(
 
 
 def _relative_to_gs(
-    event_data: pd.DataFrame, gait_sequences: pd.DataFrame, gs_index_col: str, *, columns_to_cut: Sequence[str]
+    event_data: pd.DataFrame,
+    gait_sequences: pd.DataFrame,
+    gs_index_col: str,
+    *,
+    columns_to_cut: Sequence[str],
 ) -> pd.DataFrame:
     """Convert the start and end values or event values to values relative to the start of GSs or WBs.
 
@@ -669,6 +852,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     reference_system: Optional[Literal["INDIP", "Stereophoto"]]
     reference_para_level: Literal["wb", "lwb"]
     sensor_positions: Sequence[str]
+    single_sensor_position: str
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
     memory: joblib.Memory
 
@@ -679,6 +863,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
         sensor_positions: Sequence[str] = ("LowerBack",),
+        single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
         missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
         memory: joblib.Memory = joblib.Memory(None),
@@ -689,6 +874,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         self.reference_system = reference_system
         self.reference_para_level = reference_para_level
         self.sensor_positions = sensor_positions
+        self.single_sensor_position = single_sensor_position
         self.sensor_types = sensor_types
         self.memory = memory
         self.missing_sensor_error_type = missing_sensor_error_type
@@ -723,6 +909,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         return self._load_selected_data("data").imu_data
 
     @property
+    def data_ss(self) -> pd.DataFrame:
+        return self.data[self.single_sensor_position]
+
+    @property
     def raw_reference_parameters_(self) -> MobilisedTestData.raw_reference_parameters:
         if self.reference_system is None:
             raise ValueError(
@@ -752,18 +942,28 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
     @property
     def sampling_rate_hz(self) -> float:
-        return self._load_selected_data("sampling_rate_hz").metadata.sampling_rate_hz
+        return self._load_selected_data("sampling_rate_hz").metadata["sampling_rate_hz"]
 
     @property
     def reference_sampling_rate_hz_(self) -> float:
-        return self._load_selected_data("reference_sampling_rate_hz_").metadata.reference_sampling_rate_hz
+        return self._load_selected_data("reference_sampling_rate_hz_").metadata["reference_sampling_rate_hz"]
+
+    def _get_measurement_condition(self) -> str:
+        """Return the measurement condition for a single file."""
+        raise NotImplementedError
 
     @property
-    def metadata(self) -> MobilisedMetadata:
-        return self._load_selected_data("metadata").metadata
+    def recording_metadata(self) -> MobilisedMetadata:
+        self.assert_is_single(None, "recording_metadata")
+        recording_identifier = tuple(getattr(self.group_label, s) for s in self._test_level_names)
+        return {
+            **self._load_selected_data("metadata").metadata,
+            "measurement_condition": self._get_measurement_condition(),
+            "recording_identifier": recording_identifier,
+        }
 
     @property
-    def participant_metadata(self) -> dict[str, Any]:
+    def participant_metadata(self) -> MobilisedParticipantMetadata:
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
         info_for_algo_file = self.selected_meta_data_file
 
@@ -771,10 +971,25 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         first_level_selected_test_name = self.index.iloc[0][next(iter(self._test_level_names))]
 
-        return participant_metadata[first_level_selected_test_name]
+        meta_data = participant_metadata[first_level_selected_test_name]
+        final_dict: MobilisedParticipantMetadata = {
+            "sensor_height_m": meta_data["SensorHeight"] / 100,
+            "height_m": meta_data["Height"] / 100,
+            "weight_kg": meta_data["Weight"],
+            "cohort": self.group_label.cohort,
+            "handedness": {"L": "left", "R": "right"}.get(meta_data["Handedness"], None),
+            "foot_size_eu": meta_data["FootSize"],
+            "indip_data_used": meta_data["INDIP_DataUsed"],
+            "sensor_attachment_su": meta_data["SensorAttachment_SU"],
+            "sensor_type_su": meta_data["SensorType_SU"],
+            "walking_aid_used": {0: False, 1: True}.get(int(meta_data["WalkingAid_01"]), None),
+        }
+        return final_dict
 
     @property
-    def _cached_data_load(self) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
+    def _cached_data_load(
+        self,
+    ) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
         return partial(
             self.memory.cache(load_mobilised_matlab_format),
             raw_data_sensor=self.raw_data_sensor,
@@ -846,7 +1061,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             return None
 
         metadata_per_level = [
-            {"__path": path, **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path)))}
+            {
+                "__path": path,
+                **dict(zip(self._metadata_level_names, self._get_file_index_metadata(path))),
+            }
             for path in self._paths_list
         ]
         metadata_per_level = pd.DataFrame.from_records(metadata_per_level).set_index("__path")
@@ -929,6 +1147,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         Usually, this will be something like ("TimeMeasure", "Test", "Trial").
         The number of levels can vary between datasets.
         For typically Mobilise-D datasets, check the ``COMMON_TEST_LEVEL_NAMES`` class variable.
+    measurement_condition
+        Whether the data was recorded under laboratory or free-living conditions.
+        At the moment, we only support creating datasets with a single measurement condition.
     parent_folders_as_metadata
         When multiple data files are provided, you need metadata to distinguish them.
         This class implementation expects the names of the parend folder(s) to be used as metadata.
@@ -964,6 +1185,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     paths_list: Union[PathLike, Sequence[PathLike]]
     test_level_names: Sequence[str]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
+    measurement_condition: Literal["laboratory", "free_living"]
 
     COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
@@ -976,6 +1198,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         test_level_names: Sequence[str],
         parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
+        measurement_condition: Literal["laboratory", "free_living"],
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
@@ -989,6 +1212,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         self.paths_list = paths_list
         self.test_level_names = test_level_names
         self.parent_folders_as_metadata = parent_folders_as_metadata
+        self.measurement_condition = measurement_condition
         super().__init__(
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
@@ -1021,6 +1245,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     @property
     def _test_level_names(self) -> tuple[str, ...]:
         return tuple(self.test_level_names)
+
+    def _get_measurement_condition(self) -> str:
+        return self.measurement_condition
 
     @property
     def _metadata_level_names(self) -> Optional[tuple[str, ...]]:

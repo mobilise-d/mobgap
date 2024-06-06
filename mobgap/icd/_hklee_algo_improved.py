@@ -209,7 +209,9 @@ class IcdHKLeeImproved(BaseIcDetector):
         self.ic_list_internal_ = final_detected_ics
 
         # Downsample initial contacts to original sampling rate
-        ic_downsampled = (final_detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype(int)
+        ic_downsampled = (
+            (final_detected_ics * sampling_rate_hz / self._UPSAMPLED_SAMPLING_RATE_HZ).round().astype("int64")
+        )
 
         self.ic_list_ = ic_downsampled
 
@@ -250,7 +252,9 @@ def groupfind(bool_array: np.ndarray) -> np.ndarray:
 
     nonzero = np.where(bool_array)[0]  # Find non-zeros
     endzero = np.where(np.diff(nonzero) > 1)[0]  # Find end of non-zero groups
-    seq = np.zeros((len(endzero) + 1, 2), dtype=int)  # Initializing array (+1 because last sequence is not calculated))
+    seq = np.zeros(
+        (len(endzero) + 1, 2), dtype="int64"
+    )  # Initializing array (+1 because last sequence is not calculated))
     seq[:, 1] = nonzero[np.append(endzero, -1)]  # End
     seq[:, 0] = nonzero[np.insert(endzero, 0, -1) + 1]  # Start
     seq = seq[seq[:, 1] - seq[:, 0] != 0]

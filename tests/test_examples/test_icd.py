@@ -24,9 +24,7 @@ def test_icd_hklee_improved(snapshot):
 
 
 def test_icd_evaluation(snapshot):
-    from examples.icd._04_icd_evaluation import detected_ics, matches_per_wb, metrics_all, reference_ics
+    from examples.icd._04_icd_evaluation import matches_per_wb, metrics_all
 
-    snapshot.assert_match(detected_ics, "detected_ics")
-    snapshot.assert_match(reference_ics, "reference_ics")
     snapshot.assert_match(matches_per_wb, "matches")
     snapshot.assert_match(pd.DataFrame(metrics_all, index=[0]), "metrics")

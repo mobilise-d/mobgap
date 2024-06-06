@@ -26,8 +26,10 @@ But first, we need to load some example data.
 from mobgap.data import LabExampleDataset
 
 dataset = LabExampleDataset(reference_system="INDIP")
-datapoint = dataset.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
-data = datapoint.data["LowerBack"]
+datapoint = dataset.get_subset(
+    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+)
+data = datapoint.data_ss
 data
 
 # %%
@@ -78,7 +80,10 @@ gs_iterator.data_type
 # The latter can be used to index other aspects of the reference data.
 for (wb, data_per_wb), result in gs_iterator.iterate(data, ref_walking_bouts):
     print("GS/WB id: ", wb.id)
-    print("Expected N-samples in wb: ", ref_walking_bouts.loc[wb.id].end - ref_walking_bouts.loc[wb.id].start)
+    print(
+        "Expected N-samples in wb: ",
+        ref_walking_bouts.loc[wb.id].end - ref_walking_bouts.loc[wb.id].start,
+    )
     print("N-samples in wb: ", len(data_per_wb))
 
     # We can use the wb.id to get the reference initial contacts that belong to this GS/WB

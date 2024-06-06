@@ -7,7 +7,8 @@
             },
             {
                 "name":"visit_type",
-                "type":"string"
+                "type":"any",
+                "extDtype":"string"
             },
             {
                 "name":"participant_id",

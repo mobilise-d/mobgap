@@ -193,7 +193,7 @@ sphinx_gallery_conf = {
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
     "doc_module": ("mobgap",),
-    "filename_pattern": re.escape(os.sep),
+    "filename_pattern": r"^(?!.*_no_exc\.py$).*\.py$",  # ignore files with _no_exc
     "remove_config_comments": True,
     "show_memory": True,
     "subsection_order": ExplicitOrder(
@@ -201,8 +201,9 @@ sphinx_gallery_conf = {
             "../examples/data",
             "../examples/gsd",
             "../examples/icd",
-            "../examples/lrd",
+            "../examples/lrc",
             "../examples/cad",
+            "../examples/turning",
             "../examples/wba",
             "../examples/aggregation",
             "../examples/pipeline",
@@ -218,5 +219,5 @@ from sphinxext.githublink import make_linkcode_resolve
 
 linkcode_resolve = make_linkcode_resolve(
     "mobgap",
-    "https://github.com/orgs/mobilise-d/mobgap/blob/{revision}/{package}/{path}#L{lineno}",
+    "https://github.com/mobilise-d/mobgap/blob/{revision}/{package}/{path}#L{lineno}",
 )

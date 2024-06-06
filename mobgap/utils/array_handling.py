@@ -61,15 +61,16 @@ def sliding_window_view(data: np.ndarray, window_size_samples: int, overlap_samp
     return view
 
 
-def _loc_with_empty_fallback(df: pd.DataFrame, name: Any) -> pd.DataFrame:
+def _get_group_with_empty_fallback(
+    group: pd.core.groupby.DataFrameGroupBy, original_df: pd.DataFrame, name: Any
+) -> pd.DataFrame:
     try:
-        return df.loc[name]
+        return group.get_group(name)
     except KeyError:
         # We return a frame that has the same columns as the original, but no rows.
         # We also replicate the index, just without any rows.
-
-        index = df.index[:0]
-        return pd.DataFrame(columns=df.columns, index=index)
+        index = original_df.index[:0]
+        return pd.DataFrame(columns=original_df.columns, index=index)
 
 
 class MultiGroupBy:
@@ -83,33 +84,28 @@ class MultiGroupBy:
     """
 
     _primary_groupby: pd.core.groupby.DataFrameGroupBy
+    _secondary_groupbys: list[pd.core.groupby.DataFrameGroupBy]
+    _kwargs: dict[str, Any]
 
     def __init__(
         self,
         primary_df: pd.DataFrame,
         secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
         groupby: Union[str, list[str]],
+        **kwargs: Unpack[dict[str, Any]],
     ) -> None:
+        groupby_as_list = [groupby] if isinstance(groupby, str) else groupby
+        self._kwargs = kwargs
+
+        primary_index_cols = primary_df.index.names
+        if not set(groupby_as_list).issubset(primary_index_cols):
+            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
+
         self.primary_df = primary_df
         self.secondary_dfs = secondary_dfs
         if not isinstance(secondary_dfs, list):
             self.secondary_dfs = [secondary_dfs]
         self.groupby = groupby
-        if isinstance(groupby, str):
-            self.groupby = [groupby]
-
-        # For the approach to work, all dfs need to have the same index columns with the `level` columns as the first
-        # index levels.
-        primary_index_cols = primary_df.index.names
-        if not set(self.groupby).issubset(primary_index_cols):
-            raise ValueError("All `groupby` columns need to be in the index of all dataframes.")
-        primary_index_cols_reorderd = [
-            *self.groupby,
-            *[col for col in primary_index_cols if col not in groupby],
-        ]
-
-        self.primary_df = primary_df.reorder_levels(primary_index_cols_reorderd)
-        self.secondary_dfs = [df.reorder_levels(primary_index_cols_reorderd) for df in self.secondary_dfs]
 
     @property
     def primary_groupby(self) -> pd.core.groupby.DataFrameGroupBy:
@@ -118,11 +114,23 @@ class MultiGroupBy:
         This is the grouper created from the primary dataframe.
         """
         if not hasattr(self, "_primary_groupby"):
-            self._primary_groupby = self.primary_df.groupby(level=self.groupby)
+            self._primary_groupby = self.primary_df.groupby(level=self.groupby, **self._kwargs)
         return self._primary_groupby
 
+    @property
+    def secondary_groupbys(self) -> list[pd.core.groupby.DataFrameGroupBy]:
+        """The secondary groupby objects.
+
+        These are the groupers created from the secondary dataframes.
+        """
+        if not hasattr(self, "_secondary_groupbys"):
+            self._secondary_groupbys = [df.groupby(level=self.groupby, **self._kwargs) for df in self.secondary_dfs]
+        return self._secondary_groupbys
+
     def _get_secondary_vals(self, name: Union[str, tuple[str, ...]]) -> list[pd.DataFrame]:
-        return [_loc_with_empty_fallback(df, [name]) for df in self.secondary_dfs]
+        return [
+            _get_group_with_empty_fallback(g, df, name) for g, df in zip(self.secondary_groupbys, self.secondary_dfs)
+        ]
 
     def get_group(self, name: Union[str, tuple[str, ...]]) -> tuple[pd.DataFrame, ...]:
         """Get an individual group by name.
@@ -131,8 +139,7 @@ class MultiGroupBy:
         -------
         A tuple containing the groups from each dataframe.
         """
-        return_val = self.primary_groupby.get_group(name), *self._get_secondary_vals(name)
-        return return_val
+        return self.primary_groupby.get_group(name), *self._get_secondary_vals(name)
 
     @property
     def groups(
@@ -154,7 +161,7 @@ class MultiGroupBy:
         self,
     ) -> Iterator[tuple[Union[str, tuple[str, ...]], tuple[pd.DataFrame, ...]]]:
         """Iterate over the groups and return a tuple with the group name and the group dataframes."""
-        return ((name, self.get_group(name)) for name, group in self.primary_groupby)
+        return ((name, self.get_group(name)) for name, _ in self.primary_groupby)
 
     def apply(self, func: Callable, *args: Unpack[list[Any]], **kwargs: Unpack[dict[str, Any]]) -> pd.DataFrame:
         """Apply a function that takes the group values from each df as input.
@@ -176,6 +183,7 @@ def create_multi_groupby(
     primary_df: pd.DataFrame,
     secondary_dfs: Union[pd.DataFrame, list[pd.DataFrame]],
     groupby: Union[Hashable, list[str]],
+    **kwargs: Unpack[dict[str, Any]],
 ) -> MultiGroupBy:
     """Group multiple dataframes by the same index levels to apply a function to each group across all dataframes.
 
@@ -203,6 +211,8 @@ def create_multi_groupby(
         The secondary dataframes to group by.
     groupby
         The names of the index levels to group by.
+    kwargs
+        All further arguments will be passed to ``.groupby`` of all dataframes.
 
     Examples
     --------
@@ -251,7 +261,7 @@ def create_multi_groupby(
     Index: []
 
     """
-    return MultiGroupBy(primary_df, secondary_dfs, groupby)
+    return MultiGroupBy(primary_df, secondary_dfs, groupby, **kwargs)
 
 
 __all__ = ["sliding_window_view", "create_multi_groupby", "MultiGroupBy"]
