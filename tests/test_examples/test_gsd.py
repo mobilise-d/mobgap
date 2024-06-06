@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 import numpy as np
 import pandas as pd
 
@@ -33,7 +35,7 @@ def test_gsd_evaluation(snapshot):
 
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
-    from examples.gsd._03_dmo_evaluation_on_wb_level import agg_results, gs_errors, gs_matches, gs_tp_fp_fn
+    from examples.gsd._03_dmo_evaluation_on_wb_level import agg_results, gs_errors, gs_errors_adapted, gs_matches, gs_matches_with_errors, gs_tp_fp_fn, default_agg_results
 
     snapshot.assert_match(gs_tp_fp_fn, "gs_tp_fp_fn")
 
@@ -41,20 +43,32 @@ def test_gsd_dmo_evaluation_on_wb_level(snapshot):
     gs_matches.columns = ["_".join(pair) for pair in gs_matches.columns]
     snapshot.assert_match(gs_matches.reset_index(), "gs_matches")
 
+    # flatten multiindex columns as they are not supported by snapshot
+    gs_errors.columns = ["_".join(pair) for pair in gs_errors.columns]
     snapshot.assert_match(gs_errors, "gs_errors")
+
+    # flatten multiindex columns as they are not supported by snapshot
+    gs_errors_adapted.columns = ["_".join(pair) for pair in gs_errors_adapted.columns]
+    snapshot.assert_match(gs_errors_adapted, "gs_errors_adapted")
+
+    # flatten multiindex columns as they are not supported by snapshot
+    gs_matches_with_errors.columns = ["_".join(pair) for pair in gs_matches_with_errors.columns]
+    snapshot.assert_match(gs_matches_with_errors, "gs_matches_with_errors")
 
     # check index of agg_results using snapshot
     snapshot.assert_match(agg_results.reset_index().drop(columns=[0]), "agg_results_index")
-
     # flatten values of agg_results because tuples can't be handled by snapshot utility
     snapshot.assert_match(np.array(_flatten_float_tuple_results(agg_results)), "agg_results_data")
 
+    # check index of agg_results using snapshot
+    snapshot.assert_match(default_agg_results.reset_index().drop(columns=[0]), "default_agg_results_index")
+    # flatten values of agg_results because tuples can't be handled by snapshot utility
+    snapshot.assert_match(np.array(list(_flatten_float_tuple_results(default_agg_results))), "default_agg_results_data")
+
 
 def _flatten_float_tuple_results(result_list):
-    flattened_list = []
     for item in result_list:
-        if isinstance(item, (tuple, list)):
-            flattened_list.extend(item)
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+            yield from _flatten_float_tuple_results(item)
         else:
-            flattened_list.append(item)
-    return flattened_list
+            yield item

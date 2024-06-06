@@ -14,7 +14,7 @@
                 "type":"string"
             },
             {
-                "name":"aggregate",
+                "name":"aggregation",
                 "type":"string"
             }
         ],
@@ -27,338 +27,296 @@
         {
             "index":0,
             "metric":"cadence_spm",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":1,
             "metric":"cadence_spm",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":2,
             "metric":"cadence_spm",
             "origin":"detected",
-            "aggregate":"quantiles"
+            "aggregation":"std"
         },
         {
             "index":3,
             "metric":"cadence_spm",
             "origin":"error",
-            "aggregate":"loa"
+            "aggregation":"mean"
         },
         {
             "index":4,
             "metric":"cadence_spm",
             "origin":"error",
-            "aggregate":"mean"
+            "aggregation":"std"
         },
         {
             "index":5,
             "metric":"cadence_spm",
             "origin":"reference",
-            "aggregate":"quantiles"
+            "aggregation":"mean"
         },
         {
             "index":6,
             "metric":"cadence_spm",
-            "origin":"rel_error",
-            "aggregate":"loa"
+            "origin":"reference",
+            "aggregation":"std"
         },
         {
             "index":7,
-            "metric":"cadence_spm",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "metric":"duration_s",
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":8,
             "metric":"duration_s",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":9,
             "metric":"duration_s",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
+            "origin":"detected",
+            "aggregation":"std"
         },
         {
             "index":10,
             "metric":"duration_s",
-            "origin":"detected",
-            "aggregate":"quantiles"
+            "origin":"error",
+            "aggregation":"mean"
         },
         {
             "index":11,
             "metric":"duration_s",
             "origin":"error",
-            "aggregate":"loa"
+            "aggregation":"std"
         },
         {
             "index":12,
             "metric":"duration_s",
-            "origin":"error",
-            "aggregate":"mean"
+            "origin":"reference",
+            "aggregation":"mean"
         },
         {
             "index":13,
             "metric":"duration_s",
             "origin":"reference",
-            "aggregate":"quantiles"
+            "aggregation":"std"
         },
         {
             "index":14,
-            "metric":"duration_s",
-            "origin":"rel_error",
-            "aggregate":"loa"
+            "metric":"n_steps",
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":15,
-            "metric":"duration_s",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "metric":"n_steps",
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":16,
             "metric":"n_steps",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
+            "origin":"detected",
+            "aggregation":"std"
         },
         {
             "index":17,
             "metric":"n_steps",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
+            "origin":"error",
+            "aggregation":"mean"
         },
         {
             "index":18,
             "metric":"n_steps",
-            "origin":"detected",
-            "aggregate":"quantiles"
+            "origin":"error",
+            "aggregation":"std"
         },
         {
             "index":19,
             "metric":"n_steps",
-            "origin":"error",
-            "aggregate":"loa"
+            "origin":"reference",
+            "aggregation":"mean"
         },
         {
             "index":20,
             "metric":"n_steps",
-            "origin":"error",
-            "aggregate":"mean"
+            "origin":"reference",
+            "aggregation":"std"
         },
         {
             "index":21,
-            "metric":"n_steps",
-            "origin":"reference",
-            "aggregate":"quantiles"
+            "metric":"n_turns",
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":22,
-            "metric":"n_steps",
-            "origin":"rel_error",
-            "aggregate":"loa"
+            "metric":"n_turns",
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":23,
-            "metric":"n_steps",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "metric":"n_turns",
+            "origin":"detected",
+            "aggregation":"std"
         },
         {
             "index":24,
             "metric":"n_turns",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
+            "origin":"error",
+            "aggregation":"mean"
         },
         {
             "index":25,
             "metric":"n_turns",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
+            "origin":"error",
+            "aggregation":"std"
         },
         {
             "index":26,
             "metric":"n_turns",
-            "origin":"detected",
-            "aggregate":"quantiles"
+            "origin":"reference",
+            "aggregation":"mean"
         },
         {
             "index":27,
             "metric":"n_turns",
-            "origin":"error",
-            "aggregate":"loa"
+            "origin":"reference",
+            "aggregation":"std"
         },
         {
             "index":28,
-            "metric":"n_turns",
-            "origin":"error",
-            "aggregate":"mean"
+            "metric":"stride_duration_s",
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":29,
-            "metric":"n_turns",
-            "origin":"reference",
-            "aggregate":"quantiles"
+            "metric":"stride_duration_s",
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":30,
-            "metric":"n_turns",
-            "origin":"rel_error",
-            "aggregate":"loa"
+            "metric":"stride_duration_s",
+            "origin":"detected",
+            "aggregation":"std"
         },
         {
             "index":31,
-            "metric":"n_turns",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "metric":"stride_duration_s",
+            "origin":"error",
+            "aggregation":"mean"
         },
         {
             "index":32,
             "metric":"stride_duration_s",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
+            "origin":"error",
+            "aggregation":"std"
         },
         {
             "index":33,
             "metric":"stride_duration_s",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
+            "origin":"reference",
+            "aggregation":"mean"
         },
         {
             "index":34,
             "metric":"stride_duration_s",
-            "origin":"detected",
-            "aggregate":"quantiles"
+            "origin":"reference",
+            "aggregation":"std"
         },
         {
             "index":35,
-            "metric":"stride_duration_s",
-            "origin":"error",
-            "aggregate":"loa"
+            "metric":"stride_length_m",
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":36,
-            "metric":"stride_duration_s",
-            "origin":"error",
-            "aggregate":"mean"
+            "metric":"stride_length_m",
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":37,
-            "metric":"stride_duration_s",
-            "origin":"reference",
-            "aggregate":"quantiles"
+            "metric":"stride_length_m",
+            "origin":"detected",
+            "aggregation":"std"
         },
         {
             "index":38,
-            "metric":"stride_duration_s",
-            "origin":"rel_error",
-            "aggregate":"loa"
+            "metric":"stride_length_m",
+            "origin":"error",
+            "aggregation":"mean"
         },
         {
             "index":39,
-            "metric":"stride_duration_s",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "metric":"stride_length_m",
+            "origin":"error",
+            "aggregation":"std"
         },
         {
             "index":40,
             "metric":"stride_length_m",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
+            "origin":"reference",
+            "aggregation":"mean"
         },
         {
             "index":41,
             "metric":"stride_length_m",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
+            "origin":"reference",
+            "aggregation":"std"
         },
         {
             "index":42,
-            "metric":"stride_length_m",
-            "origin":"detected",
-            "aggregate":"quantiles"
+            "metric":"walking_speed_mps",
+            "origin":"all",
+            "aggregation":"icc"
         },
         {
             "index":43,
-            "metric":"stride_length_m",
-            "origin":"error",
-            "aggregate":"loa"
+            "metric":"walking_speed_mps",
+            "origin":"detected",
+            "aggregation":"mean"
         },
         {
             "index":44,
-            "metric":"stride_length_m",
-            "origin":"error",
-            "aggregate":"mean"
+            "metric":"walking_speed_mps",
+            "origin":"detected",
+            "aggregation":"std"
         },
         {
             "index":45,
-            "metric":"stride_length_m",
-            "origin":"reference",
-            "aggregate":"quantiles"
+            "metric":"walking_speed_mps",
+            "origin":"error",
+            "aggregation":"mean"
         },
         {
             "index":46,
-            "metric":"stride_length_m",
-            "origin":"rel_error",
-            "aggregate":"loa"
+            "metric":"walking_speed_mps",
+            "origin":"error",
+            "aggregation":"std"
         },
         {
             "index":47,
-            "metric":"stride_length_m",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "metric":"walking_speed_mps",
+            "origin":"reference",
+            "aggregation":"mean"
         },
         {
             "index":48,
             "metric":"walking_speed_mps",
-            "origin":"abs_error",
-            "aggregate":"quantiles"
-        },
-        {
-            "index":49,
-            "metric":"walking_speed_mps",
-            "origin":"abs_rel_error",
-            "aggregate":"quantiles"
-        },
-        {
-            "index":50,
-            "metric":"walking_speed_mps",
-            "origin":"detected",
-            "aggregate":"quantiles"
-        },
-        {
-            "index":51,
-            "metric":"walking_speed_mps",
-            "origin":"error",
-            "aggregate":"loa"
-        },
-        {
-            "index":52,
-            "metric":"walking_speed_mps",
-            "origin":"error",
-            "aggregate":"mean"
-        },
-        {
-            "index":53,
-            "metric":"walking_speed_mps",
             "origin":"reference",
-            "aggregate":"quantiles"
-        },
-        {
-            "index":54,
-            "metric":"walking_speed_mps",
-            "origin":"rel_error",
-            "aggregate":"loa"
-        },
-        {
-            "index":55,
-            "metric":"walking_speed_mps",
-            "origin":"rel_error",
-            "aggregate":"mean"
+            "aggregation":"std"
         }
     ]
 }
