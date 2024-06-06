@@ -139,7 +139,7 @@ class SlZijlstra(BaseSlCalculator):
     step_length_smoothing: BaseFilter
     max_interpolation_gap_s: float
 
-    raw_step_length_: pd.DataFrame
+    raw_step_length_per_step_: pd.DataFrame
     step_length_per_sec_: pd.DataFrame
 
     class PredefinedParameters:
