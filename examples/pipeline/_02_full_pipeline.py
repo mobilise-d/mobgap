@@ -100,7 +100,19 @@ cad_per_sec
 # %%
 # Step 4: Stride Length Calculation
 # ---------------------------------
-# TODO: Add stride length calculation here.
+from mobgap.stride_length import SlZijlstra
+
+sl = SlZijlstra()
+sl.calculate(
+    refined_gait_sequence_data,
+    refined_ic_list,
+    sampling_rate_hz=sampling_rate_hz,
+    **participant_metadata,
+)
+
+sl_per_sec = sl.stride_length_per_sec_
+sl_per_sec
+
 
 # %%
 # After going through the steps for a single gait sequence, we would then put all the data together to calculate final
