@@ -39,7 +39,6 @@ reference_gs
 # Note that we use the ``sampling_rate_hz`` of the actual data and not the reference system.
 # This is because, the reference parameters are already converted to the data sampling rate.
 from gaitmap.trajectory_reconstruction.orientation_methods import MadgwickAHRS
-
 from mobgap.sl import SlZijlstra
 
 # Initially, we apply the algorithm without re-orienting the sensor frame to the global frame
@@ -49,9 +48,11 @@ MS_MS_params = (
 sl_zijlstra = SlZijlstra(**MS_MS_params)
 
 gs_id = reference_gs.index[0]
-data_in_gs = short_trial.data["LowerBack"].iloc[reference_gs.start.iloc[0]: reference_gs.end.iloc[0]]
-ics_in_gs = reference_ic[["ic"]].loc[gs_id]  # reference initial contacts
-sensor_height = short_trial.participant_metadata["SensorHeight"] / 100  # sensor height (cm)
+data_in_gs = short_trial.data["LowerBack"].iloc[
+    reference_gs.start.iloc[0] : reference_gs.end.iloc[0]
+]
+ics_in_gs = reference_ic.loc[gs_id]  # reference initial contacts
+sensor_height = short_trial.participant_metadata["sensor_height_m"]
 
 sl_zijlstra.calculate(
     data=data_in_gs,
@@ -63,26 +64,28 @@ sl_zijlstra.calculate(
 # %%
 # We get an output that contains the stride length for each second of the gaits sequence.
 # The index represents the sample of the center of the second the stride length value belongs to.
-sl_zijlstra.stride_length_per_sec_list_
+sl_zijlstra.stride_length_per_sec_
 
 # %%
 # To show that the approach results in roughly the "correct" stride length value, we can compare the average stride
 # length to the reference system.
 reference_sl = reference_gs["avg_stride_length_m"].loc[gs_id]
-zijlstra_avg_sl = sl_zijlstra.stride_length_per_sec_list_["stride_length_m"].mean()
+zijlstra_avg_sl = sl_zijlstra.stride_length_per_sec_["stride_length_m"].mean()
 print("Sensor frame:")
 print(f"Average stride length from reference: {reference_sl:.2f} m")
 print(f"Calculated average per-sec stride length: {zijlstra_avg_sl:.2f} m")
 
-"""
-The algorithm assume that the accelerometer axes are aligned with the global reference system, and/or
-the measurement setup includes functional calibration procedures. However, this assumption is not practical 
-for the realworld measurement setup. The alternative solution is to take advantage of a 3D gyroscope 
-available in the IMU devices and correct the sensor orientation using complementary filters like Madgwick.
-"""
+# %%
+# The algorithm assume that the accelerometer axes are aligned with the global reference system, and/or
+# the measurement setup includes functional calibration procedures. However, this assumption is not practical
+# for the realworld measurement setup. The alternative solution is to take advantage of a 3D gyroscope
+# available in the IMU devices and correct the sensor orientation using complementary filters like Madgwick.
+#
 # Now we do the same thing but we correct the sensor orientation to the global frame using a Madgwick
 # complementary filter, to show the improvement of performing re-orientation.
-sl_zijlstra_reoriented = SlZijlstra(orientation_method=MadgwickAHRS(beta=0.2), **MS_MS_params)
+sl_zijlstra_reoriented = SlZijlstra(
+    orientation_method=MadgwickAHRS(beta=0.2), **MS_MS_params
+)
 sl_zijlstra_reoriented.calculate(
     data=data_in_gs,
     initial_contacts=ics_in_gs,
@@ -92,13 +95,17 @@ sl_zijlstra_reoriented.calculate(
 # %%
 # We get an output that contains the stride length for each second of the gaits sequence.
 # The index represents the sample of the center of the second the stride length value belongs to.
-sl_zijlstra_reoriented.stride_length_per_sec_list_
+sl_zijlstra_reoriented.stride_length_per_sec_
 
 # %%
 # To show that the approach results in roughly the "correct" stride length value, we can compare the average stride
 # length to the reference system.
-zijlstra_reoriented_avg_sl = sl_zijlstra_reoriented.stride_length_per_sec_list_["stride_length_m"].mean()
+zijlstra_reoriented_avg_sl = sl_zijlstra_reoriented.stride_length_per_sec_[
+    "stride_length_m"
+].mean()
 print("")
 print("Global frame:")
 print(f"Average stride length from reference: {reference_sl:.2f} m")
-print(f"Calculated average per-sec stride length: {zijlstra_reoriented_avg_sl:.2f} m")
+print(
+    f"Calculated average per-sec stride length: {zijlstra_reoriented_avg_sl:.2f} m"
+)

@@ -18,10 +18,10 @@ base_sl_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
     """,
-        "stride_length_per_sec_list_": """
-    stride_length_per_sec_list_
+        "stride_length_per_sec_": """
+    stride_length_per_sec_
         The main output of the stride length calculation.
-        It provides a DataFrame with the column ``stride_length_m`` that contains the stride length values with one 
+        It provides a DataFrame with the column ``stride_length_m`` that contains the stride length values with one
         value per full second of the provided data. The unit is ``m``.
         The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
         each second.    """,
@@ -40,7 +40,7 @@ base_sl_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``stride_length_per_sec_list_`` attribute set to the estimated stride length 
+        The instance of the class with the ``stride_length_per_sec_list_`` attribute set to the estimated stride length
         per second values.
     """,
     },
@@ -54,10 +54,10 @@ class BaseSlCalculator(Algorithm):
 
     This base class should be used for all stride length estimation algorithms.
     Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, `stride_length_per_sec_list_`` attribute set to the
+    The method should then return the instance of the class, `stride_length_per_sec_`` attribute set to the
     estimated stride length per second values
-    Further, the calculate method should set ``self.data``, ``self.initial_contacts``, ``self.sampling_rate_hz`` to the parameters passed to the
-    method.
+    Further, the calculate method should set ``self.data``, ``self.initial_contacts``, ``self.sampling_rate_hz`` to
+    the parameters passed to the method.
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
     ``**kwargs``).
     However, you should only use them, if you really need them and apply active checks, that they are passed correctly.
@@ -70,7 +70,7 @@ class BaseSlCalculator(Algorithm):
 
     Attributes
     ----------
-    %(stride_length_per_sec_list_)s
+    %(stride_length_per_sec_)s
 
     Notes
     -----
@@ -86,14 +86,14 @@ class BaseSlCalculator(Algorithm):
     sampling_rate_hz: float
 
     # results
-    stride_length_per_sec_list_: pd.DataFrame
+    stride_length_per_sec_: pd.DataFrame
 
     @base_sl_docfiller
     def calculate(
         self,
         data: pd.DataFrame,
-        *,
         initial_contacts: pd.DataFrame,
+        *,
         sampling_rate_hz: float,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
