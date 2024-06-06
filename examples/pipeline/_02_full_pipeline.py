@@ -183,32 +183,11 @@ results = gs_iterator.results_
 results.ic_list
 
 # %%
-results.cadence_per_sec
-
-# %%
-# Using the combined results, we want to define walking bouts.
-# As walking bouts in the context of Mobilise-D are defined based on strides, we need to turn the ICs into strides and
-# the per-second values into per-stride values by using interpolation.
-from mobgap.lrc import strides_list_from_ic_lr_list
-
-stride_list = results.ic_list.groupby("gs_id", group_keys=False).apply(
-    strides_list_from_ic_lr_list
-)
-stride_list
-# %%
-# This initial stride list is completely unfiltered, and might contain very long strides, in areas where initial
-# contacts were not detected, or the participant was not walking for a short moment.
-# The stride list will be filtered later as part of the WB assembly.
-#
-# For now, we are using linear interpolation to map the per-second cadence values to per-stride values and derive
-# approximated stride parameters.
-# We also calculate the stride duration here.
+# We combine all per-sec results into one.
 #
 # Note, that we remove the ``r_gs_id`` index, as we don't need it anymore and each normal ``gs`` is mapped to a single
 # refined ``gs`` anyway.
 # In case we would have multiple refined ``gs`` per normal ``gs``, we might need to keep the ``r_gs_id`` index around.
-from mobgap.utils.df_operations import create_multi_groupby
-
 combined_results = pd.concat(
     [
         results.cadence_per_sec,
@@ -217,19 +196,39 @@ combined_results = pd.concat(
     ],
     axis=1,
 ).reset_index("r_gs_id", drop=True)
+combined_results
 
-stride_list_with_approx_paras = (
-    create_multi_groupby(
-        stride_list,
-        combined_results,
-        "gs_id",
-        group_keys=False,
-    )
-    .apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
+# %%
+# Using the combined results, we want to define walking bouts.
+# As walking bouts in the context of Mobilise-D are defined based on strides, we need to turn the ICs into strides and
+# the per-second values into per-stride values by using interpolation.
+# We also calculate the stride duration here.
+from mobgap.lrc import strides_list_from_ic_lr_list
+
+stride_list = (
+    results.ic_list.groupby("gs_id", group_keys=False)
+    .apply(strides_list_from_ic_lr_list)
     .assign(
         stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz
     )
 )
+stride_list
+
+# %%
+# This initial stride list is completely unfiltered, and might contain very long strides, in areas where initial
+# contacts were not detected, or the participant was not walking for a short moment.
+# The stride list will be filtered later as part of the WB assembly.
+#
+# For now, we are using linear interpolation to map the per-second cadence values to per-stride values and derive
+# approximated stride parameters.
+from mobgap.utils.df_operations import create_multi_groupby
+
+stride_list_with_approx_paras = create_multi_groupby(
+    stride_list,
+    combined_results,
+    "gs_id",
+    group_keys=False,
+).apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
 
 stride_list_with_approx_paras
 # %%
@@ -245,10 +244,11 @@ flat_index = pd.Index(
     ],
     name="s_id",
 )
-stride_list_with_approx_paras = stride_list_with_approx_paras.reset_index(
-    "gs_id"
-).rename(columns={"gs_id": "original_gs_id"})
-stride_list_with_approx_paras.index = flat_index
+stride_list_with_approx_paras = (
+    stride_list_with_approx_paras.reset_index("gs_id")
+    .rename(columns={"gs_id": "original_gs_id"})
+    .set_index(flat_index)
+)
 
 # %%
 # Then we apply the stride selection (note that we have additional rules in case the stride length is available) and
@@ -266,7 +266,7 @@ final_strides
 # %%
 # We also have meta information about the WBs available.
 per_wb_params = wba.wb_meta_parameters_
-per_wb_params
+per_wb_params.drop(columns="rule_obj").T
 
 # %%
 # We extend them further with the per-stride parameters.
@@ -288,7 +288,7 @@ per_wb_params = pd.concat(
     axis=1,
 )
 
-per_wb_params
+per_wb_params.drop(columns="rule_obj").T
 
 # %%
 # For each WB we can then apply thresholds to check if the calculated parameters are within the expected range.
@@ -305,7 +305,7 @@ per_wb_params_mask = apply_thresholds(
         "measurement_condition"
     ],
 )
-per_wb_params_mask
+per_wb_params_mask.T
 
 # %%
 # We can see that we either get NaN (for parameters that are not checked) or True/False values for each parameter.
@@ -324,7 +324,7 @@ agg = MobilisedAggregator(
 agg_results = agg.aggregate(
     per_wb_params, wb_dmos_mask=per_wb_params_mask
 ).aggregated_data_
-agg_results
+agg_results.T
 
 
 # %%
