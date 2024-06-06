@@ -1,5 +1,6 @@
 import warnings
-from typing import Any, Optional
+from types import MappingProxyType
+from typing import Any, Final, Optional
 
 import numpy as np
 import pandas as pd
@@ -152,8 +153,8 @@ class SlZijlstra(BaseSlCalculator):
         in [1, 2].
         """
 
-        step_length_scaling_factor_ms_ms = {"step_length_scaling_factor": 4.587 / 4}
-        step_length_scaling_factor_ms_all = {"step_length_scaling_factor": 4.739 / 4}
+        step_length_scaling_factor_ms_ms: Final = MappingProxyType({"step_length_scaling_factor": 4.587 / 4})
+        step_length_scaling_factor_ms_all: Final = MappingProxyType({"step_length_scaling_factor": 4.739 / 4})
 
     @set_defaults(**PredefinedParameters.step_length_scaling_factor_ms_ms)
     def __init__(
