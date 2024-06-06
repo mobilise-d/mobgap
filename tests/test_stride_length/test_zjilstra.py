@@ -42,8 +42,12 @@ class TestSlZijlstra:
                 data=data, initial_contacts=initial_contacts, sensor_height_m=0.95, sampling_rate_hz=100
             )
 
-        assert len(w) == 1
-        assert "Can not calculate step length with only one or zero initial contacts" in w.list[0].message.args[0]
+        assert len(w) == 2
+        assert "Can not calculate step length with only one or zero initial contacts" in w.list[1].message.args[0]
+        assert (
+            "Usually we assume that gait sequences are cut to the first and last detected initial"
+            in w.list[0].message.args[0]
+        )
         assert len(sl_zijlstra.stride_length_per_sec_) == np.ceil(data.shape[0] / 100)
         assert sl_zijlstra.stride_length_per_sec_["stride_length_m"].isna().all()
         assert sl_zijlstra.step_length_per_sec_["step_length_m"].isna().all()
