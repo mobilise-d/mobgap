@@ -147,10 +147,23 @@ class SlZijlstra(BaseSlCalculator):
         Predefined factors for scaling the step length model.
 
         The step length scaling factor to be used in the biomechanical model.
-        The reported parameters were previously accessed with model.K.ziljsV3.
-        Coefficients are divided by 4 to separate the coefficient from
-        the conversion from step length to stride length and from the x2 factor of the formula declared
-        in [1, 2].
+        The provided values are optimized based on the MsProject dataset as part of the Mobilise-D project.
+
+        Attributes
+        ----------
+        step_length_scaling_factor_ms_ms
+            Optimized factor based on all MS patients within the MsProject dataset.
+            Default value for the ``SlZijlstra`` algorithm.
+        step_length_scaling_factor_ms_all
+            Optimized factor based on ALL participants within the MsProject dataset.
+
+        Examples
+        --------
+        >>> SlZijlstra(
+        ...     max_interpolation_gap_s=2,
+        ...     **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_ms,
+        ... )
+
         """
 
         step_length_scaling_factor_ms_ms: Final = MappingProxyType({"step_length_scaling_factor": 4.587 / 4})
