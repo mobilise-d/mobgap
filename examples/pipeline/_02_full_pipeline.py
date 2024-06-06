@@ -25,6 +25,7 @@ long_trial = lab_example_data.get_subset(
 )
 imu_data = long_trial.data_ss
 sampling_rate_hz = long_trial.sampling_rate_hz
+participant_metadata = long_trial.participant_metadata
 
 # %%
 # Step 1: Gait Sequence Detection
@@ -113,15 +114,20 @@ from mobgap.cad import CadFromIc
 from mobgap.gsd import GsdIluz
 from mobgap.icd import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich
+from mobgap.stride_length import SlZijlstra
 
 gsd = GsdIluz()
 icd = IcdShinImproved()
 lrc = LrcUllrich()
 cad = CadFromIc()
+sl = SlZijlstra()
 
 # %%
 # Then we calculate the gait sequences as before.
-gsd.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
+#
+# Note that some of the algorithms might need the participant metadata.
+# Hence, we pass it as keyword argument to all the algorithms.
+gsd.detect(imu_data, sampling_rate_hz=sampling_rate_hz, **participant_metadata)
 gait_sequences = gsd.gs_list_
 
 # %%
@@ -133,17 +139,31 @@ from mobgap.pipeline import GsIterator
 gs_iterator = GsIterator()
 
 for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
-    icd.detect(gs_data, sampling_rate_hz=sampling_rate_hz)
-    lrc.predict(gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz)
+    icd = icd.clone().detect(
+        gs_data, sampling_rate_hz=sampling_rate_hz, **participant_metadata
+    )
+    lrc = lrc.clone().predict(
+        gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
+    )
     r.ic_list = lrc.ic_lr_list_
 
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
     with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
-        cad.calculate(
-            refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz
+        cad = cad.clone().calculate(
+            refined_gs_data,
+            refined_ic_list,
+            sampling_rate_hz=sampling_rate_hz,
+            **participant_metadata,
         )
         rr.cadence_per_sec = cad.cadence_per_sec_
+        sl = sl.clone().calculate(
+            refined_gs_data,
+            refined_ic_list,
+            sampling_rate_hz=sampling_rate_hz,
+            **participant_metadata,
+        )
+        rr.stride_length_per_sec = sl.stride_length_per_sec_
 
 # %%
 # Now we can access all accumulated and offset-corrected results from the iterator.

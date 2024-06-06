@@ -16,6 +16,7 @@ This is the API Reference for ``mobgap``.
     lrc
     turning
     cad
+    stride_length
     wba
     aggregation
     data_transform

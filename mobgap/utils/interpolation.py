@@ -62,7 +62,7 @@ def interval_mean(
 
 
 def robust_step_para_to_sec(
-    ics: np.ndarray,
+    ics_in_sec: np.ndarray,
     step_para: np.ndarray,
     sec_centers: np.ndarray,
     max_interpolation_gap_s: float,
@@ -76,8 +76,8 @@ def robust_step_para_to_sec(
 
     Parameters
     ----------
-    ics
-        The initial contacts in samples marking the start of each step
+    ics_in_sec
+        The initial contacts in seconds marking the start of each step
     step_para
         The per-step parameter.
         Must have the same length as ``ics``.
@@ -106,17 +106,17 @@ def robust_step_para_to_sec(
         The method used to interpolate the per-step parameter to a per-second parameter.
 
     """
-    if len(ics) != len(step_para):
+    if len(ics_in_sec) != len(step_para):
         raise ValueError("The number of initial contacts and step parameters must be equal.")
 
-    if len(ics) == 0:
+    if len(ics_in_sec) == 0:
         return np.full(len(sec_centers), np.nan)
 
     # 1. Smoothing
-    step_time_smooth = smoothing_filter.filter(step_para).transformed_data_
+    step_time_smooth = smoothing_filter.clone().filter(step_para).transformed_data_
     # Average step time per second
     sec_start_ends = np.vstack([sec_centers - 0.5, sec_centers + 0.5]).T
-    step_time_per_sec = interval_mean(ics, step_time_smooth, sec_start_ends)
+    step_time_per_sec = interval_mean(ics_in_sec, step_time_smooth, sec_start_ends)
     # 2. Smoothing
     step_time_per_sec_smooth = pd.Series(smoothing_filter.filter(step_time_per_sec).transformed_data_)
     # Interpolate missing values (only inside the recording and only if the gap is smaller than the specified maximum)
