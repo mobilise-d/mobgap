@@ -221,7 +221,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
     def _sec_to_stride(
         self, sec_level_paras: pd.DataFrame, lr_ic_list: pd.DataFrame, sampling_rate_hz: float
     ) -> pd.DataFrame:
-        stride_list = lr_ic_list.groupby("gs_id", group_keys=False).apply(strides_list_from_ic_lr_list)
+        stride_list = lr_ic_list.groupby("gs_id", group_keys=False).apply(strides_list_from_ic_lr_list).assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
 
         stride_list = (
             create_multi_groupby(
@@ -231,7 +231,6 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
                 group_keys=False,
             )
             .apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
-            .assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
         )
         return stride_list
 
