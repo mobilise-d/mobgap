@@ -65,70 +65,95 @@ evaluation_results_dict
 # index that combines multiple metrics into a single value.
 
 import numpy as np
+from typing import Literal
 
 
-def normalize(x, norm_type=None):
+def normalize(
+    x, criterion: Literal["benefit", "cost"] = "benefit", normalization: bool = False
+):
     """
     Normalize a given array of values based on Bonci et al.
 
     Parameters:
-    x (array-like): The input array to be normalized.
-    type (str, optional): The type of normalization to be applied. Valid options are "cost" and "benefit".
-                          If not provided, no normalization is applied.
+    - x (array-like): The input array to be normalized.
+    - criterion (str, optional): The type of normalization to be applied. Valid options are "cost" and "benefit" (default).
+    - normalization (bool, optional): Whether to perform normalization. If True, the values will be normalized between
+                                      the minimum and maximum values in the array. If False, the values will be
+                                      normalized between 0 and 1 (e.g., relevant for metrics such as precision, recall, ...). Default is False.
 
     Returns:
     array-like: The normalized array.
 
     """
     x = np.array(x)
-    if norm_type == "cost":
-        return (max(x) - x) / (max(x) - min(x))
-    elif norm_type == "benefit":
-        return (x - min(x)) / (max(x) - min(x))
+
+    if normalization:
+        max_val = max(x)
+        min_val = min(x)
+    else:
+        max_val = 1
+        min_val = 0
+
+    if criterion == "cost":
+        return (max_val - x) / (max_val - min_val)
+    elif criterion == "benefit":
+        return (x - min_val) / (max_val - min_val)
     else:
         return x
 
 
 # E.g.:
-normalize(evaluation_results_dict["single_num_gs_absolute_relative_error_log"], "cost")
+normalize(
+    evaluation_results_dict["single_num_gs_absolute_relative_error_log"],
+    criterion="cost",
+    normalization=True,
+)
 
 # %%
+evaluation_results_dict["single_num_gs_absolute_relative_error_log"]
+# %%
 # Define metrics that are used to calculate the performance index
-# For each metric, the underlying score, normalization (cost/benefit/none), aggregation (e.g., mean, std, ...), and weight needs to be defined
+# For each metric, the underlying score, criterion (cost/benefit), aggregation (e.g., mean, std, ...), and weight needs to be defined
 weighting_factor_micoamigo = {
     "recall_mean": {
         "metric": "single_recall",
-        "normalization": None,
+        "criterion": "benefit",
+        "normalization": False,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.117,
     },
     "specificity_mean": {
         "metric": "single_specificity",
-        "normalization": None,
+        "criterion": "benefit",
+        "normalization": False,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.178,
     },
     "precision_mean": {
         "metric": "single_precision",
-        "normalization": None,
+        "criterion": "benefit",
+        "normalization": False,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.105,
     },
     "accuracy_mean": {
         "metric": "single_accuracy",
-        "normalization": None,
+        "criterion": "benefit",
+        "normalization": False,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.160,
     },
     "gs_absolute_relative_duration_error_mean": {
         "metric": "single_gs_absolute_relative_duration_error_log",
-        "normalization": "cost",
+        "criterion": "cost",
+        "normalization": True,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.122,
     },
     "gs_absolute_relative_duration_error_std": {
         "metric": "single_gs_absolute_relative_duration_error_log",
-        "normalization": "cost",
+        "criterion": "cost",
+        "normalization": True,
         "aggregation": lambda x: np.std(x),
         "weight": 0.122,
     },
@@ -145,7 +170,8 @@ performance_index = sum(
     weighting_factor_micoamigo[key]["aggregation"](
         normalize(
             evaluation_results_dict[weighting_factor_micoamigo[key]["metric"]],
-            norm_type=weighting_factor_micoamigo[key]["normalization"],
+            criterion=weighting_factor_micoamigo[key]["criterion"],
+            normalization=weighting_factor_micoamigo[key]["normalization"],
         )
     )
     * weighting_factor_micoamigo[key]["weight"]
