@@ -1,5 +1,5 @@
 Stride Length (SL)
-========================
+==================
 
 .. automodule:: mobgap.stride_length
     :no-members:

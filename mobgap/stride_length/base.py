@@ -24,15 +24,20 @@ base_sl_docfiller = make_filldoc(
         It provides a DataFrame with the column ``stride_length_m`` that contains the stride length values with one
         value per full second of the provided data. The unit is ``m``.
         The index of this dataframe is named ``sec_center_samples`` and contains the sample number of the center of the
-        each second.    """,
+        each second.
+    """,
         "calculate_short": """
     Calculate per-sec stride length values in the passed data.
     """,
         "calculate_para": """
     data
         The raw IMU data of a single sensor.
+        We usually assume that this is one gait sequence (i.e. that there are no non-walking periods in the data).
     initial_contacts
-        The indices of the detected initial contacts in the input data.
+        The initial contacts of the gait sequence.
+        This should be passed as a DataFrame with the colum ``ic`` that contains the sample number of the initial
+        contacts.
+        We usually assume that the first IC marks the start of the passed gait sequence and the last IC marks the end.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
         """,
@@ -54,8 +59,8 @@ class BaseSlCalculator(Algorithm):
 
     This base class should be used for all stride length estimation algorithms.
     Algorithms should implement the ``calculate`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, `stride_length_per_sec_`` attribute set to the
-    estimated stride length per second values
+    The method should then return the instance of the class with the ``stride_length_per_sec_`` attribute set to the
+    estimated stride length per second values.
     Further, the calculate method should set ``self.data``, ``self.initial_contacts``, ``self.sampling_rate_hz`` to
     the parameters passed to the method.
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports

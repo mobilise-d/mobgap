@@ -34,7 +34,9 @@ base_cad_docfiller = make_filldoc(
         The raw IMU of a single sensor.
         We usually assume that this is one gait sequence (i.e. that there are no non-walking periods in the data).
     initial_contacts
-        The initial contacts of the sensor.
+        The initial contacts of the gait sequence.
+        This should be passed as a DataFrame with the colum ``ic`` that contains the sample number of the initial
+        contacts.
         We usually assume that the first IC marks the start of the passed gait sequence and the last IC marks the end.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.

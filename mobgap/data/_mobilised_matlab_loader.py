@@ -631,7 +631,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
                 "n_strides": int(wb["NumberStrides"]),
                 "duration_s": wb["Duration"],
                 "length_m": wb["Length"],
-                "avg_speed_mps": wb["WalkingSpeed"],
+                "avg_walking_speed_mps": wb["WalkingSpeed"],
                 "avg_cadence_spm": wb["Cadence"],
                 "avg_stride_length_m": wb["AverageStrideLength"],
                 "termination_reason": wb["TerminationReason"],

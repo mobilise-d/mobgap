@@ -1,4 +1,4 @@
-"""Methods to calculate step length from initial contacts."""
+"""Methods to calculate step length."""
 
 from mobgap.stride_length._sl_zijlstra import SlZijlstra
 

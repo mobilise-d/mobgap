@@ -115,12 +115,14 @@ from mobgap.gsd import GsdIluz
 from mobgap.icd import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich
 from mobgap.stride_length import SlZijlstra
+from mobgap.walking_speed import WsNaive
 
 gsd = GsdIluz()
 icd = IcdShinImproved()
 lrc = LrcUllrich()
 cad = CadFromIc()
 sl = SlZijlstra()
+speed = WsNaive()
 
 # %%
 # Then we calculate the gait sequences as before.
@@ -152,18 +154,27 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
     with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
         cad = cad.clone().calculate(
             refined_gs_data,
-            refined_ic_list,
+            initial_contacts=refined_ic_list,
             sampling_rate_hz=sampling_rate_hz,
             **participant_metadata,
         )
         rr.cadence_per_sec = cad.cadence_per_sec_
         sl = sl.clone().calculate(
             refined_gs_data,
-            refined_ic_list,
+            initial_contacts=refined_ic_list,
             sampling_rate_hz=sampling_rate_hz,
             **participant_metadata,
         )
         rr.stride_length_per_sec = sl.stride_length_per_sec_
+        speed = speed.clone().calculate(
+            refined_gs_data,
+            initial_contacts=refined_ic_list,
+            cadence_per_sec=cad.cadence_per_sec_,
+            stride_length_per_sec=sl.stride_length_per_sec_,
+            sampling_rate_hz=sampling_rate_hz,
+            **participant_metadata,
+        )
+        rr.walking_speed_per_sec = speed.walking_speed_per_sec_
 
 # %%
 # Now we can access all accumulated and offset-corrected results from the iterator.
@@ -268,6 +279,7 @@ per_wb_params = pd.concat(
         final_strides.reindex(columns=params_to_aggregate)
         .groupby(["wb_id"])
         # TODO: Decide if we should use mean or trim_mean here!
+        # TODO: Should we add a "avg" prefix to the columns?
         .mean(),
     ],
     axis=1,
