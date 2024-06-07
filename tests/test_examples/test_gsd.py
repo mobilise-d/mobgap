@@ -35,7 +35,15 @@ def test_gsd_evaluation(snapshot):
 
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
-    from examples.gsd._03_dmo_evaluation_on_wb_level import agg_results, gs_errors, gs_errors_adapted, gs_matches, gs_matches_with_errors, gs_tp_fp_fn, default_agg_results
+    from examples.gsd._03_dmo_evaluation_on_wb_level import (
+        agg_results,
+        default_agg_results,
+        gs_errors,
+        gs_errors_adapted,
+        gs_matches,
+        gs_matches_with_errors,
+        gs_tp_fp_fn,
+    )
 
     snapshot.assert_match(gs_tp_fp_fn, "gs_tp_fp_fn")
 

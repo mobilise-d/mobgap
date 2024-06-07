@@ -954,7 +954,7 @@ class TestApplyAggregations:
             )
         ]
         with pytest.raises(ValueError):
-            print(apply_aggregations(combined_det_ref_dmo_df, aggs))
+            apply_aggregations(combined_det_ref_dmo_df, aggs)
 
     @staticmethod
     def _prepare_aggregation_mock_function(mock_fct, name, return_value):
@@ -1006,13 +1006,11 @@ class TestApplyAggregations:
     def test_agg_aggregations(self, identifier, input_df):
         functions = ["mean", "std"]
         aggregations = [(identifier, functions)]
-        print(input_df)
         res = apply_aggregations(input_df, aggregations)
 
         assert isinstance(res, pd.Series)
         assert len(res) == len(functions)
         assert res.index.nlevels == (len(identifier) + 1) if isinstance(identifier, tuple) else 2
-        print(res)
 
     @pytest.mark.parametrize("invalid_id", [(1,), (2, 3, 4), ["test", "test"]])
     def test_agg_aggregations_with_wrong_identifier(self, invalid_id, combined_det_ref_dmo_df_with_errors):
@@ -1059,7 +1057,6 @@ class TestApplyAggregations:
     @patch("mobgap.gsd.evaluation.loa")
     @patch("mobgap.gsd.evaluation.quantiles")
     def test_apply_custom_aggs_with_nan_results(self, quantiles_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
-        # TODO: fix this
         quantiles_mock = self._prepare_aggregation_mock_function(quantiles_mock, "quantiles", 0)
         loa_mock = self._prepare_aggregation_mock_function(loa_mock, "loa", np.nan)
 
@@ -1087,6 +1084,13 @@ class TestApplyAggregations:
         assert loa_mock.call_count == len(metrics) * len(origins)
         assert quantiles_mock.call_count == len(metrics) * len(origins)
 
+        # "quantiles", "loa"
+        assert res.index.get_level_values(0).nunique() == 2
+        # all metrics
+        assert res.index.get_level_values(1).nunique() == len(metrics)
+        # all origins
+        assert res.index.get_level_values(2).nunique() == len(origins)
+
     def test_apply_agg_aggs_with_nan_results(self, combined_det_ref_dmo_df_with_errors):
         metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).unique()
 
@@ -1106,16 +1110,20 @@ class TestApplyAggregations:
 
         # "mean", "std", "mock_func"
         assert res.index.get_level_values(0).nunique() == 3
+        # all metrics
         assert res.index.get_level_values(1).nunique() == len(metrics)
         # "detected", "reference", "error", "rel_error", "abs_error"
         assert res.index.get_level_values(2).nunique() == 5
 
-    @pytest.mark.parametrize("incompatible_col_names", ["test", ("test", "test", "test")])
-    def test_apply_agg_with_incompatible_aggregations(self, combined_det_ref_dmo_df, incompatible_col_names):
+    @pytest.mark.parametrize(
+        "incompatible_col_names", ["test", ("test", "test", "test"), ("test", "test", "test", "test")]
+    )
+    def test_apply_agg_with_multiple_index_level_aggregations(self, combined_det_ref_dmo_df, incompatible_col_names):
         metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
         aggregations = [
             ((metric, "reference"), "mean"),
             CustomOperation(identifier=metric, function=lambda x: 0, column_name=incompatible_col_names),
+            CustomOperation(identifier=metric, function=lambda x: 0, column_name=(metric, "test")),
         ]
         with pytest.raises(ValueError):
             apply_aggregations(combined_det_ref_dmo_df, aggregations)

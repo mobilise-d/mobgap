@@ -1158,7 +1158,6 @@ def apply_transformations(
                 try:
                     fct_name = fct.__name__
                 except AttributeError as e:
-                    print(e)
                     raise ValueError(
                         f"Transformation function {fct} does not have a `__name__`-Attribute. "
                         "Please use a named function or assign a name."
@@ -1251,7 +1250,8 @@ def apply_aggregations(
             )
         except KeyError as e:
             raise ValueError("Column(s) specified in aggregations not found in DataFrame.") from e
-    agg_aggregation_results = pd.concat(agg_aggregation_results)
+    if agg_aggregation_results:
+        agg_aggregation_results = pd.concat(agg_aggregation_results)
 
     manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
 
@@ -1263,12 +1263,13 @@ def apply_aggregations(
 
     # otherwise, concatenate the results
     try:
-        aggregation_results = pd.concat([manual_aggregation_results, agg_aggregation_results])
-    except AssertionError as e:
+        _check_number_of_index_levels([agg_aggregation_results, manual_aggregation_results])
+    except ValueError as e:
         raise ValueError(
-            "The aggregation results could not be concatenated. "
-            "This is could be caused by a wrong number of columns specified in a CustomOperation function."
+            "The aggregation results from automatic and custom aggregation could not be concatenated. "
+            "This is likely caused by an inconsistent number index levels in them."
         ) from e
+    aggregation_results = pd.concat([agg_aggregation_results, manual_aggregation_results])
 
     return aggregation_results
 
@@ -1322,8 +1323,7 @@ def _allow_only_series(func: callable) -> callable:
 
 def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperation]) -> pd.Series:
     # apply manual aggregations
-    manual_aggregation_names = []
-    manual_aggregation_dict = {}
+    manual_aggregation_results = []
     for agg in manual_aggregations:
         agg_functions = agg.function
         if not isinstance(agg_functions, list):
@@ -1339,20 +1339,29 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
                     f"Transformation function {fct} does not have a `__name__`-Attribute. "
                     "Please use a named function or assign a name."
                 ) from e
-            manual_aggregation_names.append(fct_name)
             column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
             key = (fct_name, *column_name)
-            manual_aggregation_dict.setdefault(key, []).append(result)
-
-    manual_aggregation_results = pd.Series(manual_aggregation_dict)
-
-    if not manual_aggregation_results.empty:
-        manual_aggregation_results.columns = pd.MultiIndex.from_tuples(manual_aggregation_dict.keys())
-        manual_aggregation_results = manual_aggregation_results.stack(level=0, future_stack=True).reset_index(
-            level=0, drop=True
-        )
-
+            manual_aggregation_results.append(pd.Series([result], index=pd.MultiIndex.from_tuples([key])))
+    if manual_aggregation_results:
+        try:
+            _check_number_of_index_levels(manual_aggregation_results)
+        except ValueError as e:
+            raise ValueError(
+                "Error in concatenating manual aggregation results. "
+                "Please ensure that the `col_names` attribute has the same number of elements "
+                "across all custom aggregations"
+            ) from e
+        manual_aggregation_results = pd.concat(manual_aggregation_results)
     return manual_aggregation_results
+
+
+def _check_number_of_index_levels(agg_results: list[Union[pd.Series, pd.DataFrame]]) -> None:
+    n_levels = [result.index.nlevels for result in agg_results]
+    if len(set(n_levels)) > 1:
+        raise ValueError(
+            "Number of index levels in results is not consistent. "
+            "Please ensure that all aggregation results have the same number of index levels."
+        )
 
 
 __all__ = [
