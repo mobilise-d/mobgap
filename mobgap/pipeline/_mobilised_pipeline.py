@@ -22,6 +22,8 @@ from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.utils.array_handling import create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
+from mobgap.walking_speed import WsNaive
+from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
 
 # TODO: Add turning detection
@@ -56,7 +58,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdShinImproved()),
                 "stride_length_calculation": SlZijlstra(),
-                "walking_speed_calculation": None,
+                "walking_speed_calculation": WsNaive(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
@@ -71,7 +73,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved()),
                 "stride_length_calculation": SlZijlstra(),
-                "walking_speed_calculation": None,
+                "walking_speed_calculation": WsNaive(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
@@ -86,7 +88,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
         stride_length_calculation: Optional[BaseSlCalculator],
-        walking_speed_calculation: None,
+        walking_speed_calculation: Optional[BaseWsCalculator],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
@@ -183,21 +185,36 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
             with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
+                cad_r = None
                 if self.cadence_calculation:
                     cad = self.cadence_calculation.clone().calculate(
-                        refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz, **participant_metadata
+                        refined_gs_data,
+                        initial_contacts=refined_ic_list,
+                        sampling_rate_hz=sampling_rate_hz,
+                        **participant_metadata,
                     )
-                    rr.cadence_per_sec = cad.cadence_per_sec_
+                    cad_r = cad.cadence_per_sec_
+                    rr.cadence_per_sec = cad_r
+                sl_r = None
                 if self.stride_length_calculation:
                     sl = self.stride_length_calculation.clone().calculate(
-                        refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz, **participant_metadata
+                        refined_gs_data,
+                        initial_contacts=refined_ic_list,
+                        sampling_rate_hz=sampling_rate_hz,
+                        **participant_metadata,
                     )
-                    rr.stride_length_per_sec = sl.stride_length_
+                    sl_r = sl.stride_length_per_sec_
+                    rr.stride_length_per_sec = sl.stride_length_per_sec_
                 if self.walking_speed_calculation:
                     ws = self.walking_speed_calculation.clone().calculate(
-                        refined_gs_data, refined_ic_list, sampling_rate_hz=sampling_rate_hz, **participant_metadata
+                        refined_gs_data,
+                        initial_contacts=refined_ic_list,
+                        cadence_per_sec=cad_r,
+                        stride_length_per_sec=sl_r,
+                        sampling_rate_hz=sampling_rate_hz,
+                        **participant_metadata,
                     )
-                    rr.walking_speed_per_sec = ws.walking_speed_
+                    rr.walking_speed_per_sec = ws.walking_speed_per_sec_
 
         return gs_iterator
 
@@ -247,7 +264,7 @@ class MobilisedPipelineHealthy(MobilisedPipeline):
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
         stride_length_calculation: Optional[BaseSlCalculator],
-        walking_speed_calculation: None,
+        walking_speed_calculation: Optional[BaseWsCalculator],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
@@ -276,7 +293,7 @@ class MobilisedPipelineImpaired(MobilisedPipeline):
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
         stride_length_calculation: Optional[BaseSlCalculator],
-        walking_speed_calculation: None,
+        walking_speed_calculation: Optional[BaseWsCalculator],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
