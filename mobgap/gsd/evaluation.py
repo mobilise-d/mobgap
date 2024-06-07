@@ -2,6 +2,7 @@
 
 import warnings
 from collections.abc import Hashable, Sequence
+from functools import wraps
 from typing import Any, Callable, Literal, NamedTuple, Optional, Union
 
 import matplotlib.pyplot as plt
@@ -1193,10 +1194,10 @@ def apply_aggregations(
             tuple[Union[str, tuple[str, ...]], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
         ]
     ],
-) -> pd.DataFrame:
+) -> pd.Series:
     """Apply a set of aggregations to a DMO DataFrame.
 
-    Returns a DataFrame with one entry per aggregation.
+    Returns a Series with one entry per aggregation.
 
     Parameters
     ----------
@@ -1241,30 +1242,31 @@ def apply_aggregations(
     manual_aggregations, agg_aggregations = _collect_manual_and_agg_aggregations(aggregations)
 
     # apply built-in aggregations
-    agg_aggregation_results = pd.DataFrame()
-    if len(agg_aggregations) != 0:
+    agg_aggregation_results = []
+    for key, aggregation in agg_aggregations.items():
         try:
-            agg_aggregation_results = df.agg(agg_aggregations)
+            aggregation_result = df.agg({key: aggregation})
+            agg_aggregation_results.append(
+                aggregation_result.stack(level=np.arange(df.columns.nlevels).tolist(), future_stack=True)
+            )
         except KeyError as e:
             raise ValueError("Column(s) specified in aggregations not found in DataFrame.") from e
+    agg_aggregation_results = pd.concat(agg_aggregation_results)
 
     manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
 
-    # combine manual and agg results
+    # if only one type of aggregation was applied, return the result directly
+    if manual_aggregations and not agg_aggregations:
+        return manual_aggregation_results
+    if agg_aggregations and not manual_aggregations:
+        return agg_aggregation_results
+
+    # otherwise, concatenate the results
     try:
         aggregation_results = pd.concat([manual_aggregation_results, agg_aggregation_results])
     except AssertionError as e:
         raise ValueError(
             "The aggregation results could not be concatenated. "
-            "This is could be caused by a wrong number of columns specified in a CustomOperation function."
-        ) from e
-    try:
-        aggregation_results = aggregation_results.stack(
-            level=np.arange(df.columns.nlevels).tolist(), future_stack=True
-        ).dropna()
-    except IndexError as e:
-        raise ValueError(
-            "The aggregation results could not be stacked. "
             "This is could be caused by a wrong number of columns specified in a CustomOperation function."
         ) from e
 
@@ -1287,6 +1289,14 @@ def _collect_manual_and_agg_aggregations(
             key, aggregation = agg
             if not isinstance(aggregation, list):
                 aggregation = [aggregation]
+            wrapped_aggregation = []
+            for fct in aggregation:
+                if isinstance(fct, str):
+                    # skip special case string-functions (e.g. "mean")
+                    wrapped_aggregation.append(fct)
+                else:
+                    # wrap function to prevent unexpected behavior of pd.DataFrame.agg
+                    wrapped_aggregation.append(_allow_only_series(fct))
             # agg function only accepts strings as identifiers for one-level columns
             if isinstance(key, tuple) and len(key) == 1:
                 key = key[0]
@@ -1294,11 +1304,23 @@ def _collect_manual_and_agg_aggregations(
                 raise ValueError(
                     f"The key {key} has an invalid type. It must either be a string or a tuple of strings."
                 )
-            agg_aggregations.setdefault(key, []).extend(aggregation)
+            agg_aggregations.setdefault(key, []).extend(wrapped_aggregation)
     return manual_aggregations, agg_aggregations
 
 
-def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperation]) -> pd.DataFrame:
+def _allow_only_series(func: callable) -> callable:
+    # if data are passed to apply element-wise,
+    # throw an error to ensure that they are processed as whole series
+    @wraps(func)
+    def wrapper(x: pd.Series) -> Any:
+        if not isinstance(x, (pd.Series, pd.DataFrame)):
+            raise TypeError("Only Series allowed as input.")
+        return func(x)
+
+    return wrapper
+
+
+def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperation]) -> pd.Series:
     # apply manual aggregations
     manual_aggregation_names = []
     manual_aggregation_dict = {}
@@ -1322,7 +1344,7 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
             key = (fct_name, *column_name)
             manual_aggregation_dict.setdefault(key, []).append(result)
 
-    manual_aggregation_results = pd.DataFrame(manual_aggregation_dict)
+    manual_aggregation_results = pd.Series(manual_aggregation_dict)
 
     if not manual_aggregation_results.empty:
         manual_aggregation_results.columns = pd.MultiIndex.from_tuples(manual_aggregation_dict.keys())
@@ -1331,36 +1353,6 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
         )
 
     return manual_aggregation_results
-
-
-def _sanitize_combined_metrics(df: pd.DataFrame, metric_origin_combinations: list[tuple[str]]) -> None:
-    # check if input is a dataframe
-    if not isinstance(df, pd.DataFrame):
-        raise TypeError("`df` must be of type `pandas.DataFrame`.")
-    # check if input has the correct MultiIndex structure
-    if not all([isinstance(df.columns, pd.MultiIndex), df.columns.names == ["metric", "origin"]]):
-        raise ValueError("`df` must have a MultiIndex column structure.")
-    # check if all metric_origin_combinations are valid and present in the input
-    for metric_origin_comb in metric_origin_combinations:
-        if not isinstance(metric_origin_comb, tuple):
-            raise TypeError("All keys in `aggregate_funcs` must be tuples.")
-        if metric_origin_comb not in df.columns:
-            raise ValueError(f"Column '{metric_origin_comb}' not found in DataFrame.")
-
-
-def _sanitize_agg(agg: Union[str, FunctionType]) -> Union[FunctionType, str]:
-    # agg is function type already
-    if isinstance(agg, FunctionType):
-        return agg
-    # agg refers to custom function
-    if agg in globals() and callable(globals()[agg]):
-        return globals()[agg]
-    # built-in functions
-    try:
-        callable(getattr(pd.Series(), agg))
-    except AttributeError as e:
-        raise ValueError(f"Function '{agg}' is not implemented and thus not a valid aggregation function.") from e
-    return agg
 
 
 __all__ = [

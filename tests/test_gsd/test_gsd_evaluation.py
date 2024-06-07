@@ -1058,7 +1058,7 @@ class TestApplyAggregations:
 
     @patch("mobgap.gsd.evaluation.loa")
     @patch("mobgap.gsd.evaluation.quantiles")
-    def test_apply_custom_agg_with_nan_results(self, quantiles_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
+    def test_apply_custom_aggs_with_nan_results(self, quantiles_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
         # TODO: fix this
         quantiles_mock = self._prepare_aggregation_mock_function(quantiles_mock, "quantiles", 0)
         loa_mock = self._prepare_aggregation_mock_function(loa_mock, "loa", np.nan)
@@ -1082,11 +1082,33 @@ class TestApplyAggregations:
         res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
 
         assert isinstance(res, pd.Series)
-        # for all 6 origins: add calculation of built-in "mean" to the expected count
         assert len(res) == len(aggregations)
 
         assert loa_mock.call_count == len(metrics) * len(origins)
         assert quantiles_mock.call_count == len(metrics) * len(origins)
+
+    def test_apply_agg_aggs_with_nan_results(self, combined_det_ref_dmo_df_with_errors):
+        metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).unique()
+
+        def mock_func(x):
+            return np.nan
+
+        aggregations = [
+            *(((m, o), "mean") for m in metrics for o in ["detected", "reference"]),
+            *(((m, o), "std") for m in metrics for o in ["error", "rel_error"]),
+            *(((m, o), mock_func) for m in metrics for o in ["detected", "abs_error"]),
+        ]
+
+        res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
+
+        assert isinstance(res, pd.Series)
+        assert len(res) == len(aggregations)
+
+        # "mean", "std", "mock_func"
+        assert res.index.get_level_values(0).nunique() == 3
+        assert res.index.get_level_values(1).nunique() == len(metrics)
+        # "detected", "reference", "error", "rel_error", "abs_error"
+        assert res.index.get_level_values(2).nunique() == 5
 
     @pytest.mark.parametrize("incompatible_col_names", ["test", ("test", "test", "test")])
     def test_apply_agg_with_incompatible_aggregations(self, combined_det_ref_dmo_df, incompatible_col_names):
