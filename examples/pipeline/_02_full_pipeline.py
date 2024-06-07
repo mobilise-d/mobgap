@@ -90,7 +90,7 @@ from mobgap.cad import CadFromIc
 cad = CadFromIc()
 cad.calculate(
     refined_gait_sequence_data,
-    refined_ic_list,
+    initial_contacts=refined_ic_list,
     sampling_rate_hz=sampling_rate_hz,
 )
 
@@ -105,7 +105,7 @@ from mobgap.stride_length import SlZijlstra
 sl = SlZijlstra()
 sl.calculate(
     refined_gait_sequence_data,
-    refined_ic_list,
+    initial_contacts=refined_ic_list,
     sampling_rate_hz=sampling_rate_hz,
     **participant_metadata,
 )
@@ -113,6 +113,29 @@ sl.calculate(
 sl_per_sec = sl.stride_length_per_sec_
 sl_per_sec
 
+# %%
+# Step 5: Walking Speed Calculation
+# ---------------------------------
+# Finally, we can calculate the walking speed.
+# This could be done by another sophisticated algorithm that uses the raw data to estimate the walking speed.
+# However, in the Mobilise-D pipeline we opted to base the walking speed calculation on the cadence and stride length
+# to avoid adding a walking speed that would not be coherent with the other results.
+#
+# To allow to modify this in the future and to allow for different walking speed calculation algorithms, we still
+# encapsulate the walking speed calculation in a separate class that takes all the previous results as input.
+from mobgap.walking_speed import WsNaive
+
+ws = WsNaive()
+ws.calculate(
+    refined_gait_sequence_data,
+    initial_contacts=refined_ic_list,
+    cadence_per_sec=cad_per_sec,
+    stride_length_per_sec=sl_per_sec,
+    sampling_rate_hz=sampling_rate_hz,
+    **participant_metadata,
+)
+ws_per_sec = ws.walking_speed_per_sec_
+ws_per_sec
 
 # %%
 # After going through the steps for a single gait sequence, we would then put all the data together to calculate final

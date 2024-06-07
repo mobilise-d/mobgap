@@ -11,7 +11,7 @@ from mobgap.aggregation.base import BaseAggregator
 from mobgap.cad import CadFromIcDetector
 from mobgap.cad.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
-from mobgap.gsd import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
+from mobgap.gsd import GsdIluz, GsdIonescu
 from mobgap.gsd.base import BaseGsDetector
 from mobgap.icd import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
 from mobgap.icd.base import BaseIcDetector
