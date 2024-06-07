@@ -567,7 +567,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "n_strides": "int64",
         "duration_s": "float64",
         "length_m": "float64",
-        "avg_speed_mps": "float64",
+        "avg_walking_speed_mps": "float64",
         "avg_cadence_spm": "float64",
         "avg_stride_length_m": "float64",
         "termination_reason": "string",
@@ -690,7 +690,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "n_strides",
         "duration_s",
         "length_m",
-        "avg_speed_mps",
+        "avg_walking_speed_mps",
         "avg_cadence_spm",
         "avg_stride_length_m",
     ]:

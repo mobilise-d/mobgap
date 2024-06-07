@@ -26,7 +26,7 @@
                 "type":"number"
             },
             {
-                "name":"avg_speed_mps",
+                "name":"avg_walking_speed_mps",
                 "type":"number"
             },
             {
@@ -56,7 +56,7 @@
             "n_strides":4,
             "duration_s":3.11,
             "length_m":4.1137068158,
-            "avg_speed_mps":1.372701035,
+            "avg_walking_speed_mps":1.372701035,
             "avg_cadence_spm":98.7232977791,
             "avg_stride_length_m":1.6696087036,
             "termination_reason":"Pause"
