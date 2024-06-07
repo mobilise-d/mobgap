@@ -68,8 +68,14 @@ import numpy as np
 from typing import Literal
 
 
+import numpy as np
+from typing import Literal
+
+
 def normalize(
-    x, criterion: Literal["benefit", "cost"] = "benefit", normalization: bool = False
+    x,
+    criterion: Literal["benefit", "cost"] = "benefit",
+    normalization: Literal["minmax", "sigmoid", "exponential", None] = None,
 ):
     """
     Normalize a given array of values based on Bonci et al.
@@ -77,40 +83,51 @@ def normalize(
     Parameters:
     - x (array-like): The input array to be normalized.
     - criterion (str, optional): The type of normalization to be applied. Valid options are "cost" and "benefit" (default).
-    - normalization (bool, optional): Whether to perform normalization. If True, the values will be normalized between
-                                      the minimum and maximum values in the array. If False, the values will be
-                                      normalized between 0 and 1 (e.g., relevant for metrics such as precision, recall, ...). Default is False.
+    - normalization (str, optional): Which normalization to perform. Valid options are "minmax", "sigmoid", "exponential", or None (default).
 
     Returns:
-    array-like: The normalized array.
+    - array-like: The normalized array.
 
+    Raises:
+    - ValueError: If the criterion is not specified as either 'benefit' or 'cost'.
+
+    Examples:
+    >>> x = [1, 2, 3, 4, 5]
+    >>> normalize(x, normalization="minmax")
+    array([0. , 0.25, 0.5 , 0.75, 1. ])
+
+    >>> normalize(x, criterion="benefit", normalization="sigmoid")
+    array([0.73105858, 0.88079708, 0.95257413, 0.98201379, 0.99330715])
+
+    >>> normalize(x, criterion="cost", normalization="sigmoid")
+    array([0.26894142, 0.11920292, 0.04742587, 0.01798621, 0.00669285])
+
+    >>> normalize(x, criterion="benefit", normalization="exponential")
+    array([0.63212056, 0.86466472, 0.95021293, 0.98201417, 0.99326205])
     """
     x = np.array(x)
 
-    if normalization:
-        max_val = max(x)
-        min_val = min(x)
+    if normalization == "minmax":
+        x_norm = (x - min(x)) / (max(x) - min(x))
+    elif normalization == "sigmoid":
+        x_norm = 1 / (1 + np.exp(-x))
+    elif normalization == "exponential":
+        x_norm = 1 - np.exp(-x)
     else:
-        max_val = 1
-        min_val = 0
+        x_norm = x
 
-    if criterion == "cost":
-        return (max_val - x) / (max_val - min_val)
-    elif criterion == "benefit":
-        return (x - min_val) / (max_val - min_val)
+    if criterion == "benefit":
+        x_criterion = x_norm
+    elif criterion == "cost":
+        x_criterion = 1 - x_norm
     else:
-        return x
+        raise ValueError(
+            "criterion needs to be specified as either 'benefit' or 'cost'."
+        )
+
+    return x_criterion
 
 
-# E.g.:
-normalize(
-    evaluation_results_dict["single_num_gs_absolute_relative_error_log"],
-    criterion="cost",
-    normalization=True,
-)
-
-# %%
-evaluation_results_dict["single_num_gs_absolute_relative_error_log"]
 # %%
 # Define metrics that are used to calculate the performance index
 # For each metric, the underlying score, criterion (cost/benefit), aggregation (e.g., mean, std, ...), and weight needs to be defined
@@ -118,42 +135,42 @@ weighting_factor_micoamigo = {
     "recall_mean": {
         "metric": "single_recall",
         "criterion": "benefit",
-        "normalization": False,
+        "normalization": None,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.117,
     },
     "specificity_mean": {
         "metric": "single_specificity",
         "criterion": "benefit",
-        "normalization": False,
+        "normalization": None,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.178,
     },
     "precision_mean": {
         "metric": "single_precision",
         "criterion": "benefit",
-        "normalization": False,
+        "normalization": None,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.105,
     },
     "accuracy_mean": {
         "metric": "single_accuracy",
         "criterion": "benefit",
-        "normalization": False,
+        "normalization": None,
         "aggregation": lambda x: np.mean(x),
         "weight": 0.160,
     },
     "gs_absolute_relative_duration_error_mean": {
         "metric": "single_gs_absolute_relative_duration_error_log",
         "criterion": "cost",
-        "normalization": True,
+        "normalization": "exponential",
         "aggregation": lambda x: np.mean(x),
         "weight": 0.122,
     },
     "gs_absolute_relative_duration_error_std": {
         "metric": "single_gs_absolute_relative_duration_error_log",
         "criterion": "cost",
-        "normalization": True,
+        "normalization": "exponential",
         "aggregation": lambda x: np.std(x),
         "weight": 0.122,
     },
@@ -180,7 +197,7 @@ performance_index = sum(
 
 performance_index
 
-
+# TODO:
 # These are the weights used in Kluge et al.
 # weighting_factor_kluge = {
 #     "recall": 0.117,
