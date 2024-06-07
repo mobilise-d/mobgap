@@ -566,8 +566,10 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
             )
         return list(self.iterate_subregions(sub_region_list))[0]  # noqa: RUF015
 
+    # Note: Iterator[...] is the correct type annotation here. PyCharm just does not recognize it. See:
+    #       PY-71674 PyCharm doesn't infer types when using contextlib.contextmanager decorator on a method
     @contextmanager
-    def subregion(self, sub_region_list: pd.DataFrame) -> tuple[tuple[Region, pd.DataFrame], DataclassT]:
+    def subregion(self, sub_region_list: pd.DataFrame) -> Iterator[tuple[tuple[Region, pd.DataFrame], DataclassT]]:
         """Context manager for handling a subregion of the current gait sequence.
 
         This is basically just syntactic sugar for the ``with_subregion`` method.
