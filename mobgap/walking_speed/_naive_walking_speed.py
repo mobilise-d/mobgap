@@ -1,7 +1,7 @@
-from typing import Any, Optional, Self
+from typing import Any, Optional
 
 import pandas as pd
-from typing_extensions import Unpack
+from typing_extensions import Self, Unpack
 
 from mobgap.walking_speed.base import BaseWsCalculator, base_ws_docfiller
 
