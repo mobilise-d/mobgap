@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A "naive" walking speed calculation method that just multiplies the cadence with the step length.
+  (https://github.com/mobilise-d/mobgap/pull/148)
 - The Zjilstra Stride/Step length algorithm (https://github.com/mobilise-d/mobgap/pull/142)
 - A new GSD algorithm called ``GsdIonescu`` (https://github.com/mobilise-d/mobgap/pull/143)
 - A new GSD algorithm called ``GsdAdaptiveIonescu`` (https://github.com/mobilise-d/mobgap/pull/53)
