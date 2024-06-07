@@ -986,6 +986,41 @@ class TestApplyAggregations:
         assert res.index.get_level_values(1).nunique() == count_metrics
         assert res.index.get_level_values(2).nunique() == 7  # all origins + "all"
 
+    @pytest.mark.parametrize(
+        ("identifier", "input_df"),
+        [
+            ("single_col", pd.DataFrame(np.zeros((10, 1)), columns=["single_col"])),
+            (("single_col",), pd.DataFrame(np.zeros((10, 1)), columns=["single_col"])),
+            (
+                ("multi_col", "multi_col_2"),
+                pd.DataFrame(np.zeros((10, 1)), columns=pd.MultiIndex.from_tuples([("multi_col", "multi_col_2")])),
+            ),
+            (
+                ("multi_col", "multi_col_2", "multi_col_3"),
+                pd.DataFrame(
+                    np.zeros((10, 1)), columns=pd.MultiIndex.from_tuples([("multi_col", "multi_col_2", "multi_col_3")])
+                ),
+            ),
+        ],
+    )
+    def test_agg_aggregations(self, identifier, input_df):
+        functions = ["mean", "std"]
+        aggregations = [(identifier, functions)]
+        print(input_df)
+        res = apply_aggregations(input_df, aggregations)
+
+        assert isinstance(res, pd.Series)
+        assert len(res) == len(functions)
+        assert res.index.nlevels == (len(identifier) + 1) if isinstance(identifier, tuple) else 2
+        print(res)
+
+    @pytest.mark.parametrize("invalid_id", [(1,), (2, 3, 4), ["test", "test"]])
+    def test_agg_aggregations_with_wrong_identifier(self, invalid_id, combined_det_ref_dmo_df_with_errors):
+        functions = ["mean", "std"]
+        aggregations = [(invalid_id, functions)]
+        with pytest.raises(ValueError):
+            apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
+
     @patch("mobgap.gsd.evaluation.loa")
     @patch("mobgap.gsd.evaluation.icc")
     @patch("mobgap.gsd.evaluation.quantiles")

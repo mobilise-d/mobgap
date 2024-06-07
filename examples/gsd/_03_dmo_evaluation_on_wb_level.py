@@ -208,10 +208,17 @@ gs_matches_with_errors
 # returns a single value or a tuple of values stored in one cell of the resulting dataframe.
 # There are two ways to define aggregations:
 #
-# 1. As a tuple in the format `((<metric>, <origin>), <aggregation>)`,
-#    where `<metric>` is the name of the DMO to evaluate, `<origin>` is the column from which data should be utilized
-#    (for this example, it would be either `detected`, `reference`, or one of the error columns)
-#    and `<aggregation>` is the function or the list of functions to apply.
+# 1. As a tuple in the format `(<identifier>, <aggregation>)`.
+#    In this case, the operation is performed based on exactly one column from the input df.
+#    Therefore, <identifier> can either be a string representing the name of the column to evaluate
+#    (for data with single-level columns),
+#    or a tuple of strings uniquely identifying the column to evaluate.
+#    In our example, the identifier is a tuple (<metric>, <origin>),
+#    where `<metric>` is the metric column to evaluate,
+#    `<origin>` is the specific column from which data should be utilized
+#    (here, it would be either `detected`, `reference`, or one of the error columns)
+#    (e.g., this example, `detected`, `reference`, or `error`).
+#    Furthermore, `<aggregation>` is the function or the list of functions to apply.
 #    The output dataframe will have a multilevel column with `metric` as the first level and
 #    `origin` as the second level.
 #    A valid aggregations list for all of our DMOs would consequently look like this:

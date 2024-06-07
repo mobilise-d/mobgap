@@ -2,7 +2,6 @@
 
 import warnings
 from collections.abc import Hashable, Sequence
-from types import FunctionType
 from typing import Any, Callable, Literal, NamedTuple, Optional, Union
 
 import matplotlib.pyplot as plt
@@ -1190,7 +1189,9 @@ def apply_transformations(
 def apply_aggregations(
     df: pd.DataFrame,
     aggregations: list[
-        Union[tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation]
+        Union[
+            tuple[Union[str, tuple[str, ...]], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
+        ]
     ],
 ) -> pd.DataFrame:
     """Apply a set of aggregations to a DMO DataFrame.
@@ -1212,11 +1213,16 @@ def apply_aggregations(
         A list specifying which aggregation functions are to be applied for which metrics and data origins.
         There are two ways to define aggregations:
 
-        1.  As a tuple in the format `((<metric>, <origin>), <aggregation>)`,
+        1.  As a tuple in the format `(<identifier>, <aggregation>)`.
+            In this case, the operation is performed based on exactly one column from the input df.
+            Therefore, <identifier> can either be a string representing the name of the column to evaluate
+            (for data with single-level columns),
+            or a tuple of strings uniquely identifying the column to evaluate.
+            In case of the standard Mobilise-D data structure, this would be a tuple (<metric>, <origin>),
             where `<metric>` is the metric column to evaluate,
             `<origin>` is the specific column from which data should be utilized
-            (e.g., this example, `detected`, `reference`, or `error`),
-            and `<aggregation>` is the function or the list of functions to apply.
+            (e.g., `detected`, `reference`, or `error`).
+            Furthermore, `<aggregation>` is the function or the list of functions to apply.
             The output dataframe will have a multilevel column consisting of the `metric` level and the
             `origin` level.
 
@@ -1266,8 +1272,10 @@ def apply_aggregations(
 
 
 def _collect_manual_and_agg_aggregations(
-    aggregations: Union[
-        tuple[tuple[str, str], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
+    aggregations: list[
+        Union[
+            tuple[Union[str, tuple[str, ...]], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
+        ]
     ],
 ) -> tuple[list[CustomOperation], dict[tuple[str, str], list[Union[str, Callable]]]]:
     manual_aggregations = []
@@ -1279,8 +1287,14 @@ def _collect_manual_and_agg_aggregations(
             key, aggregation = agg
             if not isinstance(aggregation, list):
                 aggregation = [aggregation]
-            if isinstance(key, tuple):
-                agg_aggregations.setdefault(key, []).extend(aggregation)
+            # agg function only accepts strings as identifiers for one-level columns
+            if isinstance(key, tuple) and len(key) == 1:
+                key = key[0]
+            if not isinstance(key, (tuple, str)):
+                raise ValueError(
+                    f"The key {key} has an invalid type. It must either be a string or a tuple of strings."
+                )
+            agg_aggregations.setdefault(key, []).extend(aggregation)
     return manual_aggregations, agg_aggregations
 
 
