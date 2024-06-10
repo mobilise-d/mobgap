@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loading the Matlab file itself.
   This should help reducing the initial index creation time for large datasets.
   (https://github.com/mobilise-d/mobgap/pull/125)
+- A loader for the Mobilise-D TVS dataset, which will be published end on June.
+  (https://github.com/mobilise-d/mobgap/pull/125)
 
 
 ### Changed
