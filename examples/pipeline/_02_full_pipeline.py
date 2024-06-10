@@ -138,6 +138,21 @@ ws_per_sec = ws.walking_speed_per_sec_
 ws_per_sec
 
 # %%
+# Step 6: Turn Detection
+# ----------------------
+# Independent of all other parameters, we detect turns in the gait sequence.
+# This does not influence the calculation of the other parameters, and is only used to gather the ``n_turns`` parameter.
+#
+# .. warning:: The turning algorithm is not evaluated. If you are planning to use detailed turning information, you
+#              should perform your own evaluation for your specific use-case.
+from mobgap.turning import TdElGohary
+
+turn = TdElGohary()
+turn.detect(refined_gait_sequence_data, sampling_rate_hz=sampling_rate_hz)
+turn_list = turn.turn_list_
+turn_list
+
+# %%
 # After going through the steps for a single gait sequence, we would then put all the data together to calculate final
 # results per WB.
 # But let's first put all the processing into an easy-to-read loop.
@@ -150,6 +165,7 @@ from mobgap.gsd import GsdIluz
 from mobgap.icd import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich
 from mobgap.stride_length import SlZijlstra
+from mobgap.turning import TdElGohary
 from mobgap.walking_speed import WsNaive
 
 gsd = GsdIluz()
@@ -158,6 +174,7 @@ lrc = LrcUllrich()
 cad = CadFromIc()
 sl = SlZijlstra()
 speed = WsNaive()
+turn = TdElGohary()
 
 # %%
 # Then we calculate the gait sequences as before.
@@ -183,6 +200,8 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
     )
     r.ic_list = lrc.ic_lr_list_
+    turn = turn.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
+    r.turn_list = turn.turn_list_
 
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
@@ -368,10 +387,11 @@ from mobgap.pipeline import MobilisedPipeline
 
 pipeline = MobilisedPipeline(
     gait_sequence_detection=gsd,
-    initial_contacts_detection=icd,
+    initial_contact_detection=icd,
     laterality_classification=lrc,
     cadence_calculation=cad,
     stride_length_calculation=sl,
+    turn_detection=turn,
     walking_speed_calculation=ws,
     stride_selection=ss,
     wba=wba,

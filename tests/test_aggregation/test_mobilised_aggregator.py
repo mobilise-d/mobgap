@@ -74,12 +74,11 @@ class TestMobilisedAggregator:
         data = request.getfixturevalue(data)
         reference = request.getfixturevalue(reference).sort_index(axis=1)
 
-
         agg = MobilisedAggregator(**MobilisedAggregator.PredefinedParameters.cvs_dmo_data).aggregate(data)
         output = agg.aggregated_data_.sort_index(axis=1)
 
         # For compatibility, we transform the stride length to cm
-        for c in  ["strlen_1030_avg", "strlen_30_avg"]:
+        for c in ["strlen_1030_avg", "strlen_30_avg"]:
             output[c] *= 100
 
         # Further we reintroduce rounding:

@@ -20,13 +20,13 @@ from mobgap.lrc.base import BaseLRClassifier
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
+from mobgap.turning import TdElGohary
+from mobgap.turning.base import BaseTurnDetector
 from mobgap.utils.array_handling import create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
-
-# TODO: Add turning detection
 
 
 class MobilisedPipeline(Pipeline[BaseGaitDataset]):
@@ -53,12 +53,13 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         normal_walking: Final = MappingProxyType(
             {
                 "gait_sequence_detection": GsdIluz(),
-                "initial_contacts_detection": IcdIonescu(),
+                "initial_contact_detection": IcdIonescu(),
                 # TODO: Check correct model used
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdShinImproved()),
                 "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": WsNaive(),
+                "turn_detection": TdElGohary(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
@@ -69,11 +70,12 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         impaired_walking: Final = MappingProxyType(
             {
                 "gait_sequence_detection": GsdIonescu(),
-                "initial_contacts_detection": IcdIonescu(),
+                "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved()),
                 "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": WsNaive(),
+                "turn_detection": TdElGohary(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
@@ -83,23 +85,26 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
 
     def __init__(
         self,
+        *,
         gait_sequence_detection: BaseGsDetector,
-        initial_contacts_detection: BaseIcDetector,
+        initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
         stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: Optional[BaseWsCalculator],
+        turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
     ) -> None:
         self.gait_sequence_detection = gait_sequence_detection
-        self.initial_contacts_detection = initial_contacts_detection
+        self.initial_contact_detection = initial_contact_detection
         self.laterality_classification = laterality_classification
         self.cadence_calculation = cadence_calculation
         self.stride_length_calculation = stride_length_calculation
         self.walking_speed_calculation = walking_speed_calculation
+        self.turn_detection = turn_detection
         self.stride_selection = stride_selection
         self.wba = wba
         self.dmo_thresholds = dmo_thresholds
@@ -176,11 +181,13 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         # TODO: How to expose the individual algo instances of the algos that run in the loop?
 
         for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
-            icd = self.initial_contacts_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
+            icd = self.initial_contact_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
             lrc = self.laterality_classification.clone().predict(
                 gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
             )
             r.ic_list = lrc.ic_lr_list_
+            turn = self.turn_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
+            r.turn_list = turn.turn_list_
 
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
@@ -221,17 +228,18 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
     def _sec_to_stride(
         self, sec_level_paras: pd.DataFrame, lr_ic_list: pd.DataFrame, sampling_rate_hz: float
     ) -> pd.DataFrame:
-        stride_list = lr_ic_list.groupby("gs_id", group_keys=False).apply(strides_list_from_ic_lr_list).assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
-
         stride_list = (
-            create_multi_groupby(
-                stride_list,
-                sec_level_paras,
-                "gs_id",
-                group_keys=False,
-            )
-            .apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
+            lr_ic_list.groupby("gs_id", group_keys=False)
+            .apply(strides_list_from_ic_lr_list)
+            .assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
         )
+
+        stride_list = create_multi_groupby(
+            stride_list,
+            sec_level_paras,
+            "gs_id",
+            group_keys=False,
+        ).apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
         return stride_list
 
     def _aggregate_per_wb(self, per_stride_parameters: pd.DataFrame, wb_meta_parameters: pd.DataFrame) -> pd.DataFrame:
@@ -258,28 +266,31 @@ class MobilisedPipelineHealthy(MobilisedPipeline):
     @set_defaults(**{k: cf(v) for k, v in MobilisedPipeline.PredefinedParameters.normal_walking.items()})
     def __init__(
         self,
+        *,
         gait_sequence_detection: BaseGsDetector,
-        initial_contacts_detection: BaseIcDetector,
+        initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
         stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: Optional[BaseWsCalculator],
+        turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
     ) -> None:
         super().__init__(
-            gait_sequence_detection,
-            initial_contacts_detection,
-            laterality_classification,
-            cadence_calculation,
-            stride_length_calculation,
-            walking_speed_calculation,
-            stride_selection,
-            wba,
-            dmo_thresholds,
-            dmo_aggregation,
+            gait_sequence_detection=gait_sequence_detection,
+            initial_contact_detection=initial_contact_detection,
+            laterality_classification=laterality_classification,
+            cadence_calculation=cadence_calculation,
+            stride_length_calculation=stride_length_calculation,
+            walking_speed_calculation=walking_speed_calculation,
+            turn_detection=turn_detection,
+            stride_selection=stride_selection,
+            wba=wba,
+            dmo_thresholds=dmo_thresholds,
+            dmo_aggregation=dmo_aggregation,
         )
 
 
@@ -287,26 +298,29 @@ class MobilisedPipelineImpaired(MobilisedPipeline):
     @set_defaults(**{k: cf(v) for k, v in MobilisedPipeline.PredefinedParameters.impaired_walking.items()})
     def __init__(
         self,
+        *,
         gait_sequence_detection: BaseGsDetector,
-        initial_contacts_detection: BaseIcDetector,
+        initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
         stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: Optional[BaseWsCalculator],
+        turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
     ) -> None:
         super().__init__(
-            gait_sequence_detection,
-            initial_contacts_detection,
-            laterality_classification,
-            cadence_calculation,
-            stride_length_calculation,
-            walking_speed_calculation,
-            stride_selection,
-            wba,
-            dmo_thresholds,
-            dmo_aggregation,
+            gait_sequence_detection=gait_sequence_detection,
+            initial_contact_detection=initial_contact_detection,
+            laterality_classification=laterality_classification,
+            cadence_calculation=cadence_calculation,
+            stride_length_calculation=stride_length_calculation,
+            walking_speed_calculation=walking_speed_calculation,
+            turn_detection=turn_detection,
+            stride_selection=stride_selection,
+            wba=wba,
+            dmo_thresholds=dmo_thresholds,
+            dmo_aggregation=dmo_aggregation,
         )
