@@ -242,11 +242,8 @@ class MobilisedAggregator(BaseAggregator):
         ("duration_s > 60", _SIXTY_WB_AGGS),
     ]
 
-    # TODO: Make that configurable somehow, as we should unify the units across the whole package
     _UNIT_CONVERSIONS: typing.ClassVar = {
         "walkdur_all_sum": 1 / 3600,
-        "strlen_1030_avg": 100,
-        "strlen_30_avg": 100,
     }
 
     _COUNT_COLUMNS: typing.ClassVar = [
@@ -380,7 +377,6 @@ class MobilisedAggregator(BaseAggregator):
         self.aggregated_data_ = self._apply_aggregations(self.filtered_wb_dmos_, groupby, available_filters_and_aggs)
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
-        self.aggregated_data_ = self.aggregated_data_.round(3)
 
         if self.use_original_names is False:
             self.aggregated_data_ = self.aggregated_data_.rename(columns=self.ALTERNATIVE_NAMES, errors="ignore")

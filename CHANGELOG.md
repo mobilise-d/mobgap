@@ -77,6 +77,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This means the "partial" last second of a recording is now included in the output.
   This ensures that all strides are covered by the output.
   (https://github.com/mobilise-d/mobgap/pull/141)
+- The MobiliseDAggregator does not round the output anymore and further does not convert stride length values to "cm"
+  anymore.
+  If this is desired, the user has to do this manually.
+  (https://github.com/mobilise-d/mobgap/pull/145)
 
 ### Fixed
 
