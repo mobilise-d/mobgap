@@ -60,7 +60,7 @@ reference_dmo
 # However, normally the data structure would be more complex, containing several participants, trials,
 # and recording days.
 # In this case, we want to only match gait sequences within the same trial, day, and participant.
-# For this, we need to group the detected and reference initial contacts by those index levels.
+# For this, we need to group the detected and reference gait sequences by those index levels.
 # This can be done using the :func:`~mobgap.utils.array_handling.create_multi_groupby` helper function.
 
 from mobgap.utils.array_handling import create_multi_groupby
@@ -88,7 +88,7 @@ pprint(per_trial_participant_day_grouper)
 # It can be chosen according to your needs, whereby a value closer to 0.5 will yield more matches
 # than a value closer to 1.
 
-from mobgap.gsd.evaluation import CustomOperation, categorize_matches_with_min_overlap, icc
+from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
 
 gs_tp_fp_fn = create_multi_groupby(
     detected_dmo, reference_dmo, groupby=["visit_type", "participant_id", "measurement_date"]
@@ -108,7 +108,7 @@ gs_tp_fp_fn
 from mobgap.gsd.evaluation import get_matching_gs
 
 gs_matches = get_matching_gs(metrics_detected=detected_dmo, metrics_reference=reference_dmo, matches=gs_tp_fp_fn)
-gs_matches
+gs_matches.T
 
 # %%
 # Estimate Errors in DMO data
@@ -140,7 +140,7 @@ pprint(default_errors)
 # which are then automatically selected by the default error functions. If your analysis should be based on different
 # columns, you can adapt the error functions as described in the next section.
 gs_errors = apply_transformations(gs_matches, default_errors)
-gs_errors
+gs_errors.T
 
 # %%
 # Modify Transformation Functions
@@ -156,12 +156,15 @@ gs_errors
 # This way, no warning will be raised when zero division occurs.
 # In the same manner, the default names `detected` and `reference` of the two input columns for the error functions
 # can be overwritten by custom names.
-# ..note:: The adapted functions are defined as lambda functions here for simplicity.
-# The function argument `x` contains the detected and reference columns of the DMO of interest.
-# Naming these lambda function is required for this application,
-# since the function names are used as column names in the output dataframe.
-# It may seem counterintuitive that the adapted functions are named the same as the original functions.
-# However, for further processing including aggregations, those names are required for the default aggregations to work.
+
+# .. note:: The adapted functions are defined as lambda functions here for simplicity.
+#   The function argument `x` contains the detected and reference columns of the DMO of interest.
+#   Naming these lambda function is required for this application,
+#   since the function names are used as column names in the output dataframe.
+#   It may seem counterintuitive that the adapted functions are named the same as the original functions.
+#   However, for further processing including aggregations, those names are required for the default aggregations to
+#   work.
+#   In your application, this might not be necessary, and you can name the functions as you like.
 from mobgap.gsd.evaluation import abs_error, abs_rel_error, error, rel_error
 
 rel_err_suppressed_warning = lambda x: rel_error(x, zero_division_hint=np.nan)
@@ -182,13 +185,13 @@ metrics = [
 adapted_errors = [error, rel_err_suppressed_warning, abs_error, abs_rel_err_suppressed_warning]
 error_metrics = [*((m, adapted_errors) for m in metrics)]
 gs_errors_adapted = apply_transformations(gs_matches, error_metrics)
-gs_errors_adapted
+gs_errors_adapted.T
 
 # %%
 # The resulting dataframe contains the errors for all metrics and walking bouts.
 # It can be concatenated with the reference and detected values to obtain a comprehensive overview of the DMOs.
 gs_matches_with_errors = pd.concat([gs_matches, gs_errors], axis=1)
-gs_matches_with_errors
+gs_matches_with_errors.T
 
 # %% .. note::
 # If you want to introduce custom, more complex transformation functions, you can also define them as
@@ -208,19 +211,18 @@ gs_matches_with_errors
 # returns a single value or a tuple of values stored in one cell of the resulting dataframe.
 # There are two ways to define aggregations:
 #
-# 1. As a tuple in the format `(<identifier>, <aggregation>)`.
+# 1. As a tuple in the format ``(<identifier>, <aggregation>)``.
 #    In this case, the operation is performed based on exactly one column from the input df.
-#    Therefore, <identifier> can either be a string representing the name of the column to evaluate
+#    Therefore, ``<identifier>`` can either be a string representing the name of the column to evaluate
 #    (for data with single-level columns),
 #    or a tuple of strings uniquely identifying the column to evaluate.
-#    In our example, the identifier is a tuple (<metric>, <origin>),
-#    where `<metric>` is the metric column to evaluate,
-#    `<origin>` is the specific column from which data should be utilized
-#    (here, it would be either `detected`, `reference`, or one of the error columns)
-#    (e.g., this example, `detected`, `reference`, or `error`).
-#    Furthermore, `<aggregation>` is the function or the list of functions to apply.
-#    The output dataframe will have a multilevel column with `metric` as the first level and
-#    `origin` as the second level.
+#    In our example, the identifier is a tuple ``(<metric>, <origin>)``,
+#    where ``<metric>`` is the metric column to evaluate,
+#    ``<origin>`` is the specific column from which data should be utilized
+#    (here, it would be either ``detected``, ``reference``, or one of the error columns)
+#    Furthermore, ``<aggregation>`` is the function or the list of functions to apply.
+#    The output dataframe will have a multilevel column with ``metric`` as the first level and
+#    ``origin`` as the second level.
 #    A valid aggregations list for all of our DMOs would consequently look like this:
 
 aggregations_simple = [*(((m, o), ["mean", "std"]) for m in metrics for o in ["detected", "reference", "error"])]
@@ -229,13 +231,14 @@ pprint(aggregations_simple)
 # %%
 #
 # 2. As a named tuple of Type `CustomOperation` taking three values: `identifier`, `function`, and `column_name`.
-#   `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
-#   `function` is the (custom) aggregation function or list of functions to apply,
-#   and `column_name` is the name of the resulting column in the output dataframe
-#   (single-level column if `column_name` is a string, multi-level column if `column_name` is a tuple).
-#   This allows for more complex aggregations that require multiple columns as input, for example, the intraclass
-#   correlation coefficient (ICC) for the DMOs.
-#   A valid aggregation list for calculating the ICC of all DMOs would look like this:
+#    `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
+#    `function` is the (custom) aggregation function or list of functions to apply,
+#    and `column_name` is the name of the resulting column in the output dataframe
+#    (single-level column if `column_name` is a string, multi-level column if `column_name` is a tuple).
+#    This allows for more complex aggregations that require multiple columns as input, for example, the intraclass
+#    correlation coefficient (ICC) for the DMOs.
+#    A valid aggregation list for calculating the ICC of all DMOs would look like this:
+from mobgap.gsd.evaluation import CustomOperation, icc
 
 aggregations_custom = [CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics]
 pprint(aggregations_custom)
@@ -244,14 +247,19 @@ pprint(aggregations_custom)
 # Within one aggregation list, both types of aggregations can be combined
 # as long as the resulting output dataframes can be concatenated, i.e. have the same number of column levels.
 # Then, the :func:`~mobgap.gsd.evaluation.apply_aggregations` function can be called.
-# For better readability, the index of the aggregation result dataframe is named and sorted.
+# This returns a pandas Series with the aggregated values for each metric and origin.
+# For better readability, we sort and format the resulting dataframe.
 from mobgap.gsd.evaluation import apply_aggregations
 
 aggregations = aggregations_simple + aggregations_custom
-agg_results = apply_aggregations(gs_matches_with_errors, aggregations)
-agg_results = agg_results.rename_axis(index=["aggregation", "metric", "origin"])
-agg_results = agg_results.reorder_levels(["metric", "origin", "aggregation"]).sort_index(level=0)
-pd.DataFrame(agg_results)
+agg_results = (
+    apply_aggregations(gs_matches_with_errors, aggregations)
+    .rename_axis(index=["aggregation", "metric", "origin"])
+    .reorder_levels(["metric", "origin", "aggregation"])
+    .sort_index(level=0)
+    .to_frame("values")
+)
+agg_results
 
 # %%
 # If you simply want to apply a standard set of aggregations to the error metrics, you can use the
@@ -269,10 +277,13 @@ aggregations_default_extended = aggregations_default + [
 # %%
 # This list of standard aggregations can then also be passed to the :func:`~mobgap.gsd.evaluation.apply_aggregations`
 # function.
-default_agg_results = apply_aggregations(gs_matches_with_errors, aggregations_default_extended)
-default_agg_results = default_agg_results.rename_axis(index=["aggregation", "metric", "origin"])
-default_agg_results = default_agg_results.reorder_levels(["metric", "origin", "aggregation"]).sort_index(level=0)
-pd.DataFrame(default_agg_results)
+default_agg_results = (
+    apply_aggregations(gs_matches_with_errors, aggregations_default_extended)
+    .rename_axis(index=["aggregation", "metric", "origin"])
+    .reorder_levels(["metric", "origin", "aggregation"])
+    .sort_index(level=0)
+    .to_frame("values")
+)
 
 # %%
 # .. note::

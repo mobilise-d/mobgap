@@ -1171,7 +1171,7 @@ def apply_transformations(
     except TypeError as e:
         raise ValueError(
             "The transformation results could not be concatenated. "
-            "This is likely due to an unexpected return type of a CustomOperation function."
+            "This is likely due to an unexpected return type of a custom function."
             "Please ensure that the return type is a pandas Series for all custom functions."
         ) from e
     try:
