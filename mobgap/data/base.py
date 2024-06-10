@@ -34,9 +34,21 @@ base_gait_dataset_docfiller_dict = {
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     participant_metadata
-        General participant metadata. Contains at least the keys listed in class:`~mobgap.base.ParticipantMetadata`.
+        General participant metadata. Contains at least the keys listed in
+        :class:`~mobgap.data.base.ParticipantMetadata`.
+    participant_metadata_as_df
+        The participant metadata as a DataFrame.
+        This contains the same information as ``participant_metadata``, but the property can be accessed even when the
+        dataset still contains multiple participants.
+        It contains one row per participant and are all columns of the index, that are required to uniquely identify a
+        single measurement.
     recording_metadata
-        General recording metadata. Contains at least the keys listed in class:`~mobgap.base.RecordingMetadata`.
+        General recording metadata. Contains at least the keys listed in :class:`~mobgap.data.base.RecordingMetadata`.
+    recording_metadata_as_df
+        The recording metadata as a DataFrame.
+        This contains the same information as ``recording_metadata``, but the property can be accessed even when the
+        dataset still contains multiple participants.
+        It contains one row for each row in the dataset index.
     """,
     "common_dataset_reference_attrs": """
     reference_parameters_
@@ -118,7 +130,7 @@ class ParticipantMetadata(TypedDict):
 
     height_m: float
     sensor_height_m: float
-    cohort: Union[Literal["HA", "MS", "PD", "COPD", "CHF", "PFF"], str]
+    cohort: Union[Literal["HA", "MS", "PD", "COPD", "CHF", "PFF"], str, None]
 
 
 class RecordingMetadata(TypedDict):
@@ -179,7 +191,9 @@ class BaseGaitDataset(Dataset):
     data: IMU_DATA_DTYPE
     data_ss: pd.DataFrame
     participant_metadata: ParticipantMetadata
+    participant_metadata_as_df: pd.DataFrame
     recording_metadata: RecordingMetadata
+    recording_metadata_as_df: pd.DataFrame
     measurement_condition: Union[Literal["laboratory", "free_living"], str]
 
 

@@ -204,6 +204,61 @@ class TestDatasetClass:
 
         assert ds.index.columns.tolist() == ["cohort", "participant_id", "time_measure", "test", "trial"]
 
+    def test_participant_metadata(self, example_data_path, snapshot):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("cohort", "participant_id"),
+            measurement_condition="bla",
+            reference_system="INDIP",
+        )
+
+        meta_data = ds[0].participant_metadata
+        recording_meta_data = ds[0].recording_metadata
+
+        assert meta_data["cohort"] == ds[0].group_label.cohort
+        assert recording_meta_data["measurement_condition"] == ds.measurement_condition
+
+        snapshot.assert_match(pd.Series(meta_data, name="metadata").to_frame())
+        snapshot.assert_match(pd.Series(recording_meta_data, name="recording_metadata").to_frame())
+
+    def test_participant_metdata_as_df(self, example_data_path):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("cohort", "participant_id"),
+            measurement_condition="bla",
+            reference_system="INDIP",
+        )
+
+        meta_data = ds.participant_metadata_as_df
+        meta_data_first = ds[0].participant_metadata
+
+        recording_metadata = ds.recording_metadata_as_df
+        recording_metadata_first = ds[0].recording_metadata
+
+        assert len(meta_data) == len(ds.index[["cohort", "participant_id"]].drop_duplicates())
+        assert meta_data.index.names == ["cohort", "participant_id"]
+        assert meta_data.iloc[0].to_dict() == meta_data_first
+
+        assert len(recording_metadata) == len(ds)
+        assert all(recording_metadata.index.names == ds.index.columns)
+        assert recording_metadata.iloc[0].to_dict() == recording_metadata_first
+
+    def test_participant_metadata_warning(self, example_data_path):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("NOT_COHORT", "participant_id"),
+            measurement_condition="bla",
+            reference_system="INDIP",
+        )
+
+        with pytest.warns(UserWarning, match="None of the index levels is called `cohort`."):
+            meta_data = ds[0].participant_metadata
+
+        assert meta_data["cohort"] == None
+
     @pytest.mark.parametrize("reference_para_level", ["wb", "lwb"])
     def test_loaded_data(self, example_data_path, reference_para_level):
         ds = GenericMobilisedDataset(
@@ -296,9 +351,10 @@ class TestDatasetClass:
 
         with pytest.raises(
             ValueError,
-            match=r"Sensor position UnkownSensor is not available for test \('TimeMeasure1', 'Test5', 'Trial1'\)\.",
-        ):
-            _ = ds.index
+        ) as e:
+            _ = ds[0].data_ss
+
+        assert "Expected sensor data for {('SU', 'UnkownSensor')}" in str(e.value)
 
     def test_missing_sensor_position_raise(self):
         ds = GenericMobilisedDataset(
@@ -312,9 +368,10 @@ class TestDatasetClass:
 
         with pytest.raises(
             ValueError,
-            match=r"Sensor position UnkownSensor is not available for test \('TimeMeasure1', 'Test5', 'Trial1'\)\.",
-        ):
-            _ = ds.index
+        ) as e:
+            _ = ds[0].data_ss
+
+        assert "Expected sensor data for {('SU', 'UnkownSensor')}" in str(e.value)
 
     def test_missing_sensor_position_warn(self):
         ds = GenericMobilisedDataset(
@@ -328,38 +385,31 @@ class TestDatasetClass:
 
         with pytest.warns(
             UserWarning,
-            match=r"Sensor position UnkownSensor is not available for test \('TimeMeasure1', 'Test5', 'Trial1'\)\.",
+            match=r"Expected sensor data for {\('SU', 'UnkownSensor'\)}",
         ):
-            _ = ds.index
+            _ = ds[0].data
 
     def test_error_missing_sensor_default(self, example_missing_data_path):
         """Test missing sensor data for default setting"""
         # Test default loading
         with pytest.raises(
             ValueError,
-            match=r"Sensor position LowerBack is not available for test \('TimeMeasure1', 'Test11', 'Trial1'\).",
+            match=r"Expected sensor data for {\('SU', 'LowerBack'\)}",
         ):
             _ = load_mobilised_matlab_format(example_missing_data_path / "data.mat", sensor_positions=("LowerBack",))
 
     def test_error_missing_sensor_warn(self, example_missing_data_path):
         """Test missing sensor data for missing_sensor_error_type='warn'"""
-        with pytest.warns(Warning) as w:
+        with pytest.warns(UserWarning) as w:
             result = load_mobilised_matlab_format(
                 example_missing_data_path / "data.mat",
                 sensor_positions=("LowerBack",),
                 missing_sensor_error_type="warn",
             )
 
-        assert len(w) == 2
+        assert len(w) == 1
 
-        assert issubclass(w[0].category, UserWarning)
-        assert (
-            str(w[0].message)
-            == "Sensor position LowerBack is not available for test ('TimeMeasure1', 'Test11', 'Trial1')."
-        )
-
-        assert issubclass(w[1].category, UserWarning)
-        assert str(w[1].message) == "Expected at least one valid sensor position for SU. Given: ('LowerBack',)"
+        assert "Expected sensor data for {('SU', 'LowerBack')}" in str(w[0].message)
 
         assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
         assert result[("TimeMeasure1", "Test11", "Trial1")].metadata["sampling_rate_hz"] is None

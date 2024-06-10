@@ -105,7 +105,7 @@ class TestSlZijlstra:
         reference_gs = dp.reference_parameters_relative_to_wb_.wb_list
         reference_ic = dp.reference_parameters_relative_to_wb_.ic_list
         gs_id = reference_gs.index[0]
-        data_in_gs = dp.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
+        data_in_gs = dp.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]].copy()
         ics_in_gs = reference_ic.loc[gs_id]  # reference initial contacts
         sensor_height = dp.participant_metadata["sensor_height_m"]
 

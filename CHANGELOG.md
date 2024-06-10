@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/141)
 - A method to interpolate per-sec values to regions (usually strides) (`naive_sec_paras_to_regions`).
   (https://github.com/mobilise-d/mobgap/pull/141)
+- All the loader functions for the matlab format now have the option to skip a test, if either data or reference data 
+  is not available (https://github.com/mobilise-d/mobgap/pull/125)
+- Matlab-loader dataclasses now have the option to use a pre-computed index instead of deriving the test list by 
+  loading the Matlab file itself.
+  This should help reducing the initial index creation time for large datasets.
+  (https://github.com/mobilise-d/mobgap/pull/125)
+- A loader for the Mobilise-D TVS dataset, which will be published end on June.
+  (https://github.com/mobilise-d/mobgap/pull/125)
+
 
 ### Changed
 
@@ -67,7 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This ensures that all strides are covered by the output.
   (https://github.com/mobilise-d/mobgap/pull/141)
 
-
 ### Fixed
 
 - The check that we assume a gs to start and end with an IC was not correctly performed for the end IC and a warning
@@ -76,6 +84,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The ``GsIterator`` does not throw an error anymore, if the GS list was empty.
   (https://github.com/mobilise-d/mobgap/pull/135)
 - The reference parameters for turns loaded from Matlab files now have the correct units.
+
+### Removed
+
+- When data is loaded, the error/warning that none of the sensors where available is removed 
+  (https://github.com/mobilise-d/mobgap/pull/125)
+
 
 ## [0.3.0] - 2024-04-23
 
@@ -103,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - We use operating system independent pandas dtypes everywhere (https://github.com/mobilise-d/mobgap/pull/118)
 - Fixed issue with multi-groupby, that grouping by just a subset of the index cols resulted in cryptic error messages
   (https://github.com/mobilise-d/mobgap/pull/132)
+
 
 ### Development
 
