@@ -28,6 +28,7 @@ pywavelets = ">=1.5.0"
 pooch = ">=1.8.1"
 # TODO: Remove this dependency at some point
 gaitmap = ">=2.5.0"
+pingouin = "^0.5.4"
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.22.0"
