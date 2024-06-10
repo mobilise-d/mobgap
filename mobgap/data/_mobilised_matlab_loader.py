@@ -1127,7 +1127,6 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     def participant_metadata_as_df(self) -> pd.DataFrame:
         if self._metadata_level_names:
             names = list(self._metadata_level_names)
-            names.reverse()
             participant_metadata = {p.group_label: pd.Series(p.participant_metadata) for p in self.groupby(names)}
             df = pd.concat(participant_metadata, axis=1, names=names).T
             index_correct_dtype = pd.MultiIndex.from_frame(df.index.to_frame().astype("string"))

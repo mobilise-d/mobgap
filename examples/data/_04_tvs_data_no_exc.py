@@ -39,6 +39,11 @@ This example demonstrate how to do this.
 import os
 from pathlib import Path
 
+if "MOBGAP_TVS_DATASET_PATH" not in os.environ:
+    raise ValueError(
+        "Please set the environmental variable MOBGAP_TVS_DATASET_PATH to the path of the TVS dataset."
+    )
+
 dataset_path = Path(os.getenv("MOBGAP_TVS_DATASET_PATH"))
 
 # %%

@@ -222,6 +222,29 @@ class TestDatasetClass:
         snapshot.assert_match(pd.Series(meta_data, name="metadata").to_frame())
         snapshot.assert_match(pd.Series(recording_meta_data, name="recording_metadata").to_frame())
 
+    def test_participant_metdata_as_df(self, example_data_path):
+        ds = GenericMobilisedDataset(
+            sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
+            GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
+            ("cohort", "participant_id"),
+            measurement_condition="bla",
+            reference_system="INDIP",
+        )
+
+        meta_data = ds.participant_metadata_as_df
+        meta_data_first = ds[0].participant_metadata
+
+        recording_metadata = ds.recording_metadata_as_df
+        recording_metadata_first = ds[0].recording_metadata
+
+        assert len(meta_data) == len(ds.index[["cohort", "participant_id"]].drop_duplicates())
+        assert meta_data.index.names == ["cohort", "participant_id"]
+        assert meta_data.iloc[0].to_dict() == meta_data_first
+
+        assert len(recording_metadata) == len(ds)
+        assert all(recording_metadata.index.names == ds.index.columns)
+        assert recording_metadata.iloc[0].to_dict() == recording_metadata_first
+
     def test_participant_metadata_warning(self, example_data_path):
         ds = GenericMobilisedDataset(
             sorted([p / "data.mat" for p in get_all_lab_example_data_paths().values()]),
