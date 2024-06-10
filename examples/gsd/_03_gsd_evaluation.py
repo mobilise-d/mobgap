@@ -7,6 +7,7 @@ GSD Evaluation
 This example shows how to apply evaluation algorithms to GSD and thus how to rate the performance of a GSD algorithm.
 """
 
+# %%
 import pandas as pd
 from mobgap.data import LabExampleDataset
 from mobgap.gsd import GsdIluz
@@ -272,3 +273,160 @@ cross_validate_results.drop(
 # In general, it is a good idea to use ``cross_validation`` also for algorithms that do not have tunable parameters.
 # This way you can ensure that the performance of the algorithm is stable across different splits of the data, and it
 # allows the direct comparison between tunable and non-tunable algorithms.
+
+
+# %%
+# Calculate performance index after "Running a full evaluation pipeline"
+# ------------------------------
+# Bonci et al (2020) (https://www.mdpi.com/1424-8220/20/22/6509) suggest a methodology to determine a performance
+# index that combines multiple metrics into a single value.
+import numpy as np
+from mobgap.gsd.evaluation import calc_gs_duration_icc, calc_performance_index
+
+# Get a dictionary of available scoring metrics
+evaluation_results_dict = evaluation_results.drop(
+    ["single_reference", "single_detected"], axis=1
+).T[0]
+evaluation_results_dict
+
+
+# %%
+# Define metrics that are used to calculate the performance index
+# For each metric, the underlying score, criterion (cost/benefit), aggregation (e.g., mean, std, ...), and weight needs to be defined
+# weighting_factor_micoamigo define the weights of the metrics as suggested by Micó-Amigo (https://pubmed.ncbi.nlm.nih.gov/37316858/)
+weighting_factor_micoamigo = {
+    "recall_mean": {
+        "metric": "single_recall",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.117,
+    },
+    "specificity_mean": {
+        "metric": "single_specificity",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.178,
+    },
+    "precision_mean": {
+        "metric": "single_precision",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.105,
+    },
+    "accuracy_mean": {
+        "metric": "single_accuracy",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.160,
+    },
+    "gs_absolute_relative_duration_error_mean": {
+        "metric": "single_gs_absolute_relative_duration_error_log",
+        "criterion": "cost",
+        "normalization": "exponential",
+        "aggregation": np.mean,
+        "weight": 0.122,
+    },
+    "gs_absolute_relative_duration_error_std": {
+        "metric": "single_gs_absolute_relative_duration_error_log",
+        "criterion": "cost",
+        "normalization": "exponential",
+        "aggregation": np.std,
+        "weight": 0.122,
+    },
+    "icc_mean": {
+        "metric": [
+            "single_detected_gs_duration_s",
+            "single_reference_gs_duration_s",
+        ],
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": calc_gs_duration_icc,
+        "weight": 0.196,
+    },
+}
+
+# %%
+# Calculate performance index
+
+performance_index = calc_performance_index(
+    evaluation_results=evaluation_results_dict,
+    weighting_factor=weighting_factor_micoamigo,
+)
+performance_index
+
+
+# %%
+# Define metrics that are used to calculate the performance index
+# For each metric, the underlying score, criterion (cost/benefit), aggregation (e.g., mean, std, ...), and weight needs to be defined
+# weighting_factor_kluge define the weights of the metrics as suggested by Kluge et al (https://doi.org/10.2196/50035) used (see also Multimedia Appendix 1)
+weighting_factor_kluge = {
+    "recall_mean": {
+        "metric": "single_recall",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.100,
+    },
+    "specificity_mean": {
+        "metric": "single_specificity",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.151,
+    },
+    "precision_mean": {
+        "metric": "single_precision",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.089,
+    },
+    "accuracy_mean": {
+        "metric": "single_accuracy",
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": np.mean,
+        "weight": 0.135,
+    },
+    "gs_absolute_relative_duration_error_mean": {
+        "metric": "single_gs_absolute_relative_duration_error_log",
+        "criterion": "cost",
+        "normalization": "exponential",
+        "aggregation": np.mean,
+        "weight": 0.104,
+    },
+    "gs_absolute_relative_duration_error_std": {
+        "metric": "single_gs_absolute_relative_duration_error_log",
+        "criterion": "cost",
+        "normalization": "exponential",
+        "aggregation": np.std,
+        "weight": 0.104,
+    },
+    "icc_mean": {
+        "metric": [
+            "single_detected_gs_duration_s",
+            "single_reference_gs_duration_s",
+        ],
+        "criterion": "benefit",
+        "normalization": None,
+        "aggregation": calc_gs_duration_icc,
+        "weight": 0.167,
+    },
+    "gs_nr_mean": {
+        "metric": "single_num_gs_absolute_relative_error_log",
+        "criterion": "cost",
+        "normalization": "exponential",
+        "aggregation": np.mean,
+        "weight": 0.150,
+    },
+}
+
+performance_index = calc_performance_index(
+    evaluation_results=evaluation_results_dict,
+    weighting_factor=weighting_factor_kluge,
+)
+performance_index
