@@ -12,7 +12,6 @@ from mobgap.data import BaseGenericMobilisedDataset, GenericMobilisedDataset, ma
 # TODO:
 #  - [ ] Check which tests should actually be used in the Clinical and the Free Living dataset for validation and only
 #        include those by default.
-# - [ ] Add tests and find a way that the tests are not run by default, but only if the dataset exists.
 
 tvs_dataset_filler = make_filldoc(
     {
@@ -32,6 +31,9 @@ tvs_dataset_filler = make_filldoc(
         Subset of the participant information containing only the cohort specific clinical information.
     walking_aid_use_information
         Subset of the participant information containing only the walking aid use information.
+    unique_center_id
+        An unique identifier that indicates in which clinical center the data was recorded.
+        Note, that these are "obfuscated" center ids. I.e. there are just numbers from 1 to 5.
     data_quality
         The data quality of the SU and the reference data per recording.
         This is a simple quality score (0-3) + additional comments that is provided for each recording.
@@ -116,7 +118,6 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         .astype(
             {
                 "age": "Int8",
-                "bmi_kgpm2": "float32",
                 "sex": pd.CategoricalDtype(["female", "male"]),
                 "handedness": pd.CategoricalDtype(["left", "right"]),
                 "fall_history": "boolean",
@@ -218,7 +219,7 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
         return path.parents[2].name, path.parents[1].name
 
     @property
-    def unique_center_id(self) -> str:
+    def unique_center_id(self) -> pd.Series:
         return (
             self.index[["participant_id", "cohort"]]
             .drop_duplicates()
