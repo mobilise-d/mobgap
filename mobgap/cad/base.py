@@ -95,8 +95,8 @@ class BaseCadCalculator(Algorithm):
     def calculate(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.DataFrame,
         *,
+        initial_contacts: pd.DataFrame,
         sampling_rate_hz: float,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:

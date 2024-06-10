@@ -72,7 +72,9 @@ data_in_gs = short_trial.data_ss.iloc[
 ics_in_gs = reference_ic[["ic"]].loc[gs_id]
 
 cad_from_ic.calculate(
-    data_in_gs, ics_in_gs, sampling_rate_hz=short_trial.sampling_rate_hz
+    data_in_gs,
+    initial_contacts=ics_in_gs,
+    sampling_rate_hz=short_trial.sampling_rate_hz,
 )
 
 # %%

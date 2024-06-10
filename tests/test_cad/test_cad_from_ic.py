@@ -53,7 +53,7 @@ class TestCadFromIc:
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples + 1, fixed_step_size)})
         data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
-        cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+        cad = CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
         cadence = cad.cadence_per_sec_
 
         expected_index = pd.Index(
@@ -87,7 +87,7 @@ class TestCadFromIc:
         data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
         cad = CadFromIc(max_interpolation_gap_s=max_gap_s).calculate(
-            data, initial_contacts, sampling_rate_hz=sampling_rate_hz
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
@@ -122,7 +122,7 @@ class TestCadFromIc:
         data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
         cad = CadFromIc(max_interpolation_gap_s=max_gap_s).calculate(
-            data, initial_contacts, sampling_rate_hz=sampling_rate_hz
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
@@ -154,7 +154,7 @@ class TestCadFromIc:
         )
 
         with pytest.warns(UserWarning) as w:
-            cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+            cad = CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
         cadence = cad.cadence_per_sec_
 
         assert len(w) == 1
@@ -179,7 +179,7 @@ class TestCadFromIc:
         initial_contacts = initial_contacts.iloc[:1]
 
         with pytest.warns(UserWarning) as w:
-            cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
+            cad = CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=40.0)
 
         assert len(w) == 2
         assert "Can not calculate cadence with only one or zero initial contacts" in str(w[1])
@@ -194,7 +194,7 @@ class TestCadFromIc:
         initial_contacts = initial_contacts.iloc[:n_ics]
 
         with pytest.warns(UserWarning) as w:
-            cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
+            cad = CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=40.0)
 
         assert len(w) == 1
 
@@ -209,7 +209,7 @@ class TestCadFromIc:
         initial_contacts = initial_contacts.sample(frac=1, random_state=2)
 
         with pytest.raises(ValueError) as e:
-            CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=40.0)
+            CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=40.0)
 
         assert "Initial contacts must be sorted" in str(e.value)
 
@@ -217,7 +217,7 @@ class TestCadFromIc:
         data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
         initial_contacts = pd.DataFrame({"ic": []})
         sampling_rate_hz = 40.0
-        cad = CadFromIc().calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+        cad = CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
         assert cad.cadence_per_sec_["cadence_spm"].isna().all()
         assert len(cad.cadence_per_sec_) == np.ceil(len(data) / sampling_rate_hz)
 
@@ -233,7 +233,7 @@ class TestCadFromIc:
         for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
             cad = CadFromIc().calculate(
                 data,
-                ref_data.ic_list.loc[gs.id],
+                initial_contacts=ref_data.ic_list.loc[gs.id],
                 sampling_rate_hz=dp.sampling_rate_hz,
             )
             r.cadence_per_sec = cad.cadence_per_sec_
@@ -264,7 +264,7 @@ class TestCadFromIcDetector:
 
         icd = _DummyIcDetector(initial_contacts)
         cad = CadFromIcDetector(icd, silence_ic_warning=True).calculate(
-            data, initial_contacts, sampling_rate_hz=sampling_rate_hz
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
@@ -300,7 +300,7 @@ class TestCadFromIcDetector:
 
         icd = _DummyIcDetector(initial_contacts)
         cad = CadFromIcDetector(icd, max_interpolation_gap_s=max_gap_s, silence_ic_warning=True).calculate(
-            data, initial_contacts, sampling_rate_hz=sampling_rate_hz
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
@@ -336,7 +336,7 @@ class TestCadFromIcDetector:
 
         icd = _DummyIcDetector(initial_contacts)
         cad = CadFromIcDetector(icd, max_interpolation_gap_s=max_gap_s, silence_ic_warning=True).calculate(
-            data, initial_contacts, sampling_rate_hz=sampling_rate_hz
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
@@ -369,7 +369,7 @@ class TestCadFromIcDetector:
 
         icd = _DummyIcDetector(initial_contacts)
         cad = CadFromIcDetector(icd, silence_ic_warning=True).calculate(
-            data, initial_contacts, sampling_rate_hz=sampling_rate_hz
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
         )
         cadence = cad.cadence_per_sec_
 
@@ -394,7 +394,7 @@ class TestCadFromIcDetector:
         with pytest.warns(UserWarning) as w:
             icd = _DummyIcDetector(initial_contacts)
             cad = CadFromIcDetector(icd, silence_ic_warning=True).calculate(
-                data, initial_contacts, sampling_rate_hz=40.0
+                data, initial_contacts=initial_contacts, sampling_rate_hz=40.0
             )
 
         assert len(w) == 1
@@ -415,7 +415,7 @@ class TestCadFromIcDetector:
 
         with pytest.warns(UserWarning) as w:
             icd = _DummyIcDetector(initial_contacts)
-            cad = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=40.0)
+            cad = CadFromIcDetector(icd).calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=40.0)
 
         assert len(w) == 1
 
@@ -431,7 +431,7 @@ class TestCadFromIcDetector:
 
         with pytest.raises(ValueError) as e:
             icd = _DummyIcDetector(initial_contacts)
-            _ = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=40.0)
+            _ = CadFromIcDetector(icd).calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=40.0)
 
         assert "Initial contacts must be sorted" in str(e.value)
 
@@ -440,7 +440,9 @@ class TestCadFromIcDetector:
         initial_contacts = pd.DataFrame({"ic": []})
         icd = _DummyIcDetector(initial_contacts)
         sampling_rate_hz = 40.0
-        cad = CadFromIcDetector(icd).calculate(data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
+        cad = CadFromIcDetector(icd).calculate(
+            data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz
+        )
         assert cad.cadence_per_sec_["cadence_spm"].isna().all()
         assert len(cad.cadence_per_sec_) == np.ceil(len(data) / sampling_rate_hz)
 
@@ -456,7 +458,7 @@ class TestCadFromIcDetector:
         for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
             cad = CadFromIcDetector(silence_ic_warning=True).calculate(
                 data,
-                ref_data.ic_list.loc[gs.id],
+                initial_contacts=ref_data.ic_list.loc[gs.id],
                 sampling_rate_hz=dp.sampling_rate_hz,
             )
             r.cadence_per_sec = cad.cadence_per_sec_
