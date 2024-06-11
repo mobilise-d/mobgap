@@ -35,6 +35,17 @@ First install a supported Python version (3.9 or higher) and then install the pa
 pip install mobgap
 ```
 
+For all optional features to work, you might need to additionally install the following packages:
+
+```bash
+pip install openpyxl pingouin
+```
+
+This can also be done in one step by installing the package with the `all` extra:
+```bash
+pip install "mobgap[all]"
+```
+
 
 ### From Source
 
@@ -45,7 +56,6 @@ If you need the latest unreleased version of mobgap, install the package using p
 pip install "git+https://github.com/mobilise-d/mobgap.git" --upgrade
 ```
 
-You might need to set your git credentials to install the package.
 If you run into problems, clone the repository and install the package locally.
 
 ```bash
@@ -55,6 +65,45 @@ pip install .
 ```
 
 Or the equivalent commands of the python package manager you are using to install local dependencies.
+
+## Development Setup
+
+If you are planning to make any changes to the code, follow 
+[this guide](https://mobgap.readthedocs.io/en/latest/guides/developer_guide.html)
+
+To run typical development tasks, you can use the provided [poethepoet](https://github.com/nat-n/poethepoet) commands:
+
+```
+>>> poetry run poe
+...
+CONFIGURED TASKS
+  format                      
+  format_unsafe               
+  lint                        Lint all files with ruff.
+  ci_check                    Check all potential format and linting issues.
+  test                        Run Pytest with coverage.
+  test_ci                     Run Pytest with coverage and fail on missing snapshots.
+  docs                        Build the html docs using Sphinx.
+  docs_clean                  Remove all old build files and build a clean version of the docs.
+  docs_linkcheck              Check all links in the built html docs.
+  docs_preview                Preview the built html docs.
+  version                     Bump the version number in all relevant files.
+  conf_jupyter                Add a new jupyter kernel for the project.
+  remove_jupyter              Remove the project specific jupyter kernel.
+  update_example_data         Update the example data registry.
+```
+
+Before you push, you should run the `format`, `lint` and `test` task to make sure your code is in a good state.
+
+### Note about tests
+
+Some of the tests can only be executed when certain data is available.
+To make sure that the tests concerning the TVS dataset are run, you need to export an environment variable
+with the path to the TVS dataset.
+
+```bash
+MOBGAP_TVS_DATASET_PATH="/path/to/tvs/dataset" poe test
+```
 
 ## Usage Recommendation
 

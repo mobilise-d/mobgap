@@ -1,14 +1,13 @@
 import warnings
 from collections.abc import Iterator, Sequence
-from functools import lru_cache, partial
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     ClassVar,
     Literal,
     NamedTuple,
     Optional,
+    TypedDict,
     TypeVar,
     Union,
 )
@@ -17,10 +16,15 @@ import joblib
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from tpcp.caching import hybrid_cache
+from tqdm.auto import tqdm
 
+import mobgap
 from mobgap._docutils import make_filldoc
 from mobgap.data.base import (
     BaseGaitDatasetWithReference,
+    ParticipantMetadata,
+    RecordingMetadata,
     ReferenceData,
     base_gait_dataset_docfiller_dict,
 )
@@ -56,7 +60,17 @@ matlab_dataset_docfiller = make_filldoc(
         If a sensor type is not available, it is ignored.
     missing_sensor_error_type
         Whether to throw an error ("raise"), a warning ("warn") or ignore ("ignore") when a sensor is missing.
-
+        In all three cases, the trial is still included in the index, but the imu-data is not available.
+        If you want to skip the trial entirely, set this to "skip".
+        Then the trial will not appear in the index at all.
+        Note, that "skip" will skip the trial, if ANY sensor position specified is missing.
+        Specifying, "skip" will only effect the initial data loading.
+        Changing the value after you already created a subset of the data has no effect.
+    missing_reference_error_type
+        Whether to throw an error ("raise"), a warning ("warn") or ignore ("ignore") when reference data is missing.
+        If you want to skip the trial entirely when the reference data is not available, set this to "skip".
+        Specifying, "skip" will only effect the initial data loading.
+        Changing the value after you already created a subset of the data has no effect.
     """,
         "general_dataset_args": """
     reference_para_level
@@ -84,10 +98,58 @@ matlab_dataset_docfiller = make_filldoc(
 )
 
 
-class MobilisedMetadata(NamedTuple):
+class MobilisedParticipantMetadata(ParticipantMetadata):
+    """Participant metadata for the Mobilise-D dataset.
+
+    This is a subclass of :class:`~ParticipantMetadata` and adds some additional fields that are specific to the
+    Mobilise-D dataset.
+
+    Attributes
+    ----------
+    height_m
+        The height of the participant in meters.
+    sensor_height_m
+        The height of the lower back sensor in meters.
+    cohort
+        The cohort of the participant.
+        One of:
+        - "HA": Healthy Adult
+        - "MS": Multiple Sclerosis
+        - "PD": Parkinson's Disease
+        - "COPD": Chronic Obstructive Pulmonary Disease
+        - "CHF": Chronic Heart Failure
+        - "PFF": Primary Frailty Fracture
+    foot_length_cm
+        The foot size in cm.
+    weight_kg
+        The weight of the participant in kg.
+    handedness
+        The handedness of the participant.
+        Either "left" or "right".
+    indip_data_used
+        Whether all INDIP data was used, or just partial data, as some sensors failed.
+    sensor_attachment_su
+        Where and how the SU was attached
+    sensor_type_su
+        The type of SU used (usually MM+ or AX6)
+    walking_aid_used
+        Whether a walking aid was used during the test.
+
+    """
+
+    foot_length_cm: float
+    weight_kg: float
+    handedness: Optional[Literal["left", "right"]]
+    indip_data_used: Optional[str]
+    sensor_attachment_su: Optional[str]
+    sensor_type_su: Optional[str]
+    walking_aid_used: Optional[bool]
+
+
+class PartialMobilisedMetadata(TypedDict):
     """Metadata of each individual test/recording.
 
-    Parameters
+    Attributes
     ----------
     start_date_time_iso
         The start date and time of the test in ISO format.
@@ -106,6 +168,48 @@ class MobilisedMetadata(NamedTuple):
     time_zone: str
     sampling_rate_hz: Optional[float]
     reference_sampling_rate_hz: Optional[float]
+
+
+class MobilisedMetadata(PartialMobilisedMetadata, RecordingMetadata):
+    """Metadata of each individual test/recording.
+
+    Attributes
+    ----------
+    measurement_condition
+        The measurement condition of the test (e.g. "laboratory" or "free_living").
+    start_date_time_iso
+        The start date and time of the test in ISO format.
+    time_zone
+        The time zone of the test (e.g. "Europe/Berlin").
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz.
+        None, if no IMU data is available or loaded.
+    reference_sampling_rate_hz
+        The sampling rate of the reference data in Hz.
+        None, if no reference data is available or loaded.
+    recording_identifier
+        A tuple with the measurement, test, trial name
+    """
+
+    recording_identifier: tuple[str, ...]
+
+
+class MobilisedAvailableData(NamedTuple):
+    """Basic metadata that can be used to filter tests based on availability of certain factors.
+
+    Parameters
+    ----------
+    available_sensors
+        The available sensors for the test.
+        It provides a list of tuples of the form (``sensor_type``, ``sensor_position``).
+    available_reference_systems
+        The available reference systems for the test.
+        This is a list
+
+    """
+
+    available_sensors: list[tuple[Literal["SU", "INDIP", "INDIP2"], str]]
+    available_reference_systems: list[Literal["INDIP", "Stereophoto"]]
 
 
 class MobilisedTestData(NamedTuple):
@@ -130,7 +234,7 @@ class MobilisedTestData(NamedTuple):
 
     imu_data: Optional[dict[str, pd.DataFrame]]
     raw_reference_parameters: Optional[dict[Literal["wb", "lwb"], Any]]
-    metadata: MobilisedMetadata
+    metadata: PartialMobilisedMetadata
 
 
 def load_mobilised_participant_metadata_file(
@@ -164,6 +268,35 @@ def load_mobilised_participant_metadata_file(
     }
 
 
+def _extract_available_sensor_pos_(
+    test_data: sio.matlab.mat_struct,
+) -> list[tuple[Literal["SU", "INDIP", "INDIP2"], str]]:
+    result = []
+    for field in test_data._fieldnames:
+        if field == "SU":
+            short_field_name = "SU"
+        elif field.startswith("SU_"):
+            # To be consistent with how we represent the names of the non "SU" sensors, we remove the "SU_" prefix.
+            short_field_name = field[3:]
+        else:
+            continue
+        positions = getattr(test_data, field)._fieldnames
+        for position in positions:
+            result.append((short_field_name, position))
+    return result
+
+
+def _extract_available_reference_systems(test_data: sio.matlab.mat_struct) -> list[Literal["INDIP", "Stereophoto"]]:
+    try:
+        standards = test_data.Standards._fieldnames
+    except AttributeError:
+        return []
+
+    # There can be a bunch of different fields here. We are only interested in "INDIP" and "Stereophoto".
+    # We simply check if they exist.
+    return [field for field in standards if field in ["INDIP", "Stereophoto"]]
+
+
 @matlab_dataset_docfiller
 def load_mobilised_matlab_format(
     path: PathLike,
@@ -173,6 +306,7 @@ def load_mobilised_matlab_format(
     sensor_positions: Sequence[str] = ("LowerBack",),
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
     missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+    missing_reference_error_type: Literal["raise", "warn", "ignore"] = "ignore",
 ) -> dict[tuple[str, ...], MobilisedTestData]:
     """Load a single data.mat file formatted according to the Mobilise-D guidelines.
 
@@ -200,6 +334,41 @@ def load_mobilised_matlab_format(
     a start time per trial (but only a start time per test).
 
     """
+    data_per_test, available_data_per_test = _load_test_data_without_checks(
+        path,
+        raw_data_sensor=raw_data_sensor,
+        reference_system=reference_system,
+        sensor_positions=sensor_positions,
+        sensor_types=sensor_types,
+    )
+
+    return {
+        test_name: test_data
+        for test_name, test_data in data_per_test.items()
+        if _check_test_data(
+            available_data_per_test[test_name],
+            raw_data_sensor=raw_data_sensor,
+            reference_system=reference_system,
+            sensor_positions=sensor_positions,
+            missing_sensor_error_type=missing_sensor_error_type,
+            missing_reference_error_type=missing_reference_error_type,
+            error_context=f"Test: {test_name}, File: {path}",
+        )
+    }
+
+
+def _load_test_data_without_checks(
+    path: PathLike,
+    *,
+    raw_data_sensor: Optional[Literal["SU", "INDIP", "INDIP2"]] = "SU",
+    reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
+    sensor_positions: Sequence[str] = ("LowerBack",),
+    sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
+) -> tuple[dict[tuple[str, ...], MobilisedTestData], dict[tuple[str, ...], MobilisedAvailableData]]:
+    """Like load_mobilised_matlab_format, but does not perform any checks.
+
+    The information of what data is available is simply returned, so that checks can be performed later.
+    """
     if raw_data_sensor is None and reference_system is None:
         raise ValueError(
             "At least one of raw_data_sensor and reference_system must be set. Otherwise no data is loaded."
@@ -213,27 +382,23 @@ def load_mobilised_matlab_format(
     data = sio.loadmat(str(path), squeeze_me=True, struct_as_record=False, mat_dtype=True)
     data_per_test = _parse_until_test_level(data["data"], (sensor_test_level_marker, "Standards"))
 
-    data_per_test_dict = {
-        test_name: _process_test_data(
+    data_per_test_parsed = {}
+    available_data_per_test = {}
+    for test_name, test_data in data_per_test:
+        data_per_test_parsed[test_name] = _process_test_data(
             test_data,
             test_name,
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
-            missing_sensor_error_type=missing_sensor_error_type,
         )
-        for test_name, test_data in data_per_test
-    }
+        available_data_per_test[test_name] = MobilisedAvailableData(
+            available_sensors=_extract_available_sensor_pos_(test_data),
+            available_reference_systems=_extract_available_reference_systems(test_data),
+        )
 
-    # Unit conversion of imu data, if available
-    for test, data in data_per_test_dict.items():
-        if data.imu_data is not None:
-            for sensor_position in data.imu_data:
-                # Convert acc columns to m/s-2
-                data_per_test_dict[test].imu_data[sensor_position][["acc_x", "acc_y", "acc_z"]] *= 9.81
-
-    return data_per_test_dict
+    return data_per_test_parsed, available_data_per_test
 
 
 def _parse_until_test_level(
@@ -261,7 +426,7 @@ def _parse_until_test_level(
             )
 
 
-def _process_test_data(  # noqa: C901, PLR0912, PLR0915
+def _process_test_data(  # noqa: C901, PLR0912
     test_data: sio.matlab.mat_struct,
     test_name: tuple[str, ...],
     *,
@@ -269,11 +434,8 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
     reference_system: Optional[str],
     sensor_positions: Sequence[str],
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]],
-    missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
 ) -> MobilisedTestData:
-    if missing_sensor_error_type not in ["raise", "warn", "ignore"]:
-        raise ValueError(f"Invalid value for missing_sensor_error_type: {missing_sensor_error_type}")
-
+    # Note, this function ignores all missing sensor loadings, as we expect the caller to handle this.
     meta_data = {}
 
     try:
@@ -287,36 +449,22 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
         raise ValueError(f"Time zone information is missing from the data file for test {test_name}.") from e
 
     if raw_data_sensor:
-        all_sensor_data = getattr(test_data, raw_data_sensor)
+        all_sensor_data = getattr(test_data, raw_data_sensor, {})
         sampling_rates: dict[str, float] = {}
 
         all_imu_data = {}
         for sensor_pos in sensor_positions:
             try:
                 raw_data = getattr(all_sensor_data, sensor_pos)
-            except AttributeError as e:
-                error_message = f"Sensor position {sensor_pos} is not available for test {test_name}."
-
-                if missing_sensor_error_type == "raise":
-                    raise ValueError(error_message) from e
-                if missing_sensor_error_type == "warn":
-                    warnings.warn(error_message, stacklevel=1)
-
+            except AttributeError:
+                continue
+                # We ignore the error here, as we handle missing sensors later.
             else:
                 all_imu_data[sensor_pos] = _parse_single_sensor_data(raw_data, sensor_types)
                 sampling_rates_obj = raw_data.Fs
                 sampling_rates.update(
                     {f"{sensor_pos}_{k}": getattr(sampling_rates_obj, k) for k in sampling_rates_obj._fieldnames}
                 )
-
-        if all_imu_data == {}:
-            error_message = (
-                f"Expected at least one valid sensor position for {raw_data_sensor}. Given: {sensor_positions}"
-            )
-            if missing_sensor_error_type == "raise":
-                raise ValueError(error_message)
-            if missing_sensor_error_type == "warn":
-                warnings.warn(error_message, stacklevel=1)
 
         # In the data files the sampling rate for each sensor type is reported individually.
         # But in reality, we expect them all to have the same sampling rate.
@@ -363,8 +511,47 @@ def _process_test_data(  # noqa: C901, PLR0912, PLR0915
     return MobilisedTestData(
         imu_data=all_imu_data,
         raw_reference_parameters=reference_data,
-        metadata=MobilisedMetadata(**meta_data),
+        metadata=PartialMobilisedMetadata(**meta_data),
     )
+
+
+def _check_test_data(
+    available_data: MobilisedAvailableData,
+    *,
+    raw_data_sensor: Optional[Literal["SU", "INDIP", "INDIP2"]],
+    reference_system: Optional[Literal["INDIP", "Stereophoto"]],
+    sensor_positions: Sequence[str],
+    missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"],
+    missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"],
+    error_context: Optional[str] = None,
+) -> bool:
+    # Return boolean indicates if it should be included, not, if it is valid!
+    if raw_data_sensor:
+        available_sensors = available_data.available_sensors
+        expected_sensors = [(raw_data_sensor, pos) for pos in sensor_positions]
+        sensor_data_missing = set(expected_sensors) - set(available_sensors)
+
+        if sensor_data_missing:
+            error_context = f"Context: {error_context}\n" if error_context else ""
+            error_message = f"{error_context}Expected sensor data for {sensor_data_missing}, but it is missing."
+            if missing_sensor_error_type == "raise":
+                raise ValueError(error_message)
+            if missing_sensor_error_type == "warn":
+                warnings.warn(error_message, stacklevel=2)
+            elif missing_sensor_error_type == "skip":
+                return False
+
+    available_reference_systems = available_data.available_reference_systems
+    if reference_system and reference_system not in available_reference_systems:
+        error_message = f"Expected reference system {reference_system}, but it is not available."
+        if missing_reference_error_type == "raise":
+            raise ValueError(error_message)
+        if missing_reference_error_type == "warn":
+            warnings.warn(error_message, stacklevel=2)
+        elif missing_reference_error_type == "skip":
+            return False
+
+    return True
 
 
 def _parse_single_sensor_data(
@@ -387,6 +574,8 @@ def _parse_single_sensor_data(
         parsed_data.index = pd.DatetimeIndex(pd.to_datetime(sensor_data.Timestamp, unit="s", utc=True), name="time")
     else:
         parsed_data.index.name = "samples"
+    # Convert acc columns to m/s-2
+    parsed_data[["acc_x", "acc_y", "acc_z"]] *= 9.81
 
     return parsed_data
 
@@ -406,12 +595,6 @@ def _parse_reference_parameters(
 def _parse_matlab_struct(struct: sio.matlab.mat_struct) -> dict[str, Any]:
     """Parse a simple matlab struct that only contains simple types (no nested structs or arrays)."""
     return {k: getattr(struct, k) for k in struct._fieldnames}
-
-
-@lru_cache(maxsize=1)
-def cached_load_current(selected_file: PathLike, loader_function: Callable[[PathLike], T]) -> T:
-    # TODO: Check if we actually get a proper cache hit here and it really helps performance.
-    return loader_function(selected_file)
 
 
 def _ensure_is_list(value: Any) -> list:
@@ -492,7 +675,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "n_strides": "int64",
         "duration_s": "float64",
         "length_m": "float64",
-        "avg_speed_mps": "float64",
+        "avg_walking_speed_mps": "float64",
         "avg_cadence_spm": "float64",
         "avg_stride_length_m": "float64",
         "termination_reason": "string",
@@ -512,6 +695,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "end": "int64",
         "duration_s": "float64",
         "angle_deg": "float64",
+        "direction": pd.CategoricalDtype(categories=["left", "right"]),
     }
 
     stride_df_dtypes = {
@@ -530,13 +714,13 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         return df.astype(wb_df_dtypes).set_index("wb_id")
 
     def _unify_ic_df(df: pd.DataFrame) -> pd.DataFrame:
-        return df.reset_index().astype(ic_df_dtypes).set_index(["wb_id", "step_id"])
+        return df.astype(ic_df_dtypes).set_index(["wb_id", "step_id"])
 
     def _unify_turn_df(df: pd.DataFrame) -> pd.DataFrame:
-        return df.reset_index().astype(turn_df_dtypes).set_index(["wb_id", "turn_id"])
+        return df.astype(turn_df_dtypes).set_index(["wb_id", "turn_id"])
 
     def _unify_stride_df(df: pd.DataFrame) -> pd.DataFrame:
-        return df.reset_index().astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
+        return df.astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
 
     if len(ref_data) == 0:
         return ReferenceData(
@@ -546,7 +730,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             _unify_stride_df(pd.DataFrame(columns=list(stride_df_dtypes.keys()))),
         )
 
-    for wb_id, wb in enumerate(ref_data, start=1):
+    for wb_id, wb in enumerate(ref_data):
         walking_bouts.append(
             {
                 "wb_id": wb_id,
@@ -555,7 +739,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
                 "n_strides": int(wb["NumberStrides"]),
                 "duration_s": wb["Duration"],
                 "length_m": wb["Length"],
-                "avg_speed_mps": wb["WalkingSpeed"],
+                "avg_walking_speed_mps": wb["WalkingSpeed"],
                 "avg_cadence_spm": wb["Cadence"],
                 "avg_stride_length_m": wb["AverageStrideLength"],
                 "termination_reason": wb["TerminationReason"],
@@ -567,6 +751,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(ic_vals),
+                    "step_id": np.arange(0, len(ic_vals)),
                     "ic": ic_vals,
                     "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
                 }
@@ -577,6 +762,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(turn_starts),
+                    "turn_id": np.arange(0, len(turn_starts)),
                     "start": turn_starts,
                     "end": _ensure_is_list(wb["Turn_End"]),
                     "duration_s": _ensure_is_list(wb["Turn_Duration"]),
@@ -589,10 +775,11 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             pd.DataFrame.from_dict(
                 {
                     "wb_id": [wb_id] * len(starts),
+                    "s_id": np.arange(0, len(starts)),
                     "start": starts,
                     "end": ends,
-                    # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
-                    # columns for the Stereiphoto system. We replace them with NaN using `to_numeric`.
+                    # For some reason, the matlab files contains empty arrays to signal a "missing" value in the data
+                    # columns for the Stereo-photo system. We replace them with NaN using `to_numeric`.
                     "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
                     "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
                     "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),
@@ -611,7 +798,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
         "n_strides",
         "duration_s",
         "length_m",
-        "avg_speed_mps",
+        "avg_walking_speed_mps",
         "avg_cadence_spm",
         "avg_stride_length_m",
     ]:
@@ -626,12 +813,15 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
     ics = ics[~ics_is_na].drop_duplicates()
     # make left-right labels lowercase
     ics["lr_label"] = ics["lr_label"].str.lower()
-    ics.index.name = "step_id"
     ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
     ics = _unify_ic_df(ics)
 
-    turn_paras = pd.concat(turn_paras, ignore_index=True)
-    turn_paras.index.name = "turn_id"
+    turn_paras = (
+        pd.concat(turn_paras, ignore_index=True)
+        .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
+        .replace({"direction": {1: "left", -1: "right"}})
+    )
+    turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
     turn_paras = _unify_turn_df(turn_paras)
 
     stride_paras = pd.concat(stride_paras, ignore_index=True)
@@ -681,7 +871,6 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             stacklevel=2,
         )
     stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
-    stride_paras.index.name = "s_id"
     stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.
@@ -773,6 +962,8 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
     sensor_positions: Sequence[str]
     single_sensor_position: str
     sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]]
+    missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"]
+    missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"]
     memory: joblib.Memory
 
     def __init__(
@@ -784,7 +975,8 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         sensor_positions: Sequence[str] = ("LowerBack",),
         single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"] = "raise",
+        missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"] = "ignore",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -797,6 +989,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         self.sensor_types = sensor_types
         self.memory = memory
         self.missing_sensor_error_type = missing_sensor_error_type
+        self.missing_reference_error_type = missing_reference_error_type
 
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
@@ -861,18 +1054,53 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
     @property
     def sampling_rate_hz(self) -> float:
-        return self._load_selected_data("sampling_rate_hz").metadata.sampling_rate_hz
+        return self._load_selected_data("sampling_rate_hz").metadata["sampling_rate_hz"]
 
     @property
     def reference_sampling_rate_hz_(self) -> float:
-        return self._load_selected_data("reference_sampling_rate_hz_").metadata.reference_sampling_rate_hz
+        return self._load_selected_data("reference_sampling_rate_hz_").metadata["reference_sampling_rate_hz"]
+
+    def _get_measurement_condition(self) -> str:
+        """Return the measurement condition for a single file."""
+        raise NotImplementedError
 
     @property
-    def metadata(self) -> MobilisedMetadata:
-        return self._load_selected_data("metadata").metadata
+    def recording_metadata(self) -> MobilisedMetadata:
+        self.assert_is_single(None, "recording_metadata")
+        recording_identifier = tuple(getattr(self.group_label, s) for s in self._test_level_names)
+        return {
+            **self._load_selected_data("metadata").metadata,
+            "measurement_condition": self._get_measurement_condition(),
+            "recording_identifier": recording_identifier,
+        }
 
     @property
-    def participant_metadata(self) -> dict[str, Any]:
+    def recording_metadata_as_df(self) -> pd.DataFrame:
+        recording_metadata = {p.group_label: pd.Series(p.recording_metadata) for p in self}
+        df = pd.concat(recording_metadata, axis=1, names=self.index.columns.to_list()).T
+        index_correct_dtype = pd.MultiIndex.from_frame(df.index.to_frame().astype("string"))
+        df.index = index_correct_dtype
+        return df
+
+    def _get_cohort(self) -> Optional[str]:
+        try:
+            return self.index_as_tuples()[0].cohort
+        except AttributeError:
+            warnings.warn(
+                "None of the index levels is called `cohort` so we could not extract the relevant metadata. "
+                "Cohort is set to `None`. "
+                "If you have cohort information for your participants, but there are not part of the index, "
+                "subclass the dataset and provide a custom implementation for the `_get_cohort` method.",
+                stacklevel=1,
+            )
+            return None
+
+    @property
+    def participant_metadata(self) -> MobilisedParticipantMetadata:
+        self.assert_is_single(
+            list(self._metadata_level_names) if self._metadata_level_names else self.index.columns.to_list(),
+            "participant_metadata",
+        )
         # We assume an `infoForAlgo.mat` file is always in the same folder as the data.mat file.
         info_for_algo_file = self.selected_meta_data_file
 
@@ -880,23 +1108,139 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         first_level_selected_test_name = self.index.iloc[0][next(iter(self._test_level_names))]
 
-        return participant_metadata[first_level_selected_test_name]
+        meta_data = participant_metadata[first_level_selected_test_name]
+        final_dict: MobilisedParticipantMetadata = {
+            "sensor_height_m": meta_data["SensorHeight"] / 100,
+            "height_m": meta_data["Height"] / 100,
+            "weight_kg": meta_data["Weight"],
+            "cohort": self._get_cohort(),
+            "handedness": {"L": "left", "R": "right"}.get(meta_data["Handedness"], None),
+            "foot_length_cm": meta_data["FootSize"],
+            "indip_data_used": meta_data.get("INDIP_DataUsed"),
+            "sensor_attachment_su": meta_data.get("SensorAttachment_SU"),
+            "sensor_type_su": meta_data.get("SensorType_SU"),
+            "walking_aid_used": {0: False, 1: True}.get(int(meta_data["WalkingAid_01"]), None),
+        }
+        return final_dict
 
     @property
-    def _cached_data_load(
-        self,
-    ) -> Callable[[PathLike], dict[tuple[str, ...], MobilisedTestData]]:
-        return partial(
-            self.memory.cache(load_mobilised_matlab_format),
+    def participant_metadata_as_df(self) -> pd.DataFrame:
+        if self._metadata_level_names:
+            names = list(self._metadata_level_names)
+            participant_metadata = {p.group_label: pd.Series(p.participant_metadata) for p in self.groupby(names)}
+            df = pd.concat(participant_metadata, axis=1, names=names).T
+            index_correct_dtype = pd.MultiIndex.from_frame(df.index.to_frame().astype("string"))
+            df.index = index_correct_dtype
+            return df
+        # In this case we assume we just have a single participant
+        return pd.Series(self[0].participant_metadata).to_frame()
+
+    def _cached_data_load_no_checks(
+        self, path: PathLike
+    ) -> tuple[dict[tuple[str, ...], MobilisedTestData], dict[tuple[str, ...], MobilisedAvailableData]]:
+        return hybrid_cache(self.memory, 1)(_load_test_data_without_checks)(
+            path,
             raw_data_sensor=self.raw_data_sensor,
             reference_system=self.reference_system,
             sensor_positions=self.sensor_positions,
             sensor_types=self.sensor_types,
-            missing_sensor_error_type=self.missing_sensor_error_type,
         )
 
+    def create_precomputed_test_list(self, n_jobs: Optional[int] = None) -> None:
+        """Compute and store a json test list for a data.mat file.
+
+        This function should be used by Dataset developers to precompute the test list for a data.mat file.
+        This can massively reduce initial loading time, as the dataset index can be generated without loading the data.
+
+        When this is used to generate the test-list, the ``_relpath_to_precomputed_test_list`` method must be
+        implemented.
+
+        .. warning:: Don't create test lists for datasets that are likely to be changed.
+           Otherwise, you might end up with outdated files and hard to debug errors.
+           If you want to recreate the test list (either because of a mobgap or a dataset update), delete all test list
+           files and recreate them using this method.
+
+        """
+        rel_out_path = self._relpath_to_precomputed_test_list()
+
+        import json
+
+        from joblib import Parallel, delayed
+
+        def process_path(p: str, rel_out_path: str) -> Path:
+            _, available_data_per_test = _load_test_data_without_checks(p)
+            # Reformat for json dumping:
+            available_data_per_test = {
+                "data": [
+                    {"key": test_name, "value": data._asdict()} for test_name, data in available_data_per_test.items()
+                ],
+                "__mobgap_version": mobgap.__version__,
+            }
+
+            out_path = Path(p).parent / rel_out_path
+            with out_path.open("w") as f:
+                json.dump(available_data_per_test, f, indent=4)
+            return out_path
+
+        pbar = tqdm(
+            Parallel(n_jobs=n_jobs, return_as="generator")(
+                delayed(process_path)(p, rel_out_path) for p in self._paths_list
+            ),
+            total=len(self._paths_list),
+            desc="Creating precomputed test list.",
+        )
+
+        for path in pbar:
+            pbar.set_postfix_str(f"Processed {path}")
+
+    def _get_precomputed_available_tests(self, path: PathLike) -> dict[tuple[str, ...], MobilisedAvailableData]:
+        import json
+
+        test_list_path = Path(path).parent / self._relpath_to_precomputed_test_list()
+
+        with test_list_path.open() as f:
+            content = json.load(f)
+
+        # Note: The files contain the mobgap version, that was used to create it. We don't use this yet, but we might
+        #       use this in the future, in case the format changes.
+        available_data_per_test = content["data"]
+
+        out = {}
+        for data in available_data_per_test:
+            available_sensors = [tuple(d) for d in data["value"]["available_sensors"]]
+            out[tuple(data["key"])] = MobilisedAvailableData(
+                available_sensors=available_sensors,
+                available_reference_systems=data["value"]["available_reference_systems"],
+            )
+
+        return out
+
+    def _relpath_to_precomputed_test_list(self) -> PathLike:
+        raise NotImplementedError
+
     def _get_test_list(self, path: PathLike) -> list[tuple[str, ...]]:
-        return list(self._cached_data_load(path).keys())
+        try:
+            available_data = self._get_precomputed_available_tests(path)
+        except NotImplementedError:
+            available_data = self._cached_data_load_no_checks(path)[1]
+
+        available_keys = []
+        for key, value in available_data.items():
+            if _check_test_data(
+                value,
+                raw_data_sensor=self.raw_data_sensor,
+                reference_system=self.reference_system,
+                sensor_positions=self.sensor_positions,
+                missing_sensor_error_type=self.missing_sensor_error_type
+                if self.missing_sensor_error_type == "skip"
+                else "ignore",
+                missing_reference_error_type=self.missing_reference_error_type
+                if self.missing_reference_error_type == "skip"
+                else "ignore",
+            ):
+                available_keys.append(key)
+
+        return available_keys
 
     def _load_selected_data(self, property_name: str) -> MobilisedTestData:
         selected_file = self._get_selected_data_file(property_name)
@@ -909,7 +1253,33 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         # to keep the current file in memory.
         # The second part is important, when we use the same Dataset object to load multiple parts of the file (e.g.
         # the raw data and the reference parameters).
-        return cached_load_current(selected_file, self._cached_data_load)[selected_test]
+        data, available = self._cached_data_load_no_checks(selected_file)
+
+        # And then we do the checks afterward.
+        # This way, changing the check parameters will not invalidate the cache.
+        # The final checks are cheap, so we don't need to cache them.
+        test_data = data[selected_test]
+        available_data = available[selected_test]
+
+        if not _check_test_data(
+            available_data,
+            raw_data_sensor=self.raw_data_sensor,
+            reference_system=self.reference_system,
+            sensor_positions=self.sensor_positions,
+            missing_sensor_error_type=self.missing_sensor_error_type,
+            missing_reference_error_type=self.missing_reference_error_type,
+            error_context=f"Test: {selected_test}, Selected Index: {self.group_label}",
+        ):
+            # If this returns false, aka test should be skipped, users have manipulated the index.
+            raise RuntimeError(
+                "A test listed in the index was marked as skipped when loading. "
+                "This should not happen and might indicate that the index was manually modified, or "
+                "the ``missing_sensor_error_type`` or ``missing_reference_error_type`` was set to "
+                "``skip`` AFTER the object was initialized. "
+                "This is not supported."
+            )
+
+        return test_data
 
     @property
     def selected_data_file(self) -> Path:
@@ -930,7 +1300,10 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         return meta_data_file
 
     def _get_selected_data_file(self, property_name: str) -> Path:
-        self.assert_is_single(None, property_name)
+        self.assert_is_single(
+            list(self._metadata_level_names) if self._metadata_level_names else self.index.columns.to_list(),
+            property_name,
+        )
         # We basically make an inverse lookup of the metadata.
         all_path_metadata = self._get_all_path_metadata()
 
@@ -996,9 +1369,13 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         # Resolve metadata based on the implementation of the child class.
         metadata_per_level = self._get_all_path_metadata()
         if metadata_per_level is None:
-            return test_name_metadata.reset_index(drop=True)
+            return test_name_metadata.reset_index(drop=True).astype("string")
 
-        return metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True).reset_index(drop=True)
+        return (
+            metadata_per_level.merge(test_name_metadata, left_index=True, right_index=True)
+            .reset_index(drop=True)
+            .astype("string")
+        )
 
 
 @matlab_dataset_docfiller
@@ -1043,6 +1420,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         Usually, this will be something like ("TimeMeasure", "Test", "Trial").
         The number of levels can vary between datasets.
         For typically Mobilise-D datasets, check the ``COMMON_TEST_LEVEL_NAMES`` class variable.
+    measurement_condition
+        Whether the data was recorded under laboratory or free-living conditions.
+        At the moment, we only support creating datasets with a single measurement condition.
     parent_folders_as_metadata
         When multiple data files are provided, you need metadata to distinguish them.
         This class implementation expects the names of the parend folder(s) to be used as metadata.
@@ -1058,6 +1438,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         Note, however, that each file needs a unique combination of metadata.
         If the levels you supply don't result in unique combinations, you will get an error during index creation.
         If you only have a single data file, then you can simply set ``parent_folders_as_metadata=None``.
+
+        .. note:: Ideally one of the metadata levels should be called ``cohort`` otherwise, otherwise the cohort
+                  information in ``participant_metadata`` will be set to ``None``.
     %(file_loader_args)s
     %(dataset_memory_args)s
     %(general_dataset_args)s
@@ -1078,6 +1461,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     paths_list: Union[PathLike, Sequence[PathLike]]
     test_level_names: Sequence[str]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
+    measurement_condition: Literal["laboratory", "free_living"]
 
     COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
@@ -1090,12 +1474,15 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         test_level_names: Sequence[str],
         parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
+        measurement_condition: Literal["laboratory", "free_living"],
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
         sensor_positions: Sequence[str] = ("LowerBack",),
+        single_sensor_position: str = "LowerBack",
         sensor_types: Sequence[Literal["acc", "gyr", "mag", "bar"]] = ("acc", "gyr"),
-        missing_sensor_error_type: Literal["raise", "warn", "ignore"] = "raise",
+        missing_sensor_error_type: Literal["raise", "warn", "ignore", "skip"] = "raise",
+        missing_reference_error_type: Literal["raise", "warn", "ignore", "skip"] = "ignore",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
@@ -1103,16 +1490,19 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         self.paths_list = paths_list
         self.test_level_names = test_level_names
         self.parent_folders_as_metadata = parent_folders_as_metadata
+        self.measurement_condition = measurement_condition
         super().__init__(
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
             reference_para_level=reference_para_level,
             sensor_positions=sensor_positions,
             sensor_types=sensor_types,
+            single_sensor_position=single_sensor_position,
             memory=memory,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
             missing_sensor_error_type=missing_sensor_error_type,
+            missing_reference_error_type=missing_reference_error_type,
         )
 
     @property
@@ -1135,6 +1525,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     @property
     def _test_level_names(self) -> tuple[str, ...]:
         return tuple(self.test_level_names)
+
+    def _get_measurement_condition(self) -> str:
+        return self.measurement_condition
 
     @property
     def _metadata_level_names(self) -> Optional[tuple[str, ...]]:

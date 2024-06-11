@@ -48,5 +48,5 @@ class TestHKLeeImprovedRegression:
         for (gs, data), result in iterator.iterate(data, ref_walk_bouts):
             result.ic_list = IcdHKLeeImproved().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
 
-        detected_ics = iterator.ic_list_
+        detected_ics = iterator.results_.ic_list
         snapshot.assert_match(detected_ics, str(tuple(datapoint.group_label)))

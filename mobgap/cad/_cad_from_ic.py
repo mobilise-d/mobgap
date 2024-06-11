@@ -21,7 +21,7 @@ ic2cad_docfiller = make_filldoc(
         "ic2cad_short": """
     This uses a robust outlier removal approach to deal with missing initial contacts.
     The output cadence is reported as the average for each 1 second bin within the data.
-    An incomplete second at the end is removed.
+    Note that an incomplete second at the end is included, to make sure that the entire data range is covered.
 
     Regions (i.e. second bouts) with no initial contacts are interpolated linearly based on the surrounding values, if
     the gap is smaller than the specified maximum interpolation gap.
@@ -138,7 +138,7 @@ class CadFromIc(BaseCadCalculator):
 
     Attributes
     ----------
-    %(cad_per_sec_)s
+    %(cadence_per_sec_)s
 
     Other Parameters
     ----------------
@@ -184,11 +184,11 @@ class CadFromIc(BaseCadCalculator):
         if not initial_contacts.is_monotonic_increasing:
             raise ValueError("Initial contacts must be sorted in ascending order.")
         initial_contacts_in_seconds = initial_contacts / sampling_rate_hz
-        n_secs = len(data) // sampling_rate_hz
+        n_secs = len(data) / sampling_rate_hz
         sec_centers = np.arange(0, n_secs) + 0.5
-        self.cad_per_sec_ = pd.DataFrame(
+        self.cadence_per_sec_ = pd.DataFrame(
             {
-                "cad_spm": _robust_ic_to_cad_per_sec(
+                "cadence_spm": _robust_ic_to_cad_per_sec(
                     initial_contacts_in_seconds,
                     sec_centers,
                     self.max_interpolation_gap_s,
@@ -209,7 +209,7 @@ class CadFromIc(BaseCadCalculator):
         ic_series = initial_contacts["ic"]
         if len(ic_series) == 0:
             warnings.warn("No initial contacts provided. Cad will be NaN", stacklevel=2)
-        if len(ic_series) > 0 and (ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data)):
+        if len(ic_series) > 0 and (ic_series.iloc[0] != 0 or ic_series.iloc[-1] != len(data) - 1):
             warnings.warn(
                 "Usually we assume that gait sequences are cut to the first and last detected initial "
                 "contact. "
@@ -247,7 +247,7 @@ class CadFromIcDetector(CadFromIc):
 
     Attributes
     ----------
-    %(cad_per_sec_)s
+    %(cadence_per_sec_)s
     ic_detector_
         The IC detector used to detect the initial contacts with the results attached.
         This is only available after the ``detect`` method was called.

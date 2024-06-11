@@ -11,7 +11,6 @@ evaluate the performance of the algorithm.
 """
 
 import pandas as pd
-
 from mobgap.data import LabExampleDataset
 from mobgap.lrc import LrcUllrich
 from mobgap.pipeline import GsIterator
@@ -27,7 +26,9 @@ from mobgap.pipeline import GsIterator
 
 def load_data():
     lab_example_data = LabExampleDataset(reference_system="INDIP")
-    single_test = lab_example_data.get_subset(cohort="MS", participant_id="001", test="Test11", trial="Trial1")
+    single_test = lab_example_data.get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
     return single_test
 
 
@@ -36,9 +37,19 @@ def calculate_output(single_test_data):
     iterator = GsIterator()
     ref_paras = single_test_data.reference_parameters_relative_to_wb_
 
-    for (gs, data), r in iterator.iterate(single_test_data.data_ss, ref_paras.wb_list):
+    for (gs, data), r in iterator.iterate(
+        single_test_data.data_ss, ref_paras.wb_list
+    ):
         ref_ics = ref_paras.ic_list.loc[gs.id]
-        r.ic_list = LrcUllrich().predict(data, ref_ics, sampling_rate_hz=single_test_data.sampling_rate_hz).ic_lr_list_
+        r.ic_list = (
+            LrcUllrich()
+            .predict(
+                data,
+                ref_ics,
+                sampling_rate_hz=single_test_data.sampling_rate_hz,
+            )
+            .ic_lr_list_
+        )
 
     return iterator.results_.ic_list
 
@@ -74,9 +85,17 @@ def plot_lr(ref, detected):
     fig, ax = plt.subplots(figsize=(15, 5))
     # We plot one box either (red or blue depending on the laterality) for each detected IC ignoring the actual time
     for (_, row), (_, ref_row) in zip(detected.iterrows(), ref.iterrows()):
-        ax.plot([row["ic"], row["ic"]], [0, 0.98], color="r" if row["lr_label"] == "left" else "b", linewidth=5)
         ax.plot(
-            [ref_row["ic"], ref_row["ic"]], [1.02, 2], color="r" if ref_row["lr_label"] == "left" else "b", linewidth=5
+            [row["ic"], row["ic"]],
+            [0, 0.98],
+            color="r" if row["lr_label"] == "left" else "b",
+            linewidth=5,
+        )
+        ax.plot(
+            [ref_row["ic"], ref_row["ic"]],
+            [1.02, 2],
+            color="r" if ref_row["lr_label"] == "left" else "b",
+            linewidth=5,
         )
 
     ax.set_yticks([0.5, 1.5])
@@ -115,13 +134,17 @@ pd.DataFrame(
 # If you only want to calculate this you can just calculate the ``accuracy_score``
 from sklearn.metrics import accuracy_score
 
-accuracy_score(reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"])
+accuracy_score(
+    reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"]
+)
 
 # %%
 # Similarly, we could create a confusion matrix to get more insights into the performance of the algorithm.
 from sklearn.metrics import ConfusionMatrixDisplay
 
-disp = ConfusionMatrixDisplay.from_predictions(reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"])
+disp = ConfusionMatrixDisplay.from_predictions(
+    reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"]
+)
 disp.figure_.show()
 
 # %%
@@ -133,7 +156,9 @@ disp.figure_.show()
 #
 # But let's start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
-simulated_real_world_walking = LabExampleDataset(reference_system="INDIP").get_subset(test="Test11")
+simulated_real_world_walking = LabExampleDataset(
+    reference_system="INDIP"
+).get_subset(test="Test11")
 
 simulated_real_world_walking
 
@@ -154,7 +179,9 @@ pipeline.safe_run(simulated_real_world_walking[0]).ic_lr_list_
 # This is used by default, but you could supply your own scoring method as well.
 from tpcp.validate import validate
 
-evaluation_results_with_opti = pd.DataFrame(validate(pipeline, simulated_real_world_walking))
+evaluation_results_with_opti = pd.DataFrame(
+    validate(pipeline, simulated_real_world_walking)
+)
 evaluation_results_with_opti.drop(["single_raw_results"], axis=1).T
 
 # %%
@@ -165,14 +192,18 @@ evaluation_results_with_opti.drop(["single_raw_results"], axis=1).T
 # This could be used for further analysis.
 # For example to calculate the confusion matrix over all ICs of all datapoints.
 raw_results = pd.concat(
-    evaluation_results_with_opti["single_raw_results"][0], keys=evaluation_results_with_opti["data_labels"][0], axis=0
+    evaluation_results_with_opti["single_raw_results"][0],
+    keys=evaluation_results_with_opti["data_labels"][0],
+    axis=0,
 )
 
 raw_results.head()
 
 # %%
 # The confusion matrix can be calculated using the same functions as before.
-disp = ConfusionMatrixDisplay.from_predictions(raw_results["ref_lr_label"], raw_results["lr_label"])
+disp = ConfusionMatrixDisplay.from_predictions(
+    raw_results["ref_lr_label"], raw_results["lr_label"]
+)
 disp.figure_.show()
 
 # %%
@@ -204,7 +235,9 @@ from tpcp.optimize import GridSearchCV
 
 # %%
 # We initialize the pipeline with an untrained model and an untrained scaler as a new pipeline.
-clf_pipeline = Pipeline([("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))])
+clf_pipeline = Pipeline(
+    [("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))]
+)
 pipeline = LrcEmulationPipeline(LrcUllrich(clf_pipe=clf_pipeline))
 
 # %%
@@ -235,8 +268,12 @@ optimizer.score(simulated_real_world_walking[2])["accuracy"]
 # Let's run everything combined with the external cross-validate to actually validate our optimization approach.
 from tpcp.validate import cross_validate
 
-evaluation_results_with_opti = pd.DataFrame(cross_validate(optimizer, simulated_real_world_walking, cv=3))
-evaluation_results_with_opti.loc[:, ~evaluation_results_with_opti.columns.str.endswith("raw_results")].T
+evaluation_results_with_opti = pd.DataFrame(
+    cross_validate(optimizer, simulated_real_world_walking, cv=3)
+)
+evaluation_results_with_opti.loc[
+    :, ~evaluation_results_with_opti.columns.str.endswith("raw_results")
+].T
 
 # %%
 # We can compare these results with the performance of the pre-trained model that was not optimized for the given
@@ -244,10 +281,16 @@ evaluation_results_with_opti.loc[:, ~evaluation_results_with_opti.columns.str.en
 # We simply evaluate the pre-trained model on exactly the same test sets as the optimized model.
 from tpcp.optimize import DummyOptimize
 
-optimizer = DummyOptimize(LrcEmulationPipeline(LrcUllrich()))
+optimizer = DummyOptimize(
+    LrcEmulationPipeline(LrcUllrich()), ignore_potential_user_error_warning=True
+)
 
-evaluation_results_pre_trained = pd.DataFrame(cross_validate(optimizer, simulated_real_world_walking, cv=3))
-evaluation_results_pre_trained.loc[:, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")].T
+evaluation_results_pre_trained = pd.DataFrame(
+    cross_validate(optimizer, simulated_real_world_walking, cv=3)
+)
+evaluation_results_pre_trained.loc[
+    :, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")
+].T
 
 # %%
 # Note that using only so little data is not a good idea in practice.

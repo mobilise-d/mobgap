@@ -16,19 +16,22 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-tpcp = "^0.32.0"
+tpcp = ">=0.33.0"
 pandas = ">=2.1.0"
 scipy = ">=1.11.2"
 numpy = ">=1.25.2"
 scikit-learn = ">=1.3.0"
-# TODO: Remove this dependency at some point
-gaitmap = "^2.4.0"
 joblib = ">=1.3.2"
-openpyxl = "^3.1.2"
-intervaltree = "^3.1.0"
-pywavelets = "^1.5.0"
-pooch = "^1.8.1"
+openpyxl = {version=">=3.1.2", optional=true}
+intervaltree = ">=3.1.0"
+pywavelets = ">=1.5.0"
+pooch = ">=1.8.1"
 pingouin = "^0.5.4"
+# TODO: Remove this dependency at some point
+gaitmap = ">=2.5.0"
+
+[tool.poetry.extras]
+all = ["openpyxl"]
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.22.0"
@@ -58,9 +61,10 @@ format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
 _lint_ci = "ruff check mobgap --output-format=github"
 _check_format = "ruff format . --check"
-ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data"], help = "Check all potential format and linting issues." }
-test = { cmd = "pytest --cov=mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
-test_ci = { cmd = "pytest --cov=mobgap --cov-report=term-missing --cov-report=xml --snapshot-only-check", help = "Run Pytest with coverage and fail on missing snapshots." }
+_file_length = { "script" = "_tasks:task_no_long_file_names()", help = "Check the length of all files." }
+ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data", "_file_length"], help = "Check all potential format and linting issues." }
+test = { cmd = "pytest tests --cov=mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
+test_ci = { cmd = "pytest tests --cov=mobgap --cov-report=term-missing --cov-report=xml --snapshot-only-check", help = "Run Pytest with coverage and fail on missing snapshots." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 docs_clean = { "script" = "_tasks:task_docs(clean=True)",  help = "Remove all old build files and build a clean version of the docs." }
 docs_linkcheck = { "script" = "_tasks:task_docs(builder='linkcheck')", help = "Check all links in the built html docs." }

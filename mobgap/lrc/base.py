@@ -21,14 +21,14 @@ base_lrc_docfiller = make_filldoc(
     """,
         "ic_lr_list_": """
     ic_lr_list_
-        A dataframe specifying the detected left and right foot initial contacts.
+        The predicted left and right foot initial contacts.
         The dataframe is identical to the input ``ic_list``, but with the ``lr`` column added.
         The ``lr`` column specifies if the respective IC belongs to the left or the right foot.
     """,
-        "detect_short": """
+        "predict_short": """
         Assign a left/right label to each initial contact in the passed data.
     """,
-        "detect_para": """
+        "predict_para": """
     data
         The raw IMU of a single sensor.
         This should usually represent a single gait sequence or walking bout.
@@ -39,11 +39,11 @@ base_lrc_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     """,
-        "detect_return": """
+        "predict_return": """
     Returns
     -------
     self
-        The instance of the class with the ``ic_lr_list_`` attribute set to the detected left/right initial contacts.
+        The instance of the class with the ``ic_lr_list_`` attribute set to the passed ICs with a new left/right column.
     """,
         "self_optimize_paras": """
     data_sequences
@@ -125,12 +125,12 @@ class BaseLRClassifier(Algorithm):
         sampling_rate_hz: float,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
-        """%(detect_short)s.
+        """%(predict_short)s.
 
         Parameters
         ----------
-        %(detect_para)s
-        %(detect_return)s
+        %(predict_para)s
+        %(predict_return)s
         """
         raise NotImplementedError
 
@@ -156,6 +156,16 @@ class BaseLRClassifier(Algorithm):
 
         """
         raise NotImplementedError("This algorithm does not implement a internal optimization.")
+
+
+_ic_lr_list_dtypes = {
+    "ic": "int64",
+    "lr_label": pd.CategoricalDtype(categories=["left", "right"]),
+}
+
+
+def _unify_ic_lr_list_df(df: pd.DataFrame) -> pd.DataFrame:
+    return df.astype(_ic_lr_list_dtypes)[list(_ic_lr_list_dtypes.keys())]
 
 
 __all__ = ["BaseLRClassifier", "base_lrc_docfiller"]

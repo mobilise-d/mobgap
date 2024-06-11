@@ -38,7 +38,9 @@ example_data_base_path = get_example_cvs_dmo_data_path()
 dmo_data_path = example_data_base_path / "cvs-T1-test_data.csv"
 mapping_path = example_data_base_path / "cvs-T1-test_data_mapping.csv"
 
-dataset = MobilisedCvsDmoDataset(dmo_path=dmo_data_path, site_pid_map_path=mapping_path)
+dataset = MobilisedCvsDmoDataset(
+    dmo_path=dmo_data_path, site_pid_map_path=mapping_path
+)
 dataset
 
 # %%

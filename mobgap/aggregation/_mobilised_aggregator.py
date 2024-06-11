@@ -3,6 +3,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from pandas import option_context
 from typing_extensions import Self, Unpack
 
 from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
@@ -10,6 +11,8 @@ from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
 
 def _custom_quantile(x: pd.Series) -> float:
     """Calculate the 90th percentile of the passed data."""
+    if x.isna().all():
+        return np.nan
     return np.nanpercentile(x, 90)
 
 
@@ -25,47 +28,48 @@ class MobilisedAggregator(BaseAggregator):
     This algorithm aggregates DMO parameters across single walking bouts. The calculated parameters are divided into 4
     groups based on the duration of the walking bout. For every group, a different set of possible parameters is
     available.
-    The groups are defined as follows:
+    The groups are defined as follows ([orginial_mobilised_name/new_name]):
 
     - All walking bout [parameters with "all"], available parameters:
 
-      - Duration of all walking bouts in h ["walkdur_all_sum"]
-      - Number of steps in all walking bouts ["steps_all_sum"]
-      - Number of turns in all walking bouts ["turns_all_sum"]
-      - Number of walking bouts ["wb_all_sum"]
-      - Median duration of walking bouts in s ["wbdur_all_avg"]
-      - 90th percentile of duration of walking bouts in s ["wbdur_all_max"]
-      - Coefficient of variation in walking bout duration in s ["wbdur_all_var"]
-      - Average cadence of walking bouts in steps/min ["cadence_all_avg"]
-      - Average stride duration of walking bouts in s ["strdur_all_avg"]
-      - Coefficient of variation in cadence of walking bouts in steps/min ["cadence_all_var"]
-      - Coefficient of variation in stride duration of walking bouts in s ["strdur_all_var"]
+      - Duration of all walking bouts in h ["walkdur_all_sum"/"total_walking_duration_h]
+      - Number of steps in all walking bouts ["steps_all_sum"/"wb_all__n_steps__sum"]
+      - Number of turns in all walking bouts ["turns_all_sum"/"wb_all__n_turns__sum"]
+      - Number of walking bouts ["wb_all_sum"/"wb_all__count"]
+      - Median duration of walking bouts in s ["wbdur_all_avg"/"wb_all__duration_s__avg"]
+      - 90th percentile of duration of walking bouts in s ["wbdur_all_max"/"wb_all__duration_s__max"
+      - Coefficient of variation in walking bout duration in s ["wbdur_all_var"/"wb_all__duration_s__var"]
+      - Average cadence of walking bouts in steps/min ["cadence_all_avg"/"wb_all__cadence_spm__avg"]
+      - Average stride duration of walking bouts in s ["strdur_all_avg"/"wb_all__stride_duration_s__avg"]
+      - Coefficient of variation in cadence of walking bouts in steps/min ["cadence_all_var"/"wb_all__cadence_spm__var"]
+      - Coefficient of variation in stride duration of walking bouts in s
+        ["strdur_all_var"/"wb_all__stride_duration_s__var"]
 
     - Walking bouts with duration between 10 and 30 seconds [parameters with "1030"], available parameters:
 
-      - Average stride speed of walking bouts in m/s ["ws_1030_avg"]
-      - Average stride length of walking bouts in cm ["strlen_1030_avg"]
+      - Average stride speed of walking bouts in m/s ["ws_1030_avg"/"wb_10_30__walking_speed_mps__avg"]
+      - Average stride length of walking bouts in cm ["strlen_1030_avg"/"wb_10_30__stride_length_m__avg"]
 
     - Walking bouts with duration longer than 10 seconds [parameters with "10"], available parameters:
 
-      - Number of walking bouts ["wb_10_sum"]
-      - 90th percentile of stride speed of walking bouts in m/s ["ws_10_max"]
+      - Number of walking bouts ["wb_10_sum"/"wb_10__count"]
+      - 90th percentile of stride speed of walking bouts in m/s ["ws_10_max"/"wb_10__walking_speed_mps__max"]
 
     - Walking bouts with duration longer than 30 seconds [parameters with "30"], available parameters:
 
-      - Number of walking bouts ["wb_30_sum"]
-      - Average stride speed of walking bouts in m/s ["ws_30_avg"]
-      - Average stride length of walking bouts in cm ["strlen_30_avg"]
-      - Average cadence of walking bouts in steps/min ["cadence_30_avg"]
-      - Average stride duration of walking bouts in s ["strdur_30_avg"]
-      - 90th percentile of stride speed of walking bouts in m/s ["ws_30_max"]
-      - 90th percentile of cadence of walking bouts in steeps/min ["cadence_30_max"]
-      - Coefficient of variation in stride speed of walking bouts in m/s ["ws_30_var"]
-      - Coefficient of variation in stride length of walking bouts in cm ["strlen_30_var"]
+      - Number of walking bouts ["wb_30_sum"/"wb_30__count"]
+      - Average stride speed of walking bouts in m/s ["ws_30_avg"/"wb_30__walking_speed_mps__avg"]
+      - Average stride length of walking bouts in cm ["strlen_30_avg"/"wb_30__stride_length_m__avg"]
+      - Average cadence of walking bouts in steps/min ["cadence_30_avg"/"wb_30__cadence_spm__avg"]
+      - Average stride duration of walking bouts in s ["strdur_30_avg"/"wb_30__stride_duration_s__avg"]
+      - 90th percentile of stride speed of walking bouts in m/s ["ws_30_max"/"wb_30__walking_speed_mps__max"]
+      - 90th percentile of cadence of walking bouts in steeps/min ["cadence_30_max"/"wb_30__cadence_spm__max"]
+      - Coefficient of variation in stride speed of walking bouts in m/s ["ws_30_var"/"wb_30__walking_speed_mps__var"]
+      - Coefficient of variation in stride length of walking bouts in cm ["strlen_30_var"/"wb_30__stride_length_m__var"]
 
     - Walking bouts with duration longer than 60 seconds [parameters with "60"], available parameters:
 
-      - Number of walking bouts ["wb_60_sum"]
+      - Number of walking bouts ["wb_60_sum"/"wb_60__count"]
 
     Every of the above-mentioned parameters will be added to a distinct column in the aggregated data.
     Which of the parameters are calculated depends on the columns available in the input data. All parameters are
@@ -95,10 +99,16 @@ class MobilisedAggregator(BaseAggregator):
         Possible groupings are e.g. by participant, recording date, or trial.
         To generate daily aggregations (the default), the ``groupby`` should contain the columns "subject_code"
         and "visit_date".
+        If groupby is set to ``None``, the data is aggregated without grouping (i.e. all WBs are aggregated together).
+        This is useful, when aggregation is run on a single recording.
     unique_wb_id_column
         The name of the column (or index level) containing a unique identifier for every walking bout.
         The id does not have to be unique globally, but only within the groups defined by ``groupby``.
         Aka ``wb_dmos.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
+    use_original_names
+        If ``True``, the original names used in Mobilise-D are used for the aggregated data.
+        They use shorthands for many parameters and are hence, less easy to understand.
+        The "new" names are more descriptive and easier to understand and are hence, the default.
 
     Other Parameters
     ----------------
@@ -142,6 +152,36 @@ class MobilisedAggregator(BaseAggregator):
     R-Script.
     """
 
+    ALTERNATIVE_NAMES: typing.ClassVar[dict[str, str]] = {
+        "wb_all_sum": "wb_all__count",
+        # TODO: I don't like that the name here is different. We should unify that.
+        "walkdur_all_sum": "total_walking_duration_h",
+        "wbdur_all_avg": "wb_all__duration_s__avg",
+        "wbdur_all_max": "wb_all__duration_s__max",
+        "wbdur_all_var": "wb_all__duration_s__var",
+        "cadence_all_avg": "wb_all__cadence_spm__avg",
+        "strdur_all_avg": "wb_all__stride_duration_s__avg",
+        "cadence_all_var": "wb_all__cadence_spm__var",
+        "strdur_all_var": "wb_all__stride_duration_s__var",
+        "wb_1030_sum": "wb_10_30__count",
+        "ws_1030_avg": "wb_10_30__walking_speed_mps__avg",
+        "strlen_1030_avg": "wb_10_30__stride_length_m__avg",
+        "wb_10_sum": "wb_10__count",
+        "ws_10_max": "wb_10__walking_speed_mps__max",
+        "wb_30_sum": "wb_30__count",
+        "ws_30_avg": "wb_30__walking_speed_mps__avg",
+        "strlen_30_avg": "wb_30__stride_length_m__avg",
+        "cadence_30_avg": "wb_30__cadence_spm__avg",
+        "strdur_30_avg": "wb_30__stride_duration_s__avg",
+        "ws_30_max": "wb_30__walking_speed_mps__max",
+        "cadence_30_max": "wb_30__cadence_spm__max",
+        "ws_30_var": "wb_30__walking_speed_mps__var",
+        "strlen_30_var": "wb_30__stride_length_m__var",
+        "wb_60_sum": "wb_60__count",
+        "steps_all_sum": "wb_all__n_steps__sum",
+        "turns_all_sum": "wb_all__n_turns__sum",
+    }
+
     INPUT_COLUMNS: typing.ClassVar[list[str]] = [
         "stride_duration_s",
         "n_steps",
@@ -149,7 +189,6 @@ class MobilisedAggregator(BaseAggregator):
         "walking_speed_mps",
         "stride_length_m",
         "cadence_spm",
-        "stride_duration_s",
     ]
 
     _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
@@ -215,11 +254,7 @@ class MobilisedAggregator(BaseAggregator):
         "turns_all_sum",
     ]
 
-    _ROUND_COLUMNS: typing.ClassVar = [
-        "walkdur_all_sum",
-    ]
-
-    groupby: typing.Sequence[str]
+    groupby: typing.Optional[typing.Sequence[str]]
     unique_wb_id_column: str
 
     wb_dmos_mask: pd.DataFrame
@@ -228,15 +263,17 @@ class MobilisedAggregator(BaseAggregator):
 
     def __init__(
         self,
-        groupby: typing.Sequence[str] = ("visit_type", "participant_id", "measurement_date"),
+        groupby: typing.Optional[typing.Sequence[str]] = ("visit_type", "participant_id", "measurement_date"),
         *,
         unique_wb_id_column: str = "wb_id",
+        use_original_names: bool = False,
     ) -> None:
         self.groupby = groupby
         self.unique_wb_id_column = unique_wb_id_column
+        self.use_original_names = use_original_names
 
     @base_aggregator_docfiller
-    def aggregate(
+    def aggregate(  # noqa: C901
         self,
         wb_dmos: pd.DataFrame,
         *,
@@ -257,15 +294,15 @@ class MobilisedAggregator(BaseAggregator):
         """
         self.wb_dmos = wb_dmos
         self.wb_dmos_mask = wb_dmos_mask
-        groupby = list(self.groupby)
+        groupby = self.groupby if self.groupby is None else list(self.groupby)
 
         if not any(col in self.wb_dmos.columns for col in self.INPUT_COLUMNS):
             raise ValueError(f"None of the valid input columns {self.INPUT_COLUMNS} found in the passed dataframe.")
 
-        if not all(col in self.wb_dmos.reset_index().columns for col in groupby):
+        if groupby and not all(col in self.wb_dmos.reset_index().columns for col in groupby):
             raise ValueError(f"Not all groupby columns {self.groupby} found in the passed dataframe.")
 
-        data_correct_index = wb_dmos.reset_index().set_index([*groupby, self.unique_wb_id_column]).sort_index()
+        data_correct_index = wb_dmos.reset_index().set_index([*(groupby or []), self.unique_wb_id_column]).sort_index()
 
         if not data_correct_index.index.is_unique:
             raise ValueError(
@@ -275,21 +312,28 @@ class MobilisedAggregator(BaseAggregator):
             )
 
         if wb_dmos_mask is not None:
-            wb_dmos_mask = (
-                wb_dmos_mask.fillna(True)
-                .infer_objects(copy=False)
-                .reset_index()
-                .set_index([*groupby, self.unique_wb_id_column])
-                .sort_index()
-            )
+            # We silent the warning about downcasting, as we correctly infer the types.
+            # This can be removed once we upgrade to pandas 3.0
+            with option_context("future.no_silent_downcasting", True):
+                wb_dmos_mask = (
+                    wb_dmos_mask.fillna(True)
+                    .infer_objects(copy=False)
+                    .reset_index()
+                    .set_index([*(groupby or []), self.unique_wb_id_column])
+                    .sort_index()
+                )
 
-            if not wb_dmos.index.equals(wb_dmos_mask.index):
+            if not data_correct_index.index.equals(wb_dmos_mask.index):
                 raise ValueError(
                     "The data mask seems to be missing some data indices. "
                     "`wb_dmos_mask` must have exactly the same indices as `wb_dmos` after grouping."
                 )
 
             wb_dmos_mask = wb_dmos_mask.reindex(data_correct_index.index)
+            # In case the wb_dmos_mask has columns that are not boolean, we set them to True implicitly
+            # Note, in columns with "Falsy" values (e.g. empty string) this might introduce some False values, but
+            # this shouldn't matter, as the potential additional columns will not be used in the aggregation anyway.
+            wb_dmos_mask = wb_dmos_mask.astype(bool)
 
             # We remove all individual elements from the data that are flagged as implausible in the data mask.
             self.filtered_wb_dmos_ = data_correct_index.where(wb_dmos_mask)
@@ -315,6 +359,9 @@ class MobilisedAggregator(BaseAggregator):
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
         self.aggregated_data_ = self.aggregated_data_.round(3)
+
+        if self.use_original_names is False:
+            self.aggregated_data_ = self.aggregated_data_.rename(columns=self.ALTERNATIVE_NAMES, errors="ignore")
 
         return self
 
@@ -345,14 +392,18 @@ class MobilisedAggregator(BaseAggregator):
     @staticmethod
     def _apply_aggregations(
         filtered_data: pd.DataFrame,
-        groupby: list[str],
+        groupby: typing.Optional[list[str]],
         available_filters_and_aggs: list[tuple[str, dict[str, tuple[str, typing.Union[str, typing.Callable]]]]],
     ) -> pd.DataFrame:
         """Apply filters and aggregations to the data."""
         aggregated_results = []
         for f, agg in available_filters_and_aggs:
-            aggregated_data = filtered_data if f is None else filtered_data.query(f)
-            aggregated_results.append(aggregated_data.groupby(groupby).agg(**agg))
+            internal_filtered = filtered_data if f is None else filtered_data.query(f)
+            if groupby:
+                data_to_agg = internal_filtered.groupby(groupby)
+            else:
+                data_to_agg = internal_filtered.groupby(pd.Series("all_wbs", index=internal_filtered.index))
+            aggregated_results.append(data_to_agg.agg(**agg))
         return pd.concat(aggregated_results, axis=1)
 
     def _fillna_count_columns(self, data: pd.DataFrame) -> pd.DataFrame:

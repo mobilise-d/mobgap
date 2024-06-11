@@ -59,7 +59,9 @@ algo_with_healthy_params.get_params()
 # Users are still able to overwrite the parameters, if they want to.
 # For example, only use the predefined parameters for some parameters and overwrite others:
 pathological_params = MyAlgorithm.PredefinedParameters.pathological
-algo_with_custom_pathological_params = MyAlgorithm(**{**pathological_params, "param2": "bar"})
+algo_with_custom_pathological_params = MyAlgorithm(
+    **{**pathological_params, "param2": "bar"}
+)
 algo_with_custom_pathological_params.get_params()
 
 # %%
@@ -139,7 +141,12 @@ class MyAlgorithm(tpcp.Algorithm):
             model = cls._load_from_file("pathological")
             return {"param1": 3, "param2": "pathological", "model": model}
 
-    def __init__(self, param1: float = 2, param2: str = "foo", model: Optional[str] = None):
+    def __init__(
+        self,
+        param1: float = 2,
+        param2: str = "foo",
+        model: Optional[str] = None,
+    ):
         self.param1 = param1
         self.param2 = param2
         self.model = model

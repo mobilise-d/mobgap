@@ -13,7 +13,6 @@ matlab implementation.
 # Import useful modules and packages
 import matplotlib.pyplot as plt
 import pandas as pd
-
 from mobgap.data import LabExampleDataset
 from mobgap.icd import IcdIonescu
 
@@ -25,13 +24,17 @@ from mobgap.icd import IcdIonescu
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP "InitialContact_Event" output as ground truth.
 
-example_data = LabExampleDataset(reference_system="INDIP", reference_para_level="wb")  # alternatively: "StereoPhoto"
+example_data = LabExampleDataset(
+    reference_system="INDIP", reference_para_level="wb"
+)  # alternatively: "StereoPhoto"
 
 # %%
 # Performance on a single lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
-single_test = example_data.get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1")
+single_test = example_data.get_subset(
+    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+)
 imu_data = single_test.data_ss
 reference_wbs = single_test.reference_parameters_.wb_list
 
@@ -50,7 +53,9 @@ from mobgap.pipeline import GsIterator
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
-    result.ic_list = IcdIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+    result.ic_list = (
+        IcdIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).ic_list_
+    )
 
 detected_ics = iterator.results_.ic_list
 detected_ics
@@ -70,7 +75,9 @@ def load_matlab_output(datapoint):
         PACKAGE_ROOT.parent
         / f"example_data/original_results/icd_ionescu/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
     ).open() as f:
-        original_results = json.load(f)["SD_Output"][p.time_measure][p.test][p.trial]["SU"]["LowerBack"]["SD"]
+        original_results = json.load(f)["SD_Output"][p.time_measure][p.test][
+            p.trial
+        ]["SU"]["LowerBack"]["SD"]
 
     if not isinstance(original_results, list):
         original_results = [original_results]
@@ -79,7 +86,10 @@ def load_matlab_output(datapoint):
     for i, gs in enumerate(original_results, start=1):
         ics[i] = pd.DataFrame({"ic": gs["IC"]}).rename_axis(index="step_id")
 
-    return (pd.concat(ics, names=["wb_id", ics[1].index.name]) * datapoint.sampling_rate_hz).astype("int64")
+    return (
+        pd.concat(ics, names=["wb_id", ics[1].index.name])
+        * datapoint.sampling_rate_hz
+    ).astype("int64")
 
 
 detected_ics_matlab = load_matlab_output(single_test)
@@ -101,8 +111,18 @@ detected_ics_matlab
 imu_data.reset_index(drop=True).plot(y="acc_x")
 
 plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
-plt.plot(detected_ics["ic"], imu_data["acc_x"].iloc[detected_ics["ic"]], "x", label="icd_ionescu_py")
-plt.plot(detected_ics_matlab["ic"], imu_data["acc_x"].iloc[detected_ics_matlab["ic"]], "+", label="icd_ionescu_matlab")
+plt.plot(
+    detected_ics["ic"],
+    imu_data["acc_x"].iloc[detected_ics["ic"]],
+    "x",
+    label="icd_ionescu_py",
+)
+plt.plot(
+    detected_ics_matlab["ic"],
+    imu_data["acc_x"].iloc[detected_ics_matlab["ic"]],
+    "+",
+    label="icd_ionescu_matlab",
+)
 plt.xlim(reference_wbs.iloc[2]["start"] - 50, reference_wbs.iloc[2]["end"] + 50)
 plt.legend()
 plt.show()

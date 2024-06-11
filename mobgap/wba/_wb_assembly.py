@@ -39,6 +39,9 @@ class WbAssembly(Algorithm):
         A dictionary containing all walking bouts that were assembled.
         The keys are the ids of the walking bouts.
         The values are dataframes containing the strides that are part of the respective walking bout.
+    wb_meta_parameters_
+        A dataframe containing the general parameters per WB.
+        This includes the start, the end, the number of strides and the duration of the WB.
     excluded_stride_list_
         A dataframe containing all strides that are considered invalid, as they are not part of a WB.
         This can happen, because strides were part of a preliminary WB that was later discarded or because they were
@@ -114,7 +117,7 @@ class WbAssembly(Algorithm):
     _wb_id_map: dict[str, int]
 
     class PredefinedParameters:
-        mobilise_wb: ClassVar = {
+        mobilised: ClassVar = {
             "rules": [
                 (
                     "min_strides",
@@ -124,7 +127,7 @@ class WbAssembly(Algorithm):
             ]
         }
 
-    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilise_wb.items()})
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]]) -> None:
         self.rules = rules
 
@@ -133,6 +136,19 @@ class WbAssembly(Algorithm):
         if len(self.annotated_stride_list_) == 0:
             return {}
         return {k: v.reset_index("wb_id", drop=True) for k, v in self.annotated_stride_list_.groupby("wb_id")}
+
+    @property
+    def wb_meta_parameters_(self) -> pd.DataFrame:
+        if len(self.annotated_stride_list_) == 0:
+            return pd.DataFrame()
+
+        n_strides = self.annotated_stride_list_.groupby("wb_id").size().rename("n_strides")
+        parameters = self.termination_reasons_.loc[n_strides.index]
+        start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
+
+        return pd.concat([start_end, n_strides, parameters], axis=1).assign(
+            duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz
+        )
 
     @property
     def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
@@ -194,9 +210,9 @@ class WbAssembly(Algorithm):
         ) = self._apply_termination_rules(stride_list_sorted)
         wb_list, excluded_wb_list_2, exclusion_reasons_2 = self._apply_inclusion_rules(preliminary_wb_list)
         # After we have the final wbs, we rewrite the wb_ids to be easier to read.
-        self._wb_id_map = {k: i for i, k in enumerate(wb_list.keys(), 1)}
-        stride_index_col_name = filtered_stride_list.index.name
-        new_index_cols = ["wb_id", stride_index_col_name]
+        self._wb_id_map = {k: i for i, k in enumerate(wb_list.keys())}
+        stride_index_col_name = filtered_stride_list.index.names
+        new_index_cols = ["wb_id", *stride_index_col_name]
         if len(wb_list) > 0:
             self.annotated_stride_list_ = pd.concat(wb_list, names=new_index_cols).reset_index()
             self.annotated_stride_list_["wb_id"] = self.annotated_stride_list_["wb_id"].map(self._wb_id_map)
@@ -204,7 +220,7 @@ class WbAssembly(Algorithm):
             self.annotated_stride_list_ = pd.DataFrame(columns=[*filtered_stride_list.columns, *new_index_cols])
         self.annotated_stride_list_ = self.annotated_stride_list_.set_index(new_index_cols)
 
-        pre_id_index_cols = ["pre_wb_id", stride_index_col_name]
+        pre_id_index_cols = ["pre_wb_id", *stride_index_col_name]
         if (
             len(
                 combined_excluded_stride_list := {

@@ -9,7 +9,6 @@ specific cohort and height.
 """
 
 import pandas as pd
-
 from mobgap import PACKAGE_ROOT
 from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
@@ -21,11 +20,13 @@ from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 # as meta-data such as the participant's height is required.
 # Luckily, the all the example data is from the same participant, just recorded at different times.
 
-DATA_PATH = PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
-
-data = pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0).set_index(
-    ["visit_type", "participant_id", "measurement_date", "wb_id"]
+DATA_PATH = (
+    PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
 )
+
+data = pd.read_csv(
+    DATA_PATH / "aggregation_test_input.csv", index_col=0
+).set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
 data.head()
 
 # %%
@@ -37,7 +38,13 @@ thresholds
 # %%
 # Apply Thresholds
 # ----------------
-data_mask = apply_thresholds(data, thresholds, cohort="CHF", height_m=1.75, measurement_condition="free_living")
+data_mask = apply_thresholds(
+    data,
+    thresholds,
+    cohort="CHF",
+    height_m=1.75,
+    measurement_condition="free_living",
+)
 data_mask.head()
 
 # %%

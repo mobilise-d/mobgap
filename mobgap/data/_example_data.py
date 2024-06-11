@@ -114,6 +114,7 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
     """
     # We also fetch the infoForAlgo.mat files in case they need to be downloaded
     _ = _pooch_glob(LOCAL_EXAMPLE_PATH / "data/lab", "**/infoForAlgo.mat")
+    _ = _pooch_glob(LOCAL_EXAMPLE_PATH / "data/lab", "**/test_list.json")
     potential_paths = _pooch_glob(LOCAL_EXAMPLE_PATH / "data/lab", "**/data.mat")
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}
 
@@ -146,9 +147,15 @@ class LabExampleDataset(BaseGenericMobilisedDataset):
     def _test_level_names(self) -> tuple[str, ...]:
         return GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"]
 
+    def _get_measurement_condition(self) -> str:
+        return "laboratory"
+
     @property
     def _metadata_level_names(self) -> Optional[tuple[str, ...]]:
         return "cohort", "participant_id"
+
+    def _relpath_to_precomputed_test_list(self) -> str:
+        return "test_list.json"
 
     def _get_file_index_metadata(self, path: Path) -> tuple[str, ...]:
         return path.parents[1].name, path.parents[0].name

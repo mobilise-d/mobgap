@@ -14,7 +14,10 @@ This is the API Reference for ``mobgap``.
     gsd
     icd
     lrc
+    turning
     cad
+    stride_length
+    walking_speed
     wba
     aggregation
     data_transform

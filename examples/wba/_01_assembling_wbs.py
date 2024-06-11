@@ -53,7 +53,10 @@ def naive_stride_list(start, stop, duration, foot=None, **paras):
     start_end = zip(x[:-1], x[1:])
 
     return pd.DataFrame.from_records(
-        [window(start=s, end=e, foot=foot, duration=duration, **paras) for s, e in start_end]
+        [
+            window(start=s, end=e, foot=foot, duration=duration, **paras)
+            for s, e in start_end
+        ]
     ).set_index("s_id")
 
 
@@ -88,7 +91,14 @@ stride_list
 # With the thresholds, all strides, we marked as "large" above should be filtered out.
 from mobgap.wba import IntervalParameterCriteria
 
-rules = [("sl_thres", IntervalParameterCriteria("stride_length", lower_threshold=0.5, upper_threshold=1.5))]
+rules = [
+    (
+        "sl_thres",
+        IntervalParameterCriteria(
+            "stride_length", lower_threshold=0.5, upper_threshold=1.5
+        ),
+    )
+]
 
 # %%
 # We can now use these rules to filter the stride list.
@@ -115,7 +125,12 @@ filtered_stride_list["stride_length"].unique()
 # The thresholds we use here should filter out all the strides from above with a duration of 60
 from mobgap.wba import IntervalDurationCriteria
 
-rules.append(("dur_thres", IntervalDurationCriteria(min_duration_s=80, max_duration_s=120)))
+rules.append(
+    (
+        "dur_thres",
+        IntervalDurationCriteria(min_duration_s=80, max_duration_s=120),
+    )
+)
 
 stride_selection = StrideSelection(rules)
 stride_selection.filter(stride_list, sampling_rate_hz=1)
@@ -133,7 +148,9 @@ stride_selection.excluded_stride_list_
 # %%
 # And even see which rule filtered them out.
 # Note, that only the first rule that filtered the stride is shown.
-stride_selection.excluded_stride_list_.merge(stride_selection.exclusion_reasons_, left_index=True, right_index=True)
+stride_selection.excluded_stride_list_.merge(
+    stride_selection.exclusion_reasons_, left_index=True, right_index=True
+)
 
 # %%
 # Step 2,3: WB Assembly
@@ -158,7 +175,14 @@ stride_selection.excluded_stride_list_.merge(stride_selection.exclusion_reasons_
 from mobgap.wba import MaxBreakCriteria, NStridesCriteria, WbAssembly
 
 rules = [
-    ("max_break", MaxBreakCriteria(max_break_s=10, remove_last_ic="per_foot", consider_end_as_break=True)),
+    (
+        "max_break",
+        MaxBreakCriteria(
+            max_break_s=10,
+            remove_last_ic="per_foot",
+            consider_end_as_break=True,
+        ),
+    ),
     ("min_strides", NStridesCriteria(min_strides=5)),
 ]
 

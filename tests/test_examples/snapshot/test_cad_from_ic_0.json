@@ -6,7 +6,7 @@
                 "type":"integer"
             },
             {
-                "name":"cad_spm",
+                "name":"cadence_spm",
                 "type":"number"
             }
         ],
@@ -18,19 +18,23 @@
     "data":[
         {
             "sec_center_samples":50,
-            "cad_spm":101.6949152542
+            "cadence_spm":101.6949152542
         },
         {
             "sec_center_samples":150,
-            "cad_spm":107.1428571429
+            "cadence_spm":107.1428571429
         },
         {
             "sec_center_samples":250,
-            "cad_spm":104.347826087
+            "cadence_spm":104.347826087
         },
         {
             "sec_center_samples":350,
-            "cad_spm":96.7741935484
+            "cadence_spm":96.7741935484
+        },
+        {
+            "sec_center_samples":450,
+            "cadence_spm":96.7741935484
         }
     ]
 }

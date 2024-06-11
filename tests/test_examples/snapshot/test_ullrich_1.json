@@ -11,7 +11,14 @@
             },
             {
                 "name":"lr_label",
-                "type":"string"
+                "type":"any",
+                "constraints":{
+                    "enum":[
+                        "left",
+                        "right"
+                    ]
+                },
+                "ordered":false
             }
         ],
         "primaryKey":[
@@ -21,62 +28,62 @@
     },
     "data":[
         {
-            "step_id":86,
+            "step_id":0,
             "ic":0,
             "lr_label":"left"
         },
         {
-            "step_id":87,
+            "step_id":1,
             "ic":72,
             "lr_label":"right"
         },
         {
-            "step_id":88,
+            "step_id":2,
             "ic":122,
             "lr_label":"left"
         },
         {
-            "step_id":89,
+            "step_id":3,
             "ic":189,
             "lr_label":"right"
         },
         {
-            "step_id":90,
+            "step_id":4,
             "ic":235,
             "lr_label":"left"
         },
         {
-            "step_id":91,
+            "step_id":5,
             "ic":275,
             "lr_label":"right"
         },
         {
-            "step_id":92,
+            "step_id":6,
             "ic":459,
             "lr_label":"right"
         },
         {
-            "step_id":93,
+            "step_id":7,
             "ic":518,
             "lr_label":"right"
         },
         {
-            "step_id":94,
+            "step_id":8,
             "ic":573,
             "lr_label":"left"
         },
         {
-            "step_id":95,
+            "step_id":9,
             "ic":664,
             "lr_label":"right"
         },
         {
-            "step_id":96,
+            "step_id":10,
             "ic":711,
             "lr_label":"left"
         },
         {
-            "step_id":97,
+            "step_id":11,
             "ic":750,
             "lr_label":"right"
         }

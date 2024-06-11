@@ -15,7 +15,6 @@ This should allow to apply the same filter to different datasets, while maintain
 """
 
 import matplotlib.pyplot as plt
-
 from mobgap.data import LabExampleDataset
 from mobgap.data_transform import SavgolFilter
 
@@ -24,7 +23,9 @@ from mobgap.data_transform import SavgolFilter
 # -------------------------
 example_data = LabExampleDataset()
 ha_example_data = example_data.get_subset(cohort="HA")
-single_test = ha_example_data.get_subset(participant_id="002", test="Test5", trial="Trial2")
+single_test = ha_example_data.get_subset(
+    participant_id="002", test="Test5", trial="Trial2"
+)
 data = single_test.data_ss
 
 data.head()

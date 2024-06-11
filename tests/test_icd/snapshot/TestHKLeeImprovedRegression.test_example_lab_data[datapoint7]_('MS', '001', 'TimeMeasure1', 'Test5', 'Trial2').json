@@ -22,42 +22,42 @@
     },
     "data":[
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":0,
             "ic":486
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":1,
             "ic":542
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":2,
             "ic":596
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":3,
             "ic":650
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":4,
             "ic":704
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":5,
             "ic":759
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":6,
             "ic":816
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":7,
             "ic":861
         }
