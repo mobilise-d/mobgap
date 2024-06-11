@@ -30,6 +30,18 @@ from mobgap.wba import StrideSelection, WbAssembly
 
 
 class MobilisedPipeline(Pipeline[BaseGaitDataset]):
+    gait_sequence_detection: BaseGsDetector
+    initial_contact_detection: BaseIcDetector
+    laterality_classification: BaseLRClassifier
+    cadence_calculation: Optional[BaseCadCalculator]
+    stride_length_calculation: Optional[BaseSlCalculator]
+    walking_speed_calculation: Optional[BaseWsCalculator]
+    turn_detection: Optional[BaseTurnDetector]
+    stride_selection: StrideSelection
+    wba: WbAssembly
+    dmo_thresholds: Optional[pd.DataFrame]
+    dmo_aggregation: BaseAggregator
+
     # Algos with results
     gait_sequence_detection_: BaseGsDetector
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
@@ -54,7 +66,6 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
             {
                 "gait_sequence_detection": GsdIluz(),
                 "initial_contact_detection": IcdIonescu(),
-                # TODO: Check correct model used
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(IcdShinImproved()),
                 "stride_length_calculation": SlZijlstra(),
@@ -185,9 +196,10 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
             lrc = self.laterality_classification.clone().predict(
                 gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
             )
-            r.ic_list = lrc.ic_lr_list_
-            turn = self.turn_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
-            r.turn_list = turn.turn_list_
+            if self.turn_detection:
+                r.ic_list = lrc.ic_lr_list_
+                turn = self.turn_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
+                r.turn_list = turn.turn_list_
 
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
