@@ -28,7 +28,6 @@ from pprint import pprint
 
 import numpy as np
 import pandas as pd
-
 from mobgap import PACKAGE_ROOT
 
 DATA_PATH = PACKAGE_ROOT.parent / "example_data/dmo_data/dummy_dmo_data"
@@ -66,10 +65,10 @@ reference_dmo
 from mobgap.utils.array_handling import create_multi_groupby
 
 per_trial_participant_day_grouper = create_multi_groupby(
-    detected_dmo, reference_dmo, groupby=["visit_type", "participant_id", "measurement_date"]
+    detected_dmo,
+    reference_dmo,
+    groupby=["visit_type", "participant_id", "measurement_date"],
 )
-
-pprint(per_trial_participant_day_grouper)
 
 # %%
 # This provides us with a groupby-object that is similar to the normal pandas groupby-object that can be created from a
@@ -90,11 +89,12 @@ pprint(per_trial_participant_day_grouper)
 
 from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
 
-gs_tp_fp_fn = create_multi_groupby(
-    detected_dmo, reference_dmo, groupby=["visit_type", "participant_id", "measurement_date"]
-).apply(
+gs_tp_fp_fn = per_trial_participant_day_grouper.apply(
     lambda det, ref: categorize_matches_with_min_overlap(
-        gsd_list_detected=det, gsd_list_reference=ref, overlap_threshold=0.8, multiindex_warning=False
+        gsd_list_detected=det,
+        gsd_list_reference=ref,
+        overlap_threshold=0.8,
+        multiindex_warning=False,
     )
 )
 gs_tp_fp_fn
@@ -103,11 +103,15 @@ gs_tp_fp_fn
 # %%
 # Based on the positive matches,
 # we can now extract the DMO data from detected and reference data that is to be compared.
-# To combine this data, we use the :func:`~mobgap.gsd.evaluation.get_matching_gs` function.
+# To combine this data, we use the :func:`~mobgap.gsd.evaluation.get_matching_intervals` function.
 
-from mobgap.gsd.evaluation import get_matching_gs
+from mobgap.gsd.evaluation import get_matching_intervals
 
-gs_matches = get_matching_gs(metrics_detected=detected_dmo, metrics_reference=reference_dmo, matches=gs_tp_fp_fn)
+gs_matches = get_matching_intervals(
+    metrics_detected=detected_dmo,
+    metrics_reference=reference_dmo,
+    matches=gs_tp_fp_fn,
+)
 gs_matches.T
 
 # %%
@@ -119,14 +123,19 @@ gs_matches.T
 # As input, it receives the matching DMO data and a list of transformations that should be applied to the data.
 # A transformation is characterized as a function that takes some subset of the input dataframe,
 # performs some operation on it, and returns a series as output.
-# The transformations are a list of tuples containing the DMO of interest as the first element and the error functions
-# applied to the detected and reference values as the second element.
+# Calculating the differences between two sets of values, e.g., between detected and reference values,
+# is a common type of transformation that is applied to evaluate the performance of the DMO estimation.
+# For this purpose, the transformations are defined as aa list of tuples containing the DMO of interest
+# as the first element and the error functions applied to the detected and reference values as the second element.
 # This way, you can also define custom error functions and pass them as transformations.
 # Note that the columns of the detected and reference values are expected to be named `detected` and `reference`
 # per default.
 # For the standard error metrics (error, absolute error, relative error, absolute relative),
 # the :func:`~mobgap.gsd.evaluation.get_default_error_transformations` returns the correct transformations.
-from mobgap.gsd.evaluation import apply_transformations, get_default_error_transformations
+from mobgap.gsd.evaluation import (
+    apply_transformations,
+    get_default_error_transformations,
+)
 
 default_errors = get_default_error_transformations()
 pprint(default_errors)
@@ -170,7 +179,9 @@ from mobgap.gsd.evaluation import abs_error, abs_rel_error, error, rel_error
 rel_err_suppressed_warning = lambda x: rel_error(x, zero_division_hint=np.nan)
 rel_err_suppressed_warning.__name__ = "rel_error"
 
-abs_rel_err_suppressed_warning = lambda x: abs_rel_error(x, zero_division_hint=np.nan)
+abs_rel_err_suppressed_warning = lambda x: abs_rel_error(
+    x, zero_division_hint=np.nan
+)
 abs_rel_err_suppressed_warning.__name__ = "abs_rel_error"
 
 metrics = [
@@ -182,7 +193,12 @@ metrics = [
     "stride_length_m",
     "walking_speed_mps",
 ]
-adapted_errors = [error, rel_err_suppressed_warning, abs_error, abs_rel_err_suppressed_warning]
+adapted_errors = [
+    error,
+    rel_err_suppressed_warning,
+    abs_error,
+    abs_rel_err_suppressed_warning,
+]
 error_metrics = [*((m, adapted_errors) for m in metrics)]
 gs_errors_adapted = apply_transformations(gs_matches, error_metrics)
 gs_errors_adapted.T
@@ -225,7 +241,13 @@ gs_matches_with_errors.T
 #    ``origin`` as the second level.
 #    A valid aggregations list for all of our DMOs would consequently look like this:
 
-aggregations_simple = [*(((m, o), ["mean", "std"]) for m in metrics for o in ["detected", "reference", "error"])]
+aggregations_simple = [
+    *(
+        ((m, o), ["mean", "std"])
+        for m in metrics
+        for o in ["detected", "reference", "error"]
+    )
+]
 pprint(aggregations_simple)
 
 # %%
@@ -240,7 +262,10 @@ pprint(aggregations_simple)
 #    A valid aggregation list for calculating the ICC of all DMOs would look like this:
 from mobgap.gsd.evaluation import CustomOperation, icc
 
-aggregations_custom = [CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics]
+aggregations_custom = [
+    CustomOperation(identifier=m, function=icc, column_name=(m, "all"))
+    for m in metrics
+]
 pprint(aggregations_custom)
 
 # %%

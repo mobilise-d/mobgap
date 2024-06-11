@@ -18,11 +18,10 @@ from mobgap.gsd.evaluation import (
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
     categorize_matches_with_min_overlap,
-    combine_det_with_ref_without_matching,
     error,
     get_default_aggregations,
     get_default_error_transformations,
-    get_matching_gs,
+    get_matching_intervals,
     icc,
     loa,
     quantiles,
@@ -639,54 +638,20 @@ class TestMobilisedGsdPerformanceMetrics:
 
 
 class TestCombineDetectedReference:
-    @pytest.mark.parametrize(
-        "det_df, ref_df",
-        [(pd.DataFrame(), "dmo_df"), ("dmo_df", pd.DataFrame()), (pd.DataFrame(), pd.DataFrame())],
-    )
-    def test_combine_det_ref_no_matching_empty_df(self, ref_df, det_df, request):
-        ref_df = request.getfixturevalue(ref_df) if isinstance(ref_df, str) else ref_df
-        det_df = request.getfixturevalue(det_df) if isinstance(det_df, str) else det_df
-        with pytest.raises(ValueError):
-            combine_det_with_ref_without_matching(metrics_detected=det_df, metrics_reference=ref_df)
-
-    def test_combine_det_ref_no_matching_index_not_unique(self, dmo_df):
-        df = dmo_df.copy()
-        df.index = ["a"] * len(df)
-        with pytest.raises(ValueError):
-            combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=df)
-        with pytest.raises(ValueError):
-            combine_det_with_ref_without_matching(metrics_detected=dmo_df, metrics_reference=df)
-        with pytest.raises(ValueError):
-            combine_det_with_ref_without_matching(metrics_detected=df, metrics_reference=dmo_df)
-
-    def test_combine_det_ref_no_matches(self, dmo_df):
-        combined = combine_det_with_ref_without_matching(metrics_detected=dmo_df, metrics_reference=dmo_df)
-        assert combined.shape[0] == len(dmo_df)
-        assert combined.shape[1] == 2 * dmo_df.shape[1] + 2  # +2 for the wb_id columns
-        assert_array_equal(combined["wb_id"]["detected"].to_numpy(), combined["wb_id"]["reference"].to_numpy())
-        assert_array_equal(combined["wb_id"]["detected"].to_numpy(), dmo_df.reset_index()["wb_id"].to_numpy())
-        assert_array_equal(combined.loc[:, (dmo_df.columns, "detected")].to_numpy(), dmo_df.to_numpy())
-        assert_array_equal(combined.loc[:, (dmo_df.columns, "reference")].to_numpy(), dmo_df.to_numpy())
-
-    def test_combine_det_ref_no_matching_without_wb_id(self, dmo_df):
-        df_no_wb_id = dmo_df.rename_axis(index=["something", "else"])
-        combined = combine_det_with_ref_without_matching(metrics_detected=df_no_wb_id, metrics_reference=df_no_wb_id)
-        assert combined.shape[0] == len(dmo_df)
-        assert combined.shape[1] == 2 * dmo_df.shape[1]
-        assert_array_equal(combined.loc[:, (dmo_df.columns, "detected")].to_numpy(), dmo_df.to_numpy())
-        assert_array_equal(combined.loc[:, (dmo_df.columns, "reference")].to_numpy(), dmo_df.to_numpy())
 
     def test_get_matching_gs_empty_df(self, dmo_df, matches_df):
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=dmo_df, matches=matches_df)
+            get_matching_intervals(metrics_detected=pd.DataFrame(), metrics_reference=dmo_df, matches=matches_df)
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=dmo_df, metrics_reference=pd.DataFrame(), matches=matches_df)
+            get_matching_intervals(metrics_detected=dmo_df, metrics_reference=pd.DataFrame(), matches=matches_df)
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=pd.DataFrame(), metrics_reference=pd.DataFrame(), matches=matches_df)
+            get_matching_intervals(
+                metrics_detected=pd.DataFrame(), metrics_reference=pd.DataFrame(), matches=matches_df
+            )
 
     def test_get_matching_gs_no_matches(self, dmo_df, matches_df):
         matches_df["match_type"] = "fp" * len(matches_df)
-        combined = get_matching_gs(
+        combined = get_matching_intervals(
             metrics_detected=dmo_df,
             metrics_reference=dmo_df,
             matches=pd.DataFrame(columns=matches_df.columns),
@@ -699,29 +664,33 @@ class TestCombineDetectedReference:
 
     def test_get_matching_gs_invalid_matches(self, dmo_df, matches_df):
         with pytest.raises(TypeError):
-            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches="wrong_type")
+            get_matching_intervals(metrics_detected=dmo_df, metrics_reference=dmo_df, matches="wrong_type")
 
         matches_wrong_columns = matches_df.copy()
         matches_wrong_columns.columns = ["a", "b", "c"]
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_wrong_columns)
+            get_matching_intervals(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_wrong_columns)
 
         matches_wrong_match_type = matches_df.copy()
         matches_wrong_match_type["match_type"] = "wrong"
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_wrong_match_type)
+            get_matching_intervals(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_wrong_match_type)
 
     def test_get_matching_gs_no_common_columns(self, dmo_df, matches_df):
         dummy_dmo_df_other_columns = dmo_df.copy()
         dummy_dmo_df_other_columns.columns = ["a", "b", "c"]
         dummy_dmo_df_other_columns.rename_axis(index=["something", "else"], inplace=True)
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=dmo_df, metrics_reference=dummy_dmo_df_other_columns, matches=matches_df)
+            get_matching_intervals(
+                metrics_detected=dmo_df, metrics_reference=dummy_dmo_df_other_columns, matches=matches_df
+            )
         with pytest.raises(ValueError):
-            get_matching_gs(metrics_detected=dummy_dmo_df_other_columns, metrics_reference=dmo_df, matches=matches_df)
+            get_matching_intervals(
+                metrics_detected=dummy_dmo_df_other_columns, metrics_reference=dmo_df, matches=matches_df
+            )
 
     def test_get_matching_gs(self, snapshot, dmo_df, matches_df):
-        combined = get_matching_gs(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_df)
+        combined = get_matching_intervals(metrics_detected=dmo_df, metrics_reference=dmo_df, matches=matches_df)
         assert combined.shape[0] == len(matches_df.query("match_type == 'tp'"))
         assert combined.shape[1] == 2 * dmo_df.shape[1] + 2
         assert_array_equal(combined.index, matches_df.query("match_type == 'tp'").index)

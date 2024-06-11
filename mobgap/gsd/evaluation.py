@@ -516,6 +516,9 @@ def categorize_matches_with_min_overlap(
     (see :func:`~mobgap.utils.array_handling.create_multi_groupby`).
 
     Note, we assume that ``gsd_list_detected`` has no overlaps, but we don't enforce it!
+    Additionally, note that this method won't return any new intervals
+    (as done in :func:`~mobgap.gsd.evaluation.categorize_intervals`).
+    Instead, the comparison is done on a sequence-by-sequence level based on the provided intervals.
 
     Parameters
     ----------
@@ -643,7 +646,7 @@ def categorize_matches_with_min_overlap(
     return matches
 
 
-def get_matching_gs(
+def get_matching_intervals(
     *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame, matches: pd.DataFrame
 ) -> pd.DataFrame:
     """
@@ -701,7 +704,7 @@ def get_matching_gs(
     >>> matches = categorize_matches_with_min_overlap(
     ...     gsd_list_detected=detected, gsd_list_reference=reference
     ... )
-    >>> matched_gs = get_matching_gs(
+    >>> matched_gs = get_matching_intervals(
     ...     metrics_detected=detected_metrics,
     ...     metrics_reference=reference_metrics,
     ...     matches=matches,
@@ -1081,7 +1084,7 @@ def apply_transformations(
     df : pd.DataFrame
         The DataFrame containing the metrics to transform.
         It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
-        or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
+        or ~func:`~mobgap.gsd.evaluation.get_matching_intervals`.
         Needs to have a MultiIndex column structure with the first level being the metric name and the second level
         being the origin of the metric (e.g., "detected" or "reference").
 
@@ -1126,7 +1129,7 @@ def apply_transformations(
                     fct_name = fct.__name__
                 except AttributeError as e:
                     raise ValueError(
-                        f"Transformation function {fct} does not have a `__name__`-Attribute. "
+                        f"Transformation function {fct} for identifier {metric} does not have a `__name__`-Attribute. "
                         "Please use a named function or assign a name."
                     ) from e
                 result = fct(data)
@@ -1170,7 +1173,7 @@ def apply_aggregations(
     df : pd.DataFrame
         The DataFrame containing the metrics to aggregate.
         It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
-        or ~func:`~mobgap.gsd.evaluation.get_matching_gs`.
+        or ~func:`~mobgap.gsd.evaluation.get_matching_intervals`.
         Needs to have a MultiIndex column structure with the first level being the metric name and the second level
         being the origin of the metric (e.g., "detected" or "reference").
         If further derived metrics, such as error metrics are of interest, they can also be included
@@ -1264,6 +1267,8 @@ def _collect_manual_and_agg_aggregations(
                     wrapped_aggregation.append(fct)
                 else:
                     # wrap function to prevent unexpected behavior of pd.DataFrame.agg
+                    # otherwise, data is internally passed to apply element-wise instead of as whole series
+                    # for user-defined functions: https://github.com/pandas-dev/pandas/issues/41768
                     wrapped_aggregation.append(_allow_only_series(fct))
             # agg function only accepts strings as identifiers for one-level columns
             if isinstance(key, tuple) and len(key) == 1:
@@ -1303,7 +1308,7 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
                 fct_name = fct.__name__
             except AttributeError as e:
                 raise ValueError(
-                    f"Transformation function {fct} does not have a `__name__`-Attribute. "
+                    f"Transformation function {fct} applied for {agg.identifier} does not have a `__name__`-Attribute. "
                     "Please use a named function or assign a name."
                 ) from e
             column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
@@ -1337,8 +1342,7 @@ __all__ = [
     "calculate_matched_gsd_performance_metrics",
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
-    "combine_det_with_ref_without_matching",
-    "get_matching_gs",
+    "get_matching_intervals",
     "quantiles",
     "loa",
     "icc",
