@@ -643,55 +643,6 @@ def categorize_matches_with_min_overlap(
     return matches
 
 
-def combine_det_with_ref_without_matching(
-    *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Combine the detected and reference gait sequence metrics to one dataframe row-by-row based on their index.
-
-    This function is useful when the metrics you are working with are already aggregated on a higher level,
-    e.g., per participant, recording date, or trial.
-    When you're metrics are calculated on a gait sequence level,
-    refer to ~func:`~mobgap.gsd.evaluation.get_matching_gs` instead.
-
-    Parameters
-    ----------
-    metrics_detected
-       Each row corresponds is characterized by a unique index and contains metrics estimated over
-       a group of walking bouts.
-       The columns contain the calculated metrics that should be compared to the reference metrics.
-       The index must be unique and correspond to the index of `metrics_reference`.
-    metrics_reference
-       Each row corresponds is characterized by a unique index and contains metrics estimated over
-       a group of walking bouts.
-       The columns contain the metrics serving as reference.
-       The index must be unique and correspond to the index of `metrics_detected`.
-
-    Returns
-    -------
-    combined_metrics: pd.DataFrame
-        The detected and reference metrics combined in one DataFrame for all indices present in both input DataFrames.
-        The columns are two-level MultiIndex columns, consisting of a `metrics` and an `origin` level.
-        As first column level, all columns present in both `metrics_detected` and `metrics_reference` are included.
-        The second column level indicates the origin of the respective value, either `detected` or `reference` for
-        metrics that were estimated based on the detected or reference gait sequences, respectively.
-    """
-    if not metrics_detected.index.is_unique:
-        raise ValueError("The index of `metrics_detected` must be unique!")
-    if not metrics_reference.index.is_unique:
-        raise ValueError("The index of `metrics_reference` must be unique!")
-
-    common_indices = metrics_detected.index.intersection(metrics_reference.index)
-    if len(common_indices) == 0:
-        raise ValueError("No common indices found in `metrics_detected` and `metrics_reference`.")
-
-    detected_metrics = metrics_detected.loc[common_indices]
-    reference_metrics = metrics_reference.loc[common_indices]
-
-    combined_metrics = _combine_detected_and_reference_metrics(detected_metrics, reference_metrics)
-    return combined_metrics
-
-
 def get_matching_gs(
     *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame, matches: pd.DataFrame
 ) -> pd.DataFrame:
@@ -735,13 +686,25 @@ def get_matching_gs(
     Examples
     --------
     >>> from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
-    >>> detected = pd.DataFrame([[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> reference = pd.DataFrame([[0, 10, 0], [21, 29, 1]], columns=["start", "end", "id"]).set_index("id")
-    >>> detected_metrics = pd.DataFrame([[1, 2, 0], [1, 2, 1]], columns=["metric_1", "metric_2", "id"]).set_index("id")
-    >>> reference_metrics = pd.DataFrame([[2, 3, 0], [2, 3, 1]], columns=["metric_1", "metric_2", "id"]).set_index("id")
-    >>> matches = categorize_matches_with_min_overlap(gsd_list_detected=detected, gsd_list_reference=reference)
+    >>> detected = pd.DataFrame(
+    ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
+    ... ).set_index("id")
+    >>> reference = pd.DataFrame(
+    ...     [[0, 10, 0], [21, 29, 1]], columns=["start", "end", "id"]
+    ... ).set_index("id")
+    >>> detected_metrics = pd.DataFrame(
+    ...     [[1, 2, 0], [1, 2, 1]], columns=["metric_1", "metric_2", "id"]
+    ... ).set_index("id")
+    >>> reference_metrics = pd.DataFrame(
+    ...     [[2, 3, 0], [2, 3, 1]], columns=["metric_1", "metric_2", "id"]
+    ... ).set_index("id")
+    >>> matches = categorize_matches_with_min_overlap(
+    ...     gsd_list_detected=detected, gsd_list_reference=reference
+    ... )
     >>> matched_gs = get_matching_gs(
-    ...     metrics_detected=detected_metrics, metrics_reference=reference_metrics, matches=matches
+    ...     metrics_detected=detected_metrics,
+    ...     metrics_reference=reference_metrics,
+    ...     matches=matches,
     ... )
         metric metric_1           metric_2
         origin detected reference detected reference
