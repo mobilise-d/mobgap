@@ -76,7 +76,7 @@ per_trial_participant_day_grouper = create_multi_groupby(
 # The ``MultiGroupBy`` object allows us to apply a function to each group across all dataframes.
 # Here, we will extract the detected gait sequences that match reference gait sequences within the same group.
 #
-# For this purpose, the :func:`~mobgap.gsd.evaluation.categorize_matches_with_min_overlap` function is used.
+# For this purpose, the :func:`~mobgap.gsd.evaluation.categorize_intervals` function is used.
 # It classifies every gait sequence in the data either as true positive (TP), false positive (FP),
 # or false negative (TP).
 # For the TP gait sequences, the corresponding reference gait sequence is assigned.
@@ -87,10 +87,10 @@ per_trial_participant_day_grouper = create_multi_groupby(
 # It can be chosen according to your needs, whereby a value closer to 0.5 will yield more matches
 # than a value closer to 1.
 
-from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
+from mobgap.gsd.evaluation import categorize_intervals
 
 gs_tp_fp_fn = per_trial_participant_day_grouper.apply(
-    lambda det, ref: categorize_matches_with_min_overlap(
+    lambda det, ref: categorize_intervals(
         gsd_list_detected=det,
         gsd_list_reference=ref,
         overlap_threshold=0.8,

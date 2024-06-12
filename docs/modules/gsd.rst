@@ -62,8 +62,8 @@ Evaluation
 
     calculate_matched_gsd_performance_metrics
     calculate_unmatched_gsd_performance_metrics
+    categorize_intervals_per_sample
     categorize_intervals
-    categorize_matches_with_min_overlap
     plot_categorized_intervals
     get_matching_intervals
     error

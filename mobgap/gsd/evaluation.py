@@ -44,7 +44,7 @@ def calculate_matched_gsd_performance_metrics(
     Calculate commonly known performance metrics for based on the matched overlap with the reference.
 
     This method assumes that you already calculated the overlapping regions between the ground truth and the detected
-    gait sequences using the :func:`~mobgap.gsd.evaluation.categorize_intervals` method.
+    gait sequences using the :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample` method.
     This function then calculates the performance metrics based on the number of true positive, false positive,
     false negative, and true negative matches between detected and reference.
     All calculations are performed on the sample level.
@@ -64,7 +64,7 @@ def calculate_matched_gsd_performance_metrics(
 
     Further metrics are calculated if `matches` contains true negative intervals.
     This can be achieved by passing `n_overall_samples` as additional information to
-    :func:`~mobgap.gsd.evaluation.categorize_intervals`.
+    :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample`.
 
     - `tn_samples`: Number of samples that are correctly not detected as gait sequences.
     - `specificity`: Specificity of the detected gait sequences.
@@ -78,7 +78,7 @@ def calculate_matched_gsd_performance_metrics(
     Parameters
     ----------
     matches: pd.DataFrame
-        A DataFrame as returned by :func:`~mobgap.gsd.evaluation.categorize_intervals`.
+        A DataFrame as returned by :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample`.
         It contains the matched intervals between algorithm output and reference with their `start` and `end` index
         and the respective `match_type`.
     zero_division : "warn", 0 or 1, default="warn"
@@ -93,7 +93,7 @@ def calculate_matched_gsd_performance_metrics(
     --------
     calculate_unmatched_gsd_performance_metrics
         For calculating performance metrics without matching the detected and reference gait sequences.
-    categorize_intervals
+    categorize_intervals_per_sample
         For categorizing the detected and reference gait sequences on a sample-wise level.
         This is required to calculate the ``matches`` parameter for this function.
 
@@ -173,7 +173,7 @@ def calculate_unmatched_gsd_performance_metrics(
     --------
     calculate_matched_gsd_performance_metrics
         For calculating performance metrics based on the matched overlap with the reference.
-    categorize_intervals
+    categorize_intervals_per_sample
         For categorizing the detected and reference gait sequences on a sample-wise level.
 
     """
@@ -242,7 +242,7 @@ def calculate_unmatched_gsd_performance_metrics(
     return gsd_metrics
 
 
-def categorize_intervals(
+def categorize_intervals_per_sample(
     *, gsd_list_detected: pd.DataFrame, gsd_list_reference: pd.DataFrame, n_overall_samples: Optional[int] = None
 ) -> pd.DataFrame:
     """
@@ -279,10 +279,10 @@ def categorize_intervals(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import categorize_intervals
+    >>> from mobgap.gsd.evaluation import categorize_intervals_per_sample
     >>> detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
     >>> reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
-    >>> result = categorize_intervals(detected, reference)
+    >>> result = categorize_intervals_per_sample(detected, reference)
     >>> result.tp_intervals
            start  end match_type
     0      0   10         tp
@@ -487,7 +487,7 @@ def _plot_intervals_from_df(df: pd.DataFrame, y: int, ax: Axes, **kwargs: Unpack
             ax.hlines(y, row["start"], row["end"], lw=20, **kwargs)
 
 
-def categorize_matches_with_min_overlap(
+def categorize_intervals(
     *,
     gsd_list_detected: pd.DataFrame,
     gsd_list_reference: pd.DataFrame,
@@ -517,7 +517,7 @@ def categorize_matches_with_min_overlap(
 
     Note, we assume that ``gsd_list_detected`` has no overlaps, but we don't enforce it!
     Additionally, note that this method won't return any new intervals
-    (as done in :func:`~mobgap.gsd.evaluation.categorize_intervals`).
+    (as done in :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample`).
     Instead, the comparison is done on a sequence-by-sequence level based on the provided intervals.
 
     Parameters
@@ -555,14 +555,14 @@ def categorize_matches_with_min_overlap(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
+    >>> from mobgap.gsd.evaluation import categorize_intervals
     >>> detected = pd.DataFrame(
     ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
     ... ).set_index("id")
     >>> reference = pd.DataFrame(
     ...     [[0, 10, 0], [15, 25, 1]], columns=["start", "end", "id"]
     ... ).set_index("id")
-    >>> result = categorize_matches_with_min_overlap(detected, reference)
+    >>> result = categorize_intervals(detected, reference)
        gsd_id_detected  gs_id_reference match_type
     0               0               0         tp
     1               1               NaN       fp
@@ -688,7 +688,7 @@ def get_matching_intervals(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import categorize_matches_with_min_overlap
+    >>> from mobgap.gsd.evaluation import categorize_intervals
     >>> detected = pd.DataFrame(
     ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
     ... ).set_index("id")
@@ -701,7 +701,7 @@ def get_matching_intervals(
     >>> reference_metrics = pd.DataFrame(
     ...     [[2, 3, 0], [2, 3, 1]], columns=["metric_1", "metric_2", "id"]
     ... ).set_index("id")
-    >>> matches = categorize_matches_with_min_overlap(
+    >>> matches = categorize_intervals(
     ...     gsd_list_detected=detected, gsd_list_reference=reference
     ... )
     >>> matched_gs = get_matching_intervals(
@@ -1337,8 +1337,8 @@ def _check_number_of_index_levels(agg_results: list[Union[pd.Series, pd.DataFram
 
 
 __all__ = [
+    "categorize_intervals_per_sample",
     "categorize_intervals",
-    "categorize_matches_with_min_overlap",
     "calculate_matched_gsd_performance_metrics",
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",

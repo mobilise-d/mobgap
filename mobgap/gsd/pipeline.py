@@ -12,7 +12,7 @@ from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
 from mobgap.gsd.evaluation import (
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
-    categorize_intervals,
+    categorize_intervals_per_sample,
 )
 
 
@@ -133,7 +133,7 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             For calculating performance metrics based on the matched overlap with the reference.
         calculate_unmatched_gsd_performance_metrics
             For calculating performance metrics without matching the detected and reference gait sequences.
-        categorize_intervals
+        categorize_intervals_per_sample
             For categorizing the detected and reference gait sequences on a sample-wise level.
 
         """
@@ -142,7 +142,7 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         n_datapoints = len(datapoint.data_ss)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        matches = categorize_intervals(
+        matches = categorize_intervals_per_sample(
             gsd_list_detected=detected_gs_list, gsd_list_reference=reference_gs_list, n_overall_samples=n_datapoints
         )
 
