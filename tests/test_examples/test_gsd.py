@@ -42,7 +42,7 @@ def test_gsd_evaluation(snapshot):
 
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
-    from examples.gsd._03_dmo_evaluation_on_wb_level import (
+    from examples.gsd._04_dmo_evaluation_on_wb_level import (
         agg_results,
         default_agg_results,
         gs_errors,
