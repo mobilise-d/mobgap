@@ -122,7 +122,7 @@ gs_matches.T
 # the :func:`~mobgap.gsd.evaluation.apply_transformations` can be used.
 # As input, it receives the matching DMO data and a list of transformations that should be applied to the data.
 # A transformation is characterized as a function that takes some subset of the input dataframe,
-# performs some operation on it, and returns a series as output.
+# performs some operation on it, and returns a series with the same length as the input as output.
 # Calculating the differences between two sets of values, e.g., between detected and reference values,
 # is a common type of transformation that is applied to evaluate the performance of the DMO estimation.
 # For this purpose, the transformations are defined as aa list of tuples containing the DMO of interest

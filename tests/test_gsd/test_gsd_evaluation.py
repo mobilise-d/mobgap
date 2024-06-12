@@ -16,8 +16,8 @@ from mobgap.gsd.evaluation import (
     apply_transformations,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
-    categorize_intervals_per_sample,
     categorize_intervals,
+    categorize_intervals_per_sample,
     error,
     get_default_aggregations,
     get_default_error_transformations,
@@ -284,9 +284,7 @@ class TestMatchIntervals:
 
     def test_raise_type_error_no_df(self, intervals_example):
         with pytest.raises(TypeError):
-            categorize_intervals(
-                gsd_list_detected=intervals_example, gsd_list_reference=intervals_example
-            )
+            categorize_intervals(gsd_list_detected=intervals_example, gsd_list_reference=intervals_example)
 
     def test_raise_value_error_wrong_input_columns(self, intervals_example, intervals_example_with_id):
         with pytest.raises(ValueError):
@@ -318,13 +316,9 @@ class TestMatchIntervals:
         multiindex = intervals_example_with_id.copy()
         multiindex.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["something", "gsd_id"])
         with pytest.warns(Warning):
-            categorize_intervals(
-                gsd_list_detected=multiindex, gsd_list_reference=intervals_example_with_id
-            )
+            categorize_intervals(gsd_list_detected=multiindex, gsd_list_reference=intervals_example_with_id)
         with pytest.warns(Warning):
-            categorize_intervals(
-                gsd_list_detected=intervals_example_with_id, gsd_list_reference=multiindex
-            )
+            categorize_intervals(gsd_list_detected=intervals_example_with_id, gsd_list_reference=multiindex)
         with pytest.warns(Warning):
             categorize_intervals(gsd_list_detected=multiindex, gsd_list_reference=multiindex)
 
@@ -342,9 +336,7 @@ class TestMatchIntervals:
             )
             assert len(record) == 0
         with pytest.warns(None) as record:
-            categorize_intervals(
-                gsd_list_detected=multiindex, gsd_list_reference=multiindex, multiindex_warning=False
-            )
+            categorize_intervals(gsd_list_detected=multiindex, gsd_list_reference=multiindex, multiindex_warning=False)
             assert len(record) == 0
 
     def test_validation_all_tp(self, intervals_example):
@@ -362,9 +354,7 @@ class TestMatchIntervals:
         ic_list_multiindex.index = pd.MultiIndex.from_tuples(
             [("a", 1), ("a", 2)], names=["something", "something_else"]
         )
-        matches = categorize_intervals(
-            gsd_list_detected=ic_list_multiindex, gsd_list_reference=ic_list_multiindex
-        )
+        matches = categorize_intervals(gsd_list_detected=ic_list_multiindex, gsd_list_reference=ic_list_multiindex)
         assert np.all(matches["match_type"] == "tp")
         assert len(matches) == len(ic_list_multiindex)
         assert_array_equal(matches["gs_id_detected"].to_numpy(), ic_list_multiindex.index.to_flat_index())
@@ -638,7 +628,6 @@ class TestMobilisedGsdPerformanceMetrics:
 
 
 class TestCombineDetectedReference:
-
     def test_get_matching_gs_empty_df(self, dmo_df, matches_df):
         with pytest.raises(ValueError):
             get_matching_intervals(metrics_detected=pd.DataFrame(), metrics_reference=dmo_df, matches=matches_df)
