@@ -207,7 +207,7 @@ stride_list
 # Note, that we remove the ``r_gs_id`` index, as we don't need it anymore and each normal ``gs`` is mapped to a single
 # refined ``gs`` anyway.
 # In case we would have multiple refined ``gs`` per normal ``gs``, we might need to keep the ``r_gs_id`` index around.
-from mobgap.utils.array_handling import create_multi_groupby
+from mobgap.utils.df_operations import create_multi_groupby
 
 combined_results = pd.concat(
     [

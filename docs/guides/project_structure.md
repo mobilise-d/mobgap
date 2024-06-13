@@ -272,7 +272,7 @@ class IcdIonescu(BaseIcDetector):
 
 If any algorithms rely on random processes/operations, the random state should be configurable, by an optional kwarg in
 the `__init__` called `random_state`.
-We follow the [`sklearn` recommendations](https://scikit-learn.org/stable/glossary.html#term-random-state) on this.
+We follow the [`sklearn` recommendations](https://scikit-learn.org/stable/glossary.html#term-random_state) on this.
 
 Algorithms that require an initial value for some optimization should expose this value via the `__init__`.
 If the parameter is `None` a random initial value should be used that is controlled by the additional `random_state`

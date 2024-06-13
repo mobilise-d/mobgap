@@ -90,7 +90,7 @@ reference_ics
 #
 # For this, we need to group the detected and reference initial contacts by the walking bout id.
 # This can be done using the :func:`~mobgap.utils.array_handling.create_multi_groupby` helper function.
-from mobgap.utils.array_handling import create_multi_groupby
+from mobgap.utils.df_operations import create_multi_groupby
 
 per_wb_grouper = create_multi_groupby(
     detected_ics, reference_ics, groupby="wb_id"

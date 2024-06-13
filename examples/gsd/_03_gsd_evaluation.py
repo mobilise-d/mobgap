@@ -73,7 +73,7 @@ reference_gsd_list
 #
 # Sample-wise performance evaluation
 # ----------------------------------
-# To do this, we use the :func:`~gaitlink.gsd.evaluation.categorize_intervals` function
+# To do this, we use the :func:`~gaitlink.gsd.evaluation.categorize_intervals_per_sample` function
 # to identify overlapping regions between the detected gait sequences and the reference gait sequences.
 # These overlapping regions can then be converted into sample-wise classifications of true positives, false positives, and false negatives.
 #
@@ -90,9 +90,9 @@ reference_gsd_list
 # list that were not detected (`fn`), and (optionally) samples where no gait sequences are present in both the reference and detected gait sequences (`tn`).
 # Note that the tn intervals are not explicitly calculated, but are inferred from the total length of the recording
 # (if provided) and from the other intervals, as everything between them is considered as true negative.
-from mobgap.gsd.evaluation import categorize_intervals
+from mobgap.gsd.evaluation import categorize_intervals_per_sample
 
-categorized_intervals = categorize_intervals(
+categorized_intervals = categorize_intervals_per_sample(
     gsd_list_detected=detected_gsd_list,
     gsd_list_reference=reference_gsd_list,
     n_overall_samples=len(test_data.data_ss),
@@ -106,7 +106,7 @@ categorized_intervals
 # For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
 # It calculates the metrics based on the "matched" gsd intervals, i.e., the categorized interval list where every entry
 # has a match type (tp, fp, fn, tn) assigned.
-# Therefore, the function requires to call the :func:`~gaitlink.gsd.evaluation.categorize_intervals` function first.
+# Therefore, the function requires to call the :func:`~gaitlink.gsd.evaluation.categorize_intervals_per_sample` function first.
 # The categorized intervals can then be passed as an argument
 # to :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics`.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
@@ -148,7 +148,7 @@ unmatched_metrics_dict
 # In this case, matching gait sequences that cover the same gait regions allows proper comparison of these parameters.
 # For more information on this, see the example on the overall parameter evaluation on Walking-Bout level (TODO).
 #
-# For this purpose, the :func:`~gaitlink.gsd.evaluation.find_matches_with_min_overlap` can be used.
+# For this purpose, the :func:`~gaitlink.gsd.evaluation.categorize_intervals` can be used.
 # It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
 # given amount.
 # The index of the result dataframe indicated the index of the detected gait sequence.
@@ -160,9 +160,9 @@ unmatched_metrics_dict
 # If multiple detected gait sequences overlap with the same reference gait sequence, only the one with the highest
 # overlap is considered as a match.
 # If one gait sequence is covered by multiple smaller once, possibly none of them is considered as a match.
-from mobgap.gsd.evaluation import find_matches_with_min_overlap
+from mobgap.gsd.evaluation import categorize_intervals
 
-matches = find_matches_with_min_overlap(
+matches = categorize_intervals(
     gsd_list_detected=detected_gsd_list,
     gsd_list_reference=reference_gsd_list,
     overlap_threshold=0.7,

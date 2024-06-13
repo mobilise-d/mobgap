@@ -8,6 +8,61 @@ Pipelines
 Full Pipelines
 --------------
 
+Evaluation
+----------
+
+WB-Matching
++++++++++++
+.. currentmodule:: mobgap.pipeline.evaluation
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: func.rst
+
+    categorize_intervals
+    categorize_intervals_per_sample
+    get_matching_intervals
+
+
+Per-Row-Error Funcs
++++++++++++++++++++
+.. currentmodule:: mobgap.pipeline.evaluation
+
+.. autosummary::
+   :toctree: generated/pipeline.evaluation
+   :template: class.rst
+
+    ErrorTransformFuncs
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: func.rst
+
+    get_default_error_transformations
+    error
+    rel_error
+    abs_error
+    abs_rel_error
+
+Custom Error Aggregations
++++++++++++++++++++++++++
+.. currentmodule:: mobgap.pipeline.evaluation
+
+.. autosummary::
+   :toctree: generated/pipeline.evaluation
+   :template: class.rst
+
+    CustomErrorAggregations
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: func.rst
+
+    get_default_error_aggregations
+    icc
+    loa
+    quantiles
+
 Helper
 ------
 
