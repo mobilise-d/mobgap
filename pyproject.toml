@@ -26,12 +26,12 @@ openpyxl = {version=">=3.1.2", optional=true}
 intervaltree = ">=3.1.0"
 pywavelets = ">=1.5.0"
 pooch = ">=1.8.1"
-pingouin = "^0.5.4"
+pingouin = {version=">=0.5.4", optional=true}
 # TODO: Remove this dependency at some point
 gaitmap = ">=2.5.0"
 
 [tool.poetry.extras]
-all = ["openpyxl"]
+all = ["openpyxl", "pingouin"]
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.22.0"
