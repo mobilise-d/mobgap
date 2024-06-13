@@ -164,8 +164,8 @@ def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
     """
     Get all default error metrics used in Mobilise-D.
 
-    This list can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_transformations` as the `transformations`
-    parameter to calculate the desired metrics.
+    This list can directly be passed to ~func:`~mobgap.utils.df_operations.apply_transformations` as the
+    `transformations` parameter to calculate the desired metrics.
     """
     metrics = [
         "cadence_spm",
@@ -267,7 +267,7 @@ class CustomErrorAggregations:
     icc
         Calculate the intraclass correlation coefficient (ICC) for the detected and reference values.
         This requires a dataframe with multiple columns as input.
-        Returns a two values: the ICC and the CI95% values as tuple.
+        Returns two values: the ICC and the CI95% values as tuple.
     quantiles
         Calculate the quantiles of a measure.
         This requires a series as input.
