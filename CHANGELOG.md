@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/125)
 - A loader for the Mobilise-D TVS dataset, which will be published end on June.
   (https://github.com/mobilise-d/mobgap/pull/125)
+- General methods to calculate and aggregate error metrics for final WB-level parameters.
+  (https://github.com/mobilise-d/mobgap/pull/126)
 
 
 ### Changed
