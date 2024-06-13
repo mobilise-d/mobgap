@@ -66,12 +66,3 @@ Evaluation
     categorize_intervals
     plot_categorized_intervals
     get_matching_intervals
-    error
-    rel_error
-    abs_error
-    abs_rel_error
-    quantiles
-    loa
-    icc
-    get_default_error_transformations
-    get_default_error_aggregations

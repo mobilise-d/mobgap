@@ -9,16 +9,18 @@ from pandas._testing import assert_frame_equal, assert_series_equal
 
 from mobgap.gsd.evaluation import (
     _get_tn_intervals,
-    abs_error,
-    abs_rel_error,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
     categorize_intervals_per_sample,
+    get_matching_intervals,
+)
+from mobgap.pipeline._error_metrics import (
+    abs_error,
+    abs_rel_error,
     error,
     get_default_error_aggregations,
     get_default_error_transformations,
-    get_matching_intervals,
     icc,
     loa,
     quantiles,

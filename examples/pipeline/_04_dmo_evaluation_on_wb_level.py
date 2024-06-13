@@ -143,7 +143,7 @@ gs_matches["cadence_spm"]
 # The DMO data can now be compared WB by WB.
 # We want to calculate general error metrics like the error, absolute error, relative error, and absolute relative error
 # for each WB and DMO.
-# This can be done using the generic the :func:`~mobgap.pipeline.evaluation.apply_transformations` helper that allows
+# This can be done using the generic the :func:`~mobgap.utils.df_operations.apply_transformations` helper that allows
 # us to apply any list of transformation functions (transformation function -> WB in Series with same length out).
 # It further allows us to declaratively define which columns (i.e. which DMOs) which transformation/error should be
 # applied to.
@@ -161,17 +161,12 @@ gs_matches["cadence_spm"]
 # per default.
 # For the standard error metrics (error, absolute error, relative error, absolute relative),
 # the :func:`~mobgap.pipeline.evaluation.get_default_error_transformations` returns the correct transformations.
-from mobgap.pipeline.evaluation import (
-    abs_error,
-    error,
-    get_default_error_transformations,
-    rel_error,
-)
+from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 
 custom_errors = [
-    ("cadence_spm", [abs_error, rel_error]),
-    ("duration_s", [error]),
-    ("n_turns", [rel_error]),
+    ("cadence_spm", [E.abs_error, E.rel_error]),
+    ("duration_s", [E.error]),
+    ("n_turns", [E.rel_error]),
 ]
 
 # %%
@@ -196,7 +191,7 @@ custom_gs_errors.T
 #    For example, when we want to suppress the warning that is raised when a zero division occurs in the relative error.
 #    As we saw above, this warning is raised for the `n_turns` parameter.
 def rel_error_without_warning(x):
-    return rel_error(x, zero_division_hint=np.nan)
+    return E.rel_error(x, zero_division_hint=np.nan)
 
 
 # %%
@@ -204,7 +199,7 @@ def rel_error_without_warning(x):
 #    to avoid accidentally messing up other code, that uses the function, we can also use a lambda function and manually
 #    set the name of the function.
 #    So we supress the warning as above, but keep the function name for the aggregation.
-rel_error_as_lambda = lambda x: rel_error(x, zero_division_hint=np.nan)
+rel_error_as_lambda = lambda x: E.rel_error(x, zero_division_hint=np.nan)
 rel_error_as_lambda.__name__ = "rel_error"
 
 
@@ -217,7 +212,7 @@ rel_error_as_lambda.__name__ = "rel_error"
 #
 # .. note::
 #    If you want to introduce custom, more complex transformation functions, you can also define them as
-#    `CustomOperation` as shown for aggregations in the "Aggregation" section.
+#    :class:`~mobgap.utils.df_operations.CustomOperation` as shown for aggregations in the "Aggregation" section.
 def scaled_error(x):
     return 2 * (x["detected"] - x["reference"])
 
@@ -228,11 +223,11 @@ def scaled_error(x):
 # Also, keep in mind, that the definition is "just" Python, so we can use things like list comprehensions to generate
 # the list of transformations as shown below.
 custom_errors = [
-    ("cadence_spm", [error, scaled_error]),
-    ("duration_s", [error]),
+    ("cadence_spm", [E.error, scaled_error]),
+    ("duration_s", [E.error]),
     ("n_turns", [rel_error_without_warning, rel_error_as_lambda]),
     *(
-        (m, [abs_error, rel_error])
+        (m, [E.abs_error, E.rel_error])
         for m in ["stride_duration_s", "stride_length_m"]
     ),
 ]
@@ -247,6 +242,7 @@ custom_gs_errors.T
 # As an alternative to defining a custom error definition, we provide a "default" error definition that can be used to
 # calculate the standard error metrics for the common DMOs.
 # In most cases, this is a good starting point for the evaluation of the DMOs.
+from mobgap.pipeline.evaluation import get_default_error_transformations
 
 default_errors = get_default_error_transformations()
 
@@ -274,8 +270,8 @@ gs_matches_with_errors.T
 # For this purpose, different aggregation functions can be applied to the error metrics, ranging from simple, built-in
 # aggregations like the mean or standard deviation to more complex functions like the limits of agreement or
 # 5th and 95th percentiles.
-# This can be done using the :func:`~mobgap.pipeline.evaluation.apply_aggregations` function.
-# It operates similarly to the :func:`~mobgap.pipeline.evaluation.apply_transformations` function used above by taking
+# This can be done using the :func:`~mobgap.utils.df_operations.apply_aggregations` function.
+# It operates similarly to the :func:`~mobgap.utils.df_operations.apply_transformations` function used above by taking
 # the error metrics dataframe and a list of aggregations as input.
 # In contrast to the transformations, an aggregation performed over a subset of dataframe columns
 # is expected to return a single value or a tuple of values stored in one cell of the resulting dataframe.
@@ -320,11 +316,12 @@ pprint(aggregations_simple)
 #    This allows for more complex aggregations that require multiple columns as input, for example, the intraclass
 #    correlation coefficient (ICC) for the DMOs (see below).
 #    A valid aggregation list for calculating the ICC of all DMOs would look like this:
-from mobgap.pipeline.evaluation import icc
+from mobgap.pipeline.evaluation import CustomErrorAggregations as A
+from mobgap.pipeline.evaluation import get_default_error_aggregations
 from mobgap.utils.df_operations import CustomOperation
 
 aggregations_custom = [
-    CustomOperation(identifier=m, function=icc, column_name=(m, "all"))
+    CustomOperation(identifier=m, function=A.icc, column_name=(m, "all"))
     for m in metrics
 ]
 pprint(aggregations_custom)
@@ -338,7 +335,7 @@ sub_df = gs_matches_with_errors.loc[:, "stride_duration_s"]
 
 # %%
 # The ICC function just takes the ``detected`` and ``reference`` columns and calculates the ICC.
-icc(sub_df)
+A.icc(sub_df)
 
 # %%
 # Within one aggregation list, both types of aggregations can be combined
@@ -361,7 +358,6 @@ agg_results
 # %%
 # If you simply want to apply a standard set of aggregations to the error metrics, you can use the
 # :func:`~mobgap.pipeline.evaluation.get_default_error_aggregations` function, resulting in the following list:
-from mobgap.pipeline.evaluation import get_default_error_aggregations
 
 aggregations_default = get_default_error_aggregations()
 pprint(aggregations_default)
@@ -373,8 +369,8 @@ aggregations_default_extended = aggregations_default + [
 ]
 
 # %%
-# This list of standard aggregations can then also be passed to the :func:`~mobgap.pipeline.evaluation.apply_aggregations`
-# function.
+# This list of standard aggregations can then also be passed to the
+# :func:`~mobgap.utils.df_operations.apply_aggregations` function.
 default_agg_results = (
     apply_aggregations(gs_matches_with_errors, aggregations_default_extended)
     .rename_axis(index=["aggregation", "metric", "origin"])
