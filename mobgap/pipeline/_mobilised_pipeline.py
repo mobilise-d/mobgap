@@ -1,11 +1,12 @@
 from types import MappingProxyType
-from typing import Final, Optional
+from typing import Final, Generic, Optional, TypeVar
 
 import pandas as pd
 from tpcp import Pipeline, cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self
 
+from mobgap._docutils import make_filldoc
 from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
 from mobgap.cad import CadFromIcDetector
@@ -28,8 +29,217 @@ from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
 
+mobilsed_pipeline_docfiller = make_filldoc(
+    {
+        "run_short": "Run the pipeline on the provided data.",
+        "run_para": """
+    datapoint
+        The data to run the pipeline on.
+        This needs to be a valid datapoint (i.e. a dataset with just a single row).
+        The Dataset should be a child class of :class:`~mobgap.data.base.BaseGaitDataset` or implement all the same
+        parameters and methods.
+    """,
+        "run_return": """
+    Returns
+    -------
+    self
+        The pipeline object itself with all the results stored in the attributes.
+    """,
+        "core_parameters": """
+    gait_sequence_detection
+        A valid instance of a gait sequence detection algorithm.
+        This will get the entire raw data as input.
+        The core output is available via the ``gs_list_`` attribute.
+    initial_contact_detection
+        A valid instance of an initial contact detection algorithm.
+        This will run on each gait sequence individually.
+        The concatenated raw ICs are available via the ``raw_ic_list_`` attribute.
+    laterality_classification
+        A valid instance of a laterality classification algorithm.
+        This will run on each gait sequence individually, getting the predicted ICs from the IC detection algorithm as
+        input.
+        The concatenated raw ICs with L/R label are available via the ``raw_ic_list_`` attribute.
+    cadence_calculation
+        A valid instance of a cadence calculation algorithm.
+        This will run on each "refined" gait sequence individually.
+        This means the provided gait sequence will start and end at the first and last detected IC.
+        The detected ICs (with L/R label) and all :class:`~mobgap.data.base.ParticipantMetadata` parameters are provided
+        as keyword arguments.
+        The concatenated raw cadence per second values are available via the ``raw_per_sec_parameters_`` attribute.
+    stride_length_calculation
+        A valid instance of a stride length calculation algorithm.
+        This will run on each "refined" gait sequence individually.
+        This means the provided gait sequence will start and end at the first and last detected IC.
+        The detected ICs (with L/R label) and all :class:`~mobgap.data.base.ParticipantMetadata` parameters are provided
+        as keyword arguments.
+        The concatenated raw stride length per second values are available via the ``raw_per_sec_parameters_``
+        attribute.
+    walking_speed_calculation
+        A valid instance of a walking speed calculation algorithm.
+        This will run on each "refined" gait sequence individually.
+        This means the provided gait sequence will start and end at the first and last detected IC.
+        The detected ICs (with L/R label), cadence per second, stride length per second values and all
+        :class:`~mobgap.data.base.ParticipantMetadata` parameters are provided as keyword arguments.
+        The concatenated raw walking speed per second values are available via the ``raw_per_sec_parameters_``
+        attribute.
 
-class MobilisedPipeline(Pipeline[BaseGaitDataset]):
+        .. note :: If either cadence or stride length is not provided, ``None`` will be passed to the algorithm.
+                   Depending on the algorithm, this might raise an error, as the information is required.
+    """,
+        "turn_detection": """
+    turn_detection
+        A valid instance of a turn detection algorithm.
+        This will run on each gait sequence individually.
+        The concatenated raw turn detections are available via the ``raw_turn_list_`` attribute.
+    """,
+        "wba_parameters": """
+    stride_selection
+        A valid instance of a stride selection algorithm.
+        This will be called with all interpolated stride parameters (``raw_per_stride_parameters_``) across all gait
+        sequences.
+    wba
+        A valid instance of a walking bout assembly algorithm.
+        This will be called with the filtered stride list from the stride selection algorithm.
+        The final list of strides that are part of a valid WB are available via the ``per_stride_parameters_``
+        attribute.
+        The aggregated parameters for each WB are available via the ``per_wb_parameters_`` attribute.
+    """,
+        "aggregation_parameters": """
+    dmo_thresholds
+        A DataFrame with the thresholds for the individual DMOs.
+        To learn more about the required structure and the filtering process, please refer to the documentation of the
+        :func:`~mobgap.aggregation.get_mobilised_dmo_thresholds` and :func:`~mobgap.aggregation.apply_thresholds`.
+    dmo_aggregation
+        A valid instance of a DMO aggregation algorithm.
+        This will be called with the aggregated parameters for each WB and the mask of the DMOs.
+        The final aggregated parameters are available via the ``aggregated_parameters_`` attribute.
+    """,
+        "other_parameters": """
+    datapoint
+        The dataset instance passed to the run method.
+    """,
+        "primary_results": """
+    per_stride_parameters_
+        The final list of all strides including their parameters that are part of a valid WB.
+        Note, that all per-stride parameters are interpolated based on the per-sec output of the other algorithms.
+        Check out the pipeline examples to learn more about this.
+    per_wb_parameters_
+        Aggregated parameters for each WB.
+        This contains "meta parameters" like the number of strides, duration of the WB and the average over all strides
+        of cadence, stride length and walking speed (if calculated).
+    per_wb_parameter_mask_
+        A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
+        It indicates for each WB which DMOs are valid.
+        NaN indicates that the value has not been checked
+    aggregated_parameters_
+        The final aggregated parameters.
+        They are calculated based on the per WB parameters and the DMO mask.
+        Invalid parameters are (depending on the implementation in the provided Aggregation algorithm) excluded.
+        This output can either be a dataframe with a single row (all WBs were aggregated to a single value, default),
+        or a dataframe with multiple rows, if the aggregation algorithm uses a different aggregation approach.
+    """,
+        "intermediate_results": """
+    gs_list_
+        The raw output of the gait sequence detection algorithm.
+        This is a DataFrame with the start and end of each detected gait sequence.
+    raw_ic_list_
+        The raw output of the IC detection and the laterality classification.
+        This is a DataFrame with the detected ICs and the corresponding L/R label.
+    raw_turn_list_
+        The raw output of the turn detection algorithm.
+        This is a DataFrame with the detected turns (start, end, angle, ...).
+    raw_per_sec_parameters_
+        A concatenated dataframe with all calculated per-second parameters.
+        The index represents the sample of the center of the second the parameter value belongs to.
+    raw_per_stride_parameters_
+        A concatenated dataframe with all calculated per-stride parameters and the general stride information (start,
+        end, laterality).
+    """,
+        "debug_results": """
+    gait_sequence_detection_
+        The instance of the gait sequence detection algorithm that was run with all of its results.
+    gs_iterator_
+        The instance of the GS iterator that was run with all of its results.
+        This contains the raw results for each GS, as well as the information about the constrained gs.
+        These raw results (inputs and outputs per GS) can be used to test run individual algorithms exactly like they
+        were run within the pipeline.
+    stride_selection_
+        The instance of the stride selection algorithm that was run with all of its results.
+    wba_
+        The instance of the WBA algorithm that was run with all of its results.
+    dmo_aggregation_
+        The instance of the DMO aggregation algorithm that was run with all of its results.
+    """,
+        "step_by_step": """
+    The Mobilise-D pipeline consists of the following steps:
+
+    1. Gait sequences are detected using the provided gait sequence detection algorithm.
+    2. Within each gait sequence, initial contacts are detected using the provided IC detection algorithm.
+       A "refined" version of the gait sequence is created, starting and ending at the first and last detected IC.
+    3. Cadence, stride length and walking speed are calculated for each "refined" gait sequence.
+       The output of these algorithms is provided per second.
+    4. Using the L/R label for each IC calculated by the laterality classification algorithm, strides are defined.
+    5. The per-second parameters are interpolated to per-stride parameters.
+    6. The stride selection algorithm is used to filter out strides that don't fulfill certain criteria.
+    7. The WBA algorithm is used to assemble the strides into walking bouts.
+       This is done independent of the original gait sequences.
+    8. Aggregated parameters for each WB are calculated.
+    9. If DMO thresholds are provided, these WB-level parameters are filtered based on physiological valid thresholds.
+    10. The DMO aggregation algorithm is used to aggregate the WB-level parameters to either a set of values
+        per-recording or any other granularity (i.e. one value per hour), depending on the aggregation algorithm.
+
+    For a step-by-step example of how these steps are executed, check out :ref:`mobilised_pipeline_step_by_step`.
+    """,
+    }
+)
+
+BaseGaitDatasetT = TypeVar("BaseGaitDatasetT", bound=BaseGaitDataset)
+
+
+@mobilsed_pipeline_docfiller
+class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+    """Basic Pipeline structure of the Mobilise-D pipeline.
+
+    .. warning:: While this class implements the basic structure of the Mobilise-D pipeline, we only consider it "The
+             Mobilise-D pipeline" if it is used with the predefined parameters/algorithms for the cohorts these
+             parameters are evaluated for.
+
+    This pipeline class can either be used with a custom set of algorithms instances or the "official" predefined
+    parameters for healthy or impaired walking (see Examples).
+    However, when using the predefined parameters it is recommended to use the separate classes instead
+    (:class:`MobilisedPipelineHealthy` and :class:`MobilisedPipelineImpaired`).
+
+    For detailed steps on how this pipeline works, check the Notes section and the dedicated examples.
+
+
+    Parameters
+    ----------
+    %(core_parameters)s
+    %(turn_detection)s
+    %(wba_parameters)s
+    %(aggregation_parameters)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(primary_results)s
+    %(intermediate_results)s
+    %(debug_results)s
+
+    Notes
+    -----
+    %(step_by_step)s
+
+    See Also
+    --------
+    mobgap.pipeline.MobilisedPipelineHealthy : A predefined pipeline for healthy/mildly impaired walking.
+    mobgap.pipeline.MobilisedPipelineImpaired : A predefined pipeline for impaired walking.
+
+    """
+
     gait_sequence_detection: BaseGsDetector
     initial_contact_detection: BaseIcDetector
     laterality_classification: BaseLRClassifier
@@ -42,6 +252,8 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
 
+    datapoint: BaseGaitDatasetT
+
     # Algos with results
     gait_sequence_detection_: BaseGsDetector
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
@@ -52,6 +264,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
     # Intermediate results
     gs_list_: pd.DataFrame
     raw_ic_list_: pd.DataFrame
+    raw_turn_list_: pd.DataFrame
     raw_per_sec_parameters_: pd.DataFrame
     raw_per_stride_parameters_: pd.DataFrame
 
@@ -121,7 +334,18 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         self.dmo_thresholds = dmo_thresholds
         self.dmo_aggregation = dmo_aggregation
 
-    def run(self, datapoint: BaseGaitDataset) -> Self:
+    @mobilsed_pipeline_docfiller
+    def run(self, datapoint: BaseGaitDatasetT) -> Self:
+        """%(run_short)s.
+
+        Parameters
+        ----------
+        %(run_para)s
+
+        %(run_return)s
+        """
+        self.datapoint = datapoint
+
         imu_data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
@@ -142,6 +366,7 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
             axis=1,
         ).reset_index("r_gs_id", drop=True)
         self.raw_ic_list_ = results.ic_list
+        self.raw_turn_list_ = results.turn_list
         self.raw_per_stride_parameters_ = self._sec_to_stride(
             self.raw_per_sec_parameters_, results.ic_list, sampling_rate_hz
         )
@@ -274,8 +499,56 @@ class MobilisedPipeline(Pipeline[BaseGaitDataset]):
         )
 
 
-class MobilisedPipelineHealthy(MobilisedPipeline):
-    @set_defaults(**{k: cf(v) for k, v in MobilisedPipeline.PredefinedParameters.normal_walking.items()})
+class MobilisedPipelineHealthy(BaseMobilisedPipeline):
+    """Official Mobilise-D pipeline for healthy and mildly impaired gait (aka P1 pipeline).
+
+    .. note:: When using this pipeline with its default parameters with healthy participants or participants with COPD
+              or congestive heart failure, the use of the name "the Mobilise-D pipeline" is recommended.
+
+    Based on the benchmarking performed in [1]_, the algorithms selected for this pipeline are the optimal choice for
+    healthy and mildly impaired gait or more specifically for the cohorts "HA", "COPD", "CHF" within the Mobilise-D
+    validation study.
+    Performance metrics for the original implementation of this pipeline can be found in [2]_.
+    This pipeline is referred to as the "P1" pipeline in the context of this and other publications.
+
+    For detailed steps on how this pipeline works, check the Notes section and the dedicated examples.
+
+    Parameters
+    ----------
+    %(core_parameters)s
+    %(turn_detection)s
+    %(wba_parameters)s
+    %(aggregation_parameters)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(primary_results)s
+    %(intermediate_results)s
+    %(debug_results)s
+
+    Notes
+    -----
+    %(step_by_step)s
+
+    .. [1] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology?
+       Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78
+       (2023). https://doi.org/10.1186/s12984-023-01198-5
+    .. [2] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+           multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
+           https://doi.org/10.1038/s41598-024-51766-5
+
+    See Also
+    --------
+    mobgap.pipeline.BaseMobilisedPipeline : A version of the pipeline without any default algorithms or parameters.
+    mobgap.pipeline.MobilisedPipelineImpaired : A predefined pipeline for impaired walking.
+
+    """
+
+    @set_defaults(**{k: cf(v) for k, v in BaseMobilisedPipeline.PredefinedParameters.normal_walking.items()})
     def __init__(
         self,
         *,
@@ -306,8 +579,56 @@ class MobilisedPipelineHealthy(MobilisedPipeline):
         )
 
 
-class MobilisedPipelineImpaired(MobilisedPipeline):
-    @set_defaults(**{k: cf(v) for k, v in MobilisedPipeline.PredefinedParameters.impaired_walking.items()})
+class MobilisedPipelineImpaired(BaseMobilisedPipeline):
+    """Official Mobilise-D pipeline for impaired gait (aka P2 pipeline).
+
+    .. note:: When using this pipeline with its default parameters with participants with MS, PD, PFF, the use of the
+              name "the Mobilise-D pipeline" is recommended.
+
+    Based on the benchmarking performed in [1]_, the algorithms selected for this pipeline are the optimal choice for
+    healthy and mildly impaired gait or more specifically for the cohorts "PD", "MS", "PFF" within the Mobilise-D
+    validation study.
+    Performance metrics for the original implementation of this pipeline can be found in [2]_.
+    This pipeline is referred to as the "P1" pipeline in the context of this and other publications.
+
+    For detailed steps on how this pipeline works, check the Notes section and the dedicated examples.
+
+    Parameters
+    ----------
+    %(core_parameters)s
+    %(turn_detection)s
+    %(wba_parameters)s
+    %(aggregation_parameters)s
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(primary_results)s
+    %(intermediate_results)s
+    %(debug_results)s
+
+    Notes
+    -----
+    %(step_by_step)s
+
+    .. [1] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology?
+           Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78
+           (2023). https://doi.org/10.1186/s12984-023-01198-5
+    .. [2] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+           multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
+           https://doi.org/10.1038/s41598-024-51766-5
+
+    See Also
+    --------
+    mobgap.pipeline.BaseMobilisedPipeline : A version of the pipeline without any default algorithms or parameters.
+    mobgap.pipeline.MobilisedPipelineImpaired : A predefined pipeline for impaired walking.
+
+    """
+
+    @set_defaults(**{k: cf(v) for k, v in BaseMobilisedPipeline.PredefinedParameters.impaired_walking.items()})
     def __init__(
         self,
         *,

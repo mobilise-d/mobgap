@@ -1,10 +1,17 @@
 """
-Build a full pipeline with all the steps
-========================================
+.. _mobilised_pipeline_step_by_step:
+
+The Mobilise-D pipeline: Step-by-Step Breakdown
+===============================================
 
 This example shows how to build a full gait analysis pipeline using the mobgap package.
-Note, that we provide pre-built pipelines for common use-cases in the package.
+Note, that we provide pre-built pipelines for common use-cases.
 Checkout the examples for those, if you want to understand how to use them.
+
+This example is meant to provide a better understanding of the individual steps and should serve as a blueprint to
+build completely custom pipelines.
+
+For more information about the individual steps, please refer to the respective examples for the algorithms.
 
 """
 
@@ -335,8 +342,6 @@ per_wb_params = pd.concat(
         per_wb_params,
         final_strides.reindex(columns=params_to_aggregate)
         .groupby(["wb_id"])
-        # TODO: Decide if we should use mean or trim_mean here!
-        # TODO: Should we add a "avg" prefix to the columns?
         .mean(),
     ],
     axis=1,
@@ -383,9 +388,13 @@ agg_results.T
 
 # %%
 # Running as a single pipeline
-from mobgap.pipeline import MobilisedPipeline
+# ----------------------------
+# The steps that are shown above, are exactly the steps that are performed in the Mobilise-D pipeline.
+# Hence, we can also use the pre-built pipeline to perform the same steps.
+# This is shown below.
+from mobgap.pipeline import BaseMobilisedPipeline
 
-pipeline = MobilisedPipeline(
+pipeline = BaseMobilisedPipeline(
     gait_sequence_detection=gsd,
     initial_contact_detection=icd,
     laterality_classification=lrc,
@@ -400,3 +409,18 @@ pipeline = MobilisedPipeline(
 )
 
 pipeline.run(long_trial)
+
+# %%
+# The results are stored in the pipeline object.
+# And basically all the individual results that are shown above are also available in the pipeline object.
+#
+# For example the per stride parameters:
+pipeline.raw_per_stride_parameters_
+
+# %%
+# The per-wb parameters:
+pipeline.per_wb_parameters_
+
+# %%
+# And the aggregated parameters:
+pipeline.aggregated_parameters_

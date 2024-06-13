@@ -6,14 +6,18 @@ from mobgap.pipeline._gs_iterator import (
     create_aggregate_df,
     iter_gs,
 )
-from mobgap.pipeline._mobilised_pipeline import MobilisedPipeline, MobilisedPipelineHealthy, MobilisedPipelineImpaired
+from mobgap.pipeline._mobilised_pipeline import (
+    BaseMobilisedPipeline,
+    MobilisedPipelineHealthy,
+    MobilisedPipelineImpaired,
+)
 
 __all__ = [
     "iter_gs",
     "GsIterator",
     "FullPipelinePerGsResult",
     "create_aggregate_df",
-    "MobilisedPipeline",
+    "BaseMobilisedPipeline",
     "MobilisedPipelineHealthy",
     "MobilisedPipelineImpaired",
 ]

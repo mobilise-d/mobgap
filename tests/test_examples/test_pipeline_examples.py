@@ -23,7 +23,12 @@ def test_gs_iterator(snapshot):
 
 
 def test_full_mobilise_pipeline():
-    from examples.pipeline._02_full_pipeline import agg_results, final_strides, per_wb_params, pipeline
+    from examples.pipeline._02_step_by_step_mobilised_pipeline import (
+        agg_results,
+        final_strides,
+        per_wb_params,
+        pipeline,
+    )
 
     assert_frame_equal(pipeline.per_stride_parameters_, final_strides)
     assert_frame_equal(pipeline.per_wb_parameters_.drop(columns="rule_obj"), per_wb_params.drop(columns="rule_obj"))

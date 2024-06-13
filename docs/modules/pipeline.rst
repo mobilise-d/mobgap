@@ -8,6 +8,17 @@ Pipelines
 Full Pipelines
 --------------
 
+.. currentmodule:: mobgap.pipeline
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: class.rst
+
+    BaseMobilisedPipeline
+    MobilisedPipelineHealthy
+    MobilisedPipelineImpaired
+
+
 Evaluation
 ----------
 

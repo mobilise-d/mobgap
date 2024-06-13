@@ -18,7 +18,7 @@ from mobgap.utils.interpolation import robust_step_para_to_sec
 
 @base_sl_docfiller
 class SlZijlstra(BaseSlCalculator):
-    """Implementation of the stride length algorithm by Zijlstra (2003) [1]_ modified by Soltani (2021) [2]_.
+    r"""Implementation of the stride length algorithm by Zijlstra (2003) [1]_ modified by Soltani (2021) [2]_.
 
     This algorithms uses an inverted pendulum model to estimate the step length.
     The step length is then "smoothed" using a robust outlier removal approach to deal with missing initial contacts.
@@ -86,11 +86,19 @@ class SlZijlstra(BaseSlCalculator):
     4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, filter order: 4
     5. Integration of vertical speed --> vertical displacement d(t)
     6. Compute total vertical displacement during the step (d_step):
-        d_step = |max(d(t)) - min(d(t))|
+
+       .. math::
+          d_step = |max(d(t)) - min(d(t))|
+
     7. Biomechanical model:
-        StepLength = A * 2 * sqrt(2 * LBh * d_step - d_step^2)
-        A: tuning coefficient, optimized by training for each population.
-        LBh: sensor height in meters, representative of the height of the center of mass.
+
+       .. math::
+          \text{StepLength} = A * 2 * \sqrt{2 * LBh * d_{step} - d_{step}^2}
+
+       A
+        tuning coefficient, optimized by grid search.
+       LBh
+        sensor height in meters, representative of the height of the center of mass.
 
     This output is then further post-processed and interpolated to second bins:
 
