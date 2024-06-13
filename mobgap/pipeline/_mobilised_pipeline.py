@@ -23,7 +23,7 @@ from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
 from mobgap.turning.base import BaseTurnDetector
-from mobgap.utils.array_handling import create_multi_groupby
+from mobgap.utils.df_operations import create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
@@ -499,6 +499,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         )
 
 
+@mobilsed_pipeline_docfiller
 class MobilisedPipelineHealthy(BaseMobilisedPipeline):
     """Official Mobilise-D pipeline for healthy and mildly impaired gait (aka P1 pipeline).
 
@@ -579,6 +580,7 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline):
         )
 
 
+@mobilsed_pipeline_docfiller
 class MobilisedPipelineImpaired(BaseMobilisedPipeline):
     """Official Mobilise-D pipeline for impaired gait (aka P2 pipeline).
 
