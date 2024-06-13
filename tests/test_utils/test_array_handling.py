@@ -4,9 +4,9 @@ import pytest
 from pandas._testing import assert_frame_equal
 
 from mobgap.utils.array_handling import (
-    create_multi_groupby,
     sliding_window_view,
 )
+from mobgap.utils.df_operations import create_multi_groupby
 
 
 class TestSlidingWindowView:

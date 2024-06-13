@@ -1,9 +1,7 @@
 """Class to validate gait sequence detection results."""
 
 import warnings
-from collections.abc import Hashable, Sequence
-from functools import wraps
-from typing import Any, Callable, Literal, NamedTuple, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,6 +13,7 @@ from matplotlib.figure import Figure
 from pingouin import intraclass_corr
 from typing_extensions import Unpack
 
+from mobgap.utils.df_operations import CustomOperation, _get_data_from_identifier
 from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
@@ -23,18 +22,6 @@ from mobgap.utils.evaluation import (
     precision_recall_f1_score,
     specificity_score,
 )
-
-
-class CustomOperation(NamedTuple):
-    """Metadata for custom aggregations and transformations."""
-
-    identifier: Union[Hashable, Sequence, str]
-    function: Union[Callable, list[Callable]]
-    column_name: Union[str, tuple[str, ...]]
-
-    @property
-    def _TAG(self) -> str:  # noqa: N802
-        return "CustomOperation"
 
 
 def calculate_matched_gsd_performance_metrics(
@@ -789,20 +776,6 @@ def _combine_detected_and_reference_metrics(
     return matches
 
 
-def _get_data_from_identifier(
-    df: pd.DataFrame, identifier: Union[Hashable, Sequence, str], num_levels: Union[int, None] = 1
-) -> pd.DataFrame:
-    try:
-        data = df.loc[:, identifier]
-    except KeyError as e:
-        raise ValueError(f"Column(s) '{identifier}' not found in DataFrame.") from e
-    if num_levels:
-        data_num_levels = 1 if isinstance(data, pd.Series) else data.columns.nlevels
-        if data_num_levels != num_levels:
-            raise ValueError(f"Data selected by '{identifier}' must have {num_levels} level(s).")
-    return data
-
-
 def _handle_zero_division(
     divisor: Union[pd.Series, pd.DataFrame],
     zero_division_hint: Union[Literal["warn", "raise"], float],
@@ -1040,13 +1013,12 @@ def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
     return error_metrics
 
 
-def get_default_aggregations() -> (
+def get_default_error_aggregations() -> (
     list[Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperation]]
 ):
-    """
-    Return a list containing all important aggregations utilized in Mobilise-D.
+    """Return a list containing all important error aggregations utilized in Mobilise-D.
 
-    This list can directly be passed to ~func:`~mobgap.gsd.evaluation.apply_aggregations` as the `aggregations`
+    This list can directly be passed to ~func:`~mobgap.utils.df_operations.apply_aggregations` as the `aggregations`
     parameter to calculate the desired metrics.
     """
     metrics = [
@@ -1072,270 +1044,6 @@ def get_default_aggregations() -> (
     return default_agg
 
 
-def apply_transformations(
-    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]]], CustomOperation]]
-) -> pd.DataFrame:
-    """Apply a set of transformations to a DMO DataFrame.
-
-    Returns a DataFrame with one column per transformation.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame containing the metrics to transform.
-        It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
-        or ~func:`~mobgap.gsd.evaluation.get_matching_intervals`.
-        Needs to have a MultiIndex column structure with the first level being the metric name and the second level
-        being the origin of the metric (e.g., "detected" or "reference").
-
-    transformations : list[tuple[str, Union[callable, list[callable]], CustomOperation]]
-
-        A list specifying which transformation functions are to be applied for which metrics and data origins.
-        There are two ways to define transformations:
-
-        1.  As a tuple in the format `(<metric>, <function>)`,
-            where `<metric>` is the metric column to evaluate,
-            and `<function>` is the function (or a list of functions) to apply.
-            The output dataframe will have a multilevel column consisting of a `metric` level and a `function` level.
-
-        2.  As a named tuple of type `CustomOperation` taking three arguments:
-            `identifier`, `function`, and `column_name`.
-            `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
-            `function` is the (custom) transformation function or list of functions to apply,
-            and `column_name` is the name of the resulting column in the output dataframe.
-            In case of a single-level output column, `column_name` is a string, whereas for multi-level output columns,
-            it is a tuple of strings.
-            This allows for more complex transformations that require multiple columns as input.
-
-        The default list of aggregations can be retrieved
-        using ~func:`~mobgap.gsd.evaluation.get_default_transformations`.
-
-    """
-    transformation_results = []
-    column_names = []
-    for transformation in transformations:
-        if getattr(transformation, "_TAG", None) == "CustomOperation":
-            data = _get_data_from_identifier(df, transformation.identifier, num_levels=None)
-            result = transformation.function(data)
-            transformation_results.append(result)
-            column_names.append(transformation.column_name)
-        else:
-            metric, functions = transformation
-            if not isinstance(functions, list):
-                functions = [functions]
-            data = _get_data_from_identifier(df, metric, num_levels=None)
-            for fct in functions:
-                try:
-                    fct_name = fct.__name__
-                except AttributeError as e:
-                    raise ValueError(
-                        f"Transformation function {fct} for identifier {metric} does not have a `__name__`-Attribute. "
-                        "Please use a named function or assign a name."
-                    ) from e
-                result = fct(data)
-                transformation_results.append(result)
-                column_names.append((metric, fct_name))
-    # combine results
-    try:
-        transformation_results = pd.concat(transformation_results, axis=1)
-    except TypeError as e:
-        raise ValueError(
-            "The transformation results could not be concatenated. "
-            "This is likely due to an unexpected return type of a custom function."
-            "Please ensure that the return type is a pandas Series for all custom functions."
-        ) from e
-    try:
-        transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
-    except ValueError as e:
-        raise ValueError(
-            f"The expected number of column names {len(pd.MultiIndex.from_tuples(column_names))} "
-            f"does not match with the actual number {transformation_results.shape[1]} of columns "
-            "in the transformed DataFrame."
-            "This is likely due to an unexpected return shape of a CustomOperation function."
-        ) from e
-    return transformation_results
-
-
-def apply_aggregations(
-    df: pd.DataFrame,
-    aggregations: list[
-        Union[
-            tuple[Union[str, tuple[str, ...]], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
-        ]
-    ],
-) -> pd.Series:
-    """Apply a set of aggregations to a DMO DataFrame.
-
-    Returns a Series with one entry per aggregation.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame containing the metrics to aggregate.
-        It is retrieved from one of the functions ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching`
-        or ~func:`~mobgap.gsd.evaluation.get_matching_intervals`.
-        Needs to have a MultiIndex column structure with the first level being the metric name and the second level
-        being the origin of the metric (e.g., "detected" or "reference").
-        If further derived metrics, such as error metrics are of interest, they can also be included
-        by calling ~func:`~mobgap.gsd.evaluation.apply_transformations` beforehand.
-
-    aggregations : list
-        A list specifying which aggregation functions are to be applied for which metrics and data origins.
-        There are two ways to define aggregations:
-
-        1.  As a tuple in the format `(<identifier>, <aggregation>)`.
-            In this case, the operation is performed based on exactly one column from the input df.
-            Therefore, <identifier> can either be a string representing the name of the column to evaluate
-            (for data with single-level columns),
-            or a tuple of strings uniquely identifying the column to evaluate.
-            In case of the standard Mobilise-D data structure, this would be a tuple (<metric>, <origin>),
-            where `<metric>` is the metric column to evaluate,
-            `<origin>` is the specific column from which data should be utilized
-            (e.g., `detected`, `reference`, or `error`).
-            Furthermore, `<aggregation>` is the function or the list of functions to apply.
-            The output dataframe will have a multilevel column consisting of the `metric` level and the
-            `origin` level.
-
-        2.  As a named tuple of type `CustomOperation` taking three arguments:
-            `identifier`, `function`, and `column_name`.
-            `identifier` is a valid loc identifier selecting one or more columns from the dataframe,
-            `function` is the (custom) aggregation function or list of functions to apply,
-            and `column_name` is the name of the resulting column in the output dataframe.
-            In case of a single-level output column, `column_name` is a string, whereas for multi-level output columns,
-            it is a tuple of strings.
-            This allows for more complex aggregations that require multiple columns as input,
-            e.g., the intraclass correlation coefficient (ICC).
-
-        The default list of aggregations can be retrieved using ~func:`~mobgap.gsd.evaluation.get_default_aggregations`.
-    """
-    manual_aggregations, agg_aggregations = _collect_manual_and_agg_aggregations(aggregations)
-
-    # apply built-in aggregations
-    agg_aggregation_results = []
-    for key, aggregation in agg_aggregations.items():
-        try:
-            aggregation_result = df.agg({key: aggregation})
-            agg_aggregation_results.append(
-                aggregation_result.stack(level=np.arange(df.columns.nlevels).tolist(), future_stack=True)
-            )
-        except KeyError as e:
-            raise ValueError("Column(s) specified in aggregations not found in DataFrame.") from e
-    if agg_aggregation_results:
-        agg_aggregation_results = pd.concat(agg_aggregation_results)
-
-    manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
-
-    # if only one type of aggregation was applied, return the result directly
-    if manual_aggregations and not agg_aggregations:
-        return manual_aggregation_results
-    if agg_aggregations and not manual_aggregations:
-        return agg_aggregation_results
-
-    # otherwise, concatenate the results
-    try:
-        _check_number_of_index_levels([agg_aggregation_results, manual_aggregation_results])
-    except ValueError as e:
-        raise ValueError(
-            "The aggregation results from automatic and custom aggregation could not be concatenated. "
-            "This is likely caused by an inconsistent number index levels in them."
-        ) from e
-    aggregation_results = pd.concat([agg_aggregation_results, manual_aggregation_results])
-
-    return aggregation_results
-
-
-def _collect_manual_and_agg_aggregations(
-    aggregations: list[
-        Union[
-            tuple[Union[str, tuple[str, ...]], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
-        ]
-    ],
-) -> tuple[list[CustomOperation], dict[tuple[str, str], list[Union[str, Callable]]]]:
-    manual_aggregations = []
-    agg_aggregations = {}
-    for agg in aggregations:
-        if getattr(agg, "_TAG", None) == "CustomOperation":
-            manual_aggregations.append(agg)
-        else:
-            key, aggregation = agg
-            if not isinstance(aggregation, list):
-                aggregation = [aggregation]
-            wrapped_aggregation = []
-            for fct in aggregation:
-                if isinstance(fct, str):
-                    # skip special case string-functions (e.g. "mean")
-                    wrapped_aggregation.append(fct)
-                else:
-                    # wrap function to prevent unexpected behavior of pd.DataFrame.agg
-                    # otherwise, data is internally passed to apply element-wise instead of as whole series
-                    # for user-defined functions: https://github.com/pandas-dev/pandas/issues/41768
-                    wrapped_aggregation.append(_allow_only_series(fct))
-            # agg function only accepts strings as identifiers for one-level columns
-            if isinstance(key, tuple) and len(key) == 1:
-                key = key[0]
-            if not isinstance(key, (tuple, str)):
-                raise ValueError(
-                    f"The key {key} has an invalid type. It must either be a string or a tuple of strings."
-                )
-            agg_aggregations.setdefault(key, []).extend(wrapped_aggregation)
-    return manual_aggregations, agg_aggregations
-
-
-def _allow_only_series(func: callable) -> callable:
-    # if data are passed to apply element-wise,
-    # throw an error to ensure that they are processed as whole series
-    @wraps(func)
-    def wrapper(x: pd.Series) -> Any:
-        if not isinstance(x, (pd.Series, pd.DataFrame)):
-            raise TypeError("Only Series allowed as input.")
-        return func(x)
-
-    return wrapper
-
-
-def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperation]) -> pd.Series:
-    # apply manual aggregations
-    manual_aggregation_results = []
-    for agg in manual_aggregations:
-        agg_functions = agg.function
-        if not isinstance(agg_functions, list):
-            agg_functions = [agg_functions]
-
-        data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
-        for fct in agg_functions:
-            result = fct(data)
-            try:
-                fct_name = fct.__name__
-            except AttributeError as e:
-                raise ValueError(
-                    f"Transformation function {fct} applied for {agg.identifier} does not have a `__name__`-Attribute. "
-                    "Please use a named function or assign a name."
-                ) from e
-            column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
-            key = (fct_name, *column_name)
-            manual_aggregation_results.append(pd.Series([result], index=pd.MultiIndex.from_tuples([key])))
-    if manual_aggregation_results:
-        try:
-            _check_number_of_index_levels(manual_aggregation_results)
-        except ValueError as e:
-            raise ValueError(
-                "Error in concatenating manual aggregation results. "
-                "Please ensure that the `col_names` attribute has the same number of elements "
-                "across all custom aggregations"
-            ) from e
-        manual_aggregation_results = pd.concat(manual_aggregation_results)
-    return manual_aggregation_results
-
-
-def _check_number_of_index_levels(agg_results: list[Union[pd.Series, pd.DataFrame]]) -> None:
-    n_levels = [result.index.nlevels for result in agg_results]
-    if len(set(n_levels)) > 1:
-        raise ValueError(
-            "Number of index levels in results is not consistent. "
-            "Please ensure that all aggregation results have the same number of index levels."
-        )
-
-
 __all__ = [
     "categorize_intervals_per_sample",
     "categorize_intervals",
@@ -1351,8 +1059,5 @@ __all__ = [
     "abs_error",
     "abs_rel_error",
     "get_default_error_transformations",
-    "get_default_aggregations",
-    "apply_transformations",
-    "apply_aggregations",
-    "CustomOperation",
+    "get_default_error_aggregations",
 ]

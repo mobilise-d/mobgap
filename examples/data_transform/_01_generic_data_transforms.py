@@ -238,7 +238,7 @@ my_algorithm.run(pd.DataFrame(data)).result_
 # - The ``set_params`` method is inherited from :class:`tpcp.Algorithm` and is available for all algorithms.
 #   It supports nested parameters, i.e. you can use ``__`` to specify parameters of nested objects.
 # - To pass a series of transformers to an algorithm, you can use tpcp's composite parameters (see the example
-#   `here <https://tpcp.readthedocs.io/en/latest/auto_examples/other_features/_02_composite_objects.html>`__).
+#   `here <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_03_composite_objects.html>`__).
 # - When using an instance as a default value, you should wrap it in the :func:`~tpcp.cf` function.
 #   This will ensure, that a new instance is created for each call of the algorithm.
 #   Learn more about this

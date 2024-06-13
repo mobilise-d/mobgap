@@ -8,18 +8,15 @@ from numpy.testing import assert_array_equal
 from pandas._testing import assert_frame_equal, assert_series_equal
 
 from mobgap.gsd.evaluation import (
-    CustomOperation,
     _get_tn_intervals,
     abs_error,
     abs_rel_error,
-    apply_aggregations,
-    apply_transformations,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals,
     categorize_intervals_per_sample,
     error,
-    get_default_aggregations,
+    get_default_error_aggregations,
     get_default_error_transformations,
     get_matching_intervals,
     icc,
@@ -27,6 +24,7 @@ from mobgap.gsd.evaluation import (
     quantiles,
     rel_error,
 )
+from mobgap.utils.df_operations import CustomOperation, apply_aggregations, apply_transformations
 
 
 @pytest.fixture()
@@ -925,7 +923,7 @@ class TestApplyAggregations:
         return mock_fct
 
     def test_default_aggregations(self, combined_det_ref_dmo_df_with_errors):
-        aggs = get_default_aggregations()
+        aggs = get_default_error_aggregations()
         res = apply_aggregations(combined_det_ref_dmo_df_with_errors, aggs)
 
         count_metrics = combined_det_ref_dmo_df_with_errors.columns.get_level_values(0).nunique() - 1
@@ -1088,6 +1086,6 @@ class TestApplyAggregations:
 
     def test_apply_agg_with_empty_df(self):
         df = pd.DataFrame()
-        aggs = get_default_aggregations()
+        aggs = get_default_error_aggregations()
         with pytest.raises(ValueError):
             apply_aggregations(df, aggs)

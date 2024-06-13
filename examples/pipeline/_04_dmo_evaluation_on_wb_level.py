@@ -65,7 +65,7 @@ reference_dmo
 # As the first step we need to indentify WBs that match between the detected and reference data.
 # As it is unlikely that the WBs are exactly the same, we need to define a threshold for the overlap between the WBs
 # to consider them as a match.
-# This matching can be done using the :func:`~mobgap.gsd.evaluation.categorize_intervals` function.
+# This matching can be done using the :func:`~mobgap.pipeline.evaluation.categorize_intervals` function.
 # It classifies every gait sequence in the data either as true positive (TP), false positive (FP), or false negative
 # (TP).
 # In case our data has only WBs from a single recording, we could directly provide the detected and reference data
@@ -78,7 +78,7 @@ reference_dmo
 # To avoid, that WBs from different recordings are matched (as the matching is just performed based on the start/end
 # index), we need to group the data by the relevant index levels first and apply the matching function to each group.
 # This can be done using the :func:`~mobgap.utils.array_handling.create_multi_groupby` helper function.
-from mobgap.utils.array_handling import create_multi_groupby
+from mobgap.utils.df_operations import create_multi_groupby
 
 per_trial_participant_day_grouper = create_multi_groupby(
     detected_dmo,
@@ -91,13 +91,13 @@ per_trial_participant_day_grouper = create_multi_groupby(
 # single dataframe.
 # The ``MultiGroupBy`` object allows us to apply a function to each group across all dataframes.
 #
-# Here we apply :func:`~mobgap.gsd.evaluation.categorize_intervals` with a threshold of 0.8 to each group.
+# Here we apply :func:`~mobgap.pipeline.evaluation.categorize_intervals` with a threshold of 0.8 to each group.
 # The `overlap_threshold` parameter defines the minimum overlap between the detected and reference gait sequences to be
 # considered a match.
 # It can be chosen according to your needs, whereby a value closer to 0.5 will yield more matches
 # than a value closer to 1.
 
-from mobgap.gsd.evaluation import categorize_intervals
+from mobgap.pipeline.evaluation import categorize_intervals
 
 gs_tp_fp_fn = per_trial_participant_day_grouper.apply(
     lambda det, ref: categorize_intervals(
@@ -119,8 +119,8 @@ gs_tp_fp_fn
 # Based on the positive matches, we can now extract the DMO data from detected and reference data that is to be
 # compared.
 # To make extracting all the TP WBs a little easier, we can use the
-# :func:`~mobgap.gsd.evaluation.get_matching_intervals` function.
-from mobgap.gsd.evaluation import get_matching_intervals
+# :func:`~mobgap.pipeline.evaluation.get_matching_intervals` function.
+from mobgap.pipeline.evaluation import get_matching_intervals
 
 gs_matches = get_matching_intervals(
     metrics_detected=detected_dmo,
@@ -143,8 +143,8 @@ gs_matches["cadence_spm"]
 # The DMO data can now be compared WB by WB.
 # We want to calculate general error metrics like the error, absolute error, relative error, and absolute relative error
 # for each WB and DMO.
-# This can done using the generic the :func:`~mobgap.gsd.evaluation.apply_transformations` helper that allows us to
-# apply any list of transformation functions (transformation function -> WB in Series with same length out).
+# This can be done using the generic the :func:`~mobgap.pipeline.evaluation.apply_transformations` helper that allows
+# us to apply any list of transformation functions (transformation function -> WB in Series with same length out).
 # It further allows us to declaratively define which columns (i.e. which DMOs) which transformation/error should be
 # applied to.
 #
@@ -160,10 +160,9 @@ gs_matches["cadence_spm"]
 # Note that the columns of the detected and reference values are expected to be named `detected` and `reference`
 # per default.
 # For the standard error metrics (error, absolute error, relative error, absolute relative),
-# the :func:`~mobgap.gsd.evaluation.get_default_error_transformations` returns the correct transformations.
-from mobgap.gsd.evaluation import (
+# the :func:`~mobgap.pipeline.evaluation.get_default_error_transformations` returns the correct transformations.
+from mobgap.pipeline.evaluation import (
     abs_error,
-    apply_transformations,
     error,
     get_default_error_transformations,
     rel_error,
@@ -178,9 +177,12 @@ custom_errors = [
 # %%
 # This definition should be relatively self-explanatory.
 #
-# We can now apply these transformations to the DMO data using the :func:`~mobgap.gsd.evaluation.apply_transformations`.
+# We can now apply these transformations to the DMO data using the
+# :func:`~mobgap.utils.df_operations.apply_transformations`.
 # Note, that there is no need to group the dataframe again, as all the transformations are applied row-wise to the
 # entire dataframe.
+from mobgap.utils.df_operations import apply_transformations
+
 custom_gs_errors = apply_transformations(gs_matches, custom_errors)
 custom_gs_errors.T
 
@@ -272,9 +274,9 @@ gs_matches_with_errors.T
 # For this purpose, different aggregation functions can be applied to the error metrics, ranging from simple, built-in
 # aggregations like the mean or standard deviation to more complex functions like the limits of agreement or
 # 5th and 95th percentiles.
-# This can be done using the :func:`~mobgap.gsd.evaluation.apply_aggregations` function.
-# It operates similarly to the :func:`~mobgap.gsd.evaluation.apply_transformations` function used above by taking the
-# error metrics dataframe and a list of aggregations as input.
+# This can be done using the :func:`~mobgap.pipeline.evaluation.apply_aggregations` function.
+# It operates similarly to the :func:`~mobgap.pipeline.evaluation.apply_transformations` function used above by taking
+# the error metrics dataframe and a list of aggregations as input.
 # In contrast to the transformations, an aggregation performed over a subset of dataframe columns
 # is expected to return a single value or a tuple of values stored in one cell of the resulting dataframe.
 # There are two ways to define aggregations:
@@ -318,7 +320,8 @@ pprint(aggregations_simple)
 #    This allows for more complex aggregations that require multiple columns as input, for example, the intraclass
 #    correlation coefficient (ICC) for the DMOs (see below).
 #    A valid aggregation list for calculating the ICC of all DMOs would look like this:
-from mobgap.gsd.evaluation import CustomOperation, icc
+from mobgap.pipeline.evaluation import icc
+from mobgap.utils.df_operations import CustomOperation
 
 aggregations_custom = [
     CustomOperation(identifier=m, function=icc, column_name=(m, "all"))
@@ -340,10 +343,10 @@ icc(sub_df)
 # %%
 # Within one aggregation list, both types of aggregations can be combined
 # as long as the resulting output dataframes can be concatenated, i.e. have the same number of column levels.
-# Then, the :func:`~mobgap.gsd.evaluation.apply_aggregations` function can be called.
+# Then, the :func:`~mobgap.utils.df_operations.apply_aggregations` function can be called.
 # This returns a pandas Series with the aggregated values for each metric and origin.
 # For better readability, we sort and format the resulting dataframe.
-from mobgap.gsd.evaluation import apply_aggregations
+from mobgap.utils.df_operations import apply_aggregations
 
 aggregations = aggregations_simple + aggregations_custom
 agg_results = (
@@ -357,10 +360,10 @@ agg_results
 
 # %%
 # If you simply want to apply a standard set of aggregations to the error metrics, you can use the
-# :func:`~mobgap.gsd.evaluation.get_default_aggregations` function, resulting in the following list:
-from mobgap.gsd.evaluation import get_default_aggregations
+# :func:`~mobgap.pipeline.evaluation.get_default_error_aggregations` function, resulting in the following list:
+from mobgap.pipeline.evaluation import get_default_error_aggregations
 
-aggregations_default = get_default_aggregations()
+aggregations_default = get_default_error_aggregations()
 pprint(aggregations_default)
 
 # %%
@@ -370,7 +373,7 @@ aggregations_default_extended = aggregations_default + [
 ]
 
 # %%
-# This list of standard aggregations can then also be passed to the :func:`~mobgap.gsd.evaluation.apply_aggregations`
+# This list of standard aggregations can then also be passed to the :func:`~mobgap.pipeline.evaluation.apply_aggregations`
 # function.
 default_agg_results = (
     apply_aggregations(gs_matches_with_errors, aggregations_default_extended)
