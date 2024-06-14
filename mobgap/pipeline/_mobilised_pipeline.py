@@ -1,3 +1,5 @@
+import warnings
+from itertools import combinations
 from types import MappingProxyType
 from typing import Final, Generic, Optional, TypeVar
 
@@ -114,6 +116,13 @@ mobilsed_pipeline_docfiller = make_filldoc(
         This will be called with the aggregated parameters for each WB and the mask of the DMOs.
         The final aggregated parameters are available via the ``aggregated_parameters_`` attribute.
     """,
+        "additional_parameters": """
+    recommended_cohorts
+        A tuple of recommended cohorts for this pipeline.
+        If a datapoint is provided with a cohort that is not part of this tuple, a warning will be raised.
+        This can also be used in combination with the :class:`MobilisedMetaPipeline` to conditionally run a specific
+        pipeline based on the cohort of the participant.
+    """,
         "other_parameters": """
     datapoint
         The dataset instance passed to the run method.
@@ -218,6 +227,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     %(turn_detection)s
     %(wba_parameters)s
     %(aggregation_parameters)s
+    %(additional_parameters)s
 
     Other Parameters
     ----------------
@@ -251,6 +261,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     wba: WbAssembly
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
+    recommended_cohorts: Optional[tuple[str, ...]]
 
     datapoint: BaseGaitDatasetT
 
@@ -280,7 +291,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 "gait_sequence_detection": GsdIluz(),
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
-                "cadence_calculation": CadFromIcDetector(IcdShinImproved()),
+                "cadence_calculation": CadFromIcDetector(IcdShinImproved(), silence_ic_warning=True),
                 "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": WsNaive(),
                 "turn_detection": TdElGohary(),
@@ -288,6 +299,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 "wba": WbAssembly(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
+                "recommended_cohorts": ("HA", "COPD", "CHF"),
             }
         )
 
@@ -296,7 +308,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 "gait_sequence_detection": GsdIonescu(),
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
-                "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved()),
+                "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved(), silence_ic_warning=True),
                 "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": WsNaive(),
                 "turn_detection": TdElGohary(),
@@ -304,6 +316,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 "wba": WbAssembly(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
+                "recommended_cohorts": ("PD", "MS", "PFF"),
             }
         )
 
@@ -321,6 +334,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
+        recommended_cohorts: Optional[tuple[str, ...]] = None,
     ) -> None:
         self.gait_sequence_detection = gait_sequence_detection
         self.initial_contact_detection = initial_contact_detection
@@ -333,6 +347,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         self.wba = wba
         self.dmo_thresholds = dmo_thresholds
         self.dmo_aggregation = dmo_aggregation
+        self.recommended_cohorts = recommended_cohorts
 
     @mobilsed_pipeline_docfiller
     def run(self, datapoint: BaseGaitDatasetT) -> Self:
@@ -344,6 +359,14 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
         %(run_return)s
         """
+        if self.recommended_cohorts and (c := datapoint.participant_metadata["cohort"]) not in self.recommended_cohorts:
+            warnings.warn(
+                f"The provided datapoint has data of a participant with the cohort {c} is not part of the recommended "
+                f"cohorts for this pipeline {type(self).__name__}.\n"
+                f"Recommended cohorts are {self.recommended_cohorts}",
+                stacklevel=1,
+            )
+
         self.datapoint = datapoint
 
         imu_data = datapoint.data_ss
@@ -357,6 +380,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
         results = self.gs_iterator_.results_
 
+        # TODO: Handle case where no GS are detected or no ICs within the GS
         self.raw_per_sec_parameters_ = pd.concat(
             [
                 results.cadence_per_sec,
@@ -364,7 +388,14 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 results.walking_speed_per_sec,
             ],
             axis=1,
-        ).reset_index("r_gs_id", drop=True)
+        )
+
+        if len(self.raw_per_sec_parameters_) > 0:
+            self.raw_per_sec_parameters_ = self.raw_per_sec_parameters_.reset_index(
+                "r_gs_id",
+                drop=True,
+            )
+
         self.raw_ic_list_ = results.ic_list
         self.raw_turn_list_ = results.turn_list
         self.raw_per_stride_parameters_ = self._sec_to_stride(
@@ -391,10 +422,16 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         if self.dmo_thresholds is None:
             self.per_wb_parameter_mask_ = None
         else:
+            if (c := datapoint.participant_metadata["cohort"]) is None:
+                raise ValueError(
+                    "The cohort of the participant is not provided. "
+                    "Please provide the cohort in the participant metadata or set the dmo_thresholds to None."
+                )
+            assert c is not None
             self.per_wb_parameter_mask_ = apply_thresholds(
                 self.per_wb_parameters_,
                 self.dmo_thresholds,
-                cohort=datapoint.participant_metadata["cohort"],
+                cohort=c,
                 height_m=datapoint.participant_metadata["height_m"],
                 measurement_condition=datapoint.recording_metadata["measurement_condition"],
             )
@@ -493,6 +530,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 per_stride_parameters.reindex(columns=params_to_aggregate)
                 .groupby(["wb_id"])
                 # TODO: Decide if we should use mean or trim_mean here!
+                # TODO: Add "avg_" prefix to the columns
                 .mean(),
             ],
             axis=1,
@@ -500,7 +538,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
 
 @mobilsed_pipeline_docfiller
-class MobilisedPipelineHealthy(BaseMobilisedPipeline):
+class MobilisedPipelineHealthy(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Official Mobilise-D pipeline for healthy and mildly impaired gait (aka P1 pipeline).
 
     .. note:: When using this pipeline with its default parameters with healthy participants or participants with COPD
@@ -520,6 +558,7 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline):
     %(turn_detection)s
     %(wba_parameters)s
     %(aggregation_parameters)s
+    %(additional_parameters)s
 
     Other Parameters
     ----------------
@@ -564,6 +603,7 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline):
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
+        recommended_cohorts: Optional[tuple[str, ...]],
     ) -> None:
         super().__init__(
             gait_sequence_detection=gait_sequence_detection,
@@ -577,11 +617,12 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline):
             wba=wba,
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
+            recommended_cohorts=recommended_cohorts,
         )
 
 
 @mobilsed_pipeline_docfiller
-class MobilisedPipelineImpaired(BaseMobilisedPipeline):
+class MobilisedPipelineImpaired(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Official Mobilise-D pipeline for impaired gait (aka P2 pipeline).
 
     .. note:: When using this pipeline with its default parameters with participants with MS, PD, PFF, the use of the
@@ -601,6 +642,7 @@ class MobilisedPipelineImpaired(BaseMobilisedPipeline):
     %(turn_detection)s
     %(wba_parameters)s
     %(aggregation_parameters)s
+    %(additional_parameters)s
 
     Other Parameters
     ----------------
@@ -645,6 +687,7 @@ class MobilisedPipelineImpaired(BaseMobilisedPipeline):
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
+        recommended_cohorts: Optional[tuple[str, ...]],
     ) -> None:
         super().__init__(
             gait_sequence_detection=gait_sequence_detection,
@@ -658,4 +701,88 @@ class MobilisedPipelineImpaired(BaseMobilisedPipeline):
             wba=wba,
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
+            recommended_cohorts=recommended_cohorts,
+        )
+
+
+@mobilsed_pipeline_docfiller
+class MobilisedMetaPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+    """Metapipeline that can use a specific pipeline depending on the cohort of the participant.
+
+    This uses the ``RECOMMENDED_COHORTS`` attribute of the pipelines to determine which pipeline to use.
+    You can provide any list of pipelines with their names to this class.
+    However, there must be no overlap in the recommended cohorts of the pipelines.
+
+    The pipeline that is used (and all its results) can be accessed via the ``pipeline_`` attribute.
+
+    Parameters
+    ----------
+    pipelines
+        A list of tuples with the name of the pipeline and the pipeline instance.
+        The pipeline that has the cohort in its recommended cohorts will be used.
+        If multiple pipelines are recommended for the same cohort an ValueError will be raised.
+        If no pipeline is found, a ValueError will be raised.
+        By default, the :class:`MobilisedPipelineHealthy` and :class:`MobilisedPipelineImpaired` are used.
+
+    Attributes
+    ----------
+    pipeline_
+        The pipeline that was used for the provided data with all its results.
+    pipeline_name_
+        The name of the pipeline that was used.
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    """
+
+    _composite_params = ("pipelines",)
+
+    pipelines: list[tuple[str, BaseMobilisedPipeline[BaseGaitDatasetT]]]
+
+    datapoint: BaseGaitDatasetT
+
+    pipeline_: BaseMobilisedPipeline[BaseGaitDatasetT]
+    pipeline_name_: str
+
+    def __init__(
+        self,
+        pipelines: list[tuple[str, BaseMobilisedPipeline[BaseGaitDatasetT]]] = cf(
+            [("healthy", MobilisedPipelineHealthy()), ("impaired", MobilisedPipelineImpaired())]
+        ),
+    ) -> None:
+        self.pipelines = pipelines
+
+    @mobilsed_pipeline_docfiller
+    def run(self, datapoint: BaseGaitDatasetT) -> Self:
+        """%(run_short)s.
+
+        Parameters
+        ----------
+        %(run_para)s
+
+        %(run_return)s
+        """
+        self.datapoint = datapoint
+        # Check if there is overlap in the recommended cohorts
+        # We want to find the first pair that has overlaps
+        for p1, p2 in combinations(self.pipelines, 2):
+            if p1[1].recommended_cohorts and p2[1].recommended_cohorts:
+                union = set(p1[1].recommended_cohorts) & set(p2[1].recommended_cohorts)
+                if union:
+                    raise ValueError(
+                        f"The provided pipelines with the names {p1[0]} and {p2[0]} have an overlap in the recommended "
+                        f"cohorts: {union}"
+                    )
+
+        cohort = datapoint.participant_metadata["cohort"]
+        for name, pipeline in self.pipelines:
+            if pipeline.recommended_cohorts and cohort in pipeline.recommended_cohorts:
+                self.pipeline_ = pipeline.clone().run(datapoint)
+                self.pipeline_name_ = name
+                return self
+        raise ValueError(
+            f"Could not determine the correct pipeline for the cohort {cohort}. "
+            "Check the ``RECOMMENDED_COHORTS`` attribute of the pipelines."
         )

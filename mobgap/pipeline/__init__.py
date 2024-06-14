@@ -8,6 +8,7 @@ from mobgap.pipeline._gs_iterator import (
 )
 from mobgap.pipeline._mobilised_pipeline import (
     BaseMobilisedPipeline,
+    MobilisedMetaPipeline,
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
 )
@@ -20,4 +21,5 @@ __all__ = [
     "BaseMobilisedPipeline",
     "MobilisedPipelineHealthy",
     "MobilisedPipelineImpaired",
+    "MobilisedMetaPipeline",
 ]
