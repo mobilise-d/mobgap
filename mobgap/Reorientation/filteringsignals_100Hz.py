@@ -1,13 +1,14 @@
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+from typing import Literal
 
 from mobgap.data_transform import (
     ButterworthFilter,
     chain_transformers,
 )
 
-def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: float, sampling_rate: float, normalizing=None) -> np.ndarray:
+
+def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: float,
+                            sampling_rate: float, normalizing=None) -> np.ndarray:
     """
     Filtering the input signal with a high or low pass butterworth filter
 
@@ -20,6 +21,8 @@ def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: 
         Can be 'high' or 'low'
     freq : float
         The cutoff frequency of the filter
+    sampling_rate : float
+        The sampling rate of the signal
     normalizing : str
         A string specifying the type of normalizing to use
         Can be 'mean' or 'mean_std'
@@ -34,18 +37,15 @@ def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: 
     if len(input_altitude) == 0:
         return np.array([])
 
-    filtered_altitude = np.zeros(input_altitude.shape)
-
     if normalizing is None:
         unfiltered_altitude = input_altitude
-    #elif normalizing == 'mean_std':
-        #unfiltered_altitude = normalized(input_altitude, 'mean_std')
+    # elif normalizing == 'mean_std':
+        # unfiltered_altitude = normalized(input_altitude, 'mean_std')
     elif normalizing == 'mean':
         unfiltered_altitude = input_altitude - np.mean(input_altitude)
     else:
         return np.array([])
         print('Invalid normalizing type')
-
 
     if filter_type == 'high':
         filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type, sampling_rate)
@@ -57,9 +57,7 @@ def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: 
         return np.array([])
         print('Invalid filter type')
 
-
     return filtered_altitude
-
 
 
 def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str, sampling_rate: float) -> np.ndarray:
@@ -74,6 +72,8 @@ def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str,
     filter_type : str
         A string specifying the type of filter to use
         Can be 'high' or 'low'
+    sampling_rate : float
+        The sampling rate of the signal
 
     Returns
     -------
@@ -82,11 +82,10 @@ def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str,
 
     """
     order = 10
-    fs = sampling_rate
-    btype = 'highpass' if filter_type == 'high' else 'lowpass'
+    btype: Literal["lowpass", "highpass"] = 'highpass' if filter_type == 'high' else 'lowpass'
 
-    filter = [("butterworth", ButterworthFilter(order=order, cutoff_freq_hz=freq, filter_type=btype, zero_phase=True))]
-    final = chain_transformers(unfiltered_altitude, filter, sampling_rate_hz=sampling_rate)
-
+    filter_chain = [("butterworth", ButterworthFilter(order=order, cutoff_freq_hz=freq,
+                                                      filter_type=btype, zero_phase=True))]
+    final = chain_transformers(unfiltered_altitude, filter_chain, sampling_rate_hz=sampling_rate)
 
     return final

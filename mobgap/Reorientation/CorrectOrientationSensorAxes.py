@@ -10,7 +10,8 @@ from mobgap.data_transform import (
     chain_transformers,
 )
 
-def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
+
+def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
 
     Updates the orientation of the IMU data based on the orientation of the sensor.
@@ -31,45 +32,46 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
     Notes
     -----
     Deviations from the MATLAB implementation:
-    - th constant was ammended to 0.65 * 9.81 to convert it to m/s^2 from g-units
-    - Simple rotation applied in areas of the signal without a walking bout has been moved out od the loop.
-    Now it is applied to the whole signal even if walking bouts are less than 2.
-
+    - th constant was amended to 0.65 * 9.81 to convert it to m/s^2 from g-units
+    - Within the loop MATLAB calculated the 'start' and 'end' samples by multiplying with fs.
+    This is not necessary, since 'start' and 'end' are already in samples.
+    - Simple rotation applied in areas of the signal without a walking bout would only occur if more than
+    2 walking bouts were present. Now this is applied to the whole signal even if walking bouts are less than 2.
     """
 
-    Acc = data.iloc[:, 0:3]
-    Gyr = data.iloc[:, 3:6]
-
+    acc = data.iloc[:, 0:3]
 
     corIMUdata = data
     corIMUdataSequence = pd.DataFrame(columns=['Start', 'End'])
-    gs = []
 
-    th = 0.65 * scipy.constants.g # threshold to test alignment of av with gravity. In matlab it was 0.65 and used with g-units.
-                                  # in this implementation it is 0.65 * 9.81 to convert it to m/s^2
-    N_sgfilt = 9041 # parameter Savitzky - Golay smoothing filter
+    # Threshold to test alignment of av with gravity.
+    # In matlab it was 0.65 and used with g-units.
+    # In the present implementation it is converted to m/s^2
+    th = 0.65 * scipy.constants.g
 
-    Accx = Acc.iloc[:, 0].values
+    # parameter for smoothing filter
+    n_sgfilt = 9041
+    accx = acc.iloc[:, 0].values
 
-    if N_sgfilt < len(Accx): #condition to support the minimal signal length required for the filter parameter
-                             #low pass filtering of vertical acc (supposed to be recorded on right channel/IMU data matrix)
+    # Condition to support the minimal signal length required for the filter parameter
+    # low pass filtering of vertical acc
+    if n_sgfilt < len(accx):
+        av_filt = filtering_signals_100hz(acc.iloc[:, 0], 'low', 0.1, sampling_rate=sampling_rate_hz)
 
-        av_filt = filtering_signals_100hz(Acc.iloc[:, 0], 'low', 0.1, sampling_rate=sampling_rate_hz)
-
-        savgol_win_size_samples = N_sgfilt
+        savgol_win_size_samples = n_sgfilt
 
         savgol = SavgolFilter(
             window_length_s=savgol_win_size_samples / sampling_rate_hz,
             polyorder_rel=1 / savgol_win_size_samples,
         )
 
-        filter = [("savgol", savgol)]
+        filter_chain = [("savgol", savgol)]
 
-        av_filt1 = chain_transformers(av_filt, filter, sampling_rate_hz=sampling_rate_hz)
+        av_filt1 = chain_transformers(av_filt, filter_chain, sampling_rate_hz=sampling_rate_hz)
 
-        gs = GsdIluz().detect(Acc, sampling_rate_hz=sampling_rate_hz).gs_list_
+        gs = GsdIluz().detect(acc, sampling_rate_hz=sampling_rate_hz).gs_list_
 
-        gsLabel = np.zeros(len(Acc.iloc[:, 0]))
+        gsLabel = np.zeros(len(acc.iloc[:, 0]))
         n = max(gs.shape)
         k = 0
 
@@ -84,15 +86,14 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                 l1 = gs.loc[i, 'start']
                 l2 = gs.loc[i, 'end']
 
-                gsLabel[l1 : l2] = 1
+                gsLabel[l1:l2] = 1
 
-                avm = np.mean(av_filt1[l1 : l2])
-                test = 1
+                avm = np.mean(av_filt1[l1:l2])
 
                 if avm >= th:
-                    corIMUdata.iloc[l1:l2, 0:3] = Acc.iloc[l1:l2, :]
+                    corIMUdata.iloc[l1:l2, 0:3] = acc.iloc[l1:l2, :]
                 elif avm <= -th:
-                    corIMUdata.iloc[l1:l2, 0] = -Acc.iloc[l1:l2, 0]
+                    corIMUdata.iloc[l1:l2, 0] = -acc.iloc[l1:l2, 0]
                     corIMUdataSequence.loc[k, ['Start', 'End']] = [gs.loc[i, 'start'], gs.loc[i, 'end']]
                     k = k + 1
                 else:
@@ -106,11 +107,11 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
         for i in range(len(ind_noGS[:, 0])):
             l1 = ind_noGS[i, 0]
             l2 = ind_noGS[i, 1]
-            avm = np.mean(av_filt1[l1 : l2])
+            avm = np.mean(av_filt1[l1:l2])
 
             if avm >= th:
-                corIMUdata.iloc[l1:l2, 0:3] = Acc.iloc[l1:l2, :]
+                corIMUdata.iloc[l1:l2, 0:3] = acc.iloc[l1:l2, :]
             elif avm <= -th:
-                corIMUdata.iloc[l1:l2, 0] = -Acc.iloc[l1:l2, 0]
+                corIMUdata.iloc[l1:l2, 0] = -acc.iloc[l1:l2, 0]
 
     return corIMUdata, corIMUdataSequence
