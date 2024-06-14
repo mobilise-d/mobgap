@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Pipelines to run the P1 and P2 Mobilise-D pipelines (https://github.com/mobilise-d/mobgap/pull/145)
 - A "naive" walking speed calculation method that just multiplies the cadence with the step length.
   (https://github.com/mobilise-d/mobgap/pull/148)
 - The Zjilstra Stride/Step length algorithm (https://github.com/mobilise-d/mobgap/pull/142)
@@ -48,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Many algorithms are now more robust to short data and correctly return empty results if the data is too short instead
+  of erroring out.
+  (https://github.com/mobilise-d/mobgap/pull/145)
 - The Gait Sequence iterator does not allow for dynamic attribute access anymore.
   Only the use of the ``results_`` object is allowed.
   (https://github.com/mobilise-d/mobgap/pull/135)
@@ -90,6 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The ``GsIterator`` does not throw an error anymore, if the GS list was empty.
   (https://github.com/mobilise-d/mobgap/pull/135)
 - The reference parameters for turns loaded from Matlab files now have the correct units.
+- GSDIonescu was incorrectly handling the end sample of the GS. This could lead to GS that end outside the data.
+  (https://github.com/mobilise-d/mobgap/pull/145)
 
 ### Removed
 
