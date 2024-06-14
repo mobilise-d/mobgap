@@ -242,8 +242,6 @@ class SlZijlstra(BaseSlCalculator):
                 self.orientation_method.clone().estimate(data, sampling_rate_hz=sampling_rate_hz).rotated_data_
             )
             vacc = rotated_data[["acc_x"]]  # consider acceleration
-        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, order: 4
-        vacc_filtered = self.acc_smoothing.clone().filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
 
         duration = data.shape[0] / sampling_rate_hz
         sec_centers = np.arange(0, duration) + 0.5
@@ -251,11 +249,18 @@ class SlZijlstra(BaseSlCalculator):
         if len(ic_list) <= 1:
             # We can not calculate step length with only one initial contact
             warnings.warn("Can not calculate step length with only one or zero initial contacts.", stacklevel=1)
-            stride_length_per_sec = np.full(len(sec_centers), np.nan)
-            raw_step_length = np.full(np.clip(len(ic_list) - 1, 0, None), np.nan)
-            step_length_per_sec = np.full(len(sec_centers), np.nan)
-            self._unify_and_set_outputs(raw_step_length, step_length_per_sec, stride_length_per_sec, sec_centers)
+            self.set_all_nan(sec_centers, ic_list)
             return self
+
+        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, order: 4
+        try:
+            vacc_filtered = self.acc_smoothing.clone().filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
+        except ValueError as e:
+            if "padlen" in str(e):
+                warnings.warn("Data is too short for the filter. Returning empty stride length results.", stacklevel=1)
+                self.set_all_nan(sec_centers, ic_list)
+                return self
+            raise e from None
 
         # 3. Integration of vertical acceleration --> vertical speed
         # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, order: 4
@@ -321,6 +326,12 @@ class SlZijlstra(BaseSlCalculator):
             * np.sqrt(np.abs((2 * self.sensor_height_m * height_change_per_step) - (height_change_per_step**2)))
         )
         return step_length
+
+    def set_all_nan(self, sec_centers: np.ndarray, ic_list: np.ndarray) -> None:
+        stride_length_per_sec = np.full(len(sec_centers), np.nan)
+        raw_step_length = np.full(np.clip(len(ic_list) - 1, 0, None), np.nan)
+        step_length_per_sec = np.full(len(sec_centers), np.nan)
+        self._unify_and_set_outputs(raw_step_length, step_length_per_sec, stride_length_per_sec, sec_centers)
 
     def _unify_and_set_outputs(
         self,
