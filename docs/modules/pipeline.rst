@@ -17,6 +17,7 @@ Full Pipelines
     BaseMobilisedPipeline
     MobilisedPipelineHealthy
     MobilisedPipelineImpaired
+    MobilisedMetaPipeline
 
 
 Evaluation
