@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-from scipy.signal import savgol_filter, correlate
+from scipy.signal import correlate
 from sklearn.decomposition import PCA
-from numpy.linalg import norm
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from mobgap.Reorientation.utils import acceleration
 from mobgap.data_transform import (
@@ -10,9 +9,10 @@ from mobgap.data_transform import (
     chain_transformers,
 )
 
-def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
 
-    '''
+def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
+
+    """
     Corrects the orientation of the IMU data based on the orientation of the sensor.
 
     Parameters
@@ -30,28 +30,26 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     Notes
     -----
     Points of deviation from the MATLAB implementation:
-    - The Madgwick filter is applied to the entire data array at once, as opposed to row by row in the original implementation.
-    - The signal is allready sliced before calling the present function (CorrectSensorOrientationDynamic). Thus, this script has been simplified
-    - All parameters are expressed in the units used in gaitlink, as opposed to matlab.
-      Specifically, we use m/s^2 instead of g.
+    - The Madgwick filter is applied to the entire data array (walking bout) at once, as opposed to row by row in the
+    original implementation.
+    - The signal is already sliced before calling the present function (CorrectSensorOrientationDynamic).
+    Thus, this script has been simplified by removing a loop and a variable which were not needed.
+    - In MATLAB quaternions are represented as xyzw but python requires wxyz. Thus, the quaternions are adjusted.
+    - Parameters are expressed in the units used in mobgap,specifically, we use m/s^2 instead of g.
+    """
 
-    '''
-
-    Acc = data.iloc[:, 0:3]
-    Gyr = data.iloc[:, 3:6]
+    acc = data.iloc[:, 0:3]
+    gyr = data.iloc[:, 3:6]
 
     # Madwick is called with the initial orientation specified inside the Matlab Madgwick function used in the Matlab
-    # implementation (UpdateIMUslt2). This choise was made since the first "initial orientation" specified in the Matlab implementation
-    # is overwriten in the UpdateIMUslt2 function which was used in Mobilise-D.
-    # Note that in MATLAB quaternions are represented as xyzw but Madgwick in gaitmap requires wxyz.
-    mad = MadgwickAHRS(beta=0.1, initial_orientation=np.array([-0.0863212587840360, -0.639984676042049, 0, 0.763523578361070]))
+    # implementation (UpdateIMUslt2). This choice was made since the first "initial orientation"
+    # specified in the Matlab implementation is overwritten in the UpdateIMUslt2 function.
+    
+    mad = MadgwickAHRS(beta=0.1, initial_orientation=np.array([-0.0863212587840360, -0.639984676042049, 
+                                                               0, 0.763523578361070]))
 
-    chosenacc = Acc.copy()
-    chosengyr = Gyr.copy()
-
-    # Not sure why the Matlab implementation calculates "mytime", since the length is used for the loop it would not make any difference
-    mytime = np.arange(len(chosenacc)) / sampling_rate_hz
-    quaternion = np.zeros((len(mytime), 4))
+    chosenacc = acc.copy()
+    chosengyr = gyr.copy()
 
     # applying the madgwick algo to the entire data array
     data = pd.concat((chosenacc, chosengyr), axis=1)
@@ -59,43 +57,41 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
     quaternion = mad.orientation_.iloc[1:, :]
     quaternion = quaternion.to_numpy()
 
-    # Adjust quaternion as from x, y, z, w to w, x, y, z
+    # Adjust quaternion from x, y, z, w to w, x, y, z
     quaternion = quaternion[:, [3, 0, 1, 2]]
 
     av = acceleration(data, quaternion)
 
-    #Principal component analysis
+    # Principal component analysis
     pca_acc = PCA()
     pca_acc.fit(chosenacc)
-    pcaCoef = pca_acc.components_
-    newAcc = chosenacc.values @ pcaCoef.T
+    pca_coef = pca_acc.components_
+    newacc = chosenacc.values @ pca_coef.T
 
     pca_gyr = PCA()
     pca_gyr.fit(chosengyr)
-    pcaCoefGyr = pca_gyr.components_
-    newGyr = chosengyr.values @ pcaCoefGyr.T
+    pca_coef_gyr = pca_gyr.components_
+    newgyr = chosengyr.values @ pca_coef_gyr.T
 
-    if np.mean(newAcc[:, 0]) < 0:
-        newAcc[:, 0] = -newAcc[:, 0]
+    if np.mean(newacc[:, 0]) < 0:
+        newacc[:, 0] = -newacc[:, 0]
 
     # av_magpca
     av_magpca = av.copy()
-    av_magpca[:, 0] = newAcc[:, 0]
+    av_magpca[:, 0] = newacc[:, 0]
 
     # gyr_magpca
     gyr_magpca = chosengyr.to_numpy().copy()
-    gyr_magpca[:, 0] = newGyr[:, 0]        # Yaw
+    gyr_magpca[:, 0] = newgyr[:, 0]        # Yaw
 
     # Standardization
     sig1 = (av[:, 2] - np.mean(av[:, 2])) / np.std(av[:, 2])
-    sig2 = (newAcc[:, 1] - np.mean(newAcc[:, 1])) / np.std(newAcc[:, 1])
-    sig3 = (newAcc[:, 2] - np.mean(newAcc[:, 2])) / np.std(newAcc[:, 2])
+    sig2 = (newacc[:, 1] - np.mean(newacc[:, 1])) / np.std(newacc[:, 1])
+    sig3 = (newacc[:, 2] - np.mean(newacc[:, 2])) / np.std(newacc[:, 2])
     sig4 = (av[:, 1] - np.mean(av[:, 1])) / np.std(av[:, 1])
 
-    # Assigning av_pca
+    # Assigning av_pca and gyr_pca
     av_pca = av_magpca.copy()
-
-    # Assigning gyr_pca
     gyr_pca = gyr_magpca.copy()
 
     # Calculating correlations
@@ -104,32 +100,32 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
 
     if abs(cor1) > abs(cor2):
         if cor1 > 0:
-            av_pca[:, 2] = newAcc[:, 1]  # AP
-            gyr_pca[:, 2] = newGyr[:, 1]
+            av_pca[:, 2] = newacc[:, 1]  # AP
+            gyr_pca[:, 2] = newgyr[:, 1]
         else:
-            av_pca[:, 2] = -newAcc[:, 1]  # AP
-            gyr_pca[:, 2] = newGyr[:, 1]
+            av_pca[:, 2] = -newacc[:, 1]  # AP
+            gyr_pca[:, 2] = newgyr[:, 1]
 
         if np.dot(sig3.T, sig4) > 0:
-            av_pca[:, 1] = newAcc[:, 2]  # ML
-            gyr_pca[:, 1] = newGyr[:, 2]
+            av_pca[:, 1] = newacc[:, 2]  # ML
+            gyr_pca[:, 1] = newgyr[:, 2]
         else:
-            av_pca[:, 1] = -newAcc[:, 2]  # ML
-            gyr_pca[:, 1] = newGyr[:, 2]
+            av_pca[:, 1] = -newacc[:, 2]  # ML
+            gyr_pca[:, 1] = newgyr[:, 2]
     else:
         if cor2 > 0:
-            av_pca[:, 2] = newAcc[:, 2]  # AP
-            gyr_pca[:, 2] = newGyr[:, 2]
+            av_pca[:, 2] = newacc[:, 2]  # AP
+            gyr_pca[:, 2] = newgyr[:, 2]
         else:
-            av_pca[:, 2] = -newAcc[:, 2]  # AP
-            gyr_pca[:, 2] = newGyr[:, 2]
+            av_pca[:, 2] = -newacc[:, 2]  # AP
+            gyr_pca[:, 2] = newgyr[:, 2]
 
         if np.dot(sig2.T, sig4) > 0:
-            av_pca[:, 1] = newAcc[:, 1]  # ML
-            gyr_pca[:, 1] = newGyr[:, 1]
+            av_pca[:, 1] = newacc[:, 1]  # ML
+            gyr_pca[:, 1] = newgyr[:, 1]
         else:
-            av_pca[:, 1] = -newAcc[:, 1]  # ML
-            gyr_pca[:, 1] = newGyr[:, 1]
+            av_pca[:, 1] = -newacc[:, 1]  # ML
+            gyr_pca[:, 1] = newgyr[:, 1]
 
     # Refinement to provide the IMU axes as standard data matrix
     av_pca_final = av_pca.copy()
@@ -144,11 +140,11 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
         polyorder_rel=0 / savgol_win_size_samples,
     )
 
-    filter = [("savgol", savgol)]
+    filter_chain = [("savgol", savgol)]
 
-    av_pca_filt[:, 2] = chain_transformers(av_pca[:, 2], filter, sampling_rate_hz=sampling_rate_hz)
-    av_pca_filt[:, 1] = chain_transformers(av_pca[:, 1], filter, sampling_rate_hz=sampling_rate_hz)
-    av_pca_filt[:, 0] = chain_transformers(av_pca[:, 0], filter, sampling_rate_hz=sampling_rate_hz)
+    av_pca_filt[:, 2] = chain_transformers(av_pca[:, 2], filter_chain, sampling_rate_hz=sampling_rate_hz)
+    av_pca_filt[:, 1] = chain_transformers(av_pca[:, 1], filter_chain, sampling_rate_hz=sampling_rate_hz)
+    av_pca_filt[:, 0] = chain_transformers(av_pca[:, 0], filter_chain, sampling_rate_hz=sampling_rate_hz)
 
     # Standardization
     sig5 = (av_pca_filt[:, 2] - np.mean(av_pca_filt[:, 2])) / np.std(av_pca_filt[:, 2])
@@ -174,4 +170,6 @@ def CorrectSensorOrientationDynamic (data: pd.DataFrame, sampling_rate_hz: float
         gyr_pca_final[:, 1] = gyr_pca[:, 2]
 
     IMU_corrected = np.concatenate((av_pca_final, gyr_pca_final), axis=1)
+    IMU_corrected = pd.DataFrame(IMU_corrected)
+
     return IMU_corrected
