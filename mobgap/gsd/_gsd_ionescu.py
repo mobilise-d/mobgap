@@ -12,7 +12,9 @@ from mobgap._docutils import make_filldoc
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
+    EpflGaitFilter,
     GaussianFilter,
+    Pad,
     Resample,
     SavgolFilter,
     chain_transformers,
@@ -233,9 +235,18 @@ class GsdIonescu(_BaseGsdIonescu):
             polyorder_rel=1 / savgol_win_size_samples,
         )
 
+        # We need to initialize the filter once to get the number of coefficients to calculate the padding.
+        # This is not ideal, but works for now.
+        n_coefficients = len(EpflGaitFilter().coefficients[0])
+
+        # Padding to cope with short data
+        len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        padding = Pad(pad_len_s=len_pad_s, mode="wrap")
+
         active_peak_threshold = self.active_signal_threshold
         fallback_filter_chain = [
             ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding", padding),
             (
                 "savgol_1",
                 savgol.clone(),
@@ -246,6 +257,7 @@ class GsdIonescu(_BaseGsdIonescu):
                 "savol_2",
                 savgol.clone(),
             ),
+            ("padding_remove", padding.get_inverse_transformer()),
         ]
         signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
         self.filtered_signal_ = signal
@@ -375,10 +387,19 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
             polyorder_rel=5 / savgol_2_win_size_samples,
         )
 
+        # We need to initialize the filter once to get the number of coefficients to calculate the padding.
+        # This is not ideal, but works for now.
+        n_coefficients = len(EpflGaitFilter().coefficients[0])
+
+        # Padding to cope with short data
+        len_pad_s = 4 * n_coefficients / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        padding = Pad(pad_len_s=len_pad_s, mode="wrap")
+
         # Now we build everything together into one filter chain.
         filter_chain = [
             # Resample to 40Hz to process with filters
             ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding", padding),
             ("savgol_1", savgol_1),
             ("epfl_gait_filter", EpflDedriftedGaitFilter()),
             ("cwt_1", cwt),
@@ -388,6 +409,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
             ("gaussian_2", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_3", GaussianFilter(sigma_s=3 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
             ("gaussian_4", GaussianFilter(sigma_s=2 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+            ("padding_remove", padding.get_inverse_transformer()),
         ]
 
         acc_filtered = chain_transformers(acc_norm, filter_chain, sampling_rate_hz=sampling_rate_hz)
@@ -408,6 +430,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
             active_peak_threshold = self.active_signal_fallback_threshold
             fallback_filter_chain = [
                 ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
+                ("padding", padding),
                 (
                     "savgol_1",
                     savgol_1,
@@ -418,6 +441,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
                     "savol_2",
                     savgol_2,
                 ),
+                ("padding_remove", padding.get_inverse_transformer()),
             ]
             signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
 
