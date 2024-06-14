@@ -145,7 +145,7 @@ gs_matches["cadence_spm"]
 # for each WB and DMO.
 # This can be done using the generic the :func:`~mobgap.utils.df_operations.apply_transformations` helper that allows
 # us to apply any list of transformation functions (transformation function -> WB in Series with same length out).
-# It further allows us to declaratively define which transformation/error should be applied 
+# It further allows us to declaratively define which transformation/error should be applied
 # to which columns (i.e. which DMOs).
 #
 # A simple definition of error metrics would look like this:
