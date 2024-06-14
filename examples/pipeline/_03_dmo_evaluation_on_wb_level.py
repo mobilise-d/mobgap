@@ -1,14 +1,14 @@
 r"""
 .. _gsd_evaluation_parameter:
 
-Evaluation of final walking bout (WB) level DMOs
+Evaluation of final walking bout level DMOs
 ================================================
 
-This example shows how to evaluate the performance of parameters on a WB level by comparing against a reference.
+This example shows how to evaluate the performance of parameters on a walking bout (WB) level by comparing against a reference.
 On this level, we usually need to deal with the issue that the WB identified by the algorithm pipeline might not match
 the reference WBs.
 This makes comparing the parameters within them difficult.
-In general, two approaches can be taken here:
+In general, two approaches can be taken here [1]:
 
 1. First aggregate the WB-level parameters of both systems to a common level (e.g. per trial, per day, per hour, ...)
    and then compare the aggregated values.
@@ -17,6 +17,10 @@ In general, two approaches can be taken here:
 In the following example we will show both approaches.
 
 But first some general setup.
+
+[1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al.
+Mobilise-D insights to estimate real-world walking speed in multiple conditions with a wearable device.
+Sci Rep 14, 1754 (2024). https://doi.org/10.1038/s41598-024-51766-5
 """
 
 # %%
