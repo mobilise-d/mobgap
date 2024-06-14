@@ -18,9 +18,9 @@ In the following example we will show both approaches.
 
 But first some general setup.
 
-[1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al.
-Mobilise-D insights to estimate real-world walking speed in multiple conditions with a wearable device.
-Sci Rep 14, 1754 (2024). https://doi.org/10.1038/s41598-024-51766-5
+[1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in multiple
+conditions with a wearable device. Sci Rep 14, 1754 (2024).
+https://doi.org/10.1038/s41598-024-51766-5
 """
 
 # %%
@@ -61,7 +61,53 @@ reference_dmo
 # %%
 # Approach 1: Aggregate then compare
 # ----------------------------------
-# TODO: See issue #152
+# First, we combine the detected and reference data,
+# which can easily be done as both dataframes have the same index levels.
+# To sustain the information about the origin of the data, we add a column level assigning `"detected"`
+# and `"reference"` to the respective dmos.
+# Furthermore, we rearrange the columns to have the DMO metrics as the first level of the column index.
+combined_dmos = (
+    pd.concat(
+        [detected_dmo, reference_dmo], keys=["detected", "reference"], axis=1
+    )
+    .reorder_levels((1, 0), axis=1)
+    .sort_index(axis=1)
+)
+combined_dmos
+
+# %%
+# This provides us with a dataframe containing the detected and reference values for all detected and reference WBs.
+# Some entries are NaN, as the number of WBs in the detected and reference data might differ.
+# The single rows in this dataframe should not be compared directly,
+# as the same WB ids from a detected and a reference WB might not actually belong to the same WB.
+# Therefore, we need to aggregate the DMO data based on an index level of choice, e.g., per day, to retrieve meaningful
+# and interpretable results. This can be done by grouping the data and averaging over the groups.
+#
+# .. note:: In case of missing data, applying `dropna()` to the resulting dataframe might be helpful to remove all
+#           groups were either detected or reference data is missing.
+daily_matches = (
+    combined_dmos.groupby(
+        level=["visit_type", "participant_id", "measurement_date"], axis=0
+    )
+    .mean()
+    .dropna()
+)
+daily_matches.T
+
+# %%
+# The resulting dataframe contains the average detected and reference values for each DMO
+# per visit type, participant, and day.
+# This in conveniently provided as a multiindex column, so that selecting a single DMO, yields a DataFrame with the
+# detected and reference values.
+daily_matches["cadence_spm"]
+
+# %%
+# In our example data, we only have data from a single day, so the aggregated result only has one row.
+# Normally, you would have multiple rows, one for each group of WBs.
+# From here on, further processing to retrieve the aggregated error metrics is identical to the further processing when
+# following approach 2, and is shown below.
+#
+# But let's first show how to calculate the error metrics on a WB-by-WB basis.
 
 # %%
 # Approach 2: Match then compare
@@ -135,18 +181,21 @@ wb_matches.T
 
 # %%
 # The returned dataframe contains the detected and reference values for all DMOs of the matched WBs.
-# This in conveninetly provided as a multindex column, so that selecting a single DMO, yields a DataFrame with the
+# This in conveniently provided as a multiindex column, so that selecting a single DMO, yields a DataFrame with the
 # detected and reference values.
 wb_matches["cadence_spm"]
 
 # %%
-# These WBs can then be compared to calculate error metrics.
+# From here on, the aggregated DMOs (when following approach 1) or matched WBs (when following approach 2)
+# can be compared with the same methods to calculate error metrics. For the sake of simplicity, we will show the
+# calculation of error metrics for the matched WBs `wb_matches` (approach 2) here.
+# However, the input can also simply be replaced by the aggregated DMO dataframe ``
 #
 # Estimate Errors in DMO data
-# +++++++++++++++++++++++++++
-# The DMO data can now be compared WB by WB.
+# ---------------------------
+# The DMO data can now be compared day by day (approach 1) or WB by WB (approach 2).
 # We want to calculate general error metrics like the error, absolute error, relative error, and absolute relative error
-# for each WB and DMO.
+# for each day (WB) and DMO.
 # This can be done using the generic the :func:`~mobgap.utils.df_operations.apply_transformations` helper that allows
 # us to apply any list of transformation functions (transformation function -> WB in Series with same length out).
 # It further allows us to declaratively define which transformation/error should be applied
@@ -270,7 +319,8 @@ wb_matches_with_errors.T
 # %%
 # Aggregate Results
 # -----------------
-# Finally, the estimated DMO measures and their errors can be aggregated over all WBs.
+# Finally, the estimated DMO measures and their errors can be aggregated over all WBs (approach 2)
+# or all days (approach 1).
 # For this purpose, different aggregation functions can be applied to the error metrics, ranging from simple, built-in
 # aggregations like the mean or standard deviation to more complex functions like the limits of agreement or
 # 5th and 95th percentiles.
