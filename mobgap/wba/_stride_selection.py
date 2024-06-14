@@ -147,7 +147,7 @@ class StrideSelection(Algorithm):
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
 
-        if self.rules is None:
+        if self.rules is None or len(self.rules) == 0 or stride_list.empty:
             self._exclusion_reasons = pd.DataFrame(columns=["rule_name", "rule_obj"]).reindex(stride_list.index)
             return self
 

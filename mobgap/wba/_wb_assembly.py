@@ -143,7 +143,7 @@ class WbAssembly(Algorithm):
     @property
     def wb_meta_parameters_(self) -> pd.DataFrame:
         if len(self.annotated_stride_list_) == 0:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["start", "end", "n_strides", "duration_s"], index=pd.Index([], name="wb_id"))
 
         n_strides = self.annotated_stride_list_.groupby("wb_id").size().rename("n_strides")
         parameters = self.termination_reasons_.loc[n_strides.index]

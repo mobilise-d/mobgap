@@ -19,7 +19,7 @@ from mobgap.gsd.base import BaseGsDetector
 from mobgap.icd import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
 from mobgap.icd.base import BaseIcDetector
 from mobgap.lrc import LrcUllrich, strides_list_from_ic_lr_list
-from mobgap.lrc.base import BaseLRClassifier
+from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
@@ -270,7 +270,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
     stride_selection_: StrideSelection
     wba_: WbAssembly
-    dmo_aggregation_: BaseAggregator
+    dmo_aggregation_: Optional[BaseAggregator]
 
     # Intermediate results
     gs_list_: pd.DataFrame
@@ -390,16 +390,35 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
             axis=1,
         )
 
-        if len(self.raw_per_sec_parameters_) > 0:
-            self.raw_per_sec_parameters_ = self.raw_per_sec_parameters_.reset_index(
-                "r_gs_id",
-                drop=True,
+        if self.raw_per_sec_parameters_.empty:
+            expected_results = [
+                calc
+                for calc, available in [
+                    ("cadence_per_sec", self.cadence_calculation),
+                    ("stride_length_per_sec", self.stride_length_calculation),
+                    ("walking_speed_per_sec", self.walking_speed_calculation),
+                ]
+                if available
+            ]
+            index_names = ["gs_id", "r_gs_id", "sec_center_samples"]
+            self.raw_per_sec_parameters_ = pd.DataFrame(columns=[*expected_results, *index_names]).set_index(
+                index_names
             )
 
-        self.raw_ic_list_ = results.ic_list
+        self.raw_per_sec_parameters_ = self.raw_per_sec_parameters_.reset_index(
+            "r_gs_id",
+            drop=True,
+        )
+
+        if (ic_list := results.ic_list).empty:
+            index_names = ["gs_id", "step_id"]
+            ic_list = _unify_ic_lr_list_df(
+                pd.DataFrame(columns=["ic", "lr_label", *index_names]).set_index(index_names)
+            )
+        self.raw_ic_list_ = ic_list
         self.raw_turn_list_ = results.turn_list
         self.raw_per_stride_parameters_ = self._sec_to_stride(
-            self.raw_per_sec_parameters_, results.ic_list, sampling_rate_hz
+            self.raw_per_sec_parameters_, self.raw_ic_list_, sampling_rate_hz
         )
 
         flat_index = pd.Index(
@@ -502,11 +521,14 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     def _sec_to_stride(
         self, sec_level_paras: pd.DataFrame, lr_ic_list: pd.DataFrame, sampling_rate_hz: float
     ) -> pd.DataFrame:
-        stride_list = (
-            lr_ic_list.groupby("gs_id", group_keys=False)
-            .apply(strides_list_from_ic_lr_list)
-            .assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
-        )
+        if lr_ic_list.empty:
+            # We still call the function to get the correct index
+            # We need to do that in a separate step, as the groupby is not working with an empty dataframe
+            stride_list = strides_list_from_ic_lr_list(lr_ic_list)
+
+        else:
+            stride_list = lr_ic_list.groupby("gs_id", group_keys=False).apply(strides_list_from_ic_lr_list)
+        stride_list = stride_list.assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
 
         stride_list = create_multi_groupby(
             stride_list,
