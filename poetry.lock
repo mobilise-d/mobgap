@@ -2594,13 +2594,13 @@ files = [
 
 [[package]]
 name = "tpcp"
-version = "0.33.0"
+version = "0.33.1"
 description = "Pipeline and Dataset helpers for complex algorithm evaluation."
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "tpcp-0.33.0-py3-none-any.whl", hash = "sha256:85ecea7748c992cbdbecc97d67fc34c9e7268f9520c476139dbef54fe6f63c39"},
-    {file = "tpcp-0.33.0.tar.gz", hash = "sha256:e7908a9089a8121d5dd5ee0a537aaa6307e7090293643b1bedc8b32dbc9be528"},
+    {file = "tpcp-0.33.1-py3-none-any.whl", hash = "sha256:eb17c65210ffe1657086ef2af4381e430aedc3c0232f5bfa496f73d5fe2e84cf"},
+    {file = "tpcp-0.33.1.tar.gz", hash = "sha256:54d9d7c3bfe434a1031509f3fe42a5e46e973a3b4e0c985304c5e3fddd8a7625"},
 ]
 
 [package.dependencies]
