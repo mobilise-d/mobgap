@@ -1,3 +1,4 @@
+import warnings
 from typing import Any
 
 import numpy as np
@@ -12,6 +13,7 @@ from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.utils.array_handling import sliding_window_view
+from mobgap.utils.conversions import as_samples
 
 
 @base_gsd_docfiller
@@ -171,8 +173,19 @@ class GsdIluz(BaseGsDetector):
         relevant_columns = ["acc_x", "acc_z"]
         data = data[relevant_columns]
 
+        if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
+            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
+            return self
+
         # Filter the data
-        filtered_data = self.pre_filter.clone().filter(data, sampling_rate_hz=sampling_rate_hz).transformed_data_
+        try:
+            filtered_data = self.pre_filter.clone().filter(data, sampling_rate_hz=sampling_rate_hz).transformed_data_
+        except ValueError as e:
+            if "padlen" in str(e):
+                warnings.warn("Data is too short for the filter. Returning empty gait sequence list.", stacklevel=1)
+                self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
+                return self
+            raise e from None
 
         # Window data and define activity windows
         window_length_samples = round(self.window_length_s * sampling_rate_hz)
@@ -276,10 +289,7 @@ class GsdIluz(BaseGsDetector):
         # Merge overlapping windows
         gs_list = merge_intervals(gs_list)
 
-        gs_list = pd.DataFrame(gs_list, columns=["start", "end"])
-
-        # To make sure that the end is inclusive, we add 1 to the end index
-        gs_list["end"] += 1
+        gs_list = pd.DataFrame(gs_list, columns=["start", "end"]).clip(0, len(data))
 
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]

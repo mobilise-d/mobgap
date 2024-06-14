@@ -23,28 +23,28 @@
         {
             "index":0,
             "test_single_precision":[
-                0.532172471
+                0.5326249377
             ],
             "test_single_accuracy":[
-                0.7345665579
+                0.7349292709
             ]
         },
         {
             "index":1,
             "test_single_precision":[
-                0.628202765
+                0.6282761166
             ],
             "test_single_accuracy":[
-                0.8313546613
+                0.831292177
             ]
         },
         {
             "index":2,
             "test_single_precision":[
-                0.7336060335
+                0.7339473011
             ],
             "test_single_accuracy":[
-                0.8724835165
+                0.8726153846
             ]
         }
     ]
