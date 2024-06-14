@@ -145,8 +145,8 @@ gs_matches["cadence_spm"]
 # for each WB and DMO.
 # This can be done using the generic the :func:`~mobgap.utils.df_operations.apply_transformations` helper that allows
 # us to apply any list of transformation functions (transformation function -> WB in Series with same length out).
-# It further allows us to declaratively define which columns (i.e. which DMOs) which transformation/error should be
-# applied to.
+# It further allows us to declaratively define which transformation/error should be applied 
+# to which columns (i.e. which DMOs).
 #
 # A simple definition of error metrics would look like this:
 # As input, it receives the matching DMO data and a list of transformations that should be applied to the data.
@@ -188,7 +188,7 @@ custom_gs_errors.T
 #
 # 1. Use a usual error metric, but change some input parameters, and have the output under a new name.
 #    For this case, we just define a new function wrapping the old one.
-#    For example, when we want to suppress the warning that is raised when a zero division occurs in the relative error.
+#    For example, we might want to suppress the warning that is raised when a zero division occurs in the relative error.
 #    As we saw above, this warning is raised for the `n_turns` parameter.
 def rel_error_without_warning(x):
     return E.rel_error(x, zero_division_hint=np.nan)
@@ -198,7 +198,7 @@ def rel_error_without_warning(x):
 # 2. When we want to keep the same name for the function, we could just overwrite the old function. But,
 #    to avoid accidentally messing up other code, that uses the function, we can also use a lambda function and manually
 #    set the name of the function.
-#    So we supress the warning as above, but keep the function name for the aggregation.
+#    As a result, we supress the warning as above, but keep the function name for the aggregation.
 rel_error_as_lambda = lambda x: E.rel_error(x, zero_division_hint=np.nan)
 rel_error_as_lambda.__name__ = "rel_error"
 
@@ -207,7 +207,7 @@ rel_error_as_lambda.__name__ = "rel_error"
 # 3. We can also define a completely new error function.
 #    The Dataframe we get as input here, contains the columns `detected` and `reference` with the detected and reference
 #    values for the DMO of interest.
-#    For this example here, we will create a non-sensical ``scaled_error`` function that scales the error by a factor
+#    For this example here, we will create a nonsensical ``scaled_error`` function that scales the error by a factor
 #    of 2.
 #
 # .. note::
