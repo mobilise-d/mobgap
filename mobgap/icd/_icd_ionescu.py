@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from pywt import cwt
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
@@ -118,7 +118,7 @@ class IcdIonescu(BaseIcDetector):
         # Remove the padding
         acc_v_40_bpf_rmzp = acc_v_40_bpf[len_pad - 1 : -len_pad]
         # 3. CUMULATIVE INTEGRAL
-        acc_v_lp_int = cumtrapz(acc_v_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        acc_v_lp_int = cumulative_trapezoid(acc_v_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         # 4. CONTINUOUS WAVELET TRANSFORM (CWT)
         acc_v_lp_int_cwt, _ = cwt(
             acc_v_lp_int.squeeze(),
