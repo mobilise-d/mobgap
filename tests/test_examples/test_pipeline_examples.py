@@ -52,7 +52,7 @@ def test_preconfigured_mobilise_pipeline(snapshot):
 
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
-    from examples.pipeline._04_dmo_evaluation_on_wb_level import (
+    from examples.pipeline._03_dmo_evaluation_on_wb_level import (
         agg_results,
         custom_gs_errors,
         default_agg_results,
