@@ -10,8 +10,13 @@ Checkout the examples for those, if you want to understand how to use them.
 
 This example is meant to provide a better understanding of the individual steps and should serve as a blueprint to
 build completely custom pipelines.
+We are following the pipeline explained in [1]_ (Fig. 7) step by step.
 
 For more information about the individual steps, please refer to the respective examples for the algorithms.
+
+.. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+       multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
+       https://doi.org/10.1038/s41598-024-51766-5
 
 """
 

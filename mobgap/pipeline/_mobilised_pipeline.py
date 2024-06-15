@@ -283,10 +283,10 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     per_stride_parameters_: pd.DataFrame
     per_wb_parameters_: pd.DataFrame
     per_wb_parameter_mask_: Optional[pd.DataFrame]
-    aggregated_parameters_: pd.DataFrame
+    aggregated_parameters_: Optional[pd.DataFrame]
 
     class PredefinedParameters:
-        normal_walking: Final = MappingProxyType(
+        regular_walking: Final = MappingProxyType(
             {
                 "gait_sequence_detection": GsdIluz(),
                 "initial_contact_detection": IcdIonescu(),
@@ -333,7 +333,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
-        dmo_aggregation: BaseAggregator,
+        dmo_aggregation: Optional[BaseAggregator],
         recommended_cohorts: Optional[tuple[str, ...]] = None,
     ) -> None:
         self.gait_sequence_detection = gait_sequence_detection
@@ -454,6 +454,10 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
                 height_m=datapoint.participant_metadata["height_m"],
                 measurement_condition=datapoint.recording_metadata["measurement_condition"],
             )
+
+        if self.dmo_aggregation is None:
+            self.aggregated_parameters_ = None
+            return self
 
         self.dmo_aggregation_ = self.dmo_aggregation.clone().aggregate(
             self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
@@ -597,8 +601,8 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     %(step_by_step)s
 
     .. [1] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology?
-       Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78
-       (2023). https://doi.org/10.1186/s12984-023-01198-5
+           Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78
+           (2023). https://doi.org/10.1186/s12984-023-01198-5
     .. [2] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
            multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
            https://doi.org/10.1038/s41598-024-51766-5
@@ -610,7 +614,7 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     """
 
-    @set_defaults(**{k: cf(v) for k, v in BaseMobilisedPipeline.PredefinedParameters.normal_walking.items()})
+    @set_defaults(**{k: cf(v) for k, v in BaseMobilisedPipeline.PredefinedParameters.regular_walking.items()})
     def __init__(
         self,
         *,

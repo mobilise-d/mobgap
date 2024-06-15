@@ -77,9 +77,9 @@ agg_data = agg.aggregated_data_
 agg_data
 
 # %%
-# .. warn:: To exactly match the expected output of the original Mobilise-D R-Script, the two stride length parameters
-#           would need to be converted to cm and all values rounded to 3 decimals.
-#           This is not done in the Python implementation to be consistent with the units across the entire package.
+# .. warning:: To exactly match the expected output of the original Mobilise-D R-Script, the two stride length
+#              parameters would need to be converted to cm and all values rounded to 3 decimals.
+#              This is not done in the Python implementation to be consistent with the units across the entire package.
 #
 # Comparison with R aggregation script
 # ------------------------------------

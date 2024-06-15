@@ -18,7 +18,7 @@ class TestMetaBaseMobilisedPipeline(TestAlgorithmMixin):
 
     @pytest.fixture()
     def after_action_instance(self):
-        return self.ALGORITHM_CLASS(**self.ALGORITHM_CLASS.PredefinedParameters.normal_walking).run(
+        return self.ALGORITHM_CLASS(**self.ALGORITHM_CLASS.PredefinedParameters.regular_walking).run(
             LabExampleDataset()[0]
         )
 
