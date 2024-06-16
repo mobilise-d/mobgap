@@ -1,8 +1,8 @@
 import mobgap
-from mobgap.data import LabExampleDataset
 from mobgap.consts import GRAV_MS2
+from mobgap.data import LabExampleDataset
 
-BASE_PATH = mobgap.PACKAGE_ROOT.parent / "example_data"/ "data_csv"
+BASE_PATH = mobgap.PACKAGE_ROOT.parent / "example_data" / "data_csv"
 
 for d in LabExampleDataset():
     # We store the data in a csv file

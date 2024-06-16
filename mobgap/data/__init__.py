@@ -1,7 +1,12 @@
 """Helper to load data and example in the various supported formats."""
 
 from mobgap.data._dataset_from_data import GaitDatasetFromData
-from mobgap.data._example_data import LabExampleDataset, get_all_lab_example_data_paths, get_example_cvs_dmo_data_path
+from mobgap.data._example_data import (
+    LabExampleDataset,
+    get_all_lab_example_data_paths,
+    get_example_csv_data_path,
+    get_example_cvs_dmo_data_path,
+)
 from mobgap.data._mobilised_cvs_dmo_dataset import MobilisedCvsDmoDataset
 from mobgap.data._mobilised_matlab_loader import (
     BaseGenericMobilisedDataset,
@@ -31,6 +36,7 @@ __all__ = [
     "BaseTVSDataset",
     "get_all_lab_example_data_paths",
     "get_example_cvs_dmo_data_path",
+    "get_example_csv_data_path",
     "GenericMobilisedDataset",
     "GaitDatasetFromData",
     "LabExampleDataset",

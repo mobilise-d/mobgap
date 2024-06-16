@@ -82,6 +82,17 @@ matlab_dataset_docfiller = make_filldoc(
         "dataset_data_attrs": base_gait_dataset_docfiller_dict["common_dataset_data_attrs"]
         + base_gait_dataset_docfiller_dict["common_dataset_reference_attrs"]
         + """
+    participant_metadata_as_df
+        The participant metadata as a DataFrame.
+        This contains the same information as ``participant_metadata``, but the property can be accessed even when the
+        dataset still contains multiple participants.
+        It contains one row per participant and are all columns of the index, that are required to uniquely identify a
+        single measurement.
+    recording_metadata_as_df
+        The recording metadata as a DataFrame.
+        This contains the same information as ``recording_metadata``, but the property can be accessed even when the
+        dataset still contains multiple participants.
+        It contains one row for each row in the dataset index.
     raw_reference_parameters_
         The raw reference parameters (if available).
         Check other attributes with a trailing underscore for the reference parameters converted into a more
