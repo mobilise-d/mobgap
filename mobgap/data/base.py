@@ -181,7 +181,6 @@ class BaseGaitDataset(Dataset):
     data_ss: pd.DataFrame
     participant_metadata: ParticipantMetadata
     recording_metadata: RecordingMetadata
-    measurement_condition: Union[Literal["laboratory", "free_living"], str]
 
 
 @base_gait_dataset_docfiller

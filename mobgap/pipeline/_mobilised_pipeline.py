@@ -359,9 +359,24 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
         %(run_return)s
         """
-        if self.recommended_cohorts and (c := datapoint.participant_metadata["cohort"]) not in self.recommended_cohorts:
+        try:
+            participant_metadata = datapoint.participant_metadata
+        except AttributeError as e:
+            raise ValueError(
+                "The provided dataset does not provide any participant metadata. "
+                "For the default algorithms, metadata is required for the ``stride_length_calculation`` "
+                "and ``dmo_thresholds`` step. "
+                "If you want to use this pipeline without metadata, please provide custom algorithms and"
+                "at least implement the ``participant_metadata`` attribute on your dataset, even if it"
+                "just returns an empty dictionary."
+            ) from e
+
+        participant_cohort = participant_metadata.get("cohort")
+
+        if self.recommended_cohorts and participant_cohort not in self.recommended_cohorts:
             warnings.warn(
-                f"The provided datapoint has data of a participant with the cohort {c} is not part of the recommended "
+                f"The provided datapoint has data of a participant with the cohort {participant_cohort} is not part of "
+                "the recommended "
                 f"cohorts for this pipeline {type(self).__name__}.\n"
                 f"Recommended cohorts are {self.recommended_cohorts}",
                 stacklevel=1,
@@ -376,7 +391,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
             imu_data, sampling_rate_hz=sampling_rate_hz
         )
         self.gs_list_ = self.gait_sequence_detection_.gs_list_
-        self.gs_iterator_ = self._run_per_gs(self.gs_list_, imu_data, sampling_rate_hz, datapoint.participant_metadata)
+        self.gs_iterator_ = self._run_per_gs(self.gs_list_, imu_data, sampling_rate_hz, participant_metadata)
 
         results = self.gs_iterator_.results_
 
@@ -440,16 +455,16 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         if self.dmo_thresholds is None:
             self.per_wb_parameter_mask_ = None
         else:
-            if (c := datapoint.participant_metadata["cohort"]) is None:
+            if participant_cohort is None:
                 raise ValueError(
                     "The cohort of the participant is not provided. "
                     "Please provide the cohort in the participant metadata or set the dmo_thresholds to None."
                 )
-            assert c is not None
+            assert participant_cohort is not None
             self.per_wb_parameter_mask_ = apply_thresholds(
                 self.per_wb_parameters_,
                 self.dmo_thresholds,
-                cohort=c,
+                cohort=participant_cohort,
                 height_m=datapoint.participant_metadata["height_m"],
                 measurement_condition=datapoint.recording_metadata["measurement_condition"],
             )
