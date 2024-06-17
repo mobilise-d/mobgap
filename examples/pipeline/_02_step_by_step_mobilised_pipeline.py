@@ -61,7 +61,7 @@ first_gait_sequence_data = imu_data.iloc[
 # Step 2: Initial Contact Detection
 # ---------------------------------
 
-from mobgap.icd import IcdShinImproved
+from mobgap.initial_contacts import IcdShinImproved
 
 icd = IcdShinImproved()
 icd.detect(first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz)
@@ -86,7 +86,7 @@ ic_list = lrc.ic_lr_list_
 # After detecting the ICs within the gait sequence, we can refine the gait sequence using the ICs.
 # Basically, we restrict the area of the gait sequence to the area between the first and the last IC.
 # This should ensure that the subsequent steps are only getting data that contains detectable gait.
-from mobgap.icd import refine_gs
+from mobgap.initial_contacts import refine_gs
 
 refined_gait_sequence, refined_ic_list = refine_gs(ic_list)
 refined_gait_sequence_data = first_gait_sequence_data.iloc[
@@ -173,7 +173,7 @@ turn_list
 # We first define all the algorithms we want to use.
 from mobgap.cadence import CadFromIc
 from mobgap.gsd import GsdIluz
-from mobgap.icd import IcdShinImproved, refine_gs
+from mobgap.initial_contacts import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich
 from mobgap.stride_length import SlZijlstra
 from mobgap.turning import TdElGohary

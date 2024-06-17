@@ -5,7 +5,7 @@ from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.icd import IcdIonescu
+from mobgap.initial_contacts import IcdIonescu
 from mobgap.pipeline import GsIterator
 
 

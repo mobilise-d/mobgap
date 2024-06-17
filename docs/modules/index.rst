@@ -12,7 +12,7 @@ This is the API Reference for ``mobgap``.
     data
     pipeline
     gsd
-    icd
+    initial_contacts
     lrc
     turning
     cadence

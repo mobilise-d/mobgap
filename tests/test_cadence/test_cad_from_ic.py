@@ -6,7 +6,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.cadence import CadFromIc, CadFromIcDetector
 from mobgap.data import LabExampleDataset
-from mobgap.icd.base import BaseIcDetector
+from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.pipeline import GsIterator
 
 

@@ -16,8 +16,8 @@ from mobgap.cadence.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
 from mobgap.gsd import GsdIluz, GsdIonescu
 from mobgap.gsd.base import BaseGsDetector
-from mobgap.icd import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
-from mobgap.icd.base import BaseIcDetector
+from mobgap.initial_contacts import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
+from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.lrc import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator

@@ -178,12 +178,12 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import EpflDedriftedGaitFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.icd.base import BaseIcDetector, base_icd_docfiller
+from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
 class IcdIonescu(BaseIcDetector):
-    """Implementation of the icd algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_.
+    """Implementation of the initial_contacts algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_.
 
     The algorithm includes the following steps starting from vertical acceleration
     of the lower-back during a gait sequence:
@@ -202,7 +202,7 @@ class IcdIonescu(BaseIcDetector):
     Parameters
     ----------
     pre_filter
-        A pre-processing filter to apply to the data before the icd algorithm is applied.
+        A pre-processing filter to apply to the data before the initial_contacts algorithm is applied.
     cwt_width
         The width of the wavelet
 
@@ -235,7 +235,7 @@ class IcdIonescu(BaseIcDetector):
 
     pre_filter: BaseFilter
     cwt_width: float
-    
+
     # Some constants of the algorithms
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
@@ -259,7 +259,7 @@ class IcdIonescu(BaseIcDetector):
         # Setting the Other Parameters
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        
+
         # Here is where the actual Algo implementation lives
         ...
         # Setting teh results

@@ -15,8 +15,8 @@ from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
-from mobgap.icd._utils import find_zero_crossings
-from mobgap.icd.base import BaseIcDetector, base_icd_docfiller
+from mobgap.initial_contacts._utils import find_zero_crossings
+from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller

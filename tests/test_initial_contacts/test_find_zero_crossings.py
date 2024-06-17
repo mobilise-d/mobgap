@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from mobgap.icd._shin_algo_improved import find_zero_crossings
+from mobgap.initial_contacts._shin_algo_improved import find_zero_crossings
 
 
 class TestFindZeroCrossings:

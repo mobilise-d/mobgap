@@ -10,8 +10,8 @@ from mobgap._docutils import make_filldoc
 from mobgap.cadence.base import BaseCadCalculator, base_cad_docfiller
 from mobgap.data_transform import HampelFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.icd import IcdShinImproved
-from mobgap.icd.base import BaseIcDetector
+from mobgap.initial_contacts import IcdShinImproved
+from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.interpolation import robust_step_para_to_sec
 

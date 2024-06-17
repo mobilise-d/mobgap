@@ -105,10 +105,10 @@ print(
 # CadFromIcDetector
 # -----------------
 # For the :class:`~mobgap.cadence.CadFromIcDetector` we need to supply an IC detection algorithm.
-# In this case we use the :class:`~mobgap.icd.IcdShinImproved` algorithm.
+# In this case we use the :class:`~mobgap.initial_contacts.IcdShinImproved` algorithm.
 # We could also use any other IC detection algorithm or adapt the parameters of the IC detection algorithm.
 from mobgap.cadence import CadFromIcDetector
-from mobgap.icd import IcdShinImproved
+from mobgap.initial_contacts import IcdShinImproved
 
 cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
 

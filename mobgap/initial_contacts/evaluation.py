@@ -17,8 +17,8 @@ def calculate_matched_icd_performance_metrics(
     Calculate performance metrics for initial contact detection results.
 
     This function assumes that you already classified the detected initial contacts as true positive (tp), false
-    positive (fp), or false negative (fn) matches using the :func:`~mobgap.icd.evaluation.categorize_ic_list`
-    function.
+    positive (fp), or false negative (fn) matches using the
+    :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list` function.
     The dataframe returned by categorize function can then be used as input to this function.
 
     The following metrics are calculated:
@@ -37,7 +37,7 @@ def calculate_matched_icd_performance_metrics(
     ----------
     matches: pd.DataFrame
         A dataframe containing the matches between detected and reference initial contacts as output
-        by :func:`~mobgap.icd.evaluation.evaluate_initial_contact_list`.
+        by :func:`~mobgap.initial_contacts.evaluation.evaluate_initial_contact_list`.
     zero_division : "warn", 0 or 1, default="warn"
         Sets the value to return when there is a zero division. If set to
         "warn", this acts as 0, but warnings are also raised.

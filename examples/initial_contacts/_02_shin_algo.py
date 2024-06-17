@@ -10,7 +10,7 @@ matlab implementation.
 import pandas as pd
 from matplotlib import pyplot as plt
 from mobgap.data import LabExampleDataset
-from mobgap.icd import IcdShinImproved
+from mobgap.initial_contacts import IcdShinImproved
 
 # %%
 # Loading data

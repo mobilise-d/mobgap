@@ -3,7 +3,11 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from mobgap.icd.evaluation import _match_label_lists, calculate_matched_icd_performance_metrics, categorize_ic_list
+from mobgap.initial_contacts.evaluation import (
+    _match_label_lists,
+    calculate_matched_icd_performance_metrics,
+    categorize_ic_list,
+)
 
 
 @pytest.fixture()

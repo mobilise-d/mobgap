@@ -1,7 +1,7 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from mobgap.icd import refine_gs
+from mobgap.initial_contacts import refine_gs
 
 
 class TestRefineGs:

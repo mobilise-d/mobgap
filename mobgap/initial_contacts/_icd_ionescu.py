@@ -9,13 +9,13 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter, Resample
 from mobgap.data_transform.base import BaseFilter
-from mobgap.icd._utils import find_zero_crossings
-from mobgap.icd.base import BaseIcDetector, base_icd_docfiller
+from mobgap.initial_contacts._utils import find_zero_crossings
+from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 
 
 @base_icd_docfiller
 class IcdIonescu(BaseIcDetector):
-    """Implementation of the icd algorithm by McCamley et al. (2012) [1]_ modified by Ionescu et al. (2020) [2]_.
+    """Implementation of the IC detection algorithm by McCamley (2012) [1]_ modified by Ionescu (2020) [2]_.
 
     The algorithm includes the following steps starting from vertical acceleration
     of the lower-back during a gait sequence:
@@ -34,7 +34,7 @@ class IcdIonescu(BaseIcDetector):
     Parameters
     ----------
     pre_filter
-        A pre-processing filter to apply to the data before the icd algorithm is applied.
+        A pre-processing filter to apply to the data before the ICD algorithm is applied.
     cwt_width
         The width of the wavelet
 
@@ -91,7 +91,7 @@ class IcdIonescu(BaseIcDetector):
         self.sampling_rate_hz = sampling_rate_hz
 
         # 0. SELECT RELEVANT COLUMNS
-        # For the icd algorithm only vertical acceleration (i.e. x-component) is required.
+        # For the ICD algorithm only vertical acceleration (i.e. x-component) is required.
         relevant_columns = ["acc_x"]  # acc_x: vertical acceleration
         acc_v = data[relevant_columns]
         acc_v = acc_v.to_numpy()
