@@ -119,6 +119,21 @@ def get_all_lab_example_data_paths() -> dict[tuple[str, str], Path]:
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}
 
 
+def get_example_csv_data_path() -> Path:
+    """Get the path to the example CSV data.
+
+    Returns
+    -------
+    The path to the example CSV data.
+
+    See Also
+    --------
+    MobilisedCsvDataset
+
+    """
+    return _pooch_get_folder(LOCAL_EXAMPLE_PATH / "data_csv")
+
+
 @matlab_dataset_docfiller
 class LabExampleDataset(BaseGenericMobilisedDataset):
     """A dataset containing all lab example data provided with mobgap.
