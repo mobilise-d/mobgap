@@ -199,6 +199,7 @@ sphinx_gallery_conf = {
     "subsection_order": ExplicitOrder(
         [
             "../examples/data",
+            "../examples/pipeline",
             "../examples/gsd",
             "../examples/icd",
             "../examples/lrc",
@@ -207,7 +208,6 @@ sphinx_gallery_conf = {
             "../examples/turning",
             "../examples/wba",
             "../examples/aggregation",
-            "../examples/pipeline",
             "../examples/data_transform",
             "../examples/dev_guides",
         ]
