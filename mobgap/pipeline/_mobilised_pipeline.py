@@ -11,15 +11,15 @@ from typing_extensions import Self
 from mobgap._docutils import make_filldoc
 from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
-from mobgap.cad import CadFromIcDetector
-from mobgap.cad.base import BaseCadCalculator
+from mobgap.cadence import CadFromIcDetector
+from mobgap.cadence.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
-from mobgap.gsd import GsdIluz, GsdIonescu
-from mobgap.gsd.base import BaseGsDetector
-from mobgap.icd import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
-from mobgap.icd.base import BaseIcDetector
-from mobgap.lrc import LrcUllrich, strides_list_from_ic_lr_list
-from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df
+from mobgap.gait_sequences import GsdIluz, GsdIonescu
+from mobgap.gait_sequences.base import BaseGsDetector
+from mobgap.initial_contacts import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
+from mobgap.initial_contacts.base import BaseIcDetector
+from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
+from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator

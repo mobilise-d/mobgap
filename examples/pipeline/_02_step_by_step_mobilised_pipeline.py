@@ -41,7 +41,7 @@ participant_metadata = long_trial.participant_metadata
 # %%
 # Step 1: Gait Sequence Detection
 # -------------------------------
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 
 gsd = GsdIluz()
 gsd.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
@@ -61,7 +61,7 @@ first_gait_sequence_data = imu_data.iloc[
 # Step 2: Initial Contact Detection
 # ---------------------------------
 
-from mobgap.icd import IcdShinImproved
+from mobgap.initial_contacts import IcdShinImproved
 
 icd = IcdShinImproved()
 icd.detect(first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz)
@@ -72,7 +72,7 @@ ic_list
 # Step 2.5: Laterality Detection
 # ------------------------------
 # For each IC we want to detect the laterality.
-from mobgap.lrc import LrcUllrich
+from mobgap.laterality import LrcUllrich
 
 lrc = LrcUllrich()
 lrc.predict(
@@ -86,7 +86,7 @@ ic_list = lrc.ic_lr_list_
 # After detecting the ICs within the gait sequence, we can refine the gait sequence using the ICs.
 # Basically, we restrict the area of the gait sequence to the area between the first and the last IC.
 # This should ensure that the subsequent steps are only getting data that contains detectable gait.
-from mobgap.icd import refine_gs
+from mobgap.initial_contacts import refine_gs
 
 refined_gait_sequence, refined_ic_list = refine_gs(ic_list)
 refined_gait_sequence_data = first_gait_sequence_data.iloc[
@@ -96,7 +96,7 @@ refined_gait_sequence_data = first_gait_sequence_data.iloc[
 # %%
 # Step 3: Cadence Calculation
 # ---------------------------
-from mobgap.cad import CadFromIc
+from mobgap.cadence import CadFromIc
 
 cad = CadFromIc()
 cad.calculate(
@@ -171,10 +171,10 @@ turn_list
 # Actual Pipeline
 # ---------------
 # We first define all the algorithms we want to use.
-from mobgap.cad import CadFromIc
-from mobgap.gsd import GsdIluz
-from mobgap.icd import IcdShinImproved, refine_gs
-from mobgap.lrc import LrcUllrich
+from mobgap.cadence import CadFromIc
+from mobgap.gait_sequences import GsdIluz
+from mobgap.initial_contacts import IcdShinImproved, refine_gs
+from mobgap.laterality import LrcUllrich
 from mobgap.stride_length import SlZijlstra
 from mobgap.turning import TdElGohary
 from mobgap.walking_speed import WsNaive
@@ -268,7 +268,7 @@ combined_results
 # As walking bouts in the context of Mobilise-D are defined based on strides, we need to turn the ICs into strides and
 # the per-second values into per-stride values by using interpolation.
 # We also calculate the stride duration here.
-from mobgap.lrc import strides_list_from_ic_lr_list
+from mobgap.laterality import strides_list_from_ic_lr_list
 
 stride_list = (
     results.ic_list.groupby("gs_id", group_keys=False)

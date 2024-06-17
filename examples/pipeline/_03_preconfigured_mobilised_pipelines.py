@@ -200,7 +200,7 @@ pipe_no_agg.per_wb_parameters_
 # default for the healthy pipeline).
 #
 # For the sake of this example, we will also modify the default parameters of the algorithm.
-from mobgap.gsd import GsdAdaptiveIonescu
+from mobgap.gait_sequences import GsdAdaptiveIonescu
 
 pipe_adaptive_gsd = MobilisedPipelineHealthy(
     gait_sequence_detection=GsdAdaptiveIonescu(min_n_steps=3)

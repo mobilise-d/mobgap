@@ -21,7 +21,7 @@ __all__ = [
     "quantiles",
 ]
 
-from mobgap.gsd.evaluation import (
+from mobgap.gait_sequences.evaluation import (
     categorize_intervals,
     categorize_intervals_per_sample,
     get_matching_intervals,
