@@ -41,10 +41,10 @@ def test_full_mobilise_pipeline(snapshot):
 
 def test_preconfigured_mobilise_pipeline(snapshot):
     from examples.pipeline._03_preconfigured_mobilised_pipelines import (
-        pipeline_ms,
-        pipeline_ha,
+        aggregated_paras,
         per_wb_paras,
-        aggregated_paras
+        pipeline_ha,
+        pipeline_ms,
     )
 
     snapshot.assert_match(per_wb_paras.drop(columns="rule_obj"), "meta_pipeline_full_per_wb_parameters")
@@ -52,6 +52,7 @@ def test_preconfigured_mobilise_pipeline(snapshot):
 
     snapshot.assert_match(pipeline_ms.per_wb_parameters_.drop(columns="rule_obj"), "ms_per_wb_parameters")
     snapshot.assert_match(pipeline_ha.per_wb_parameters_.drop(columns="rule_obj"), "ha_per_wb_parameters")
+
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
     from examples.pipeline._04_dmo_evaluation_on_wb_level import (
