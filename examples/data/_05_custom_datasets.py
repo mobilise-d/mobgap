@@ -106,8 +106,13 @@ gsd.gs_list_
 #
 # Step 4: Building a custom dataset
 # ---------------------------------
-# Datasets are more complicated structures that encapsulate the meta information of an entire dataset (so potentially
-# multiple participants, multiple cohorts, etc.) and provide a uniform API to access the data.
+#
+# .. note:: For the sake of simplicity, we are going to ignore participant metadata in this example. Some amount of
+#           participant metadata is required to run the full pipeline, but adding that to the dataset should be a
+#           straightforward extension.
+#
+# Dataset classes are more complicated structures that encapsulate the meta information of an entire dataset
+# (so potentially multiple participants, multiple cohorts, etc.) and provide a uniform API to access the data.
 # The first dataset you might have seen in the context of mobgap is the :class:`~mobgap.data.LabExampleDataset`.
 from mobgap.data import LabExampleDataset
 
