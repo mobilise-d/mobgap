@@ -1,17 +1,17 @@
 Cadence Estimation (CAD)
 ========================
 
-.. automodule:: mobgap.cad
+.. automodule:: mobgap.cadence
     :no-members:
     :no-inherited-members:
 
 
 Cadence from ICs
 ++++++++++++++++
-.. currentmodule:: mobgap.cad
+.. currentmodule:: mobgap.cadence
 
 .. autosummary::
-   :toctree: generated/cad
+   :toctree: generated/cadence
    :template: class.rst
 
     CadFromIc
@@ -19,14 +19,14 @@ Cadence from ICs
 
 Base Classes
 ++++++++++++
-.. automodule:: mobgap.cad.base
+.. automodule:: mobgap.cadence.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: mobgap.cad.base
+.. currentmodule:: mobgap.cadence.base
 
 .. autosummary::
-   :toctree: generated/cad
+   :toctree: generated/cadence
    :template: class.rst
 
     BaseCadCalculator
@@ -35,7 +35,7 @@ Docu-helper
 -----------
 
 .. autosummary::
-   :toctree: generated/cad
+   :toctree: generated/cadence
    :template: func.rst
 
     base_cad_docfiller

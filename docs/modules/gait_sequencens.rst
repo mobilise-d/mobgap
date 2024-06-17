@@ -1,17 +1,17 @@
 Gait Sequence Detection (GSD)
 =============================
 
-.. automodule:: mobgap.gsd
+.. automodule:: mobgap.gait_sequences
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: mobgap.gsd
+.. currentmodule:: mobgap.gait_sequences
 
 .. autosummary::
-   :toctree: generated/gsd
+   :toctree: generated/gait_sequences
    :template: class.rst
 
     GsdIluz
@@ -20,24 +20,24 @@ Algorithms
 
 Pipelines
 +++++++++
-.. currentmodule:: mobgap.gsd
+.. currentmodule:: mobgap.gait_sequences
 
 .. autosummary::
-   :toctree: generated/gsd
+   :toctree: generated/gait_sequences
    :template: class.rst
 
     pipeline.GsdEmulationPipeline
 
 Base Classes
 ++++++++++++
-.. automodule:: mobgap.gsd.base
+.. automodule:: mobgap.gait_sequences.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: mobgap.gsd.base
+.. currentmodule:: mobgap.gait_sequences.base
 
 .. autosummary::
-   :toctree: generated/gsd
+   :toctree: generated/gait_sequences
    :template: class.rst
 
     BaseGsDetector
@@ -54,10 +54,10 @@ Docu-helper
 
 Evaluation
 ++++++++++
-.. currentmodule:: mobgap.gsd.evaluation
+.. currentmodule:: mobgap.gait_sequences.evaluation
 
 .. autosummary::
-   :toctree: generated/gsd
+   :toctree: generated/gait_sequences
    :template: func.rst
 
     calculate_matched_gsd_performance_metrics

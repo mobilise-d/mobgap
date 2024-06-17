@@ -1,17 +1,17 @@
 Initial Contact Detection (ICD)
 ===============================
 
-.. automodule:: mobgap.icd
+.. automodule:: mobgap.initial_contacts
     :no-members:
     :no-inherited-members:
 
 
 Algorithms
 ++++++++++
-.. currentmodule:: mobgap.icd
+.. currentmodule:: mobgap.initial_contacts
 
 .. autosummary::
-   :toctree: generated/icd
+   :toctree: generated/initial_contacts
    :template: class.rst
 
     IcdShinImproved
@@ -20,20 +20,20 @@ Algorithms
 
 Utils
 +++++
-.. currentmodule:: mobgap.icd
+.. currentmodule:: mobgap.initial_contacts
 
 .. autosummary::
-   :toctree: generated/icd
+   :toctree: generated/initial_contacts
    :template: function.rst
 
     refine_gs
 
 Evaluation
 ++++++++++
-.. currentmodule:: mobgap.icd.evaluation
+.. currentmodule:: mobgap.initial_contacts.evaluation
 
 .. autosummary::
-   :toctree: generated/icd
+   :toctree: generated/initial_contacts
    :template: func.rst
 
     calculate_matched_icd_performance_metrics
@@ -41,14 +41,14 @@ Evaluation
 
 Base Classes
 ++++++++++++
-.. automodule:: mobgap.icd.base
+.. automodule:: mobgap.initial_contacts.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: mobgap.icd.base
+.. currentmodule:: mobgap.initial_contacts.base
 
 .. autosummary::
-   :toctree: generated/icd
+   :toctree: generated/initial_contacts
    :template: class.rst
 
     BaseIcDetector
@@ -57,7 +57,7 @@ Docu-helper
 -----------
 
 .. autosummary::
-   :toctree: generated/icd
+   :toctree: generated/initial_contacts
    :template: func.rst
 
     base_icd_docfiller
