@@ -35,7 +35,7 @@ from typing import Optional, Union
 from mobgap.data import get_example_csv_data_path
 
 path = get_example_csv_data_path()
-all_data_files = list(path.rglob("*.csv"))
+all_data_files = sorted(list(path.rglob("*.csv")))
 all_data_files
 
 # %%
@@ -197,6 +197,8 @@ dataset_from_data
 # We reuse the logic from above to extract the information from the path and the filename.
 # This index creation happens in the ``create_index`` method in our custom class that subclasses
 # :class:`~mobgap.data.BaseGaitDataset`.
+# Note, that we sort the files before creating the index!
+# This is important to ensure that we get exactly the same index on every operating system.
 #
 # We take the base-path to our dataset as parameter in the init.
 # And already implement the ``_path_from_index`` method that helps us to identify the correct file for a given index.
@@ -225,7 +227,7 @@ class CsvExampleData(BaseGaitDataset):
         )
 
     def create_index(self) -> pd.DataFrame:
-        all_data_files = list(self.base_path.rglob("*.csv"))
+        all_data_files = sorted(list(self.base_path.rglob("*.csv")))
         index = []
         for d in all_data_files:
             recording_identifier = d.name.split(".")[0].split("_")
@@ -289,7 +291,7 @@ class CsvExampleData(BaseGaitDataset):
         )
 
     def create_index(self) -> pd.DataFrame:
-        all_data_files = list(self.base_path.rglob("*.csv"))
+        all_data_files = sorted(list(self.base_path.rglob("*.csv")))
         index = []
         for d in all_data_files:
             recording_identifier = d.name.split(".")[0].split("_")
