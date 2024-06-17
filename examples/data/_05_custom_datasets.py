@@ -322,3 +322,5 @@ class CsvExampleData(BaseGaitDataset):
 # %%
 # Now we can use this dataset with any pipeline that does not require metadata.
 # TODO: Show example
+csv_data = CsvExampleData(path)
+csv_data
