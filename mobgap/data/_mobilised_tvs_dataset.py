@@ -199,7 +199,7 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
         return "test_list.json"
 
     def _get_measurement_condition(self) -> str:
-        return self._MEASUREMENT_CONDITION
+        return self._MEASUREMENT_CONDITION.lower().replace("-", "_")
 
     @property
     def _paths_list(self) -> list[Path]:

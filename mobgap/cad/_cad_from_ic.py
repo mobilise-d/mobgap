@@ -163,8 +163,8 @@ class CadFromIc(BaseCadCalculator):
     def calculate(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.DataFrame,
         *,
+        initial_contacts: pd.DataFrame,
         sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
     ) -> Self:

@@ -1,4 +1,6 @@
-from typing import Final, Optional
+import warnings
+from types import MappingProxyType
+from typing import Final, Literal, Optional
 
 import pandas as pd
 from tpcp import Algorithm, cf
@@ -24,6 +26,13 @@ class StrideSelection(Algorithm):
         They need to be provided as a list of tuples, where the first element is the name of the rule and the second
         is an instance of a subclass of :class:`mobgap.wba.BaseIntervalCriteria`.
         If `None`, no rules are applied and all strides are considered valid.
+    incompatible_rules
+        What to do, if an incompatible rule is provided.
+        This will be checked, by the ``required_columns`` method of the rule.
+        If not all required columns exist in the provided stride list, the rule is considered incompatible.
+        Depending on this parameter, the algorithm will either raise a ValueError, issue skip the rule and issue a
+        warning or skip the rule silently.
+        Default is "warn".
 
     Attributes
     ----------
@@ -59,6 +68,7 @@ class StrideSelection(Algorithm):
     _composite_params = ("rules",)
 
     rules: Optional[list[tuple[str, BaseIntervalCriteria]]]
+    incompatible_rules: Literal["raise", "warn", "skip"]
 
     stride_list: pd.DataFrame
     sampling_rate_hz: float
@@ -67,30 +77,30 @@ class StrideSelection(Algorithm):
     check_results_: pd.DataFrame
 
     class PredefinedParameters:
-        mobilised: Final = {
-            "rules": [
-                (
-                    "stride_duration_thres",
-                    IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
-                ),
-                (
-                    "stride_length_thres",
-                    IntervalParameterCriteria("stride_length_m", lower_threshold=0.15, upper_threshold=None),
-                ),
-            ],
-        }
-
-        mobilised_no_stride_length: Final = {
-            "rules": [
-                (
-                    "stride_duration_thres",
-                    IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
-                ),
-            ],
-        }
+        mobilised: Final = MappingProxyType(
+            {
+                "rules": [
+                    (
+                        "stride_duration_thres",
+                        IntervalDurationCriteria(min_duration_s=0.2, max_duration_s=3.0),
+                    ),
+                    (
+                        "stride_length_thres",
+                        IntervalParameterCriteria("stride_length_m", lower_threshold=0.15, upper_threshold=None),
+                    ),
+                ],
+                "incompatible_rules": "warn",
+            }
+        )
 
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
-    def __init__(self, rules: Optional[list[tuple[str, BaseIntervalCriteria]]]) -> None:
+    def __init__(
+        self,
+        rules: Optional[list[tuple[str, BaseIntervalCriteria]]],
+        *,
+        incompatible_rules: Literal["raise", "warn", "skip"],
+    ) -> None:
+        self.incompatible_rules = incompatible_rules
         self.rules = rules
 
     @property
@@ -137,19 +147,39 @@ class StrideSelection(Algorithm):
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
 
-        if self.rules is None:
+        if self.rules is None or len(self.rules) == 0 or stride_list.empty:
             self._exclusion_reasons = pd.DataFrame(columns=["rule_name", "rule_obj"]).reindex(stride_list.index)
             return self
 
         rules_as_dict = dict(self.rules)
 
-        self.check_results_ = pd.concat(
-            {
-                name: rule.check_multiple(stride_list, sampling_rate_hz=sampling_rate_hz)
-                for name, rule in rules_as_dict.items()
-            },
-            axis=1,
-        )
+        stride_list_cols = set(stride_list.columns)
+
+        rule_results = {}
+        for name, rule in rules_as_dict.items():
+            compatible = set(rule.requires_columns()).issubset(stride_list_cols)
+            if not compatible:
+                if self.incompatible_rules == "raise":
+                    raise ValueError(
+                        f"Rule {name} requires columns {rule.requires_columns()} which are not present in the stride "
+                        "list."
+                    )
+                if self.incompatible_rules == "warn":
+                    warnings.warn(
+                        f"Rule {name} requires columns {rule.requires_columns()} which are not present in the "
+                        "stride list. "
+                        "Skipping rule.",
+                        stacklevel=1,
+                    )
+                continue
+            rule_results[name] = rule.check_multiple(stride_list, sampling_rate_hz=sampling_rate_hz)
+
+        if len(rule_results) == 0:
+            self._exclusion_reasons = pd.DataFrame(columns=["rule_name", "rule_obj"]).reindex(stride_list.index)
+            self.check_results_ = pd.DataFrame()
+            return self
+
+        self.check_results_ = pd.concat(rule_results, axis=1)
 
         def _get_rule_obj(rule_names: pd.Series) -> pd.Series:
             with pd.option_context("future.no_silent_downcasting", True):

@@ -18,7 +18,7 @@ from mobgap.utils.interpolation import robust_step_para_to_sec
 
 @base_sl_docfiller
 class SlZijlstra(BaseSlCalculator):
-    """Implementation of the stride length algorithm by Zijlstra (2003) [1]_ modified by Soltani (2021) [2]_.
+    r"""Implementation of the stride length algorithm by Zijlstra (2003) [1]_ modified by Soltani (2021) [2]_.
 
     This algorithms uses an inverted pendulum model to estimate the step length.
     The step length is then "smoothed" using a robust outlier removal approach to deal with missing initial contacts.
@@ -86,11 +86,19 @@ class SlZijlstra(BaseSlCalculator):
     4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, filter order: 4
     5. Integration of vertical speed --> vertical displacement d(t)
     6. Compute total vertical displacement during the step (d_step):
-        d_step = |max(d(t)) - min(d(t))|
+
+       .. math::
+          d_step = |max(d(t)) - min(d(t))|
+
     7. Biomechanical model:
-        StepLength = A * 2 * sqrt(2 * LBh * d_step - d_step^2)
-        A: tuning coefficient, optimized by training for each population.
-        LBh: sensor height in meters, representative of the height of the center of mass.
+
+       .. math::
+          \text{StepLength} = A * 2 * \sqrt{2 * LBh * d_{step} - d_{step}^2}
+
+       A
+        tuning coefficient, optimized by grid search.
+       LBh
+        sensor height in meters, representative of the height of the center of mass.
 
     This output is then further post-processed and interpolated to second bins:
 
@@ -234,8 +242,6 @@ class SlZijlstra(BaseSlCalculator):
                 self.orientation_method.clone().estimate(data, sampling_rate_hz=sampling_rate_hz).rotated_data_
             )
             vacc = rotated_data[["acc_x"]]  # consider acceleration
-        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, order: 4
-        vacc_filtered = self.acc_smoothing.clone().filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
 
         duration = data.shape[0] / sampling_rate_hz
         sec_centers = np.arange(0, duration) + 0.5
@@ -243,11 +249,18 @@ class SlZijlstra(BaseSlCalculator):
         if len(ic_list) <= 1:
             # We can not calculate step length with only one initial contact
             warnings.warn("Can not calculate step length with only one or zero initial contacts.", stacklevel=1)
-            stride_length_per_sec = np.full(len(sec_centers), np.nan)
-            raw_step_length = np.full(np.clip(len(ic_list) - 1, 0, None), np.nan)
-            step_length_per_sec = np.full(len(sec_centers), np.nan)
-            self._unify_and_set_outputs(raw_step_length, step_length_per_sec, stride_length_per_sec, sec_centers)
+            self.set_all_nan(sec_centers, ic_list)
             return self
+
+        # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, order: 4
+        try:
+            vacc_filtered = self.acc_smoothing.clone().filter(vacc, sampling_rate_hz=sampling_rate_hz).filtered_data_
+        except ValueError as e:
+            if "padlen" in str(e):
+                warnings.warn("Data is too short for the filter. Returning empty stride length results.", stacklevel=1)
+                self.set_all_nan(sec_centers, ic_list)
+                return self
+            raise e from None
 
         # 3. Integration of vertical acceleration --> vertical speed
         # 4. Drift removal (high-pass filtering) --> lower cut-off: 1 Hz, filter design: Butterworth IIR, order: 4
@@ -313,6 +326,12 @@ class SlZijlstra(BaseSlCalculator):
             * np.sqrt(np.abs((2 * self.sensor_height_m * height_change_per_step) - (height_change_per_step**2)))
         )
         return step_length
+
+    def set_all_nan(self, sec_centers: np.ndarray, ic_list: np.ndarray) -> None:
+        stride_length_per_sec = np.full(len(sec_centers), np.nan)
+        raw_step_length = np.full(np.clip(len(ic_list) - 1, 0, None), np.nan)
+        step_length_per_sec = np.full(len(sec_centers), np.nan)
+        self._unify_and_set_outputs(raw_step_length, step_length_per_sec, stride_length_per_sec, sec_centers)
 
     def _unify_and_set_outputs(
         self,

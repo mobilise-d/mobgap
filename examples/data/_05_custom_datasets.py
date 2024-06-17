@@ -104,13 +104,63 @@ gsd.gs_list_
 # In general, the structure of the reference data is always expected to be identical to the sturcture of the algorithm
 # results, it should be compared to.
 #
-# Step 4: Building a custom dataset
+# Step 4: Metadata
+# ----------------
+# In addition to the raw IMU data, some algorithms (e.g. the :class:`~mobgap.stride_length.SlZijlstra`) require
+# additional information about the participant.
+# This additional information we call "Participant Metadata".
+# Each algorithm, directly specifies what information it requires as keyword argument to it's "run"/"detect"/
+# "calculate"/... method.
+# Depending on what algorithms you want to use, you need this information available as well.
+#
+# In our example dataset, this information is stored in a "global" json file for all participants.
+# Let's have a look at this.
+#
+# We load the file as json and collapse the "identifier levels" (so cohort and participant id) into a tuple as dict key
+# and add the "cohort" as additional piece of metadata in the dict directly.
+# We will see later, why this is a helpful format.
+import json
+from pprint import pprint
+
+
+def load_particpant_metadata(path: Path):
+    with path.open("r") as f:
+        metadata = json.load(f)
+    metadata_reformatted = {}
+    for cohort_name, info in metadata.items():
+        for participant_id, participant_metadata in info.items():
+            metadata_reformatted[(cohort_name, participant_id)] = (
+                participant_metadata
+            )
+            metadata_reformatted[(cohort_name, participant_id)]["cohort"] = (
+                cohort_name
+            )
+    return metadata_reformatted
+
+
+particpant_metadata = load_particpant_metadata(
+    path / "participant_metadata.json"
+)
+pprint(particpant_metadata[("HA", "001")])
+
+# %%
+# We can see that our example data has quite a lot of metadata.
+# This is not always required.
+# The algorithms currently implemented, only require the sensor height in m and the cohort the participant belongs to.
+#
+# So if you are working with a custom data, make sure that this information is available to use all algorithms without
+# issues.
+#
+# Next to particpant metadata we also have the concept of "recording metadata".
+# This is required only by the :func:`~mobgap.aggregation.apply_thresholds` function so far.
+# It needs the information if the recording was in a `free_living` or in a `laboratory` environment.
+# For all of our recordings, we only have laboratory data.
+# So we can define constant recording metadata for all recordings.
+recording_metadata = {"measurement_condition": "laboratory"}
+
+# %%
+# Step 5: Building a custom dataset
 # ---------------------------------
-#
-# .. note:: For the sake of simplicity, we are going to ignore participant metadata in this example. Some amount of
-#           participant metadata is required to run the full pipeline, but adding that to the dataset should be a
-#           straightforward extension.
-#
 # Dataset classes are more complicated structures that encapsulate the meta information of an entire dataset
 # (so potentially multiple participants, multiple cohorts, etc.) and provide a uniform API to access the data.
 # The first dataset you might have seen in the context of mobgap is the :class:`~mobgap.data.LabExampleDataset`.
@@ -154,17 +204,34 @@ single_trial.data_ss.head()
 # When we have just a single (or a couple) recordings that can all be comfortably loaded at once, we can use the
 # :class:`~mobgap.data.GaitDatasetFromData` class to quickly create a valid dataset that can be used with any pipeline.
 #
-# For this we first preload all the data and metadata and then pass it to the class.
+# For this we first preload all the data and identifier information and then pass it to the class.
+# At the same time, we create a version of our metadata, that copies the participant metadata for each recording.
 loaded_data = {}
+participant_metadata_for_dataset_from_data = {}
+recording_metadata_for_dataset_from_data = {}
+
 for d in all_data_files:
     recording_identifier = d.name.split(".")[0].split("_")
     cohort, participant_id = d.parts[-3:-1]
-    loaded_data[(cohort, participant_id, *recording_identifier)] = load_data(d)
+    loaded_data[(cohort, participant_id, *recording_identifier)] = {
+        "LowerBack": load_data(d)
+    }
+    participant_metadata_for_dataset_from_data[
+        (cohort, participant_id, *recording_identifier)
+    ] = particpant_metadata[(cohort, participant_id)]
+    recording_metadata_for_dataset_from_data[
+        (cohort, participant_id, *recording_identifier)
+    ] = recording_metadata
 
 # %%
 from mobgap.data import GaitDatasetFromData
 
-dataset_from_data = GaitDatasetFromData(loaded_data, sampling_rate_hz)
+dataset_from_data = GaitDatasetFromData(
+    loaded_data,
+    sampling_rate_hz,
+    participant_metadata_for_dataset_from_data,
+    recording_metadata_for_dataset_from_data,
+)
 dataset_from_data
 
 # %%
@@ -172,12 +239,34 @@ dataset_from_data
 dataset_from_data = GaitDatasetFromData(
     loaded_data,
     sampling_rate_hz,
+    participant_metadata_for_dataset_from_data,
+    recording_metadata_for_dataset_from_data,
     index_cols=["cohort", "participant_id", "time_measure", "test", "trial"],
 )
 dataset_from_data
 
 # %%
-# TODO: Show that the dataset can be used in pipeline.
+# Now we can work with the dataset in the same way, as we worked with the example datasets.
+#
+# For example, we can get a subset
+single_trial = dataset_from_data.get_subset(
+    cohort="HA", participant_id="001", test="Test5"
+)[0]
+# %%
+# And then access the imudata
+single_trial.data_ss.head()
+
+# And the participant metadata
+single_trial.participant_metadata
+
+# %%
+# To show that this works as expected, we run one of the datapoints through the Mobilise Pipeline.
+# (Note, we only expect a single WB within the "Test5" recordings)
+from mobgap.pipeline import MobilisedPipelineHealthy
+
+pipe = MobilisedPipelineHealthy().run(single_trial)
+pipe.per_wb_parameters_.drop(columns="rule_obj").T
+
 
 # %%
 # Step 7: Custom Dataset - doing it properly
@@ -190,13 +279,13 @@ dataset_from_data
 #
 # In the following, we are going to speed-run through the creation of a simple dataset class that can be used with the
 # cvs example data, that we showed above.
-# For a little bit slower, but more detailed guide, see the `tpcp rea-world-dataset guide
+# For a little bit slower, but more detailed guide, see the `tpcp real-world-dataset guide
 # <https://tpcp.readthedocs.io/en/latest/auto_examples/datasets/_02_datasets_real_world_example.html>`_.
 #
 # First thing that we need is an index of all files that exist in the dataset.
 # We reuse the logic from above to extract the information from the path and the filename.
 # This index creation happens in the ``create_index`` method in our custom class that subclasses
-# :class:`~mobgap.data.BaseGaitDataset`.
+# :class:`~mobgap.data.base.BaseGaitDataset`.
 # Note, that we sort the files before creating the index!
 # This is important to ensure that we get exactly the same index on every operating system.
 #
@@ -261,14 +350,19 @@ csv_data
 #     data_ss: pd.DataFrame
 #     participant_metadata: ParticipantMetadata
 #     recording_metadata: RecordingMetadata
-#     measurement_condition: Union[Literal["laboratory", "free_living"], str]
 #
-# We ignore the metadata stuff for now, and just implement the data loading and everything that can be represented as
-# a constant.
+# Sampling rate and recording metadata are trivial, as they are constant for all recordings.
+# The participant metadata is a little bit more complex, as we need to load it from the json file, but we already
+# have the loading logic, and just going to reuse that here.
+# Same for the data loading, we already have the logic to load the data, we just need to implement the data attribute.
+from mobgap.data.base import ParticipantMetadata
+
+
 class CsvExampleData(BaseGaitDataset):
     # Our constant values:
     sampling_rate_hz: float = 100
     measurement_condition = "laboratory"
+    recording_metadata = {"measurement_condition": "laboratory"}
 
     def __init__(
         self,
@@ -308,6 +402,13 @@ class CsvExampleData(BaseGaitDataset):
             ],
         )
 
+    @property
+    def participant_metadata(self) -> ParticipantMetadata:
+        self.assert_is_single(None, "participant_metadata")
+        return particpant_metadata[
+            (self.group_label.cohort, self.group_label.participant_id)
+        ]
+
     # data loading:
     @property
     def data(self) -> dict[str, pd.DataFrame]:
@@ -322,7 +423,34 @@ class CsvExampleData(BaseGaitDataset):
 
 
 # %%
-# Now we can use this dataset with any pipeline that does not require metadata.
-# TODO: Show example
+# Now we can use this dataset with any pipeline as before!
 csv_data = CsvExampleData(path)
 csv_data
+
+# %%
+single_trial = csv_data.get_subset(
+    cohort="HA", participant_id="001", test="Test5"
+)[0]
+single_trial
+
+# %%
+pipe = MobilisedPipelineHealthy().run(single_trial)
+pipe.per_wb_parameters_.drop(columns="rule_obj").T
+
+# %%
+# Next Steps
+# ----------
+# There are several ways on how to improve this dataset further.
+# You could look into performance improvements like "caching" to avoid reloading the files from disk too often.
+# See `this guide <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_01_caching.html>`_ for more
+# information.
+#
+# Or in case you have a dataset with reference data, you could change the base class of the dataset to
+# :class:`~mobgap.data.base.BaseGaitDatasetWithReference` and implement the reference data loading attributes.
+# This allows to use the dataset for DMO validation or optimization pipelines.
+# See for example `lrc_evaluation`_ for more information.
+#
+# If you are interested into more examples in how datasets can be structure in general, have a look at the source of
+# :class:`~mobgap.data.TVSLabDataset` or :class:`~mobgap.data.GenericMobilisedDataset`.
+# For more examples outside mobgap, have a look at the source of the
+# `gaitmap-dataset <https://github.com/mad-lab-fau/gaitmap-datasets>` package

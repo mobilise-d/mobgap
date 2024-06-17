@@ -11,12 +11,14 @@ For example, for the usage in specific clinical cohorts.
 Similarly, the machine learning based algorithms have a set of pretrained models that we provide with the package.
 
 For both cases, we need a good way to make these parameters and models available to the user.
-Below, we show the aggreed upon way to do this.
+Below, we show the agreed upon way to do this.
 For reference about the discussion, see `GitHub Issue <https://github.com/mobilise-d/mobgap/issues/65>`_.
 
 The basic idea is to add a static inner class to the algorithm class, which contains the parameters and models.
 In the easiest case, these are just dictionaries.
 If more complex configuration is needed, we can use the ``property`` decorator to load these parameters from a file.
+In both cases we wrap the returned dictionaries in ``MappingProxyType`` to make them readonly, to make sure the user
+does not accidentally change the predefined parameters using the ``update`` method of the dict.
 
 The simple case
 ---------------
@@ -29,6 +31,7 @@ two sets of predefined parameters for healthy and pathological gait.
 We will omit the algorithm implementation (aka the action method) here, as it is not relevant for the example.
 """
 
+from types import MappingProxyType
 from typing import Optional
 
 import tpcp
@@ -43,8 +46,8 @@ class MyAlgorithm(tpcp.Algorithm):
         self.param2 = param2
 
     class PredefinedParameters:
-        healthy = {"param1": 1, "param2": "healthy"}
-        pathological = {"param1": 3, "param2": "pathological"}
+        healthy = MappingProxyType({"param1": 1, "param2": "healthy"})
+        pathological = MappingProxyType({"param1": 3, "param2": "pathological"})
 
 
 # %%
@@ -60,7 +63,23 @@ algo_with_healthy_params.get_params()
 # For example, only use the predefined parameters for some parameters and overwrite others:
 pathological_params = MyAlgorithm.PredefinedParameters.pathological
 algo_with_custom_pathological_params = MyAlgorithm(
+    **dict(pathological_params, param2="bar")
+)
+algo_with_custom_pathological_params.get_params()
+
+# %%
+# Other possible syntax versions (based on preference):
+pathological_params = MyAlgorithm.PredefinedParameters.pathological
+algo_with_custom_pathological_params = MyAlgorithm(
     **{**pathological_params, "param2": "bar"}
+)
+algo_with_custom_pathological_params.get_params()
+
+# %%
+# Or
+pathological_params = MyAlgorithm.PredefinedParameters.pathological
+algo_with_custom_pathological_params = MyAlgorithm(
+    **(pathological_params | dict(param2="bar"))
 )
 algo_with_custom_pathological_params.get_params()
 
@@ -83,8 +102,8 @@ class MyAlgorithm(tpcp.Algorithm):
     param2: str
 
     class PredefinedParameters:
-        healthy = {"param1": 1, "param2": "healthy"}
-        pathological = {"param1": 3, "param2": "pathological"}
+        healthy = MappingProxyType({"param1": 1, "param2": "healthy"})
+        pathological = MappingProxyType({"param1": 3, "param2": "pathological"})
 
     @set_defaults(**PredefinedParameters.healthy)
     def __init__(
@@ -133,13 +152,17 @@ class MyAlgorithm(tpcp.Algorithm):
         def healthy(cls):
             # Load the model from a file here
             model = cls._load_from_file("healthy")
-            return {"param1": 1, "param2": "healthy", "model": model}
+            return MappingProxyType(
+                {"param1": 1, "param2": "healthy", "model": model}
+            )
 
         @classproperty
         def pathological(cls):
             # Load the model from a file here
             model = cls._load_from_file("pathological")
-            return {"param1": 3, "param2": "pathological", "model": model}
+            return MappingProxyType(
+                {"param1": 3, "param2": "pathological", "model": model}
+            )
 
     def __init__(
         self,

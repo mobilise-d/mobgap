@@ -91,9 +91,6 @@ class TestMaxBreakCriteria(BaseTestCriteriaTermination):
         )
 
 
-#     TODO: Test new delay rules
-
-
 class TestNStridesCriteria(BaseTestCriteriaInclusion):
     criteria_class = NStridesCriteria
     defaults = {"min_strides": 1}

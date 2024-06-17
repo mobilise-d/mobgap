@@ -1,9 +1,13 @@
 import typing
 import warnings
+from types import MappingProxyType
+from typing import Final
 
 import numpy as np
 import pandas as pd
 from pandas import option_context
+from tpcp import cf
+from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
@@ -238,11 +242,8 @@ class MobilisedAggregator(BaseAggregator):
         ("duration_s > 60", _SIXTY_WB_AGGS),
     ]
 
-    # TODO: Make that configurable somehow, as we should unify the units across the whole package
     _UNIT_CONVERSIONS: typing.ClassVar = {
         "walkdur_all_sum": 1 / 3600,
-        "strlen_1030_avg": 100,
-        "strlen_30_avg": 100,
     }
 
     _COUNT_COLUMNS: typing.ClassVar = [
@@ -261,12 +262,30 @@ class MobilisedAggregator(BaseAggregator):
 
     filtered_wb_dmos_: pd.DataFrame
 
+    class PredefinedParameters:
+        cvs_dmo_data: Final = MappingProxyType(
+            {
+                "groupby": ["visit_type", "participant_id", "measurement_date"],
+                "unique_wb_id_column": "wb_id",
+                "use_original_names": True,
+            }
+        )
+
+        single_recording: Final = MappingProxyType(
+            {
+                "groupby": None,
+                "unique_wb_id_column": "wb_id",
+                "use_original_names": False,
+            }
+        )
+
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.single_recording.items()})
     def __init__(
         self,
-        groupby: typing.Optional[typing.Sequence[str]] = ("visit_type", "participant_id", "measurement_date"),
+        groupby: typing.Optional[typing.Sequence[str]],
         *,
-        unique_wb_id_column: str = "wb_id",
-        use_original_names: bool = False,
+        unique_wb_id_column: str,
+        use_original_names: bool,
     ) -> None:
         self.groupby = groupby
         self.unique_wb_id_column = unique_wb_id_column
@@ -358,7 +377,6 @@ class MobilisedAggregator(BaseAggregator):
         self.aggregated_data_ = self._apply_aggregations(self.filtered_wb_dmos_, groupby, available_filters_and_aggs)
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
-        self.aggregated_data_ = self.aggregated_data_.round(3)
 
         if self.use_original_names is False:
             self.aggregated_data_ = self.aggregated_data_.rename(columns=self.ALTERNATIVE_NAMES, errors="ignore")

@@ -1,0 +1,42 @@
+{
+    "HA": {
+        "001": {
+            "sensor_height_m": 0.9640000000000001,
+            "height_m": 1.59,
+            "weight_kg": 73.0,
+            "cohort": "HA",
+            "handedness": "right",
+            "foot_length_cm": 25.0,
+            "indip_data_used": "All",
+            "sensor_attachment_su": "Body-Worn",
+            "sensor_type_su": "MM+",
+            "walking_aid_used": false
+        },
+        "002": {
+            "sensor_height_m": 1.08,
+            "height_m": 1.75,
+            "weight_kg": 82.0,
+            "cohort": "HA",
+            "handedness": "right",
+            "foot_length_cm": 26.4,
+            "indip_data_used": "All",
+            "sensor_attachment_su": "Body-Worn",
+            "sensor_type_su": "MM+",
+            "walking_aid_used": false
+        }
+    },
+    "MS": {
+        "001": {
+            "sensor_height_m": 0.975,
+            "height_m": 1.68,
+            "weight_kg": 74.0,
+            "cohort": "MS",
+            "handedness": "left",
+            "foot_length_cm": 23.6,
+            "indip_data_used": "All",
+            "sensor_attachment_su": "Body-Worn",
+            "sensor_type_su": "MM+",
+            "walking_aid_used": false
+        }
+    }
+}

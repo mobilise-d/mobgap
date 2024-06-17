@@ -1,6 +1,7 @@
 from collections.abc import Hashable
 from itertools import count
-from typing import ClassVar, Optional
+from types import MappingProxyType
+from typing import Final, Optional
 
 import numpy as np
 import pandas as pd
@@ -117,15 +118,17 @@ class WbAssembly(Algorithm):
     _wb_id_map: dict[str, int]
 
     class PredefinedParameters:
-        mobilised: ClassVar = {
-            "rules": [
-                (
-                    "min_strides",
-                    NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
-                ),
-                ("max_break", MaxBreakCriteria(max_break_s=3)),
-            ]
-        }
+        mobilised: Final = MappingProxyType(
+            {
+                "rules": [
+                    (
+                        "min_strides",
+                        NStridesCriteria(min_strides=4, min_strides_left=3, min_strides_right=3),
+                    ),
+                    ("max_break", MaxBreakCriteria(max_break_s=3)),
+                ]
+            }
+        )
 
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.mobilised.items()})
     def __init__(self, rules: Optional[list[tuple[str, BaseWbCriteria]]]) -> None:
@@ -140,7 +143,7 @@ class WbAssembly(Algorithm):
     @property
     def wb_meta_parameters_(self) -> pd.DataFrame:
         if len(self.annotated_stride_list_) == 0:
-            return pd.DataFrame()
+            return pd.DataFrame(columns=["start", "end", "n_strides", "duration_s"], index=pd.Index([], name="wb_id"))
 
         n_strides = self.annotated_stride_list_.groupby("wb_id").size().rename("n_strides")
         parameters = self.termination_reasons_.loc[n_strides.index]

@@ -2,6 +2,7 @@ from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 
 
 def test_gs_iterator(snapshot):
@@ -19,6 +20,38 @@ def test_gs_iterator(snapshot):
 
     snapshot.assert_match(iterator.results_.ic_list, "initial_contacts")
     snapshot.assert_match(iterator.results_.cadence_per_sec, "cadence")
+
+
+def test_full_mobilise_pipeline(snapshot):
+    from examples.pipeline._02_step_by_step_mobilised_pipeline import (
+        agg_results,
+        final_strides,
+        per_wb_params,
+        pipeline,
+    )
+
+    assert_frame_equal(pipeline.per_stride_parameters_, final_strides)
+    assert_frame_equal(pipeline.per_wb_parameters_.drop(columns="rule_obj"), per_wb_params.drop(columns="rule_obj"))
+    assert_frame_equal(pipeline.aggregated_parameters_, agg_results)
+
+    snapshot.assert_match(pipeline.per_stride_parameters_, "per_stride_parameters")
+    snapshot.assert_match(pipeline.per_wb_parameters_.drop(columns="rule_obj"), "per_wb_parameters")
+    snapshot.assert_match(pipeline.aggregated_parameters_, "aggregated_parameters")
+
+
+def test_preconfigured_mobilise_pipeline(snapshot):
+    from examples.pipeline._03_preconfigured_mobilised_pipelines import (
+        aggregated_paras,
+        per_wb_paras,
+        pipeline_ha,
+        pipeline_ms,
+    )
+
+    snapshot.assert_match(per_wb_paras.drop(columns="rule_obj"), "meta_pipeline_full_per_wb_parameters")
+    snapshot.assert_match(aggregated_paras, "meta_pipeline_full_aggregated_parameters")
+
+    snapshot.assert_match(pipeline_ms.per_wb_parameters_.drop(columns="rule_obj"), "ms_per_wb_parameters")
+    snapshot.assert_match(pipeline_ha.per_wb_parameters_.drop(columns="rule_obj"), "ha_per_wb_parameters")
 
 
 def test_gsd_dmo_evaluation_on_wb_level(snapshot):
