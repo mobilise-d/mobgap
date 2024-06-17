@@ -11,8 +11,8 @@ from typing_extensions import Self
 from mobgap._docutils import make_filldoc
 from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
-from mobgap.cad import CadFromIcDetector
-from mobgap.cad.base import BaseCadCalculator
+from mobgap.cadence import CadFromIcDetector
+from mobgap.cadence.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
 from mobgap.gsd import GsdIluz, GsdIonescu
 from mobgap.gsd.base import BaseGsDetector

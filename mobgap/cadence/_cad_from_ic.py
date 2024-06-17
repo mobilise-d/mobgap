@@ -7,7 +7,7 @@ from tpcp import cf
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
-from mobgap.cad.base import BaseCadCalculator, base_cad_docfiller
+from mobgap.cadence.base import BaseCadCalculator, base_cad_docfiller
 from mobgap.data_transform import HampelFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.icd import IcdShinImproved
@@ -87,7 +87,7 @@ ic2cad_docfiller = make_filldoc(
         "smoothing_filter": """
     """,
     },
-    doc_summary="Decorator to fill the explanation of the ic to cad per second interpolation.",
+    doc_summary="Decorator to fill the explanation of the ic to cadence per second interpolation.",
 )
 
 

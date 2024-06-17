@@ -61,7 +61,7 @@ reference_gs
 # Then we initialize the algorithm and call the ``calculate`` method.
 # Note that we use the ``sampling_rate_hz`` of the actual data and not the reference system.
 # This is because, the reference parameters are already converted to the data sampling rate.
-from mobgap.cad import CadFromIc
+from mobgap.cadence import CadFromIc
 
 cad_from_ic = CadFromIc()
 
@@ -104,10 +104,10 @@ print(
 #
 # CadFromIcDetector
 # -----------------
-# For the :class:`~mobgap.cad.CadFromIcDetector` we need to supply an IC detection algorithm.
+# For the :class:`~mobgap.cadence.CadFromIcDetector` we need to supply an IC detection algorithm.
 # In this case we use the :class:`~mobgap.icd.IcdShinImproved` algorithm.
 # We could also use any other IC detection algorithm or adapt the parameters of the IC detection algorithm.
-from mobgap.cad import CadFromIcDetector
+from mobgap.cadence import CadFromIcDetector
 from mobgap.icd import IcdShinImproved
 
 cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())

@@ -96,7 +96,7 @@ refined_gait_sequence_data = first_gait_sequence_data.iloc[
 # %%
 # Step 3: Cadence Calculation
 # ---------------------------
-from mobgap.cad import CadFromIc
+from mobgap.cadence import CadFromIc
 
 cad = CadFromIc()
 cad.calculate(
@@ -171,7 +171,7 @@ turn_list
 # Actual Pipeline
 # ---------------
 # We first define all the algorithms we want to use.
-from mobgap.cad import CadFromIc
+from mobgap.cadence import CadFromIc
 from mobgap.gsd import GsdIluz
 from mobgap.icd import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich

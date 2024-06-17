@@ -4,7 +4,7 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.cad import CadFromIc, CadFromIcDetector
+from mobgap.cadence import CadFromIc, CadFromIcDetector
 from mobgap.data import LabExampleDataset
 from mobgap.icd.base import BaseIcDetector
 from mobgap.pipeline import GsIterator

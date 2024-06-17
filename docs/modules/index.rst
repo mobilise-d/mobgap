@@ -15,7 +15,7 @@ This is the API Reference for ``mobgap``.
     icd
     lrc
     turning
-    cad
+    cadence
     stride_length
     walking_speed
     wba
