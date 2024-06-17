@@ -4,4 +4,4 @@ from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).parent
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
