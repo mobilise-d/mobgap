@@ -22,7 +22,6 @@ For more information about the individual steps, please refer to the respective 
 
 import pandas as pd
 
-# TODO: This example is WIP and will be expanded once the respective algorithms are implemented.
 # %%
 # Load example data
 # -----------------

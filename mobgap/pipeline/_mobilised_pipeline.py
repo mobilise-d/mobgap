@@ -380,7 +380,6 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
         results = self.gs_iterator_.results_
 
-        # TODO: Handle case where no GS are detected or no ICs within the GS
         self.raw_per_sec_parameters_ = pd.concat(
             [
                 results.cadence_per_sec,
