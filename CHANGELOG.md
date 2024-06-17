@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Example on how to create custom datasets (https://github.com/mobilise-d/mobgap/pull/155, https://github.com/mobilise-d/mobgap/pull/145)
 - Pipelines to run the P1 and P2 Mobilise-D pipelines (https://github.com/mobilise-d/mobgap/pull/145)
 - A "naive" walking speed calculation method that just multiplies the cadence with the step length.
   (https://github.com/mobilise-d/mobgap/pull/148)
@@ -49,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed algorithm folders to easier to understand names(gsd -> gait_sequences, icd -> initial_contacts, lrc -> laterality)
+  (https://github.com/mobilise-d/mobgap/pull/156)
 - Many algorithms are now more robust to short data and correctly return empty results if the data is too short instead
   of erroring out.
   (https://github.com/mobilise-d/mobgap/pull/145)
