@@ -5,8 +5,8 @@ from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.gsd import GsdAdaptiveIonescu
-from mobgap.gsd._gsd_ionescu import GsdIonescu, find_intersections
+from mobgap.gait_sequences import GsdAdaptiveIonescu
+from mobgap.gait_sequences._gsd_ionescu import GsdIonescu, find_intersections
 
 
 class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):

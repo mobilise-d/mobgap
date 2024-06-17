@@ -11,7 +11,7 @@ This is the API Reference for ``mobgap``.
 
     data
     pipeline
-    gsd
+    gait_sequences
     initial_contacts
     lrc
     turning

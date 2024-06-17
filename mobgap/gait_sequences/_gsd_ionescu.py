@@ -19,7 +19,7 @@ from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
 )
-from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
+from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.utils.conversions import as_samples
 
 _gsd_ionescu_docfiller = make_filldoc(

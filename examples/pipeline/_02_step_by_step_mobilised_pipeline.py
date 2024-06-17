@@ -41,7 +41,7 @@ participant_metadata = long_trial.participant_metadata
 # %%
 # Step 1: Gait Sequence Detection
 # -------------------------------
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 
 gsd = GsdIluz()
 gsd.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
@@ -172,7 +172,7 @@ turn_list
 # ---------------
 # We first define all the algorithms we want to use.
 from mobgap.cadence import CadFromIc
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 from mobgap.initial_contacts import IcdShinImproved, refine_gs
 from mobgap.lrc import LrcUllrich
 from mobgap.stride_length import SlZijlstra

@@ -2,7 +2,7 @@ import pandas as pd
 
 
 def test_gsd_iluz(snapshot):
-    from examples.gsd._01_gsd_iluz import (
+    from examples.gait_sequences._01_gsd_iluz import (
         long_trial_output,
         long_trial_output_modified,
         short_trial_output,
@@ -14,14 +14,14 @@ def test_gsd_iluz(snapshot):
 
 
 def test_gsd_adaptive_ionescu(snapshot):
-    from examples.gsd._02_gsd_ionescu import long_trial_output_adaptive, short_trial_output_adaptive
+    from examples.gait_sequences._02_gsd_ionescu import long_trial_output_adaptive, short_trial_output_adaptive
 
     snapshot.assert_match(long_trial_output_adaptive.gs_list_, "long_trial_output_adaptive")
     snapshot.assert_match(short_trial_output_adaptive.gs_list_, "short_trial_output_adaptive")
 
 
 def test_gsd_evaluation(snapshot):
-    from examples.gsd._03_gsd_evaluation import (
+    from examples.gait_sequences._03_gsd_evaluation import (
         categorized_intervals,
         cross_validate_results,
         matched_metrics_dict,

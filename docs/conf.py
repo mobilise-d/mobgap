@@ -200,7 +200,7 @@ sphinx_gallery_conf = {
         [
             "../examples/data",
             "../examples/pipeline",
-            "../examples/gsd",
+            "../examples/gait_sequences",
             "../examples/initial_contacts",
             "../examples/lrc",
             "../examples/cadence",

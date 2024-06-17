@@ -6,7 +6,7 @@ import pytest
 from numpy.testing import assert_array_equal
 from pandas.testing import assert_frame_equal
 
-from mobgap.gsd.evaluation import (
+from mobgap.gait_sequences.evaluation import (
     _get_tn_intervals,
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,

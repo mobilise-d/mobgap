@@ -3,7 +3,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from mobgap.gsd.base import _unify_gs_df
+from mobgap.gait_sequences.base import _unify_gs_df
 
 
 def find_zero_crossings(

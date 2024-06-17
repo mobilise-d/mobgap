@@ -9,7 +9,7 @@ This example shows how to apply evaluation algorithms to GSD and thus how to rat
 
 import pandas as pd
 from mobgap.data import LabExampleDataset
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 
 # %%
 # Loading some example data
@@ -73,7 +73,7 @@ reference_gsd_list
 #
 # Sample-wise performance evaluation
 # ----------------------------------
-# To do this, we use the :func:`~gaitlink.gsd.evaluation.categorize_intervals_per_sample` function
+# To do this, we use the :func:`~gaitlink.gait_sequences.evaluation.categorize_intervals_per_sample` function
 # to identify overlapping regions between the detected gait sequences and the reference gait sequences.
 # These overlapping regions can then be converted into sample-wise classifications of true positives, false positives, and false negatives.
 #
@@ -90,7 +90,7 @@ reference_gsd_list
 # list that were not detected (`fn`), and (optionally) samples where no gait sequences are present in both the reference and detected gait sequences (`tn`).
 # Note that the tn intervals are not explicitly calculated, but are inferred from the total length of the recording
 # (if provided) and from the other intervals, as everything between them is considered as true negative.
-from mobgap.gsd.evaluation import categorize_intervals_per_sample
+from mobgap.gait_sequences.evaluation import categorize_intervals_per_sample
 
 categorized_intervals = categorize_intervals_per_sample(
     gsd_list_detected=detected_gsd_list,
@@ -103,17 +103,19 @@ categorized_intervals
 # %%
 # Based on the individually categorized tp, fp, fn, and tn intervals, common performance metrics,
 # e.g., F1 score, precision, or recall can be calculated.
-# For this purpose, the :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
+# For this purpose, the :func:`~gaitlink.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
 # It calculates the metrics based on the "matched" gsd intervals, i.e., the categorized interval list where every entry
 # has a match type (tp, fp, fn, tn) assigned.
-# Therefore, the function requires to call the :func:`~gaitlink.gsd.evaluation.categorize_intervals_per_sample` function first.
+# Therefore, the function requires to call the :func:`~gaitlink.gait_sequences.evaluation.categorize_intervals_per_sample` function first.
 # The categorized intervals can then be passed as an argument
-# to :func:`~gaitlink.gsd.evaluation.calculate_matched_gsd_performance_metrics`.
+# to :func:`~gaitlink.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics`.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
 # Here, the total number of samples in every match type, precision, recall, F1 score, are always calculated.
 # Depending on whether true negatives are present in the categorized intervals,
 # specificity, negative predictive value, and accuracy will additionally be reported.
-from mobgap.gsd.evaluation import calculate_matched_gsd_performance_metrics
+from mobgap.gait_sequences.evaluation import (
+    calculate_matched_gsd_performance_metrics,
+)
 
 matched_metrics_dict = calculate_matched_gsd_performance_metrics(
     categorized_intervals
@@ -125,11 +127,13 @@ matched_metrics_dict
 # Furthermore, there is a range of high-level performance metrics that are simply calculated based
 # on the overall amount of gait sequences/gait detected in reference and detected data.
 # Thus, they can be inferred from the reference and detected gait sequences directly without any intermediate steps
-# using the :func:`~gaitlink.gsd.evaluation.calculate_unmatched_gsd_performance_metrics` function.
+# using the :func:`~gaitlink.gait_sequences.evaluation.calculate_unmatched_gsd_performance_metrics` function.
 # As some of the unmatched metrics are reported in seconds, the function requires the sampling frequency of the recorded
 # data as an additional argument.
 # It returns a dictionary containing all metrics for the specified detected and reference gait sequences.
-from mobgap.gsd.evaluation import calculate_unmatched_gsd_performance_metrics
+from mobgap.gait_sequences.evaluation import (
+    calculate_unmatched_gsd_performance_metrics,
+)
 
 unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
     gsd_list_detected=detected_gsd_list,
@@ -148,7 +152,7 @@ unmatched_metrics_dict
 # In this case, matching gait sequences that cover the same gait regions allows proper comparison of these parameters.
 # For more information on this, see the example on the overall parameter evaluation on Walking-Bout level (TODO).
 #
-# For this purpose, the :func:`~gaitlink.gsd.evaluation.categorize_intervals` can be used.
+# For this purpose, the :func:`~gaitlink.gait_sequences.evaluation.categorize_intervals` can be used.
 # It returns all intervals of the detected gait sequences that overlap with the reference gait sequences by at least a
 # given amount.
 # The index of the result dataframe indicated the index of the detected gait sequence.
@@ -160,7 +164,7 @@ unmatched_metrics_dict
 # If multiple detected gait sequences overlap with the same reference gait sequence, only the one with the highest
 # overlap is considered as a match.
 # If one gait sequence is covered by multiple smaller once, possibly none of them is considered as a match.
-from mobgap.gsd.evaluation import categorize_intervals
+from mobgap.gait_sequences.evaluation import categorize_intervals
 
 matches = categorize_intervals(
     gsd_list_detected=detected_gsd_list,
@@ -175,7 +179,7 @@ matches
 # ----------------------------------
 # Instead of manually evaluating and investigating the performance of a GSD algorithm on a single piece of data, we
 # often want to run a full evaluation on an entire dataset.
-# This can be done using the :class:`~mobgap.gsd.evaluation.GsdEvaluationPipeline` class and some ``tpcp`` functions.
+# This can be done using the :class:`~mobgap.gait_sequences.evaluation.GsdEvaluationPipeline` class and some ``tpcp`` functions.
 #
 # But let's start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
@@ -185,10 +189,10 @@ simulated_real_world_walking = LabExampleDataset(
 
 simulated_real_world_walking
 # %%
-# Now we can use the :class:`~mobgap.gsd.evaluation.GsdEvaluationPipeline` class to directly run a Gsd algorithm on
+# Now we can use the :class:`~mobgap.gait_sequences.evaluation.GsdEvaluationPipeline` class to directly run a Gsd algorithm on
 # a datapoint.
 # The pipeline takes care of extracting the required data.
-from mobgap.gsd.pipeline import GsdEmulationPipeline
+from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 pipeline = GsdEmulationPipeline(GsdIluz())
 

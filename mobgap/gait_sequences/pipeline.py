@@ -8,8 +8,8 @@ from tpcp.validate import Aggregator, NoAgg
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.gsd.base import BaseGsDetector, base_gsd_docfiller
-from mobgap.gsd.evaluation import (
+from mobgap.gait_sequences.base import BaseGsDetector, base_gsd_docfiller
+from mobgap.gait_sequences.evaluation import (
     calculate_matched_gsd_performance_metrics,
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals_per_sample,

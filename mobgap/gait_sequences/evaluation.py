@@ -29,7 +29,7 @@ def calculate_matched_gsd_performance_metrics(
     Calculate commonly known performance metrics for based on the matched overlap with the reference.
 
     This method assumes that you already calculated the overlapping regions between the ground truth and the detected
-    gait sequences using the :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample` method.
+    gait sequences using the :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample` method.
     This function then calculates the performance metrics based on the number of true positive, false positive,
     false negative, and true negative matches between detected and reference.
     All calculations are performed on the sample level.
@@ -49,7 +49,7 @@ def calculate_matched_gsd_performance_metrics(
 
     Further metrics are calculated if `matches` contains true negative intervals.
     This can be achieved by passing `n_overall_samples` as additional information to
-    :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample`.
+    :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`.
 
     - `tn_samples`: Number of samples that are correctly not detected as gait sequences.
     - `specificity`: Specificity of the detected gait sequences.
@@ -63,7 +63,7 @@ def calculate_matched_gsd_performance_metrics(
     Parameters
     ----------
     matches: pd.DataFrame
-        A DataFrame as returned by :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample`.
+        A DataFrame as returned by :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`.
         It contains the matched intervals between algorithm output and reference with their `start` and `end` index
         and the respective `match_type`.
     zero_division : "warn", 0 or 1, default="warn"
@@ -241,7 +241,7 @@ def categorize_intervals_per_sample(
     The results are concatenated into intervals of tp, fp, fn, and tn matches and returned as a DataFrame.
 
     The output of this method can be used to calculate performance metrics using the
-    :func:`~mobgap.gsd.evaluation.calculate_matched_gsd_performance_metrics` method.
+    :func:`~mobgap.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics` method.
 
     Parameters
     ----------
@@ -264,7 +264,7 @@ def categorize_intervals_per_sample(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import categorize_intervals_per_sample
+    >>> from mobgap.gait_sequences.evaluation import categorize_intervals_per_sample
     >>> detected = pd.DataFrame([[0, 10], [20, 30]], columns=["start", "end"])
     >>> reference = pd.DataFrame([[0, 10], [15, 25]], columns=["start", "end"])
     >>> result = categorize_intervals_per_sample(detected, reference)
@@ -502,7 +502,7 @@ def categorize_intervals(
 
     Note, we assume that ``gsd_list_detected`` has no overlaps, but we don't enforce it!
     Additionally, note that this method won't return any new intervals
-    (as done in :func:`~mobgap.gsd.evaluation.categorize_intervals_per_sample`).
+    (as done in :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`).
     Instead, the comparison is done on a sequence-by-sequence level based on the provided intervals.
 
     Parameters
@@ -540,7 +540,7 @@ def categorize_intervals(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import categorize_intervals
+    >>> from mobgap.gait_sequences.evaluation import categorize_intervals
     >>> detected = pd.DataFrame(
     ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
     ... ).set_index("id")
@@ -640,7 +640,7 @@ def get_matching_intervals(
     Additionally, the metrics of the detected and reference gait sequences are extracted and returned in a DataFrame
     for further comparison.
     When your metrics are already aggregated on a higher level, such as daily, participant-wise, or session-wise,
-    refer to ~func:`~mobgap.gsd.evaluation.combine_det_with_ref_without_matching` instead.
+    refer to ~func:`~mobgap.gait_sequences.evaluation.combine_det_with_ref_without_matching` instead.
 
     Parameters
     ----------
@@ -656,7 +656,7 @@ def get_matching_intervals(
        while the other columns are discarded.
     matches
         A DataFrame containing the matched gait sequences
-        as output by :func:`~mobgap.gsd.evaluation.find_matches_with_min_overlap`.
+        as output by :func:`~mobgap.gait_sequences.evaluation.find_matches_with_min_overlap`.
         Must have been calculated based on the same interval data as `metrics_detected` and `metrics_reference`.
         Expected to have the columns `gs_id_detected`, `gs_id_reference`, and `match_type`.
 
@@ -673,7 +673,7 @@ def get_matching_intervals(
 
     Examples
     --------
-    >>> from mobgap.gsd.evaluation import categorize_intervals
+    >>> from mobgap.gait_sequences.evaluation import categorize_intervals
     >>> detected = pd.DataFrame(
     ...     [[0, 10, 0], [20, 30, 1]], columns=["start", "end", "id"]
     ... ).set_index("id")

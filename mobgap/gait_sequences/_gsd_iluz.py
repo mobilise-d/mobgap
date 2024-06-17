@@ -11,7 +11,7 @@ from typing_extensions import Self, Unpack
 from mobgap.consts import GRAV_MS2
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.gsd.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
+from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.utils.array_handling import sliding_window_view
 from mobgap.utils.conversions import as_samples
 

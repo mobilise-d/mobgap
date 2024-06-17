@@ -90,7 +90,7 @@ data.head()
 # ----------------------------------------
 # Now that we have the data in the right format, we can use it with any algorithm that just requires IMU data as input.
 # Let's use the GSD-Iluz algorithm as an example.
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 
 gsd = GsdIluz()
 gsd.detect(data=data, sampling_rate_hz=sampling_rate_hz)

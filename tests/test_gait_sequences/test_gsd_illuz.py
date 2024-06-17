@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 
 
 class TestMetaGsdIluz(TestAlgorithmMixin):
