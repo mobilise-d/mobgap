@@ -202,7 +202,7 @@ sphinx_gallery_conf = {
             "../examples/pipeline",
             "../examples/gait_sequences",
             "../examples/initial_contacts",
-            "../examples/lrc",
+            "../examples/laterality",
             "../examples/cadence",
             "../examples/stride_length",
             "../examples/turning",

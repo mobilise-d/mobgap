@@ -50,7 +50,7 @@ ref_ics_rel_to_gs = single_test.reference_parameters_relative_to_wb_.ic_list
 # They are all trained on the MS-Project (University of Sheffield) dataset, just on different sub cohorts and can
 # be accessed using ``LrcUllrich.PredefinedParameters``.
 # We will use the model trained on all participants of the MS-Project dataset.
-from mobgap.lrc import LrcUllrich
+from mobgap.laterality import LrcUllrich
 
 algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
 

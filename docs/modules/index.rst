@@ -13,7 +13,7 @@ This is the API Reference for ``mobgap``.
     pipeline
     gait_sequences
     initial_contacts
-    lrc
+    laterality
     turning
     cadence
     stride_length

@@ -8,7 +8,7 @@ from sklearn.tree import DecisionTreeClassifier
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.lrc import LrcUllrich
+from mobgap.laterality import LrcUllrich
 from mobgap.pipeline import GsIterator
 
 

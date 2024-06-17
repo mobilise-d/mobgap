@@ -20,13 +20,13 @@ from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
+from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
 from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScaler
 
 
 @cache
 def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
-    file_path = files("mobgap") / "lrc" / "_ullrich_pretrained_models" / file_name
+    file_path = files("mobgap") / "laterality" / "_ullrich_pretrained_models" / file_name
     with file_path.open("rb") as file, warnings.catch_warnings():
         warnings.simplefilter("ignore", InconsistentVersionWarning)
         return joblib.load(file)

@@ -4,7 +4,7 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.lrc import LrcMcCamley
+from mobgap.laterality import LrcMcCamley
 
 
 class TestMetaLrcMcCamley(TestAlgorithmMixin):

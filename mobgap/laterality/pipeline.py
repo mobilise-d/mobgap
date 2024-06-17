@@ -10,7 +10,7 @@ from tpcp.validate import NoAgg
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.lrc.base import BaseLRClassifier
+from mobgap.laterality.base import BaseLRClassifier
 from mobgap.pipeline import GsIterator, iter_gs
 
 

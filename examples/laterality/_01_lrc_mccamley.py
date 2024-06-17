@@ -47,7 +47,7 @@ reference_wbs
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
 # Note, that we use the ``ic_list`` result key, as the output of all L/R detectors is identical to the output of the
 # IC-detectors, but with an additional ``lr_label`` column.
-from mobgap.lrc import LrcMcCamley
+from mobgap.laterality import LrcMcCamley
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()

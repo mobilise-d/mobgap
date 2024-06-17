@@ -2,13 +2,13 @@ import pandas as pd
 
 
 def test_mccamley(snapshot):
-    from examples.lrc._01_lrc_mccamley import detected_ics
+    from examples.laterality._01_lrc_mccamley import detected_ics
 
     snapshot.assert_match(detected_ics)
 
 
 def test_ullrich(snapshot):
-    from examples.lrc._02_lrc_ullrich import detected_ics, predictions
+    from examples.laterality._02_lrc_ullrich import detected_ics, predictions
 
     snapshot.assert_match(detected_ics)
     snapshot.assert_match(predictions)
@@ -24,7 +24,7 @@ def _merge_cv_nested_results(results_df):
 
 
 def test_lrc_evaluation(snapshot):
-    from examples.lrc._99_lrc_evaluation import evaluation_results_pre_trained, evaluation_results_with_opti
+    from examples.laterality._99_lrc_evaluation import evaluation_results_pre_trained, evaluation_results_with_opti
 
     evaluation_results_with_opti = _merge_cv_nested_results(evaluation_results_with_opti)
     evaluation_results_pre_trained = _merge_cv_nested_results(evaluation_results_pre_trained)

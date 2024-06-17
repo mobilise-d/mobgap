@@ -1,8 +1,8 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from mobgap.lrc import strides_list_from_ic_lr_list
-from mobgap.lrc._utils import _unify_stride_list
+from mobgap.laterality import strides_list_from_ic_lr_list
+from mobgap.laterality._utils import _unify_stride_list
 
 
 class TestStridesListFromIcLrList:

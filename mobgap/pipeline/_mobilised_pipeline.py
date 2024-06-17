@@ -18,8 +18,8 @@ from mobgap.gait_sequences import GsdIluz, GsdIonescu
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.initial_contacts import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
 from mobgap.initial_contacts.base import BaseIcDetector
-from mobgap.lrc import LrcUllrich, strides_list_from_ic_lr_list
-from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df
+from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
+from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator

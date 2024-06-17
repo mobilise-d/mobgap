@@ -7,7 +7,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.lrc.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
+from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
 
 
 @base_lrc_docfiller

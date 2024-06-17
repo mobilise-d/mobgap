@@ -9,9 +9,9 @@ from tpcp.testing import TestAlgorithmMixin
 from typing_extensions import Self, Unpack
 
 from mobgap.data import LabExampleDataset
-from mobgap.lrc import LrcMcCamley
-from mobgap.lrc.base import BaseLRClassifier
-from mobgap.lrc.pipeline import LrcEmulationPipeline
+from mobgap.laterality import LrcMcCamley
+from mobgap.laterality.base import BaseLRClassifier
+from mobgap.laterality.pipeline import LrcEmulationPipeline
 
 
 class TestMetaLrcEmulationPipeline(TestAlgorithmMixin):

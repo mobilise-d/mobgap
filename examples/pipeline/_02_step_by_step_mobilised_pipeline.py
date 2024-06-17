@@ -72,7 +72,7 @@ ic_list
 # Step 2.5: Laterality Detection
 # ------------------------------
 # For each IC we want to detect the laterality.
-from mobgap.lrc import LrcUllrich
+from mobgap.laterality import LrcUllrich
 
 lrc = LrcUllrich()
 lrc.predict(
@@ -174,7 +174,7 @@ turn_list
 from mobgap.cadence import CadFromIc
 from mobgap.gait_sequences import GsdIluz
 from mobgap.initial_contacts import IcdShinImproved, refine_gs
-from mobgap.lrc import LrcUllrich
+from mobgap.laterality import LrcUllrich
 from mobgap.stride_length import SlZijlstra
 from mobgap.turning import TdElGohary
 from mobgap.walking_speed import WsNaive
@@ -268,7 +268,7 @@ combined_results
 # As walking bouts in the context of Mobilise-D are defined based on strides, we need to turn the ICs into strides and
 # the per-second values into per-stride values by using interpolation.
 # We also calculate the stride duration here.
-from mobgap.lrc import strides_list_from_ic_lr_list
+from mobgap.laterality import strides_list_from_ic_lr_list
 
 stride_list = (
     results.ic_list.groupby("gs_id", group_keys=False)

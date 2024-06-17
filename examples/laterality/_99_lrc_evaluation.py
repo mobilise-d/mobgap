@@ -12,7 +12,7 @@ evaluate the performance of the algorithm.
 
 import pandas as pd
 from mobgap.data import LabExampleDataset
-from mobgap.lrc import LrcUllrich
+from mobgap.laterality import LrcUllrich
 from mobgap.pipeline import GsIterator
 
 # %%
@@ -152,7 +152,7 @@ disp.figure_.show()
 # ----------------------------------
 # Instead of manually evaluating and investigating the performance of an algorithm on a single piece of data, we
 # often want to run a full evaluation on an entire dataset.
-# This can be done using the :class:`~mobgap.lrc.base.LrdPipeline` class and some ``tpcp`` functions.
+# This can be done using the :class:`~mobgap.laterality.base.LrdPipeline` class and some ``tpcp`` functions.
 #
 # But let's start with selecting some data.
 # We want to use all the simulated real-world walking data from the INDIP reference system (Test11).
@@ -164,7 +164,7 @@ simulated_real_world_walking
 
 # %%
 # Now we can create a pipeline instance and directly run it on of the datapoints of the dataset.
-from mobgap.lrc.pipeline import LrcEmulationPipeline
+from mobgap.laterality.pipeline import LrcEmulationPipeline
 
 pipeline = LrcEmulationPipeline(LrcUllrich())
 
