@@ -25,7 +25,7 @@ import pandas as pd
 # %%
 # Load example data
 # -----------------
-# We load example data from the lab dataset, and we will use a single long-trail from a "MS" participant for this
+# We load example data from the lab dataset, and we will use a single long-trail from an "MS" participant for this
 # example.
 from mobgap.data import LabExampleDataset
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
@@ -164,8 +164,8 @@ turn_list = turn.turn_list_
 turn_list
 
 # %%
-# After going through the steps for a single gait sequence, we would then put all the data together to calculate final
-# results per WB.
+# After going through the steps for a single gait sequence,
+# we would then put all the data together to calculate the final results per WB.
 # But let's first put all the processing into an easy-to-read loop.
 #
 # Actual Pipeline
@@ -196,8 +196,10 @@ gsd.detect(imu_data, sampling_rate_hz=sampling_rate_hz, **participant_metadata)
 gait_sequences = gsd.gs_list_
 
 # %%
-# Then we use the nested iterator to go through all the gait sequences and process them.
-# Note, that we use the special ``r`` object to store the results of each step and the ``with_subregion`` method to
+# Then we use a nested iterator to go through all the gait sequences and process them.
+# To learn more about this iterator,
+# check out the example about the :ref:`Gait Sequence Iterator <gs_iterator_example>`.
+# Note, that we use the special ``r`` object to store the results of each step and the ``subregion`` method to
 # elegantly handle the refined gait sequence.
 from mobgap.pipeline import GsIterator
 

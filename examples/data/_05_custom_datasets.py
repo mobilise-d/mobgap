@@ -4,17 +4,17 @@ Custom Data and Datasets
 
 While it is nice to have the example data and access to the TVS and some other datasets right through mobgap, let's be
 honest: you will probably want to use your own data at some point.
-For this we need to understand how to approach this.
+Let's discuss how to approach this.
 
 First, it is important to understand that the API in Mobgap is split in two parts: Algorithms and Pipelines.
 Algorithms by design only expect very simple data structures as input and only require inputs that they actually need.
-Most of the time, this is a pandas DataFrame for the data, key-value pares for sampling rate and other metadata,
-and other data frame like structures for intermediate results (e.g. list of initial contacts) required as input for
+Most of the time, this is a pandas DataFrame for the data, key-value pairs for sampling rate and other metadata,
+and other dataframe-like structures for intermediate results (e.g. list of initial contacts) required as input for
 algorithms further down the pipeline.
 
 This makes algorithms extremely easy to use even outside of any common pipeline.
 However, because of this, algorithms are hard to wrap in higher level functions (like GridSearch) as their individual
-APIs and data requirements are vary a lot.
+APIs and data requirements vary a lot.
 So we need a second structure, that trades the simplicity of the inputs for a uniform call signature, that requires
 a more complex data structure as input.
 
@@ -31,7 +31,7 @@ from typing import Optional, Union
 # They should serve as examples for "any common" data you might have.
 #
 # The folders have the following structure:
-# (Note this might trigger an automatic download, when you run this cell)
+# (Note that running this cell might trigger an automatic download)
 from mobgap.data import get_example_csv_data_path
 
 path = get_example_csv_data_path()
@@ -41,7 +41,7 @@ all_data_files
 # %%
 # So we have folders that describe the cohort and participant id, and filenames that encode the time measure, test and
 # trial.
-# Each file contains the imu data in a simple csv format.
+# Each file contains the IMU data in a simple csv format.
 # Let's load one of the files to see what it looks like.
 import pandas as pd
 
@@ -62,13 +62,13 @@ sampling_rate_hz = 100
 #
 # Come back, when you have done that!
 #
-# Ok, in mobgap, we expect the raw data to be a pandas Dataframe.
+# In mobgap, we expect the raw data to be a pandas Dataframe.
 # This is already taken care of.
-# However, when inspecting the data more closely you will realize that the accelertion data is in units of g.
+# However, when inspecting the data more closely you will realize that the acceleration data is in units of g.
 # In mobgap, we expect the acceleration data to be in m/s^2.
 #
 # This is good time to create a function that loads and converts the data.
-# If you have more complex transforms to do for your data, this is the place to do it.
+# If you have more complex transformations to apply for your data, this is the place to do it.
 from pathlib import Path
 
 from mobgap.consts import GRAV_MS2
@@ -88,7 +88,8 @@ data.head()
 # %%
 # Step 3: Using the data with an algorithm
 # ----------------------------------------
-# Now that we have the data in the right format, we can use it with any algorithm that just requires IMU data as input.
+# Now that we have the data in the right format, we can use it with any algorithm that requires nothing else than
+# IMU data as input.
 # Let's use the GSD-Iluz algorithm as an example.
 from mobgap.gait_sequences import GsdIluz
 
@@ -99,25 +100,25 @@ gsd.gs_list_
 # %%
 # That's it! You can now use your own data with any algorithm in mobgap.
 #
-# If you have had reference data (e.g. reference initial contacts, or reference walking bouts), you could have a look
+# If you have reference data (e.g. reference initial contacts, or reference walking bouts), you can also have a look
 # at how we expect this data to be structured in the `common data structures <../common_data_types.html>`_ guide.
-# In general, the structure of the reference data is always expected to be identical to the sturcture of the algorithm
-# results, it should be compared to.
+# In general, the structure of the reference data is always expected to be identical to the structure of the algorithm
+# results that it should be compared to.
 #
 # Step 4: Metadata
 # ----------------
 # In addition to the raw IMU data, some algorithms (e.g. the :class:`~mobgap.stride_length.SlZijlstra`) require
 # additional information about the participant.
-# This additional information we call "Participant Metadata".
-# Each algorithm, directly specifies what information it requires as keyword argument to it's "run"/"detect"/
+# This additional information we refer to as "Participant Metadata".
+# Each algorithm directly specifies what information it requires as keyword argument to it's "run"/"detect"/
 # "calculate"/... method.
 # Depending on what algorithms you want to use, you need this information available as well.
 #
 # In our example dataset, this information is stored in a "global" json file for all participants.
 # Let's have a look at this.
 #
-# We load the file as json and collapse the "identifier levels" (so cohort and participant id) into a tuple as dict key
-# and add the "cohort" as additional piece of metadata in the dict directly.
+# We load the file as json and collapse the "identifier levels" (in this case: cohort and participant_id)
+# into a tuple as dict key and add the "cohort" as additional piece of metadata in the dict directly.
 # We will see later, why this is a helpful format.
 import json
 from pprint import pprint
@@ -151,10 +152,11 @@ pprint(particpant_metadata[("HA", "001")])
 # So if you are working with a custom data, make sure that this information is available to use all algorithms without
 # issues.
 #
-# Next to particpant metadata we also have the concept of "recording metadata".
+# Next to participant metadata we also have the concept of "recording metadata".
 # This is required only by the :func:`~mobgap.aggregation.apply_thresholds` function so far.
-# It needs the information if the recording was in a `free_living` or in a `laboratory` environment.
-# For all of our recordings, we only have laboratory data.
+# It needs additional information about the recording environment,
+# i.e., whether the recording was in a `free_living` or in a `laboratory` environment.
+# Here, we only have laboratory data for all recordings.
 # So we can define constant recording metadata for all recordings.
 recording_metadata = {"measurement_condition": "laboratory"}
 
@@ -163,7 +165,8 @@ recording_metadata = {"measurement_condition": "laboratory"}
 # ---------------------------------
 # Dataset classes are more complicated structures that encapsulate the meta information of an entire dataset
 # (so potentially multiple participants, multiple cohorts, etc.) and provide a uniform API to access the data.
-# The first dataset you might have seen in the context of mobgap is the :class:`~mobgap.data.LabExampleDataset`.
+# The first dataset you might have seen in other mobgap examples of already
+# is the :class:`~mobgap.data.LabExampleDataset`.
 from mobgap.data import LabExampleDataset
 
 example_data = LabExampleDataset()
@@ -191,7 +194,7 @@ single_trial.data_ss.head()
 #    `tpcp dataset guide <https://tpcp.readthedocs.io/en/latest/auto_examples/datasets/_01_datasets_basics.html>`_.
 #    We will not explain all the cool things you can do with datasets here, to not duplicate this information.
 #
-# For all mobgap pipelines we expect datapoint (a dataset with a single row) as input that are subclasses of
+# For all mobgap pipelines we expect datapoints (a dataset with a single row) as input that are subclasses of
 # :class:`~mobgap.data.BaseGaitDataset` or :class:`~mobgap.data.BaseGaitDatasetWithReference`.
 # These baseclasses basically just define what attributes and methods a dataset should have at least to be compatible
 # with the mobgap pipelines.
@@ -246,21 +249,21 @@ dataset_from_data = GaitDatasetFromData(
 dataset_from_data
 
 # %%
-# Now we can work with the dataset in the same way, as we worked with the example datasets.
+# Now we can work with our custom dataset in the same way, as we worked with the example datasets.
 #
 # For example, we can get a subset
 single_trial = dataset_from_data.get_subset(
     cohort="HA", participant_id="001", test="Test5"
 )[0]
 # %%
-# And then access the imudata
+# And then use it to access the IMU data
 single_trial.data_ss.head()
 
 # And the participant metadata
 single_trial.participant_metadata
 
 # %%
-# To show that this works as expected, we run one of the datapoints through the Mobilise Pipeline.
+# To show that this works as expected, we run one of the datapoints through the Mobilise-D Pipeline.
 # (Note, we only expect a single WB within the "Test5" recordings)
 from mobgap.pipeline import MobilisedPipelineHealthy
 
@@ -278,7 +281,7 @@ pipe.per_wb_parameters_.drop(columns="rule_obj").T
 # :class:`~mobgap.data.GenericMobilisedDataset`, that can be used with any folder structure full of `data.mat` files.
 #
 # In the following, we are going to speed-run through the creation of a simple dataset class that can be used with the
-# cvs example data, that we showed above.
+# csv example data, that we showed above.
 # For a little bit slower, but more detailed guide, see the `tpcp real-world-dataset guide
 # <https://tpcp.readthedocs.io/en/latest/auto_examples/datasets/_02_datasets_real_world_example.html>`_.
 #
@@ -289,8 +292,9 @@ pipe.per_wb_parameters_.drop(columns="rule_obj").T
 # Note, that we sort the files before creating the index!
 # This is important to ensure that we get exactly the same index on every operating system.
 #
-# We take the base-path to our dataset as parameter in the init.
-# And already implement the ``_path_from_index`` method that helps us to identify the correct file for a given index.
+# We take the base path to our dataset as parameter in the init.
+# Furthermore, we already implement the ``_path_from_index`` method that helps us to identify
+# the correct data file for a given index.
 from mobgap.data.base import BaseGaitDataset
 
 
@@ -445,7 +449,7 @@ pipe.per_wb_parameters_.drop(columns="rule_obj").T
 # See `this guide <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_01_caching.html>`_ for more
 # information.
 #
-# Or in case you have a dataset with reference data, you could change the base class of the dataset to
+# Further, in case you have a dataset with reference data, you could change the base class of the dataset to
 # :class:`~mobgap.data.base.BaseGaitDatasetWithReference` and implement the reference data loading attributes.
 # This allows to use the dataset for DMO validation or optimization pipelines.
 # See for example `lrc_evaluation`_ for more information.
@@ -453,4 +457,4 @@ pipe.per_wb_parameters_.drop(columns="rule_obj").T
 # If you are interested into more examples in how datasets can be structure in general, have a look at the source of
 # :class:`~mobgap.data.TVSLabDataset` or :class:`~mobgap.data.GenericMobilisedDataset`.
 # For more examples outside mobgap, have a look at the source of the
-# `gaitmap-dataset <https://github.com/mad-lab-fau/gaitmap-datasets>` package
+# `gaitmap-dataset <https://github.com/mad-lab-fau/gaitmap-datasets>`_ package.

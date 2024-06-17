@@ -247,7 +247,7 @@ pipe_adaptive_gsd.per_wb_parameters_
 # of the pre-processing filter of the GSD algorithm of the healthy pipeline used internally in the MetaPipeline.
 #
 # .. note:: The MobilisedMetaPipeline is a special case, as it makes use of a tpcp feature called ``composite_params``.
-#           This allows us to target the ``pipelines__healthy`` parameters, eventough ``pipelines`` is not an object,
+#           This allows us to target the ``pipelines__healthy`` parameters, even tough ``pipelines`` is not an object,
 #           but a list of tuples.
 #           Learn more about this feature in the `tpcp documentation
 #           <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_03_composite_objects.html>`_.
