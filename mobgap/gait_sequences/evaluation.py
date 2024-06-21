@@ -624,6 +624,11 @@ def categorize_intervals(
     )
 
     matches.index.name = "match_id"
+    if matches.empty:
+        # return empty dataframe with the correct column names
+        matches.loc[:, "match_type"] = pd.Series()
+        return matches
+
     matches.loc[~matches.isna().any(axis=1), "match_type"] = "tp"
     matches.loc[matches[reference_index_name].isna(), "match_type"] = "fp"
     matches.loc[matches[detected_index_name].isna(), "match_type"] = "fn"

@@ -49,7 +49,7 @@ def matches_df():
     )
 
 
-class TestCategorizeIntervals:
+class TestCategorizeIntervalsPerSample:
     """Tests for categorize_intervals_per_sample method for gsd validation."""
 
     def test_raise_type_error_no_df(self, intervals_example):
@@ -70,6 +70,20 @@ class TestCategorizeIntervals:
                 gsd_list_reference=pd.DataFrame(intervals_example_with_id),
                 n_overall_samples=2,
             )
+
+    @pytest.mark.parametrize(
+        ("detected", "reference", "tp_fp_fn_list"),
+        [
+            ("intervals_example", pd.DataFrame(), [[], [[1, 3], [5, 7]], []]),
+            (pd.DataFrame(), "intervals_example", [[], [], [[1, 3], [5, 7]]]),
+            (pd.DataFrame(), pd.DataFrame(), [[], [], []]),
+        ],
+    )
+    def test_empty_df_as_input(self, detected, reference, tp_fp_fn_list, request):
+        detected = detected if isinstance(detected, pd.DataFrame) else request.getfixturevalue(detected)
+        reference = reference if isinstance(reference, pd.DataFrame) else request.getfixturevalue(reference)
+
+        self._assert_equal_tp_fp_fn(detected, reference, *tp_fp_fn_list)
 
     def test_validation_all_tp(self, intervals_example):
         expected_tp, expected_fp, expected_fn = intervals_example, [], []
@@ -228,7 +242,7 @@ class TestCategorizeIntervals:
         assert_frame_equal(tn, expected_tn, check_dtype=False)
 
 
-class TestMatchIntervals:
+class TestCategorizeIntervals:
     """`Tests for categorize_intervals` method for gsd validation."""
 
     def test_raise_type_error_no_df(self, intervals_example):
@@ -287,6 +301,30 @@ class TestMatchIntervals:
         with pytest.warns(None) as record:
             categorize_intervals(gsd_list_detected=multiindex, gsd_list_reference=multiindex, multiindex_warning=False)
             assert len(record) == 0
+
+    @pytest.mark.parametrize(
+        ("detected", "reference", "match_type"),
+        [
+            ("intervals_example", pd.DataFrame(), "fp"),
+            (pd.DataFrame(), "intervals_example", "fn"),
+            (pd.DataFrame(), pd.DataFrame(), None),
+        ],
+    )
+    def test_empty_df_as_input(self, detected, reference, match_type, request):
+        detected = detected if isinstance(detected, pd.DataFrame) else request.getfixturevalue(detected)
+        reference = reference if isinstance(reference, pd.DataFrame) else request.getfixturevalue(reference)
+
+        detected = self._to_interval_df(detected)
+        reference = self._to_interval_df(reference)
+
+        matches = categorize_intervals(gsd_list_detected=detected, gsd_list_reference=reference)
+        assert len(matches) == max(len(detected), len(reference))
+        if match_type:
+            assert len(matches["match_type"].unique()) == 1
+            assert matches["match_type"].unique()[0] == match_type
+        else:
+            assert matches.empty
+            assert matches.columns.tolist() == ["gs_id_detected", "gs_id_reference", "match_type"]
 
     def test_validation_all_tp(self, intervals_example):
         matches = categorize_intervals(
