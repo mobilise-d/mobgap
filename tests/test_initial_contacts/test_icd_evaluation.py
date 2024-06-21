@@ -180,6 +180,37 @@ class TestEvaluateInitialContactList:
             categorize_ic_list(ic_list_detected=multiindex, ic_list_reference=multiindex, multiindex_warning=False)
             assert len(record) == 0
 
+    @pytest.mark.parametrize(
+        ("detected", "reference", "match_type"),
+        [
+            ("create_ic_list_default", pd.DataFrame(), "fp"),
+            (pd.DataFrame(), "create_ic_list_default", "fn"),
+            (pd.DataFrame(), pd.DataFrame(), None),
+        ],
+    )
+    def test_empty_df_as_input(self, detected, reference, match_type, request):
+        detected = (
+            pd.DataFrame(detected, columns=["ic"]).rename_axis("ic_id")
+            if isinstance(detected, pd.DataFrame)
+            else request.getfixturevalue(detected)
+        )
+
+        reference = (
+            pd.DataFrame(reference, columns=["ic"]).rename_axis("ic_id")
+            if isinstance(reference, pd.DataFrame)
+            else request.getfixturevalue(reference)
+        )
+
+        matches = categorize_ic_list(ic_list_detected=detected, ic_list_reference=reference)
+
+        assert len(matches) == max(len(detected), len(reference))
+        if match_type:
+            assert len(matches["match_type"].unique()) == 1
+            assert matches["match_type"].unique()[0] == match_type
+        else:
+            assert matches.empty
+            assert matches.columns.tolist() == ["ic_id_detected", "ic_id_reference", "match_type"]
+
     def test_perfect_match(self, create_ic_list_default):
         matches = categorize_ic_list(ic_list_detected=create_ic_list_default, ic_list_reference=create_ic_list_default)
         assert np.all(matches["match_type"] == "tp")
