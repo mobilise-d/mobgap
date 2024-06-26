@@ -578,7 +578,7 @@ def categorize_intervals(
     if overlap_threshold > 1:
         raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
 
-    detected["range_index"] = range(len(detected))
+    detected.loc[:, "range_index"] = range(len(detected))
     tree = IntervalTree.from_tuples(detected[["start", "end", "range_index"]].to_numpy())
     detected_index = []
     reference_index = []
@@ -624,6 +624,11 @@ def categorize_intervals(
     )
 
     matches.index.name = "match_id"
+    if matches.empty:
+        # return empty dataframe with the correct column names
+        matches.loc[:, "match_type"] = pd.Series()
+        return matches
+
     matches.loc[~matches.isna().any(axis=1), "match_type"] = "tp"
     matches.loc[matches[reference_index_name].isna(), "match_type"] = "fp"
     matches.loc[matches[detected_index_name].isna(), "match_type"] = "fn"
