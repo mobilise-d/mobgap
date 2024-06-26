@@ -89,9 +89,7 @@ def test_gsd_dmo_evaluation_on_wb_level(snapshot):
     # check index of agg_results using snapshot
     snapshot.assert_match(default_agg_results.reset_index().drop(columns=["values"]), "default_agg_results_index")
     # flatten values of agg_results because tuples can't be handled by snapshot utility
-    snapshot.assert_match(
-        default_agg_results.map(_tuple_to_str), "default_agg_results_data"
-    )
+    snapshot.assert_match(default_agg_results.map(_tuple_to_str), "default_agg_results_data")
 
 
 def _tuple_to_str(t):
