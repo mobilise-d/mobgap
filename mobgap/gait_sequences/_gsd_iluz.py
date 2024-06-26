@@ -294,6 +294,6 @@ class GsdIluz(BaseGsDetector):
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
 
-        self.gs_list_ = _unify_gs_df(gs_list.copy())
+        self.gs_list_ = _unify_gs_df(gs_list.reset_index(drop=True).copy())
 
         return self

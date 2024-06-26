@@ -44,7 +44,7 @@ pipeline_ha = MobilisedPipelineHealthy()
 # We just apply the pipeline to the first long test in the data.
 long_test_ha = data_ha.get_subset(test="Test11")[0]
 
-pipeline_ha.run(long_test_ha)
+pipeline_ha = pipeline_ha.safe_run(long_test_ha)
 
 # %%
 # Now we can access the results.
@@ -81,7 +81,7 @@ pipeline_ms = MobilisedPipelineImpaired()
 # We just apply the pipeline to the first long test in the data.
 long_test_ms = data_ms.get_subset(test="Test11")[0]
 
-pipeline_ms.run(long_test_ms)
+pipeline_ms = pipeline_ms.safe_run(long_test_ms)
 
 # %%
 # Like before we can access the results.
@@ -134,7 +134,7 @@ per_wb_paras = {}
 aggregated_paras = {}
 
 for trial in tqdm(LabExampleDataset()):
-    pipe = meta_pipeline.clone().run(trial).pipeline_
+    pipe = meta_pipeline.clone().safe_run(trial).pipeline_
     if not (per_wb := pipe.per_wb_parameters_).empty:
         per_wb_paras[trial.group_label] = per_wb
     if not (agg := pipe.aggregated_parameters_).empty:
@@ -183,7 +183,7 @@ from mobgap.pipeline import MobilisedPipelineHealthy
 pipe_no_agg = MobilisedPipelineHealthy(
     dmo_thresholds=None, dmo_aggregation=None
 )
-pipe_no_agg.run(long_test_ha)
+pipe_no_agg.safe_run(long_test_ha)
 
 # %%
 # Now, the aggregated parameters are empty.
@@ -205,7 +205,7 @@ from mobgap.gait_sequences import GsdAdaptiveIonescu
 pipe_adaptive_gsd = MobilisedPipelineHealthy(
     gait_sequence_detection=GsdAdaptiveIonescu(min_n_steps=3)
 )
-pipe_adaptive_gsd.run(long_test_ha)
+pipe_adaptive_gsd.safe_run(long_test_ha)
 # %%
 # This works as before and all parameters of the pipeline are still available.
 pipe_adaptive_gsd.aggregated_parameters_
@@ -232,7 +232,7 @@ pipe_custom = BaseMobilisedPipeline(
         gait_sequence_detection=GsdAdaptiveIonescu(min_n_steps=3),
     )
 )
-pipe_adaptive_gsd.run(long_test_ha)
+pipe_adaptive_gsd.safe_run(long_test_ha)
 # %%
 pipe_adaptive_gsd.aggregated_parameters_
 
@@ -263,5 +263,5 @@ meta_pipeline_modified = MobilisedMetaPipeline().set_params(
 # This might be in particular useful, when you want to run approaches like GridSearch.
 #
 # The algorithm works as before (note we don't expect any change in output for this parameter change).
-meta_pipeline_modified.run(long_test_ha)
+meta_pipeline_modified.safe_run(long_test_ha)
 meta_pipeline_modified.pipeline_.aggregated_parameters_

@@ -414,7 +414,7 @@ pipeline = BaseMobilisedPipeline(
     dmo_aggregation=agg,
 )
 
-pipeline.run(long_trial)
+pipeline.safe_run(long_trial)
 
 # %%
 # The results are stored in the pipeline object.
