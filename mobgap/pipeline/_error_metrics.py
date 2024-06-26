@@ -213,7 +213,7 @@ def icc(
         .reset_index()
     )
     icc, ci95 = intraclass_corr(data=df, targets="targets", raters="rater", ratings="value").loc[0, ["ICC", "CI95%"]]
-    return icc, ci95
+    return float(icc), ci95
 
 
 def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tuple[float, float]:
@@ -233,7 +233,7 @@ def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tu
     quantiles
         The lower and upper quantiles as a tuple.
     """
-    return tuple(series.quantile([lower, upper]).to_numpy())
+    return tuple(series.quantile([lower, upper]).to_list())
 
 
 def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
@@ -253,7 +253,7 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
     """
     mean = series.mean()
     std = series.std()
-    return mean - std * agreement, mean + std * agreement
+    return float(mean - std * agreement), float(mean + std * agreement)
 
 
 class CustomErrorAggregations:
