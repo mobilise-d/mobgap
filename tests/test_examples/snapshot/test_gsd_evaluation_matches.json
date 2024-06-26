@@ -38,28 +38,28 @@
         {
             "index":1,
             "match_id":1,
-            "gs_id_detected":2,
+            "gs_id_detected":1,
             "gs_id_reference":null,
             "match_type":"fp"
         },
         {
             "index":2,
             "match_id":2,
-            "gs_id_detected":5,
+            "gs_id_detected":2,
             "gs_id_reference":3,
             "match_type":"tp"
         },
         {
             "index":3,
             "match_id":3,
-            "gs_id_detected":6,
+            "gs_id_detected":3,
             "gs_id_reference":4,
             "match_type":"tp"
         },
         {
             "index":4,
             "match_id":4,
-            "gs_id_detected":7,
+            "gs_id_detected":4,
             "gs_id_reference":null,
             "match_type":"fp"
         },
