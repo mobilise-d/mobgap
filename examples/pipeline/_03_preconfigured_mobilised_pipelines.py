@@ -36,7 +36,7 @@ data_ms
 # %%
 # Mobilised Pipeline Healthy
 # --------------------------
-from mobgap.pipeline import MobilisedMetaPipeline, MobilisedPipelineHealthy
+from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineUniversal
 
 pipeline_ha = MobilisedPipelineHealthy()
 
@@ -102,10 +102,10 @@ pipeline_ms.per_stride_parameters_
 # Then it become "inconvenient" to run the pipeline for each recording separately manually.
 #
 # Luckily, it is relatively easy to implement a loop that runs the pipeline for each recording.
-# We can even use :class:`~mobgap.pipeline.MobilisedMetaPipeline` to automatically process all MS participants with
-# the impaired pipeline and all HA participants with the healthy pipeline.
+# We can even use :class:`~mobgap.pipeline.MobilisedPipelineUniversal` to automatically process all MS participants
+# with the impaired pipeline and all HA participants with the healthy pipeline.
 
-meta_pipeline = MobilisedMetaPipeline(
+meta_pipeline = MobilisedPipelineUniversal(
     pipelines=[
         ("healthy", MobilisedPipelineHealthy()),
         ("impaired", MobilisedPipelineImpaired()),
@@ -243,18 +243,20 @@ pipe_adaptive_gsd.per_wb_parameters_
 # On the other end, if you are only planning to change a single sub-parameter of a pipeline, it might be easier to use
 # the ``set_params`` method, instead of passing all parameters to the constructor.
 #
-# We show the extreme example of this here, by using the MetaPipeline as starting point and changing the filter order
-# of the pre-processing filter of the GSD algorithm of the healthy pipeline used internally in the MetaPipeline.
+# We show the extreme example of this here, by using the Universal-Pipeline as starting point and changing the
+# filter order of the pre-processing filter of the GSD algorithm of the healthy pipeline used internally in the
+# MetaPipeline.
 #
-# .. note:: The MobilisedMetaPipeline is a special case, as it makes use of a tpcp feature called ``composite_params``.
+# .. note:: The MobilisedPipelineUniversal is a special case, as it makes use of a tpcp feature called
+#           ``composite_params``.
 #           This allows us to target the ``pipelines__healthy`` parameters, even tough ``pipelines`` is not an object,
 #           but a list of tuples.
 #           Learn more about this feature in the `tpcp documentation
 #           <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_03_composite_objects.html>`_.
 #
-from mobgap.pipeline import MobilisedMetaPipeline
+from mobgap.pipeline import MobilisedPipelineUniversal
 
-meta_pipeline_modified = MobilisedMetaPipeline().set_params(
+meta_pipeline_modified = MobilisedPipelineUniversal().set_params(
     pipelines__healthy__gait_sequence_detection__pre_filter__order=50
 )
 

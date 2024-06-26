@@ -4,9 +4,9 @@ from tpcp.testing import TestAlgorithmMixin
 from mobgap.data import LabExampleDataset
 from mobgap.pipeline import (
     GenericMobilisedPipeline,
-    MobilisedMetaPipeline,
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
+    MobilisedPipelineUniversal,
 )
 
 
@@ -46,7 +46,7 @@ class TestMetaMobilisedPipelineImpaired(TestAlgorithmMixin):
 class TestMetaMobilisedMetaPipeline(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = MobilisedMetaPipeline
+    ALGORITHM_CLASS = MobilisedPipelineUniversal
 
     @pytest.fixture()
     def after_action_instance(self):

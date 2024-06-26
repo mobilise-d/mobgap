@@ -17,7 +17,7 @@ Full Pipelines
     GenericMobilisedPipeline
     MobilisedPipelineHealthy
     MobilisedPipelineImpaired
-    MobilisedMetaPipeline
+    MobilisedPipelineUniversal
 
 BaseClasses
 +++++++++++

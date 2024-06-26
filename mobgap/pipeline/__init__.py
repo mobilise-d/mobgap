@@ -8,9 +8,9 @@ from mobgap.pipeline._gs_iterator import (
 )
 from mobgap.pipeline._mobilised_pipeline import (
     GenericMobilisedPipeline,
-    MobilisedMetaPipeline,
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
+    MobilisedPipelineUniversal,
 )
 
 __all__ = [
@@ -21,5 +21,5 @@ __all__ = [
     "GenericMobilisedPipeline",
     "MobilisedPipelineHealthy",
     "MobilisedPipelineImpaired",
-    "MobilisedMetaPipeline",
+    "MobilisedPipelineUniversal",
 ]

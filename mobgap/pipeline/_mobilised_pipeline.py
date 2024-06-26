@@ -578,7 +578,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
 
 
 @mobilised_pipeline_docfiller
-class MobilisedMetaPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Metapipeline that can use a specific pipeline depending on the cohort of the participant.
 
     This uses the ``RECOMMENDED_COHORTS`` attribute of the pipelines to determine which pipeline to use.
@@ -626,6 +626,23 @@ class MobilisedMetaPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[Bas
         ),
     ) -> None:
         self.pipelines = pipelines
+
+    def get_recommended_cohorts(self) -> Optional[tuple[str, ...]]:
+        """Get the recommended cohorts for this pipeline.
+
+        Returns
+        -------
+        recommended_cohorts
+            The recommended cohorts for this pipeline or None
+        """
+        all_cohorts = set()
+        for _, pipeline in self.pipelines:
+            recommended_cohorts = pipeline.get_recommended_cohorts()
+            if recommended_cohorts:
+                all_cohorts.update(recommended_cohorts)
+        if not all_cohorts:
+            return None
+        return tuple(all_cohorts)
 
     @property
     def per_stride_parameters_(self) -> pd.DataFrame:
