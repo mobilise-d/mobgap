@@ -378,6 +378,7 @@ default_agg_results = (
     .sort_index(level=0)
     .to_frame("values")
 )
+default_agg_results
 
 # %%
 # .. note::

@@ -1,6 +1,3 @@
-from collections.abc import Iterable
-
-import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
@@ -86,19 +83,16 @@ def test_gsd_dmo_evaluation_on_wb_level(snapshot):
     # check index of agg_results using snapshot
     snapshot.assert_match(agg_results.reset_index().drop(columns=["values"]), "agg_results_index")
     # flatten values of agg_results because tuples can't be handled by snapshot utility
-    snapshot.assert_match(np.array(_flatten_float_tuple_results(agg_results)), "agg_results_data")
+    agg_results = agg_results.map(_tuple_to_str)
+    snapshot.assert_match(agg_results.map(_tuple_to_str), "agg_results_data")
 
     # check index of agg_results using snapshot
     snapshot.assert_match(default_agg_results.reset_index().drop(columns=["values"]), "default_agg_results_index")
     # flatten values of agg_results because tuples can't be handled by snapshot utility
     snapshot.assert_match(
-        np.array(list(_flatten_float_tuple_results(default_agg_results.to_numpy()))), "default_agg_results_data"
+        default_agg_results.map(_tuple_to_str), "default_agg_results_data"
     )
 
 
-def _flatten_float_tuple_results(result_list):
-    for item in result_list:
-        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
-            yield from _flatten_float_tuple_results(item)
-        else:
-            yield item
+def _tuple_to_str(t):
+    return str(t) if isinstance(t, tuple) else t
