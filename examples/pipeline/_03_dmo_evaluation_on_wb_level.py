@@ -8,7 +8,7 @@ This example shows how to evaluate the performance of parameters on a walking bo
 On this level, we usually need to deal with the issue that the WB identified by the algorithm pipeline might not match
 the reference WBs.
 This makes comparing the parameters within them difficult.
-In general, two approaches can be taken here [1]:
+In general, two approaches can be taken here [1]_:
 
 1. First aggregate the WB-level parameters of both systems to a common level (e.g. per trial, per day, per hour, ...)
    and then compare the aggregated values.
@@ -18,9 +18,8 @@ In the following example we will show both approaches.
 
 But first some general setup.
 
-[1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in multiple
-conditions with a wearable device. Sci Rep 14, 1754 (2024).
-https://doi.org/10.1038/s41598-024-51766-5
+.. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+       multiple conditions with a wearable device. Sci Rep 14, 1754 (2024). https://doi.org/10.1038/s41598-024-51766-5
 """
 
 # %%
@@ -81,7 +80,11 @@ combined_dmos
 # The single rows in this dataframe should not be compared directly,
 # as the same WB ids from a detected and a reference WB might not actually belong to the same WB.
 # Therefore, we need to aggregate the DMO data based on an index level of choice, e.g., per day, to retrieve meaningful
-# and interpretable results. This can be done by grouping the data and averaging over the groups.
+# and interpretable results. This can for instance be done by grouping the data and averaging over the groups.
+# If required, apart from simple groupwise averaging, other aggregation functions
+# (e.g., moving averages or averaging over a span of several days) can be applied.
+# As long as the same aggregation method is applied to both the detected and reference data,
+# further processing can be done in the same way as shown below.
 #
 # .. note:: In case of missing data, applying `dropna()` to the resulting dataframe might be helpful to remove all
 #           groups were either detected or reference data is missing.
