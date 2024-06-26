@@ -26,8 +26,6 @@ class SlZijlstra(BaseSlCalculator):
 
     For more details see the Notes section.
 
-
-
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
