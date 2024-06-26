@@ -14,10 +14,30 @@ Full Pipelines
    :toctree: generated/pipeline
    :template: class.rst
 
-    BaseMobilisedPipeline
+    GenericMobilisedPipeline
     MobilisedPipelineHealthy
     MobilisedPipelineImpaired
     MobilisedMetaPipeline
+
+BaseClasses
++++++++++++
+
+.. currentmodule:: mobgap.pipeline
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: class.rst
+
+    base.BaseMobilisedPipeline
+
+Docu-helper
++++++++++++
+
+.. autosummary::
+   :toctree: generated/pipeline
+   :template: func.rst
+
+    mobilised_pipeline_docfiller
 
 
 Evaluation

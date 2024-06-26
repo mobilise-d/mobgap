@@ -3,7 +3,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
 from mobgap.pipeline import (
-    BaseMobilisedPipeline,
+    GenericMobilisedPipeline,
     MobilisedMetaPipeline,
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
@@ -13,7 +13,7 @@ from mobgap.pipeline import (
 class TestMetaBaseMobilisedPipeline(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = BaseMobilisedPipeline
+    ALGORITHM_CLASS = GenericMobilisedPipeline
     ONLY_DEFAULT_PARAMS = False
 
     @pytest.fixture()

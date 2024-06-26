@@ -1,19 +1,18 @@
 import warnings
 from itertools import combinations
 from types import MappingProxyType
-from typing import Final, Generic, Optional, TypeVar
+from typing import Final, Generic, Optional
 
 import pandas as pd
-from tpcp import Pipeline, cf
+from tpcp import cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self
 
-from mobgap._docutils import make_filldoc
 from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
 from mobgap.cadence import CadFromIcDetector
 from mobgap.cadence.base import BaseCadCalculator
-from mobgap.data.base import BaseGaitDataset, ParticipantMetadata
+from mobgap.data.base import ParticipantMetadata
 from mobgap.gait_sequences import GsdIluz, GsdIonescu
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.initial_contacts import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
@@ -21,6 +20,7 @@ from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
+from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -31,183 +31,10 @@ from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
 
-mobilsed_pipeline_docfiller = make_filldoc(
-    {
-        "run_short": "Run the pipeline on the provided data.",
-        "run_para": """
-    datapoint
-        The data to run the pipeline on.
-        This needs to be a valid datapoint (i.e. a dataset with just a single row).
-        The Dataset should be a child class of :class:`~mobgap.data.base.BaseGaitDataset` or implement all the same
-        parameters and methods.
-    """,
-        "run_return": """
-    Returns
-    -------
-    self
-        The pipeline object itself with all the results stored in the attributes.
-    """,
-        "core_parameters": """
-    gait_sequence_detection
-        A valid instance of a gait sequence detection algorithm.
-        This will get the entire raw data as input.
-        The core output is available via the ``gs_list_`` attribute.
-    initial_contact_detection
-        A valid instance of an initial contact detection algorithm.
-        This will run on each gait sequence individually.
-        The concatenated raw ICs are available via the ``raw_ic_list_`` attribute.
-    laterality_classification
-        A valid instance of a laterality classification algorithm.
-        This will run on each gait sequence individually, getting the predicted ICs from the IC detection algorithm as
-        input.
-        The concatenated raw ICs with L/R label are available via the ``raw_ic_list_`` attribute.
-    cadence_calculation
-        A valid instance of a cadence calculation algorithm.
-        This will run on each "refined" gait sequence individually.
-        This means the provided gait sequence will start and end at the first and last detected IC.
-        The detected ICs (with L/R label) and all :class:`~mobgap.data.base.ParticipantMetadata` parameters are provided
-        as keyword arguments.
-        The concatenated raw cadence per second values are available via the ``raw_per_sec_parameters_`` attribute.
-    stride_length_calculation
-        A valid instance of a stride length calculation algorithm.
-        This will run on each "refined" gait sequence individually.
-        This means the provided gait sequence will start and end at the first and last detected IC.
-        The detected ICs (with L/R label) and all :class:`~mobgap.data.base.ParticipantMetadata` parameters are provided
-        as keyword arguments.
-        The concatenated raw stride length per second values are available via the ``raw_per_sec_parameters_``
-        attribute.
-    walking_speed_calculation
-        A valid instance of a walking speed calculation algorithm.
-        This will run on each "refined" gait sequence individually.
-        This means the provided gait sequence will start and end at the first and last detected IC.
-        The detected ICs (with L/R label), cadence per second, stride length per second values and all
-        :class:`~mobgap.data.base.ParticipantMetadata` parameters are provided as keyword arguments.
-        The concatenated raw walking speed per second values are available via the ``raw_per_sec_parameters_``
-        attribute.
 
-        .. note :: If either cadence or stride length is not provided, ``None`` will be passed to the algorithm.
-                   Depending on the algorithm, this might raise an error, as the information is required.
-    """,
-        "turn_detection": """
-    turn_detection
-        A valid instance of a turn detection algorithm.
-        This will run on each gait sequence individually.
-        The concatenated raw turn detections are available via the ``raw_turn_list_`` attribute.
-    """,
-        "wba_parameters": """
-    stride_selection
-        A valid instance of a stride selection algorithm.
-        This will be called with all interpolated stride parameters (``raw_per_stride_parameters_``) across all gait
-        sequences.
-    wba
-        A valid instance of a walking bout assembly algorithm.
-        This will be called with the filtered stride list from the stride selection algorithm.
-        The final list of strides that are part of a valid WB are available via the ``per_stride_parameters_``
-        attribute.
-        The aggregated parameters for each WB are available via the ``per_wb_parameters_`` attribute.
-    """,
-        "aggregation_parameters": """
-    dmo_thresholds
-        A DataFrame with the thresholds for the individual DMOs.
-        To learn more about the required structure and the filtering process, please refer to the documentation of the
-        :func:`~mobgap.aggregation.get_mobilised_dmo_thresholds` and :func:`~mobgap.aggregation.apply_thresholds`.
-    dmo_aggregation
-        A valid instance of a DMO aggregation algorithm.
-        This will be called with the aggregated parameters for each WB and the mask of the DMOs.
-        The final aggregated parameters are available via the ``aggregated_parameters_`` attribute.
-    """,
-        "additional_parameters": """
-    recommended_cohorts
-        A tuple of recommended cohorts for this pipeline.
-        If a datapoint is provided with a cohort that is not part of this tuple, a warning will be raised.
-        This can also be used in combination with the :class:`MobilisedMetaPipeline` to conditionally run a specific
-        pipeline based on the cohort of the participant.
-    """,
-        "other_parameters": """
-    datapoint
-        The dataset instance passed to the run method.
-    """,
-        "primary_results": """
-    per_stride_parameters_
-        The final list of all strides including their parameters that are part of a valid WB.
-        Note, that all per-stride parameters are interpolated based on the per-sec output of the other algorithms.
-        Check out the pipeline examples to learn more about this.
-    per_wb_parameters_
-        Aggregated parameters for each WB.
-        This contains "meta parameters" like the number of strides, duration of the WB and the average over all strides
-        of cadence, stride length and walking speed (if calculated).
-    per_wb_parameter_mask_
-        A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
-        It indicates for each WB which DMOs are valid.
-        NaN indicates that the value has not been checked
-    aggregated_parameters_
-        The final aggregated parameters.
-        They are calculated based on the per WB parameters and the DMO mask.
-        Invalid parameters are (depending on the implementation in the provided Aggregation algorithm) excluded.
-        This output can either be a dataframe with a single row (all WBs were aggregated to a single value, default),
-        or a dataframe with multiple rows, if the aggregation algorithm uses a different aggregation approach.
-    """,
-        "intermediate_results": """
-    gs_list_
-        The raw output of the gait sequence detection algorithm.
-        This is a DataFrame with the start and end of each detected gait sequence.
-    raw_ic_list_
-        The raw output of the IC detection and the laterality classification.
-        This is a DataFrame with the detected ICs and the corresponding L/R label.
-    raw_turn_list_
-        The raw output of the turn detection algorithm.
-        This is a DataFrame with the detected turns (start, end, angle, ...).
-    raw_per_sec_parameters_
-        A concatenated dataframe with all calculated per-second parameters.
-        The index represents the sample of the center of the second the parameter value belongs to.
-    raw_per_stride_parameters_
-        A concatenated dataframe with all calculated per-stride parameters and the general stride information (start,
-        end, laterality).
-    """,
-        "debug_results": """
-    gait_sequence_detection_
-        The instance of the gait sequence detection algorithm that was run with all of its results.
-    gs_iterator_
-        The instance of the GS iterator that was run with all of its results.
-        This contains the raw results for each GS, as well as the information about the constrained gs.
-        These raw results (inputs and outputs per GS) can be used to test run individual algorithms exactly like they
-        were run within the pipeline.
-    stride_selection_
-        The instance of the stride selection algorithm that was run with all of its results.
-    wba_
-        The instance of the WBA algorithm that was run with all of its results.
-    dmo_aggregation_
-        The instance of the DMO aggregation algorithm that was run with all of its results.
-    """,
-        "step_by_step": """
-    The Mobilise-D pipeline consists of the following steps:
-
-    1. Gait sequences are detected using the provided gait sequence detection algorithm.
-    2. Within each gait sequence, initial contacts are detected using the provided IC detection algorithm.
-       A "refined" version of the gait sequence is created, starting and ending at the first and last detected IC.
-    3. Cadence, stride length and walking speed are calculated for each "refined" gait sequence.
-       The output of these algorithms is provided per second.
-    4. Using the L/R label for each IC calculated by the laterality classification algorithm, strides are defined.
-    5. The per-second parameters are interpolated to per-stride parameters.
-    6. The stride selection algorithm is used to filter out strides that don't fulfill certain criteria.
-    7. The WBA algorithm is used to assemble the strides into walking bouts.
-       This is done independent of the original gait sequences.
-    8. Aggregated parameters for each WB are calculated.
-    9. If DMO thresholds are provided, these WB-level parameters are filtered based on physiological valid thresholds.
-    10. The DMO aggregation algorithm is used to aggregate the WB-level parameters to either a set of values
-        per-recording or any other granularity (i.e. one value per hour), depending on the aggregation algorithm.
-
-    For a step-by-step example of how these steps are executed, check out :ref:`mobilised_pipeline_step_by_step`.
-    """,
-    }
-)
-
-BaseGaitDatasetT = TypeVar("BaseGaitDatasetT", bound=BaseGaitDataset)
-
-
-@mobilsed_pipeline_docfiller
-class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
-    """Basic Pipeline structure of the Mobilise-D pipeline.
+@mobilised_pipeline_docfiller
+class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+    """Pipeline structure of the Mobilise-D pipeline without any default algorithms.
 
     .. warning:: While this class implements the basic structure of the Mobilise-D pipeline, we only consider it "The
              Mobilise-D pipeline" if it is used with the predefined parameters/algorithms for the cohorts these
@@ -261,7 +88,6 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     wba: WbAssembly
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
-    recommended_cohorts: Optional[tuple[str, ...]]
 
     datapoint: BaseGaitDatasetT
 
@@ -278,12 +104,6 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     raw_turn_list_: pd.DataFrame
     raw_per_sec_parameters_: pd.DataFrame
     raw_per_stride_parameters_: pd.DataFrame
-
-    # Final Results
-    per_stride_parameters_: pd.DataFrame
-    per_wb_parameters_: pd.DataFrame
-    per_wb_parameter_mask_: Optional[pd.DataFrame]
-    aggregated_parameters_: Optional[pd.DataFrame]
 
     class PredefinedParameters:
         regular_walking: Final = MappingProxyType(
@@ -349,7 +169,17 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         self.dmo_aggregation = dmo_aggregation
         self.recommended_cohorts = recommended_cohorts
 
-    @mobilsed_pipeline_docfiller
+    def get_recommended_cohorts(self) -> Optional[tuple[str, ...]]:
+        """Get the recommended cohorts for this pipeline.
+
+        Returns
+        -------
+        recommended_cohorts
+            The recommended cohorts for this pipeline or None
+        """
+        return self.recommended_cohorts
+
+    @mobilised_pipeline_docfiller
     def run(self, datapoint: BaseGaitDatasetT) -> Self:
         """%(run_short)s.
 
@@ -373,12 +203,14 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
         participant_cohort = participant_metadata.get("cohort")
 
-        if self.recommended_cohorts and participant_cohort not in self.recommended_cohorts:
+        recommended_cohorts = self.get_recommended_cohorts()
+
+        if recommended_cohorts and participant_cohort not in recommended_cohorts:
             warnings.warn(
                 f"The provided datapoint has data of a participant with the cohort {participant_cohort} is not part of "
                 "the recommended "
                 f"cohorts for this pipeline {type(self).__name__}.\n"
-                f"Recommended cohorts are {self.recommended_cohorts}",
+                f"Recommended cohorts are {recommended_cohorts}",
                 stacklevel=1,
             )
 
@@ -577,8 +409,8 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         )
 
 
-@mobilsed_pipeline_docfiller
-class MobilisedPipelineHealthy(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+@mobilised_pipeline_docfiller
+class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Official Mobilise-D pipeline for healthy and mildly impaired gait (aka P1 pipeline).
 
     .. note:: When using this pipeline with its default parameters with healthy participants or participants with COPD
@@ -628,7 +460,7 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     """
 
-    @set_defaults(**{k: cf(v) for k, v in BaseMobilisedPipeline.PredefinedParameters.regular_walking.items()})
+    @set_defaults(**{k: cf(v) for k, v in GenericMobilisedPipeline.PredefinedParameters.regular_walking.items()})
     def __init__(
         self,
         *,
@@ -661,8 +493,8 @@ class MobilisedPipelineHealthy(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         )
 
 
-@mobilsed_pipeline_docfiller
-class MobilisedPipelineImpaired(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+@mobilised_pipeline_docfiller
+class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Official Mobilise-D pipeline for impaired gait (aka P2 pipeline).
 
     .. note:: When using this pipeline with its default parameters with participants with MS, PD, PFF, the use of the
@@ -712,7 +544,7 @@ class MobilisedPipelineImpaired(BaseMobilisedPipeline[BaseGaitDatasetT], Generic
 
     """
 
-    @set_defaults(**{k: cf(v) for k, v in BaseMobilisedPipeline.PredefinedParameters.impaired_walking.items()})
+    @set_defaults(**{k: cf(v) for k, v in GenericMobilisedPipeline.PredefinedParameters.impaired_walking.items()})
     def __init__(
         self,
         *,
@@ -745,8 +577,8 @@ class MobilisedPipelineImpaired(BaseMobilisedPipeline[BaseGaitDatasetT], Generic
         )
 
 
-@mobilsed_pipeline_docfiller
-class MobilisedMetaPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
+@mobilised_pipeline_docfiller
+class MobilisedMetaPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Metapipeline that can use a specific pipeline depending on the cohort of the participant.
 
     This uses the ``RECOMMENDED_COHORTS`` attribute of the pipelines to determine which pipeline to use.
@@ -766,6 +598,7 @@ class MobilisedMetaPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
     Attributes
     ----------
+    %(primary_results)s
     pipeline_
         The pipeline that was used for the provided data with all its results.
     pipeline_name_
@@ -794,7 +627,23 @@ class MobilisedMetaPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     ) -> None:
         self.pipelines = pipelines
 
-    @mobilsed_pipeline_docfiller
+    @property
+    def per_stride_parameters_(self) -> pd.DataFrame:
+        return self.pipeline_.per_stride_parameters_
+
+    @property
+    def per_wb_parameters_(self) -> pd.DataFrame:
+        return self.pipeline_.per_wb_parameters_
+
+    @property
+    def per_wb_parameter_mask_(self) -> Optional[pd.DataFrame]:
+        return self.pipeline_.per_wb_parameter_mask_
+
+    @property
+    def aggregated_parameters_(self) -> Optional[pd.DataFrame]:
+        return self.pipeline_.aggregated_parameters_
+
+    @mobilised_pipeline_docfiller
     def run(self, datapoint: BaseGaitDatasetT) -> Self:
         """%(run_short)s.
 
@@ -808,8 +657,8 @@ class MobilisedMetaPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         # Check if there is overlap in the recommended cohorts
         # We want to find the first pair that has overlaps
         for p1, p2 in combinations(self.pipelines, 2):
-            if p1[1].recommended_cohorts and p2[1].recommended_cohorts:
-                union = set(p1[1].recommended_cohorts) & set(p2[1].recommended_cohorts)
+            if p1[1].get_recommended_cohorts() and p2[1].get_recommended_cohorts():
+                union = set(p1[1].get_recommended_cohorts()) & set(p2[1].get_recommended_cohorts())
                 if union:
                     raise ValueError(
                         f"The provided pipelines with the names {p1[0]} and {p2[0]} have an overlap in the recommended "
@@ -818,7 +667,7 @@ class MobilisedMetaPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
         cohort = datapoint.participant_metadata["cohort"]
         for name, pipeline in self.pipelines:
-            if pipeline.recommended_cohorts and cohort in pipeline.recommended_cohorts:
+            if pipeline.get_recommended_cohorts() and cohort in pipeline.get_recommended_cohorts():
                 self.pipeline_ = pipeline.clone().run(datapoint)
                 self.pipeline_name_ = name
                 return self

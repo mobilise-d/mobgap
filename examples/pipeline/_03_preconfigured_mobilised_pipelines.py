@@ -108,7 +108,7 @@ pipeline_ms.per_stride_parameters_
 meta_pipeline = MobilisedMetaPipeline(
     pipelines=[
         ("healthy", MobilisedPipelineHealthy()),
-        ("MS", MobilisedPipelineImpaired()),
+        ("impaired", MobilisedPipelineImpaired()),
     ]
 )
 
@@ -134,7 +134,7 @@ per_wb_paras = {}
 aggregated_paras = {}
 
 for trial in tqdm(LabExampleDataset()):
-    pipe = meta_pipeline.clone().safe_run(trial).pipeline_
+    pipe = meta_pipeline.clone().safe_run(trial)
     if not (per_wb := pipe.per_wb_parameters_).empty:
         per_wb_paras[trial.group_label] = per_wb
     if not (agg := pipe.aggregated_parameters_).empty:
@@ -216,7 +216,7 @@ pipe_adaptive_gsd.per_wb_parameters_
 # %%
 # When you are planning to modify many algorithms, we would recommend to not use the specific pipeline classes anymore,
 # to avoid the association (is it really still the Healthy pipeline if you change all algorithms?).
-# In this case, we recommend the reconfigured :class:`~mobgap.pipeline.BaseMobilisedPipeline`.
+# In this case, we recommend the un-configured :class:`~mobgap.pipeline.GenericMobilisedPipeline`.
 # This class is also used as the base class for the preconfigured pipelines.
 # It has no algorithms set by default, so you have to set all algorithms yourself.
 # See the end of the `step-by-step example <mobilised_pipeline_step_by_step>`_ for a demonstration.
@@ -224,11 +224,11 @@ pipe_adaptive_gsd.per_wb_parameters_
 # If you want to reuse some of the defaults of the preconfigured pipelines, you can still use the
 # ``PreconfiguredParameters``.
 # For example, we could get the same pipeline as before like this:
-from mobgap.pipeline import BaseMobilisedPipeline
+from mobgap.pipeline import GenericMobilisedPipeline
 
-pipe_custom = BaseMobilisedPipeline(
+pipe_custom = GenericMobilisedPipeline(
     **dict(
-        BaseMobilisedPipeline.PredefinedParameters.regular_walking,
+        GenericMobilisedPipeline.PredefinedParameters.regular_walking,
         gait_sequence_detection=GsdAdaptiveIonescu(min_n_steps=3),
     )
 )
@@ -264,4 +264,4 @@ meta_pipeline_modified = MobilisedMetaPipeline().set_params(
 #
 # The algorithm works as before (note we don't expect any change in output for this parameter change).
 meta_pipeline_modified.safe_run(long_test_ha)
-meta_pipeline_modified.pipeline_.aggregated_parameters_
+meta_pipeline_modified.aggregated_parameters_

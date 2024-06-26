@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `BaseMobilisedPipeline` is renamed to `GenericMobilisedPipeline`. `BaseMobilisedPipeline` is now the "actual" 
+  baseclass for Mobilise-D pipelines, without any implementation.
+- `MobilisedMetaPipeline` now has proxy attributes for all the primary results expected in `BaseMobilisedPipeline` and
+  can be used as a drop-in replacement for `GenericMobilisedPipeline`.
+
 ## [0.4.0] - 2024-06-17
 
 ### Added

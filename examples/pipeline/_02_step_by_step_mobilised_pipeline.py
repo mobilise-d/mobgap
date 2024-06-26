@@ -398,9 +398,9 @@ agg_results.T
 # The steps that are shown above, are exactly the steps that are performed in the Mobilise-D pipeline.
 # Hence, we can also use the pre-built pipeline to perform the same steps.
 # This is shown below.
-from mobgap.pipeline import BaseMobilisedPipeline
+from mobgap.pipeline import GenericMobilisedPipeline
 
-pipeline = BaseMobilisedPipeline(
+pipeline = GenericMobilisedPipeline(
     gait_sequence_detection=gsd,
     initial_contact_detection=icd,
     laterality_classification=lrc,
