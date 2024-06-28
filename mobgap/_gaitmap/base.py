@@ -6,7 +6,7 @@ from typing_extensions import Self
 from mobgap._gaitmap.utils.rotations import rotate_dataset_series
 
 
-class BaseOrientationMethod(Algorithm):
+class BaseOrientationEstimation(Algorithm):
     """Base class for the individual Orientation estimation methods that work on pd.DataFrame data."""
 
     _action_methods = ("estimate",)

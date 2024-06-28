@@ -37,7 +37,7 @@ Docu-helper
    :toctree: generated/pipeline
    :template: func.rst
 
-    mobilised_pipeline_docfiller
+    base.mobilised_pipeline_docfiller
 
 
 Evaluation

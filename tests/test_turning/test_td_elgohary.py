@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 import pytest
-from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
+from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.pipeline import GsIterator
 from mobgap.turning import TdElGohary
 
