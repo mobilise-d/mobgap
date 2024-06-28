@@ -1,3 +1,4 @@
+import warnings
 from itertools import product
 
 import numpy as np
@@ -288,19 +289,19 @@ class TestCategorizeIntervals:
     def test_input_multiindex_warning_suppressed(self, intervals_example_with_id):
         multiindex = intervals_example_with_id.copy()
         multiindex.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["something", "ic_id"])
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             categorize_intervals(
                 gsd_list_detected=multiindex, gsd_list_reference=intervals_example_with_id, multiindex_warning=False
             )
-            assert len(record) == 0
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             categorize_intervals(
                 gsd_list_detected=intervals_example_with_id, gsd_list_reference=multiindex, multiindex_warning=False
             )
-            assert len(record) == 0
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             categorize_intervals(gsd_list_detected=multiindex, gsd_list_reference=multiindex, multiindex_warning=False)
-            assert len(record) == 0
 
     @pytest.mark.parametrize(
         ("detected", "reference", "match_type"),

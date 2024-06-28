@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -416,14 +418,13 @@ class TestDatasetClass:
 
     def test_error_missing_sensor_ignore(self, example_missing_data_path):
         """Test missing sensor data for missing_sensor_error_type='ignore'. No Warning should be emitted"""
-        with pytest.warns(None) as w:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             result = load_mobilised_matlab_format(
                 example_missing_data_path / "data.mat",
                 sensor_positions=("LowerBack",),
                 missing_sensor_error_type="ignore",
             )
-
-        assert len(w) == 0
 
         assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
         assert result[("TimeMeasure1", "Test11", "Trial1")].metadata["sampling_rate_hz"] is None
