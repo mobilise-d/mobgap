@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MobilisedPipelineUniversal` now has proxy attributes for all the primary results expected in `BaseMobilisedPipeline` and
   can be used as a drop-in replacement for `GenericMobilisedPipeline`.
 
+### Fixed
+
+- In case no index-col-names are passed to the `DatasetFromData` class and the data index is just a string and not a 
+  tuple, a generic column (`level_0`) is correctly created. (https://github.com/mobilise-d/mobgap/issues/164)
+
 ## [0.4.0] - 2024-06-17
 
 ### Added

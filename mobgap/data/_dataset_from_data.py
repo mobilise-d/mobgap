@@ -150,14 +150,15 @@ class GaitDatasetFromData(BaseGaitDataset):
         return self.group_label if self._is_tuple_key else self.group_label[0]
 
     def create_index(self) -> pd.DataFrame:
-        cols = list(self._data.keys())
+        rows = list(self._data.keys())
         if self.index_cols:
             index_cols = [self.index_cols] if isinstance(self.index_cols, str) else self.index_cols
         else:
-            # For tpcp, we need to make sure that all columns are valid identifiers. So if no index_cols are given, we
+            # For tpcp, we need to make sure that all columns are valid identifiers. So if no index_cols are given,
             # we create some custom strings
-            index_cols = [f"index_{i}" for i in range(len(cols[0]))]
-        return pd.DataFrame(cols, columns=index_cols)
+            n_cols = len(rows[0]) if self._is_tuple_key else 1
+            index_cols = [f"level_{i}" for i in range(n_cols)]
+        return pd.DataFrame(rows, columns=index_cols)
 
     @classmethod
     def __clone_param__(cls, param_name: str, value: Any) -> Any:
