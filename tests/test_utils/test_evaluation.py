@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -193,14 +195,12 @@ class TestNumberSamplesLogic:
     def test_no_warning_when_suppressed(self, fct):
         matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
 
-        with pytest.warns(None) as w:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             fct(matches_df, tn_warning=False)
-        assert len(w) == 0
 
         accuracy_score(matches_df, zero_division=0)
         npv_score(matches_df, zero_division=0)
-
-        assert len(w) == 0
 
     def test_raises_tn_and_n_samples(self):
         matches_df = _create_dummy_gsd_matches_df(5, 5, 5)

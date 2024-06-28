@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -166,19 +168,19 @@ class TestEvaluateInitialContactList:
         multiindex.index = pd.MultiIndex.from_tuples(
             [("a", 1), ("a", 2), ("b", 3), ("b", 4)], names=["something", "ic_id"]
         )
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             categorize_ic_list(
                 ic_list_detected=multiindex, ic_list_reference=create_ic_list_default, multiindex_warning=False
             )
-            assert len(record) == 0
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             categorize_ic_list(
                 ic_list_detected=create_ic_list_default, ic_list_reference=multiindex, multiindex_warning=False
             )
-            assert len(record) == 0
-        with pytest.warns(None) as record:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             categorize_ic_list(ic_list_detected=multiindex, ic_list_reference=multiindex, multiindex_warning=False)
-            assert len(record) == 0
 
     @pytest.mark.parametrize(
         ("detected", "reference", "match_type"),
