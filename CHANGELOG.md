@@ -14,11 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This should make the naming more consistent (compare `MobilisedPipelineHealthy`, `MobilisedPipelineImpaired`).
 - `MobilisedPipelineUniversal` now has proxy attributes for all the primary results expected in `BaseMobilisedPipeline` and
   can be used as a drop-in replacement for `GenericMobilisedPipeline`.
+- Gaitmap has been removed as a dependency.
+  All used functions are now vendored.
+  This should reduce the number of dependency mobgap pulls in.
+  (https://github.com/mobilise-d/mobgap/pull/166)
 
 ### Fixed
 
 - In case no index-col-names are passed to the `DatasetFromData` class and the data index is just a string and not a 
   tuple, a generic column (`level_0`) is correctly created. (https://github.com/mobilise-d/mobgap/issues/164)
+
+### Added
+
+- The Madgwick algorithm is now available in the `mobgap` package.
+  The implementation is copied from gaitmap.
+  (https://github.com/mobilise-d/mobgap/pull/166)
+- Added various array and rotation helpers that were originally imported from gaitmap.
+  (https://github.com/mobilise-d/mobgap/pull/166)
 
 ## [0.4.0] - 2024-06-17
 
