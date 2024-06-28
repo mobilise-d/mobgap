@@ -51,34 +51,48 @@ def test_preconfigured_mobilise_pipeline(snapshot):
     snapshot.assert_match(pipeline_ha.per_wb_parameters_.drop(columns="rule_obj"), "ha_per_wb_parameters")
 
 
-def test_gsd_dmo_evaluation_on_wb_level(snapshot):
-    from examples.pipeline._04_dmo_evaluation_on_wb_level import (
+def test_dmo_evaluation_on_wb_level(snapshot):
+    from examples.pipeline._03_dmo_evaluation_on_wb_level import (
         agg_results,
-        custom_gs_errors,
+        combined_dmos,
+        custom_wb_errors,
+        daily_matches,
         default_agg_results,
-        gs_errors,
-        gs_matches,
-        gs_matches_with_errors,
-        gs_tp_fp_fn,
+        wb_errors,
+        wb_matches,
+        wb_matches_with_errors,
+        wb_tp_fp_fn,
     )
 
-    snapshot.assert_match(gs_tp_fp_fn, "gs_tp_fp_fn")
+    # flatten multiindex columns as they are not supported by snapshot
+    combined_dmos.columns = ["_".join(pair) for pair in combined_dmos.columns]
+    snapshot.assert_match(combined_dmos.reset_index(), "combined_dmos")
 
     # flatten multiindex columns as they are not supported by snapshot
-    gs_matches.columns = ["_".join(pair) for pair in gs_matches.columns]
-    snapshot.assert_match(gs_matches.reset_index(), "gs_matches")
+    daily_matches.columns = ["_".join(pair) for pair in daily_matches.columns]
+    snapshot.assert_match(daily_matches.reset_index(), "daily_matches")
 
     # flatten multiindex columns as they are not supported by snapshot
-    gs_errors.columns = ["_".join(pair) for pair in gs_errors.columns]
-    snapshot.assert_match(gs_errors, "gs_errors")
+    wb_matches.columns = ["_".join(pair) for pair in wb_matches.columns]
+    snapshot.assert_match(wb_matches.reset_index(), "det_ref_daily")
+
+    snapshot.assert_match(wb_tp_fp_fn, "wb_tp_fp_fn")
 
     # flatten multiindex columns as they are not supported by snapshot
-    custom_gs_errors.columns = ["_".join(pair) for pair in custom_gs_errors.columns]
-    snapshot.assert_match(custom_gs_errors, "custom_gs_errors")
+    wb_matches.columns = ["_".join(pair) for pair in wb_matches.columns]
+    snapshot.assert_match(wb_matches.reset_index(), "wb_matches")
 
     # flatten multiindex columns as they are not supported by snapshot
-    gs_matches_with_errors.columns = ["_".join(pair) for pair in gs_matches_with_errors.columns]
-    snapshot.assert_match(gs_matches_with_errors, "gs_matches_with_errors")
+    wb_errors.columns = ["_".join(pair) for pair in wb_errors.columns]
+    snapshot.assert_match(wb_errors, "wb_errors")
+
+    # flatten multiindex columns as they are not supported by snapshot
+    custom_wb_errors.columns = ["_".join(pair) for pair in custom_wb_errors.columns]
+    snapshot.assert_match(custom_wb_errors, "custom_wb_errors")
+
+    # flatten multiindex columns as they are not supported by snapshot
+    wb_matches_with_errors.columns = ["_".join(pair) for pair in wb_matches_with_errors.columns]
+    snapshot.assert_match(wb_matches_with_errors, "wb_matches_with_errors")
 
     # check index of agg_results using snapshot
     snapshot.assert_match(agg_results.reset_index().drop(columns=["values"]), "agg_results_index")

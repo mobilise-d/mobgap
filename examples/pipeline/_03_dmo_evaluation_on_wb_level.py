@@ -1,14 +1,14 @@
 r"""
 .. _gsd_evaluation_parameter:
 
-Evaluation of final WB-level DMOs
-=================================
+Evaluation of final walking bout level DMOs
+================================================
 
-This example shows how to evaluate the performance of parameters on a WB level by comparing against a reference.
+This example shows how to evaluate the performance of parameters on a walking bout (WB) level by comparing against a reference.
 On this level, we usually need to deal with the issue that the WB identified by the algorithm pipeline might not match
 the reference WBs.
 This makes comparing the parameters within them difficult.
-In general, two approaches can be taken here:
+In general, two approaches can be taken here [1]_:
 
 1. First aggregate the WB-level parameters of both systems to a common level (e.g. per trial, per day, per hour, ...)
    and then compare the aggregated values.
@@ -17,6 +17,9 @@ In general, two approaches can be taken here:
 In the following example we will show both approaches.
 
 But first some general setup.
+
+.. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+       multiple conditions with a wearable device. Sci Rep 14, 1754 (2024). https://doi.org/10.1038/s41598-024-51766-5
 """
 
 # %%
@@ -46,8 +49,8 @@ reference_dmo = pd.read_csv(DATA_PATH / "reference_dmo_data.csv").set_index(
 
 # %%
 # In both dataframes each row represents one WB with all of its parameters.
-# The index contains multiple levels, including the visit type, participant_id, measurement day, and gait sequence id,
-# The start and end index of each gait sequence in samples relative to the start of the respective recording is
+# The index contains multiple levels, including the visit type, participant_id, measurement day, and WB id,
+# The start and end index of each WB in samples relative to the start of the respective recording is
 # contained in the columns `start` and `end`.
 detected_dmo
 
@@ -57,7 +60,57 @@ reference_dmo
 # %%
 # Approach 1: Aggregate then compare
 # ----------------------------------
-# TODO: See issue #152
+# First, we combine the detected and reference data,
+# which can easily be done as both dataframes have the same index levels.
+# To sustain the information about the origin of the data, we add a column level assigning `"detected"`
+# and `"reference"` to the respective dmos.
+# Furthermore, we rearrange the columns to have the DMO metrics as the first level of the column index.
+combined_dmos = (
+    pd.concat(
+        [detected_dmo, reference_dmo], keys=["detected", "reference"], axis=1
+    )
+    .reorder_levels((1, 0), axis=1)
+    .sort_index(axis=1)
+)
+combined_dmos
+
+# %%
+# This provides us with a dataframe containing the detected and reference values for all detected and reference WBs.
+# Some entries are NaN, as the number of WBs in the detected and reference data might differ.
+# The single rows in this dataframe should not be compared directly,
+# as the same WB ids from a detected and a reference WB might not actually belong to the same WB.
+# Therefore, we need to aggregate the DMO data based on an index level of choice, e.g., per day, to retrieve meaningful
+# and interpretable results. This can for instance be done by grouping the data and averaging over the groups.
+# If required, apart from simple groupwise averaging, other aggregation functions
+# (e.g., moving averages or averaging over a span of several days) can be applied.
+# As long as the same aggregation method is applied to both the detected and reference data,
+# further processing can be done in the same way as shown below.
+#
+# .. note:: In case of missing data, applying `dropna()` to the resulting dataframe might be helpful to remove all
+#           groups were either detected or reference data is missing.
+daily_matches = (
+    combined_dmos.groupby(
+        level=["visit_type", "participant_id", "measurement_date"], axis=0
+    )
+    .mean()
+    .dropna()
+)
+daily_matches.T
+
+# %%
+# The resulting dataframe contains the average detected and reference values for each DMO
+# per visit type, participant, and day.
+# This in conveniently provided as a multiindex column, so that selecting a single DMO, yields a DataFrame with the
+# detected and reference values.
+daily_matches["cadence_spm"]
+
+# %%
+# In our example data, we only have data from a single day, so the aggregated result only has one row.
+# Normally, you would have multiple rows, one for each group of WBs.
+# From here on, further processing to retrieve the aggregated error metrics is identical to the further processing when
+# following approach 2, and is shown below.
+#
+# But let's first show how to calculate the error metrics on a WB-by-WB basis.
 
 # %%
 # Approach 2: Match then compare
@@ -66,12 +119,12 @@ reference_dmo
 # As it is unlikely that the WBs are exactly the same, we need to define a threshold for the overlap between the WBs
 # to consider them as a match.
 # This matching can be done using the :func:`~mobgap.pipeline.evaluation.categorize_intervals` function.
-# It classifies every gait sequence in the data either as true positive (TP), false positive (FP), or false negative
+# It classifies every WB in the data either as true positive (TP), false positive (FP), or false negative
 # (TP).
 # In case our data has only WBs from a single recording, we could directly provide the detected and reference data
 # to the function.
 #
-# However, in most cases data would contains WBs from multiple recordings, trials, and participants, ... .
+# However, in most cases data would contain WBs from multiple recordings, trials, and participants, ... .
 # In our case, we actually only have WBs from a single recording, but we will still show the approach assuming that
 # the data is more complex.
 #
@@ -92,14 +145,14 @@ per_trial_participant_day_grouper = create_multi_groupby(
 # The ``MultiGroupBy`` object allows us to apply a function to each group across all dataframes.
 #
 # Here we apply :func:`~mobgap.pipeline.evaluation.categorize_intervals` with a threshold of 0.8 to each group.
-# The `overlap_threshold` parameter defines the minimum overlap between the detected and reference gait sequences to be
+# The `overlap_threshold` parameter defines the minimum overlap between the detected and reference WBs to be
 # considered a match.
 # It can be chosen according to your needs, whereby a value closer to 0.5 will yield more matches
 # than a value closer to 1.
 
 from mobgap.pipeline.evaluation import categorize_intervals
 
-gs_tp_fp_fn = per_trial_participant_day_grouper.apply(
+wb_tp_fp_fn = per_trial_participant_day_grouper.apply(
     lambda det, ref: categorize_intervals(
         gsd_list_detected=det,
         gsd_list_reference=ref,
@@ -107,13 +160,13 @@ gs_tp_fp_fn = per_trial_participant_day_grouper.apply(
         multiindex_warning=False,
     )
 )
-gs_tp_fp_fn
+wb_tp_fp_fn
 
 # %%
 # We can see that the function returns a dataframe with the same index as the input dataframes and each WB is classified
 # as TP, FP, or FN.
-# For the TP gait sequences, the corresponding reference gait sequence is assigned.
-# For the comparison we want to perform here, only the matching gait sequences, i.e., the TPs, are of interest.
+# For the TP WBs, the corresponding reference WB is assigned.
+# For the comparison we want to perform here, only the matching WBs, i.e., the TPs, are of interest.
 # If you are interested in the FPs or FNs, have a look at the general :ref:`GSD evaluation example <gsd_evaluation>`.
 #
 # Based on the positive matches, we can now extract the DMO data from detected and reference data that is to be
@@ -122,27 +175,30 @@ gs_tp_fp_fn
 # :func:`~mobgap.pipeline.evaluation.get_matching_intervals` function.
 from mobgap.pipeline.evaluation import get_matching_intervals
 
-gs_matches = get_matching_intervals(
+wb_matches = get_matching_intervals(
     metrics_detected=detected_dmo,
     metrics_reference=reference_dmo,
-    matches=gs_tp_fp_fn,
+    matches=wb_tp_fp_fn,
 )
-gs_matches.T
+wb_matches.T
 
 # %%
 # The returned dataframe contains the detected and reference values for all DMOs of the matched WBs.
-# This in conveninetly provided as a multindex column, so that selecting a single DMO, yields a DataFrame with the
+# This in conveniently provided as a multiindex column, so that selecting a single DMO, yields a DataFrame with the
 # detected and reference values.
-gs_matches["cadence_spm"]
+wb_matches["cadence_spm"]
 
 # %%
-# These WBs can then be compared to calculate error metrics.
+# From here on, the aggregated DMOs (when following approach 1) or matched WBs (when following approach 2)
+# can be compared with the same methods to calculate error metrics. For the sake of simplicity, we will show the
+# calculation of error metrics for the matched WBs `wb_matches` (approach 2) here.
+# However, the input can also simply be replaced by the aggregated DMO dataframe ``
 #
 # Estimate Errors in DMO data
-# +++++++++++++++++++++++++++
-# The DMO data can now be compared WB by WB.
+# ---------------------------
+# The DMO data can now be compared day by day (approach 1) or WB by WB (approach 2).
 # We want to calculate general error metrics like the error, absolute error, relative error, and absolute relative error
-# for each WB and DMO.
+# for each day (WB) and DMO.
 # This can be done using the generic the :func:`~mobgap.utils.df_operations.apply_transformations` helper that allows
 # us to apply any list of transformation functions (transformation function -> WB in Series with same length out).
 # It further allows us to declaratively define which transformation/error should be applied
@@ -178,8 +234,8 @@ custom_errors = [
 # entire dataframe.
 from mobgap.utils.df_operations import apply_transformations
 
-custom_gs_errors = apply_transformations(gs_matches, custom_errors)
-custom_gs_errors.T
+custom_wb_errors = apply_transformations(wb_matches, custom_errors)
+custom_wb_errors.T
 
 
 # %%
@@ -232,8 +288,8 @@ custom_errors = [
     ),
 ]
 
-custom_gs_errors = apply_transformations(gs_matches, custom_errors)
-custom_gs_errors.T
+custom_wb_errors = apply_transformations(wb_matches, custom_errors)
+custom_wb_errors.T
 
 # %%
 # As expected, the resulting dataframe contains the error metrics for the specified DMOs and could now be further
@@ -253,20 +309,21 @@ pprint(default_errors)
 # the error, the relative error, the absolute error, and the absolute relative error for all the core DMOs.
 #
 # We can apply it as before.
-gs_errors = apply_transformations(gs_matches, default_errors)
-gs_errors.T
+wb_errors = apply_transformations(wb_matches, default_errors)
+wb_errors.T
 
 
 # %%
 # Before we now aggregate the results, we can also combine the error metrics with the reference and detected values
 # to have all the information in one dataframe.
-gs_matches_with_errors = pd.concat([gs_matches, gs_errors], axis=1)
-gs_matches_with_errors.T
+wb_matches_with_errors = pd.concat([wb_matches, wb_errors], axis=1)
+wb_matches_with_errors.T
 
 # %%
 # Aggregate Results
 # -----------------
-# Finally, the estimated DMO measures and their errors can be aggregated over all gait sequences.
+# Finally, the estimated DMO measures and their errors can be aggregated over all WBs (approach 2)
+# or all days (approach 1).
 # For this purpose, different aggregation functions can be applied to the error metrics, ranging from simple, built-in
 # aggregations like the mean or standard deviation to more complex functions like the limits of agreement or
 # 5th and 95th percentiles.
@@ -327,11 +384,11 @@ aggregations_custom = [
 pprint(aggregations_custom)
 # %%
 # In this case, the ICC function gets the entire "sub-dataframe" obtained by the selection
-# ``gs_matches_with_errors.loc[:, m]`` as shown below for ``stride_duration_s`` as example, and could then perform
+# ``wb_matches_with_errors.loc[:, m]`` as shown below for ``stride_duration_s`` as example, and could then perform
 # any required calculations.
 # The selection could theoretically be any valid loc selection.
 # So you could even select values across multiple DMOs.
-sub_df = gs_matches_with_errors.loc[:, "stride_duration_s"]
+sub_df = wb_matches_with_errors.loc[:, "stride_duration_s"]
 
 # %%
 # The ICC function just takes the ``detected`` and ``reference`` columns and calculates the ICC.
@@ -347,7 +404,7 @@ from mobgap.utils.df_operations import apply_aggregations
 
 aggregations = aggregations_simple + aggregations_custom
 agg_results = (
-    apply_aggregations(gs_matches_with_errors, aggregations)
+    apply_aggregations(wb_matches_with_errors, aggregations)
     .rename_axis(index=["aggregation", "metric", "origin"])
     .reorder_levels(["metric", "origin", "aggregation"])
     .sort_index(level=0)
@@ -372,7 +429,7 @@ aggregations_default_extended = aggregations_default + [
 # This list of standard aggregations can then also be passed to the
 # :func:`~mobgap.utils.df_operations.apply_aggregations` function.
 default_agg_results = (
-    apply_aggregations(gs_matches_with_errors, aggregations_default_extended)
+    apply_aggregations(wb_matches_with_errors, aggregations_default_extended)
     .rename_axis(index=["aggregation", "metric", "origin"])
     .reorder_levels(["metric", "origin", "aggregation"])
     .sort_index(level=0)
