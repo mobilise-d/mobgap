@@ -2614,12 +2614,14 @@ files = [
 
 [[package]]
 name = "tpcp"
-version = "0.33.1"
+version = "0.34.0"
 description = "Pipeline and Dataset helpers for complex algorithm evaluation."
 optional = false
-python-versions = ">=3.9,<4.0"
-files = []
-develop = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "tpcp-0.34.0-py3-none-any.whl", hash = "sha256:6b4f843834af2a0ecbb73d31e2e858b6f1048fbf345d08a689bcba97134833a1"},
+    {file = "tpcp-0.34.0.tar.gz", hash = "sha256:9e29f948a8a50e36b32344096a02ef748849d3bfa62703acad2a271af9ebae14"},
+]
 
 [package.dependencies]
 joblib = ">=1.3"
@@ -2634,12 +2636,6 @@ typing-extensions = ">=4.1.1"
 -torch-cpu = ["torch (>=1.6.0)"]
 attrs = ["attrs (>=22.1.0)"]
 optuna = ["optuna (>=2.10)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/mad-lab-fau/tpcp"
-reference = "106-snapshot-testing-util-does-not-work-for-dataframes-with-custom-non-unique-index"
-resolved_reference = "8c138a9578cb580ea5b8e2e922fe5029fa38fd2f"
 
 [[package]]
 name = "tqdm"
@@ -2771,4 +2767,4 @@ all = ["openpyxl", "pingouin"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "26021df0b3b26cbe7a882f8411ad10cbaf53549ba5cc7bbcfcd1a62e56e2bb03"
+content-hash = "815f1dbe8cbcadedd85973a7fb60b870f1c2f99d688b508e031e1312415bd5d4"
