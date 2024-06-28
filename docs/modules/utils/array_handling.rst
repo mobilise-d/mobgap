@@ -15,3 +15,6 @@ Functions
    :template: function.rst
 
     sliding_window_view
+    bool_array_to_start_end_array
+    start_end_array_to_bool_array
+    merge_intervals

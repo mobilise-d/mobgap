@@ -208,7 +208,7 @@ ref_turns
 # ---------------------------------------------
 # For this we pass an instance of the MadgwickAHRS algorithm to estimate the global orientation of the sensor to the
 # algorithm.
-from gaitmap.trajectory_reconstruction import MadgwickAHRS
+from mobgap.orientation_estimation import MadgwickAHRS
 
 orientation_estimator = MadgwickAHRS()
 
@@ -228,7 +228,7 @@ plot_turns(turning_detector_global)
 # However, when we apply the algorithm per-gs (as shown below), we again only get a small number of turns.
 # The reason for that is, that the global frame estimation is not perfect and requires some time to converge when
 # applied to data.
-# Hence, the applying it to each GS individually might work less good.
+# Hence, applying it to each GS individually might work less good.
 # Results could be improved, by tuning the initial orientation of the global frame estimation.
 iterator = GsIterator()
 

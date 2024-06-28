@@ -3,7 +3,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from gaitmap.utils.array_handling import bool_array_to_start_end_array, merge_intervals, start_end_array_to_bool_array
 from intervaltree import IntervalTree
 from scipy.signal import find_peaks, hilbert
 from typing_extensions import Self, Unpack
@@ -20,6 +19,11 @@ from mobgap.data_transform import (
     chain_transformers,
 )
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
+from mobgap.utils.array_handling import (
+    bool_array_to_start_end_array,
+    merge_intervals,
+    start_end_array_to_bool_array,
+)
 from mobgap.utils.conversions import as_samples
 
 _gsd_ionescu_docfiller = make_filldoc(

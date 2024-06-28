@@ -4,13 +4,13 @@ from typing import Any, Final, Optional
 
 import numpy as np
 import pandas as pd
-from gaitmap.base import BaseOrientationMethod
 from tpcp import cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter, HampelFilter
 from mobgap.data_transform.base import BaseFilter
+from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.stride_length.base import BaseSlCalculator, base_sl_docfiller
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.interpolation import robust_step_para_to_sec
@@ -139,7 +139,7 @@ class SlZijlstra(BaseSlCalculator):
 
     sensor_height_m: float
 
-    orientation_method: Optional[BaseOrientationMethod]
+    orientation_method: Optional[BaseOrientationEstimation]
     acc_smoothing: BaseFilter
     speed_smoothing: BaseFilter
     step_length_smoothing: BaseFilter
@@ -179,7 +179,7 @@ class SlZijlstra(BaseSlCalculator):
     def __init__(
         self,
         *,
-        orientation_method: Optional[BaseOrientationMethod] = None,
+        orientation_method: Optional[BaseOrientationEstimation] = None,
         acc_smoothing: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=0.1, filter_type="highpass")),
         speed_smoothing: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=1, filter_type="highpass")),
         step_length_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),

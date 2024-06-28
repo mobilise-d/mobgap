@@ -3,6 +3,12 @@
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view as np_sliding_window_view
 
+from mobgap._gaitmap.utils.array_handling import (
+    bool_array_to_start_end_array,
+    merge_intervals,
+    start_end_array_to_bool_array,
+)
+
 
 def sliding_window_view(data: np.ndarray, window_size_samples: int, overlap_samples: int) -> np.ndarray:
     """Create a sliding window view of the data.
@@ -56,4 +62,4 @@ def sliding_window_view(data: np.ndarray, window_size_samples: int, overlap_samp
     return view
 
 
-__all__ = ["sliding_window_view"]
+__all__ = ["sliding_window_view", "bool_array_to_start_end_array", "start_end_array_to_bool_array", "merge_intervals"]

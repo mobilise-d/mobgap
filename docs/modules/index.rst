@@ -20,6 +20,7 @@ This is the API Reference for ``mobgap``.
     walking_speed
     wba
     aggregation
+    orientation_estimation
     data_transform
     utils/index.rst
 

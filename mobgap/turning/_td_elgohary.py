@@ -2,8 +2,6 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from gaitmap.base import BaseOrientationMethod
-from gaitmap.utils.array_handling import merge_intervals
 from scipy.integrate import cumulative_trapezoid
 from scipy.signal import find_peaks
 from tpcp import cf
@@ -11,7 +9,9 @@ from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
+from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
+from mobgap.utils.array_handling import merge_intervals
 from mobgap.utils.conversions import as_samples
 
 _turn_df_types = {
@@ -123,7 +123,7 @@ class TdElGohary(BaseTurnDetector):
     min_gap_between_turns_s: float
     min_peak_angle_velocity_dps: float
     lower_threshold_velocity_dps: float
-    orientation_estimation: Optional[BaseOrientationMethod]
+    orientation_estimation: Optional[BaseOrientationEstimation]
 
     global_frame_data_: Optional[pd.DataFrame]
     raw_turn_list_: pd.DataFrame
@@ -140,7 +140,7 @@ class TdElGohary(BaseTurnDetector):
         min_gap_between_turns_s: float = 0.05,
         allowed_turn_duration_s: tuple[float, float] = (0.5, 10),
         allowed_turn_angle_deg: tuple[float, float] = (45, np.inf),
-        orientation_estimation: Optional[BaseOrientationMethod] = None,
+        orientation_estimation: Optional[BaseOrientationEstimation] = None,
     ) -> None:
         self.smoothing_filter = smoothing_filter
         self.allowed_turn_angle_deg = allowed_turn_angle_deg

@@ -9,5 +9,6 @@ Utility functions
     dtypes
     df_operations
     array_handling
+    rotations
     conversions
     evaluation

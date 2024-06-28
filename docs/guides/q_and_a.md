@@ -52,3 +52,18 @@ exists, the original data will not be cleared from memory.
 But, it basically never happens, that the original data is out of scope and an algorithm object is still in scope, 
 blocking the data deletion.
 I played around with that a bit (as we are doing the same in gaitmap) and it was never an issue in any of our usecases.
+
+(q&a__gaitmap)=
+## This looks similar to [Gaitmap](https://github.com/mad-lab-fau/gaitmap). What is the difference/relationship?
+
+Gaitmap can be considered a "sister" project to mobgap.
+It was created by the same project lead (Arne Küderle) and its structure was used as a blueprint for mobgap.
+
+Gaitmap focuses on foot-worn IMUs, while mobgap focuses on lower back IMUs.
+Mobgap also improves on some of the design decisions made in Gaitmap, and includes more functionality with regards to
+data loading and algorithm validation.
+
+Algorithms should be mostly inter-compatible between the two projects.
+Mobgap even vendors (i.e. copied) some of the algorithms from Gaitmap.
+However, we explicitly do not use gaitmap as a dependency to untangle the two projects as much as possible and simplify
+future maintenance.
