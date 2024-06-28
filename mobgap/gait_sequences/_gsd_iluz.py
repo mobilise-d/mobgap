@@ -3,11 +3,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from gaitmap.utils.array_handling import merge_intervals
 from scipy.signal import find_peaks
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
+from mobgap.utils.array_handling import merge_intervals
 from mobgap.consts import GRAV_MS2
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter

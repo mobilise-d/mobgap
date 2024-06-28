@@ -3,12 +3,16 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from gaitmap.utils.array_handling import bool_array_to_start_end_array, merge_intervals, start_end_array_to_bool_array
 from intervaltree import IntervalTree
 from scipy.signal import find_peaks, hilbert
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
+from mobgap.utils.array_handling import (
+    bool_array_to_start_end_array,
+    merge_intervals,
+    start_end_array_to_bool_array,
+)
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,

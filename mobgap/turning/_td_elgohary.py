@@ -3,12 +3,12 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from gaitmap.base import BaseOrientationMethod
-from gaitmap.utils.array_handling import merge_intervals
 from scipy.integrate import cumulative_trapezoid
 from scipy.signal import find_peaks
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
+from mobgap.utils.array_handling import merge_intervals
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
