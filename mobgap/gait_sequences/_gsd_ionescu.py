@@ -513,16 +513,17 @@ def active_regions_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, dur
 
     # TODO: This adaptive threshold might be possible to be replaced by a call to find_peaks.
     #       We should test that out once we have a proper evaluation pipeline.
+    maxenv = max(env)
     for i in range(len(env) - duration + 1):
         # Update threshold 10% of the maximum peaks found
         window = env[i : i + duration]
-
+        mean_win = np.mean(window)
         if (window > threshold_sig).all():
-            active[i] = max(env)
-            threshold = 0.1 * np.mean(window)
+            active[i] = maxenv
+            threshold = 0.1 * mean_win
             update_threshold = True
-        elif np.mean(window) < threshold_sig:
-            noise = np.mean(window)
+        elif mean_win < threshold_sig:
+            noise = mean_win
         elif noise_buff.any():
             noise = np.mean(noise_buff)
         # NOTE: no else case in the original implementation
