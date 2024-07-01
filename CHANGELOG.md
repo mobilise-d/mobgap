@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   All used functions are now vendored.
   This should reduce the number of dependency mobgap pulls in.
   (https://github.com/mobilise-d/mobgap/pull/166)
+- Significant performance improvements for GsdAdaptiveIonescu.
+  (https://github.com/mobilise-d/mobgap/pull/167). Thanks @tbonewmy !
 
 ### Fixed
 
