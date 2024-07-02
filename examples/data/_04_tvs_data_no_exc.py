@@ -78,6 +78,10 @@ dataset_path = Path(os.getenv("MOBGAP_TVS_DATASET_PATH"))
 #           The data is only loaded once the actual (meta)data attributes are accessed.
 #           Even then, data is only loaded per recording and not all at once.
 #
+# .. note:: Loading the data from the data.mat files can still be slow. If you're working with the TVS dataset a lot
+#           (and have enough disk space available), it is highly recommended to use a diskcache by passing a joblib
+#           Memory instance to the ``memory`` parameter of the dataset class.
+#
 from mobgap.data import TVSLabDataset
 
 labdata = TVSLabDataset(dataset_path, reference_system="Stereophoto")

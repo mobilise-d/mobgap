@@ -414,6 +414,9 @@ def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Un
     if n_overall_samples is None:
         return pd.DataFrame(columns=["start", "end", "match_type"])
 
+    if len(categorized_intervals) == 0:
+        return pd.DataFrame([[0, n_overall_samples - 1, "tn"]], columns=["start", "end", "match_type"])
+
     # add tn intervals
     tn_intervals = []
     for i, (start, _) in enumerate(categorized_intervals[["start", "end"]].itertuples(index=False)):

@@ -138,10 +138,15 @@ class GsdEvaluation(Algorithm):
     runtime_: float
 
     def __init__(
-        self, dataset: BaseGaitDatasetWithReference, scoring: Optional[Callable] = gsd_evaluation_scorer
+        self,
+        dataset: BaseGaitDatasetWithReference,
+        scoring: Optional[Callable] = gsd_evaluation_scorer,
+        *,
+        validate_paras: Optional[dict] = None,
     ) -> None:
         self.dataset = dataset
         self.scoring = scoring
+        self.validate_paras = validate_paras
 
     def run(self, pipeline: "GsdEmulationPipeline") -> Self:
         self.pipeline = pipeline
@@ -151,6 +156,7 @@ class GsdEvaluation(Algorithm):
                 pipeline=self.pipeline,
                 dataset=self.dataset,
                 scoring=self.scoring,
+                **(self.validate_paras or {}),
             )
 
         set_attrs_from_dict(self, timing_results, key_postfix="_")
