@@ -224,6 +224,9 @@ def calculate_unmatched_gsd_performance_metrics(
         "num_gs_absolute_relative_error_log": num_gs_absolute_relative_error_log,
     }
 
+    # Convert all np.floats to floats
+    gsd_metrics = {k: float(v) if isinstance(v, np.float64) else v for k, v in gsd_metrics.items()}
+
     return gsd_metrics
 
 
