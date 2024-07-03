@@ -247,7 +247,7 @@ class SlZijlstra(BaseSlCalculator):
         if len(ic_list) <= 1:
             # We can not calculate step length with only one initial contact
             warnings.warn("Can not calculate step length with only one or zero initial contacts.", stacklevel=1)
-            self.set_all_nan(sec_centers, ic_list)
+            self._set_all_nan(sec_centers, ic_list)
             return self
 
         # 2. High-pass filtering --> lower cut-off: 0.1 Hz, filter design: Butterworth IIR, order: 4
@@ -256,7 +256,7 @@ class SlZijlstra(BaseSlCalculator):
         except ValueError as e:
             if "padlen" in str(e):
                 warnings.warn("Data is too short for the filter. Returning empty stride length results.", stacklevel=1)
-                self.set_all_nan(sec_centers, ic_list)
+                self._set_all_nan(sec_centers, ic_list)
                 return self
             raise e from None
 
@@ -325,7 +325,7 @@ class SlZijlstra(BaseSlCalculator):
         )
         return step_length
 
-    def set_all_nan(self, sec_centers: np.ndarray, ic_list: np.ndarray) -> None:
+    def _set_all_nan(self, sec_centers: np.ndarray, ic_list: np.ndarray) -> None:
         stride_length_per_sec = np.full(len(sec_centers), np.nan)
         raw_step_length = np.full(np.clip(len(ic_list) - 1, 0, None), np.nan)
         step_length_per_sec = np.full(len(sec_centers), np.nan)
