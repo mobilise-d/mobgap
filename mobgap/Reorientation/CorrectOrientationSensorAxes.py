@@ -39,7 +39,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
     2 walking bouts were present. Now this is applied to the whole signal even if walking bouts are less than 2.
     """
 
-    acc = data.iloc[:, 0:3]
+    acc = data.loc[:, ["acc_x", "acc_y", "acc_z"]]
 
     corIMUdata = data
     corIMUdataSequence = pd.DataFrame(columns=['Start', 'End'])
@@ -51,12 +51,12 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
 
     # parameter for smoothing filter
     n_sgfilt = 9041
-    accx = acc.iloc[:, 0].values
+    accx = acc.loc[:, ["acc_x"]].values
 
     # Condition to support the minimal signal length required for the filter parameter
     # low pass filtering of vertical acc
     if n_sgfilt < len(accx):
-        av_filt = filtering_signals_100hz(acc.iloc[:, 0], 'low', 0.1, sampling_rate=sampling_rate_hz)
+        av_filt = filtering_signals_100hz(accx, 'low', 0.1, sampling_rate=sampling_rate_hz)
 
         savgol_win_size_samples = n_sgfilt
 
