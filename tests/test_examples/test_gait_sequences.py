@@ -34,5 +34,5 @@ def test_gsd_evaluation(snapshot):
     snapshot.assert_match(pd.DataFrame(unmatched_metrics_dict, index=[0]), "mobilised_metrics_dict")
     snapshot.assert_match(matches.reset_index(), "matches", check_dtype=False)
     snapshot.assert_match(
-        cross_validate_results[["test_single_precision", "test_single_accuracy"]], "cross_validate_results"
+        cross_validate_results[["test__single__precision", "test__single__accuracy"]], "cross_validate_results"
     )

@@ -19,7 +19,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-tpcp = {git = "https://github.com/mad-lab-fau/tpcp", branch="rename_cv_outputs"}
+tpcp = "^1.0.0"
 pandas = ">=2.1.0"
 scipy = ">=1.11.2"
 numpy = ">=1.25.2"
