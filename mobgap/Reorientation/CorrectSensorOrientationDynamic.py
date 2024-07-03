@@ -38,8 +38,8 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     - Parameters are expressed in the units used in mobgap,specifically, we use m/s^2 instead of g.
     """
 
-    acc = data.iloc[:, 0:3]
-    gyr = data.iloc[:, 3:6]
+    acc = data.loc[:, ["acc_x", "acc_y", "acc_z"]]
+    gyr = data.loc[:, ["gyr_x", "gyr_y", "gyr_z"]]
 
     # Madwick is called with the initial orientation specified inside the Matlab Madgwick function used in the Matlab
     # implementation (UpdateIMUslt2). This choice was made since the first "initial orientation"
@@ -54,7 +54,10 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     # applying the madgwick algo to the entire data array
     data = pd.concat((chosenacc, chosengyr), axis=1)
     mad = mad.estimate(data, sampling_rate_hz=sampling_rate_hz)
+    # Slicing quaternion to make it identical in length to the data
+    # this removes the first instance which is the initial orientation
     quaternion = mad.orientation_.iloc[1:, :]
+
     quaternion = quaternion.to_numpy()
 
     # Adjust quaternion from x, y, z, w to w, x, y, z
