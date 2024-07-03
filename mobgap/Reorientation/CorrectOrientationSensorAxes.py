@@ -41,7 +41,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
 
     acc = data.loc[:, ["acc_x", "acc_y", "acc_z"]]
 
-    corIMUdata = data
+    corIMUdata = data.copy()
     corIMUdataSequence = pd.DataFrame(columns=['Start', 'End'])
 
     # Threshold to test alignment of av with gravity.
