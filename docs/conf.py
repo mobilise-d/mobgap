@@ -51,7 +51,7 @@ def convert_github_md_admonitions(text):
 
 # -- Project information -----------------------------------------------------
 
-URL = "https://github.com/mobilise-d/mobgap"
+URL = "https://github.com/mobilise-d/mobgap/"
 # Info from poetry config:
 info = toml.load("../pyproject.toml")["tool"]["poetry"]
 
@@ -59,7 +59,7 @@ project = info["name"]
 author = ", ".join(info["authors"])
 release = info["version"]
 
-copyright = f"2021 - {datetime.now().year}, MaD Lab, FAU"
+copyright = f"2023 - {datetime.now().year}, MaD Lab, FAU in the name of the Mobilise-D consortium"
 
 # -- Copy the README and Changelog and fix image path --------------------------------------
 HERE = Path(__file__).parent
