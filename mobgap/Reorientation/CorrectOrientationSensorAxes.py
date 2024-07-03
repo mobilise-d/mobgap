@@ -114,4 +114,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
             elif avm <= -th:
                 corIMUdata.iloc[l1:l2, 0] = -acc.iloc[l1:l2, 0]
 
+    else:
+        return corIMUdata, corIMUdataSequence
+
     return corIMUdata, corIMUdataSequence
