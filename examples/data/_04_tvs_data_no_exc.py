@@ -7,14 +7,13 @@ As part of the Mobilise-D technical validation study an extensive dataset contai
 period was collected.
 In the lab all trials were recorded with a synchronized motion capture system and the multi-modal wearable INDIP system
 as reference.
-During the 2.5 hour free-living period only the INDIP system was used as reference.
-TODO: Add citation
+During the 2.5 hour free-living period only the INDIP system was used as reference [1]_.
 
 With that this dataset is one of the only datasets that contains data from patients with multiple indications AND
 high-granular reference information from both lab and free-living settings.
 This makes it a valuable resource for the development and validation of algorithms for lower back sensor data.
-The dataset was already used extensivly to benchmark the Mobilise-D algorithms individually (TODO: cite encarna) and in
-combination as a pipeline (cite Cam).
+The dataset was already used extensivly to benchmark the Mobilise-D algorithms individually [2]_ and in
+combination as a pipeline [3]_.
 
 The dataset is published on Zenodo and can be accessed here: (TODO: Add link)
 
@@ -28,6 +27,29 @@ This example demonstrate how to do this.
    We highly recommend to run this code on your local machine to see the output.
    For this, replace the "Environmental Variable" loaded below with the actual path to the dataset on your local machine.
 
+.. [1] Salis F, Bertuletti S, Bonci T, Caruso M, Scott K, Alcock L, Buckley E, Gazit E, Hansen , Schwickert L,
+       Aminian K, Becker C, Brown P, Carsin A, Caulfield B, Chiari L, D’Ascanio I, Del Din S, Eskofier B,
+       Garcia-Aymerich J, Hausdorff J, Hume E, Kirk C, Kluge F, Koch S, Kuederle A, Maetzler W, Micó-Amigo E, Mueller A,
+       Neatrour I, Paraschiv-Ionescu A, Palmerini L, Yarnall A, Rochester L, Sharrack B, Singleton D, Vereijken B,
+       Vogiatzis I, Della Croce U, Mazzà C, Cereatti A. A multi-sensor wearable system for the assessment of diseased
+       gait in real-world conditions. Frontiers in Bioengineering and Biotechnology. 2023;11.
+       doi: 10.3389/fbioe.2023.1143248.
+.. [2] Micó-Amigo ME, Bonci T, Paraschiv-Ionescu A, Ullrich M, Kirk C, Soltani A, Küderle A, Gazit E, Salis F, Alcock L,
+       Aminian K, Becker C, Bertuletti S, Brown P, Buckley E, Cantu A, Carsin AE, Caruso M, Caulfield B, Cereatti A,
+       Chiari L, D'Ascanio I, Eskofier B, Fernstad S, Froehlich M, Garcia-Aymerich J, Hansen C, Hausdorff JM, Hiden H,
+       Hume E, Keogh A, Kluge F, Koch S, Maetzler W, Megaritis D, Mueller A, Niessen M, Palmerini L, Schwickert L,
+       Scott K, Sharrack B, Sillén H, Singleton D, Vereijken B, Vogiatzis I, Yarnall AJ, Rochester L, Mazzà C,
+       Del Din S; Mobilise-D consortium. Assessing real-world gait with digital technology? Validation, insights and
+       recommendations from the Mobilise-D consortium. J Neuroeng Rehabil. 2023 Jun 14;20(1):78.
+       doi: 10.1186/s12984-023-01198-5. Erratum in: J Neuroeng Rehabil. 2024 May 3;21(1):71.
+       doi: 10.1186/s12984-024-01361-6. PMID: 37316858; PMCID: PMC10265910.
+.. [3] Kirk C, Küderle A, Micó-Amigo ME, Bonci T, Paraschiv-Ionescu A, Ullrich M, Soltani A, Gazit E, Salis F, Alcock L,
+       Aminian K, Becker C, Bertuletti S, Brown P, Buckley E, Cantu A, Carsin A, Caruso M, Caulfield B, Cereatti A,
+       Chiari L, D’Ascanio I, Garcia-Aymerich J, Hansen C, M. Hausdorff J, Hiden H, Hume E, Keogh A, Kluge F, Koch S,
+       Maetzler W, Megaritis D, Mueller A, Niessen M, Palmerini L, Schwickert L, Scott K, Sharrack B, Sillén H,
+       Singleton D, Vereijken B, Vogiatzis I, J. Yarnall A, Rochester L, Mazzà C, M. Eskofier B, Del Din S, Mobilise-D
+       consortium. Mobilise-D insights to estimate real-world walking speed in multiple conditions with a wearable
+       device. Sci Rep 14. 2024 Jan 19;1754. doi: https://doi.org/10.1038/s41598-024-51766-5
 """
 
 # %%
