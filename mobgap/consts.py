@@ -1,4 +1,5 @@
 """A set of universal constants."""
+
 import scipy
 
 #: Gravity in m/s^2
