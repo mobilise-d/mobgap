@@ -83,11 +83,14 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     gyr_magpca = chosengyr.to_numpy().copy()
     gyr_magpca[:, 0] = newgyr[:, 0]        # Yaw
 
-    # Standardization
-    sig1 = (av[:, 2] - np.mean(av[:, 2])) / np.std(av[:, 2])
-    sig2 = (newacc[:, 1] - np.mean(newacc[:, 1])) / np.std(newacc[:, 1])
-    sig3 = (newacc[:, 2] - np.mean(newacc[:, 2])) / np.std(newacc[:, 2])
-    sig4 = (av[:, 1] - np.mean(av[:, 1])) / np.std(av[:, 1])
+    # Standardisation vectorised
+    av_standardized = (av - np.mean(av, axis=0)) / np.std(av, axis=0)
+    newacc_standardized = (newacc - np.mean(newacc, axis=0)) / np.std(newacc, axis=0)
+
+    sig1 = av_standardized[:, 2]
+    sig2 = newacc_standardized[:, 1]
+    sig3 = newacc_standardized[:, 2]
+    sig4 = av_standardized[:, 1]
 
     # Assigning av_pca and gyr_pca
     av_pca = av_magpca.copy()
