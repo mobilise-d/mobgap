@@ -86,20 +86,20 @@ import matplotlib.pyplot as plt
 
 def plot_turns(algo_with_results: TdElGohary):
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
-    axs[0].set_ylabel("gyr_z [dps]")
+    axs[0].set_ylabel("gyr_x [dps]")
     if algo_with_results.global_frame_data_ is None:
         data = algo_with_results.data
-        axs[0].set_title("Raw gyr_z data")
+        axs[0].set_title("Raw gyr_x data")
     else:
         data = algo_with_results.global_frame_data_
-        axs[0].set_title("Raw gyr_z data (global frame)")
-    data.reset_index(drop=True).plot(y="gyr_z", ax=axs[0])
+        axs[0].set_title("Raw gyr_x data (global frame)")
+    data.reset_index(drop=True).plot(y="gyr_x", ax=axs[0])
 
     axs[1].set_title("Filtered IMU signal with raw turns and thresholds.")
-    axs[1].set_ylabel("filtered gyr_z [dps]")
+    axs[1].set_ylabel("filtered gyr_x [dps]")
     filtered_data = (
         algo_with_results.smoothing_filter.clone()
-        .filter(imu_data["gyr_z"], sampling_rate_hz=sampling_rate_hz)
+        .filter(imu_data["gyr_x"], sampling_rate_hz=sampling_rate_hz)
         .filtered_data_
     )
     filtered_data.reset_index(drop=True).plot(ax=axs[1])
