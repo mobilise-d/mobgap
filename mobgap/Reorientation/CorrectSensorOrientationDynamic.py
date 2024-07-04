@@ -144,14 +144,18 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
 
     filter_chain = [("savgol", savgol)]
 
-    av_pca_filt[:, 2] = chain_transformers(av_pca[:, 2], filter_chain, sampling_rate_hz=sampling_rate_hz)
-    av_pca_filt[:, 1] = chain_transformers(av_pca[:, 1], filter_chain, sampling_rate_hz=sampling_rate_hz)
-    av_pca_filt[:, 0] = chain_transformers(av_pca[:, 0], filter_chain, sampling_rate_hz=sampling_rate_hz)
+    # Filtering vectorised
+    av_pca_filt = np.zeros_like(av_pca)
 
-    # Standardization
-    sig5 = (av_pca_filt[:, 2] - np.mean(av_pca_filt[:, 2])) / np.std(av_pca_filt[:, 2])
-    sig6 = (av_pca_filt[:, 1] - np.mean(av_pca_filt[:, 1])) / np.std(av_pca_filt[:, 1])
-    sig7 = (av_pca_filt[:, 0] - np.mean(av_pca_filt[:, 0])) / np.std(av_pca_filt[:, 0])
+    for i in range(av_pca.shape[1]):
+        av_pca_filt[:, i] = chain_transformers(av_pca[:, i], filter_chain, sampling_rate_hz=sampling_rate_hz)
+
+    # Standardization vectorised
+    av_pca_filt_standardized = (av_pca_filt - np.mean(av_pca_filt, axis=0)) / np.std(av_pca_filt, axis=0)
+
+    sig5 = av_pca_filt_standardized[:, 2]
+    sig6 = av_pca_filt_standardized[:, 1]
+    sig7 = av_pca_filt_standardized[:, 0]
 
     # Cross-correlation
     r1 = correlate(sig7, sig5)
