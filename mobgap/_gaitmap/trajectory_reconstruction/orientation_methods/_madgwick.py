@@ -39,8 +39,6 @@ class MadgwickAHRS(BaseOrientationEstimation):
         In some cases, the algorithm will not be able to converge if the initial orientation is too far off and the
         orientation will slowly oscillate.
         If you pass a array, remember that the order of elements must be x, y, z, w.
-    memory
-        An optional `joblib.Memory` object that can be provided to cache the calls to madgwick series.
 
     Attributes
     ----------
@@ -89,20 +87,18 @@ class MadgwickAHRS(BaseOrientationEstimation):
     <scipy.Rotation object>
 
     """
+    _mobilise_d_to_madgwick_coordinate_system = Rotation.from_matrix([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
 
     initial_orientation: Union[np.ndarray, Rotation]
     beta: float
-    memory: Optional[Memory]
 
     def __init__(
         self,
         beta: float = 0.2,
         initial_orientation: Union[np.ndarray, Rotation] = cf(np.array([0, 0, 0, 1.0])),
-        memory: Optional[Memory] = None,
     ) -> None:
         self.initial_orientation = initial_orientation
         self.beta = beta
-        self.memory = memory
 
     def estimate(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_) -> Self:
         """Estimate the orientation of the sensor.
@@ -123,26 +119,28 @@ class MadgwickAHRS(BaseOrientationEstimation):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+
+
         initial_orientation = self.initial_orientation
 
-        memory = self.memory
-        if memory is None:
-            memory = Memory(None)
+        if not isinstance(initial_orientation, Rotation):
+            initial_orientation = Rotation.from_quat(initial_orientation)
 
-        if isinstance(initial_orientation, Rotation):
-            initial_orientation = Rotation.as_quat(initial_orientation)
-        initial_orientation = initial_orientation.copy()
+        initial_orientation_madgwick_coordinates = self._mobilise_d_to_madgwick_coordinate_system * initial_orientation
         gyro_data = np.deg2rad(data[SF_GYR_COLS].to_numpy())
         acc_data = data[SF_ACC_COLS].to_numpy()
-        madgwick_update_series = memory.cache(_madgwick_update_series)
+        madgwick_update_series = _madgwick_update_series
         rots = madgwick_update_series(
             gyro=gyro_data,
             acc=acc_data,
-            initial_orientation=initial_orientation,
+            initial_orientation=initial_orientation_madgwick_coordinates.as_quat(),
             sampling_rate_hz=sampling_rate_hz,
             beta=self.beta,
         )
-        self.orientation_object_ = Rotation.from_quat(rots)
+        # We switch the coordinate systems back to mobilise-d, by effectivly rotating removing the rotation added in
+        # the beginning
+        # This should align the resulting global coordinate system roughly with the mobilise-d coordinate system
+        self.orientation_object_ = self._mobilise_d_to_madgwick_coordinate_system.inv() * Rotation.from_quat(rots)
         return self
 
 

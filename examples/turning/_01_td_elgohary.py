@@ -248,11 +248,18 @@ turns_global_per_gs
 # 2. Transforming the data into the global frame
 # ----------------------------------------------
 # For this, we first estimate the global frame for the entire recording.
-imu_data_global = (
-    orientation_estimator.clone()
-    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
-    .rotated_data_
-)
+import pandas as pd
+ori_estimator = orientation_estimator.clone().estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
+imu_data_global = ori_estimator.rotated_data_
+
+ori_estimator.orientation_.plot()
+plt.show()
+
+imu_data.filter(like="acc").plot()
+plt.show()
+
+imu_data_global.filter(like="acc").plot()
+plt.show()
 
 iterator = GsIterator()
 
