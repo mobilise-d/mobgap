@@ -23,6 +23,7 @@ It uses the angular velocity around the SI axis of a lower back IMU to detect tu
 # Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
 # Hence, it can not really be considered a reference system, in this context.
 from mobgap.data import LabExampleDataset
+from mobgap.utils.conversions import to_body_frame
 
 example_data = LabExampleDataset(
     reference_system="Stereophoto", reference_para_level="wb"
@@ -31,7 +32,7 @@ example_data = LabExampleDataset(
 single_test = example_data.get_subset(
     cohort="HA", participant_id="001", test="Test11", trial="Trial1"
 )
-imu_data = single_test.data_ss
+imu_data = to_body_frame(single_test.data_ss)
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz
@@ -86,20 +87,22 @@ import matplotlib.pyplot as plt
 
 def plot_turns(algo_with_results: TdElGohary):
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
-    axs[0].set_ylabel("gyr_x [dps]")
+    axs[0].set_ylabel("gyr_is [dps]")
     if algo_with_results.global_frame_data_ is None:
         data = algo_with_results.data
-        axs[0].set_title("Raw gyr_x data")
+        axs[0].set_title("Raw gyr_is data")
+        axis = "gyr_is"
     else:
         data = algo_with_results.global_frame_data_
-        axs[0].set_title("Raw gyr_x data (global frame)")
-    data.reset_index(drop=True).plot(y="gyr_x", ax=axs[0])
+        axs[0].set_title("Raw gyr_is data (global frame)")
+        axis = "gyr_gis"
+    data.reset_index(drop=True).plot(y=axis, ax=axs[0])
 
     axs[1].set_title("Filtered IMU signal with raw turns and thresholds.")
-    axs[1].set_ylabel("filtered gyr_x [dps]")
+    axs[1].set_ylabel("filtered gyr_is [dps]")
     filtered_data = (
         algo_with_results.smoothing_filter.clone()
-        .filter(imu_data["gyr_x"], sampling_rate_hz=sampling_rate_hz)
+        .filter(data[axis], sampling_rate_hz=sampling_rate_hz)
         .filtered_data_
     )
     filtered_data.reset_index(drop=True).plot(ax=axs[1])

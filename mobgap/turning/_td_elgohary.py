@@ -13,6 +13,7 @@ from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
 from mobgap.utils.array_handling import merge_intervals
 from mobgap.utils.conversions import as_samples
+from mobgap.utils.dtypes import get_frame_definition
 
 _turn_df_types = {
     "turn_id": "int64",
@@ -83,7 +84,7 @@ class TdElGohary(BaseTurnDetector):
         This df also contains an additional ``center`` column, which marks the position of the originally detected peak.
         This might be helpful for debugging or further analysis.
     yaw_angle_
-        The yaw angle of the IMU signal estimated through the integration of the ``gyr_x`` signal.
+        The yaw angle of the IMU signal estimated through the integration of the ``gyr_is`` signal.
         This is used to estimate the turn angle.
         This might be helpful for debugging or further analysis.
     global_frame_data_
@@ -170,13 +171,22 @@ class TdElGohary(BaseTurnDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
+        frame = get_frame_definition(data, ["body", "global_body"])
+
         if self.orientation_estimation is not None:
+            if frame == "global_body":
+                raise ValueError(
+                    "The data already seems to be in the global frame based on the available columns. "
+                    "Additional orientation estimation is not possible. "
+                    "Set `orientation_estimation` to None."
+                )
             data = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz).rotated_data_
+            gyr_is = data["gyr_gis"].to_numpy()
             self.global_frame_data_ = data
         else:
             self.global_frame_data_ = None
-
-        gyr_is = data["gyr_x"].to_numpy()
+            is_col = "gyr_gis" if frame == "global_body" else "gyr_is"
+            gyr_is = data[is_col].to_numpy()
         if self.smoothing_filter is None:
             filtered_gyr_is = gyr_is
         else:

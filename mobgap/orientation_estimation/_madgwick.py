@@ -11,9 +11,9 @@ from mobgap.consts import INITIAL_MOBILISED_ORIENTATION, SF_ACC_COLS, SF_GYR_COL
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.utils.dtypes import get_frame_definition, to_sensor_frame
 
-
 # Note: We completly extracted this from the vendored gaitmap package, as the logic was altered significantly. The base
 # class was also extracted to the mobgap package. The underlying functions are still in the vendored modules.
+
 
 class MadgwickAHRS(BaseOrientationEstimation):
     """The MadwickAHRS algorithm to estimate the orientation of an IMU.
@@ -144,7 +144,7 @@ class MadgwickAHRS(BaseOrientationEstimation):
         initial_orientation = self.initial_orientation
 
         if isinstance(initial_orientation, Rotation):
-            initial_orientation = Rotation.as_quat()
+            initial_orientation = initial_orientation.as_quat()
 
         gyro_data = np.deg2rad(data[SF_GYR_COLS].to_numpy())
         acc_data = data[SF_ACC_COLS].to_numpy()

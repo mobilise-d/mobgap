@@ -12,7 +12,7 @@ base_turning_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
-        The raw IMU data passed to the ``detect`` method.
+        The raw IMU data in the body frame passed to the ``detect`` method.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``detect`` method.
       """,
@@ -27,7 +27,7 @@ base_turning_docfiller = make_filldoc(
     """,
         "detect_para": """
     data
-        The raw IMU data.
+        The raw IMU data in the body frame.
         This should usually represent a single gait sequence or walking bout.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
