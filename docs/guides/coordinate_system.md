@@ -24,12 +24,13 @@ expectations.
   to anterior), ML (medial to lateral).
 - For all mobilise-d datasets, the IMU axis (x, y, z) map to these axis as follows:
     - x -> IS (inferior-superior)
-    - y -> PA (posterior-anterior)
-    - z -> ML (media-lateral)
+    - y -> ML (medial-lateral)
+    - z -> PA (posterior-anterior)
+
   If your axis are defined differently, you should rotate and then rename the axis to match the expected axis.
   
 ```{warning}
-At the moment the algorithms expect the axis to be renames like `acc_x`, `acc_y`, ... .
+At the moment the algorithms expect the axis to be named like `acc_x`, `acc_y`, ... .
 However, we will change this soon to make the expectation of the body alignment more explicit 
 ([#103](https://github.com/mobilise-d/mobgap/issues/103)).
 After this change, all data is expected to have anatomical names like `acc_is`, `acc_pa`, ... .
