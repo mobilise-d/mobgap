@@ -208,7 +208,7 @@ ref_turns
 # ---------------------------------------------
 # For this we pass an instance of the MadgwickAHRS algorithm to estimate the global orientation of the sensor to the
 # algorithm.
-from mobgap.orientation_estimation import MadgwickAHRS
+from mobgap.orientation_estimation._madgwick import MadgwickAHRS
 
 orientation_estimator = MadgwickAHRS()
 
@@ -248,8 +248,9 @@ turns_global_per_gs
 # 2. Transforming the data into the global frame
 # ----------------------------------------------
 # For this, we first estimate the global frame for the entire recording.
-import pandas as pd
-ori_estimator = orientation_estimator.clone().estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
+ori_estimator = orientation_estimator.clone().estimate(
+    imu_data, sampling_rate_hz=sampling_rate_hz
+)
 imu_data_global = ori_estimator.rotated_data_
 
 ori_estimator.orientation_.plot()

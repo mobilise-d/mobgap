@@ -28,6 +28,9 @@ expectations.
     - z -> PA (posterior-anterior)
 
   If your axis are defined differently, you should rotate and then rename the axis to match the expected axis.
+  Have a look at the sections 3 and 4 in this 
+  [guide in gaitmap](https://gaitmap.readthedocs.io/en/latest/source/user_guide/prepare_data.html#converting-into-the-correct-units) 
+  for more information on how to do this.
   
 ```{warning}
 At the moment the algorithms expect the axis to be named like `acc_x`, `acc_y`, ... .
@@ -41,3 +44,40 @@ After this change, all data is expected to have anatomical names like `acc_is`, 
 
 Expected direction of body frame axis (adapted based on [Palmerini et al](https://www.nature.com/articles/s41597-023-01930-9/figures/4))
 ```
+
+## Global coordinate system
+
+In addition to the body frame, we also define a global coordinate system.
+This is mainly used for the calculation of the global orientation (e.g. through the use of the Madgwick algorithm).
+
+To avoid confusion and allow you to use/implement other sensor fusion algorithms, we follow the "standard" global 
+coordinate system, with a z-axis pointing upwards.
+The global x-axis is defined as the forward direction of the participant at sample 0 of the data 
+(i.e. the initial direction of sensor z-axis/PA axis).
+The global y-axis is defined as the left direction of the participant (to ensure a right-handed coordinate system) at 
+sample 0 of the data (i.e. the **negative** initial direction of sensor x-axis/IS axis).
+
+This means the initial sensor orientation in the global coordinate system is defined by the following rotation matrix:
+
+```{code-block} python
+import numpy as np
+
+# Initial orientation of the sensor in the global coordinate system
+R = np.array([[0, 1, 0],
+              [1, 0, 0],
+              [0, 0, -1]])
+```
+
+The quaternion values of this rotation matrix are `[0.5, 0.5, 0.5, -0.5]`.
+This value as scipy rotation object is available `mobgap` package as `mobgap.consts.INITIAL_MOBILISED_ORIENTATION` and
+should be used as the initial orientation for any sensor fusion algorithm.
+
+```{warning}
+Directly applying the results of a sensor fusion algorithm defined in this coordinate system to the body frame sensor
+data, will redefine what axis points upwards, forwards, etc.!
+You should always use the results of the rotation methods we provide to do this transformation! (See below)
+```
+
+
+
+

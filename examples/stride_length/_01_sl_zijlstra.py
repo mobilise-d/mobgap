@@ -111,7 +111,7 @@ sl_zijlstra.step_length_per_sec_
 #
 # We basically do the same above, but we correct the sensor orientation to the global frame using a Madgwick
 # complementary filter, to show the improvement of performing re-orientation.
-from mobgap.orientation_estimation import MadgwickAHRS
+from mobgap.orientation_estimation._madgwick import MadgwickAHRS
 
 sl_zijlstra_reoriented = SlZijlstra(
     orientation_method=MadgwickAHRS(beta=0.2),
