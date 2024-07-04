@@ -67,14 +67,10 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
 
     # Principal component analysis
     pca_acc = PCA()
-    pca_acc.fit(chosenacc)
-    pca_coef = pca_acc.components_
-    newacc = chosenacc.values @ pca_coef.T
+    newacc = pca_acc.fit_transform(chosenacc)
 
     pca_gyr = PCA()
-    pca_gyr.fit(chosengyr)
-    pca_coef_gyr = pca_gyr.components_
-    newgyr = chosengyr.values @ pca_coef_gyr.T
+    newgyr = pca_gyr.fit_transform(chosengyr)
 
     if np.mean(newacc[:, 0]) < 0:
         newacc[:, 0] = -newacc[:, 0]
