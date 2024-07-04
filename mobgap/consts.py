@@ -1,7 +1,8 @@
 """A set of universal constants."""
+import scipy
 
 #: Gravity in m/s^2
-GRAV_MS2 = 9.80665
+GRAV_MS2 = scipy.constants.g
 
 #: Gyro cols in sensor frame
 SF_GYR_COLS = ["gyr_x", "gyr_y", "gyr_z"]

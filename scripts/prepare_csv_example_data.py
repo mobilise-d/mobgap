@@ -21,7 +21,6 @@ for d in LabExampleDataset():
     metadata = d.participant_metadata
     metadata.pop("indip_data_used")
     metadata.pop("sensor_attachment_su")
-    metadata.pop("sensor_attachment_su")
 
     all_participant_metadata.setdefault(d.group_label.cohort, {})[d.group_label.participant_id] = d.participant_metadata
 
