@@ -100,7 +100,8 @@ def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
 
     This will work for either data in the sensor frame or the global frame.
     Data from the sensor frame will be converted in the body-frame (x -> is, y -> ml, z -> pa).
-    Data in the global frame will be converted to the body-frame aligned global frame (gx -> gpa, -gy -> gml, gz -> gis).
+    Data in the global frame will be converted to the body-frame aligned global frame
+    (gx -> gpa, -gy -> gml, gz -> gis).
     In this case, the y-axis is inverted to match the body frame axis definitions and keep the coordinate system
     right-handed.
 
