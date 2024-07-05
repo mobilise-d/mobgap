@@ -90,52 +90,48 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     sig1 = av_standardized[:, 2]
     sig2 = newacc_standardized[:, 1]
     sig3 = newacc_standardized[:, 2]
-    sig4 = av_standardized[:, 1]
-
-    # Assigning av_pca and gyr_pca
-    av_pca = av_magpca.copy()
-    gyr_pca = gyr_magpca.copy()
-
-    # Calculating correlations
-    cor1 = np.dot(sig1.T, sig2)
-    cor2 = np.dot(sig1.T, sig3)
-
-    if abs(cor1) > abs(cor2):
-        if cor1 > 0:
-            av_pca[:, 2] = newacc[:, 1]  # AP
-            gyr_pca[:, 2] = newgyr[:, 1]
-        else:
-            av_pca[:, 2] = -newacc[:, 1]  # AP
-            gyr_pca[:, 2] = newgyr[:, 1]
-
-        if np.dot(sig3.T, sig4) > 0:
-            av_pca[:, 1] = newacc[:, 2]  # ML
-            gyr_pca[:, 1] = newgyr[:, 2]
-        else:
-            av_pca[:, 1] = -newacc[:, 2]  # ML
-            gyr_pca[:, 1] = newgyr[:, 2]
-    else:
-        if cor2 > 0:
-            av_pca[:, 2] = newacc[:, 2]  # AP
-            gyr_pca[:, 2] = newgyr[:, 2]
-        else:
-            av_pca[:, 2] = -newacc[:, 2]  # AP
-            gyr_pca[:, 2] = newgyr[:, 2]
-
-        if np.dot(sig2.T, sig4) > 0:
-            av_pca[:, 1] = newacc[:, 1]  # ML
-            gyr_pca[:, 1] = newgyr[:, 1]
-        else:
-            av_pca[:, 1] = -newacc[:, 1]  # ML
-            gyr_pca[:, 1] = newgyr[:, 1]
 
     # Refinement to provide the IMU axes as standard data matrix
-    av_pca_final = av_pca.copy()
-    gyr_pca_final = gyr_pca.copy()
+    sig4 = av_standardized[:, 1]
+
+    # Calculating dot products to compare directionality and magnitude of agreement between different axes
+    cor1 = np.dot(sig1, sig2)   # 'agreement' between AP and ML (PCA)
+    cor2 = np.dot(sig1, sig3)   # 'agreement' between AP and AP (PCA)
+    cor3 = np.dot(sig3, sig4)   # 'agreement' between AP (PCA) and ML
+    cor4 = np.dot(sig2, sig4)   # 'agreement' between ML and ML (PCA)
+
+    if abs(cor1) > abs(cor2):   # AP and ML are more 'aligned' than AP and AP (following PCA)
+        if cor1 > 0:    # AP and ML have same direction
+            av_magpca[:, 2] = newacc[:, 1]  # AP is replaced with ML of PCA
+            gyr_magpca[:, 2] = newgyr[:, 1]
+        else:   # AP and ML have opposite direction
+            av_magpca[:, 2] = -newacc[:, 1]  # AP is replaced with -ML of PCA
+            gyr_magpca[:, 2] = newgyr[:, 1]
+
+        if cor3 > 0:  # AP (PCA) and ML have same direction
+            av_magpca[:, 1] = newacc[:, 2]  # ML is replaced with AP of PCA
+            gyr_magpca[:, 1] = newgyr[:, 2]
+        else:   # AP (PCA) and ML have opposite direction
+            av_magpca[:, 1] = -newacc[:, 2]  # ML is replaced with -AP of PCA
+            gyr_magpca[:, 1] = newgyr[:, 2]
+    else:   # AP and AP (following PCA) are more 'aligned' than AP and ML
+        if cor2 > 0:    # AP and AP (PCA) have same direction
+            av_magpca[:, 2] = newacc[:, 2]  # AP is replaced with AP of PCA
+            gyr_magpca[:, 2] = newgyr[:, 2]
+        else:   # AP and AP (PCA) have opposite direction
+            av_magpca[:, 2] = -newacc[:, 2]  # AP is replaced with -AP of PCA
+            gyr_magpca[:, 2] = newgyr[:, 2]
+
+        if cor4 > 0:    # ML and ML (PCA) have same direction
+            av_magpca[:, 1] = newacc[:, 1]  # ML is replaced with ML of PCA
+            gyr_magpca[:, 1] = newgyr[:, 1]
+        else:   # ML and ML (PCA) have opposite direction
+            av_magpca[:, 1] = -newacc[:, 1]  # ML is replaced with -ML of PCA
+            gyr_magpca[:, 1] = newgyr[:, 1]
+    av_pca_final = av_magpca.copy()
+    gyr_pca_final = gyr_magpca.copy()
 
     #  Savitzky-Golay filter
-    av_pca_filt = np.zeros_like(av_pca)
-
     savgol_win_size_samples = 11
     savgol = SavgolFilter(
         window_length_s=savgol_win_size_samples / sampling_rate_hz,
@@ -145,10 +141,10 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     filter_chain = [("savgol", savgol)]
 
     # Filtering vectorised
-    av_pca_filt = np.zeros_like(av_pca)
+    av_pca_filt = np.zeros_like(av_magpca)
 
-    for i in range(av_pca.shape[1]):
-        av_pca_filt[:, i] = chain_transformers(av_pca[:, i], filter_chain, sampling_rate_hz=sampling_rate_hz)
+    for i in range(av_magpca.shape[1]):
+        av_pca_filt[:, i] = chain_transformers(av_magpca[:, i], filter_chain, sampling_rate_hz=sampling_rate_hz)
 
     # Standardization vectorised
     av_pca_filt_standardized = (av_pca_filt - np.mean(av_pca_filt, axis=0)) / np.std(av_pca_filt, axis=0)
@@ -158,22 +154,22 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     sig7 = av_pca_filt_standardized[:, 0]
 
     # Cross-correlation
-    r1 = correlate(sig7, sig5)
+    r1 = correlate(sig7, sig5)  # Cross-correlation indicating lag of signals
     r2 = correlate(sig7, sig6)
 
-    if np.max(r1) > np.max(r2):
-        av_pca_final[:, 2] = av_pca[:, 2]
-        av_pca_final[:, 1] = av_pca[:, 1]
+    if np.max(r1) > np.max(r2):    # AP and V correlate more strongly than V and ML. Nothing changes
+        av_pca_final[:, 2] = av_magpca[:, 2]
+        av_pca_final[:, 1] = av_magpca[:, 1]
 
-        gyr_pca_final[:, 2] = gyr_pca[:, 2]
-        gyr_pca_final[:, 1] = gyr_pca[:, 1]
+        gyr_pca_final[:, 2] = gyr_magpca[:, 2]
+        gyr_pca_final[:, 1] = gyr_magpca[:, 1]
 
-    else:
-        av_pca_final[:, 2] = av_pca[:, 1]
-        av_pca_final[:, 1] = av_pca[:, 2]
+    else:   # V and ML correlate more strongly than AP and V.
+        av_pca_final[:, 2] = av_magpca[:, 1]   # AP is replaced with ML
+        av_pca_final[:, 1] = av_magpca[:, 2]
 
-        gyr_pca_final[:, 2] = gyr_pca[:, 1]
-        gyr_pca_final[:, 1] = gyr_pca[:, 2]
+        gyr_pca_final[:, 2] = gyr_magpca[:, 1]
+        gyr_pca_final[:, 1] = gyr_magpca[:, 2]
 
     IMU_corrected = np.concatenate((av_pca_final, gyr_pca_final), axis=1)
     IMU_corrected = pd.DataFrame(IMU_corrected)
