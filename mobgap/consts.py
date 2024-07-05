@@ -3,9 +3,8 @@
 from typing import Final
 
 import numpy as np
-from scipy.spatial.transform import Rotation
-
 import scipy
+from scipy.spatial.transform import Rotation
 
 #: Gravity in m/s^2
 GRAV_MS2 = scipy.constants.g
