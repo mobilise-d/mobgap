@@ -47,29 +47,56 @@
         {
             "wb_id":1,
             "turn_id":0,
-            "start":4200,
-            "end":4504,
-            "duration_s":3.04,
-            "angle_deg":-53.3357244163,
-            "direction":"right"
+            "start":3833,
+            "end":3931,
+            "duration_s":0.98,
+            "angle_deg":76.8209779598,
+            "direction":"left"
         },
         {
             "wb_id":1,
             "turn_id":1,
-            "start":4532,
-            "end":4780,
-            "duration_s":2.48,
-            "angle_deg":77.1409748884,
+            "start":3937,
+            "end":4160,
+            "duration_s":2.23,
+            "angle_deg":-127.8701424072,
+            "direction":"right"
+        },
+        {
+            "wb_id":1,
+            "turn_id":2,
+            "start":4167,
+            "end":4544,
+            "duration_s":3.77,
+            "angle_deg":165.759383033,
             "direction":"left"
+        },
+        {
+            "wb_id":1,
+            "turn_id":3,
+            "start":4554,
+            "end":4803,
+            "duration_s":2.49,
+            "angle_deg":-155.695780432,
+            "direction":"right"
         },
         {
             "wb_id":2,
             "turn_id":0,
             "start":7777,
-            "end":8129,
-            "duration_s":3.52,
-            "angle_deg":46.4532407896,
-            "direction":"left"
+            "end":8136,
+            "duration_s":3.59,
+            "angle_deg":-149.7061942332,
+            "direction":"right"
+        },
+        {
+            "wb_id":3,
+            "turn_id":0,
+            "start":9381,
+            "end":9628,
+            "duration_s":2.47,
+            "angle_deg":-139.6412738293,
+            "direction":"right"
         }
     ]
 }

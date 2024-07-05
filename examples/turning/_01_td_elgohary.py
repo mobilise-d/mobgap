@@ -256,15 +256,6 @@ ori_estimator = orientation_estimator.clone().estimate(
 )
 imu_data_global = ori_estimator.rotated_data_
 
-ori_estimator.orientation_.plot()
-plt.show()
-
-imu_data.filter(like="acc").plot()
-plt.show()
-
-imu_data_global.filter(like="acc").plot()
-plt.show()
-
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data_global, reference_wbs):
