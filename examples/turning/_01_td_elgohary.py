@@ -190,21 +190,20 @@ turns
 ref_turns
 
 # %%
-# We can directly observe that the algorithm detects significantly fewer turns than the reference system.
-# And even the turns that are detected, don't really match the reference system.
-#
-# It remains unclear, why the algorithm performs so poorly in this case.
+# The results look reasonable, but we can see that in gs 3 and 5 the algorithm was not able to detect the smaller turns
+# with lower turning angles.
 
 # %%
 # Working in the global coordinate system
 # ---------------------------------------
 # The original ElGohary paper uses on-board sensor fusion to track the orientation of the sensor.
 # This information is used to transform all sensor data into the global coordinate system.
-# This should make the identification of the SI axis more robust.
+# This should make the identification of the inferior-superior (IS) axis more robust.
 #
 # We did not use this approach within Mobilise-D, to avoid introducing an additional source of error through a sensor
 # fusion algorithm.
-# However, the result of the algorithms are significantly influenced by that decision.
+# However, the result of the algorithms can be significantly influenced by that decision, in particular if participants
+# have a lot of body sway of walk bend forward.
 # Below we show two approached on how you could use the algorithm with a global frame estimation.
 #
 # 1. Using the internal global frame estimation
@@ -226,13 +225,11 @@ turning_detector_global.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
 plot_turns(turning_detector_global)
 
 # %%
-# Based on the plotted results, we can see that the algorithm not finds significantly more turns.
+# Based on the plotted results, we can see that the algorithm identifies basically the same turns as before.
 #
-# However, when we apply the algorithm per-gs (as shown below), we again only get a small number of turns.
-# The reason for that is, that the global frame estimation is not perfect and requires some time to converge when
-# applied to data.
-# Hence, applying it to each GS individually might work less good.
-# Results could be improved, by tuning the initial orientation of the global frame estimation.
+# The same can be observed, when applying the algorithm per GS.
+# The turns are almost identical as before, indicating, that the global frame transformation was not really required
+# for this specific dataset.
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
@@ -250,7 +247,12 @@ turns_global_per_gs
 #
 # 2. Transforming the data into the global frame
 # ----------------------------------------------
-# For this, we first estimate the global frame for the entire recording.
+# For this, we first estimate the global frame for the entire recording and then put the rotated data into the Gait
+# Sequence Iterator.
+# Theoretically, this should yield slightly better results, as the Madgwick algorithm always needs a certain amount of
+# time to converge to the correct orientation.
+# By running it once over the entire data, these convergence period should only happen once at the beginning of the
+# entire recording and not affect the start of each gait sequence.
 ori_estimator = orientation_estimator.clone().estimate(
     imu_data, sampling_rate_hz=sampling_rate_hz
 )
