@@ -154,7 +154,7 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     sig7 = av_pca_filt_standardized[:, 0]
 
     # Cross-correlation
-    r1 = correlate(sig7, sig5)  # Cross-correlation indicating lag of signals
+    r1 = correlate(sig7, sig5)  # Cross-correlation indicating lag of signals, this uses the filtered signals
     r2 = correlate(sig7, sig6)
 
     if np.max(r1) > np.max(r2):    # AP and V correlate more strongly than V and ML. Nothing changes
