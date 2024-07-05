@@ -8,8 +8,8 @@ import pandas as pd
 from scipy.spatial.transform import Rotation
 
 from mobgap._gaitmap.utils.rotations import rotate_dataset_series
-from mobgap.consts import GF_SENSOR_COLS, SF_SENSOR_COLS
-from mobgap.utils.dtypes import get_frame_definition, to_body_frame, to_sensor_frame
+from mobgap.consts import COLS_PER_FRAME, GF_SENSOR_COLS, SF_SENSOR_COLS
+from mobgap.utils.dtypes import get_frame_definition
 
 T = TypeVar("T", float, int, Sequence[float], Sequence[int])
 
@@ -95,4 +95,92 @@ def transform_to_global_frame(data: pd.DataFrame, orientations: Rotation) -> pd.
     return rotated_data
 
 
-__all__ = ["as_samples"]
+def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
+    """Rename the columns of the passed dataframe to match the body frame axis names.
+
+    This will work for either data in the sensor frame or the global frame.
+    Data from the sensor frame will be converted in the body-frame (x -> is, y -> ml, z -> pa).
+    Data in the global frame will be converted to the body-frame aligned global frame (gx -> gpa, -gy -> gml, gz -> gis).
+    In this case, the y-axis is inverted to match the body frame axis definitions and keep the coordinate system
+    right-handed.
+
+    In both cases, we assume that the coordinate system definitions of the provided data matches the mobgap/Mobilise-D
+    guidelines.
+
+    Parameters
+    ----------
+    data
+        The dataframe to rename.
+
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe with the columns renamed to match the body frame axis names
+
+    """
+    frame = get_frame_definition(data, ["sensor", "global"])
+
+    conversions = {
+        "sensor": dict(zip(COLS_PER_FRAME["sensor"], COLS_PER_FRAME["body"])),
+        "global": {
+            f"{sensor}_g{axis}": f"{sensor}_g{axis_new}"
+            for axis, axis_new in (("z", "is"), ("y", "ml"), ("x", "pa"))
+            for sensor in ("acc", "gyr")
+        },
+    }
+
+    out_cols = COLS_PER_FRAME["body"] if frame == "sensor" else COLS_PER_FRAME["global_body"]
+
+    renamed_df = data.rename(columns=conversions[frame])[out_cols]
+    if frame == "global":
+        renamed_df["acc_gml"] *= -1
+
+    return renamed_df
+
+
+def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
+    """Rename the columns of the passed dataframe to match the normal global frame axis or the sensor frame axis names.
+
+    This will work for either data in the body frame or the global body frame.
+    Data from the body frame will be converted in the sensor frame (is -> x, ml -> y, pa -> z).
+    Data in the body-aligned global frame will be converted to the normal global frame (gis -> gz, -gml -> y, gpa -> x).
+
+    In both cases, we assume that the coordinate system definitions of the provided data matches the mobgap/Mobilise-D
+    guidelines.
+
+    Parameters
+    ----------
+    data
+        The dataframe to rename.
+
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe with the columns renamed to match the normal global frame axis names
+
+    """
+    frame = get_frame_definition(data, ["body", "global_body"])
+
+    conversions = {
+        "body": dict(zip(COLS_PER_FRAME["body"], COLS_PER_FRAME["sensor"])),
+        "global_body": {
+            f"{sensor}_g{axis}": f"{sensor}_g{axis_new}"
+            for axis, axis_new in (("is", "z"), ("ml", "y"), ("pa", "x"))
+            for sensor in ("acc", "gyr")
+        },
+    }
+
+    out_cols = COLS_PER_FRAME["global"] if frame == "global_body" else COLS_PER_FRAME["sensor"]
+
+    renamed_df = data.rename(columns=conversions[frame])[out_cols]
+
+    if frame == "global_body":
+        renamed_df["acc_gy"] *= -1
+
+    return renamed_df
+
+
+to_sensor_frame = to_normal_frame
+
+
+__all__ = ["as_samples", "transform_to_global_frame", "to_body_frame", "to_normal_frame", "to_sensor_frame"]

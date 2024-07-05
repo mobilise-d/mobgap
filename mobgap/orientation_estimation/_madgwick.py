@@ -9,7 +9,8 @@ from typing_extensions import Self, Unpack
 from mobgap._gaitmap.trajectory_reconstruction.orientation_methods._madgwick import _madgwick_update_series
 from mobgap.consts import INITIAL_MOBILISED_ORIENTATION, SF_ACC_COLS, SF_GYR_COLS
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
-from mobgap.utils.dtypes import get_frame_definition, to_sensor_frame
+from mobgap.utils.conversions import to_sensor_frame
+from mobgap.utils.dtypes import get_frame_definition
 
 # Note: We completly extracted this from the vendored gaitmap package, as the logic was altered significantly. The base
 # class was also extracted to the mobgap package. The underlying functions are still in the vendored modules.
