@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-def acceleration(IMU: pd.DataFrame, q: np.ndarray) -> np.ndarray:
+def acceleration(IMU: pd.DataFrame, q: np.ndarray) -> pd.DataFrame:
     """Calculates the rotated acceleration based on the IMU data and the quaternions.
 
     Parameters
@@ -15,13 +15,13 @@ def acceleration(IMU: pd.DataFrame, q: np.ndarray) -> np.ndarray:
 
     Returns
     -------
-    The rotated acceleration as an array of shape (n, 3).
+    The rotated acceleration as a pd.DataFrame.
 
     """
     a = np.zeros((len(q), 3))
     for i in range(len(q)):
         a[i, :] = quaterot(q[i, :], IMU.iloc[i, 0:3])
-    return a
+    return pd.DataFrame(a, columns=['acc_x', 'acc_y', 'acc_z'])
 
 def quaterot(q: np.ndarray, acc: np.ndarray, qacc=None) -> np.ndarray:
     """Rotates the acceleration using the quaternion.
