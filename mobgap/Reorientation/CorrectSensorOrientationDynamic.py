@@ -108,7 +108,7 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
 
     if abs(cor1) > abs(cor2):   # AP and ML are more 'aligned' than AP and AP (following PCA)
         if cor1 > 0:    # AP and ML have same direction
-            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC3']  # AP is replaced with ML of PCA
+            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC2']  # AP is replaced with ML of PCA
             gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC2']
         else:   # AP and ML have opposite direction
             av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC2']  # AP is replaced with -ML of PCA
@@ -129,7 +129,7 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
             gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC3']
 
         if cor4 > 0:    # ML and ML (PCA) have same direction
-            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC1']  # ML is replaced with ML of PCA
+            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC2']  # ML is replaced with ML of PCA
             gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC2']
         else:   # ML and ML (PCA) have opposite direction
             av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC2']  # ML is replaced with -ML of PCA
