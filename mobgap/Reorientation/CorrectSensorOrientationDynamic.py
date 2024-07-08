@@ -101,6 +101,8 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     sig4 = av_standardized.loc[:, 'acc_y']
 
     # Calculating dot products to compare directionality and magnitude of agreement between different axes
+    # The PCA components are ordered by variance explained: the first component has the highest variance,
+    # followed by the second, and then the third.
     cor1 = np.dot(sig1, sig2)   # 'agreement' between AP and 2nd PCA component
     cor2 = np.dot(sig1, sig3)   # 'agreement' between AP and 3rd PCA component
     cor3 = np.dot(sig3, sig4)   # 'agreement' between 3rd PCA component and ML
