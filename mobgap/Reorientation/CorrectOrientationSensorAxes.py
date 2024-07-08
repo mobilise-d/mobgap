@@ -83,7 +83,7 @@ def CorrectOrientationSensorAxes(data: pd.DataFrame, sampling_rate_hz: float) ->
                 gs['gs_id'] = range(len(gs))
 
         gsLabel = np.zeros(len(acc.loc[:, "acc_x"]))
-        n = max(gs.shape)
+        n = len(gs)
         k = 0
 
         if n > 2:
