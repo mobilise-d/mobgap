@@ -101,38 +101,38 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     sig4 = av_standardized.loc[:, 'acc_y']
 
     # Calculating dot products to compare directionality and magnitude of agreement between different axes
-    cor1 = np.dot(sig1, sig2)   # 'agreement' between AP and ML (PCA)
-    cor2 = np.dot(sig1, sig3)   # 'agreement' between AP and AP (PCA)
-    cor3 = np.dot(sig3, sig4)   # 'agreement' between AP (PCA) and ML
-    cor4 = np.dot(sig2, sig4)   # 'agreement' between ML and ML (PCA)
+    cor1 = np.dot(sig1, sig2)   # 'agreement' between AP and 2nd PCA component
+    cor2 = np.dot(sig1, sig3)   # 'agreement' between AP and 3rd PCA component
+    cor3 = np.dot(sig3, sig4)   # 'agreement' between 3rd PCA component and ML
+    cor4 = np.dot(sig2, sig4)   # 'agreement' between ML and 2nd PCA component
 
-    if abs(cor1) > abs(cor2):   # AP and ML are more 'aligned' than AP and AP (following PCA)
+    if abs(cor1) > abs(cor2):   # AP and 2nd PCA component are more 'aligned' than AP and 3rd PCA component
         if cor1 > 0:    # AP and ML have same direction
-            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC2']  # AP is replaced with ML of PCA
+            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC2']  # AP is replaced with 2nd component of PCA
             gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC2']
         else:   # AP and ML have opposite direction
-            av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC2']  # AP is replaced with -ML of PCA
+            av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC2']  # AP is replaced with the neg of the 2nd PCA component
             gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC2']
 
         if cor3 > 0:  # AP (PCA) and ML have same direction
-            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC3']  # ML is replaced with AP of PCA
+            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC3']  # ML is replaced with the 3rd component of PCA
             gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC3']
         else:   # AP (PCA) and ML have opposite direction
-            av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC3']  # ML is replaced with -AP of PCA
+            av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC3']  # ML is replaced with the neg of the 3rd PCA component
             gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC3']
     else:   # AP and AP (following PCA) are more 'aligned' than AP and ML
         if cor2 > 0:    # AP and AP (PCA) have same direction
-            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC3']  # AP is replaced with AP of PCA
+            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC3']  # AP is replaced with the 3rd component of PCA
             gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC3']
         else:   # AP and AP (PCA) have opposite direction
-            av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC3']  # AP is replaced with -AP of PCA
+            av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC3']  # AP is replaced with the neg of the 3rd PCA component
             gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC3']
 
         if cor4 > 0:    # ML and ML (PCA) have same direction
-            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC2']  # ML is replaced with ML of PCA
+            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC2']  # ML is replaced with 2nd component of PCA
             gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC2']
         else:   # ML and ML (PCA) have opposite direction
-            av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC2']  # ML is replaced with -ML of PCA
+            av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC2']  # ML is replaced with the neg of the 2nd component of PCA
             gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC2']
     av_pca_final = av_magpca.copy()
     gyr_pca_final = gyr_magpca.copy()
