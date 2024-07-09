@@ -56,7 +56,8 @@ def transform_to_global_frame(data: pd.DataFrame, orientations: Rotation) -> pd.
     global frame (gx, gy, gz) or the body frame aligned global frame (gis, gml, gpa).
 
     .. note:: The rotations need to be defined based on the normal global frame in mobgap and not based on the
-       local sensor/body frame.
+       local sensor/body frame. So the rotaitons should define the transformation from the sensor/body frame to the
+       normal global frame.
 
     Parameters
     ----------
