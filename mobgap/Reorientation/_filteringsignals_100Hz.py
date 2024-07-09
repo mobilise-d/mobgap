@@ -7,8 +7,13 @@ from mobgap.data_transform import (
 )
 
 
-def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: float,
-                            sampling_rate: float, normalizing=None) -> np.ndarray:
+def filtering_signals_100hz(
+        input_altitude: np.ndarray,
+        filter_type: str,
+        freq: float,
+        sampling_rate: float,
+        normalizing: Literal["mean", "mean_std", None] = None
+) -> np.ndarray:
     """
     Filtering the input signal with a high or low pass butterworth filter
 
@@ -33,34 +38,41 @@ def filtering_signals_100hz(input_altitude: np.ndarray, filter_type: str, freq: 
     np.ndarray
         A numpy array containing the filtered signal
 
+    Raises
+    ------
+    ValueError
+        If the normalizing is not one of the specified options.
+        If the filter type is not one of the specified options.
+
     """
     if len(input_altitude) == 0:
         return np.array([])
 
     if normalizing is None:
         unfiltered_altitude = input_altitude
-    # elif normalizing == 'mean_std':
-        # unfiltered_altitude = normalized(input_altitude, 'mean_std')
+    elif normalizing == 'mean_std':
+        raise NotImplementedError("Normalization type 'mean_std' is not implemented yet and was not used in matlab.")
     elif normalizing == 'mean':
         unfiltered_altitude = input_altitude - np.mean(input_altitude)
     else:
-        return np.array([])
-        print('Invalid normalizing type')
+        raise ValueError(f"Invalid normalizing type: {normalizing}")
 
     if filter_type == 'high':
         filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type, sampling_rate)
-
     elif filter_type == 'low':
         filtered_altitude = apply_filter(unfiltered_altitude, freq, filter_type, sampling_rate)
-
     else:
-        return np.array([])
-        print('Invalid filter type')
+        raise ValueError(f"Invalid filter type: {filter_type}. Must be 'high' or 'low'.")
 
     return filtered_altitude
 
 
-def apply_filter(unfiltered_altitude: np.ndarray, freq: float, filter_type: str, sampling_rate: float) -> np.ndarray:
+def apply_filter(
+        unfiltered_altitude: np.ndarray,
+        freq: float,
+        filter_type: str,
+        sampling_rate: float
+) -> np.ndarray:
     """
     Apply a high or low pass butterworth filter to the input signal
     Parameters
