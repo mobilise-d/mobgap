@@ -3,7 +3,7 @@ import numpy as np
 from scipy.signal import correlate
 from sklearn.decomposition import PCA
 from gaitmap.trajectory_reconstruction import MadgwickAHRS
-from mobgap.Reorientation.utils import acceleration
+from mobgap.Reorientation._utils import acceleration
 from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
