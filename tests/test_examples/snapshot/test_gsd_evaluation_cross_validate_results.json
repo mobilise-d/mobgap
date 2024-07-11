@@ -6,11 +6,11 @@
                 "type":"integer"
             },
             {
-                "name":"test_single_precision",
+                "name":"test__single__precision",
                 "type":"string"
             },
             {
-                "name":"test_single_accuracy",
+                "name":"test__single__accuracy",
                 "type":"string"
             }
         ],
@@ -22,28 +22,28 @@
     "data":[
         {
             "index":0,
-            "test_single_precision":[
+            "test__single__precision":[
                 0.5326249377
             ],
-            "test_single_accuracy":[
+            "test__single__accuracy":[
                 0.7349292709
             ]
         },
         {
             "index":1,
-            "test_single_precision":[
+            "test__single__precision":[
                 0.6282761166
             ],
-            "test_single_accuracy":[
+            "test__single__accuracy":[
                 0.831292177
             ]
         },
         {
             "index":2,
-            "test_single_precision":[
+            "test__single__precision":[
                 0.7339473011
             ],
-            "test_single_accuracy":[
+            "test__single__accuracy":[
                 0.8726153846
             ]
         }

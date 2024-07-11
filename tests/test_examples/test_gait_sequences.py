@@ -34,5 +34,21 @@ def test_gsd_evaluation(snapshot):
     snapshot.assert_match(pd.DataFrame(unmatched_metrics_dict, index=[0]), "mobilised_metrics_dict")
     snapshot.assert_match(matches.reset_index(), "matches", check_dtype=False)
     snapshot.assert_match(
-        cross_validate_results[["test_single_precision", "test_single_accuracy"]], "cross_validate_results"
+        cross_validate_results[["test__single__precision", "test__single__accuracy"]], "cross_validate_results"
     )
+
+
+def test_gsd_challenges(snapshot):
+    from examples.gait_sequences._04_gsd_evaluation_challenges import (
+        agg_results,
+        agg_results_cv,
+        exploded_results,
+        exploded_results_cv,
+    )
+
+    snapshot.assert_match(agg_results_cv, "agg_results_cv")
+    snapshot.assert_match(
+        exploded_results_cv.drop(["detected", "reference"], axis=1).reset_index().infer_objects(), "exploded_results_cv"
+    )
+    snapshot.assert_match(agg_results, "agg_results")
+    snapshot.assert_match(exploded_results.drop(["detected", "reference"], axis=1).reset_index(), "exploded_results")

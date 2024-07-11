@@ -12,6 +12,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from typing_extensions import Unpack
 
+from mobgap.gait_sequences._evaluation_challenge import GsdEvaluation, GsdEvaluationCV, gsd_evaluation_scorer
 from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
@@ -224,6 +225,9 @@ def calculate_unmatched_gsd_performance_metrics(
         "num_gs_absolute_relative_error_log": num_gs_absolute_relative_error_log,
     }
 
+    # Convert all np.floats to floats
+    gsd_metrics = {k: float(v) if isinstance(v, np.float64) else v for k, v in gsd_metrics.items()}
+
     return gsd_metrics
 
 
@@ -410,6 +414,9 @@ def _get_tn_intervals(categorized_intervals: pd.DataFrame, n_overall_samples: Un
     """
     if n_overall_samples is None:
         return pd.DataFrame(columns=["start", "end", "match_type"])
+
+    if len(categorized_intervals) == 0:
+        return pd.DataFrame([[0, n_overall_samples - 1, "tn"]], columns=["start", "end", "match_type"])
 
     # add tn intervals
     tn_intervals = []
@@ -784,4 +791,7 @@ __all__ = [
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
     "get_matching_intervals",
+    "gsd_evaluation_scorer",
+    "GsdEvaluationCV",
+    "GsdEvaluation",
 ]

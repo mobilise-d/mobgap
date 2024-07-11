@@ -183,7 +183,7 @@ from tpcp.validate import validate
 evaluation_results_with_opti = pd.DataFrame(
     validate(pipeline, simulated_real_world_walking)
 )
-evaluation_results_with_opti.drop(["single_raw_results"], axis=1).T
+evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
 
 # %%
 # The accuracy provided is the mean accuracy over all datapoints.
@@ -193,7 +193,7 @@ evaluation_results_with_opti.drop(["single_raw_results"], axis=1).T
 # This could be used for further analysis.
 # For example to calculate the confusion matrix over all ICs of all datapoints.
 raw_results = pd.concat(
-    evaluation_results_with_opti["single_raw_results"][0],
+    evaluation_results_with_opti["single__raw_results"][0],
     keys=evaluation_results_with_opti["data_labels"][0],
     axis=0,
 )

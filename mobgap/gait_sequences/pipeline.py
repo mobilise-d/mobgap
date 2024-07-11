@@ -4,16 +4,11 @@ from typing import Any, Union
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from tpcp.validate import Aggregator, NoAgg
+from tpcp.validate import Aggregator
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.base import BaseGsDetector, base_gsd_docfiller
-from mobgap.gait_sequences.evaluation import (
-    calculate_matched_gsd_performance_metrics,
-    calculate_unmatched_gsd_performance_metrics,
-    categorize_intervals_per_sample,
-)
 from mobgap.utils.conversions import to_body_frame
 
 
@@ -151,27 +146,9 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             For categorizing the detected and reference gait sequences on a sample-wise level.
 
         """
-        detected_gs_list = self.safe_run(datapoint).gs_list_
-        reference_gs_list = datapoint.reference_parameters_.wb_list[["start", "end"]]
-        n_datapoints = len(datapoint.data_ss)
-        sampling_rate_hz = datapoint.sampling_rate_hz
+        from mobgap.gait_sequences._evaluation_challenge import gsd_evaluation_scorer
 
-        matches = categorize_intervals_per_sample(
-            gsd_list_detected=detected_gs_list, gsd_list_reference=reference_gs_list, n_overall_samples=n_datapoints
-        )
-
-        all_metrics = {
-            **calculate_unmatched_gsd_performance_metrics(
-                gsd_list_detected=detected_gs_list,
-                gsd_list_reference=reference_gs_list,
-                sampling_rate_hz=sampling_rate_hz,
-            ),
-            **calculate_matched_gsd_performance_metrics(matches),
-            "detected": NoAgg(detected_gs_list),
-            "reference": NoAgg(reference_gs_list),
-        }
-
-        return all_metrics
+        return gsd_evaluation_scorer(self, datapoint)
 
 
 __all__ = ["GsdEmulationPipeline"]
