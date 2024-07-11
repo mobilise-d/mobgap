@@ -19,6 +19,17 @@ from mobgap.initial_contacts._hklee_algo_improved import IcdHKLeeImproved
 #
 # We load example data from the lab dataset together with the INDIP reference system.
 # We will use the INDIP output for initial contacts ("ic") as ground truth.
+#
+# Like most algorithms, the GsdIluz requires the data to be in body frame coordinates.
+# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
+from mobgap.utils.conversions import to_body_frame
+
+# %%
+# Loading some data
+# -----------------
+# We load example data from the lab dataset together with the INDIP reference system.
+# Like most algorithms, the algorithm requires the data to be in body frame coordinates.
+# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
 
 example_data = LabExampleDataset(
     reference_system="INDIP", reference_para_level="wb"
@@ -27,7 +38,7 @@ example_data = LabExampleDataset(
 single_test = example_data.get_subset(
     cohort="HA", participant_id="001", test="Test11", trial="Trial1"
 )
-imu_data = single_test.data_ss
+imu_data = to_body_frame(single_test.data_ss)
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz
@@ -106,18 +117,20 @@ detected_ics_matlab
 #    However, this is expected, as per definition, this first IC marks the start of the WB in the reference system.
 #    Hence, there are no samples before that point the algorithm can use to detect the IC.
 
-imu_data.reset_index(drop=True).plot(y="acc_x")
+imu_data.reset_index(drop=True).plot(y="acc_is")
 
-plt.plot(ref_ics["ic"], imu_data["acc_x"].iloc[ref_ics["ic"]], "o", label="ref")
+plt.plot(
+    ref_ics["ic"], imu_data["acc_is"].iloc[ref_ics["ic"]], "o", label="ref"
+)
 plt.plot(
     detected_ics["ic"],
-    imu_data["acc_x"].iloc[detected_ics["ic"]],
+    imu_data["acc_is"].iloc[detected_ics["ic"]],
     "x",
     label="hklee_algo_py",
 )
 plt.plot(
     detected_ics_matlab["ic"],
-    imu_data["acc_x"].iloc[detected_ics_matlab["ic"]],
+    imu_data["acc_is"].iloc[detected_ics_matlab["ic"]],
     "+",
     label="hklee_algo_matlab",
 )

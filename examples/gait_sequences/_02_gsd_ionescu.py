@@ -7,7 +7,7 @@ GSD Paraschiv-Ionescu
 This example shows how to use the two variants of the Gait Sequence Detection (GSD) algorithm by
 Paraschiv-Ionescu et al.
 The normal version called ``GsdIonescu`` uses a fixed signal activity threshold and a simplified filter chain and the
-adaptive version called ``GsdAdaptiveIonescu``, uses a "automatic" threshold calculation and a more complex filter
+adaptive version called ``GsdAdaptiveIonescu``, uses an "automatic" threshold calculation and a more complex filter
 chain.
 
 We start by defining some helpers for plotting and loading the data.
@@ -101,6 +101,13 @@ def load_matlab_output(datapoint):
 # Performance on a single lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail, where we only expect a single gait sequence.
+#
+# For that we load the relevant data pieces.
+# Note, that we use ``to_body_frame`` to convert the data to body frame coordinates.
+# This is possible, as we know the data is well aligned with the defined sensor frame convention.
+# However, technically, this step (or any alignment step) is not required for the GsdIonescu algorithm variants, as
+# they both work on the Acc norm and can hence be used without prior alignment.
+# Hence, the algorithms support passing data with either sensor or body frame column naming.
 from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIonescu
 
 short_trial = lab_example_data.get_subset(

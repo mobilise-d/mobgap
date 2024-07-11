@@ -12,7 +12,7 @@ base_icd_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
-        The raw IMU data of the gait sequence passed to the ``detect`` method.
+        The raw IMU data of the gait sequence in the body frame  passed to the ``detect`` method.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``detect`` method.
     """,
@@ -30,7 +30,7 @@ base_icd_docfiller = make_filldoc(
     """,
         "detect_para": """
     data
-        The raw IMU of a single sensor.
+        The raw IMU in the body frame.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     """,

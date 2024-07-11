@@ -8,6 +8,7 @@ from scipy.signal import find_peaks, hilbert
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
+from mobgap.consts import BF_ACC_COLS, SF_ACC_COLS
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -25,6 +26,7 @@ from mobgap.utils.array_handling import (
     start_end_array_to_bool_array,
 )
 from mobgap.utils.conversions import as_samples
+from mobgap.utils.dtypes import get_frame_definition
 
 _gsd_ionescu_docfiller = make_filldoc(
     base_gsd_docfiller._dict
@@ -44,7 +46,12 @@ _gsd_ionescu_docfiller = make_filldoc(
         The minimum time margin (in seconds) between two consecutive initial contacts within a gait sequence.
         This is used when combining consecutive steps candidates into gait sequences.
         The actual threshold is calculated as the mean of the step times plus this parameter.
-"""
+""",
+        "coordinate_system_note": """
+    .. note:: Compared to other GSD algorithms, this algorithm only works on the Acc norm and hence, can be used with
+    out knowing the provivious alignement of the sensor.
+    The algorithm therefore allows to pass data in either the body or the sensor frame.
+""",
     }
 )
 
@@ -88,7 +95,12 @@ class _BaseGsdIonescu(BaseGsDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        acc = data[["acc_x", "acc_y", "acc_z"]].to_numpy()
+        # As we work on the norm, we support both coordinate system definitions.
+        frame = get_frame_definition(data, ["sensor", "body"])
+
+        acc_axis = SF_ACC_COLS if frame == "sensor" else BF_ACC_COLS
+
+        acc = data[acc_axis].to_numpy()
 
         if not self.min_n_steps >= 1:
             raise ValueError("min_n_steps must be at least 1")
@@ -162,6 +174,8 @@ class GsdIonescu(_BaseGsdIonescu):
     Steps are detected by identifying local minima and maxima in the filtered acceleration signal that are above a
     specified threshold.
     The outputs are further filtered by the number of steps and consecutive gait sequence with short breaks are merged.
+
+    %(coordinate_system_note)s
 
     Parameters
     ----------
@@ -285,6 +299,8 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section.
+
+    %(coordinate_system_note)s
 
     Parameters
     ----------

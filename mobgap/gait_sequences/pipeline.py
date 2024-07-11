@@ -14,6 +14,13 @@ from mobgap.gait_sequences.evaluation import (
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals_per_sample,
 )
+from mobgap.utils.conversions import to_body_frame
+
+
+def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
+    if convert:
+        return to_body_frame(data)
+    return data
 
 
 @base_gsd_docfiller
@@ -30,6 +37,11 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
     ----------
     algo
         The GSD algorithm that should be run/evaluated.
+    convert_to_body_frame
+        If True, the data will be converted to the body frame before running the algorithm.
+        This is the default, as most algorithm expect the data in the body frame.
+        If your data is explictly not aligned and your algorithm supports sensor frame/unaligned input you might want
+        to set this to False.
 
     Attributes
     ----------
@@ -41,11 +53,13 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
     """
 
     algo: OptimizableParameter[BaseGsDetector]
+    convert_to_body_frame: bool
 
     algo_: BaseGsDetector
 
-    def __init__(self, algo: BaseGsDetector) -> None:
+    def __init__(self, algo: BaseGsDetector, *, convert_to_body_frame: bool = True) -> None:
         self.algo = algo
+        self.convert_to_body_frame = convert_to_body_frame
 
     @property
     def gs_list_(self) -> pd.DataFrame:  # noqa: D102
@@ -68,7 +82,7 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             The pipeline instance with the detected gait sequences stored in the ``gs_list_`` attribute.
 
         """
-        single_sensor_imu_data = datapoint.data_ss
+        single_sensor_imu_data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
         self.algo_ = self.algo.clone().detect(single_sensor_imu_data, sampling_rate_hz=sampling_rate_hz)
@@ -99,7 +113,7 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         """
         # TODO: This method is not really tested yet, as we don't have any ML based GSD algorithms.
-        all_data = (d.data_ss for d in dataset)
+        all_data = (_conditionally_to_bf(d.data_ss, self.convert_to_body_frame) for d in dataset)
         reference_wbs = (d.reference_parameters_.wb_list for d in dataset)
         sampling_rate_hz = (d.sampling_rate_hz for d in dataset)
 

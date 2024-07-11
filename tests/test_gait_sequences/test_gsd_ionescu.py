@@ -4,9 +4,11 @@ import pytest
 from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdAdaptiveIonescu
 from mobgap.gait_sequences._gsd_ionescu import GsdIonescu, find_intersections
+from mobgap.utils.conversions import to_body_frame
 
 
 class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):
@@ -17,7 +19,7 @@ class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().detect(
-            pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"]), sampling_rate_hz=40.0
+            pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=40.0
         )
 
 
@@ -53,7 +55,7 @@ class TestGsdIonescu:
         self.algorithm = request.param
 
     def test_no_gsds(self):
-        data = pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
 
         output = self.algorithm().detect(data, sampling_rate_hz=40.0).gs_list_
 
@@ -62,17 +64,18 @@ class TestGsdIonescu:
     def test_single_gsd(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
 
-        output = self.algorithm().detect(data, sampling_rate_hz=100.0).gs_list_
+        output = self.algorithm().detect(to_body_frame(data), sampling_rate_hz=100.0).gs_list_
 
         assert len(output) == 1
         assert set(output.columns) == {"start", "end"}
 
-    def test_random_signal(self):
-        data = pd.DataFrame(np.random.rand(1000, 3), columns=["acc_x", "acc_y", "acc_z"])
+    def test_sensor_and_body_frame_same_result(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test11", trial="Trial1").data_ss
 
-        output = self.algorithm().detect(data, sampling_rate_hz=100.0).gs_list_
+        output_sf = self.algorithm().detect(data, sampling_rate_hz=100.0).gs_list_
+        output_bf = self.algorithm().detect(to_body_frame(data), sampling_rate_hz=100.0).gs_list_
 
-        assert set(output.columns) == {"start", "end"}
+        assert_frame_equal(output_sf, output_bf)
 
 
 class TestGsdAdaptiveIonescuRegression:
@@ -81,7 +84,7 @@ class TestGsdAdaptiveIonescuRegression:
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        gs_list = GsdAdaptiveIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
+        gs_list = GsdAdaptiveIonescu().detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz).gs_list_
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))
 
 
@@ -91,5 +94,5 @@ class TestGsdIonescuRegression:
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        gs_list = GsdIonescu().detect(data, sampling_rate_hz=sampling_rate_hz).gs_list_
+        gs_list = GsdIonescu().detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz).gs_list_
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))

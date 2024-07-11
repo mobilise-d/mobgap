@@ -12,6 +12,7 @@ from typing_extensions import Self, Unpack
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.laterality.base import BaseLRClassifier
 from mobgap.pipeline import GsIterator, iter_gs
+from mobgap.utils.conversions import to_body_frame
 
 
 def _extract_ref_data(dataset: BaseGaitDatasetWithReference) -> Iterator[tuple[str, pd.DataFrame, float]]:
@@ -25,7 +26,7 @@ def _extract_ref_data(dataset: BaseGaitDatasetWithReference) -> Iterator[tuple[s
 def _extract_data(dataset: BaseGaitDatasetWithReference) -> Iterator[pd.DataFrame]:
     for datapoint in dataset:
         ref_params = datapoint.reference_parameters_relative_to_wb_
-        for _, data in iter_gs(datapoint.data_ss, ref_params.wb_list):
+        for _, data in iter_gs(to_body_frame(datapoint.data_ss), ref_params.wb_list):
             yield data
 
 
@@ -102,7 +103,7 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         # TODO: maybe do it properly and create a custom iter type
         result_algo_list = {}
-        for (wb, data), r in wb_iterator.iterate(datapoint.data_ss, ref_paras.wb_list):
+        for (wb, data), r in wb_iterator.iterate(to_body_frame(datapoint.data_ss), ref_paras.wb_list):
             ref_ic_list = ref_paras.ic_list.loc[wb.id]
             algo = self.algo.clone().predict(
                 data, ref_ic_list.drop("lr_label", axis=1, errors="ignore"), sampling_rate_hz=sampling_rate_hz

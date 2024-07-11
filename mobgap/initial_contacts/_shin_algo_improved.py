@@ -5,6 +5,7 @@ import pandas as pd
 from numpy.linalg import norm
 from typing_extensions import Self, Unpack
 
+from mobgap.consts import BF_ACC_COLS, SF_ACC_COLS
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -17,6 +18,7 @@ from mobgap.data_transform import (
 )
 from mobgap.initial_contacts._utils import find_zero_crossings
 from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
+from mobgap.utils.dtypes import assert_is_sensor_data, get_frame_definition
 
 
 @base_icd_docfiller
@@ -85,14 +87,14 @@ class IcdShinImproved(BaseIcDetector):
 
     """
 
-    axis: Literal["x", "y", "z", "norm"]
+    axis: Literal["is", "ml", "pa", "norm"]
 
     _INTERNAL_FILTER_SAMPLING_RATE_HZ: int = 40
 
     final_filtered_signal_: np.ndarray
     ic_list_internal_: pd.DataFrame
 
-    def __init__(self, axis: Literal["x", "y", "z", "norm"] = "norm") -> None:
+    def __init__(self, axis: Literal["is", "ml", "pa", "norm"] = "norm") -> None:
         self.axis = axis
 
     @base_icd_docfiller
@@ -100,6 +102,10 @@ class IcdShinImproved(BaseIcDetector):
         """%(detect_short)s.
 
         %(detect_info)s
+
+        .. note:: As all other IC algorithms this algorithm technically only allows body-frame data as input.
+            However, as this specific algorithm can run on the norm, we also allow sensor frame data if `self.axis ==
+            "norm"`.
 
         Parameters
         ----------
@@ -111,14 +117,17 @@ class IcdShinImproved(BaseIcDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        if self.axis not in ["x", "y", "z", "norm"]:
-            raise ValueError("Invalid axis. Choose 'x', 'y', 'z', or 'norm'.")
+        if self.axis not in ["is", "ml", "pa", "norm"]:
+            raise ValueError('Invalid axis. Choose ["is", "ml", "pa", "norm"].')
 
-        signal = (
-            norm(data[["acc_x", "acc_y", "acc_z"]].to_numpy(), axis=1)
-            if self.axis == "norm"
-            else data[f"acc_{self.axis}"].to_numpy()
-        )
+        if self.axis != "norm":
+            assert_is_sensor_data(data, "body")
+            signal = data[f"acc_{self.axis}"].to_numpy()
+        else:
+            # In case of norm, we support either body frame or sensor frame input.
+            frame = get_frame_definition(data, ["sensor", "body"])
+            axis = SF_ACC_COLS if frame == "sensor" else BF_ACC_COLS
+            signal = norm(data[axis].to_numpy(), axis=1)
 
         # We need to initialize the filter once to get the number of coefficients to calculate the padding.
         # This is not ideal, but works for now.

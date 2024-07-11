@@ -8,14 +8,15 @@ from typing_extensions import Self, Unpack
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
+from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @base_lrc_docfiller
 class LrcMcCamley(BaseLRClassifier):
     """McCamley algorithm for laterality detection of initial contacts.
 
-    The McCamley algorithm [1]_ uses the sign of the angular velocity either yaw or roll (or a combination of both) as
-    the distinguishing factor for identifying left and right ICs.
+    The McCamley algorithm [1]_ uses the sign of the angular velocity either yaw (rotation around IC-axis), the roll
+    (rotation around PA-axis), or a combination of both as the distinguishing factor for identifying left and right ICs.
 
     For this the respective signal is filtered (high-pass to remove DC offset and low-pass to remove noise) and the sign
     at the position of the IC is used to determine the laterality.
@@ -61,15 +62,14 @@ class LrcMcCamley(BaseLRClassifier):
         available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
     """
 
-    axis: Literal["yaw", "roll", "combined"]
+    axis: Literal["is", "pa", "combined"]
     smoothing_filter: BaseFilter
 
     smoothed_data_: pd.Series
 
     def __init__(
         self,
-        # TODO: Change axis names, once we are using them consistently everywhere
-        axis: Literal["yaw", "roll", "combined"] = "combined",
+        axis: Literal["is", "pa", "combined"] = "combined",
         smoothing_filter: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=(0.5, 2), filter_type="bandpass")),
     ) -> None:
         self.axis = axis
@@ -96,6 +96,8 @@ class LrcMcCamley(BaseLRClassifier):
         self.data = data
         self.ic_list = ic_list
 
+        assert_is_sensor_data(data, frame="body")
+
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = (
                 pd.DataFrame(columns=["ic", "lr_label"], index=ic_list.index).dropna().pipe(_unify_ic_lr_list_df)
@@ -106,16 +108,16 @@ class LrcMcCamley(BaseLRClassifier):
         # We also remove the "lr_label" column, if it exists, to avoid conflicts
         ic_list = ic_list.copy().drop(columns="lr_label", errors="ignore")
 
-        if self.axis == "yaw":
-            selected_data = data["gyr_x"]
-        elif self.axis == "roll":
+        if self.axis == "is":
+            selected_data = data["gyr_is"]
+        elif self.axis == "pa":
             # roll is phase shifted compared to yaw -> invert the sign
-            selected_data = data["gyr_z"] * -1
+            selected_data = data["gyr_pa"] * -1
         elif self.axis == "combined":
             # combine both signals to amplify the differences between left and right steps
-            selected_data = data["gyr_z"] * -1 + data["gyr_x"]
+            selected_data = data["gyr_pa"] * -1 + data["gyr_is"]
         else:
-            raise ValueError(f"Invalid axis configuration: {self.axis}.")
+            raise ValueError(f'Invalid axis configuration: {self.axis}. Allowed values are ["is", "pa", "combined"]')
 
         # The use of the smoothing filter is an addition made by Ullrich et al. to the original McCamley algorithm.
         # Originally, simply the mean of the signal was subtracted from the signal

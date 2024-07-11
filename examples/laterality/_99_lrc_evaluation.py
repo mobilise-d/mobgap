@@ -14,6 +14,7 @@ import pandas as pd
 from mobgap.data import LabExampleDataset
 from mobgap.laterality import LrcUllrich
 from mobgap.pipeline import GsIterator
+from mobgap.utils.conversions import to_body_frame
 
 # %%
 # Loading some example data
@@ -38,7 +39,7 @@ def calculate_output(single_test_data):
     ref_paras = single_test_data.reference_parameters_relative_to_wb_
 
     for (gs, data), r in iterator.iterate(
-        single_test_data.data_ss, ref_paras.wb_list
+        to_body_frame(single_test_data.data_ss), ref_paras.wb_list
     ):
         ref_ics = ref_paras.ic_list.loc[gs.id]
         r.ic_list = (
