@@ -12,7 +12,7 @@ base_cad_docfiller = make_filldoc(
     {
         "other_parameters": """
     data
-        The raw IMU data passed to the ``calculate`` method.
+        The raw IMU data in the body passed to the ``calculate`` method.
     initial_contacts
         The initial contacts passed to the ``calculate`` method.
     sampling_rate_hz
@@ -31,7 +31,7 @@ base_cad_docfiller = make_filldoc(
     """,
         "calculate_para": """
     data
-        The raw IMU of a single sensor.
+        The raw IMU data in the body frame.
         We usually assume that this is one gait sequence (i.e. that there are no non-walking periods in the data).
     initial_contacts
         The initial contacts of the gait sequence.
