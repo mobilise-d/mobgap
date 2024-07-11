@@ -215,6 +215,7 @@ class GsdEvaluationCV(Algorithm):
         set_attrs_from_dict(self, timing_results, key_postfix="_")
         return self
 
+
 @_gait_sequence_challenges_docfiller
 class GsdEvaluation(Algorithm):
     """Evaluation challenge for Gait Sequence Detection (GSD) algorithms.

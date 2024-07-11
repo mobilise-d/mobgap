@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/170)
 - Added various array and rotation helpers that were originally imported from gaitmap.
   (https://github.com/mobilise-d/mobgap/pull/166)
+- Added explicit evaluation challenges for the Gait Sequence Detection algorithms.
+  (https://github.com/mobilise-d/mobgap/pull/169)
 
 ## [0.4.0] - 2024-06-17
 
