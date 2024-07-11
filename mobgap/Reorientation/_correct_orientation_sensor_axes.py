@@ -3,7 +3,7 @@ import numpy as np
 import scipy.constants
 from typing_extensions import Self
 from mobgap.pipeline import iter_gs
-from mobgap.Reorientation.CorrectSensorOrientationDynamic import CorrectSensorOrientationDynamic
+from mobgap.Reorientation._correct_sensor_orientation_dynamic import CorrectSensorOrientationDynamic
 from mobgap.gsd import GsdIluz
 from mobgap.Reorientation._filteringsignals_100Hz import filtering_signals_100hz
 from mobgap.icd._hklee_algo_improved import groupfind
