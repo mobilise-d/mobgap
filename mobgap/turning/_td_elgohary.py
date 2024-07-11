@@ -13,6 +13,7 @@ from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
 from mobgap.utils.array_handling import merge_intervals
 from mobgap.utils.conversions import as_samples
+from mobgap.utils.dtypes import get_frame_definition
 
 _turn_df_types = {
     "turn_id": "int64",
@@ -83,7 +84,7 @@ class TdElGohary(BaseTurnDetector):
         This df also contains an additional ``center`` column, which marks the position of the originally detected peak.
         This might be helpful for debugging or further analysis.
     yaw_angle_
-        The yaw angle of the IMU signal estimated through the integration of the ``gyr_z`` signal.
+        The yaw angle of the IMU signal estimated through the integration of the ``gyr_is`` signal.
         This is used to estimate the turn angle.
         This might be helpful for debugging or further analysis.
     global_frame_data_
@@ -170,35 +171,44 @@ class TdElGohary(BaseTurnDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
+        frame = get_frame_definition(data, ["body", "global_body"])
+
         if self.orientation_estimation is not None:
+            if frame == "global_body":
+                raise ValueError(
+                    "The data already seems to be in the global frame based on the available columns. "
+                    "Additional orientation estimation is not possible. "
+                    "Set `orientation_estimation` to None."
+                )
             data = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz).rotated_data_
+            gyr_is = data["gyr_gis"].to_numpy()
             self.global_frame_data_ = data
         else:
             self.global_frame_data_ = None
-
-        gyr_z = data["gyr_z"].to_numpy()
+            is_col = "gyr_gis" if frame == "global_body" else "gyr_is"
+            gyr_is = data[is_col].to_numpy()
         if self.smoothing_filter is None:
-            filtered_gyr_z = gyr_z
+            filtered_gyr_is = gyr_is
         else:
-            filtered_gyr_z = (
-                self.smoothing_filter.clone().filter(gyr_z, sampling_rate_hz=sampling_rate_hz).filtered_data_
+            filtered_gyr_is = (
+                self.smoothing_filter.clone().filter(gyr_is, sampling_rate_hz=sampling_rate_hz).filtered_data_
             )
 
         # We pre-calculate the yaw-angle here, eventhough we might not need it, if no peaks were detected.
         # This has some performance overhead, but it ensures that the yaw angle is always available as output, which
         # might be helpful for debugging, in particular when no turns were detected unexpectedly.
-        yaw_angle = cumulative_trapezoid(gyr_z, dx=1 / sampling_rate_hz, initial=0)
+        yaw_angle = cumulative_trapezoid(gyr_is, dx=1 / sampling_rate_hz, initial=0)
         self.yaw_angle_ = pd.DataFrame({"angle_deg": yaw_angle}, index=data.index)
 
         # Note: The "abs" part here is missing in the original matlab implementation.
-        abs_filtered_gyr_z = np.abs(filtered_gyr_z)
-        dominant_peaks, _ = find_peaks(abs_filtered_gyr_z, height=self.min_peak_angle_velocity_dps)
+        abs_filtered_gyr_is = np.abs(filtered_gyr_is)
+        dominant_peaks, _ = find_peaks(abs_filtered_gyr_is, height=self.min_peak_angle_velocity_dps)
 
         if len(dominant_peaks) == 0:
             return self._return_empty()
         # Then we find the start and the end of the turn as the first and the last sample around each peak that is above
         # the velocity threshold
-        above_threshold = abs_filtered_gyr_z < self.lower_threshold_velocity_dps
+        above_threshold = abs_filtered_gyr_is < self.lower_threshold_velocity_dps
         crossings = np.where(np.diff(above_threshold.astype(int)) != 0)[0]
 
         if len(crossings) == 0:

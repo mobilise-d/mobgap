@@ -25,6 +25,7 @@ from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
 from mobgap.turning.base import BaseTurnDetector
+from mobgap.utils.conversions import to_body_frame
 from mobgap.utils.df_operations import create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
@@ -329,7 +330,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             )
             if self.turn_detection:
                 r.ic_list = lrc.ic_lr_list_
-                turn = self.turn_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
+                # TODO: For now only the turn algorithm and sl uses BF data. This will change soon.
+                #  But let's just fix the pipeline for now.
+                gs_data_bf = to_body_frame(gs_data)
+                turn = self.turn_detection.clone().detect(gs_data_bf, sampling_rate_hz=sampling_rate_hz)
                 r.turn_list = turn.turn_list_
 
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
@@ -348,7 +352,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 sl_r = None
                 if self.stride_length_calculation:
                     sl = self.stride_length_calculation.clone().calculate(
-                        refined_gs_data,
+                        # TODO: For now only the turn algorithm and sl uses BF data. This will change soon.
+                        #  But let's just fix the pipeline for now.
+                        to_body_frame(refined_gs_data),
                         initial_contacts=refined_ic_list,
                         sampling_rate_hz=sampling_rate_hz,
                         **participant_metadata,

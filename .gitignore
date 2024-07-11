@@ -238,3 +238,5 @@ $RECYCLE.BIN/
 # Local debug folder
 _debug
 
+# Drawio backup files
+*.bkp

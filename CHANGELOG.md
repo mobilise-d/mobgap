@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The turning and stride length algorithm now require the input to be in the body frame.
+  This ensures that the correct axis is used in all cases.
+  (https://github.com/mobilise-d/mobgap/pull/170)
+- The Coordinate Sytem guide was reworked to cover all different coordinate systems and hopefully prevent common 
+   mistakes.
+  (https://github.com/mobilise-d/mobgap/pull/170)
 - `BaseMobilisedPipeline` is renamed to `GenericMobilisedPipeline`. `BaseMobilisedPipeline` is now the "actual" 
   baseclass for Mobilise-D pipelines, without any implementation.
 - `MobilisedMetaPipeline` has been renamed to `MobilisedPipelineUniversal`.
@@ -23,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **IMPORTANT**: The TD Elgohary algorithm was using the wrong axis for the calculation of the angle.
+  This was fixed and the results should now be correct.
+  (https://github.com/mobilise-d/mobgap/pull/170)
+- The turning and stride length algorithm both had an option to be used with prior orientation estimation.
+  However, this did not work due to a coordinate system mismatch.
+  The Madgwick algorithm has been modified to allow returning data in the correct coordinate system.
+  (https://github.com/mobilise-d/mobgap/pull/170)
 - In case no index-col-names are passed to the `DatasetFromData` class and the data index is just a string and not a 
   tuple, a generic column (`level_0`) is correctly created. (https://github.com/mobilise-d/mobgap/issues/164)
 - The coordinate system was not documented correctly. y and z axis were flipped in the description.
@@ -31,7 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The Madgwick algorithm is now available in the `mobgap` package.
   The implementation is copied from gaitmap.
-  (https://github.com/mobilise-d/mobgap/pull/166)
+  Note, that its implementation differs slightly from the original Madgwick implementation and it supports the concept
+  of body frame data, that only exists in mobgap.
+  (https://github.com/mobilise-d/mobgap/pull/166, https://github.com/mobilise-d/mobgap/pull/170)
+- A bunch new helper tools to perform coordinate transforms.
+  (https://github.com/mobilise-d/mobgap/pull/170)
 - Added various array and rotation helpers that were originally imported from gaitmap.
   (https://github.com/mobilise-d/mobgap/pull/166)
 

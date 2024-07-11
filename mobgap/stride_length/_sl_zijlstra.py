@@ -13,6 +13,7 @@ from mobgap.data_transform.base import BaseFilter
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.stride_length.base import BaseSlCalculator, base_sl_docfiller
 from mobgap.utils.conversions import as_samples
+from mobgap.utils.dtypes import get_frame_definition
 from mobgap.utils.interpolation import robust_step_para_to_sec
 
 
@@ -232,14 +233,24 @@ class SlZijlstra(BaseSlCalculator):
                 stacklevel=1,
             )
 
+        frame = get_frame_definition(data, ["body", "global_body"])
+
         # 1. Sensor alignment (optional): Madgwick complementary filter
-        vacc = data[["acc_x"]]
         if self.orientation_method is not None:
+            if frame == "global_body":
+                raise ValueError(
+                    "The data already seems to be in the global frame based on the available columns. "
+                    "Additional orientation estimation is not possible. "
+                    "Set `orientation_estimation` to None."
+                )
+
             # perform rotation
             rotated_data = (
                 self.orientation_method.clone().estimate(data, sampling_rate_hz=sampling_rate_hz).rotated_data_
             )
-            vacc = rotated_data[["acc_x"]]  # consider acceleration
+            vacc = rotated_data[["acc_gis"]]  # consider acceleration
+        else:
+            vacc = data[["acc_is"]]
 
         duration = data.shape[0] / sampling_rate_hz
         sec_centers = np.arange(0, duration) + 0.5

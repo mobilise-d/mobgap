@@ -57,6 +57,7 @@ first_gait_sequence_data = imu_data.iloc[
     first_gait_sequence.start : first_gait_sequence.end
 ]
 
+
 # %%
 # Step 2: Initial Contact Detection
 # ---------------------------------
@@ -93,6 +94,7 @@ refined_gait_sequence_data = first_gait_sequence_data.iloc[
     refined_gait_sequence.iloc[0].start : refined_gait_sequence.iloc[0].end
 ]
 
+
 # %%
 # Step 3: Cadence Calculation
 # ---------------------------
@@ -113,9 +115,14 @@ cad_per_sec
 # ---------------------------------
 from mobgap.stride_length import SlZijlstra
 
+# TODO: The turning and the SL algorithm already require the body frame data. At some point all algorithms will require
+#       this. Then we can move this up. For now we do this here.
+from mobgap.utils.conversions import to_body_frame
+
 sl = SlZijlstra()
 sl.calculate(
-    refined_gait_sequence_data,
+    # TODO: Probably change once all algos require body frame
+    to_body_frame(refined_gait_sequence_data),
     initial_contacts=refined_ic_list,
     sampling_rate_hz=sampling_rate_hz,
     **participant_metadata,
@@ -153,13 +160,18 @@ ws_per_sec
 # ----------------------
 # Independent of all other parameters, we detect turns in the gait sequence.
 # This does not influence the calculation of the other parameters, and is only used to gather the ``n_turns`` parameter.
+# Note, that the turning detection is usually done on the non-refined gs.
+# But this shouldn't really matter.
 #
 # .. warning:: The turning algorithm is not evaluated. If you are planning to use detailed turning information, you
 #              should perform your own evaluation for your specific use-case.
 from mobgap.turning import TdElGohary
 
 turn = TdElGohary()
-turn.detect(refined_gait_sequence_data, sampling_rate_hz=sampling_rate_hz)
+# TODO: Probably change once all algos require body frame
+turn.detect(
+    to_body_frame(first_gait_sequence_data), sampling_rate_hz=sampling_rate_hz
+)
 turn_list = turn.turn_list_
 turn_list
 
@@ -213,7 +225,10 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
     )
     r.ic_list = lrc.ic_lr_list_
-    turn = turn.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
+    # TODO: Probably change once all algos require body frame
+    turn = turn.clone().detect(
+        to_body_frame(gs_data), sampling_rate_hz=sampling_rate_hz
+    )
     r.turn_list = turn.turn_list_
 
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
@@ -227,7 +242,8 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         )
         rr.cadence_per_sec = cad.cadence_per_sec_
         sl = sl.clone().calculate(
-            refined_gs_data,
+            # TODO: Probably change once all algos require body frame
+            to_body_frame(refined_gs_data),
             initial_contacts=refined_ic_list,
             sampling_rate_hz=sampling_rate_hz,
             **participant_metadata,

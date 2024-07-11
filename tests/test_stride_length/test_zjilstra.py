@@ -4,9 +4,11 @@ import pytest
 from numpy.testing import assert_array_equal
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.pipeline import GsIterator
 from mobgap.stride_length import SlZijlstra
+from mobgap.utils.conversions import to_body_frame
 
 
 class TestMetaSlZijlstra(TestAlgorithmMixin):
@@ -17,7 +19,7 @@ class TestMetaSlZijlstra(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().calculate(
-            data=pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
+            data=pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),
             initial_contacts=pd.DataFrame({"ic": np.arange(0, 100, 5)}),
             sensor_height_m=0.95,
             sampling_rate_hz=100.0,
@@ -32,7 +34,7 @@ class TestSlZijlstra:
     """
 
     def test_not_enough_ics(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We only keep the first IC -> Not possible to calculate step length
         initial_contacts = initial_contacts.iloc[:1]
@@ -54,7 +56,7 @@ class TestSlZijlstra:
         assert len(sl_zijlstra.raw_step_length_per_step_) == 0
 
     def test_raise_non_sorted_ics(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We shuffle the ICs
         initial_contacts = initial_contacts.sample(frac=1, random_state=2)
@@ -85,7 +87,10 @@ class TestSlZijlstra:
         sensor_height = dp.participant_metadata["sensor_height_m"]
 
         sl_zijlstra = SlZijlstra().calculate(
-            data=data_in_gs, initial_contacts=initial_contacts, sensor_height_m=sensor_height, sampling_rate_hz=100.0
+            data=to_body_frame(data_in_gs),
+            initial_contacts=initial_contacts,
+            sensor_height_m=sensor_height,
+            sampling_rate_hz=100.0,
         )
 
         assert len(sl_zijlstra.stride_length_per_sec_) == np.ceil(data_in_gs.shape[0] / 100)
@@ -105,13 +110,15 @@ class TestSlZijlstra:
         reference_gs = dp.reference_parameters_relative_to_wb_.wb_list
         reference_ic = dp.reference_parameters_relative_to_wb_.ic_list
         gs_id = reference_gs.index[0]
-        data_in_gs = dp.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]].copy()
+        data_in_gs = to_body_frame(
+            dp.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]].copy()
+        )
         ics_in_gs = reference_ic.loc[gs_id]  # reference initial contacts
         sensor_height = dp.participant_metadata["sensor_height_m"]
 
         # Introduce outliers in specific axis
-        data_in_gs.loc[100, "acc_x"] = 10  # Very high value on x-axis
-        data_in_gs.loc[400, "acc_x"] = -5  # Very low value on x-axis
+        data_in_gs.loc[100, "acc_is"] = 10  # Very high value on x-axis
+        data_in_gs.loc[400, "acc_is"] = -5  # Very low value on x-axis
 
         # Calculate stride lengths
         sl_zijlstra = SlZijlstra().calculate(
@@ -132,7 +139,9 @@ class TestSlZijlstra:
         reference_gs = dp.reference_parameters_relative_to_wb_.wb_list
         reference_ic = dp.reference_parameters_relative_to_wb_.ic_list
         gs_id = reference_gs.index[0]
-        data_in_gs_clean = dp.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
+        data_in_gs_clean = to_body_frame(
+            dp.data["LowerBack"].iloc[reference_gs.start.iloc[0] : reference_gs.end.iloc[0]]
+        )
         ics_in_gs = reference_ic.loc[gs_id]  # reference initial contacts
         sensor_height = dp.participant_metadata["sensor_height_m"]
         # Add random white noise
@@ -141,7 +150,7 @@ class TestSlZijlstra:
 
         # Calculate stride lengths with and without noise
         sl_zijlstra_clean = SlZijlstra().calculate(
-            data=data_in_gs_clean.copy(),
+            data=data_in_gs_clean,
             initial_contacts=ics_in_gs.copy(),
             sensor_height_m=sensor_height,
             sampling_rate_hz=100,
@@ -160,7 +169,7 @@ class TestSlZijlstra:
 
     @pytest.mark.parametrize("n_ics", [0, 1])
     def test_no_ics_result_all_nan(self, n_ics):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.linspace(0, 100, n_ics)})
         sampling_rate_hz = 100.0
         out = SlZijlstra().calculate(
@@ -182,7 +191,7 @@ class TestSlZijlstra:
         ref_data = dp.reference_parameters_relative_to_wb_
         meta_data = dp.participant_metadata
 
-        for (gs, data), r in gs_iterator.iterate(dp.data_ss, ref_data.wb_list):
+        for (gs, data), r in gs_iterator.iterate(to_body_frame(dp.data_ss), ref_data.wb_list):
             sl = SlZijlstra().calculate(
                 data,
                 ref_data.ic_list.loc[gs.id],

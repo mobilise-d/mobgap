@@ -47,38 +47,83 @@
         {
             "wb_id":0,
             "turn_id":0,
-            "start":650,
-            "end":952,
-            "duration_s":3.02,
-            "angle_deg":55.3283665,
-            "direction":"left"
+            "start":617,
+            "end":1021,
+            "duration_s":4.04,
+            "angle_deg":-168.558068,
+            "direction":"right"
         },
         {
             "wb_id":1,
             "turn_id":0,
-            "start":2871,
-            "end":3457,
-            "duration_s":5.86,
-            "angle_deg":-169.5610225,
+            "start":1746,
+            "end":1900,
+            "duration_s":1.54,
+            "angle_deg":-50.9393325,
             "direction":"right"
+        },
+        {
+            "wb_id":1,
+            "turn_id":1,
+            "start":1926,
+            "end":2235,
+            "duration_s":3.09,
+            "angle_deg":78.946019,
+            "direction":"left"
+        },
+        {
+            "wb_id":1,
+            "turn_id":2,
+            "start":2282,
+            "end":2519,
+            "duration_s":2.37,
+            "angle_deg":-60.0516185,
+            "direction":"right"
+        },
+        {
+            "wb_id":1,
+            "turn_id":3,
+            "start":2549,
+            "end":2762,
+            "duration_s":2.13,
+            "angle_deg":56.8912665,
+            "direction":"left"
+        },
+        {
+            "wb_id":1,
+            "turn_id":4,
+            "start":2850,
+            "end":3445,
+            "duration_s":5.95,
+            "angle_deg":313.1773815,
+            "direction":"left"
         },
         {
             "wb_id":2,
             "turn_id":0,
-            "start":6112,
-            "end":6456,
-            "duration_s":3.44,
-            "angle_deg":-72.445982,
-            "direction":"right"
+            "start":6201,
+            "end":6658,
+            "duration_s":4.57,
+            "angle_deg":135.28131,
+            "direction":"left"
         },
         {
             "wb_id":2,
             "turn_id":1,
-            "start":6963,
-            "end":7179,
-            "duration_s":2.16,
-            "angle_deg":64.9848815,
-            "direction":"left"
+            "start":6670,
+            "end":6834,
+            "duration_s":1.64,
+            "angle_deg":-58.2440765,
+            "direction":"right"
+        },
+        {
+            "wb_id":2,
+            "turn_id":2,
+            "start":6968,
+            "end":7182,
+            "duration_s":2.14,
+            "angle_deg":-133.9389105,
+            "direction":"right"
         }
     ]
 }

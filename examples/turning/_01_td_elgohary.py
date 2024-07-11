@@ -2,10 +2,10 @@
 ElGohary Turning Algo
 =====================
 
-.. warning:: There are some issues with matching the results of the ElGohary algorithm to the reference system.
-             The performance, we are observing here is far below the expected performance.
-             We are investigating this currently, but until then, we recommend to do your own testing and validation
-             before using this algorithm in production.
+.. warning:: The ElGohary turning algorithm could not be properly validated as part of the Mobilise-D project, as no
+    clear consensus exists what a "turn" is.
+    This makes it difficult to design a suitable reference system, which nature of calculating turns does not bias the
+    results fundamentally.
 
 This example shows how to use the ElGohary turning algorithm.
 It uses the angular velocity around the SI axis of a lower back IMU to detect turns.
@@ -22,7 +22,12 @@ It uses the angular velocity around the SI axis of a lower back IMU to detect tu
 # Still, the turn detection might not be fully reliable.
 # Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
 # Hence, it can not really be considered a reference system, in this context.
+#
+# The turn algorithm requires the data to be in the body frame (see the User Guide on this topic).
+# We use the ``to_body_frame`` function to transform the data, as we know that the sensor was well aligned, with the
+# expected sensor frame conventions.
 from mobgap.data import LabExampleDataset
+from mobgap.utils.conversions import to_body_frame
 
 example_data = LabExampleDataset(
     reference_system="Stereophoto", reference_para_level="wb"
@@ -31,7 +36,7 @@ example_data = LabExampleDataset(
 single_test = example_data.get_subset(
     cohort="HA", participant_id="001", test="Test11", trial="Trial1"
 )
-imu_data = single_test.data_ss
+imu_data = to_body_frame(single_test.data_ss)
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz
@@ -86,20 +91,22 @@ import matplotlib.pyplot as plt
 
 def plot_turns(algo_with_results: TdElGohary):
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
-    axs[0].set_ylabel("gyr_z [dps]")
+    axs[0].set_ylabel("gyr_is [dps]")
     if algo_with_results.global_frame_data_ is None:
         data = algo_with_results.data
-        axs[0].set_title("Raw gyr_z data")
+        axs[0].set_title("Raw gyr_is data")
+        axis = "gyr_is"
     else:
         data = algo_with_results.global_frame_data_
-        axs[0].set_title("Raw gyr_z data (global frame)")
-    data.reset_index(drop=True).plot(y="gyr_z", ax=axs[0])
+        axs[0].set_title("Raw gyr_is data (global frame)")
+        axis = "gyr_gis"
+    data.reset_index(drop=True).plot(y=axis, ax=axs[0])
 
     axs[1].set_title("Filtered IMU signal with raw turns and thresholds.")
-    axs[1].set_ylabel("filtered gyr_z [dps]")
+    axs[1].set_ylabel("filtered gyr_is [dps]")
     filtered_data = (
         algo_with_results.smoothing_filter.clone()
-        .filter(imu_data["gyr_z"], sampling_rate_hz=sampling_rate_hz)
+        .filter(data[axis], sampling_rate_hz=sampling_rate_hz)
         .filtered_data_
     )
     filtered_data.reset_index(drop=True).plot(ax=axs[1])
@@ -187,21 +194,20 @@ turns
 ref_turns
 
 # %%
-# We can directly observe that the algorithm detects significantly fewer turns than the reference system.
-# And even the turns that are detected, don't really match the reference system.
-#
-# It remains unclear, why the algorithm performs so poorly in this case.
+# The results look reasonable, but we can see that in gs 3 and 5 the algorithm was not able to detect the smaller turns
+# with lower turning angles.
 
 # %%
 # Working in the global coordinate system
 # ---------------------------------------
 # The original ElGohary paper uses on-board sensor fusion to track the orientation of the sensor.
 # This information is used to transform all sensor data into the global coordinate system.
-# This should make the identification of the SI axis more robust.
+# This should make the identification of the inferior-superior (IS) axis more robust.
 #
 # We did not use this approach within Mobilise-D, to avoid introducing an additional source of error through a sensor
 # fusion algorithm.
-# However, the result of the algorithms are significantly influenced by that decision.
+# However, the result of the algorithms can be significantly influenced by that decision, in particular if participants
+# have a lot of body sway of walk bend forward.
 # Below we show two approached on how you could use the algorithm with a global frame estimation.
 #
 # 1. Using the internal global frame estimation
@@ -223,13 +229,11 @@ turning_detector_global.detect(imu_data, sampling_rate_hz=sampling_rate_hz)
 plot_turns(turning_detector_global)
 
 # %%
-# Based on the plotted results, we can see that the algorithm not finds significantly more turns.
+# Based on the plotted results, we can see that the algorithm identifies basically the same turns as before.
 #
-# However, when we apply the algorithm per-gs (as shown below), we again only get a small number of turns.
-# The reason for that is, that the global frame estimation is not perfect and requires some time to converge when
-# applied to data.
-# Hence, applying it to each GS individually might work less good.
-# Results could be improved, by tuning the initial orientation of the global frame estimation.
+# The same can be observed, when applying the algorithm per GS.
+# The turns are almost identical as before, indicating, that the global frame transformation was not really required
+# for this specific dataset.
 iterator = GsIterator()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
@@ -247,12 +251,16 @@ turns_global_per_gs
 #
 # 2. Transforming the data into the global frame
 # ----------------------------------------------
-# For this, we first estimate the global frame for the entire recording.
-imu_data_global = (
-    orientation_estimator.clone()
-    .estimate(imu_data, sampling_rate_hz=sampling_rate_hz)
-    .rotated_data_
+# For this, we first estimate the global frame for the entire recording and then put the rotated data into the Gait
+# Sequence Iterator.
+# Theoretically, this should yield slightly better results, as the Madgwick algorithm always needs a certain amount of
+# time to converge to the correct orientation.
+# By running it once over the entire data, these convergence period should only happen once at the beginning of the
+# entire recording and not affect the start of each gait sequence.
+ori_estimator = orientation_estimator.clone().estimate(
+    imu_data, sampling_rate_hz=sampling_rate_hz
 )
+imu_data_global = ori_estimator.rotated_data_
 
 iterator = GsIterator()
 

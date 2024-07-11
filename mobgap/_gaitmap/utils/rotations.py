@@ -25,7 +25,9 @@ def rotate_dataset_series(dataset: pd.DataFrame, rotations: Rotation) -> pd.Data
     Parameters
     ----------
     dataset
-        Data with axes names as ["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]
+        Data with axes names as ["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"].
+        If your data is defined in the body frame, use :func:`mobgap.utils.dtypes.to_sensor_frame` to convert it to the
+        sensor frame first, as rotations are only defined for the sensor frame.
     rotations
         Rotation object that contains as many rotations as there are datapoints
 
@@ -33,10 +35,6 @@ def rotate_dataset_series(dataset: pd.DataFrame, rotations: Rotation) -> pd.Data
     -------
     rotated_data
         copy of `data` rotated by `rotations`
-
-    See Also
-    --------
-    gaitmap.utils.rotations.rotate_dataset: Apply a single rotation to the entire dataset
 
     """
     if len(dataset) != len(rotations):

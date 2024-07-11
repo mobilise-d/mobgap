@@ -3,10 +3,12 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.pipeline import GsIterator
 from mobgap.turning import TdElGohary
+from mobgap.utils.conversions import to_body_frame
 
 
 class TestMetaTdElGohary(TestAlgorithmMixin):
@@ -17,7 +19,7 @@ class TestMetaTdElGohary(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().detect(
-            pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"]), sampling_rate_hz=100.0
+            pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
         )
 
 
@@ -42,7 +44,7 @@ def create_turn_series(
 
 class TestTdElGohary:
     def test_no_peaks(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         output = TdElGohary()
         output.detect(data, sampling_rate_hz=100.0)
         assert output.turn_list_.empty
@@ -51,15 +53,15 @@ class TestTdElGohary:
         assert len(output.yaw_angle_) == len(data)
 
     def test_with_global_frame(self):
-        data = pd.DataFrame(np.zeros((100, 6)), columns=["gyr_x", "gyr_y", "gyr_z", "acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         output = TdElGohary(orientation_estimation=MadgwickAHRS())
         output.detect(data, sampling_rate_hz=100.0)
         assert len(output.global_frame_data_) == len(data)
 
     def test_sin_wave_turns(self):
-        data = pd.DataFrame(np.zeros((1000, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
         # Sin wave with 10 periods = we expect 10 left and 10 right turns
-        data["gyr_z"] = np.sin(np.linspace(0, 20 * np.pi, 1000))
+        data["gyr_is"] = np.sin(np.linspace(0, 20 * np.pi, 1000))
         # We turn of the filter to avoid interference
         output = TdElGohary(smoothing_filter=None, min_peak_angle_velocity_dps=0.8, lower_threshold_velocity_dps=0.1)
         output.detect(data, sampling_rate_hz=20.0)
@@ -72,8 +74,8 @@ class TestTdElGohary:
     def test_individual_peaks(self):
         turns = create_turn_series([100, 200, 300], [50, 50, 50], ["left", "right", "left"], 1000)
 
-        data = pd.DataFrame(np.zeros((1000, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
-        data["gyr_z"] = turns
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+        data["gyr_is"] = turns
         output = TdElGohary(
             smoothing_filter=None,
             min_peak_angle_velocity_dps=5,
@@ -92,8 +94,8 @@ class TestTdElGohary:
         # First two should get merged
         turns = create_turn_series([100, 155, 300, 355], [50, 50, 50, 50], ["left", "left", "right", "left"], 1000)
 
-        data = pd.DataFrame(np.zeros((1000, 3)), columns=["gyr_x", "gyr_y", "gyr_z"])
-        data["gyr_z"] = turns
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+        data["gyr_is"] = turns
         output = TdElGohary(
             smoothing_filter=None,
             min_peak_angle_velocity_dps=5,
@@ -112,7 +114,7 @@ class TestTdElGohary:
 class TestElGoharyRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
-        data = datapoint.data_ss
+        data = to_body_frame(datapoint.data_ss)
         ref_walk_bouts = datapoint.reference_parameters_.wb_list
         if len(ref_walk_bouts) == 0:
             pytest.skip("No reference parameters available.")

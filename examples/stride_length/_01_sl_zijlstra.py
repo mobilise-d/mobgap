@@ -18,7 +18,7 @@ The stride length algorithm is designed to work on a single gait sequence at a t
 from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
-short_trial: LabExampleDataset = lab_example_data.get_subset(
+short_trial = lab_example_data.get_subset(
     cohort="HA", participant_id="001", test="Test5", trial="Trial2"
 )
 
@@ -44,6 +44,13 @@ ics_in_gs = reference_ic.loc[gs_id]
 sensor_height = short_trial.participant_metadata["sensor_height_m"]
 
 # %%
+# Like most algorithms, the SlZijlstra requires the data to be in body frame coordinates.
+# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
+from mobgap.utils.conversions import to_body_frame
+
+data_in_gs_bf = to_body_frame(data_in_gs)
+
+# %%
 # Then we initialize the algorithm and call the ``calculate`` method.
 # We use the scaling parameters optimized on the MSProject dataset and leave all other values as default.
 from mobgap.stride_length import SlZijlstra
@@ -53,7 +60,7 @@ sl_zijlstra = SlZijlstra(
 )
 
 sl_zijlstra.calculate(
-    data=data_in_gs,
+    data=data_in_gs_bf,
     initial_contacts=ics_in_gs,
     sensor_height_m=sensor_height,
     sampling_rate_hz=short_trial.sampling_rate_hz,
@@ -70,8 +77,8 @@ sl_zijlstra.stride_length_per_sec_
 reference_sl = reference_gs["avg_stride_length_m"].loc[gs_id]
 zijlstra_avg_sl = sl_zijlstra.stride_length_per_sec_["stride_length_m"].mean()
 print("Sensor frame:")
-print(f"Average stride length from reference: {reference_sl:.2f} m")
-print(f"Calculated average per-sec stride length: {zijlstra_avg_sl:.2f} m")
+print(f"Average stride length from reference: {reference_sl:.3f} m")
+print(f"Calculated average per-sec stride length: {zijlstra_avg_sl:.3f} m")
 
 # %%
 # In addition, to this primary output, that is available for all stride length algorithms, the Zijlstra algorithm also
@@ -111,14 +118,14 @@ sl_zijlstra.step_length_per_sec_
 #
 # We basically do the same above, but we correct the sensor orientation to the global frame using a Madgwick
 # complementary filter, to show the improvement of performing re-orientation.
-from mobgap.orientation_estimation import MadgwickAHRS
+from mobgap.orientation_estimation._madgwick import MadgwickAHRS
 
 sl_zijlstra_reoriented = SlZijlstra(
     orientation_method=MadgwickAHRS(beta=0.2),
     **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_ms,
 )
 sl_zijlstra_reoriented.calculate(
-    data=data_in_gs,
+    data=data_in_gs_bf,
     initial_contacts=ics_in_gs,
     sensor_height_m=sensor_height,
     sampling_rate_hz=short_trial.sampling_rate_hz,
@@ -136,11 +143,11 @@ zijlstra_reoriented_avg_sl = sl_zijlstra_reoriented.stride_length_per_sec_[
 ].mean()
 print("")
 print("Global frame:")
-print(f"Average stride length from reference: {reference_sl:.2f} m")
+print(f"Average stride length from reference: {reference_sl:.3f} m")
 print(
-    f"Calculated average per-sec stride length: {zijlstra_reoriented_avg_sl:.2f} m"
+    f"Calculated average per-sec stride length: {zijlstra_reoriented_avg_sl:.3f} m"
 )
 
 # %%
-# Note, that in this case, the results got slightly better compared to the version without Madgwick.
+# Note, that in this case, the results did not really change between the version with and without Madgwick.
 # However, this is not a general statement, but heavily depends on the data characteristics.
