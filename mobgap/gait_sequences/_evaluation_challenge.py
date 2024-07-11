@@ -140,6 +140,8 @@ class GsdEvaluationCV(Algorithm):
 
     """
 
+    _action_methods = "run"
+
     dataset: BaseGaitDatasetWithReference
     cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]]
     cv_params: Optional[dict]
@@ -213,7 +215,7 @@ class GsdEvaluationCV(Algorithm):
         set_attrs_from_dict(self, timing_results, key_postfix="_")
         return self
 
-
+@_gait_sequence_challenges_docfiller
 class GsdEvaluation(Algorithm):
     """Evaluation challenge for Gait Sequence Detection (GSD) algorithms.
 
@@ -248,6 +250,8 @@ class GsdEvaluation(Algorithm):
     %(timing_results)s
 
     """
+
+    _action_methods = "run"
 
     dataset: BaseGaitDatasetWithReference
     scoring: Optional[Callable]
