@@ -14,6 +14,7 @@ import pandas as pd
 from mobgap.data import LabExampleDataset
 from mobgap.initial_contacts import IcdIonescu
 from mobgap.pipeline import GsIterator
+from mobgap.utils.conversions import to_body_frame
 
 # %%
 # Loading some example data
@@ -37,7 +38,7 @@ def load_data():
 
 def calculate_icd_ionescu_output(single_test_data):
     """Calculate the ICD Ionescu output for one sensor from the test data."""
-    imu_data = single_test_data.data_ss
+    imu_data = to_body_frame(single_test_data.data_ss)
     sampling_rate_hz = single_test_data.sampling_rate_hz
     reference_wbs = single_test_data.reference_parameters_.wb_list
 

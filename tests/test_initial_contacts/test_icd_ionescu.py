@@ -4,9 +4,11 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.initial_contacts import IcdIonescu
 from mobgap.pipeline import GsIterator
+from mobgap.utils.conversions import to_body_frame
 
 
 class TestMetaIcdIonescu(TestAlgorithmMixin):
@@ -17,7 +19,7 @@ class TestMetaIcdIonescu(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().detect(
-            pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"]), sampling_rate_hz=40.0
+            pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=40.0
         )
 
 
@@ -29,7 +31,7 @@ class TestIcdIonescu:
     """
 
     def test_no_icds(self):
-        data = pd.DataFrame(np.zeros((1000, 3)), columns=["acc_x", "acc_y", "acc_z"])  # not a gait sequence
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)  # not a gait sequence
 
         output = IcdIonescu().detect(data, sampling_rate_hz=100.0).ic_list_
 
@@ -45,7 +47,7 @@ class TestIcdIonescu:
             .data_ss[s : e + 1]
         )
 
-        output = IcdIonescu().detect(data, sampling_rate_hz=100.0).ic_list_
+        output = IcdIonescu().detect(to_body_frame(data), sampling_rate_hz=100.0).ic_list_
 
         assert len(output) == 1
         assert output.columns == ["ic"]
@@ -54,7 +56,7 @@ class TestIcdIonescu:
 class TestIcdIonescuRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data(self, datapoint, snapshot):
-        data = datapoint.data_ss
+        data = to_body_frame(datapoint.data_ss)
         ref_walk_bouts = datapoint.reference_parameters_.wb_list
         if len(ref_walk_bouts) == 0:
             pytest.skip("No reference parameters available.")

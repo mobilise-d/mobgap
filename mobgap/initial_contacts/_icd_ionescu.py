@@ -91,15 +91,13 @@ class IcdIonescu(BaseIcDetector):
         self.sampling_rate_hz = sampling_rate_hz
 
         # 0. SELECT RELEVANT COLUMNS
-        # For the ICD algorithm only vertical acceleration (i.e. x-component) is required.
-        relevant_columns = ["acc_x"]  # acc_x: vertical acceleration
-        acc_v = data[relevant_columns]
-        acc_v = acc_v.to_numpy()
+        # For the ICD algorithm only vertical acceleration is required.
+        acc_is = data[["acc_is"]].to_numpy()
 
         # 1. RESAMPLING
         signal_downsampled = (
             Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
-            .transform(data=acc_v, sampling_rate_hz=sampling_rate_hz)
+            .transform(data=acc_is, sampling_rate_hz=sampling_rate_hz)
             .transformed_data_.squeeze()
         )
         # 2. BAND-PASS FILTERING
@@ -110,29 +108,29 @@ class IcdIonescu(BaseIcDetector):
         len_pad = 4 * n_coefficients
         signal_downsampled_padded = np.pad(signal_downsampled, (len_pad, len_pad), "wrap")
         # The clone() method is used in order to ensure that the new second instance is independent
-        acc_v_40_bpf = (
+        acc_is_40_bpf = (
             self.pre_filter.clone()
             .filter(signal_downsampled_padded, sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ)
             .filtered_data_.squeeze()
         )
         # Remove the padding
-        acc_v_40_bpf_rmzp = acc_v_40_bpf[len_pad - 1 : -len_pad]
+        acc_is_40_bpf_rmzp = acc_is_40_bpf[len_pad - 1 : -len_pad]
         # 3. CUMULATIVE INTEGRAL
-        acc_v_lp_int = cumulative_trapezoid(acc_v_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
+        acc_is_lp_int = cumulative_trapezoid(acc_is_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         # 4. CONTINUOUS WAVELET TRANSFORM (CWT)
-        acc_v_lp_int_cwt, _ = cwt(
-            acc_v_lp_int.squeeze(),
+        acc_is_lp_int_cwt, _ = cwt(
+            acc_is_lp_int.squeeze(),
             [self.cwt_width],
             "gaus2",
             sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
         )
-        acc_v_lp_int_cwt = acc_v_lp_int_cwt.squeeze()
+        acc_is_lp_int_cwt = acc_is_lp_int_cwt.squeeze()
         # Remove the mean from accVLPIntCwt
-        acc_v_lp_int_cwt -= acc_v_lp_int_cwt.mean()
+        acc_is_lp_int_cwt -= acc_is_lp_int_cwt.mean()
 
         # 5. INTRA-ZERO-CROSSINGS PEAK DETECTION
         # Detect the extrema between the zero crossings
-        icd_array = _find_minima_between_zero_crossings(acc_v_lp_int_cwt)
+        icd_array = _find_minima_between_zero_crossings(acc_is_lp_int_cwt)
 
         detected_ics = pd.DataFrame({"ic": icd_array}).rename_axis(index="step_id")
         detected_ics_unsampled = (
