@@ -92,9 +92,10 @@ data.head()
 # IMU data as input.
 # Let's use the GSD-Iluz algorithm as an example.
 from mobgap.gait_sequences import GsdIluz
+from mobgap.utils.conversions import to_body_frame
 
 gsd = GsdIluz()
-gsd.detect(data=data, sampling_rate_hz=sampling_rate_hz)
+gsd.detect(data=to_body_frame(data), sampling_rate_hz=sampling_rate_hz)
 gsd.gs_list_
 
 # %%
