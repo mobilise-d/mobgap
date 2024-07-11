@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The turning and stride length algorithm now require the input to be in the body frame.
+- **IMPORTANT**:All algorithms now require the input to be in the body frame.
   This ensures that the correct axis is used in all cases.
-  (https://github.com/mobilise-d/mobgap/pull/170)
+  (https://github.com/mobilise-d/mobgap/pull/170, https://github.com/mobilise-d/mobgap/pull/171)
 - The Coordinate Sytem guide was reworked to cover all different coordinate systems and hopefully prevent common 
    mistakes.
   (https://github.com/mobilise-d/mobgap/pull/170)
