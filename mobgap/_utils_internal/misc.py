@@ -30,7 +30,7 @@ def measure_time() -> Generator[MeasureTimeResults, None, None]:
     end_time = time.perf_counter()
     results["end_datetime_utc_timestamp"] = datetime.utcnow().timestamp()
     results["end_datetime"] = datetime.now().astimezone().isoformat()
-    results["runtime"] = end_time - start_time
+    results["runtime_s"] = end_time - start_time
 
 
 def set_attrs_from_dict(obj: Any, attr_dict: dict[str, Any], *, key_postfix: str = "", key_prefix: str = "") -> None:

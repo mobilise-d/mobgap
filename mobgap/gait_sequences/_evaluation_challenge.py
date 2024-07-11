@@ -7,6 +7,7 @@ from tpcp.optimize import BaseOptimize
 from tpcp.validate import DatasetSplitter, NoAgg, cross_validate, validate
 from typing_extensions import Self
 
+from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import measure_time, set_attrs_from_dict
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.evaluation import (
@@ -68,7 +69,72 @@ def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDat
     return performance_metrics
 
 
+_gait_sequence_challenges_docfiller = make_filldoc({
+    "common_paras": """
+    dataset
+        A gait dataset with reference information.
+        Evaluation is performed across all datapoints within the dataset.
+    scoring
+        A scoring function that evaluates the performance of the algorithm on a single datapoint.
+        It should take a pipeline and a datapoint as input, run the pipeline on the datapoint and return a dictionary
+        of performance metrics.
+        These performance metrics are then aggregated across all datapoints.
+    """,
+    "timing_results": """
+    start_datetime_utc_timestamp_
+        The start time of the evaluation as UTC timestamp.
+    start_datetime_
+        The start time of the evaluation as human readable string.
+    end_datetime_utc_timestamp_
+        The end time of the evaluation as UTC timestamp.
+    end_datetime_
+        The end time of the evaluation as human readable string.
+    runtime_
+        The runtime of the evaluation in seconds.
+        Note, that the runtime might not be exactly the difference between the start and the end time.
+        The runtime is independently calculated using `time.perf_timer`.
+    """
+})
+
+@_gait_sequence_challenges_docfiller
 class GsdEvaluationCV(Algorithm):
+    """Evaluation challenge for Gait Sequence Detection (GSD) algorithms using cross-validation.
+
+    This class will use :func:`~tpcp.validate.cross_validate` to evaluate the performance of a GSD algorithm wrapped in
+    a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline` on a dataset with reference information.
+    This is a suitable approach, when you want to evaluate and compare algorithms that are "trainable" in any way.
+    This could be, because they are ML algorithms or because they have hyperparameters that can be optimized via
+    Grid-Search.
+
+    The cross validation parameters can be modified by the user to adapt them to a given dataset.
+
+    Parameters
+    ----------
+    %(common_paras)s
+    cv_iterator
+        A valid cv_iterator.
+        For complex CVs (e.g. stratified/grouped) this should be a :class:`~tpcp.validate.DatasetSplitter` instance.
+        For more information see :func:`~tpcp.validate.cross_validate`.
+    cv_params
+        Dictionary with further parameters that are directly passed to :func:`~tpcp.validate.cross_validate`.
+        This can overwrite all parameters except ``optimizable``, ``dataset``, ``scoring``, and ``cv``, which are
+        directly set via the other parameters of this method.
+        Typical usecase is to set ``n_jobs`` to activate multiprocessing.
+
+    Other Parameters
+    ----------------
+    optimizer
+        The tpcp optimizer passed to the ``run`` method.
+
+    Attributes
+    ----------
+    cv_results_
+        Dictionary with all results of the cross-validation.
+        The results are returned by :func:`~tpcp.validate.cross_validate`.
+        You can control what information is provided via ``cv_params``
+    %(timing_results)s
+
+    """
     dataset: BaseGaitDatasetWithReference
     cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]]
     cv_params: Optional[dict]
@@ -98,6 +164,33 @@ class GsdEvaluationCV(Algorithm):
         self.scoring = scoring
 
     def run(self, optimizer: BaseOptimize["GsdEmulationPipeline", BaseGaitDatasetWithReference]) -> Self:
+        """Run the evaluation challenge.
+
+        This will call the optimizer for each train set and evaluate the performance on each test set defined by the
+        ``cv_iterator`` on the ``dataset``.
+
+        Parameters
+        ----------
+        optimizer
+            A valid tpcp optimizer that wraps a pipeline that is compatible with the provided dataset and scorer.
+            Usually that should be an optimizer wrapping a
+            :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline`.
+            If you want to run without optimization, but still use the same test-folds, use
+            :class:`~tpcp.optimize.DummyOptimize`:
+
+            >>> from tpcp.optimize import DummyOptimize
+            >>> from mobgap.gait_sequences import GsdIluz
+            >>>
+            >>> dummy_optimizer = DummyOptimize(pipeline=GsdEmulationPipeline(GsdIluz()), ignore_potential_user_error_warning=True)
+            >>> challenge = GsdEvaluationCV(dataset, cv_iterator, scoring=scoring)
+            >>> challenge.run(dummy_optimizer)
+
+        Returns
+        -------
+        self
+            The instance of the class with the ``cv_results_`` attribute set to the results of the cross-validation.
+
+        """
         self.optimizer = optimizer
 
         cv_params = {} if not self.cv_params else self.cv_params
@@ -122,6 +215,39 @@ class GsdEvaluationCV(Algorithm):
 
 
 class GsdEvaluation(Algorithm):
+    """Evaluation challenge for Gait Sequence Detection (GSD) algorithms.
+
+    This challenge applies the GSD algorithm wrapped in a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline`
+    to each datapoint in a dataset with reference information using :func:`~tpcp.validate.validate`.
+    For each datapoint the provided scoring function is called and performance results are aggregated.
+
+    This is a suitable approach, when you want to evaluate and compare algorithms that are not "trainable" in any way.
+    For example, traditional algorithms or pre-trained models.
+    Note, that if you are planning to compare algorithms that are trainable with non-trainable algorithms, you should
+    use the :class:`~mobgap.gait_sequences.GsdEvaluationCV` for all of them.
+
+    Parameters
+    ----------
+    %(common_paras)s
+    validate_paras
+        Dictionary with further parameters that are directly passed to :func:`~tpcp.validate.validate`.
+        This can overwrite all parameters except ``pipeline``, ``dataset``, ``scoring``.
+        Typical usecase is to set ``n_jobs`` to activate multiprocessing.
+
+    Other Parameters
+    ----------------
+    pipeline
+        The pipeline passed to the run method.
+
+    Attributes
+    ----------
+    results_
+        Dictionary with all results of the validation.
+        The results are returned by :func:`~tpcp.validate.validate`.
+        You can control what information is provided via ``validate_paras``
+    %(timing_results)s
+
+    """
     dataset: BaseGaitDatasetWithReference
     scoring: Optional[Callable]
 
@@ -147,6 +273,23 @@ class GsdEvaluation(Algorithm):
         self.validate_paras = validate_paras
 
     def run(self, pipeline: "GsdEmulationPipeline") -> Self:
+        """Run the evaluation challenge.
+
+        This will call the pipeline for each datapoint in the dataset and evaluate the performance using the provided
+        scoring function.
+
+        Parameters
+        ----------
+        pipeline
+            A valid pipeline that wraps a GSD algorithm that is compatible with the provided dataset and scorer.
+            Usually that should be a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline`.
+
+        Returns
+        -------
+        self
+            The instance of the class with the ``results_`` attribute set to the results of the validation.
+
+        """
         self.pipeline = pipeline
 
         with measure_time() as timing_results:
