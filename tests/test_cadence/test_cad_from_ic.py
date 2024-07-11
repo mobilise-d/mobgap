@@ -5,6 +5,7 @@ from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.cadence import CadFromIc, CadFromIcDetector
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.pipeline import GsIterator
@@ -18,7 +19,7 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().calculate(
-            pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
+            pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),
             initial_contacts=pd.DataFrame({"ic": np.arange(0, 100, 5)}),
             sampling_rate_hz=40.0,
         )
@@ -32,7 +33,7 @@ class TestMetaCadFromIcDetector(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(silence_ic_warning=True).calculate(
-            pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),
+            pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),
             initial_contacts=pd.DataFrame({"ic": np.arange(0, 100, 5)}),
             sampling_rate_hz=40.0,
         )
@@ -49,7 +50,7 @@ class TestCadFromIc:
     def test_naive(self, sampling_rate_hz, fixed_step_size):
         n_samples = 100
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples + 1, fixed_step_size)})
         data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
@@ -75,7 +76,7 @@ class TestCadFromIc:
         fixed_step_size = 5
         n_samples = 300
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples, fixed_step_size)})
         max_gap_s = 1
 
@@ -107,7 +108,7 @@ class TestCadFromIc:
         fixed_step_size = 5
         n_samples = 300
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples, fixed_step_size)})
         max_gap_s = 6
 
@@ -141,7 +142,7 @@ class TestCadFromIc:
         fixed_step_size = 5
         n_samples = 300
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         # We remove ICs at the beginning and end
         initial_contacts = pd.DataFrame(
             {
@@ -173,7 +174,7 @@ class TestCadFromIc:
         assert_frame_equal(cadence, pd.DataFrame({"cadence_spm": expected_output}, index=expected_index))
 
     def test_not_enough_ics(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We only keep the first IC -> Not possible to calculate cadence
         initial_contacts = initial_contacts.iloc[:1]
@@ -189,7 +190,7 @@ class TestCadFromIc:
 
     @pytest.mark.parametrize("n_ics", [2, 3, 4])
     def test_small_n_ics(self, n_ics):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         initial_contacts = initial_contacts.iloc[:n_ics]
 
@@ -203,7 +204,7 @@ class TestCadFromIc:
         assert not cad.cadence_per_sec_["cadence_spm"].isna().all()
 
     def test_raise_non_sorted_ics(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We shuffle the ICs
         initial_contacts = initial_contacts.sample(frac=1, random_state=2)
@@ -214,7 +215,7 @@ class TestCadFromIc:
         assert "Initial contacts must be sorted" in str(e.value)
 
     def test_no_ics_result_all_nan(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": []})
         sampling_rate_hz = 40.0
         cad = CadFromIc().calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
@@ -258,7 +259,7 @@ class TestCadFromIcDetector:
     def test_naive(self, sampling_rate_hz, fixed_step_size):
         n_samples = 100
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples + 1, fixed_step_size)})
         data = data.iloc[: initial_contacts["ic"].iloc[-1]]
 
@@ -287,7 +288,7 @@ class TestCadFromIcDetector:
         fixed_step_size = 5
         n_samples = 300
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples, fixed_step_size)})
         max_gap_s = 1
 
@@ -320,7 +321,7 @@ class TestCadFromIcDetector:
         fixed_step_size = 5
         n_samples = 300
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, n_samples, fixed_step_size)})
         max_gap_s = 6
 
@@ -355,7 +356,7 @@ class TestCadFromIcDetector:
         fixed_step_size = 5
         n_samples = 300
 
-        data = pd.DataFrame(np.zeros((n_samples, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((n_samples, 6)), columns=BF_SENSOR_COLS)
         # We remove ICs at the beginning and end
         initial_contacts = pd.DataFrame(
             {
@@ -386,7 +387,7 @@ class TestCadFromIcDetector:
         assert_frame_equal(cadence, pd.DataFrame({"cadence_spm": expected_output}, index=expected_index))
 
     def test_not_enough_ics(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We only keep the first IC -> Not possible to calculate cadence
         initial_contacts = initial_contacts.iloc[:1]
@@ -409,7 +410,7 @@ class TestCadFromIcDetector:
 
         This could likely trigger some edge cases in the code.
         """
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         initial_contacts = initial_contacts.iloc[:n_ics]
 
@@ -424,7 +425,7 @@ class TestCadFromIcDetector:
         assert not cad.cadence_per_sec_["cadence_spm"].isna().all()
 
     def test_raise_non_sorted_ics(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
         # We shuffle the ICs
         initial_contacts = initial_contacts.sample(frac=1, random_state=2)
@@ -436,7 +437,7 @@ class TestCadFromIcDetector:
         assert "Initial contacts must be sorted" in str(e.value)
 
     def test_no_ics_result_all_nan(self):
-        data = pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": []})
         icd = _DummyIcDetector(initial_contacts)
         sampling_rate_hz = 40.0

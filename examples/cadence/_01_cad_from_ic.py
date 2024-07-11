@@ -117,8 +117,12 @@ cad_from_ic_detector = CadFromIcDetector(IcdShinImproved())
 # Note, that we are still passing the initial contacts from the "previous" calculation step to fulfill the API.
 # However, internally the algorithm will ignore the provided ICs and rerun the IC detection using the provided IC
 # detector.
+#
+# Note, that we need to convert the data to the body frame, as the underlying IC-detector requires it.
+from mobgap.utils.conversions import to_body_frame
+
 cad_from_ic_detector.calculate(
-    data_in_gs,
+    to_body_frame(data_in_gs),
     initial_contacts=ics_in_gs,
     sampling_rate_hz=short_trial.sampling_rate_hz,
 )
