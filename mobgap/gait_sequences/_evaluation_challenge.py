@@ -10,11 +10,6 @@ from typing_extensions import Self
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import measure_time, set_attrs_from_dict
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.gait_sequences.evaluation import (
-    calculate_matched_gsd_performance_metrics,
-    calculate_unmatched_gsd_performance_metrics,
-    categorize_intervals_per_sample,
-)
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 
@@ -44,6 +39,12 @@ def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDat
         This functions will aggregate the results and provide a summary of the performance metrics.
 
     """
+    from mobgap.gait_sequences.evaluation import (
+        calculate_matched_gsd_performance_metrics,
+        calculate_unmatched_gsd_performance_metrics,
+        categorize_intervals_per_sample,
+    )
+
     # Run the algorithm on the datapoint
     detected_gs_list = pipeline.safe_run(datapoint).gs_list_
     reference_gs_list = datapoint.reference_parameters_.wb_list[["start", "end"]]
@@ -69,8 +70,9 @@ def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDat
     return performance_metrics
 
 
-_gait_sequence_challenges_docfiller = make_filldoc({
-    "common_paras": """
+_gait_sequence_challenges_docfiller = make_filldoc(
+    {
+        "common_paras": """
     dataset
         A gait dataset with reference information.
         Evaluation is performed across all datapoints within the dataset.
@@ -80,7 +82,7 @@ _gait_sequence_challenges_docfiller = make_filldoc({
         of performance metrics.
         These performance metrics are then aggregated across all datapoints.
     """,
-    "timing_results": """
+        "timing_results": """
     start_datetime_utc_timestamp_
         The start time of the evaluation as UTC timestamp.
     start_datetime_
@@ -89,12 +91,14 @@ _gait_sequence_challenges_docfiller = make_filldoc({
         The end time of the evaluation as UTC timestamp.
     end_datetime_
         The end time of the evaluation as human readable string.
-    runtime_
+    runtime_s_
         The runtime of the evaluation in seconds.
         Note, that the runtime might not be exactly the difference between the start and the end time.
         The runtime is independently calculated using `time.perf_timer`.
-    """
-})
+    """,
+    }
+)
+
 
 @_gait_sequence_challenges_docfiller
 class GsdEvaluationCV(Algorithm):
@@ -135,6 +139,7 @@ class GsdEvaluationCV(Algorithm):
     %(timing_results)s
 
     """
+
     dataset: BaseGaitDatasetWithReference
     cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]]
     cv_params: Optional[dict]
@@ -148,7 +153,7 @@ class GsdEvaluationCV(Algorithm):
     start_datetime_: str
     end_datetime_utc_timestamp_: float
     end_datetime_: str
-    runtime_: float
+    runtime_s_: float
 
     def __init__(
         self,
@@ -181,7 +186,10 @@ class GsdEvaluationCV(Algorithm):
             >>> from tpcp.optimize import DummyOptimize
             >>> from mobgap.gait_sequences import GsdIluz
             >>>
-            >>> dummy_optimizer = DummyOptimize(pipeline=GsdEmulationPipeline(GsdIluz()), ignore_potential_user_error_warning=True)
+            >>> dummy_optimizer = DummyOptimize(
+            ...     pipeline=GsdEmulationPipeline(GsdIluz()),
+            ...     ignore_potential_user_error_warning=True,
+            ... )
             >>> challenge = GsdEvaluationCV(dataset, cv_iterator, scoring=scoring)
             >>> challenge.run(dummy_optimizer)
 
@@ -193,21 +201,13 @@ class GsdEvaluationCV(Algorithm):
         """
         self.optimizer = optimizer
 
-        cv_params = {} if not self.cv_params else self.cv_params
-
-        over_writable_cv_params = {
-            "return_optimizer": True,
-        }
-
-        cv_params = {**over_writable_cv_params, **cv_params}
-
         with measure_time() as timing_results:
             self.cv_results_ = cross_validate(
                 optimizable=self.optimizer,
                 dataset=self.dataset,
                 scoring=self.scoring,
                 cv=self.cv_iterator,
-                **cv_params,
+                **(self.cv_params or {}),
             )
 
         set_attrs_from_dict(self, timing_results, key_postfix="_")
@@ -248,6 +248,7 @@ class GsdEvaluation(Algorithm):
     %(timing_results)s
 
     """
+
     dataset: BaseGaitDatasetWithReference
     scoring: Optional[Callable]
 
@@ -259,7 +260,7 @@ class GsdEvaluation(Algorithm):
     start_datetime_: str
     end_datetime_utc_timestamp_: float
     end_datetime_: str
-    runtime_: float
+    runtime_s_: float
 
     def __init__(
         self,
