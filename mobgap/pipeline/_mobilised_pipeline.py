@@ -217,7 +217,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         self.datapoint = datapoint
 
-        imu_data = datapoint.data_ss
+        imu_data = to_body_frame(datapoint.data_ss)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(
@@ -330,9 +330,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             )
             if self.turn_detection:
                 r.ic_list = lrc.ic_lr_list_
-                # TODO: For now only the turn algorithm and sl uses BF data. This will change soon.
-                #  But let's just fix the pipeline for now.
-                gs_data_bf = to_body_frame(gs_data)
+                gs_data_bf = gs_data
                 turn = self.turn_detection.clone().detect(gs_data_bf, sampling_rate_hz=sampling_rate_hz)
                 r.turn_list = turn.turn_list_
 
@@ -352,9 +350,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 sl_r = None
                 if self.stride_length_calculation:
                     sl = self.stride_length_calculation.clone().calculate(
-                        # TODO: For now only the turn algorithm and sl uses BF data. This will change soon.
-                        #  But let's just fix the pipeline for now.
-                        to_body_frame(refined_gs_data),
+                        refined_gs_data,
                         initial_contacts=refined_ic_list,
                         sampling_rate_hz=sampling_rate_hz,
                         **participant_metadata,

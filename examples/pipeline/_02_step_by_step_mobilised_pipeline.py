@@ -20,21 +20,26 @@ For more information about the individual steps, please refer to the respective 
 
 """
 
-import pandas as pd
-
 # %%
 # Load example data
 # -----------------
 # We load example data from the lab dataset, and we will use a single long-trail from an "MS" participant for this
 # example.
+#
+# Note, that we directly convert it into the body frame, as bascially all algorithms require the body frame data
+# (and all others support it).
+# We can do that, because we know that the data is already well aligned with the sensor frame conventions.
+# If this would not be the case, the data would need to be rotated/algigned before running through the pipeline.
+import pandas as pd
 from mobgap.data import LabExampleDataset
+from mobgap.utils.conversions import to_body_frame
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
 long_trial = lab_example_data.get_subset(
     cohort="MS", participant_id="001", test="Test11", trial="Trial1"
 )
-imu_data = long_trial.data_ss
+imu_data = to_body_frame(long_trial.data_ss)
 sampling_rate_hz = long_trial.sampling_rate_hz
 participant_metadata = long_trial.participant_metadata
 
@@ -115,14 +120,9 @@ cad_per_sec
 # ---------------------------------
 from mobgap.stride_length import SlZijlstra
 
-# TODO: The turning and the SL algorithm already require the body frame data. At some point all algorithms will require
-#       this. Then we can move this up. For now we do this here.
-from mobgap.utils.conversions import to_body_frame
-
 sl = SlZijlstra()
 sl.calculate(
-    # TODO: Probably change once all algos require body frame
-    to_body_frame(refined_gait_sequence_data),
+    refined_gait_sequence_data,
     initial_contacts=refined_ic_list,
     sampling_rate_hz=sampling_rate_hz,
     **participant_metadata,
@@ -168,9 +168,8 @@ ws_per_sec
 from mobgap.turning import TdElGohary
 
 turn = TdElGohary()
-# TODO: Probably change once all algos require body frame
 turn.detect(
-    to_body_frame(first_gait_sequence_data), sampling_rate_hz=sampling_rate_hz
+    first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz
 )
 turn_list = turn.turn_list_
 turn_list
@@ -225,9 +224,8 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
     )
     r.ic_list = lrc.ic_lr_list_
-    # TODO: Probably change once all algos require body frame
     turn = turn.clone().detect(
-        to_body_frame(gs_data), sampling_rate_hz=sampling_rate_hz
+        gs_data, sampling_rate_hz=sampling_rate_hz
     )
     r.turn_list = turn.turn_list_
 
@@ -242,8 +240,7 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         )
         rr.cadence_per_sec = cad.cadence_per_sec_
         sl = sl.clone().calculate(
-            # TODO: Probably change once all algos require body frame
-            to_body_frame(refined_gs_data),
+            refined_gs_data,
             initial_contacts=refined_ic_list,
             sampling_rate_hz=sampling_rate_hz,
             **participant_metadata,
