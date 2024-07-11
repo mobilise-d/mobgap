@@ -168,9 +168,7 @@ ws_per_sec
 from mobgap.turning import TdElGohary
 
 turn = TdElGohary()
-turn.detect(
-    first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz
-)
+turn.detect(first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz)
 turn_list = turn.turn_list_
 turn_list
 
@@ -224,9 +222,7 @@ for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
         gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
     )
     r.ic_list = lrc.ic_lr_list_
-    turn = turn.clone().detect(
-        gs_data, sampling_rate_hz=sampling_rate_hz
-    )
+    turn = turn.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
     r.turn_list = turn.turn_list_
 
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
