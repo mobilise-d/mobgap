@@ -67,19 +67,14 @@ def quaterot(
     ValueError
         If the number of columns of q is not 4.
         If the number of columns of acc is not 3.
-        If the number of rows of acc and q are not the same.
 
     """
 
-    if q.shape[1] != 4:
+    if q.shape[0] != 4:
         raise ValueError(f"q must have 4 columns, but has {q.shape[1]}")
 
-    if acc.shape[1] != 3:
-        raise ValueError(f"acc must have 3 columns, but has {acc.shape[1]}")
-
-    if q.shape[0] != acc.shape[0]:
-        raise ValueError(
-            f"acc and q must have the same number of rows, but have {acc.shape[0]} and {q.shape[0]} respectively")
+    if len(acc) != 3:
+        raise ValueError(f"acc must have 3 columns, but has {len(acc)}")
 
     qacc = quatmultiply(q, quatmultiply(np.array([0, *acc]), conj(q)))
     qacc = qacc[1:4].reshape(-1, 1).flatten()
@@ -105,8 +100,8 @@ def conj(q: np.ndarray) -> np.ndarray:
 
     """
 
-    if q.shape[1] != 4:
-        raise ValueError(f"q must have 4 columns, but has {q.shape[1]}")
+    if q.shape[0] != 4:
+        raise ValueError(f"q must have 4 columns, but has {q.shape[0]}")
 
     conj = q.copy()
     conj[1:][conj[1:] != 0] *= -1
@@ -137,15 +132,15 @@ def quatmultiply(r: np.ndarray, q: np.ndarray) -> np.ndarray:
 
     """
 
-    if r.shape[1] != 4:
-        raise ValueError(f"r must have 4 columns, but has {r.shape[1]}")
+    if r.shape[0] != 4:
+        raise ValueError(f"r must have 4 columns, but has {r.shape[0]}")
 
-    if q.shape[1] != 4:
-        raise ValueError(f"q must have 4 columns, but has {q.shape[1]}")
+    if q.shape[0] != 4:
+        raise ValueError(f"q must have 4 columns, but has {q.shape[0]}")
 
     if r.shape[0] != q.shape[0]:
         raise ValueError(
-            f"r and q must have the same number of rows, but have {r.shape[0]} and {q.shape[0]} respectively")
+            f"r and q must have the same number of elements, but have {r.shape[0]} and {q.shape[0]} respectively")
 
     n0 = r[0] * q[0] - r[1] * q[1] - r[2] * q[2] - r[3] * q[3]
     n1 = r[0] * q[1] + r[1] * q[0] + r[2] * q[3] - r[3] * q[2]
