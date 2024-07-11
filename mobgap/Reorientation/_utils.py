@@ -29,8 +29,8 @@ def acceleration(
         If the number of rows of IMU and q are not the same.
 
     """
-    if IMU.shape[1] != 3:
-        raise ValueError(f"IMU must have 3 columns, but has {IMU.shape[1]}")
+    if IMU.shape[1] != 6:
+        raise ValueError(f"IMU must have 6 columns, but has {IMU.shape[1]}")
 
     if q.shape[1] != 4:
         raise ValueError(f"q must have 4 columns, but has {q.shape[1]}")
