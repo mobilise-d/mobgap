@@ -21,6 +21,11 @@ from mobgap.data import LabExampleDataset
 # We will use the INDIP "InitialContact_Event" output as ground truth.
 #
 # We only use the data from the "simulated daily living" activity test from a single participant.
+#
+# Like most algorithms, the algorithm requires the data to be in body frame coordinates.
+# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
+from mobgap.utils.conversions import to_body_frame
+
 example_data = LabExampleDataset(
     reference_system="INDIP", reference_para_level="wb"
 )
@@ -28,7 +33,7 @@ single_test = example_data.get_subset(
     cohort="MS", participant_id="001", test="Test11", trial="Trial1"
 )
 
-imu_data = single_test.data_ss
+imu_data = to_body_frame(single_test.data_ss)
 reference_wbs = single_test.reference_parameters_.wb_list
 
 sampling_rate_hz = single_test.sampling_rate_hz

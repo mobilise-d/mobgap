@@ -22,6 +22,7 @@ from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df, base_lrc_docfiller
 from mobgap.utils._sklearn_protocol_types import SklearnClassifier, SklearnScaler
+from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @cache
@@ -36,7 +37,7 @@ def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]
 class LrcUllrich(BaseLRClassifier):
     """Machine-Learning based algorithm for laterality classification of initial contacts.
 
-    This algorithm uses the band-pass filtered vertical ("gyr_x") and anterior-posterior ("gyr_z") angular velocity.
+    This algorithm uses the band-pass filtered vertical ("gyr_is") and anterior-posterior ("gyr_pa") angular velocity.
     For both axis a set of features consisting of the value, the first and second derivative are extracted at the time
     points of the ICs ([1]_).
     This results in a 6-dimensional feature vector for each IC.
@@ -94,12 +95,12 @@ class LrcUllrich(BaseLRClassifier):
     feature_matrix_: pd.DataFrame
 
     _feature_matrix_cols: Final = [
-        "filtered__gyr_x",
-        "gradient__gyr_x",
-        "curvature__gyr_x",
-        "filtered__gyr_z",
-        "gradient__gyr_z",
-        "curvature__gyr_z",
+        "filtered__gyr_is",
+        "gradient__gyr_is",
+        "curvature__gyr_is",
+        "filtered__gyr_pa",
+        "gradient__gyr_pa",
+        "curvature__gyr_pa",
     ]
 
     class PredefinedParameters:
@@ -185,6 +186,8 @@ class LrcUllrich(BaseLRClassifier):
         self.data = data
         self.ic_list = ic_list
         self.sampling_rate_hz = sampling_rate_hz
+
+        assert_is_sensor_data(data, frame="body")
 
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = (
@@ -303,14 +306,14 @@ class LrcUllrich(BaseLRClassifier):
         feature_df
             The DataFrame containing the extracted features.
         """
-        gyr = data[["gyr_x", "gyr_z"]]
+        gyr = data[["gyr_is", "gyr_pa"]]
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # We use numpy gradient instead of diff, as it preserves the shape of the input and hence, can handle ICs that
         # are close to the beginning or end of the data.
         gyr_gradient = np.gradient(gyr_filtered, axis=0)
         curvature = np.gradient(gyr_gradient, axis=0)
-        gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_x", "gyr_z"], copy=False, index=gyr.index)
-        curvature = pd.DataFrame(curvature, columns=["gyr_x", "gyr_z"], copy=False, index=gyr.index)
+        gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
+        curvature = pd.DataFrame(curvature, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
 
         signal_paras = pd.concat({"filtered": gyr_filtered, "gradient": gyr_gradient, "curvature": curvature}, axis=1)
         signal_paras.columns = ["__".join(c) for c in signal_paras.columns]

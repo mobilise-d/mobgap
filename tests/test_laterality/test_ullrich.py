@@ -7,9 +7,11 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.laterality import LrcUllrich
 from mobgap.pipeline import GsIterator
+from mobgap.utils.conversions import to_body_frame
 
 
 class TestMetaLrcUllrich(TestAlgorithmMixin):
@@ -20,7 +22,7 @@ class TestMetaLrcUllrich(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().predict(
-            data=pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]),
+            data=pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),
             ic_list=pd.DataFrame({"ic": [5, 10, 15]}),
             sampling_rate_hz=100.0,
         )
@@ -30,7 +32,7 @@ class TestLrcUllrich:
     def test_empty_data(self):
         test_params = LrcUllrich.PredefinedParameters.msproject_all
         algo = LrcUllrich(**test_params)
-        data = pd.DataFrame([], columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame([], columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
         output = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0)
         assert len(output.ic_lr_list_) == 0
@@ -41,7 +43,7 @@ class TestLrcUllrich:
     def test_empty_ic(self):
         params = LrcUllrich.PredefinedParameters.msproject_all
         algo = LrcUllrich(**params)
-        data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": []})
         output = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0)
         assert len(output.ic_lr_list_) == 0
@@ -51,13 +53,13 @@ class TestLrcUllrich:
 
     def test_predict_with_model_not_fit(self):
         algo = LrcUllrich(**LrcUllrich.PredefinedParameters.untrained_svc)
-        data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
         with pytest.raises(RuntimeError):
             algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0)
 
     def test_correct_output_format(self):
-        data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [10, 20, 40]})
 
         algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
@@ -71,7 +73,7 @@ class TestLrcUllrich:
         x = np.linspace(0, 4 * np.pi, 100)[:, None]
         y = np.tile(np.sin(x), (1, 6))
         y[:, [2, 5]] = y[:, [2, 5]] * -1  # make the z axis negative
-        data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(y, columns=BF_SENSOR_COLS)
 
         ic_list = pd.DataFrame({"ic": [15, 38, 65]})
 
@@ -84,7 +86,7 @@ class TestLrcUllrich:
 
     def test_self_optimized_with_optimized_model(self):
         algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
-        data = pd.DataFrame(np.zeros((100, 6)), columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
         labels = ic_list.assign(lr_label=["left", "right", "left"])
 
@@ -94,7 +96,7 @@ class TestLrcUllrich:
     def test_self_optimize_custom_algo(self):
         x = np.linspace(0, 4 * np.pi, 100)[:, None]
         y = np.tile(np.sin(x), (1, 6))
-        data = pd.DataFrame(y, columns=["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"])
+        data = pd.DataFrame(y, columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
         label_list = ic_list.assign(lr_label=["left", "right", "left"])
 
@@ -117,7 +119,7 @@ class TestRegression:
         ],
     )
     def test_example_lab_data(self, datapoint, config_name, config, snapshot):
-        imu_data = datapoint.data["LowerBack"]
+        imu_data = to_body_frame(datapoint.data_ss)
         ref = datapoint.reference_parameters_relative_to_wb_
         ref_walk_bouts = ref.wb_list
         if len(ref_walk_bouts) == 0:
