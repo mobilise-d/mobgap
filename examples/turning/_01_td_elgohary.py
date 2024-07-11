@@ -2,10 +2,10 @@
 ElGohary Turning Algo
 =====================
 
-.. warning:: There are some issues with matching the results of the ElGohary algorithm to the reference system.
-             The performance, we are observing here is far below the expected performance.
-             We are investigating this currently, but until then, we recommend to do your own testing and validation
-             before using this algorithm in production.
+.. warning:: The ElGohary turning algorithm could not be properly validated as part of the Mobilise-D project, as no
+    clear consensus exists what a "turn" is.
+    This makes it difficult to design a suitable reference system, which nature of calculating turns does not bias the
+    results fundamentally.
 
 This example shows how to use the ElGohary turning algorithm.
 It uses the angular velocity around the SI axis of a lower back IMU to detect turns.
@@ -22,6 +22,10 @@ It uses the angular velocity around the SI axis of a lower back IMU to detect tu
 # Still, the turn detection might not be fully reliable.
 # Note, that the INDIP system, also uses just a single lower back IMU to calculate the turns.
 # Hence, it can not really be considered a reference system, in this context.
+#
+# The turn algorithm requires the data to be in the body frame (see the User Guide on this topic).
+# We use the ``to_body_frame`` function to transform the data, as we know that the sensor was well aligned, with the
+# expected sensor frame conventions.
 from mobgap.data import LabExampleDataset
 from mobgap.utils.conversions import to_body_frame
 
@@ -210,7 +214,7 @@ ref_turns
 # ---------------------------------------------
 # For this we pass an instance of the MadgwickAHRS algorithm to estimate the global orientation of the sensor to the
 # algorithm.
-from mobgap.orientation_estimation._madgwick import MadgwickAHRS
+from mobgap.orientation_estimation import MadgwickAHRS
 
 orientation_estimator = MadgwickAHRS()
 

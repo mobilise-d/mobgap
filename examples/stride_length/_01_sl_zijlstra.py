@@ -45,7 +45,7 @@ sensor_height = short_trial.participant_metadata["sensor_height_m"]
 
 # %%
 # Like most algorithms, the SlZijlstra requires the data to be in body frame coordinates.
-# As we know the sensor was well aligned, we can just use `to_body_frame` to transform the data.
+# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
 from mobgap.utils.conversions import to_body_frame
 
 data_in_gs_bf = to_body_frame(data_in_gs)
