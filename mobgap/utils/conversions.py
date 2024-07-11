@@ -136,6 +136,7 @@ def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
     renamed_df = data.rename(columns=conversions[frame])[out_cols]
     if frame == "global":
         renamed_df["acc_gml"] *= -1
+        renamed_df["gyr_gml"] *= -1
 
     return renamed_df
 
@@ -178,6 +179,7 @@ def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
 
     if frame == "global_body":
         renamed_df["acc_gy"] *= -1
+        renamed_df["gyr_gy"] *= -1
 
     return renamed_df
 
