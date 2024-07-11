@@ -61,7 +61,7 @@ pipe_with_results.gs_list_
 # Let's look at the code of it first.
 from inspect import getsource
 
-from mobgap.gait_sequences.pipeline import gsd_evaluation_scorer
+from mobgap.gait_sequences.evaluation import gsd_evaluation_scorer
 
 print(getsource(gsd_evaluation_scorer))
 
@@ -90,7 +90,7 @@ pprint(single_dp_results)
 # %%
 # The challenge will call this scoring method for each datapoint in the dataset.
 # Let's test this with the `GsdEvaluation` challenge.
-from mobgap.gait_sequences.pipeline import GsdEvaluation
+from mobgap.gait_sequences.evaluation import GsdEvaluation
 
 eval_challenge = GsdEvaluation(long_test, scoring=gsd_evaluation_scorer)
 # %%
@@ -162,7 +162,7 @@ eval_challenge.runtime_
 # Further, to speed things up, we are going to use multi-processing.
 # We can configure this using the ``n_jobs`` parameter that we pass to the internal
 # :func:`~tpcp.validate.cross_validate` function via the ``cv_params`` parameters
-from mobgap.gait_sequences.pipeline import GsdEvaluationCV
+from mobgap.gait_sequences.evaluation import GsdEvaluationCV
 
 eval_challenge_cv = GsdEvaluationCV(
     long_test,

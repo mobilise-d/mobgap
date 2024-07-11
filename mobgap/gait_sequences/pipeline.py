@@ -8,7 +8,6 @@ from tpcp.validate import Aggregator
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.gait_sequences._evaluation_challenge import GsdEvaluation, GsdEvaluationCV, gsd_evaluation_scorer
 from mobgap.gait_sequences.base import BaseGsDetector, base_gsd_docfiller
 from mobgap.utils.conversions import to_body_frame
 
@@ -147,7 +146,9 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             For categorizing the detected and reference gait sequences on a sample-wise level.
 
         """
+        from mobgap.gait_sequences._evaluation_challenge import gsd_evaluation_scorer
+
         return gsd_evaluation_scorer(self, datapoint)
 
 
-__all__ = ["GsdEmulationPipeline", "gsd_evaluation_scorer", "GsdEvaluationCV", "GsdEvaluation"]
+__all__ = ["GsdEmulationPipeline"]

@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import Callable, Optional, Union
 
 from sklearn.model_selection import BaseCrossValidator
 from tpcp import Algorithm
@@ -14,12 +14,10 @@ from mobgap.gait_sequences.evaluation import (
     calculate_unmatched_gsd_performance_metrics,
     categorize_intervals_per_sample,
 )
-
-if TYPE_CHECKING:
-    from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
+from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 
-def gsd_evaluation_scorer(pipeline: "GsdEmulationPipeline", datapoint: BaseGaitDatasetWithReference) -> dict:
+def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
     """Evaluate the performance of a GSD algorithm on a single datapoint.
 
     This function is used to evaluate the performance of a GSD algorithm on a single datapoint.
