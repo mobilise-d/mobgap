@@ -13,6 +13,7 @@ from mobgap.data_transform.base import BaseFilter
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.utils.array_handling import merge_intervals, sliding_window_view
 from mobgap.utils.conversions import as_samples
+from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @base_gsd_docfiller
@@ -168,8 +169,10 @@ class GsdIluz(BaseGsDetector):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        # TODO: Add docstring
-        relevant_columns = ["acc_x", "acc_z"]
+
+        assert_is_sensor_data(data, frame="body")
+
+        relevant_columns = ["acc_is", "acc_pa"]
         data = data[relevant_columns]
 
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
@@ -190,11 +193,11 @@ class GsdIluz(BaseGsDetector):
         window_length_samples = round(self.window_length_s * sampling_rate_hz)
         window_overlap_samples = round(window_length_samples * self.window_overlap)
         windowed_filtered_data = sliding_window_view(
-            filtered_data["acc_x"].to_numpy(),
+            filtered_data["acc_is"].to_numpy(),
             window_length_samples,
             window_overlap_samples,
         )
-        windowed_data = sliding_window_view(data["acc_x"].to_numpy(), window_length_samples, window_overlap_samples)
+        windowed_data = sliding_window_view(data["acc_is"].to_numpy(), window_length_samples, window_overlap_samples)
 
         # Note: We move all the filtering at the beginning here to reduce the number of windows we need to actually
         #       find peaks in later.
@@ -244,7 +247,7 @@ class GsdIluz(BaseGsDetector):
 
         selected_windows = np.empty((activity_windows.shape[0], 2), dtype=bool)
 
-        for i, axis in enumerate(["acc_x", "acc_z"]):
+        for i, axis in enumerate(["acc_is", "acc_pa"]):
             convolved_data = np.convolve(data[axis].to_numpy(), sin_template, mode="same")
             convolved_data_windowed = sliding_window_view(convolved_data, window_length_samples, window_overlap_samples)
 
