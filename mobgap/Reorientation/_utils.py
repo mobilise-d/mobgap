@@ -12,10 +12,10 @@ def acceleration(
 
     Parameters
     ----------
-    IMU
-        The IMU data as an array of shape (n, 3).
-    q
-        The quaternions as an array of shape (n, 4).
+    IMU (pd.DataFrame)
+        The IMU data of shape (n, 3).
+    q (np.ndarray)
+        The quaternions of shape (n, 4).
 
     Returns
     -------
@@ -53,10 +53,10 @@ def quaterot(
 
     Parameters
     ----------
-    q
-        The quaternion as an array of shape (4,).
-    acc
-        The acceleration as an array of shape (3,).
+    q (np.ndarray)
+        The quaternion of shape (4,).
+    acc (pd.Series)
+        The acceleration as a pandas series of shape (3,).
 
     Returns
     -------
@@ -91,7 +91,8 @@ def conj(q: np.ndarray) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray: Conjugate of the input quaternion.
+    conj (np.ndarray)
+        Conjugate of the input quaternion.
 
     Raises
     ------
@@ -114,10 +115,10 @@ def quatmultiply(r: np.ndarray, q: np.ndarray) -> np.ndarray:
     Parameters:
     ----------
     r (np.ndarray)
-        Quaternion as an array of shape (4,).
+        Quaternion of shape (4,).
 
     q (np.ndarray)
-        Quaternion as an array of shape (4,).
+        Quaternion of shape (4,).
 
     Returns
     -------
