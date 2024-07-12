@@ -24,6 +24,7 @@ of the acceleration.
 Below, we will go through the coordinate systems in the order in which you likely will encounter them when working with
 mobgap.
 
+## Figures for Quick Reference
 
 ```{figure} ./images/coordinate_systems.svg
 :name: coordinate_system
@@ -48,16 +49,27 @@ More details below.
 ## Sensor Frame
 
 The sensor frame is defined by the axis x, y, z of the sensor.
-We expect these axis directions to follow the directions of the MM+ sensor of McRoberts, which is the primary sensor
-used in the mobilise-d project.
+We expect these axis directions to follow the directions of the MM+ sensor of McRoberts (when worn correctly), which is 
+the primary sensor used in the mobilise-d project.
 This assumes that the sensor (if attached correctly) has the x-axis pointing upwards, the y-axis pointing to the right
 and the z-axis pointing forward.
 
-To use all functions and algorithms in mobgap, you should make sure that your data follows the same conventions.
+To use all functions and algorithms in mobgap, you need to make sure that your data follows the same conventions.
 This means, you likely need to define a rotation matrix that transforms your data into the expected coordinate system.
+This transformation is usually derived based on the known mounting orientation of your sensor.
 Have a look at the sections 3 and 4 in this 
 [guide in gaitmap](https://gaitmap.readthedocs.io/en/latest/source/user_guide/prepare_data.html#converting-into-the-correct-units) 
 for more information on how to do this.
+
+If you don't have any information about the mounting orientation of your sensor, you can try to estimate it based on the
+sensor data.
+The upwards axis could for example be identified using gravity and forward/backward axis can be identified using PCA
+with some additional assumptions.
+You can try to use the automatic alignment function
+([TODO: Under development in #112](https://github.com/mobilise-d/mobgap/pull/112)) to align the sensor data to the body 
+frame on a gait sequence level.
+Depending on the measurement setup, other constrains might be available to further refine the alignment.
+In all cases, manual inspection of the data is recommended to ensure that the alignment is correct.
 
 Data that is in the sensor frame is simply named by the axis postfix `_x`, `_y`, and `_z`.
 So the imu-data pandas Dataframe has the axes `["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]`.
@@ -70,31 +82,21 @@ However, when ever possible we work in the body frame to avoid confusion about w
 
 The body frame is defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and is 
 simply a renaming of the sensor frame axis.
-The figure below shows the expected direction of the body frame axis.
+The figure above shows the expected direction of the body frame axis.
 The naming of the axis/conversion of the sensor frame is as follows:
     - x -> IS (inferior-superior)
     - y -> ML (medial-lateral)
     - z -> PA (posterior-anterior)
 
-
 In code, this transformation can be done by the {py:func}`~mobgap.utils.to_body_frame` function.
 This will return a dataframe with renamed axis and the same index as the input data.
-
-Before you transform your data into the body frame, make sure that the sensor data is aligned correctly.
-If you can not make sure that the sensor is aligned correctly, you can try to use the automatic alignment function
-([TODO: Under development in #112](https://github.com/mobilise-d/mobgap/pull/112)) to align the sensor data to the body 
-frame on a gait sequence level.
+Note, that this will only work, if your data is already correctly aligned with the sensor frame!
+If you don't have this yet, go back to the previous section to understand how to transform your data into the expected
+sensor frame.
 
 Most algorithms in mobgap expect the data to be in the body frame, so that they can easily work on the "upwards" or 
 "forward" axis.
 Algorithms that would work in both the sensor and body frame, will usually accept both.
-
-```{warning}
-At the moment most algorithms still expect the axis to be named like `acc_x`, `acc_y`, ... .
-However, we will change this soon to make the expectation of the body alignment more explicit 
-([#103](https://github.com/mobilise-d/mobgap/issues/103)).
-After this change, all data is expected to have anatomical names like `acc_is`, `acc_pa`, ... .
-```
 
 ## Global coordinate system
 
@@ -103,6 +105,9 @@ This coordinate system is fixed in space and does not move with the sensor or th
 
 To transform data from the body frame to the global frame, you usually need to apply an orientation estimation 
 algorithm.
+These are usually sensor fusion algorithm that combine the data from the accelerometer and gyroscope 
+(and potentially magnetometer or other additional modalities) to estimate the orientation of the sensor in a fixed
+global coordinate system.
 In mobgap, we provide an implementation of the {py:class}`~mobgap.orientation_estimation.Madgwick` algorithm for this 
 purpose, but other algorithms can be used as well.
 
