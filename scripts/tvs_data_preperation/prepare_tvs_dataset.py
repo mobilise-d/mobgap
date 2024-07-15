@@ -1,4 +1,8 @@
-"""A script to prepare the TVS dataset for release."""
+"""A script to prepare the TVS dataset for release.
+
+Important: After running this script, you should run the two matlab scripts in the `scripts` folder to corretly remove
+the turn data and fix some of the metadata in the infoForAlgo files.
+"""
 
 import shutil
 from pathlib import Path
@@ -32,9 +36,9 @@ def _generate_concurrent_validity_report(dataset: BaseTVSDataset, outpath: Path)
 
 
 # %%
-TVS_DATA_PATH = Path("../../mobilised_tvs_data/data_original")
-PARTICIPANT_ID_MAPPING = Path("../../mobilised_tvs_data/TVS-participant-22032024.csv")
-OUTPATH = Path("../../mobilised_tvs_data/tvs_dataset")
+TVS_DATA_PATH = Path("../../../mobilised_tvs_data/data_original")
+PARTICIPANT_ID_MAPPING = Path("../../../mobilised_tvs_data/TVS-participant-22032024.csv")
+OUTPATH = Path("../../../mobilised_tvs_data/tvs_dataset")
 USE_MOVE = True
 
 # The new ids are the first integer of the participantid concatenated with the newly generated ids.
