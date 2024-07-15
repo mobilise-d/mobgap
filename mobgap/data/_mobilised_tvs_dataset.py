@@ -61,6 +61,7 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         engine="openpyxl",
         header=[0, 1],
         na_values=["N/A", "N.A.", "N.A"],
+        skipfooter=1, # We need to skip the last row, as this is the legend for the summary row. The last row is not loaded anyway for some reason
     )
     cols = clinical_info.columns.to_list()
     # We delay the setting of the index, as we need to set the correct dtypes first.
@@ -89,7 +90,7 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
             "updrsiii": "updrs3",
             "6mwt_distancewalked": "6mwt_distance_walked",
             "h&y": "h_and_y",
-            "dominant_hand_l_or_r": "handedness",
+            "dominant_hand_l_or_r___wrist_sensor_worn_on_non_dominant_hand": "handedness",
             "height_cm": "height_m",
             "sensor_height_cm": "sensor_height_m",
             "lab_based_assessment": "walking_aid_used_laboratory",
@@ -261,7 +262,7 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
         selected_values = info.reindex(
             pd.MultiIndex.from_frame(self.index[["cohort", "participant_id"]].drop_duplicates())
         )
-        return selected_values
+        return selected_values[self._MEASUREMENT_CONDITION]
 
 
 @tvs_dataset_filler
