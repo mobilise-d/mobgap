@@ -57,10 +57,10 @@ ref_walking_bouts
 # %%
 # But the ICs time-samples are now relative to the start of the respective GS/WB.
 ref_ics_rel = ref_data_rel.ic_list
-ref_ics_rel.loc[1]  # First WB
+ref_ics_rel.loc[0]  # First WB
 
 # %%
-ref_ics_rel.loc[2]  # Second WB
+ref_ics_rel.loc[1]  # Second WB
 
 # %%
 # Now we can use the :func:`~mobgap.pipeline.GsIterator` to iterate over the data.
