@@ -35,7 +35,7 @@ def load_data():
 
 
 def load_reference(data):
-    """Load reference cadence from the INDIP reference system."""
+    """Load reference from the INDIP reference system."""
     reference_gs = data.reference_parameters_.wb_list
     reference_ic = data.reference_parameters_relative_to_wb_.ic_list
     return reference_gs, reference_ic
@@ -135,6 +135,7 @@ combined_cad
 from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 
 errors = [("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error])]
+pprint(errors)
 
 # %%
 # The error functions can be applied to the combined cadence data
