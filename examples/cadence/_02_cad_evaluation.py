@@ -85,7 +85,6 @@ for (gs, data), r in iterator.iterate(test_data.data_ss, reference_gs):
         )
         rr.cadence_per_sec = cad.cadence_per_sec_
 
-
 # %%
 # The detected cadences per second for all gait sequences
 # can then be accessed from the `results_` attribute of the `GsIterator` object.
@@ -206,8 +205,17 @@ pprint(aggregations_custom)
 #
 # Both types of aggregations can be combined and applied in a single call to the
 # :func:`~mobgap.utils.df_operations.apply_aggregations` function.
+# This returns a pandas Series with the aggregated values for each aggregation function and origin
+# for the metric cadence.
+# For better readability, we sort and format the resulting dataframe.
 from mobgap.utils.df_operations import apply_aggregations
 
 aggregations = aggregations_simple + aggregations_custom
-agg_results = apply_aggregations(combined_cad_with_errors, aggregations)
+agg_results = (
+    apply_aggregations(combined_cad_with_errors, aggregations)
+    .rename_axis(index=["aggregation", "metric", "origin"])
+    .reorder_levels(["metric", "origin", "aggregation"])
+    .sort_index(level=0)
+    .to_frame("values")
+)
 agg_results
