@@ -18,27 +18,27 @@
     "data":[
         {
             "wb_id":0,
-            "stride_length_m":1.0277484843
+            "stride_length_m":0.8834875173
         },
         {
             "wb_id":1,
-            "stride_length_m":0.9462190154
+            "stride_length_m":0.7069080207
         },
         {
             "wb_id":2,
-            "stride_length_m":0.736516727
+            "stride_length_m":0.6540478604
         },
         {
             "wb_id":3,
-            "stride_length_m":0.8253616336
+            "stride_length_m":0.778620812
         },
         {
             "wb_id":4,
-            "stride_length_m":0.8599009155
+            "stride_length_m":0.8880462902
         },
         {
             "wb_id":5,
-            "stride_length_m":0.8984057173
+            "stride_length_m":0.8713600947
         }
     ]
 }

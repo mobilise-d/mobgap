@@ -69,6 +69,7 @@ cad_from_ic = CadFromIc()
 # is explained in its :ref: `dedicated example <gs_iterator_example>`.
 from mobgap.initial_contacts import refine_gs
 from mobgap.pipeline import GsIterator
+from mobgap.utils.conversions import to_body_frame
 
 iterator = GsIterator()
 
@@ -79,7 +80,7 @@ for (gs, data), r in iterator.iterate(test_data.data_ss, reference_gs):
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
     with iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
         cad = cad_from_ic.clone().calculate(
-            refined_gs_data,
+            to_body_frame(refined_gs_data),
             initial_contacts=refined_ic_list,
             sampling_rate_hz=sampling_rate_hz,
         )

@@ -60,12 +60,10 @@ reference_ic
 # Applying the Stride Length Calculation Algorithm
 # ------------------------------------------
 # In this example, we will use the `SlZijlstra` algorithm to calculate the stride length from the reference initial contacts.
-from gaitmap.trajectory_reconstruction import MadgwickAHRS
 from mobgap.stride_length import SlZijlstra
 
 # TODO: are these the correct parameters?
 sl_zijlstra_reoriented = SlZijlstra(
-    orientation_method=MadgwickAHRS(beta=0.2),
     **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_ms,
 )
 
@@ -77,6 +75,7 @@ sl_zijlstra_reoriented = SlZijlstra(
 # is explained in its :ref: `dedicated example <gs_iterator_example>`.
 from mobgap.initial_contacts import refine_gs
 from mobgap.pipeline import GsIterator
+from mobgap.utils.conversions import to_body_frame
 
 iterator = GsIterator()
 
@@ -87,7 +86,7 @@ for (gs, data), r in iterator.iterate(test_data.data_ss, reference_gs):
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
     with iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
         sl = sl_zijlstra_reoriented.clone().calculate(
-            data=refined_gs_data,
+            data=to_body_frame(refined_gs_data),
             initial_contacts=refined_ic_list,
             sensor_height_m=sensor_height_m,
             sampling_rate_hz=sampling_rate_hz,

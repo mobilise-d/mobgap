@@ -35,50 +35,50 @@
         {
             "index":0,
             "wb_id":0,
-            "stride_length_m_error":0.0850701339,
-            "stride_length_m_abs_error":0.0850701339,
-            "stride_length_m_rel_error":0.0902430122,
-            "stride_length_m_abs_rel_error":0.0902430122
+            "stride_length_m_error":-0.0591908331,
+            "stride_length_m_abs_error":0.0591908331,
+            "stride_length_m_rel_error":-0.0627900631,
+            "stride_length_m_abs_rel_error":0.0627900631
         },
         {
             "index":1,
             "wb_id":1,
-            "stride_length_m_error":0.4622960386,
-            "stride_length_m_abs_error":0.4622960386,
-            "stride_length_m_rel_error":0.9553091312,
-            "stride_length_m_abs_rel_error":0.9553091312
+            "stride_length_m_error":0.2229850439,
+            "stride_length_m_abs_error":0.2229850439,
+            "stride_length_m_rel_error":0.4607862295,
+            "stride_length_m_abs_rel_error":0.4607862295
         },
         {
             "index":2,
             "wb_id":2,
-            "stride_length_m_error":0.2300584878,
-            "stride_length_m_abs_error":0.2300584878,
-            "stride_length_m_rel_error":0.4542496695,
-            "stride_length_m_abs_rel_error":0.4542496695
+            "stride_length_m_error":0.1475896212,
+            "stride_length_m_abs_error":0.1475896212,
+            "stride_length_m_rel_error":0.2914151846,
+            "stride_length_m_abs_rel_error":0.2914151846
         },
         {
             "index":3,
             "wb_id":3,
-            "stride_length_m_error":0.021429054,
-            "stride_length_m_abs_error":0.021429054,
-            "stride_length_m_rel_error":0.0266552875,
-            "stride_length_m_abs_rel_error":0.0266552875
+            "stride_length_m_error":-0.0253117675,
+            "stride_length_m_abs_error":0.0253117675,
+            "stride_length_m_rel_error":-0.0314849381,
+            "stride_length_m_abs_rel_error":0.0314849381
         },
         {
             "index":4,
             "wb_id":4,
-            "stride_length_m_error":0.3524166245,
-            "stride_length_m_abs_error":0.3524166245,
-            "stride_length_m_rel_error":0.6944384895,
-            "stride_length_m_abs_rel_error":0.6944384895
+            "stride_length_m_error":0.3805619992,
+            "stride_length_m_abs_error":0.3805619992,
+            "stride_length_m_rel_error":0.7498990727,
+            "stride_length_m_abs_rel_error":0.7498990727
         },
         {
             "index":5,
             "wb_id":5,
-            "stride_length_m_error":0.2990457017,
-            "stride_length_m_abs_error":0.2990457017,
-            "stride_length_m_rel_error":0.4989416944,
-            "stride_length_m_abs_rel_error":0.4989416944
+            "stride_length_m_error":0.2720000791,
+            "stride_length_m_abs_error":0.2720000791,
+            "stride_length_m_rel_error":0.4538175254,
+            "stride_length_m_abs_rel_error":0.4538175254
         }
     ]
 }

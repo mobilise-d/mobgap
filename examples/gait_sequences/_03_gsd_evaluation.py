@@ -20,6 +20,7 @@ from mobgap.gait_sequences import GsdIluz
 # These steps are explained in more detail in the :ref:`GSD Iluz example <gsd_iluz>`.
 from mobgap.utils.conversions import to_body_frame
 
+
 def load_data():
     lab_example_data = LabExampleDataset(reference_system="INDIP")
     single_test = lab_example_data.get_subset(
