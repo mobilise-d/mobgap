@@ -213,15 +213,15 @@ evaluation_results = pd.DataFrame(
     validate(pipeline, simulated_real_world_walking)
 )
 
-evaluation_results.drop(["single_reference", "single_detected"], axis=1).T
+evaluation_results.drop(["single__reference", "single__detected"], axis=1).T
 # %%
 # In addition to the metrics, the method also returns the raw reference and detected gait sequences.
 # These can be used for further custom analysis.
 
-evaluation_results["single_reference"][0][0]
+evaluation_results["single__reference"][0][0]
 
 # %%
-evaluation_results["single_detected"][0][0]
+evaluation_results["single__detected"][0][0]
 
 # %%
 # If you want to calculate additional metrics, you can either create a custom score function or subclass the pipeline
@@ -265,10 +265,10 @@ cross_validate_results = pd.DataFrame(
 
 cross_validate_results.drop(
     [
-        "test_single_reference",
-        "test_single_detected",
-        "train_single_reference",
-        "train_single_detected",
+        "test__single__reference",
+        "test__single__detected",
+        "train__single__reference",
+        "train__single__detected",
     ],
     axis=1,
 ).T
