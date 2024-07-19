@@ -18,7 +18,7 @@ from mobgap.gait_sequences import GsdIluz
 # However, you can use any other GSD algorithm as well.
 # To have a reference to compare the results to, we also load the corresponding ground truth data.
 # These steps are explained in more detail in the :ref:`GSD Iluz example <gsd_iluz>`.
-
+from mobgap.utils.conversions import to_body_frame
 
 def load_data():
     lab_example_data = LabExampleDataset(reference_system="INDIP")
@@ -33,7 +33,7 @@ def calculate_gsd_iluz_output(single_test_data):
     det_gsd = (
         GsdIluz()
         .detect(
-            single_test_data.data_ss,
+            to_body_frame(single_test_data.data_ss),
             sampling_rate_hz=single_test_data.sampling_rate_hz,
         )
         .gs_list_
