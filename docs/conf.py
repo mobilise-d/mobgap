@@ -51,7 +51,7 @@ def convert_github_md_admonitions(text):
 
 # -- Project information -----------------------------------------------------
 
-URL = "https://github.com/mobilise-d/mobgap"
+URL = "https://github.com/mobilise-d/mobgap/"
 # Info from poetry config:
 info = toml.load("../pyproject.toml")["tool"]["poetry"]
 
@@ -59,7 +59,7 @@ project = info["name"]
 author = ", ".join(info["authors"])
 release = info["version"]
 
-copyright = f"2021 - {datetime.now().year}, MaD Lab, FAU"
+copyright = f"2023 - {datetime.now().year}, MaD Lab, FAU in the name of the Mobilise-D consortium"
 
 # -- Copy the README and Changelog and fix image path --------------------------------------
 HERE = Path(__file__).parent
@@ -193,19 +193,21 @@ sphinx_gallery_conf = {
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
     "doc_module": ("mobgap",),
-    "filename_pattern": re.escape(os.sep),
+    "filename_pattern": r"^(?!.*_no_exc\.py$).*\.py$",  # ignore files with _no_exc
     "remove_config_comments": True,
     "show_memory": True,
     "subsection_order": ExplicitOrder(
         [
             "../examples/data",
-            "../examples/gsd",
-            "../examples/icd",
-            "../examples/lrd",
-            "../examples/cad",
+            "../examples/pipeline",
+            "../examples/gait_sequences",
+            "../examples/initial_contacts",
+            "../examples/laterality",
+            "../examples/cadence",
+            "../examples/stride_length",
+            "../examples/turning",
             "../examples/wba",
             "../examples/aggregation",
-            "../examples/pipeline",
             "../examples/data_transform",
             "../examples/dev_guides",
         ]

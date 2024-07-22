@@ -29,6 +29,14 @@ def test_reference_data_usage():
     assert_frame_equal(gs_iterator.results_.ic_list, ref_data.ic_list)
 
 
+def test_custom_dataset(snapshot):
+    from examples.data._05_custom_datasets import csv_data
+
+    snapshot.assert_match(csv_data.index, "csv_data_index")
+    # A random piece of data as a snapshot
+    snapshot.assert_match(csv_data[3].data_ss.head(), "csv_data_data")
+
+
 def test_dmo_data(snapshot):
     from examples.data._03_dmo_data import dataset, single_participant
 

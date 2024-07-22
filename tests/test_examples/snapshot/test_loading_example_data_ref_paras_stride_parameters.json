@@ -50,7 +50,7 @@
     },
     "data":[
         {
-            "wb_id":1,
+            "wb_id":0,
             "s_id":0,
             "start":227,
             "end":356,
@@ -62,7 +62,7 @@
             "lr_label":"left"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "s_id":1,
             "start":295,
             "end":414,
@@ -74,7 +74,7 @@
             "lr_label":"right"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "s_id":2,
             "start":355,
             "end":472,
@@ -86,7 +86,7 @@
             "lr_label":"left"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "s_id":3,
             "start":413,
             "end":539,

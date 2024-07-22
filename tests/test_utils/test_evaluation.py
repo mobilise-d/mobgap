@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -63,7 +65,7 @@ class TestEvaluationScores:
         precision = precision_score(matches_df)
         assert_array_equal(precision, 0.5)
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 5, 5)
         precision = precision_score(matches_df)
         assert_array_equal(precision, 0.5)
@@ -74,7 +76,7 @@ class TestEvaluationScores:
         precision = precision_score(matches_df)
         assert_array_equal(precision, 1.0)
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 0, 5)
         precision = precision_score(matches_df)
         assert_array_equal(precision, 1.0)
@@ -85,7 +87,7 @@ class TestEvaluationScores:
         recall = recall_score(matches_df)
         assert_array_equal(recall, 0.5)
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 5, 5)
         recall = recall_score(matches_df)
         assert_array_equal(recall, 0.5)
@@ -96,7 +98,7 @@ class TestEvaluationScores:
         recall = recall_score(matches_df)
         assert_array_equal(recall, 1.0)
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 5, 0)
         recall = recall_score(matches_df)
         assert_array_equal(recall, 1.0)
@@ -107,7 +109,7 @@ class TestEvaluationScores:
         f1 = f1_score(matches_df)
         assert_array_equal(f1, 0.5)
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 5, 5)
         f1 = f1_score(matches_df)
         assert_array_equal(f1, 0.5)
@@ -118,7 +120,7 @@ class TestEvaluationScores:
         f1 = f1_score(matches_df)
         assert_array_equal(f1, 1.0)
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 0, 0)
         f1 = f1_score(matches_df)
         assert_array_equal(f1, 1.0)
@@ -129,7 +131,7 @@ class TestEvaluationScores:
         eval_metrics = precision_recall_f1_score(matches_df)
         assert_array_equal(list(eval_metrics.values()), [0.5, 0.5, 0.5])
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 5, 5)
         eval_metrics = precision_recall_f1_score(matches_df)
         assert_array_equal(list(eval_metrics.values()), [0.5, 0.5, 0.5])
@@ -140,7 +142,7 @@ class TestEvaluationScores:
         eval_metrics = precision_recall_f1_score(matches_df)
         assert_array_equal(list(eval_metrics.values()), [1.0, 1.0, 1.0])
 
-        # test return for icd type input
+        # test return for initial_contacts type input
         matches_df = _create_dummy_icd_matches_df(5, 0, 0)
         eval_metrics = precision_recall_f1_score(matches_df)
         assert_array_equal(list(eval_metrics.values()), [1.0, 1.0, 1.0])
@@ -193,14 +195,12 @@ class TestNumberSamplesLogic:
     def test_no_warning_when_suppressed(self, fct):
         matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
 
-        with pytest.warns(None) as w:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
             fct(matches_df, tn_warning=False)
-        assert len(w) == 0
 
         accuracy_score(matches_df, zero_division=0)
         npv_score(matches_df, zero_division=0)
-
-        assert len(w) == 0
 
     def test_raises_tn_and_n_samples(self):
         matches_df = _create_dummy_gsd_matches_df(5, 5, 5)
@@ -292,7 +292,7 @@ class TestDivisionByZeroReturn:
             self.expected_output,
         )
 
-        # test return  for icd supported metrics
+        # test return  for initial_contacts supported metrics
         if self.n_samples is None:
             eval_metrics = self.func(_create_dummy_icd_matches_df(*self.arguments), zero_division=self.zero_division)
 
@@ -333,7 +333,7 @@ class TestDivisionByZeroWarnings:
         # check that the message matches
         assert self.warning_message in w[-1].message.args[0]
 
-        # test warning for icd supported metrics
+        # test warning for initial_contacts supported metrics
         if self.n_samples is None:
             with pytest.warns(UserWarning) as w:
                 self.func(
@@ -383,7 +383,7 @@ class TestDivisionByZeroError:
         # check that the message matches
         assert str(e.value) == '"zero_division" must be set to "warn", 0 or 1!'
 
-        # test error for icd supported metrics
+        # test error for initial_contacts supported metrics
         if self.n_samples is None:
             with pytest.raises(ValueError) as e:
                 self.func(

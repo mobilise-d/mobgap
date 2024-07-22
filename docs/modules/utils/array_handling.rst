@@ -15,19 +15,6 @@ Functions
    :template: function.rst
 
     sliding_window_view
-
-Multi-Groupby
--------------
-.. currentmodule:: mobgap.utils.array_handling
-
-.. autosummary::
-   :toctree: ../generated/utils/array_handling
-   :template: function.rst
-
-    create_multi_groupby
-
-.. autosummary::
-   :toctree: ../generated/utils/array_handling
-   :template: class.rst
-
-    MultiGroupBy
+    bool_array_to_start_end_array
+    start_end_array_to_bool_array
+    merge_intervals

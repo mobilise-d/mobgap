@@ -4,7 +4,13 @@ from typing import Any, Optional, Union
 
 import pandas as pd
 
-from mobgap.data.base import IMU_DATA_DTYPE, BaseGaitDataset, base_gait_dataset_docfiller
+from mobgap.data.base import (
+    IMU_DATA_DTYPE,
+    BaseGaitDataset,
+    ParticipantMetadata,
+    RecordingMetadata,
+    base_gait_dataset_docfiller,
+)
 
 KEY_DTYPE = Union[tuple[Hashable, ...], Hashable]
 
@@ -31,7 +37,13 @@ class GaitDatasetFromData(BaseGaitDataset):
     _participant_metadata
         Metadata for each group.
         The keys of the dictionary are expected to be the same as the keys of the ``_data`` dictionary.
-        The content of the metadata is not specified and can be anything.
+        The content of the metadata is theoretically not restricted, but if to use all pipelines, it should be at least
+        have all keys available in :class:`~mobgap.base.ParticipantMetadata`.
+    _recording_metadata
+        Recording metadata for each group.
+        The keys of the dictionary are expected to be the same as the keys of the ``_data`` dictionary.
+        The content of the metadata is theoretically not restricted, but if to use all pipelines, it should be at least
+        have all keys available in :class:`~mobgap.base.RecordingMetadata`.
     single_sensor_name
         The name of the sensor that is considered the "single sensor".
         The data of this sensor is available via the ``data_ss`` attribute.
@@ -71,7 +83,8 @@ class GaitDatasetFromData(BaseGaitDataset):
         self,
         _data: dict[KEY_DTYPE, dict[str, pd.DataFrame]],
         _sampling_rate_hz: Union[float, dict[KEY_DTYPE, float]],
-        _participant_metadata: Optional[dict[KEY_DTYPE, dict[str, Any]]] = None,
+        _participant_metadata: Optional[dict[KEY_DTYPE, ParticipantMetadata]] = None,
+        _recording_metadata: Optional[dict[KEY_DTYPE, RecordingMetadata]] = None,
         *,
         single_sensor_name: str = "LowerBack",
         index_cols: Optional[Union[list[str], str]] = None,
@@ -81,6 +94,7 @@ class GaitDatasetFromData(BaseGaitDataset):
         self._data = _data
         self._sampling_rate_hz = _sampling_rate_hz
         self._participant_metadata = _participant_metadata
+        self._recording_metadata = _recording_metadata
         self.single_sensor_name = single_sensor_name
         self.index_cols = index_cols
 
@@ -119,6 +133,15 @@ class GaitDatasetFromData(BaseGaitDataset):
         return self._participant_metadata[self._group_label_correct_format]
 
     @property
+    def recording_metadata(self) -> dict[str, Any]:
+        self.assert_is_single(None, "recording_metadata")
+
+        if self._recording_metadata is None:
+            raise AttributeError("No recording metadata provided for this dataset")
+
+        return self._recording_metadata[self._group_label_correct_format]
+
+    @property
     def _is_tuple_key(self) -> bool:
         return isinstance(next(iter(self._data.keys())), tuple)
 
@@ -127,12 +150,19 @@ class GaitDatasetFromData(BaseGaitDataset):
         return self.group_label if self._is_tuple_key else self.group_label[0]
 
     def create_index(self) -> pd.DataFrame:
-        index_cols = [self.index_cols] if isinstance(self.index_cols, str) else self.index_cols
-        return pd.DataFrame(list(self._data.keys()), columns=index_cols)
+        rows = list(self._data.keys())
+        if self.index_cols:
+            index_cols = [self.index_cols] if isinstance(self.index_cols, str) else self.index_cols
+        else:
+            # For tpcp, we need to make sure that all columns are valid identifiers. So if no index_cols are given,
+            # we create some custom strings
+            n_cols = len(rows[0]) if self._is_tuple_key else 1
+            index_cols = [f"level_{i}" for i in range(n_cols)]
+        return pd.DataFrame(rows, columns=index_cols)
 
     @classmethod
     def __clone_param__(cls, param_name: str, value: Any) -> Any:
         # To avoid copying the data, we shallow clone the data and participant_metadata
-        if param_name in ["_data", "_participant_metadata"]:
+        if param_name in ["_data", "_participant_metadata", "_recording_metadata"]:
             return copy(value)
         return super().__clone_param__(param_name, value)

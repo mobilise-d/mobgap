@@ -33,37 +33,37 @@
     },
     "data":[
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":0,
             "ic":227,
             "lr_label":"left"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":1,
             "ic":295,
             "lr_label":"right"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":2,
             "ic":355,
             "lr_label":"left"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":3,
             "ic":413,
             "lr_label":"right"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":4,
             "ic":471,
             "lr_label":"left"
         },
         {
-            "wb_id":1,
+            "wb_id":0,
             "step_id":5,
             "ic":538,
             "lr_label":"right"

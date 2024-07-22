@@ -34,6 +34,17 @@ class BaseIntervalCriteria(BaseTpcpObject):
         """
         return bool(self.check_multiple(pd.DataFrame([interval]), sampling_rate_hz=sampling_rate_hz).iloc[0])
 
+    def requires_columns(self) -> list[str]:
+        """Return a list of columns that are required in the intervals to check.
+
+        Returns
+        -------
+        list[str]
+            A list of column names that are required in the intervals to check.
+
+        """
+        raise NotImplementedError("This needs to implemented by child class")
+
     def check_multiple(self, intervals: pd.DataFrame, *, sampling_rate_hz: Optional[float] = None) -> pd.Series:
         """Check if the intervals meet the criteria.
 
@@ -126,6 +137,9 @@ class IntervalParameterCriteria(_IntervalParameterCriteria):
         self.parameter = parameter
         super().__init__(lower_threshold, upper_threshold, inclusive=inclusive)
 
+    def requires_columns(self) -> list[str]:
+        return [self.parameter]
+
     def _get_values(self, intervals: pd.DataFrame, sampling_rate_hz: Optional[float]) -> pd.Series:  # noqa: ARG002
         try:
             values = intervals[self.parameter]
@@ -166,6 +180,9 @@ class IntervalDurationCriteria(BaseIntervalCriteria):
         self.min_duration_s = min_duration_s
         self.max_duration_s = max_duration_s
         self.inclusive = inclusive
+
+    def requires_columns(self) -> list[str]:
+        return [self._START_COL_NAME, self._END_COL_NAME]
 
     def _get_values(
         self,

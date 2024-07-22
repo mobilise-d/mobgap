@@ -39,9 +39,9 @@ def precision_recall_f1_score(
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
-        (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`),
+        (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~mobgap.icd.evaluation.categorize_ic_list`).
+        (results from :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,
@@ -84,9 +84,9 @@ def precision_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
-        (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`),
+        (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~mobgap.icd.evaluation.categorize_ic_list`).
+        (results from :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,
@@ -138,9 +138,9 @@ def recall_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
-        (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`),
+        (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~mobgap.icd.evaluation.categorize_ic_list`).
+        (results from :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,
@@ -198,7 +198,7 @@ def specificity_score(
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting from the evaluation of gait sequence detection
-        algorithms (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`).
+        algorithms (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         The `match_type` column indicates the type of match:
@@ -266,7 +266,7 @@ def accuracy_score(
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting from the evaluation of gait sequence detection
-        algorithms (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`).
+        algorithms (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         The `match_type` column indicates the type of match:
@@ -336,7 +336,7 @@ def npv_score(
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting from the evaluation of gait sequence detection
-        algorithms (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`).
+        algorithms (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         The `match_type` column indicates the type of match:
@@ -397,9 +397,9 @@ def f1_score(matches_df: pd.DataFrame, *, zero_division: Literal["warn", 0, 1] =
     matches_df
         A 3 column dataframe.
         Currently supported are dataframes resulting either from the evaluation of gait sequence detection algorithms
-        (results from :func:`~mobgap.gsd.evaluation.categorize_intervals`),
+        (results from :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`),
         or from the evaluation of initial contact detection algorithms
-        (results from :func:`~mobgap.icd.evaluation.categorize_ic_list`).
+        (results from :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list`).
         To be handled like a gait sequence detection evaluation dataframe,
         the `matches_df` must have columns "start", "end", and "match_type".
         To be handled like an initial contact detection evaluation dataframe,

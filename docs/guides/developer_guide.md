@@ -9,28 +9,55 @@ If you are looking for a higher level overview over the guiding ideas and struct
 
 ## Project Setup and Poetry
 
+### Repo cloning
+
+To clone the repository, you can use the following command:
+
+```bash
+git clone https://github.com/mobilise-d/mobgap.git
+cd mobgap
+```
+**In case you encounter any issues (with this command or any command below), please check the section on
+ [trouble shooting](#trouble-shooting)**.
+
+### Setup Python
+
 *mobgap* only supports Python 3.9 and newer.
 First, install a compatible version of Python.
 We highly recommend to follow [this guide](https://github.com/mad-lab-fau/mad-cookiecutter/blob/main/python-setup-tips.md)
 
 *mobgap* uses [poetry](https://python-poetry.org) to manage its dependencies.
 First install poetry `>=1.5`.
-Once you installed poetry, run the following commands to initialize a virtual env and install all development
-dependencies:
+
+Then you need to decide, if you want to store the virtual environment in the project folder or not.
+By default, poetry will create the venv in a global location.
+This is a good default, but if you think you will regularly need to delete the venv, you might want to store it in the
+project folder.
+To do this, run the following command **inside the mobgap folder**:
+
+```bash
+poetry config virtualenvs.in-project true
+```
+
+
+Once you installed poetry, run the following commands **inside the mobgap folder** to initialize a virtual env and 
+install all development dependencies:
 
 ```bash
 # Check the linked install guide above to learn how to find the Python version
 poetry env use "path/to/python/you/want/to/use"
-poetry install
+poetry install --all-extras
 ```
-This will create a new folder called `.venv` inside your project dir.
+
+Depending on the configuration above this will create a new folder called `.venv` inside your project dir or a new venv
+in the poetry cache directory.
 It contains the python interpreter and all site packages.
 You can point your IDE to this folder to use this version of Python.
 For PyCharm you can find information about this 
-[here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html).
+[here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html) and newer versions of PyCharm should also support Poetry environments directly.
 
 **In case you encounter any issues (with this command or any command below), please check the section on
- [trouble shooting](#trouble-shooting)**.
+ [troubleshooting](#trouble-shooting)**.
  
 To add new dependencies:
 
@@ -394,6 +421,21 @@ Remember, to rebase this temporary dev branch onto master from time to time.
 
 ## Trouble Shooting
 (trouble-shooting)=
+
+### "Unable to create file ... File name too long" on Windows during git clone
+
+This is a known issue with Windows and git.
+We try to avoid this by keeping our filenames short and not nesting too deep.
+So if you encounter this issue, please let us know, so we can fix it.
+
+However, it might be a good idea to also change the config on your end to support longer filenames.
+To do this, run the following command in your git bash:
+
+```bash
+git config --global core.longpaths true
+```
+
+Learn more about this here: https://stackoverflow.com/questions/22575662/filename-too-long-in-git-for-windows
 
 ### Warning/Error about outdated/missing dependencies in the lock file when running `install` or `update`
 

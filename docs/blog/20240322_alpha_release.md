@@ -73,7 +73,8 @@ gait analysis community to test and get familiar with this new library.
 Specifically, we are heavily interested in any feedback regarding the documentation and usability of the library.
 If you find any bugs, or if you have any feature requests, please open an issue on our 
 [github repository](https://github.com/mobilise-d/mobgap/issues).
-For more general, questions and discussions, we would recommend using the [github discussions](https://github.com/mobilise-d/mobgap/disc) board.
+For more general, questions and discussions, we would recommend using the 
+[github discussions](https://github.com/mobilise-d/mobgap/discussions) board.
 
 Of course, if you have your data available, we are also interested in any feedback regarding the correctness and 
 performance the algorithms.

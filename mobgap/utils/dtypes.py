@@ -1,10 +1,12 @@
 """Helper to validate and convert common data types used in mobgap."""
 
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Literal, Optional, TypeVar, Union
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
+
+from mobgap.consts import COLS_PER_FRAME
 
 # : Type alias for dataframe-like objects.
 DfLike: TypeAlias = Union[pd.Series, pd.DataFrame, np.ndarray]
@@ -103,4 +105,59 @@ def dflike_as_2d_array(
     )
 
 
-__all__ = ["DfLike", "is_dflike", "dflike_as_2d_array", "DfLikeT"]
+def assert_is_sensor_data(data: pd.DataFrame, frame: Literal["sensor", "body", "global", "global_body"]) -> None:
+    """Check if the passed dataframe contains sensor frame data.
+
+    This is done by checking if the dataframe contains the columns defined in :obj:`~mobgap.consts.SF_SENSOR_COLS`.
+
+    Parameters
+    ----------
+    data
+        The dataframe to check.
+    frame
+        The frame to check for.
+        Must be one of "sensor", "body", "global", or "global_body".
+        Depending on the frame the dataframe must contain the corresponding columns.
+
+    """
+    if not isinstance(data, pd.DataFrame):
+        raise AssertionError("The passed data is no valid imu data, as it is not a pandas dataframe.")  # noqa: TRY004
+    try:
+        expected_cols = COLS_PER_FRAME[frame]
+    except KeyError as e:
+        raise ValueError(f"Unknown frame {frame}. Must be one of {list(COLS_PER_FRAME.keys())}.") from e
+    missing_cols = set(expected_cols) - set(data.columns)
+    if missing_cols:
+        raise AssertionError(
+            f"The passed data is no valid imu data in the {frame} frame, as it is missing the following columns: "
+            f"{missing_cols}."
+        )
+
+
+def get_frame_definition(
+    data: pd.DataFrame, potential_frames: list[Literal["sensor", "body", "global", "global_body"]]
+) -> Literal["sensor", "body", "global", "global_body"]:
+    """Check if the passed dataframe contains sensor frame data of one of the potential frames definitions.
+
+    Returns the first frame definition that matches the columns of the dataframe or raises an AssertionError
+    if none of the potential frames match.
+    """
+    for frame in potential_frames:
+        try:
+            assert_is_sensor_data(data, frame)
+        except AssertionError:
+            continue
+        return frame
+    raise AssertionError(
+        f"The passed data is no valid imu data, as it does not match any of the potential frames: {potential_frames}."
+    )
+
+
+__all__ = [
+    "DfLike",
+    "is_dflike",
+    "dflike_as_2d_array",
+    "DfLikeT",
+    "assert_is_sensor_data",
+    "get_frame_definition",
+]

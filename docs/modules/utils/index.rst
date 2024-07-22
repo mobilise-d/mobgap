@@ -7,6 +7,8 @@ Utility functions
     :maxdepth: 1
 
     dtypes
+    df_operations
     array_handling
+    rotations
     conversions
     evaluation

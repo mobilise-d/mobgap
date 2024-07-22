@@ -11,12 +11,16 @@ This is the API Reference for ``mobgap``.
 
     data
     pipeline
-    gsd
-    icd
-    lrd
-    cad
+    gait_sequences
+    initial_contacts
+    laterality
+    turning
+    cadence
+    stride_length
+    walking_speed
     wba
     aggregation
+    orientation_estimation
     data_transform
     utils/index.rst
 

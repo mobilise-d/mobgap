@@ -57,11 +57,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from tpcp import Algorithm
-from typing_extensions import Self, Unpack
-
 from mobgap.data_transform.base import BaseTransformer
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
+from tpcp import Algorithm
+from typing_extensions import Self, Unpack
 
 
 class ShiftTransformer(BaseTransformer):
@@ -166,7 +165,9 @@ cloned_transformer.transformed_data_
 # TODO: Update once we have a chain_transformer class
 from mobgap.data_transform import chain_transformers
 
-chained_result = chain_transformers(data, [("scale", scale_transformer), ("shift", shift_transformer)])
+chained_result = chain_transformers(
+    data, [("scale", scale_transformer), ("shift", shift_transformer)]
+)
 chained_result
 
 # %%
@@ -184,11 +185,15 @@ class MyComplicatedAlgorithm(Algorithm):
 
     result_: pd.DataFrame
 
-    def __init__(self, pre_processing: BaseTransformer = cf(ShiftTransformer(shift_by=1))) -> None:
+    def __init__(
+        self, pre_processing: BaseTransformer = cf(ShiftTransformer(shift_by=1))
+    ) -> None:
         self.pre_processing = pre_processing
 
     def run(self, data: pd.DataFrame) -> Self:
-        pre_processed_data = self.pre_processing.clone().transform(data).transformed_data_
+        pre_processed_data = (
+            self.pre_processing.clone().transform(data).transformed_data_
+        )
 
         # Here we would do something more complicated with the data
         # For now we skip this and just return the data on the result attribute
@@ -210,7 +215,9 @@ my_algorithm.run(pd.DataFrame(data)).result_
 
 # %%
 # Supplying a different transformer:
-my_algorithm = MyComplicatedAlgorithm(pre_processing=ScaleTransformer(scale_by=2))
+my_algorithm = MyComplicatedAlgorithm(
+    pre_processing=ScaleTransformer(scale_by=2)
+)
 my_algorithm.run(pd.DataFrame(data)).result_
 
 # %%
@@ -231,7 +238,7 @@ my_algorithm.run(pd.DataFrame(data)).result_
 # - The ``set_params`` method is inherited from :class:`tpcp.Algorithm` and is available for all algorithms.
 #   It supports nested parameters, i.e. you can use ``__`` to specify parameters of nested objects.
 # - To pass a series of transformers to an algorithm, you can use tpcp's composite parameters (see the example
-#   `here <https://tpcp.readthedocs.io/en/latest/auto_examples/other_features/_02_composite_objects.html>`__).
+#   `here <https://tpcp.readthedocs.io/en/latest/auto_examples/recipies/_03_composite_objects.html>`__).
 # - When using an instance as a default value, you should wrap it in the :func:`~tpcp.cf` function.
 #   This will ensure, that a new instance is created for each call of the algorithm.
 #   Learn more about this

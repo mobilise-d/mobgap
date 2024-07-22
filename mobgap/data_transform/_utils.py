@@ -31,7 +31,7 @@ def chain_transformers(
         try:
             transformer_with_results = transformer.transform(data, **kwargs)
             data = transformer_with_results.transformed_data_
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise RuntimeError(
                 f"Error while applying transformer '{name}' in the transformer chain. "
                 "Scroll up to see the full traceback of this error."
