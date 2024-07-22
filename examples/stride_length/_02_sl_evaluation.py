@@ -2,7 +2,7 @@ r"""
 .. _sl_evaluation:
 
 Stride Length Evaluation
-==================
+========================
 
 This example shows how to apply evaluation algorithms to stride length results
 and thus how to rate the performance of a stride length calculation algorithm.
@@ -19,7 +19,8 @@ from mobgap.data import LabExampleDataset
 # ------------
 # We load example data from the lab dataset.
 # We will use a longer trial from an "MS" participant for this example.
-# Additionally, we will load the reference stride length values to compare the results and evaluate the performance of the
+# Additionally,
+# we will load the reference stride length values to compare the results and evaluate the performance of the
 # stride length calculation algorithm.
 # To calculate the stride length, we will then use the initial contacts measured from the reference system.
 
@@ -58,21 +59,22 @@ reference_ic
 
 # %%
 # Applying the Stride Length Calculation Algorithm
-# ------------------------------------------
-# In this example, we will use the `SlZijlstra` algorithm to calculate the stride length from the reference initial contacts.
+# ------------------------------------------------
+# In this example, we will use the :class:`~mobgap.stride_length.SlZijlstra` algorithm to calculate the stride length
+# from the reference initial contacts.
 from mobgap.stride_length import SlZijlstra
 
-# TODO: are these the correct parameters?
 sl_zijlstra_reoriented = SlZijlstra(
     **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_ms,
 )
 
 
+# %%
 # As this algorithm is designed to work on a single gait sequence at a time, we will iterate over the gait sequences
 # present in the example data and calculate the stride length for each of them.
-# This is done using the `GsIterator` class.
-# How the `GsIterator` class works in detail together with different application examples
-# is explained in its :ref: `dedicated example <gs_iterator_example>`.
+# This is done using the :class:`~mobgap.pipeline.GsIterator` class.
+# How the :class:`~mobgap.pipeline.GsIterator` class works in detail together with different application examples
+# is explained in its :ref:`dedicated example <gs_iterator_example>`.
 from mobgap.initial_contacts import refine_gs
 from mobgap.pipeline import GsIterator
 from mobgap.utils.conversions import to_body_frame
@@ -80,7 +82,7 @@ from mobgap.utils.conversions import to_body_frame
 iterator = GsIterator()
 
 for (gs, data), r in iterator.iterate(test_data.data_ss, reference_gs):
-    r.ic_list = reference_ic[
+    r.ic_list = reference_ic.loc[
         reference_ic.index.get_level_values("wb_id") == gs.id
     ].reset_index("wb_id", drop=True)
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
@@ -107,13 +109,12 @@ stride_length_result
 # For this purpose, as there are is only an average reference stride length per gait sequence, we will first average the
 # calculated stride length values per gait sequence.
 avg_stride_length_per_gs = stride_length_result.groupby("wb_id").mean()
-
 avg_stride_length_per_gs
 
 # %%
 # Next, the detected and reference stride lengths are concatenated into a single DataFrame.
-# As columns, a multilevel index is used that contains the type of metric ("stride_length_m") in the first
-# and the source of the data ("detected" or "reference") in the second level.
+# As columns, a multilevel index is used that contains the type of metric (``stride_length_m``) in the first
+# and the source of the data (``detected`` or ``reference``) in the second level.
 reference_stride_length = reference_gs[["avg_stride_length_m"]].rename(
     columns={"avg_stride_length_m": "stride_length_m"}
 )
@@ -124,19 +125,19 @@ combined_sl = {
 combined_sl = pd.concat(
     combined_sl, axis=1, keys=combined_sl.keys()
 ).reorder_levels((1, 0), axis=1)
-
 combined_sl
 
-# %% The concatenated DataFrame can then be used to evaluate the performance of the stride length calculation algorithm.
+# %%
+# The concatenated DataFrame can then be used to evaluate the performance of the stride length calculation algorithm.
 # For this purpose, first,
 # the errors between the detected and reference stride lengths are calculated.
 #
 # Estimate Errors in stride length data
 # ++++++++++++++++++++++++++++++++++++++
 # We can calculate a variety of error metrics to evaluate the performance of the stride length calculation algorithm,
-# ranging from the simple difference between the estimated and ground truth values (simply referred to as "error")
-# to its absolute value ("absolute_error").
-# Both can also be set in relation to the reference value ("relative_error" and "absolute_relative_error").
+# ranging from the simple difference between the estimated and ground truth values (simply referred to as ``error``)
+# to its absolute value (``absolute_error``).
+# Both can also be set in relation to the reference value (``relative_error`` and ``absolute_relative_error``).
 # To apply these errors, we first need to build a list specifying the error functions to be applied.
 # All the above-mentioned error functions are provided
 # by the :class:`~mobgap.pipeline.evaluation.ErrorTransformFuncs` class.
@@ -216,7 +217,7 @@ pprint(aggregations_custom)
 
 # %%
 # For more detailed information on the aggregation types and their usage,
-# check out the detailed example on it in the ref:`general example on DMO evaluation <gsd_evaluation_parameter>`.
+# check out the detailed example on it in the :ref:`general example on DMO evaluation <gsd_evaluation_parameter>`.
 #
 # Both types of aggregations can be combined and applied in a single call to the
 # :func:`~mobgap.utils.df_operations.apply_aggregations` function.

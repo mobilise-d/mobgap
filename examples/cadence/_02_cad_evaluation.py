@@ -58,15 +58,19 @@ reference_ic
 # %%
 # Applying the Cadence Calculation Algorithm
 # ------------------------------------------
-# In this example, we will use the `CadFromIc` algorithm to calculate the cadence from the reference initial contacts.
+# In this example, we will use the :class:`~mobgap.cadence.CadFromIc` algorithm to calculate the cadence
+# from the reference initial contacts.
 from mobgap.cadence import CadFromIc
 
 cad_from_ic = CadFromIc()
 
+
+# %%
 # As this algorithm is designed to work on a single gait sequence at a time, we will iterate over the gait sequences
-# present in the example data and calculate the cadence for each of them. This is done using the `GsIterator` class.
-# How the `GsIterator` class works in detail together with different application examples
-# is explained in its :ref: `dedicated example <gs_iterator_example>`.
+# present in the example data and calculate the cadence for each of them.
+# This is done using the :class:`~mobgap.pipeline.GsIterator` class.
+# How the :class:`~mobgap.pipeline.GsIterator` class works in detail together with different application examples
+# is explained in its :ref:`dedicated example <gs_iterator_example>`.
 from mobgap.initial_contacts import refine_gs
 from mobgap.pipeline import GsIterator
 from mobgap.utils.conversions import to_body_frame
@@ -74,7 +78,7 @@ from mobgap.utils.conversions import to_body_frame
 iterator = GsIterator()
 
 for (gs, data), r in iterator.iterate(test_data.data_ss, reference_gs):
-    r.ic_list = reference_ic[
+    r.ic_list = reference_ic.loc[
         reference_ic.index.get_level_values("wb_id") == gs.id
     ].reset_index("wb_id", drop=True)
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
@@ -100,13 +104,12 @@ cadence_result
 # For this purpose, as there are is only one reference cadence value per gait sequence, we will first average the
 # calculated cadence values per gait sequence.
 avg_cadence_per_gs = cadence_result.groupby("wb_id").mean()
-
 avg_cadence_per_gs
 
 # %%
 # Next, the detected and reference cadences values are concatenated into a single DataFrame.
-# As columns, a multilevel index is used that contains the type of metric ("cadence_spm") in the first
-# and the source of the data ("detected" or "reference") in the second level.
+# As columns, a multilevel index is used that contains the type of metric (``cadence_spm``) in the first
+# and the source of the data (``detected`` or ``reference``) in the second level.
 reference_cadence = reference_gs[["avg_cadence_spm"]].rename(
     columns={"avg_cadence_spm": "cadence_spm"}
 )
@@ -114,19 +117,19 @@ combined_cad = {"detected": avg_cadence_per_gs, "reference": reference_cadence}
 combined_cad = pd.concat(
     combined_cad, axis=1, keys=combined_cad.keys()
 ).reorder_levels((1, 0), axis=1)
-
 combined_cad
 
-# %% The concatenated DataFrame can then be used to evaluate the performance of the cadence calculation algorithm.
+# %%
+# The concatenated DataFrame can then be used to evaluate the performance of the cadence calculation algorithm.
 # For this purpose, first,
 # the errors between the detected and reference cadence values are calculated.
 #
 # Estimate Errors in cadence data
 # +++++++++++++++++++++++++++++++
 # We can calculate a variety of error metrics to evaluate the performance of the cadence calculation algorithm,
-# ranging from the simple difference between the estimated and ground truth values (simply referred to as "error")
-# to its absolute value ("absolute_error").
-# Both can also be set in relation to the reference value ("relative_error" and "absolute_relative_error").
+# ranging from the simple difference between the estimated and ground truth values (simply referred to as ``error``)
+# to its absolute value (``absolute_error``).
+# Both can also be set in relation to the reference value (``relative_error`` and ``absolute_relative_error``).
 # To apply these errors, we first need to build a list specifying the error functions to be applied.
 # All the above-mentioned error functions are provided
 # by the :class:`~mobgap.pipeline.evaluation.ErrorTransformFuncs` class.
@@ -203,7 +206,7 @@ pprint(aggregations_custom)
 
 # %%
 # For more detailed information on the aggregation types and their usage,
-# check out the detailed example on it in the ref:`general example on DMO evaluation <gsd_evaluation_parameter>`.
+# check out the detailed example on it in the :ref:`general example on DMO evaluation <gsd_evaluation_parameter>`.
 #
 # Both types of aggregations can be combined and applied in a single call to the
 # :func:`~mobgap.utils.df_operations.apply_aggregations` function.
