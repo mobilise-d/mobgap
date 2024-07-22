@@ -4,9 +4,9 @@ import scipy.constants
 from typing_extensions import Self
 from mobgap.pipeline import iter_gs
 from mobgap.Reorientation._correct_sensor_orientation_dynamic import CorrectSensorOrientationDynamic
-from mobgap.gsd import GsdIluz
+from mobgap.gait_sequences import GsdIluz
 from mobgap.Reorientation._filteringsignals_100Hz import filtering_signals_100hz
-from mobgap.icd._hklee_algo_improved import groupfind
+from mobgap.initial_contacts._hklee_algo_improved import groupfind
 from mobgap.data_transform import (
     SavgolFilter,
     chain_transformers,
