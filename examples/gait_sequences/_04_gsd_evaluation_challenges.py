@@ -1,8 +1,8 @@
 """
 GSD Evaluation Challenges
 -------------------------
-The `gsd_evaluation`_ example demonstrates how to evaluate the performance of a GSD algorithm on a single datapoint and
-explains the individual performance metrics that are calculated.
+The :ref:`gsd_evaluation` example demonstrates how to evaluate the performance of a GSD algorithm on a single datapoint
+ and explains the individual performance metrics that are calculated.
 
 With that you could set up a custom evaluation pipeline to run and then score the output of a GSD algorithm
 multiple datapoints and then aggregate the results.
@@ -16,7 +16,7 @@ Below, we will show how to use them on the example dataset.
 # Dataset
 # -------
 # To use the challenges, we need to dataset with reference information in the expected format.
-# We will use the `LabExampleDataset` for this purpose.
+# We will use the :class:`~mobgap.data.LabExampleDataset` for this purpose.
 from mobgap.data import LabExampleDataset
 
 long_test = LabExampleDataset(reference_system="INDIP").get_subset(
@@ -32,7 +32,8 @@ from mobgap.gait_sequences import GsdIluz
 algo = GsdIluz()
 
 # %%
-# This algorithm needs to be wrapped in a `GsdEmulationPipeline` to be used in the challenges.
+# This algorithm needs to be wrapped in a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline` to be used in
+# the challenges.
 # This pipeline takes care of extracting the correct data from the dataset and running the algorithm on it.
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
@@ -48,12 +49,14 @@ pipe_with_results.gs_list_
 # --------------------
 # This pipeline can now be used as part of an evaluation challenge.
 # An evaluation challenge takes care of two things:
+#
 # - Running the pipeline on multiple datapoints
 # - Scoring the results per datapoint and then aggregating the results
 #
 # We provide two challenges:
-# - :class:`~mobgap.gait_sequences.pipeline.GsdEvaluation`: This challenge simply runs the pipeline on all datapoints and then scores the results.
-# - :class:`~mobgap.gait_sequences.pipeline.GsdEvaluationCV`: This challenge runs a cross-validation on the dataset and then scores the results per fold.
+#
+# - :class:`~mobgap.gait_sequences.evaluation.GsdEvaluation`: This challenge simply runs the pipeline on all datapoints and then scores the results.
+# - :class:`~mobgap.gait_sequences.evaluation.GsdEvaluationCV`: This challenge runs a cross-validation on the dataset and then scores the results per fold.
 #
 # Before we run the entire pipeline, let's look at the scoring.
 # We provide a default scoring function that calculates all the relevant performance metrics.
@@ -79,7 +82,7 @@ print(getsource(gsd_evaluation_scorer))
 # The scoring function takes care of running the pipeline.
 # So we can test the scorer, by just providing it with a pipeline and a datapoint.
 #
-# Note, that we remove the "NoAgg" parameters fromt he results, as they don't visualize well.
+# Note, that we remove the :class:`~tpcp.validate.NoAgg` parameters from the results, as they don't visualize well.
 from pprint import pprint
 
 single_dp_results = gsd_evaluation_scorer(pipe, long_test[0])
@@ -107,7 +110,7 @@ validate_results = pd.DataFrame(eval_challenge.results_)
 # %%
 # The aggregated results across all datapoints are available in all columns not starting with ``agg__``
 agg_results = validate_results.filter(like="agg__")
-agg_results
+agg_results.T
 
 # %%
 # The raw results are stored in the columns starting with ``single__``.
@@ -127,7 +130,7 @@ exploded_results = (
     )
 )
 exploded_results.columns = exploded_results.columns.str.removeprefix("single__")
-exploded_results
+exploded_results.T
 
 # %%
 # The ``detected`` and ``reference`` columns in this dataframe contain the raw un-aggregated gait-sequences.
@@ -147,16 +150,16 @@ eval_challenge.runtime_s_
 
 
 # %%
-# Using :class:`~mobgap.gait_sequences.pipeline.GsdEvaluation` is great, if you are only comparing (or planning to
+# Using :class:`~mobgap.gait_sequences.evaluation.GsdEvaluation` is great, if you are only comparing (or planning to
 # compare) non-ML algorithms, or algorithms that don't require further optimization (e.g. through GridSearch).
 #
 # Therefore, it is generally recommended to run a cross-validation with
-# :class:`~mobgap.gait_sequences.pipeline.GsdEvaluationCV`.
+# :class:`~mobgap.gait_sequences.evaluation.GsdEvaluationCV`.
 # This allows you to evaluate the performance of the algorithm on multiple folds of the dataset and through the use
 # of :class:`~tpcp.optimize.DummyOptimize` you can also use algorithms without optimization in the same pipeline for
 # comparison.
 #
-# Let's demonstrate the use of :class:`~mobgap.gait_sequences.pipeline.GsdEvaluationCV` on the example dataset using
+# Let's demonstrate the use of :class:`~mobgap.gait_sequences.evaluation.GsdEvaluationCV` on the example dataset using
 # the same algorithm once with and once without GridSearch.
 #
 # For the CV-based challenge, we need to set up a cross-validation.
@@ -195,7 +198,8 @@ eval_challenge_cv = eval_challenge_cv.run(
 # As before our main results are the aggregated results.
 cv_results = pd.DataFrame(eval_challenge_cv.cv_results_)
 agg_results_cv = cv_results.filter(like="test__agg__")
-agg_results_cv
+agg_results_cv.T
+
 # %%
 # The raw results are stored in the columns starting with ``single__``.
 single_results = cv_results.filter(like="test__single__")
@@ -213,7 +217,7 @@ exploded_results_cv = (
 exploded_results_cv.columns = exploded_results_cv.columns.str.removeprefix(
     "test__single__"
 )
-exploded_results_cv
+exploded_results_cv.T
 
 # %%
 # And the raw outputs:
@@ -226,9 +230,9 @@ raw_gs_list_cv
 # %%
 # If we compare these results to the ones from the non-CV challenge, we can see that "single" results are identical,
 # just that they were called in multiple folds.
-# This is expected, as we used ``DummyOptimize`` and thus didn't optimize the algorithm.
+# This is expected, as we used :class:`~tpcp.optimize.DummyOptimize` and thus didn't optimize the algorithm.
 #
-# Let's try a :class:`tpcp.optimize.GridSearch` on the algorithm to see how the results change.
+# Let's try a :class:`~tpcp.optimize.GridSearch` on the algorithm to see how the results change.
 # For the gridsearch, we will re-use the same scoring function as before, but we need to specify, which scoring result
 # we want to optimize for.
 from sklearn.model_selection import ParameterGrid
@@ -261,9 +265,9 @@ best_params
 
 # %%
 # Or we can go much deeper, by getting all information about the optimization process.
-# Let's look at what went on in fold 0
+# Let's just look at the keys of the information that is available.
 all_opti_results_fold0 = pd.DataFrame(opt_results.loc[0].gs_results_)
-all_opti_results_fold0
+all_opti_results_fold0.columns.to_list()
 
 # %%
 # With that, we hope it becomes clear, how these challenges can be extremely valuable, when benchmarking algorithms
