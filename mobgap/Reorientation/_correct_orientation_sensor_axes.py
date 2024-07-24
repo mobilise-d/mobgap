@@ -51,7 +51,7 @@ class CorrectOrientationSensorAxes:
     def update_orientation(self, data: pd.DataFrame) -> Self:
         self.data = data
 
-        acc = self.data.loc[:, ["acc_x", "acc_y", "acc_z"]]
+        acc = self.data.loc[:, ["acc_is", "acc_ml", "acc_pa"]]
 
         self.corIMUdata = self.data.copy()
         self.corIMUdataSequence = pd.DataFrame(columns=['Start', 'End'])
@@ -63,7 +63,7 @@ class CorrectOrientationSensorAxes:
 
         # parameter for smoothing filter
         n_sgfilt = 9041
-        accx = acc.loc[:, ["acc_x"]].values
+        accx = acc.loc[:, ["acc_is"]].values
 
         # Condition to support the minimal signal length required for the filter parameter
         # low pass filtering of vertical acc
@@ -82,7 +82,7 @@ class CorrectOrientationSensorAxes:
             av_filt1 = chain_transformers(av_filt, filter_chain, sampling_rate_hz=self.sampling_rate_hz)
 
             # Output of filter chains should be a pd.DataFrame so the iter_gs function can work
-            av_filt1 = pd.DataFrame(av_filt1, columns=['acc_x'])
+            av_filt1 = pd.DataFrame(av_filt1, columns=['acc_is'])
 
             gs = GsdIluz().detect(acc, sampling_rate_hz=self.sampling_rate_hz).gs_list_
 
@@ -93,7 +93,7 @@ class CorrectOrientationSensorAxes:
                 if gs.index.name != 'gs_id' and gs.index.name != 'wb_id':
                     gs['gs_id'] = range(len(gs))
 
-            gsLabel = np.zeros(len(acc.loc[:, "acc_x"]))
+            gsLabel = np.zeros(len(acc.loc[:, "acc_is"]))
             n = len(gs)
             k = 0
 

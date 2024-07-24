@@ -38,8 +38,8 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     - Parameters are expressed in the units used in mobgap,specifically, we use m/s^2 instead of g.
     """
 
-    acc = data.loc[:, ["acc_x", "acc_y", "acc_z"]]
-    gyr = data.loc[:, ["gyr_x", "gyr_y", "gyr_z"]]
+    acc = data.loc[:, ["acc_is", "acc_ml", "acc_pa"]]
+    gyr = data.loc[:, ["gyr_is", "gyr_ml", "gyr_pa"]]
 
     # Madwick is called with the initial orientation specified inside the Matlab Madgwick function used in the Matlab
     # implementation (UpdateIMUslt2). This choice was made since the first "initial orientation"
@@ -83,22 +83,22 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
 
     # av_magpca
     av_magpca = av.copy()
-    av_magpca.loc[:, 'acc_x'] = newacc.loc[:, 'PC1']    # Vertical acceleration is replaced by the first PCA component,
+    av_magpca.loc[:, 'acc_is'] = newacc.loc[:, 'PC1']    # Vertical acceleration is replaced by the first PCA component,
                                                         # indicating the higher variance (like the vertical acceleration)
 
     # gyr_magpca
     gyr_magpca = chosengyr.reset_index(drop=True).copy()    # Resetting index (to remove time) to match the newgyr index
-    gyr_magpca.loc[:, 'gyr_x'] = newgyr.loc[:, 'PC1']        # Yaw: Vertical gyroscope is replaced by the first PCA component,
+    gyr_magpca.loc[:, 'gyr_is'] = newgyr.loc[:, 'PC1']        # Yaw: Vertical gyroscope is replaced by the first PCA component,
                                                             # indicating the higher variance (yaw)
 
     # Standardisation vectorised
     av_standardized = ((av - av.mean()) / av.std())
     newacc_standardized = ((newacc - newacc.mean()) / newacc.std())
 
-    sig1 = av_standardized.loc[:, 'acc_z']
+    sig1 = av_standardized.loc[:, 'acc_pa']
     sig2 = newacc_standardized.loc[:, 'PC2']
     sig3 = newacc_standardized.loc[:, 'PC3']
-    sig4 = av_standardized.loc[:, 'acc_y']
+    sig4 = av_standardized.loc[:, 'acc_ml']
 
     # Calculating dot products to compare directionality and magnitude of agreement between different axes
     # The PCA components are ordered by variance explained: the first component has the highest variance,
@@ -110,32 +110,32 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
 
     if abs(cor1) > abs(cor2):   # AP and 2nd PCA component are more 'aligned' than AP and 3rd PCA component
         if cor1 > 0:    # AP and ML have same direction
-            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC2']  # AP is replaced with 2nd component of PCA
-            gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC2']
+            av_magpca.loc[:, 'acc_pa'] = newacc.loc[:, 'PC2']  # AP is replaced with 2nd component of PCA
+            gyr_magpca.loc[:, 'gyr_pa'] = newgyr.loc[:, 'PC2']
         else:   # AP and ML have opposite direction
-            av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC2']  # AP is replaced with the neg of the 2nd PCA component
-            gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC2']
+            av_magpca.loc[:, 'acc_pa'] = -newacc.loc[:, 'PC2']  # AP is replaced with the neg of the 2nd PCA component
+            gyr_magpca.loc[:, 'gyr_pa'] = newgyr.loc[:, 'PC2']
 
         if cor3 > 0:  # AP (PCA) and ML have same direction
-            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC3']  # ML is replaced with the 3rd component of PCA
-            gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC3']
+            av_magpca.loc[:, 'acc_ml'] = newacc.loc[:, 'PC3']  # ML is replaced with the 3rd component of PCA
+            gyr_magpca.loc[:, 'gyr_ml'] = newgyr.loc[:, 'PC3']
         else:   # AP (PCA) and ML have opposite direction
-            av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC3']  # ML is replaced with the neg of the 3rd PCA component
-            gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC3']
+            av_magpca.loc[:, 'acc_ml'] = -newacc.loc[:, 'PC3']  # ML is replaced with the neg of the 3rd PCA component
+            gyr_magpca.loc[:, 'gyr_ml'] = newgyr.loc[:, 'PC3']
     else:   # AP and AP (following PCA) are more 'aligned' than AP and ML
         if cor2 > 0:    # AP and AP (PCA) have same direction
-            av_magpca.loc[:, 'acc_z'] = newacc.loc[:, 'PC3']  # AP is replaced with the 3rd component of PCA
-            gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC3']
+            av_magpca.loc[:, 'acc_pa'] = newacc.loc[:, 'PC3']  # AP is replaced with the 3rd component of PCA
+            gyr_magpca.loc[:, 'gyr_pa'] = newgyr.loc[:, 'PC3']
         else:   # AP and AP (PCA) have opposite direction
-            av_magpca.loc[:, 'acc_z'] = -newacc.loc[:, 'PC3']  # AP is replaced with the neg of the 3rd PCA component
-            gyr_magpca.loc[:, 'gyr_z'] = newgyr.loc[:, 'PC3']
+            av_magpca.loc[:, 'acc_pa'] = -newacc.loc[:, 'PC3']  # AP is replaced with the neg of the 3rd PCA component
+            gyr_magpca.loc[:, 'gyr_pa'] = newgyr.loc[:, 'PC3']
 
         if cor4 > 0:    # ML and ML (PCA) have same direction
-            av_magpca.loc[:, 'acc_y'] = newacc.loc[:, 'PC2']  # ML is replaced with 2nd component of PCA
-            gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC2']
+            av_magpca.loc[:, 'acc_ml'] = newacc.loc[:, 'PC2']  # ML is replaced with 2nd component of PCA
+            gyr_magpca.loc[:, 'gyr_ml'] = newgyr.loc[:, 'PC2']
         else:   # ML and ML (PCA) have opposite direction
-            av_magpca.loc[:, 'acc_y'] = -newacc.loc[:, 'PC2']  # ML is replaced with the neg of the 2nd component of PCA
-            gyr_magpca.loc[:, 'gyr_y'] = newgyr.loc[:, 'PC2']
+            av_magpca.loc[:, 'acc_ml'] = -newacc.loc[:, 'PC2']  # ML is replaced with the neg of the 2nd component of PCA
+            gyr_magpca.loc[:, 'gyr_ml'] = newgyr.loc[:, 'PC2']
     av_pca_final = av_magpca.copy()
     gyr_pca_final = gyr_magpca.copy()
 
@@ -166,18 +166,18 @@ def CorrectSensorOrientationDynamic(data: pd.DataFrame, sampling_rate_hz: float)
     r2 = correlate(sig7, sig6)
 
     if np.max(r1) > np.max(r2):    # AP and V correlate more strongly than V and ML. Nothing changes
-        av_pca_final.loc[:, "acc_z"] = av_magpca.loc[:, "acc_z"]
-        av_pca_final.loc[:, "acc_y"] = av_magpca.loc[:, "acc_y"]
+        av_pca_final.loc[:, "acc_pa"] = av_magpca.loc[:, "acc_pa"]
+        av_pca_final.loc[:, "acc_ml"] = av_magpca.loc[:, "acc_ml"]
 
-        gyr_pca_final.loc[:, "gyr_z"] = gyr_magpca.loc[:, "gyr_z"]
-        gyr_pca_final.loc[:, "gyr_y"] = gyr_magpca.loc[:, "gyr_y"]
+        gyr_pca_final.loc[:, "gyr_pa"] = gyr_magpca.loc[:, "gyr_pa"]
+        gyr_pca_final.loc[:, "gyr_ml"] = gyr_magpca.loc[:, "gyr_ml"]
 
     else:   # V and ML correlate more strongly than AP and V.
-        av_pca_final.loc[:, "acc_z"] = av_magpca.loc[:, "acc_y"]   # AP is replaced with ML
-        av_pca_final.loc[:, "acc_y"] = av_magpca.loc[:, "acc_z"]
+        av_pca_final.loc[:, "acc_pa"] = av_magpca.loc[:, "acc_ml"]   # AP is replaced with ML
+        av_pca_final.loc[:, "acc_ml"] = av_magpca.loc[:, "acc_pa"]
 
-        gyr_pca_final.loc[:, "gyr_z"] = gyr_magpca.loc[:, "gyr_y"]
-        gyr_pca_final.loc[:, "gyr_y"] = gyr_magpca.loc[:, "gyr_z"]
+        gyr_pca_final.loc[:, "gyr_pa"] = gyr_magpca.loc[:, "gyr_ml"]
+        gyr_pca_final.loc[:, "gyr_ml"] = gyr_magpca.loc[:, "gyr_pa"]
 
     IMU_corrected = pd.concat([av_pca_final, gyr_pca_final], axis=1)
 
