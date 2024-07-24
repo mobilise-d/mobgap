@@ -1,4 +1,6 @@
-"""
+r"""
+.. _cad_from_ic:
+
 Cadence from Initial Contacts
 =============================
 

@@ -83,7 +83,7 @@ for gs, data in iter_gs(long_trial.data_ss, long_trial_gs):
 #
 # The simple case
 # ---------------
-# The simple case basically no more setup as the functional interface.
+# The simple case basically requires no more setup as the functional interface.
 # However, it assumes that your results are a subset of initial contacts, cadence, stride length, and gait speed, and
 # that all of them are stored in the expected mobgap datatypes (aka pandas dataframes).
 # The iterator will then automatically aggregate the results the dataframes per iteration into one combined dataframe,
