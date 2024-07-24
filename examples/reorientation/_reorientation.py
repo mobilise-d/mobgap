@@ -52,18 +52,18 @@ corrected_IMU_sequence
 fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
-pl1.plot(corrected_IMU['index'], corrected_IMU['acc_x'], label='inferior-superior', color='green')
-pl1.plot(corrected_IMU['index'], corrected_IMU['acc_y'], label='posterior-anterior', color='red')
-pl1.plot(corrected_IMU['index'], corrected_IMU['acc_z'], label='medial-lateral', color='blue')
+pl1.plot(corrected_IMU['index'], corrected_IMU['acc_is'], label='inferior-superior', color='green')
+pl1.plot(corrected_IMU['index'], corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
+pl1.plot(corrected_IMU['index'], corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
 pl1.legend()
 
 # Post reorientation
-pl2.plot(corrected_IMU['index'], corrected_IMU['acc_x'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU['index'], corrected_IMU['acc_y'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU['index'], corrected_IMU['acc_z'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU['index'], corrected_IMU['acc_is'], label='inferior-superior', color='green')
+pl2.plot(corrected_IMU['index'], corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
+pl2.plot(corrected_IMU['index'], corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -90,18 +90,18 @@ corrected_IMU = IMU_correct
 fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
-pl1.plot(corrected_IMU['index'], corrected_IMU['acc_x'], label='inferior-superior', color='green')
-pl1.plot(corrected_IMU['index'], corrected_IMU['acc_y'], label='posterior-anterior', color='red')
-pl1.plot(corrected_IMU['index'], corrected_IMU['acc_z'], label='medial-lateral', color='blue')
+pl1.plot(corrected_IMU['index'], corrected_IMU['acc_is'], label='inferior-superior', color='green')
+pl1.plot(corrected_IMU['index'], corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
+pl1.plot(corrected_IMU['index'], corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
 pl1.legend()
 
 # Post reorientation
-pl2.plot(corrected_IMU['index'], corrected_IMU['acc_x'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU['index'], corrected_IMU['acc_y'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU['index'], corrected_IMU['acc_z'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU['index'], corrected_IMU['acc_is'], label='inferior-superior', color='green')
+pl2.plot(corrected_IMU['index'], corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
+pl2.plot(corrected_IMU['index'], corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
