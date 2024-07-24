@@ -80,6 +80,7 @@ plt.show()
 # The signal is rotated by 30 degrees on the ML axis to the opposite direction than the convention.
 # TODO: add "Body Curvature"
 
+
 # Visualizing the signal before and after reorientation
 # Below we visualize the signal before and after reorientation in the above file
 # TODO: ammend df names to reflect the pre and post reorientation
