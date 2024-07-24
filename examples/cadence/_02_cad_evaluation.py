@@ -78,9 +78,7 @@ from mobgap.utils.conversions import to_body_frame
 iterator = GsIterator()
 
 for (gs, data), r in iterator.iterate(test_data.data_ss, reference_gs):
-    r.ic_list = reference_ic.loc[
-        reference_ic.index.get_level_values("wb_id") == gs.id
-    ].reset_index("wb_id", drop=True)
+    r.ic_list = reference_ic.loc[gs.id]
     refined_gs, refined_ic_list = refine_gs(r.ic_list)
     with iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
         cad = cad_from_ic.clone().calculate(
