@@ -616,7 +616,7 @@ def _ensure_is_list(value: Any) -> list:
     return value
 
 
-def parse_reference_parameters(  # noqa: C901, PLR0915
+def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     ref_data: list[dict[str, Union[str, float, int, np.ndarray]]],
     *,
     ref_sampling_rate_hz: float,
@@ -747,7 +747,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
                 "wb_id": wb_id,
                 "start": wb["Start"],
                 "end": wb["End"],
-                "n_strides": int(wb["NumberStrides"]),
+                "n_strides": wb["NumberStrides"],
                 "duration_s": wb["Duration"],
                 "length_m": wb["Length"],
                 "avg_walking_speed_mps": wb["WalkingSpeed"],
@@ -757,52 +757,55 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
             }
         )
 
-        ic_vals = _ensure_is_list(wb["InitialContact_Event"])
-        ics.append(
-            pd.DataFrame.from_dict(
-                {
-                    "wb_id": [wb_id] * len(ic_vals),
-                    "step_id": np.arange(0, len(ic_vals)),
-                    "ic": ic_vals,
-                    "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
-                }
+        if "InitialContact_Event" in wb:
+            ic_vals = _ensure_is_list(wb["InitialContact_Event"])
+            ics.append(
+                pd.DataFrame.from_dict(
+                    {
+                        "wb_id": [wb_id] * len(ic_vals),
+                        "step_id": np.arange(0, len(ic_vals)),
+                        "ic": ic_vals,
+                        "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
+                    }
+                )
             )
-        )
-        turn_starts = _ensure_is_list(wb["Turn_Start"])
-        turn_paras.append(
-            pd.DataFrame.from_dict(
-                {
-                    "wb_id": [wb_id] * len(turn_starts),
-                    "turn_id": np.arange(0, len(turn_starts)),
-                    "start": turn_starts,
-                    "end": _ensure_is_list(wb["Turn_End"]),
-                    "duration_s": _ensure_is_list(wb["Turn_Duration"]),
-                    "angle_deg": _ensure_is_list(wb["Turn_Angle"]),
-                }
+        if "Turn_Start" in wb:
+            turn_starts = _ensure_is_list(wb["Turn_Start"])
+            turn_paras.append(
+                pd.DataFrame.from_dict(
+                    {
+                        "wb_id": [wb_id] * len(turn_starts),
+                        "turn_id": np.arange(0, len(turn_starts)),
+                        "start": turn_starts,
+                        "end": _ensure_is_list(wb["Turn_End"]),
+                        "duration_s": _ensure_is_list(wb["Turn_Duration"]),
+                        "angle_deg": _ensure_is_list(wb["Turn_Angle"]),
+                    }
+                )
             )
-        )
-        starts, ends = zip(*_ensure_is_list(wb["Stride_InitialContacts"]))
-        stride_paras.append(
-            pd.DataFrame.from_dict(
-                {
-                    "wb_id": [wb_id] * len(starts),
-                    "s_id": np.arange(0, len(starts)),
-                    "start": starts,
-                    "end": ends,
-                    # For some reason, the matlab files contains empty arrays to signal a "missing" value in the data
-                    # columns for the Stereo-photo system. We replace them with NaN using `to_numeric`.
-                    "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
-                    "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
-                    "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),
-                    "stance_time_s": pd.to_numeric(_ensure_is_list(wb["Stance_Duration"])),
-                    "swing_time_s": pd.to_numeric(_ensure_is_list(wb["Swing_Duration"])),
-                }
+        if "Stride_InitialContacts" in wb:
+            starts, ends = zip(*_ensure_is_list(wb["Stride_InitialContacts"]))
+            stride_paras.append(
+                pd.DataFrame.from_dict(
+                    {
+                        "wb_id": [wb_id] * len(starts),
+                        "s_id": np.arange(0, len(starts)),
+                        "start": starts,
+                        "end": ends,
+                        # For some reason, the matlab files contains empty arrays to signal a "missing" value in the
+                        # data columns for the Stereo-photo system. We replace them with NaN using `to_numeric`.
+                        "duration_s": pd.to_numeric(_ensure_is_list(wb["Stride_Duration"])),
+                        "length_m": pd.to_numeric(_ensure_is_list(wb["Stride_Length"])),
+                        "speed_mps": pd.to_numeric(_ensure_is_list(wb["Stride_Speed"])),
+                        "stance_time_s": pd.to_numeric(_ensure_is_list(wb["Stance_Duration"])),
+                        "swing_time_s": pd.to_numeric(_ensure_is_list(wb["Swing_Duration"])),
+                    }
+                )
             )
-        )
 
     walking_bouts = pd.DataFrame.from_records(walking_bouts)
     # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
-    # columns for the Stereiphoto system. We replace them with NaN using `to_numeric`.
+    # columns for the Stereophoto system. We replace them with NaN using `to_numeric`.
     for col in [
         "n_strides",
         "duration_s",
@@ -819,70 +822,85 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
     walking_bouts = walking_bouts.replace(np.array([]), np.nan)
     walking_bouts = _unify_wb_df(walking_bouts)
 
-    ics = pd.concat(ics, ignore_index=True)
-    ics_is_na = ics["ic"].isna()
-    ics = ics[~ics_is_na].drop_duplicates()
-    # make left-right labels lowercase
-    ics["lr_label"] = ics["lr_label"].str.lower()
-    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
-    ics = _unify_ic_df(ics)
-
-    turn_paras = (
-        pd.concat(turn_paras, ignore_index=True)
-        .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
-        .replace({"direction": {1: "left", -1: "right"}})
-    )
-    turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
-    turn_paras = _unify_turn_df(turn_paras)
-
-    stride_paras = pd.concat(stride_paras, ignore_index=True)
-    stride_ics_is_na = stride_paras[["start", "end"]].isna().any(axis=1)
-    stride_paras = stride_paras[~stride_ics_is_na]
-    # Note: For the INDIP system it seems like start and end are provided in samples already and not in seconds.
-    #       I am not sure what the correct behavior is, but we try to handle it to avoid confusion on the user side.
-    #       Unfortunately, there is no 100% reliable way to detect this, so we just check if the values are in the IC
-    #       list (which seems to be provided in time in all ref systems I have seen).
-    #
-    # If we assume the values are in samples of the reference system, than we attempt to convert them to samples of the
-    # single sensor system.
-    # For the INDIP system, that shouldn't matter, as the sampling rates are the same, but hey you can never be too
-    # safe.
-    assume_stride_paras_in_samples = (
-        (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
-    )
-    # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
-    # parameters are also in seconds not in samples.
-    if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
-        stride_paras[["start", "end"]] = (
-            (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
+    if len(stride_paras) != 0 and len(ics) == 0:
+        raise ValueError(
+            "Stride parameters are provided, but no initial contacts are found in the reference data. "
+            "They are required to correctly assign the left-right labels to the strides. "
         )
-        # We check again, just to be sure and if they are still not there, we throw an error.
-        if not stride_paras["start"].isin(ics["ic"]).all():
-            raise ValueError(
-                "There seems to be a mismatch between the provided stride parameters and the provided initial "
-                "contacts of the reference system. "
-                "At least some of the ICs marking the start of a stride are not found in the dedicated IC list."
-            )
+
+    if len(ics) > 0:
+        ics = pd.concat(ics, ignore_index=True)
+        ics_is_na = ics["ic"].isna()
+        ics = ics[~ics_is_na].drop_duplicates()
+        # make left-right labels lowercase
+        ics["lr_label"] = ics["lr_label"].str.lower()
+        ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
+        ics = _unify_ic_df(ics)
     else:
-        stride_paras[["start", "end"]] = (
-            (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
-        )
+        ics = None
 
-    # We also get the correct LR-label for the stride parameters from the ICs.
-    ic_duplicate_as_nan = ics.copy()
-    # We set the values to Nan first and then drop one of the duplicates.
-    ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
-    ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
-    if ic_duplicate_as_nan["lr_label"].isna().any():
-        warnings.warn(
-            "There were multiple ICs with the same index value, but different LR labels. "
-            "This is likely an issue with the reference system you should further investigate. "
-            "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
-            "However, both values still remain in the IC list.",
-            stacklevel=2,
+    if len(turn_paras) > 0:
+        turn_paras = (
+            pd.concat(turn_paras, ignore_index=True)
+            .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
+            .replace({"direction": {1: "left", -1: "right"}})
         )
-    stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
-    stride_paras = _unify_stride_df(stride_paras)
+        turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
+        turn_paras = _unify_turn_df(turn_paras)
+    else:
+        turn_paras = None
+
+    if len(stride_paras) > 0:
+        stride_paras = pd.concat(stride_paras, ignore_index=True)
+        stride_ics_is_na = stride_paras[["start", "end"]].isna().any(axis=1)
+        stride_paras = stride_paras[~stride_ics_is_na]
+        # Note: For the INDIP system it seems like start and end are provided in samples already and not in seconds.
+        #       I am not sure what the correct behavior is, but we try to handle it to avoid confusion on the user side.
+        #       Unfortunately, there is no 100% reliable way to detect this, so we just check if the values are in the
+        #       IC list (which seems to be provided in time in all ref systems I have seen).
+        #
+        # If we assume the values are in samples of the reference system, than we attempt to convert them to samples of
+        # the single sensor system.
+        # For the INDIP system, that shouldn't matter, as the sampling rates are the same, but hey you can never be too
+        # safe.
+        assume_stride_paras_in_samples = (
+            (stride_paras["start"] * (data_sampling_rate_hz / ref_sampling_rate_hz)).round().astype("int64")
+        )
+        # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
+        # parameters are also in seconds not in samples.
+        if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
+            stride_paras[["start", "end"]] = (
+                (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
+            )
+            # We check again, just to be sure and if they are still not there, we throw an error.
+            if not stride_paras["start"].isin(ics["ic"]).all():
+                raise ValueError(
+                    "There seems to be a mismatch between the provided stride parameters and the provided initial "
+                    "contacts of the reference system. "
+                    "At least some of the ICs marking the start of a stride are not found in the dedicated IC list."
+                )
+        else:
+            stride_paras[["start", "end"]] = (
+                (stride_paras[["start", "end"]] * (data_sampling_rate_hz / ref_sampling_rate_hz))
+                .round()
+                .astype("int64")
+            )
+
+        # We also get the correct LR-label for the stride parameters from the ICs.
+        ic_duplicate_as_nan = ics.copy()
+        # We set the values to Nan first and then drop one of the duplicates.
+        ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
+        ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+        if ic_duplicate_as_nan["lr_label"].isna().any():
+            warnings.warn(
+                "There were multiple ICs with the same index value, but different LR labels. "
+                "This is likely an issue with the reference system you should further investigate. "
+                "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
+                "However, both values still remain in the IC list.",
+                stacklevel=2,
+            )
+        stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
+        stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.
     # We need to fix 2 things:
@@ -895,9 +913,12 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
     # All start values of intervals need to be adjusted by -1.
     # All end values of intervals stay the same, as the two adjustments cancel each other out.
     walking_bouts["start"] -= 1
-    ics["ic"] -= 1
-    turn_paras["start"] -= 1
-    stride_paras["start"] -= 1
+    if ics is not None:
+        ics["ic"] -= 1
+    if turn_paras is not None:
+        turn_paras["start"] -= 1
+    if stride_paras is not None:
+        stride_paras["start"] -= 1
 
     if relative_to_wb is True:
         ics = _relative_to_gs(ics, walking_bouts, "wb_id", columns_to_cut=["ic"])
@@ -908,12 +929,12 @@ def parse_reference_parameters(  # noqa: C901, PLR0915
 
 
 def _relative_to_gs(
-    event_data: pd.DataFrame,
+    event_data: Optional[pd.DataFrame],
     gait_sequences: pd.DataFrame,
     gs_index_col: str,
     *,
     columns_to_cut: Sequence[str],
-) -> pd.DataFrame:
+) -> Optional[pd.DataFrame]:
     """Convert the start and end values or event values to values relative to the start of GSs or WBs.
 
     Note, that this assumes that the input data already has an index level indicating to which GS/WB the entry belongs
@@ -943,6 +964,8 @@ def _relative_to_gs(
         A copy of the event data with the converted values.
 
     """
+    if event_data is None:
+        return None
     value_to_subtract = gait_sequences["start"].loc[event_data.index.get_level_values(gs_index_col)].to_numpy()
     event_data = event_data.copy()
     event_data[columns_to_cut] = event_data[columns_to_cut].sub(value_to_subtract, axis=0)
@@ -1043,7 +1066,14 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
                 "system is specified. "
                 "Specify a reference system when creating the dataset object."
             )
-        return self._load_selected_data("reference_parameters_").raw_reference_parameters
+        ref_data = self._load_selected_data("reference_parameters_").raw_reference_parameters
+        if ref_data is None:
+            raise ValueError(
+                "Reference data is missing for this test. "
+                "If you want to skip this test when iterating over the dataset/in the index, set "
+                "`missing_reference_error_type` to `skip`."
+            )
+        return ref_data
 
     @property
     def reference_parameters_(self) -> ReferenceData:

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The reference data parser now allows missing information. In case either no turns, no ICs or no strides are available,
+  the respective attribute of the reference data is set to None. Before this threw an error.
+
 ## [0.5.1] - 2024-07-24
 
 - Correctly specified minimal pandas version as >=2.2.0

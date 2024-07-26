@@ -12,31 +12,19 @@
                 "extDtype":"string"
             },
             {
-                "name":"Laboratory_SU",
+                "name":"S_U",
                 "type":"integer"
             },
             {
-                "name":"Laboratory_INDIP",
+                "name":"I_N_D_I_P",
                 "type":"integer"
             },
             {
-                "name":"Laboratory_Sterophoto",
+                "name":"S_t_e_r_o_p_h_o_t_o",
                 "type":"integer"
             },
             {
-                "name":"Laboratory_Comments",
-                "type":"string"
-            },
-            {
-                "name":"Free-living_SU",
-                "type":"integer"
-            },
-            {
-                "name":"Free-living_INDIP",
-                "type":"integer"
-            },
-            {
-                "name":"Free-living_Comments",
+                "name":"C_o_m_m_e_n_t_s",
                 "type":"string"
             }
         ],
@@ -50,1157 +38,842 @@
         {
             "cohort":"CHF",
             "participant_id":"2079",
-            "Laboratory_SU":0,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"SP DATA: RECOVERED TRIALS: TEST 5, T2 (gaps at the beginning of the trial)",
-            "Free-living_SU":0,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":0,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"SP DATA: RECOVERED TRIALS: TEST 5, T2 (gaps at the beginning of the trial)"
         },
         {
             "cohort":"CHF",
             "participant_id":"4080",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: SDA WB\/CWP 4 and 5\nINDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: SDA WB\/CWP 4 and 5\nINDIP: Trigger missing"
         },
         {
             "cohort":"CHF",
             "participant_id":"4081",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":0,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Static and Data personalisation missing - not processed",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":0,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Static and Data personalisation missing - not processed"
         },
         {
             "cohort":"CHF",
             "participant_id":"4082",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"Hallway and SDA missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"Hallway and SDA missing (not performed)"
         },
         {
             "cohort":"CHF",
             "participant_id":"4083",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing\nTest 6 missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing\nTest 6 missing (not performed)"
         },
         {
             "cohort":"CHF",
             "participant_id":"5085",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T1; TEST 6, T1&2;  TEST 7, T1; TEST 8. NOT RECOVERED TRIALS: TEST 4, TEST 5, T2; TEST 7, T2; TEST 9, TEST 10, 11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T1; TEST 6, T1&2;  TEST 7, T1; TEST 8. NOT RECOVERED TRIALS: TEST 4, TEST 5, T2; TEST 7, T2; TEST 9, TEST 10, 11"
         },
         {
             "cohort":"CHF",
             "participant_id":"5086",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 4; TEST 5, T1; TEST 6, T1&2;  TEST 8. NOT RECOVERED TRIALS: TEST10, 11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 4; TEST 5, T1; TEST 6, T1&2;  TEST 8. NOT RECOVERED TRIALS: TEST10, 11"
         },
         {
             "cohort":"CHF",
             "participant_id":"5087",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 4; TEST 5, T1&T2; TEST 6, T1&2;  TEST 9. NOT RECOVERED TRIALS: TEST 10",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 4; TEST 5, T1&T2; TEST 6, T1&2;  TEST 9. NOT RECOVERED TRIALS: TEST 10"
         },
         {
             "cohort":"CHF",
             "participant_id":"5088",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T1&T2; TEST 6, T1&2;  TEST 7, T1&2. NOT RECOVERED TRIALS: TEST10, 11\nINDIP: Data Personalization missing, Trigger missing from SW ComfA to SW FastA",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T1&T2; TEST 6, T1&2;  TEST 7, T1&2. NOT RECOVERED TRIALS: TEST10, 11\nINDIP: Data Personalization missing, Trigger missing from SW ComfA to SW FastA"
         },
         {
             "cohort":"CHF",
             "participant_id":"5089",
-            "Laboratory_SU":0,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP DATA: RECOVERD TRIALS: TEST 4; TEST 5, T1&T2; TEST 6, T1; TEST 8; TEST 9 (BUT PROBLEMS WITH TURNS). NOT RECOVERED TRIALS: TEST 6, T2; TEST 10, 11\nStanding trial missing",
-            "Free-living_SU":0,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard), don't use them for validation!"
+            "S_U":0,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP DATA: RECOVERD TRIALS: TEST 4; TEST 5, T1&T2; TEST 6, T1; TEST 8; TEST 9 (BUT PROBLEMS WITH TURNS). NOT RECOVERED TRIALS: TEST 6, T2; TEST 10, 11\nStanding trial missing"
         },
         {
             "cohort":"CHF",
             "participant_id":"5090",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T1&T2; TEST 7, T1&T2 (NO WBs); TEST 8. NOT RECOVERED TRIALS: TEST 4, TEST 5, T2; TEST 6, T1&T2; TEST 9, TEST 10, 11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T1&T2; TEST 7, T1&T2 (NO WBs); TEST 8. NOT RECOVERED TRIALS: TEST 4, TEST 5, T2; TEST 6, T1&T2; TEST 9, TEST 10, 11"
         },
         {
             "cohort":"COPD",
             "participant_id":"1042",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1043",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1044",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1045",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1046",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1047",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1048",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1049",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1050",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: trigger missing"
         },
         {
             "cohort":"COPD",
             "participant_id":"1051",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1052",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1053",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1054",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"1055",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"2056",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: TEST 10: gaps for both feet in the middle of the test - GEs missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: TEST 10: gaps for both feet in the middle of the test - GEs missing"
         },
         {
             "cohort":"COPD",
             "participant_id":"2057",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"COPD",
             "participant_id":"2058",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1091",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing"
         },
         {
             "cohort":"HA",
             "participant_id":"1092",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1093",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1094",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1095",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1096",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1097",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1098",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1099",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"1100",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"HA",
             "participant_id":"3101",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: ALL trials cannot be recovered due to gaps except for TEST 7, Trial 1 (RECOVERED) and TEST 7, Trial 2 (OK)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: ALL trials cannot be recovered due to gaps except for TEST 7, Trial 1 (RECOVERED) and TEST 7, Trial 2 (OK)"
         },
         {
             "cohort":"HA",
             "participant_id":"3102",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 8, T1. NOT RECOVERED TRIALS: TEST 4; TEST 5, T2; TEST 6, T1&2; TEST7, T1; TEST 8, 1; TEST 9, T1; TEST 11.TEST 10 TURNS ARE NOT CORRECT!",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 8, T1. NOT RECOVERED TRIALS: TEST 4; TEST 5, T2; TEST 6, T1&2; TEST7, T1; TEST 8, 1; TEST 9, T1; TEST 11.TEST 10 TURNS ARE NOT CORRECT!"
         },
         {
             "cohort":"HA",
             "participant_id":"3103",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST6, T1; TEST 7, T1. NOT RECOVERED TRIALS: TEST 7, T2; TEST 8,9,10,11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST6, T1; TEST 7, T1. NOT RECOVERED TRIALS: TEST 7, T2; TEST 8,9,10,11"
         },
         {
             "cohort":"HA",
             "participant_id":"3104",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 7, T1. NOT RECOVERED TRIALS:  TEST 10; SDA WB\/CWP2",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 7, T1. NOT RECOVERED TRIALS:  TEST 10; SDA WB\/CWP2"
         },
         {
             "cohort":"HA",
             "participant_id":"3105",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T2. NOT RECOVERED TRIALS: TEST 6, T2; TEST 11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T2. NOT RECOVERED TRIALS: TEST 6, T2; TEST 11"
         },
         {
             "cohort":"HA",
             "participant_id":"3106",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: TEST 6, T1; SDA (TEST 11)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: TEST 6, T1; SDA (TEST 11)"
         },
         {
             "cohort":"HA",
             "participant_id":"3107",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T1&2; TEST 7, T1. NOT RECOVERED TRIALS: TEST 6, T1&2; TEST 7, T2; TEST 8, 9, 10, 11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T1&2; TEST 7, T1. NOT RECOVERED TRIALS: TEST 6, T1&2; TEST 7, T2; TEST 8, 9, 10, 11"
         },
         {
             "cohort":"HA",
             "participant_id":"4108",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIAL: TEST 7, T2\nINDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: Left PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIAL: TEST 7, T2\nINDIP: Trigger missing"
         },
         {
             "cohort":"HA",
             "participant_id":"4109",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"SDA trial missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"SDA trial missing (not performed)"
         },
         {
             "cohort":"HA",
             "participant_id":"5111",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: TEST 9 (SURFACE) stride difference due to GAPS on both L and R foot within the test. NOT RECOVERED TRIALS: TEST 10, 11.\nINDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: TEST 9 (SURFACE) stride difference due to GAPS on both L and R foot within the test. NOT RECOVERED TRIALS: TEST 10, 11.\nINDIP: Trigger missing"
         },
         {
             "cohort":"MS",
             "participant_id":"2022",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: Left PI not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"MS",
             "participant_id":"2023",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: Left PI not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"MS",
             "participant_id":"2025",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"SDA trial missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"SDA trial missing (not performed)"
         },
         {
             "cohort":"MS",
             "participant_id":"2026",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: SDA WB\/CWP3",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: SDA WB\/CWP3"
         },
         {
             "cohort":"MS",
             "participant_id":"2027",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: SDA",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: SDA"
         },
         {
             "cohort":"MS",
             "participant_id":"2028",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: SDA",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: SDA"
         },
         {
             "cohort":"MS",
             "participant_id":"2029",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T2; TEST 6, T1. ",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: Right PI not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T2; TEST 6, T1. "
         },
         {
             "cohort":"MS",
             "participant_id":"2030",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERED TRIALS: SDA",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERED TRIALS: SDA"
         },
         {
             "cohort":"MS",
             "participant_id":"2031",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: TEST 6, T2 - WB not identified - stride durations> 3 s! NOT RECOVERED TRIALS: SDA - different WBs identified due to GAPs (WB2 and 3 are divided because there are large gaps)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: TEST 6, T2 - WB not identified - stride durations> 3 s! NOT RECOVERED TRIALS: SDA - different WBs identified due to GAPs (WB2 and 3 are divided because there are large gaps)"
         },
         {
             "cohort":"MS",
             "participant_id":"2032",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: HIGH e% OBSERVED IN ALL TESTS. NOT RECOVERED TRIALS: SDA - different start WB 2 identification due to GAPs",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: HIGH e% OBSERVED IN ALL TESTS. NOT RECOVERED TRIALS: SDA - different start WB 2 identification due to GAPs"
         },
         {
             "cohort":"MS",
             "participant_id":"3033",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T 1;TEST 6, T1. NOT RECOVERED TRIALS: TEST 4; TEST 7, T1; TEST 8, T1;  9, 10, 11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T 1;TEST 6, T1. NOT RECOVERED TRIALS: TEST 4; TEST 7, T1; TEST 8, T1;  9, 10, 11"
         },
         {
             "cohort":"MS",
             "participant_id":"3034",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  NOT RECOVERED TRIALS: TEST 5, T1",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  NOT RECOVERED TRIALS: TEST 5, T1"
         },
         {
             "cohort":"MS",
             "participant_id":"3035",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"MS",
             "participant_id":"3036",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"MS",
             "participant_id":"4037",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":1,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: PIs not used (Silver standard)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing"
+            "S_U":3,
+            "I_N_D_I_P":1,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: PIs not used (Silver standard)"
         },
         {
             "cohort":"MS",
             "participant_id":"4038",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: signals missing for Surface and Hallway",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: signals missing for Surface and Hallway"
         },
         {
             "cohort":"MS",
             "participant_id":"4039",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"MS",
             "participant_id":"4040",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":1,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"INDIP: PIs not used (Silver standard), \nSP data: NOT RECOVERED TRIALS: SDA WB\/CWP 5",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":1,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"INDIP: PIs not used (Silver standard), \nSP data: NOT RECOVERED TRIALS: SDA WB\/CWP 5"
         },
         {
             "cohort":"MS",
             "participant_id":"4041",
-            "Laboratory_SU":0,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":0,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":0,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"1000",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"1001",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing"
         },
         {
             "cohort":"PD",
             "participant_id":"1002",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"1003",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"1004",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"1005",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"3006",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"3007",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: TEST 4, T1; Test 6, T2; T8; T10; T11",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: Left PI not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: TEST 4, T1; Test 6, T2; T8; T10; T11"
         },
         {
             "cohort":"PD",
             "participant_id":"3008",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"3009",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"4010",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing"
         },
         {
             "cohort":"PD",
             "participant_id":"4011",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: Right PI not used (Silver standard),"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"4012",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing"
         },
         {
             "cohort":"PD",
             "participant_id":"4013",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing, Standing missing, Data personalization missing"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing"
         },
         {
             "cohort":"PD",
             "participant_id":"4014",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: signals missing for Surface, Hallway and SDA",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: signals missing for Surface, Hallway and SDA"
         },
         {
             "cohort":"PD",
             "participant_id":"4015",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":0,
-            "Free-living_Comments":"INDIP: Right foot data missing - not processed"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"4018",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":1,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: PIs not used (Silver standard)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":1,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: PIs not used (Silver standard)"
         },
         {
             "cohort":"PD",
             "participant_id":"4019",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":null,
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":null
         },
         {
             "cohort":"PD",
             "participant_id":"4020",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing; \nHallway and SDA trials missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing, Data personalization missing"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing; \nHallway and SDA trials missing (not performed)"
         },
         {
             "cohort":"PD",
             "participant_id":"4021",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Trigger missing",
-            "Free-living_SU":3,
-            "Free-living_INDIP":2,
-            "Free-living_Comments":"INDIP: Spotcheck missing, Standing missing, Data personalization missing"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Trigger missing"
         },
         {
             "cohort":"PFF",
             "participant_id":"4060",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":1,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"INDIP: Left PI not used (Silver standard); \nSW slow, SW fast, L-Test, Hallway and SDA trials missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":1,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"INDIP: Left PI not used (Silver standard); \nSW slow, SW fast, L-Test, Hallway and SDA trials missing (not performed)"
         },
         {
             "cohort":"PFF",
             "participant_id":"4061",
-            "Laboratory_SU":0,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"SDA trial missing (not performed)",
-            "Free-living_SU":0,
-            "Free-living_INDIP":0,
-            "Free-living_Comments":"INDIP: Bad signals quality - not processed"
+            "S_U":0,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"SDA trial missing (not performed)"
         },
         {
             "cohort":"PFF",
             "participant_id":"4062",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: TEST 4 (WB2), TEST 8; TEST 9.\nINDIP: Trigger missing; SW slow, SW fast, Hallway and SDA trials missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: TEST 4 (WB2), TEST 8; TEST 9.\nINDIP: Trigger missing; SW slow, SW fast, Hallway and SDA trials missing (not performed)"
         },
         {
             "cohort":"PFF",
             "participant_id":"4064",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":3,
-            "Laboratory_Comments":"SP data: RECOVERED TRIALS: TEST 5, T1.\nHallway trial missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":3,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERED TRIALS: TEST 5, T1.\nHallway trial missing (not performed)"
         },
         {
             "cohort":"PFF",
             "participant_id":"5065",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  RECOVERD TRIALS: TEST 5, T2; TEST 6, T2; TEST 8; TEST 10.  NOT RECOVERED TRIALS: TEST 4; TEST 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  RECOVERD TRIALS: TEST 5, T2; TEST 6, T2; TEST 8; TEST 10.  NOT RECOVERED TRIALS: TEST 4; TEST 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5066",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  NOT RECOVERED TRIALS: TEST 10 and 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  NOT RECOVERED TRIALS: TEST 10 and 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5067",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  NOT RECOVERED TRIALS: TEST 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":0,
-            "Free-living_Comments":"INDIP: Right foot data missing - not processed"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  NOT RECOVERED TRIALS: TEST 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5068",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  RECOVERD TRIALS: TEST 4; TEST6, T2; TEST7, T2; NOT RECOVERED TRIALS: TEST 5, T2; TEST 6, T1; TEST 7, T1; TEST 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  RECOVERD TRIALS: TEST 4; TEST6, T2; TEST7, T2; NOT RECOVERED TRIALS: TEST 5, T2; TEST 6, T1; TEST 7, T1; TEST 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5069",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  RECOVERD TRIALS:  TEST 5, T1; TEST 6, T1&2; TEST7, T1&2.  NOT RECOVERED TRIALS:  TEST 4, 10, 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  RECOVERD TRIALS:  TEST 5, T1; TEST 6, T1&2; TEST7, T1&2.  NOT RECOVERED TRIALS:  TEST 4, 10, 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5070",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS:  TEST4; TEST 6, T1&2; TEST 7, T1&2; TEST 8, 9.NOT RECOVERED TRIALS:  TEST 5, T1&2; TEST 10, 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS:  TEST4; TEST 6, T1&2; TEST 7, T1&2; TEST 8, 9.NOT RECOVERED TRIALS:  TEST 5, T1&2; TEST 10, 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5071",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 4;  TEST 6, T1&2; TEST 8,9. NOT RECOVERED TRIALS:  TEST 10",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 4;  TEST 6, T1&2; TEST 8,9. NOT RECOVERED TRIALS:  TEST 10"
         },
         {
             "cohort":"PFF",
             "participant_id":"5072",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":2,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data:  RECOVERD TRIALS: TEST 5, T2; TEST 6, T2; TEST 7, T2; TEST 9. NOT RECOVERED TRIALS: TEST 6, T1; TEST 10 ; TEST 11.\nINDIP: right foot signals missing for Data Personalization",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":2,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data:  RECOVERD TRIALS: TEST 5, T2; TEST 6, T2; TEST 7, T2; TEST 9. NOT RECOVERED TRIALS: TEST 6, T1; TEST 10 ; TEST 11.\nINDIP: right foot signals missing for Data Personalization"
         },
         {
             "cohort":"PFF",
             "participant_id":"5073",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":0,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"INDIP: Right foot data missing - not processed; SP data: RECOVERD TRIALS:  TEST 4, TEST 5, T1&2; TEST 6 , T1&2; TEST 7, T2.  NOT RECOVERED TRIALS:  TEST 7, T1; TEST 8, 9, 10 (GAPS initially SPLIT THE CWP IN 2 WBs and then partially recovered with thte INDIP marker traj); TEST 11 (first WB identified only)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":0,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"INDIP: Right foot data missing - not processed; SP data: RECOVERD TRIALS:  TEST 4, TEST 5, T1&2; TEST 6 , T1&2; TEST 7, T2.  NOT RECOVERED TRIALS:  TEST 7, T1; TEST 8, 9, 10 (GAPS initially SPLIT THE CWP IN 2 WBs and then partially recovered with thte INDIP marker traj); TEST 11 (first WB identified only)"
         },
         {
             "cohort":"PFF",
             "participant_id":"5074",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS (ALL): TEST4; TEST 5, T1&T2; TEST 6, T1&T2; TEST 7, T1&T2; TEST 8; TEST 9 (initially 2 WBs); TEST 10.\nSDA trial missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS (ALL): TEST4; TEST 5, T1&T2; TEST 6, T1&T2; TEST 7, T1&T2; TEST 8; TEST 9 (initially 2 WBs); TEST 10.\nSDA trial missing (not performed)"
         },
         {
             "cohort":"PFF",
             "participant_id":"5075",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: NOT RECOVERED TRIALS: TEST 6, T1&T2; TEST 10, 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: NOT RECOVERED TRIALS: TEST 6, T1&T2; TEST 10, 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5076",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS:  TEST 5, T1&2; TEST 6, T1&2; TEST 7, T1&2; TEST 9. NOT RECOVERED TRIALS: TEST 4, 8, 10, 11.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS:  TEST 5, T1&2; TEST 6, T1&2; TEST 7, T1&2; TEST 9. NOT RECOVERED TRIALS: TEST 4, 8, 10, 11."
         },
         {
             "cohort":"PFF",
             "participant_id":"5077",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS: TEST 5, T2;  TEST 7, T2. NOT RECOVERED TRIALS:  TEST 4;  TEST6, T2; TEST 7, T1, TEST 8, 9.\nHallway and SDA trials missing (not performed)",
-            "Free-living_SU":3,
-            "Free-living_INDIP":1,
-            "Free-living_Comments":"INDIP: PIs not used (Silver standard)"
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS: TEST 5, T2;  TEST 7, T2. NOT RECOVERED TRIALS:  TEST 4;  TEST6, T2; TEST 7, T1, TEST 8, 9.\nHallway and SDA trials missing (not performed)"
         },
         {
             "cohort":"PFF",
             "participant_id":"5078",
-            "Laboratory_SU":3,
-            "Laboratory_INDIP":3,
-            "Laboratory_Sterophoto":1,
-            "Laboratory_Comments":"SP data: RECOVERD TRIALS:  TEST 5, T1&2; TEST 6, T1&2; TEST 7, T1&2; TEST 8, 9.NOT RECOVERED TRIALS:  TEST 10.",
-            "Free-living_SU":3,
-            "Free-living_INDIP":3,
-            "Free-living_Comments":null
+            "S_U":3,
+            "I_N_D_I_P":3,
+            "S_t_e_r_o_p_h_o_t_o":1,
+            "C_o_m_m_e_n_t_s":"SP data: RECOVERD TRIALS:  TEST 5, T1&2; TEST 6, T1&2; TEST 7, T1&2; TEST 8, 9.NOT RECOVERED TRIALS:  TEST 10."
         }
     ]
 }

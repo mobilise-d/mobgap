@@ -1,6 +1,6 @@
 """Base classes for all fundamental dataset types."""
 
-from typing import Literal, NamedTuple, TypedDict, Union
+from typing import Literal, NamedTuple, Optional, TypedDict, Union
 
 import pandas as pd
 from tpcp import Dataset
@@ -74,6 +74,8 @@ class ReferenceData(NamedTuple):
 
     All start/end values are provided in samples since the start of the recording.
 
+    Note, that all detailed results are optional, as some datasets might not provide all of them.
+
     Attributes
     ----------
     wb_list
@@ -88,9 +90,9 @@ class ReferenceData(NamedTuple):
     """
 
     wb_list: pd.DataFrame
-    ic_list: pd.DataFrame
-    turn_parameters: pd.DataFrame
-    stride_parameters: pd.DataFrame
+    ic_list: Optional[pd.DataFrame]
+    turn_parameters: Optional[pd.DataFrame]
+    stride_parameters: Optional[pd.DataFrame]
 
 
 class ParticipantMetadata(TypedDict):
