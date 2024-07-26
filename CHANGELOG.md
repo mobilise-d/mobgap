@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Evaluation Examples for CAD and Stride Length (https://github.com/mobilise-d/mobgap/pull/174)
+
 ### Changed
 
 - The reference data parser now allows missing information. In case either no turns, no ICs or no strides are available,
