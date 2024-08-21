@@ -72,7 +72,7 @@ print(getsource(gsd_evaluation_scorer))
 # We can see that this method is relatively simple, using the gsd evaluation functions that we provide.
 # So if you want to run your own scoring function, it should be straightforward to do so.
 #
-# Note, the :class:`~tpcp.validate.NoAgg` wrapping some of the return values.
+# Note, the :func:`~tpcp.validate.no_agg` wrapping some of the return values.
 # This is a special aggregator that tells the challenge to not try to aggregate the respective values.
 # For all other values, the challenge will try average the values across all datapoints.
 #

@@ -4,7 +4,7 @@ from typing import Callable, Optional, Union
 from sklearn.model_selection import BaseCrossValidator
 from tpcp import Algorithm
 from tpcp.optimize import BaseOptimize
-from tpcp.validate import DatasetSplitter, NoAgg, cross_validate, validate
+from tpcp.validate import DatasetSplitter, no_agg, cross_validate, validate
 from typing_extensions import Self
 
 from mobgap._docutils import make_filldoc
@@ -63,8 +63,9 @@ def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDat
             sampling_rate_hz=sampling_rate_hz,
         ),
         **calculate_matched_gsd_performance_metrics(matches),
-        "detected": NoAgg(detected_gs_list),
-        "reference": NoAgg(reference_gs_list),
+        "combined_matched": DelayedDfAggregator(calculate_matched_gsd_performance_metrics, other_kwargs={"sampling_rate_hz": sampling_rate_hz}),
+        "detected": no_agg(detected_gs_list),
+        "reference": no_agg(reference_gs_list),
     }
 
     return performance_metrics

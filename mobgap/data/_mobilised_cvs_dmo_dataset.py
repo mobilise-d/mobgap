@@ -447,9 +447,7 @@ class MobilisedCvsDmoDataset(Dataset):
     def _extract_relevant_data(self, data: pd.DataFrame) -> pd.DataFrame:
         # TODO: replace this with the official tpcp check once released
         #       (https://github.com/mad-lab-fau/tpcp/issues/104)
-        is_full_dataset = len(data.index.to_frame()[["participant_id", "measurement_date"]].drop_duplicates()) == len(
-            self.index
-        )
+        is_full_dataset = self.index_is_unchanged
         # Short circuit, if we have the full dataset, as this is a typical usecase and likely much faster.
         if not is_full_dataset:
             # That was the fastest version I found so far, but this is still slow as hell, if you have a large number of

@@ -19,7 +19,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-tpcp = ">=1.0.0"
+tpcp = ">=2.0.0"
 pandas = ">=2.2.0"
 scipy = ">=1.11.2"
 numpy = ">=1.25.2"
