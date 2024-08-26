@@ -1,10 +1,9 @@
 """Helpful Pipelines to wrap the GSD algorithms for optimization and evaluation."""
 
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from tpcp.validate import Aggregator
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
@@ -115,40 +114,6 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.algo.self_optimize(all_data, reference_wbs, sampling_rate_hz=sampling_rate_hz, **kwargs)
 
         return self
-
-    def score(
-        self, datapoint: BaseGaitDatasetWithReference
-    ) -> Union[float, dict[str, Union[float, Aggregator]], Aggregator]:
-        """Score the performance of the GSD algorithm of a single datapoint using standard metrics.
-
-        This method applies the GSD algorithm to the datapoint (using the implemented ``run`` method) and calculates
-        the performance metrics based on the detected gait sequences and the reference gait sequences.
-
-        This method can be used as a scoring function in the ``tpcp.validate`` module.
-
-        Parameters
-        ----------
-        datapoint
-            A single datapoint of a Gait Dataset with reference information.
-
-        Returns
-        -------
-        dict
-            Dictionary of performance metrics.
-
-        See Also
-        --------
-        calculate_matched_gsd_performance_metrics
-            For calculating performance metrics based on the matched overlap with the reference.
-        calculate_unmatched_gsd_performance_metrics
-            For calculating performance metrics without matching the detected and reference gait sequences.
-        categorize_intervals_per_sample
-            For categorizing the detected and reference gait sequences on a sample-wise level.
-
-        """
-        from mobgap.gait_sequences._evaluation_challenge import gsd_evaluation_scorer
-
-        return gsd_evaluation_scorer(self, datapoint)
 
 
 __all__ = ["GsdEmulationPipeline"]

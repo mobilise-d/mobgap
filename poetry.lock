@@ -2621,8 +2621,8 @@ x-torch-cpu = ["torch (>=1.6.0)"]
 [package.source]
 type = "git"
 url = "https://github.com/mad-lab-fau/tpcp"
-reference = "main"
-resolved_reference = "bd929b9664e58fbb9f920de2639969bfb649f210"
+reference = "scoring_rework"
+resolved_reference = "633e59e71c953a86c3351178aa13da7a66a6ac4b"
 
 [[package]]
 name = "tqdm"
@@ -2754,4 +2754,4 @@ all = ["openpyxl", "pingouin"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "918889ac453d235448c86d201832cfe24c21c44ff8bd4f03edb28a60eac43c7e"
+content-hash = "337bb983867834630d90cf5cba664b53f743dfd2dbf11cd8a78ba48937fe8118"
