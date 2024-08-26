@@ -19,7 +19,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-tpcp = {git = "https://github.com/mad-lab-fau/tpcp", rev = "customizable_scorer"}
+tpcp = {git = "https://github.com/mad-lab-fau/tpcp", rev = "main"}
 pandas = ">=2.2.0"
 scipy = ">=1.11.2"
 numpy = ">=1.25.2"
