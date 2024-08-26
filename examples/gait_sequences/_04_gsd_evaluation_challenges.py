@@ -59,17 +59,31 @@ pipe_with_results.gs_list_
 # - :class:`~mobgap.gait_sequences.evaluation.GsdEvaluationCV`: This challenge runs a cross-validation on the dataset and then scores the results per fold.
 #
 # Before we run the entire pipeline, let's look at the scoring.
-# We provide a default scoring function that calculates all the relevant performance metrics.
+# Scoring is built based on tpcp's validation framework.
+# As we have relativly complex scoring, scoring is split across two functions:
+#
+# - :func:`~mobgap.gait_sequences.evaluation.gsd_per_datapoint_score`: Run and score a single datapoint
+# - :func:`~mobgap.gait_sequences.evaluation.gsd_final_agg`: Perform final aggreagtion and scoring based on the results
+#                                                            per datapoint.
 #
 # Let's look at the code of it first.
 from inspect import getsource
 
-from mobgap.gait_sequences.evaluation import gsd_evaluation_scorer
+from mobgap.gait_sequences.evaluation import (
+    gsd_final_agg,
+    gsd_per_datapoint_score,
+)
 
-print(getsource(gsd_evaluation_scorer))
+print(getsource(gsd_per_datapoint_score))
 
 # %%
-# We can see that this method is relatively simple, using the gsd evaluation functions that we provide.
+print(getsource(gsd_final_agg))
+
+# %%
+# We can see that these method is relatively simple, using the lower level gsd evaluation functions that we provide.
+# `gsd_per_datapoint_score` calculates the raw results and all scores that can be calculated per datapoint.
+# `gsd_final_agg` handles the calculation of all scores, that require the raw results from all datapoints at once.
+# The remaining aggregation is handled by the :class:`~tpcp.validate.Scorer` class (see below).
 # So if you want to run your own scoring function, it should be straightforward to do so.
 #
 # Note, the :func:`~tpcp.validate.no_agg` wrapping some of the return values.
@@ -82,16 +96,23 @@ print(getsource(gsd_evaluation_scorer))
 # The scoring function takes care of running the pipeline.
 # So we can test the scorer, by just providing it with a pipeline and a datapoint.
 #
-# Note, that we remove the :class:`~tpcp.validate.NoAgg` parameters from the results, as they don't visualize well.
+# Note, that we remove the :class:`~tpcp.validate.no_agg` parameters from the results, as they don't visualize well.
 from pprint import pprint
 
-single_dp_results = gsd_evaluation_scorer(pipe, long_test[0])
+single_dp_results = gsd_per_datapoint_score(pipe, long_test[0])
 single_dp_results.pop("detected")
 single_dp_results.pop("reference")
 pprint(single_dp_results)
 
 # %%
-# The challenge will call this scoring method for each datapoint in the dataset.
+# To use the two functions with a challenge, we need to wrap them into a :class:`~tpcp.validate.Scorer` instance.
+from tpcp.validate import Scorer
+
+gsd_evaluation_scorer = Scorer(gsd_per_datapoint_score, gsd_final_agg)
+
+# The challenge will call this scorer for each group in the dataset.
+# The scorer itself will then call `gsd_per_datapoint_score` for each datapoint and then `gsd_final_agg` with the
+# combined results.
 # Let's test this with the `GsdEvaluation` challenge.
 from mobgap.gait_sequences.evaluation import GsdEvaluation
 
@@ -240,7 +261,7 @@ from tpcp.optimize import GridSearch
 
 para_grid = ParameterGrid({"algo__window_length_s": [2, 3, 4]})
 optimizer = GridSearch(
-    pipe, para_grid, return_optimized="precision", scoring=gsd_evaluation_scorer
+    pipe, para_grid, scoring=gsd_evaluation_scorer, return_optimized="precision"
 )
 
 # %%

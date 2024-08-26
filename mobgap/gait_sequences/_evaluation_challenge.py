@@ -1,10 +1,12 @@
-from collections.abc import Iterator
-from typing import Callable, Optional, Union
+from collections.abc import Iterator, Sequence
+from typing import Any, Callable, Optional, Union
 
+import pandas as pd
 from sklearn.model_selection import BaseCrossValidator
-from tpcp import Algorithm
+from tpcp import Algorithm, Dataset, cf
 from tpcp.optimize import BaseOptimize
-from tpcp.validate import DatasetSplitter, no_agg, cross_validate, validate
+from tpcp.validate import Aggregator, DatasetSplitter, cross_validate, no_agg, validate
+from tpcp.validate._scorer import Scorer, ScorerTypes
 from typing_extensions import Self
 
 from mobgap._docutils import make_filldoc
@@ -13,7 +15,16 @@ from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 
-def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
+class DelayedDfAggregator(Aggregator):
+    def __init__(self, func: Callable, *, return_raw_scores: bool = False):
+        self.func = func
+        super().__init__(return_raw_scores=return_raw_scores)
+
+    def aggregate(self, /, values: Sequence[Any], datapoints: Sequence[Dataset]) -> dict[str, float]:
+        pass
+
+
+def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
     """Evaluate the performance of a GSD algorithm on a single datapoint.
 
     This function is used to evaluate the performance of a GSD algorithm on a single datapoint.
@@ -32,7 +43,7 @@ def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDat
     -------
     dict
         A dictionary containing the performance metrics.
-        Note, that some results are wrapped in a ``NoAgg`` object or other aggregators.
+        Note, that some results are wrapped in a ``no_agg`` object or other aggregators.
         The results of this function are not expected to be parsed manually, but rather the function is expected to be
         used in the context of the :func:`~tpcp.validate.validate`/:func:`~tpcp.validate.cross_validate` functions or
         similar as scorer.
@@ -63,13 +74,44 @@ def gsd_evaluation_scorer(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDat
             sampling_rate_hz=sampling_rate_hz,
         ),
         **calculate_matched_gsd_performance_metrics(matches),
-        "combined_matched": DelayedDfAggregator(calculate_matched_gsd_performance_metrics, other_kwargs={"sampling_rate_hz": sampling_rate_hz}),
+        "matches": no_agg(matches),
         "detected": no_agg(detected_gs_list),
         "reference": no_agg(reference_gs_list),
     }
 
     return performance_metrics
 
+
+def gsd_final_agg(
+    agg_results: dict[str, float],
+    raw_results: dict[str, list],
+    pipeline: GsdEmulationPipeline,
+    dataset: BaseGaitDatasetWithReference,
+):
+    from mobgap.gait_sequences.evaluation import (
+        calculate_matched_gsd_performance_metrics,
+        calculate_unmatched_gsd_performance_metrics,
+    )
+
+    # We combine each to a combined dataframe
+    matches = pd.concat(raw_results["matches"])
+    detected = pd.concat(raw_results["detected"])
+    reference = pd.concat(raw_results["reference"])
+
+    combined_unmatched = {
+        f"combined__{k}": v
+        for k, v in calculate_unmatched_gsd_performance_metrics(
+            gsd_list_detected=detected,
+            gsd_list_reference=reference,
+            sampling_rate_hz=dataset[0].sampling_rate_hz,
+        ).items()
+    }
+    combined_matched = {f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(matches).items()}
+
+    return {**agg_results, **combined_unmatched, **combined_matched}, raw_results
+
+
+gsd_score = Scorer(gsd_per_datapoint_score, gsd_final_agg)
 
 _gait_sequence_challenges_docfiller = make_filldoc(
     {
@@ -162,7 +204,7 @@ class GsdEvaluationCV(Algorithm):
         self,
         dataset: BaseGaitDatasetWithReference,
         cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]],
-        scoring: Optional[Callable] = gsd_evaluation_scorer,
+        scoring: Optional[ScorerTypes] = cf(gsd_score),
         *,
         cv_params: Optional[dict] = None,
     ) -> None:
@@ -271,7 +313,7 @@ class GsdEvaluation(Algorithm):
     def __init__(
         self,
         dataset: BaseGaitDatasetWithReference,
-        scoring: Optional[Callable] = gsd_evaluation_scorer,
+        scoring: Optional[ScorerTypes] = cf(gsd_score),
         *,
         validate_paras: Optional[dict] = None,
     ) -> None:
