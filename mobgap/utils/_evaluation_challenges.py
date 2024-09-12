@@ -1,7 +1,7 @@
 from typing import Callable, Generic, Optional, Self, TypeVar
 
 from tpcp import Algorithm, Pipeline
-from tpcp.validate import validate
+from tpcp.validate import validate, ScorerTypes
 
 from mobgap._utils_internal.misc import measure_time, set_attrs_from_dict
 from mobgap.data.base import BaseGaitDatasetWithReference
@@ -47,7 +47,7 @@ class Evaluation(Algorithm, Generic[T]):
     _action_methods = "run"
 
     dataset: BaseGaitDatasetWithReference
-    scoring: Optional[Callable]
+    scoring: ScorerTypes
 
     pipeline: T
 
@@ -62,7 +62,7 @@ class Evaluation(Algorithm, Generic[T]):
     def __init__(
         self,
         dataset: BaseGaitDatasetWithReference,
-        scoring: Optional[Callable],
+        scoring: ScorerTypes[T, BaseGaitDatasetWithReference],
         *,
         validate_paras: Optional[dict] = None,
     ) -> None:
@@ -79,8 +79,7 @@ class Evaluation(Algorithm, Generic[T]):
         Parameters
         ----------
         pipeline
-            A valid pipeline that wraps a GSD algorithm that is compatible with the provided dataset and scorer.
-            Usually that should be a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline`.
+            A valid pipeline that is compatible with the provided dataset and scorer.
 
         Returns
         -------

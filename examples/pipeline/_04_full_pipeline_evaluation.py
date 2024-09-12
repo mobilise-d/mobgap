@@ -3,84 +3,32 @@ from typing import Any, Protocol, TypeAlias, Union
 
 import pandas as pd
 from mobgap.data.base import BaseGaitDatasetWithReference
+from mobgap.gait_sequences.evaluation import categorize_intervals, get_matching_intervals
 from mobgap.pipeline import GenericMobilisedPipeline
 from mobgap.pipeline.evaluation import (
     get_default_error_aggregations,
     get_default_error_transformations,
 )
-from mobgap.utils.df_operations import apply_aggregations, apply_transformations
+from mobgap.utils.df_operations import apply_aggregations, apply_transformations, create_multi_groupby
 from tpcp import Dataset
-from tpcp.validate import Aggregator
+from tpcp.validate import Aggregator, no_agg
 from typing_extensions import Unpack
 
 
-class AggFunc(Protocol):
-    def __call__(
-        self, *args: Unpack[pd.DataFrame], **kwargs: Unpack[dict[str, Any]]
-    ) -> dict[str, float]: ...
-
-
-DelayedAggInput: TypeAlias = (
-    Union[pd.DataFrame],
-    Sequence[pd.DataFrame, pd.DataFrame],
-)
-
 
 def _list_of_dfs_to_df(
-    dfs: Sequence[pd.DataFrame], datapoints: Sequence[Dataset]
+    dfs: Sequence[pd.DataFrame], dataset: Dataset
 ) -> pd.DataFrame:
     return pd.concat(
-        {k.group_label: v for k, v in zip(datapoints, dfs)},
+        {k.group_label: v for k, v in zip(dataset, dfs)},
         axis=1,
-        names=[*datapoints[0].group_label.fields, dfs[0].index.names],
+        names=[*dataset[0].group_label.fields, dfs[0].index.names],
     )
-
-
-class DelayedDfAggregator(
-    Aggregator[Union[pd.DataFrame], Sequence[pd.DataFrame, pd.DataFrame]]
-):
-    def __init__(
-        self,
-        func: AggFunc,
-        *,
-        other_kwargs: dict[str, Any],
-        return_raw_scores: bool = True,
-    ) -> None:
-        self.other_kwargs = other_kwargs
-        self.func = func
-        super().__init__(return_raw_scores=return_raw_scores)
-
-    def aggregate(
-        self,
-        /,
-        values: Sequence[DelayedAggInput],
-        datapoints: Sequence[Dataset],
-    ) -> dict[str, float]:
-        if isinstance(values, pd.DataFrame):
-            return self.func(
-                _list_of_dfs_to_df(values, datapoints), **self.other_kwargs
-            )
-        else:
-            inverted_list = zip(*values)
-            combined_dfs = [
-                _list_of_dfs_to_df(v, datapoints) for v in inverted_list
-            ]
-            return self.func(*combined_dfs, **self.other_kwargs)
-
-
-def full_pipeline_evaluation_scorer(
-    pipeline: GenericMobilisedPipeline, datapoint: BaseGaitDatasetWithReference
-):
-    calculated = pipeline.safe_run(datapoint)
-    reference = datapoint.reference_parameters_
-
-    # aggregated analysis
-
 
 def _calc_and_agg_error(
     matched_vals: pd.DataFrame,
-    error_transforms: list[tuple] = get_default_error_transformations(),
-    error_aggregations: list[tuple] = get_default_error_aggregations(),
+    error_transforms: list[tuple],
+    error_aggregations: list[tuple],
 ):
     wb_errors = apply_transformations(matched_vals, error_transforms)
     matched_vals_with_errors = pd.concat([matched_vals, wb_errors], axis=1)
@@ -89,38 +37,49 @@ def _calc_and_agg_error(
         .rename_axis(index=["aggregation", "metric", "origin"])
         .reorder_levels(["metric", "origin", "aggregation"])
         .sort_index(level=0)
-        .to_frame("values")
+        .to_dict()
     )
     return agg_results
 
 
-def agg_errors(
-    detected: pd.DataFrame,
-    reference: pd.DataFrame,
-    agg_levels: list[str],
-    error_transforms: list[tuple] = get_default_error_transformations(),
-    error_aggregations: list[tuple] = get_default_error_aggregations(),
+
+def full_pipeline_per_datapoint_score(
+    pipeline: GenericMobilisedPipeline, datapoint: BaseGaitDatasetWithReference, agg_levels: list[str], agg_name_prefix: str
 ):
-    combined_dmos = (
+    detected = pipeline.safe_run(datapoint).per_wb_parameters_
+    reference = datapoint.reference_parameters_.wb_list
+
+    agg_matches = (
         pd.concat([detected, reference], keys=["detected", "reference"], axis=1)
         .reorder_levels((1, 0), axis=1)
         .sort_index(axis=1)
+        .groupby(level=agg_levels).mean().dropna()
     )
 
-    agg_dmos = combined_dmos.groupby(level=agg_levels).mean().dropna()
-    return _calc_and_agg_error(
-        agg_dmos,
-        error_transforms=error_transforms,
-        error_aggregations=error_aggregations,
+    wb_tp_fp_fn = categorize_intervals(
+        gsd_list_detected=detected,
+        gsd_list_reference=reference,
+        overlap_threshold=0.8,
+        multiindex_warning=False,
+    )
+    tp_matches = get_matching_intervals(
+        metrics_detected=detected,
+        metrics_reference=reference,
+        matches=wb_tp_fp_fn,
     )
 
+    return {
+        **{f"{agg_name_prefix}__{k}": v for k, v in _calc_and_agg_error(agg_matches, get_default_error_transformations(), get_default_error_aggregations()).items()},
+        **{f"tp__{k}": v for k, v in _calc_and_agg_error(tp_matches, get_default_error_transformations(), get_default_error_aggregations()).items()},
+        "agg_matches": no_agg(agg_matches),
+        "tp_matches": no_agg(tp_matches),
+    }
 
-def matched_errors(detected: pd.DataFrame, reference: pd.DataFrame):
-    matched_dmos = (
-        pd.concat([detected, reference], keys=["detected", "reference"], axis=1)
-        .reorder_levels((1, 0), axis=1)
-        .sort_index(axis=1)
-    )
 
-    matched_dmos = matched_dmos.dropna()
-    return _calc_and_agg_error(matched_dmos)
+def full_pipeline_final_agg(
+    agg_results: dict[str, float],
+    raw_results: dict[str, list],
+    pipeline: GenericMobilisedPipeline,
+    dataset: BaseGaitDatasetWithReference,
+):
+    tp_matches = _list_of_dfs_to_df(raw_results["tp_matches"], dataset)
