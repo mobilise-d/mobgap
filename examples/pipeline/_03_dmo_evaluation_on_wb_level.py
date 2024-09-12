@@ -90,7 +90,7 @@ combined_dmos
 #           groups were either detected or reference data is missing.
 daily_matches = (
     combined_dmos.groupby(
-        level=["visit_type", "participant_id", "measurement_date"], axis=0
+        level=["visit_type", "participant_id", "measurement_date"]
     )
     .mean()
     .dropna()
