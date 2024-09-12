@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2024-08-23
+
+### Scientific Changes
+
+- **CRITICAL**: The default thresholds for both variants of the GSDIonescu algorithms were not correctly adapted to the
+  input data beeing in m/s2 instead of g.
+  With the old threshold far to many gait sequences were detected.
+  This fix should have a substantial positive impact on the performance of the Impaired pipeline.
+
+
+### Fixed
+- `as_samples` now correctly preserves the index of a dataframe.
+
 ## [0.6.0] - 2024-07-26
 
 ### Added
