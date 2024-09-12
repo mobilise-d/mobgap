@@ -46,6 +46,8 @@ def as_samples(sec_value, sampling_rate_hz):
         return np.round(sec_value * sampling_rate_hz).astype("int64")
     if isinstance(sec_value, (int, float)):
         return int(np.round(sec_value * sampling_rate_hz))
+    if isinstance(sec_value, (pd.DataFrame, pd.Series)):
+        return (sec_value * sampling_rate_hz).round().astype("int64")
     return type(sec_value)(int(np.round(s * sampling_rate_hz)) for s in sec_value)
 
 
