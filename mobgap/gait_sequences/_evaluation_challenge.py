@@ -15,15 +15,6 @@ from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 
-class DelayedDfAggregator(Aggregator):
-    def __init__(self, func: Callable, *, return_raw_scores: bool = False):
-        self.func = func
-        super().__init__(return_raw_scores=return_raw_scores)
-
-    def aggregate(self, /, values: Sequence[Any], datapoints: Sequence[Dataset]) -> dict[str, float]:
-        pass
-
-
 def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
     """Evaluate the performance of a GSD algorithm on a single datapoint.
 
@@ -188,7 +179,7 @@ class GsdEvaluationCV(Algorithm):
     dataset: BaseGaitDatasetWithReference
     cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]]
     cv_params: Optional[dict]
-    scoring: Optional[Callable]
+    scoring: ScorerTypes
 
     optimizer: BaseOptimize["GsdEmulationPipeline", BaseGaitDatasetWithReference]
 
@@ -204,7 +195,7 @@ class GsdEvaluationCV(Algorithm):
         self,
         dataset: BaseGaitDatasetWithReference,
         cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]],
-        scoring: Optional[ScorerTypes] = cf(gsd_score),
+        scoring: ScorerTypes = cf(gsd_score),
         *,
         cv_params: Optional[dict] = None,
     ) -> None:
@@ -298,7 +289,7 @@ class GsdEvaluation(Algorithm):
     _action_methods = "run"
 
     dataset: BaseGaitDatasetWithReference
-    scoring: Optional[Callable]
+    scoring: ScorerTypes
 
     pipeline: "GsdEmulationPipeline"
 
@@ -313,7 +304,7 @@ class GsdEvaluation(Algorithm):
     def __init__(
         self,
         dataset: BaseGaitDatasetWithReference,
-        scoring: Optional[ScorerTypes] = cf(gsd_score),
+        scoring: ScorerTypes = cf(gsd_score),
         *,
         validate_paras: Optional[dict] = None,
     ) -> None:
