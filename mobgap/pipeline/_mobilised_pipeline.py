@@ -403,7 +403,6 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 wb_meta_parameters,
                 per_stride_parameters.reindex(columns=params_to_aggregate)
                 .groupby(["wb_id"])
-                # TODO: Decide if we should use mean or trim_mean here!
                 # TODO: Add "avg_" prefix to the columns
                 .mean(),
             ],
@@ -583,7 +582,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
 class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT]):
     """Metapipeline that can use a specific pipeline depending on the cohort of the participant.
 
-    This uses the ``RECOMMENDED_COHORTS`` attribute of the pipelines to determine which pipeline to use.
+    This uses the ``recommended_cohorts`` parameter of the pipelines to determine which pipeline to use.
     You can provide any list of pipelines with their names to this class.
     However, there must be no overlap in the recommended cohorts of the pipelines.
 
