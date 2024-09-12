@@ -49,6 +49,7 @@ pydata-sphinx-theme = "^0.14.1"
 myst-parser = "^2.0.0"
 ipykernel = "^6.25.1"
 numpydoc = "^1.6.0"
+ipympl = "^0.9.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
