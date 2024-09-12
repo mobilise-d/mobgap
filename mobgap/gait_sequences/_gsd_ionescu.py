@@ -8,7 +8,7 @@ from scipy.signal import find_peaks, hilbert
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
-from mobgap.consts import BF_ACC_COLS, SF_ACC_COLS
+from mobgap.consts import BF_ACC_COLS, GRAV_MS2, SF_ACC_COLS
 from mobgap.data_transform import (
     CwtFilter,
     EpflDedriftedGaitFilter,
@@ -49,7 +49,7 @@ _gsd_ionescu_docfiller = make_filldoc(
 """,
         "coordinate_system_note": """
     .. note:: Compared to other GSD algorithms, this algorithm only works on the Acc norm and hence, can be used with
-    out knowing the provivious alignement of the sensor.
+    out knowing the previous alignment of the sensor.
     The algorithm therefore allows to pass data in either the body or the sensor frame.
 """,
     }
@@ -185,6 +185,9 @@ class GsdIonescu(_BaseGsdIonescu):
         The unit of this threshold is techically m/s^2, but as the signal is heavily filtered the value range can not
         be easily inferred.
         To properly set this threshold, it is recommended to use the ``filtered_signal_`` debug attribute.
+
+        .. note:: In the original code, this threshold was in the unit `g`. So if you are transferring thresholds from
+                  the original code, you need to convert them to m/s^2.
     %(common_parameters)s
 
     Other Parameters
@@ -222,7 +225,7 @@ class GsdIonescu(_BaseGsdIonescu):
         self,
         *,
         min_n_steps: int = 5,
-        active_signal_threshold: float = 0.1,
+        active_signal_threshold: float = 0.1 * GRAV_MS2,
         max_gap_s: float = 3.5,
         min_step_margin_s: float = 1.5,
         padding: float = 0.75,
@@ -369,7 +372,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
         self,
         *,
         min_n_steps: int = 5,
-        active_signal_fallback_threshold: float = 0.15,
+        active_signal_fallback_threshold: float = 0.15 * GRAV_MS2,
         max_gap_s: float = 3.5,
         min_step_margin_s: float = 1.5,
         padding: float = 0.75,
