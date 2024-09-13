@@ -150,8 +150,10 @@ class WbAssembly(Algorithm):
         parameters = self.termination_reasons_.loc[n_strides.index]
         start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
 
-        return pd.concat([start_end, n_strides, parameters], axis=1).assign(
-            duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz
+        return (
+            pd.concat([start_end, n_strides, parameters], axis=1)
+            .assign(duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz)
+            .astype({"start": int, "end": int, "n_strides": int, "duration_s": float})
         )
 
     @property
