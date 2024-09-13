@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from typing_extensions import Literal
 
+from mobgap.consts import GRAV_MS2
+
 
 def get_mobilised_dmo_thresholds() -> pd.DataFrame:
     """Load the mobilised DMO thresholds.
@@ -51,7 +53,7 @@ def _max_allowable_stride_length(height_m: float) -> float:
     """
     leg_length = 0.53 * height_m  # Winter 2009
     froude_number = 1
-    v_max = np.sqrt(froude_number * 9.81 * leg_length)  # Ivanenko 2007
+    v_max = np.sqrt(froude_number * GRAV_MS2 * leg_length)  # Ivanenko 2007
     max_vertical_displacement = 0.038 * v_max**2  # Miff et al. (2000)
     max_sl = 2 * 2 * np.sqrt(2 * leg_length * max_vertical_displacement - max_vertical_displacement**2)  # Zijlstra
     return max_sl

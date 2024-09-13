@@ -87,8 +87,8 @@
             "duration_s":6.17,
             "stride_duration_s":1.0188888889,
             "cadence_spm":97.8998828296,
-            "stride_length_m":1.1179536286,
-            "walking_speed_mps":0.913727671
+            "stride_length_m":1.117765954,
+            "walking_speed_mps":0.9135742886
         },
         {
             "level_0":"HA",
@@ -104,8 +104,8 @@
             "duration_s":6.9,
             "stride_duration_s":1.235,
             "cadence_spm":98.0306795517,
-            "stride_length_m":1.1353466091,
-            "walking_speed_mps":0.9405880956
+            "stride_length_m":1.1351563312,
+            "walking_speed_mps":0.940430504
         },
         {
             "level_0":"HA",
@@ -121,8 +121,8 @@
             "duration_s":4.82,
             "stride_duration_s":1.0128571429,
             "cadence_spm":102.6919893019,
-            "stride_length_m":1.0900338764,
-            "walking_speed_mps":0.9361310339
+            "stride_length_m":1.089850958,
+            "walking_speed_mps":0.9359739589
         },
         {
             "level_0":"HA",
@@ -138,8 +138,8 @@
             "duration_s":13.06,
             "stride_duration_s":1.3057142857,
             "cadence_spm":79.2905055466,
-            "stride_length_m":0.6998197363,
-            "walking_speed_mps":0.4594281137
+            "stride_length_m":0.6997014677,
+            "walking_speed_mps":0.4593504932
         },
         {
             "level_0":"HA",
@@ -155,8 +155,8 @@
             "duration_s":7.1,
             "stride_duration_s":1.6042857143,
             "cadence_spm":91.0054982539,
-            "stride_length_m":1.0738746836,
-            "walking_speed_mps":0.8130714605
+            "stride_length_m":1.0736944434,
+            "walking_speed_mps":0.8129349721
         },
         {
             "level_0":"HA",
@@ -172,8 +172,8 @@
             "duration_s":9.34,
             "stride_duration_s":1.2536363636,
             "cadence_spm":85.6650683741,
-            "stride_length_m":0.8767536821,
-            "walking_speed_mps":0.6319861833
+            "stride_length_m":0.8766056825,
+            "walking_speed_mps":0.6318795154
         },
         {
             "level_0":"HA",
@@ -189,8 +189,8 @@
             "duration_s":6.38,
             "stride_duration_s":1.2311111111,
             "cadence_spm":83.1599363292,
-            "stride_length_m":0.8665224675,
-            "walking_speed_mps":0.6275613274
+            "stride_length_m":0.8663764642,
+            "walking_speed_mps":0.6274556238
         },
         {
             "level_0":"HA",
@@ -206,8 +206,8 @@
             "duration_s":4.33,
             "stride_duration_s":1.306,
             "cadence_spm":88.4806619328,
-            "stride_length_m":0.8151191294,
-            "walking_speed_mps":0.6200421666
+            "stride_length_m":0.814981257,
+            "walking_speed_mps":0.6199373405
         },
         {
             "level_0":"HA",
@@ -223,8 +223,8 @@
             "duration_s":4.84,
             "stride_duration_s":1.3433333333,
             "cadence_spm":92.2474979307,
-            "stride_length_m":1.0423414413,
-            "walking_speed_mps":0.8336410727
+            "stride_length_m":1.0421662632,
+            "walking_speed_mps":0.8335011235
         },
         {
             "level_0":"HA",
@@ -240,8 +240,8 @@
             "duration_s":4.58,
             "stride_duration_s":1.2416666667,
             "cadence_spm":91.8045480853,
-            "stride_length_m":1.3368698596,
-            "walking_speed_mps":1.086708855
+            "stride_length_m":1.3366476436,
+            "walking_speed_mps":1.0865283914
         },
         {
             "level_0":"HA",
@@ -257,8 +257,8 @@
             "duration_s":4.77,
             "stride_duration_s":1.2033333333,
             "cadence_spm":89.6517804446,
-            "stride_length_m":1.5262437752,
-            "walking_speed_mps":1.1407646049
+            "stride_length_m":1.5259897728,
+            "walking_speed_mps":1.1405747614
         },
         {
             "level_0":"HA",
@@ -274,8 +274,8 @@
             "duration_s":6.58,
             "stride_duration_s":1.5014285714,
             "cadence_spm":79.8673697916,
-            "stride_length_m":0.8769180648,
-            "walking_speed_mps":0.6061783837
+            "stride_length_m":0.8767702689,
+            "walking_speed_mps":0.6060762689
         },
         {
             "level_0":"HA",
@@ -291,8 +291,8 @@
             "duration_s":15.34,
             "stride_duration_s":1.1207142857,
             "cadence_spm":79.6993126463,
-            "stride_length_m":0.780501995,
-            "walking_speed_mps":0.5318533435
+            "stride_length_m":0.7803699498,
+            "walking_speed_mps":0.5317633688
         },
         {
             "level_0":"HA",
@@ -308,8 +308,8 @@
             "duration_s":13.37,
             "stride_duration_s":1.5314285714,
             "cadence_spm":79.6495246114,
-            "stride_length_m":0.9072873011,
-            "walking_speed_mps":0.6064920551
+            "stride_length_m":0.9071338326,
+            "walking_speed_mps":0.60638948
         },
         {
             "level_0":"HA",
@@ -325,8 +325,8 @@
             "duration_s":4.7,
             "stride_duration_s":1.224,
             "cadence_spm":68.8764368323,
-            "stride_length_m":1.0174902912,
-            "walking_speed_mps":0.5746638161
+            "stride_length_m":1.0173184321,
+            "walking_speed_mps":0.5745667194
         },
         {
             "level_0":"HA",
@@ -342,8 +342,8 @@
             "duration_s":4.32,
             "stride_duration_s":1.2125,
             "cadence_spm":81.9997620015,
-            "stride_length_m":0.6057248697,
-            "walking_speed_mps":0.4185519133
+            "stride_length_m":0.6056219944,
+            "walking_speed_mps":0.4184808358
         },
         {
             "level_0":"MS",
@@ -359,8 +359,8 @@
             "duration_s":5.12,
             "stride_duration_s":1.1275,
             "cadence_spm":106.918435629,
-            "stride_length_m":1.1260870261,
-            "walking_speed_mps":1.0162093433
+            "stride_length_m":1.1258979255,
+            "walking_speed_mps":1.0160387473
         },
         {
             "level_0":"MS",
@@ -376,8 +376,8 @@
             "duration_s":5.05,
             "stride_duration_s":1.04375,
             "cadence_spm":107.4431245984,
-            "stride_length_m":1.0692941076,
-            "walking_speed_mps":0.9952296541
+            "stride_length_m":1.06911435,
+            "walking_speed_mps":0.9950624804
         },
         {
             "level_0":"MS",
@@ -393,8 +393,8 @@
             "duration_s":8.56,
             "stride_duration_s":1.2591666667,
             "cadence_spm":92.8572323488,
-            "stride_length_m":0.9233306302,
-            "walking_speed_mps":0.7460298907
+            "stride_length_m":0.9231750204,
+            "walking_speed_mps":0.7459042466
         },
         {
             "level_0":"MS",
@@ -410,8 +410,8 @@
             "duration_s":7.52,
             "stride_duration_s":1.175,
             "cadence_spm":87.8085531292,
-            "stride_length_m":0.9149363994,
-            "walking_speed_mps":0.6508031379
+            "stride_length_m":0.9147823853,
+            "walking_speed_mps":0.6506934487
         },
         {
             "level_0":"MS",
@@ -427,8 +427,8 @@
             "duration_s":9.15,
             "stride_duration_s":0.985,
             "cadence_spm":100.6564844282,
-            "stride_length_m":0.6769216104,
-            "walking_speed_mps":0.5705706997
+            "stride_length_m":0.6768067385,
+            "walking_speed_mps":0.5704738816
         },
         {
             "level_0":"MS",
@@ -444,8 +444,8 @@
             "duration_s":16.96,
             "stride_duration_s":1.1066666667,
             "cadence_spm":100.8470404966,
-            "stride_length_m":0.8798211662,
-            "walking_speed_mps":0.7427557813
+            "stride_length_m":0.8796726775,
+            "walking_speed_mps":0.7426304347
         },
         {
             "level_0":"MS",
@@ -461,8 +461,8 @@
             "duration_s":21.48,
             "stride_duration_s":1.1348,
             "cadence_spm":82.417072749,
-            "stride_length_m":0.9035697557,
-            "walking_speed_mps":0.6254087611
+            "stride_length_m":0.9034172436,
+            "walking_speed_mps":0.6253032219
         }
     ]
 }

@@ -33,7 +33,7 @@
             "metric":"stride_length_m",
             "origin":"abs_error",
             "aggregation":"mean",
-            "values":0.1846065573
+            "values":0.1845653699
         },
         {
             "index":1,
@@ -41,8 +41,8 @@
             "origin":"abs_error",
             "aggregation":"quantiles",
             "values":[
-                0.0337815339,
-                0.3534215192
+                0.0339175301,
+                0.3532724795
             ]
         },
         {
@@ -50,7 +50,7 @@
             "metric":"stride_length_m",
             "origin":"abs_rel_error",
             "aggregation":"mean",
-            "values":0.3416988356
+            "values":0.3415845552
         },
         {
             "index":3,
@@ -58,8 +58,8 @@
             "origin":"abs_rel_error",
             "aggregation":"quantiles",
             "values":[
-                0.0393112193,
-                0.6776208619
+                0.0394735622,
+                0.6773377273
             ]
         },
         {
@@ -68,7 +68,7 @@
             "origin":"all",
             "aggregation":"icc",
             "values":[
-                0.1203639318,
+                0.1207445435,
                 [
                     -0.65,
                     0.8
@@ -80,7 +80,7 @@
             "metric":"stride_length_m",
             "origin":"detected",
             "aggregation":"mean",
-            "values":0.7970784326
+            "values":0.7969436858
         },
         {
             "index":6,
@@ -88,8 +88,8 @@
             "origin":"detected",
             "aggregation":"quantiles",
             "values":[
-                0.6672629005,
-                0.886906597
+                0.6671496373,
+                0.8867570948
             ]
         },
         {
@@ -98,8 +98,8 @@
             "origin":"error",
             "aggregation":"loa",
             "values":[
-                -0.180340922,
-                0.4932189697
+                -0.1804722809,
+                0.4930808351
             ]
         },
         {
@@ -107,7 +107,7 @@
             "metric":"stride_length_m",
             "origin":"error",
             "aggregation":"mean",
-            "values":0.1564390238
+            "values":0.1563042771
         },
         {
             "index":9,
@@ -132,8 +132,8 @@
             "origin":"rel_error",
             "aggregation":"loa",
             "values":[
-                -0.3050915688,
-                0.9256392391
+                -0.3052093545,
+                0.9253138988
             ]
         },
         {
@@ -141,7 +141,7 @@
             "metric":"stride_length_m",
             "origin":"rel_error",
             "aggregation":"mean",
-            "values":0.3102738352
+            "values":0.3100522721
         }
     ]
 }

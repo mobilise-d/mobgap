@@ -22,6 +22,7 @@ from tqdm.auto import tqdm
 
 import mobgap
 from mobgap._docutils import make_filldoc
+from mobgap.consts import GRAV_MS2
 from mobgap.data.base import (
     BaseGaitDatasetWithReference,
     ParticipantMetadata,
@@ -587,7 +588,7 @@ def _parse_single_sensor_data(
     else:
         parsed_data.index.name = "samples"
     # Convert acc columns to m/s-2
-    parsed_data[["acc_x", "acc_y", "acc_z"]] *= 9.81
+    parsed_data[["acc_x", "acc_y", "acc_z"]] *= GRAV_MS2
 
     return parsed_data
 
