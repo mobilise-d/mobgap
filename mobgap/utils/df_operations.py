@@ -472,10 +472,9 @@ def apply_aggregations(
             if missing_columns == "raise":
                 raise MissingDataColumnsError(key) from e
             if missing_columns == "warn":
-                warnings.warn(str(MissingDataColumnsError(key)), stacklevel=1)
+                warnings.warn(str(MissingDataColumnsError(key)), UserWarning, stacklevel=1)
             continue
-    if agg_aggregation_results:
-        agg_aggregation_results = pd.concat(agg_aggregation_results)
+    agg_aggregation_results = pd.concat(agg_aggregation_results) if agg_aggregation_results else pd.Series()
 
     manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations, missing_columns)
 
@@ -527,9 +526,10 @@ def _collect_manual_and_agg_aggregations(
             # agg function only accepts strings as identifiers for one-level columns
             if isinstance(key, tuple) and len(key) == 1:
                 key = key[0]
-            if not isinstance(key, (tuple, str)):
+            if not isinstance(key, (tuple, str)) or not all(isinstance(k, str) for k in key):
                 raise ValueError(
-                    f"The key {key} has an invalid type. It must either be a string or a tuple of strings."
+                    f"The key {key} has an invalid type. "
+                    "It must either be a valid column name or a tuple of column names."
                 )
             agg_aggregations.setdefault(key, []).extend(wrapped_aggregation)
     return manual_aggregations, agg_aggregations
@@ -548,7 +548,7 @@ def _allow_only_series(func: callable) -> callable:
 
 
 def _apply_manual_aggregations(
-    df: pd.DataFrame, manual_aggregations: list[CustomOperation], missing_columns: Literal["rais", "warn", "skip"]
+    df: pd.DataFrame, manual_aggregations: list[CustomOperation], missing_columns: Literal["raise", "ignore", "warn"]
 ) -> pd.Series:
     # apply manual aggregations
     manual_aggregation_results = []
@@ -563,7 +563,7 @@ def _apply_manual_aggregations(
             if missing_columns == "raise":
                 raise
             if missing_columns == "warn":
-                warnings.warn(str(e), stacklevel=1)
+                warnings.warn(str(e), UserWarning, stacklevel=1)
             continue
 
         for fct in agg_functions:
@@ -578,17 +578,17 @@ def _apply_manual_aggregations(
             column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
             key = (fct_name, *column_name)
             manual_aggregation_results.append(pd.Series([result], index=pd.MultiIndex.from_tuples([key])))
-    if manual_aggregation_results:
-        try:
-            _check_number_of_index_levels(manual_aggregation_results)
-        except ValueError as e:
-            raise ValueError(
-                "Error in concatenating manual aggregation results. "
-                "Please ensure that the `col_names` attribute has the same number of elements "
-                "across all custom aggregations"
-            ) from e
-        manual_aggregation_results = pd.concat(manual_aggregation_results)
-    return manual_aggregation_results
+    if len(manual_aggregation_results) == 0:
+        return pd.Series()
+    try:
+        _check_number_of_index_levels(manual_aggregation_results)
+    except ValueError as e:
+        raise ValueError(
+            "Error in concatenating manual aggregation results. "
+            "Please ensure that the `col_names` attribute has the same number of elements "
+            "across all custom aggregations"
+        ) from e
+    return pd.concat(manual_aggregation_results)
 
 
 def _check_number_of_index_levels(agg_results: list[Union[pd.Series, pd.DataFrame]]) -> None:
