@@ -1,12 +1,13 @@
 """Advnaced operations on complicated pandas dataframes."""
 
+import warnings
 from collections.abc import Hashable, Iterator, Sequence
 from functools import wraps
 from typing import Any, Callable, NamedTuple, Union
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Unpack
+from typing_extensions import Literal, Unpack
 
 
 def _get_group_with_empty_fallback(
@@ -222,7 +223,7 @@ class CustomOperation(NamedTuple):
         If `None`, the entire DataFrame is used.
         Otherwise, it needs to be a valid loc indexer for the DataFrame (`df.loc[:, identifier]`).
     function
-        The function or list of functions to apply.
+        The function to apply.
         They will get the selected data as first argument.
         There expected return value depends on the context the CustomOperation is used in.
     column_name
@@ -231,12 +232,23 @@ class CustomOperation(NamedTuple):
     """
 
     identifier: Union[Hashable, Sequence, str, None]
-    function: Union[Callable, list[Callable]]
+    function: Callable
     column_name: Union[str, tuple[str, ...]]
 
     @property
     def _TAG(self) -> str:  # noqa: N802
         return "CustomOperation"
+
+
+class MissingDataColumnsError(ValueError):
+    """Error raised when the columns specified in the transformations are not found in the DataFrame."""
+
+    def __init__(self, missing_columns: Union[Hashable, Sequence, str]) -> None:
+        self.missing_columns = missing_columns
+        super().__init__(
+            f"One of the transformations requires the following columns: '{missing_columns}'. "
+            f"They are not found in the DataFrame."
+        )
 
 
 def _get_data_from_identifier(
@@ -247,7 +259,7 @@ def _get_data_from_identifier(
     try:
         data = df.loc[:, identifier]
     except KeyError as e:
-        raise ValueError(f"Column(s) '{identifier}' not found in DataFrame.") from e
+        raise MissingDataColumnsError(identifier) from e
     if num_levels:
         data_num_levels = 1 if isinstance(data, pd.Series) else data.columns.nlevels
         if data_num_levels != num_levels:
@@ -255,8 +267,11 @@ def _get_data_from_identifier(
     return data
 
 
-def apply_transformations(
-    df: pd.DataFrame, transformations: list[Union[tuple[str, Union[callable, list[callable]]], CustomOperation]]
+def apply_transformations(  # noqa: C901
+    df: pd.DataFrame,
+    transformations: list[Union[tuple[str, Union[callable, list[callable]]], CustomOperation]],
+    *,
+    missing_columns: Literal["raise", "ignore", "warn"] = "warn",
 ) -> pd.DataFrame:
     """Apply a set of transformations to DataFrame.
 
@@ -294,6 +309,13 @@ def apply_transformations(
             the normal transformations (if a combination is provided).
             This allows for more complex transformations that require multiple columns as input.
 
+    missing_columns
+        How to handle missing columns specified in the transformations.
+
+        - "raise": Raise a `MissingDataColumnsError`.
+        - "ignore": Ignore the missing columns and continue with the remaining transformations.
+        - "warn": Issue a warning and continue with the remaining transformations (default).
+
     Returns
     -------
     transformed_df
@@ -314,26 +336,38 @@ def apply_transformations(
     column_names = []
     for transformation in transformations:
         if getattr(transformation, "_TAG", None) == "CustomOperation":
-            data = _get_data_from_identifier(df, transformation.identifier, num_levels=None)
-            result = transformation.function(data)
-            transformation_results.append(result)
-            column_names.append(transformation.column_name)
+            identifier = transformation.identifier
+            functions = [transformation.function]
+            col_names = [transformation.column_name]
         else:
-            metric, functions = transformation
+            identifier, functions = transformation
+            col_names = []
             if not isinstance(functions, list):
                 functions = [functions]
-            data = _get_data_from_identifier(df, metric, num_levels=None)
             for fct in functions:
                 try:
                     fct_name = fct.__name__
                 except AttributeError as e:
                     raise ValueError(
-                        f"Transformation function {fct} for identifier {metric} does not have a `__name__`-Attribute. "
+                        f"Transformation function {fct} for identifier {identifier} does not have a "
+                        "`__name__`-Attribute. "
                         "Please use a named function or assign a name."
                     ) from e
-                result = fct(data)
-                transformation_results.append(result)
-                column_names.append((metric, fct_name))
+                col_names.append((identifier, fct_name))
+
+        for fct, col_name in zip(functions, col_names):
+            try:
+                data = _get_data_from_identifier(df, identifier, num_levels=None)
+            except MissingDataColumnsError as e:
+                if missing_columns == "raise":
+                    raise
+                if missing_columns == "warn":
+                    warnings.warn(str(e), stacklevel=1)
+                continue
+            result = fct(data)
+            transformation_results.append(result)
+            column_names.append(col_name)
+
     # combine results
     try:
         transformation_results = pd.concat(transformation_results, axis=1)
@@ -362,6 +396,8 @@ def apply_aggregations(
             tuple[Union[str, tuple[str, ...]], Union[Union[callable, str], list[Union[callable, str]]]], CustomOperation
         ]
     ],
+    *,
+    missing_columns: Literal["raise", "ignore", "warn"] = "warn",
 ) -> pd.Series:
     """Apply a set of aggregations to any Dataframe.
 
@@ -374,7 +410,7 @@ def apply_aggregations(
     df
         The DataFrame containing the data to aggregate.
         Aggregations are applied on individual or multiple columns of this DataFrame.
-        The indentifier privided in the aggregations must be a valid loc identifier for the DataFrame.
+        The identifier provided in the aggregations must be a valid loc identifier for the DataFrame.
 
     aggregations : list
         A list specifying which aggregation functions are to be applied for which metrics and data origins.
@@ -395,6 +431,12 @@ def apply_aggregations(
             In case of a single-level output column, `column_name` is a string, whereas for multi-level output columns,
             it is a tuple of strings.
             This allows for more complex aggregations that require multiple columns as input,
+    missing_columns
+        How to handle missing columns specified in the aggregations.
+
+        - "raise": Raise a `MissingDataColumnsError`.
+        - "ignore": Ignore the missing columns and continue with the remaining aggregations.
+        - "warn": Issue a warning and continue with the remaining aggregations (default).
 
     Returns
     -------
@@ -427,11 +469,15 @@ def apply_aggregations(
                 aggregation_result.stack(level=np.arange(df.columns.nlevels).tolist(), future_stack=True)
             )
         except KeyError as e:
-            raise ValueError("Column(s) specified in aggregations not found in DataFrame.") from e
+            if missing_columns == "raise":
+                raise MissingDataColumnsError(key) from e
+            if missing_columns == "warn":
+                warnings.warn(str(MissingDataColumnsError(key)), stacklevel=1)
+            continue
     if agg_aggregation_results:
         agg_aggregation_results = pd.concat(agg_aggregation_results)
 
-    manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations)
+    manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations, missing_columns)
 
     # if only one type of aggregation was applied, return the result directly
     if manual_aggregations and not agg_aggregations:
@@ -501,7 +547,9 @@ def _allow_only_series(func: callable) -> callable:
     return wrapper
 
 
-def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[CustomOperation]) -> pd.Series:
+def _apply_manual_aggregations(
+    df: pd.DataFrame, manual_aggregations: list[CustomOperation], missing_columns: Literal["rais", "warn", "skip"]
+) -> pd.Series:
     # apply manual aggregations
     manual_aggregation_results = []
     for agg in manual_aggregations:
@@ -509,7 +557,15 @@ def _apply_manual_aggregations(df: pd.DataFrame, manual_aggregations: list[Custo
         if not isinstance(agg_functions, list):
             agg_functions = [agg_functions]
 
-        data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
+        try:
+            data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
+        except MissingDataColumnsError as e:
+            if missing_columns == "raise":
+                raise
+            if missing_columns == "warn":
+                warnings.warn(str(e), stacklevel=1)
+            continue
+
         for fct in agg_functions:
             result = fct(data)
             try:

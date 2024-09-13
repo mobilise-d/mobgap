@@ -171,6 +171,7 @@ def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
         "cadence_spm",
         "duration_s",
         "n_steps",
+        "n_strides",
         "n_turns",
         "stride_duration_s",
         "stride_length_m",
@@ -205,7 +206,8 @@ def icc(
     """
     df = _get_data_from_identifier(df, [reference_col_name, detected_col_name], num_levels=1)
     df = (
-        df.reset_index(drop=True)
+        df.astype(float)
+        .reset_index(drop=True)
         .rename_axis("targets", axis=0)
         .rename_axis("rater", axis=1)
         .stack()
@@ -301,6 +303,7 @@ def get_default_error_aggregations() -> (
         "cadence_spm",
         "duration_s",
         "n_steps",
+        "n_strides",
         "n_turns",
         "stride_duration_s",
         "stride_length_m",
