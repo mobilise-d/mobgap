@@ -4,12 +4,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 
+
+### Scientific Changes
+
+- **BREAKING**: Using "high precision" standard value of gravity everywhere (9.80665 m/s^2). 
+  Before we were using 9.81 m/s^2 during the loading of MobiliseD matlab files and when calculating the stride length 
+  validity threshold.
+  This should have a small impact on the results of most algorithms, hence, we marked it as a breaking change.
+
+### Added
+
+- The `apply_aggregations` and `apply_transformation` functions now have an option (on by default) to ignore 
+  transformations that expect columns that don't exist.
+  This should allow the use of the default aggregations and transformations in more situations.
+
+### Changed
+
+- The matlab loader now accepts infoForAlgo files that are missing some of the optional fields.
+
+
 ## [0.7.0] - 2024-09-13
 
 ### Scientific Changes
 
 - **CRITICAL**: The default thresholds for both variants of the GSDIonescu algorithms were not correctly adapted to the
-  input data beeing in m/s2 instead of g.
+  input data being in m/s2 instead of g.
   With the old threshold far to many gait sequences were detected.
   This fix should have a substantial positive impact on the performance of the Impaired pipeline.
 
