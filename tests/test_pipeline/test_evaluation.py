@@ -231,7 +231,7 @@ class TestApplyTransformations:
         df = pd.DataFrame()
         transformations = get_default_error_transformations()
         with pytest.raises(ValueError):
-            apply_transformations(df, transformations)
+            apply_transformations(df, transformations, missing_columns="ignore")
 
 
 class TestApplyAggregations:
@@ -458,7 +458,7 @@ class TestApplyAggregations:
         df = pd.DataFrame()
         aggs = get_default_error_aggregations()
         with pytest.raises(ValueError):
-            apply_aggregations(df, aggs)
+            apply_aggregations(df, aggs, missing_columns="ignore")
 
 
 @pytest.fixture()
