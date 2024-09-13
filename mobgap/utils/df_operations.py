@@ -213,9 +213,24 @@ def create_multi_groupby(
 
 
 class CustomOperation(NamedTuple):
-    """Metadata for custom aggregations and transformations."""
+    """Metadata for custom aggregations and transformations.
 
-    identifier: Union[Hashable, Sequence, str]
+    Parameters
+    ----------
+    identifier
+        The data identifier to select the relevant columns from the DataFrame.
+        If `None`, the entire DataFrame is used.
+        Otherwise, it needs to be a valid loc indexer for the DataFrame (`df.loc[:, identifier]`).
+    function
+        The function or list of functions to apply.
+        They will get the selected data as first argument.
+        There expected return value depends on the context the CustomOperation is used in.
+    column_name
+        The name of the resulting column in the output dataframe.
+
+    """
+
+    identifier: Union[Hashable, Sequence, str, None]
     function: Union[Callable, list[Callable]]
     column_name: Union[str, tuple[str, ...]]
 
@@ -225,8 +240,10 @@ class CustomOperation(NamedTuple):
 
 
 def _get_data_from_identifier(
-    df: pd.DataFrame, identifier: Union[Hashable, Sequence, str], num_levels: Union[int, None] = 1
+    df: pd.DataFrame, identifier: Union[Hashable, Sequence, str, None], num_levels: Union[int, None] = 1
 ) -> pd.DataFrame:
+    if identifier is None:
+        return df
     try:
         data = df.loc[:, identifier]
     except KeyError as e:

@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   With the old threshold far to many gait sequences were detected.
   This fix should have a substantial positive impact on the performance of the Impaired pipeline.
 
-
 ### Fixed
 - `as_samples` now correctly preserves the index of a dataframe.
 
