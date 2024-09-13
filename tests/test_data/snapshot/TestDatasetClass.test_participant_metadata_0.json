@@ -17,28 +17,20 @@
     },
     "data":[
         {
-            "index":"sensor_height_m",
-            "metadata":0.964
-        },
-        {
-            "index":"height_m",
-            "metadata":1.59
-        },
-        {
-            "index":"weight_kg",
-            "metadata":73.0
-        },
-        {
             "index":"cohort",
             "metadata":"HA"
+        },
+        {
+            "index":"foot_length_cm",
+            "metadata":25.0
         },
         {
             "index":"handedness",
             "metadata":"right"
         },
         {
-            "index":"foot_length_cm",
-            "metadata":25.0
+            "index":"height_m",
+            "metadata":1.59
         },
         {
             "index":"indip_data_used",
@@ -49,12 +41,20 @@
             "metadata":"Body-Worn"
         },
         {
+            "index":"sensor_height_m",
+            "metadata":0.964
+        },
+        {
             "index":"sensor_type_su",
             "metadata":"MM+"
         },
         {
             "index":"walking_aid_used",
             "metadata":false
+        },
+        {
+            "index":"weight_kg",
+            "metadata":73.0
         }
     ]
 }
