@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mobgap"
-version = "0.6.0"
+version = "0.7.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = [
     "Arne Küderle <arne.kuederle@fau.de>",
