@@ -84,7 +84,7 @@ class CorrectOrientationSensorAxes:
             # Output of filter chains should be a pd.DataFrame so the iter_gs function can work
             av_filt1 = pd.DataFrame(av_filt1, columns=['acc_is'])
 
-            gs = GsdIluz().detect(acc, sampling_rate_hz=self.sampling_rate_hz).gs_list_
+            gs = GsdIluz().detect(data, sampling_rate_hz=self.sampling_rate_hz).gs_list_
 
             # Adding a specific index to gs so the iter_gs function can work
             if gs.index.name is None:
