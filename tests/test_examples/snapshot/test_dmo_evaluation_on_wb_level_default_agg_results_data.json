@@ -27,6 +27,12 @@
     },
     "data":[
         {
+            "metric":"all",
+            "origin":"all",
+            "aggregation":"n_datapoints",
+            "values":4
+        },
+        {
             "metric":"cadence_spm",
             "origin":"abs_error",
             "aggregation":"mean",

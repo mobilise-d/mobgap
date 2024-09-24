@@ -50,3 +50,20 @@ def test_unique_center_id(selection):
     unique_ids = dataset.unique_center_id
     assert len(unique_ids) == n_participants
     assert set(unique_ids) == set(str(i) for i in range(1, 6))
+
+
+def test_data_can_be_loaded():
+    dataset = TVSLabDataset(
+        TVS_DATA_PATH,
+    )
+    assert dataset[0].data_ss.shape == (6286, 6)
+
+
+@pytest.mark.parametrize("reference", ["INDIP", "Stereophoto"])
+def test_reference_can_be_loaded(reference):
+    dataset = TVSLabDataset(TVS_DATA_PATH, reference_system=reference)
+    ref_paras = dataset[10].reference_parameters_
+    assert len(ref_paras.wb_list) == 1
+    assert isinstance(ref_paras.ic_list, pd.DataFrame)
+    assert ref_paras.turn_parameters is None
+    assert isinstance(ref_paras.stride_parameters, pd.DataFrame)

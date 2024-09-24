@@ -171,6 +171,7 @@ def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
         "cadence_spm",
         "duration_s",
         "n_steps",
+        "n_strides",
         "n_turns",
         "stride_duration_s",
         "stride_length_m",
@@ -205,7 +206,8 @@ def icc(
     """
     df = _get_data_from_identifier(df, [reference_col_name, detected_col_name], num_levels=1)
     df = (
-        df.reset_index(drop=True)
+        df.astype(float)
+        .reset_index(drop=True)
         .rename_axis("targets", axis=0)
         .rename_axis("rater", axis=1)
         .stack()
@@ -256,6 +258,10 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
     return float(mean - std * agreement), float(mean + std * agreement)
 
 
+def n_datapoints(df: pd.DataFrame) -> int:
+    return len(df)
+
+
 class CustomErrorAggregations:
     """Custom aggregation functions that might be useful in addition to the once provided by pandas (e.g. mean/std).
 
@@ -282,6 +288,7 @@ class CustomErrorAggregations:
     icc = icc
     quantiles = quantiles
     loa = loa
+    n_datapoints = n_datapoints
 
 
 def get_default_error_aggregations() -> (
@@ -296,6 +303,7 @@ def get_default_error_aggregations() -> (
         "cadence_spm",
         "duration_s",
         "n_steps",
+        "n_strides",
         "n_turns",
         "stride_duration_s",
         "stride_length_m",
@@ -310,6 +318,7 @@ def get_default_error_aggregations() -> (
         ),
         *(((m, o), ["mean", loa]) for m in metrics for o in ["error", "rel_error"]),
         *[CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics],
+        CustomOperation(identifier=None, function=n_datapoints, column_name=("all", "all")),
     ]
 
     return default_agg

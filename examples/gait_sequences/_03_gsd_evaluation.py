@@ -68,8 +68,7 @@ reference_gsd_list
 # Note, that there are two different ways to approach this:
 #
 # 1. We can calculate the for each sample, whether it is correctly detected as gait or not.
-# 2. We can check on the level of gait sequences, whether a detected gait sequence matches with a reference gait
-# sequence (by a certain overlap threshold).
+# 2. We can check on the level of gait sequences, whether a detected gait sequence matches with a reference gait sequence (by a certain overlap threshold).
 #
 # In mobgap, we provide functions to calculate both types of performance metrics. Let's start with the first one.
 #
@@ -77,13 +76,11 @@ reference_gsd_list
 # ----------------------------------
 # To do this, we use the :func:`~gaitlink.gait_sequences.evaluation.categorize_intervals_per_sample` function
 # to identify overlapping regions between the detected gait sequences and the reference gait sequences.
-# These overlapping regions can then be converted into sample-wise classifications of true positives, false positives,
-# and false negatives.
+# These overlapping regions can then be converted into sample-wise classifications of true positives, false positives, and false negatives.
 #
 # As function arguments, besides the mandatory detected and reference gait sequences,
 # the total number of samples in the recording can be specified as optional parameter.
-# If provided, the intervals where no gait sequences are present in the reference and the detected list are also
-# reported.
+# If provided, the intervals where no gait sequences are present in the reference and the detected list are also reported.
 # Later on, we can then use these categorized intervals to calculate a set of higher-level performance metrics.
 #
 # As result, a DataFrame containing `start` and `end`  index of the resulting categorized intervals together with
@@ -91,8 +88,7 @@ reference_gsd_list
 # positive, and `fn` for false negative.
 # These intervals can not be interpreted as gait sequences, but are rather subsequences of the detected gait sequences
 # categorizing correctly detected samples (`tp`), falsely detected samples (`fp`), samples from the reference gsd
-# list that were not detected (`fn`), and (optionally) samples where no gait sequences are present in both the
-# reference and detected gait sequences (`tn`).
+# list that were not detected (`fn`), and (optionally) samples where no gait sequences are present in both the reference and detected gait sequences (`tn`).
 # Note that the tn intervals are not explicitly calculated, but are inferred from the total length of the recording
 # (if provided) and from the other intervals, as everything between them is considered as true negative.
 from mobgap.gait_sequences.evaluation import categorize_intervals_per_sample
@@ -108,12 +104,10 @@ categorized_intervals
 # %%
 # Based on the individually categorized tp, fp, fn, and tn intervals, common performance metrics,
 # e.g., F1 score, precision, or recall can be calculated.
-# For this purpose, the :func:`~gaitlink.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics` function
-# can be used.
+# For this purpose, the :func:`~gaitlink.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics` function can be used.
 # It calculates the metrics based on the "matched" gsd intervals, i.e., the categorized interval list where every entry
 # has a match type (tp, fp, fn, tn) assigned.
-# Therefore, the function requires to call the
-# :func:`~gaitlink.gait_sequences.evaluation.categorize_intervals_per_sample` function first.
+# Therefore, the function requires to call the :func:`~gaitlink.gait_sequences.evaluation.categorize_intervals_per_sample` function first.
 # The categorized intervals can then be passed as an argument
 # to :func:`~gaitlink.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics`.
 # It returns a dictionary containing the metrics for the specified categorized intervals DataFrame.
@@ -150,7 +144,7 @@ unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
 
 unmatched_metrics_dict
 # %%
-# Direct Gaits Sequence Matching
+# Direct Gait Sequence Matching
 # ------------------------------
 # Apart from the performance evaluation methods mentioned above, it might be useful in some cases to identify
 # how many and which detected gait sequences reliably match with the ground truth.

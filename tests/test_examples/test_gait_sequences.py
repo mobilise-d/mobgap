@@ -14,10 +14,17 @@ def test_gsd_iluz(snapshot):
 
 
 def test_gsd_adaptive_ionescu(snapshot):
-    from examples.gait_sequences._02_gsd_ionescu import long_trial_output_adaptive, short_trial_output_adaptive
+    from examples.gait_sequences._02_gsd_ionescu import (
+        long_trial_output_adaptive,
+        long_trial_output_normal,
+        short_trial_output_adaptive,
+        short_trial_output_normal,
+    )
 
     snapshot.assert_match(long_trial_output_adaptive.gs_list_, "long_trial_output_adaptive")
     snapshot.assert_match(short_trial_output_adaptive.gs_list_, "short_trial_output_adaptive")
+    snapshot.assert_match(long_trial_output_normal.gs_list_, "long_trial_output_normal")
+    snapshot.assert_match(short_trial_output_normal.gs_list_, "short_trial_output_normal")
 
 
 def test_gsd_evaluation(snapshot):

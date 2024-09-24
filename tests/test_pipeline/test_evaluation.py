@@ -17,7 +17,12 @@ from mobgap.pipeline._error_metrics import (
     quantiles,
     rel_error,
 )
-from mobgap.utils.df_operations import CustomOperation, apply_aggregations, apply_transformations
+from mobgap.utils.df_operations import (
+    CustomOperation,
+    MissingDataColumnsError,
+    apply_aggregations,
+    apply_transformations,
+)
 
 
 class TestTransformationAggregationFunctions:
@@ -226,7 +231,7 @@ class TestApplyTransformations:
         df = pd.DataFrame()
         transformations = get_default_error_transformations()
         with pytest.raises(ValueError):
-            apply_transformations(df, transformations)
+            apply_transformations(df, transformations, missing_columns="ignore")
 
 
 class TestApplyAggregations:
@@ -269,9 +274,9 @@ class TestApplyAggregations:
         count_loa = count_metrics * 2
 
         assert isinstance(res, pd.Series)
-        assert len(res) == count_quantiles + count_icc + count_loa + count_mean
-        assert res.index.get_level_values(0).nunique() == 4  # function names mean, icc, quantiles, loa
-        assert res.index.get_level_values(1).nunique() == count_metrics
+        assert len(res) == count_quantiles + count_icc + count_loa + count_mean + 1  # + 1 for n_datapoints
+        assert res.index.get_level_values(0).nunique() == 5  # function names mean, icc, quantiles, loa
+        assert res.index.get_level_values(1).nunique() == count_metrics + 1
         assert res.index.get_level_values(2).nunique() == 7  # all origins + "all"
 
     @pytest.mark.parametrize(
@@ -306,6 +311,39 @@ class TestApplyAggregations:
         aggregations = [(invalid_id, functions)]
         with pytest.raises(ValueError):
             apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations)
+
+    @pytest.mark.parametrize("missing_identifier", ["bla", ("bla1", "bla2")])
+    @pytest.mark.parametrize("missing_columns", ["ignore", "raise", "warn"])
+    @pytest.mark.parametrize("custom_agg", [True, False])
+    def test_agg_aggregations_for_missing_cols(
+        self, missing_identifier, combined_det_ref_dmo_df_with_errors, missing_columns, custom_agg
+    ):
+        functions = ["mean", "std"]
+        if not custom_agg:
+            aggregations = [(missing_identifier, functions)]
+        else:
+            aggregations = [
+                CustomOperation(identifier=missing_identifier, function=lambda x: 0, column_name=missing_identifier)
+            ]
+
+        if missing_columns in ["ignore", "warn"]:
+            with pytest.warns(UserWarning if missing_columns == "warn" else None) as w:
+                res = apply_aggregations(
+                    combined_det_ref_dmo_df_with_errors, aggregations, missing_columns=missing_columns
+                )
+            assert_series_equal(res, pd.Series())
+
+            if missing_columns == "warn":
+                assert len(w) == 1
+            else:
+                assert len(w) == 0
+
+        elif missing_columns == "raise":
+            with pytest.raises(MissingDataColumnsError):
+                apply_aggregations(combined_det_ref_dmo_df_with_errors, aggregations, missing_columns=missing_columns)
+
+        else:
+            raise ValueError("Invalid value for missing_columns")
 
     @patch("mobgap.pipeline._error_metrics.loa")
     @patch("mobgap.pipeline._error_metrics.icc")
@@ -420,7 +458,7 @@ class TestApplyAggregations:
         df = pd.DataFrame()
         aggs = get_default_error_aggregations()
         with pytest.raises(ValueError):
-            apply_aggregations(df, aggs)
+            apply_aggregations(df, aggs, missing_columns="ignore")
 
 
 @pytest.fixture()

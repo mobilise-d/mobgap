@@ -57,8 +57,8 @@
             "duration_s":4.82,
             "stride_duration_s":1.0128571429,
             "cadence_spm":102.6919893019,
-            "stride_length_m":1.0900338764,
-            "walking_speed_mps":0.9361310339
+            "stride_length_m":1.089850958,
+            "walking_speed_mps":0.9359739589
         },
         {
             "wb_id":1,
@@ -69,8 +69,8 @@
             "duration_s":13.06,
             "stride_duration_s":1.3057142857,
             "cadence_spm":79.2905055466,
-            "stride_length_m":0.6998197363,
-            "walking_speed_mps":0.4594281137
+            "stride_length_m":0.6997014677,
+            "walking_speed_mps":0.4593504932
         },
         {
             "wb_id":2,
@@ -81,8 +81,8 @@
             "duration_s":7.1,
             "stride_duration_s":1.6042857143,
             "cadence_spm":91.0054982539,
-            "stride_length_m":1.0738746836,
-            "walking_speed_mps":0.8130714605
+            "stride_length_m":1.0736944434,
+            "walking_speed_mps":0.8129349721
         },
         {
             "wb_id":3,
@@ -93,8 +93,8 @@
             "duration_s":9.34,
             "stride_duration_s":1.2536363636,
             "cadence_spm":85.6650683741,
-            "stride_length_m":0.8767536821,
-            "walking_speed_mps":0.6319861833
+            "stride_length_m":0.8766056825,
+            "walking_speed_mps":0.6318795154
         },
         {
             "wb_id":4,
@@ -105,8 +105,8 @@
             "duration_s":6.38,
             "stride_duration_s":1.2311111111,
             "cadence_spm":83.1599363292,
-            "stride_length_m":0.8665224675,
-            "walking_speed_mps":0.6275613274
+            "stride_length_m":0.8663764642,
+            "walking_speed_mps":0.6274556238
         },
         {
             "wb_id":5,
@@ -117,8 +117,8 @@
             "duration_s":4.33,
             "stride_duration_s":1.306,
             "cadence_spm":88.4806619328,
-            "stride_length_m":0.8151191294,
-            "walking_speed_mps":0.6200421666
+            "stride_length_m":0.814981257,
+            "walking_speed_mps":0.6199373405
         },
         {
             "wb_id":6,
@@ -129,8 +129,8 @@
             "duration_s":4.84,
             "stride_duration_s":1.3433333333,
             "cadence_spm":92.2474979307,
-            "stride_length_m":1.0423414413,
-            "walking_speed_mps":0.8336410727
+            "stride_length_m":1.0421662632,
+            "walking_speed_mps":0.8335011235
         }
     ]
 }

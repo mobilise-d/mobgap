@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Hashable
 from itertools import count
 from types import MappingProxyType
@@ -149,8 +150,10 @@ class WbAssembly(Algorithm):
         parameters = self.termination_reasons_.loc[n_strides.index]
         start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
 
-        return pd.concat([start_end, n_strides, parameters], axis=1).assign(
-            duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz
+        return (
+            pd.concat([start_end, n_strides, parameters], axis=1)
+            .assign(duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz)
+            .astype({"start": int, "end": int, "n_strides": int, "duration_s": float})
         )
 
     @property
@@ -237,9 +240,13 @@ class WbAssembly(Algorithm):
         else:
             excluded_strides_in_wbs = pd.DataFrame(columns=[*filtered_stride_list.columns, *pre_id_index_cols])
         other_excluded_strides = excluded_strides.assign(pre_wb_id=None).reset_index()
-        self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides]).set_index(
-            pre_id_index_cols
-        )
+        with warnings.catch_warnings():
+            # We ignore Pandas Future Warning here, as we actually want the new behaviour, but there is no way to
+            # enable it.
+            warnings.simplefilter("ignore", category=FutureWarning)
+            self.excluded_stride_list_ = pd.concat([excluded_strides_in_wbs, other_excluded_strides]).set_index(
+                pre_id_index_cols
+            )
         self.termination_reasons_ = pd.DataFrame.from_dict(
             termination_reasons, orient="index", columns=["rule_name", "rule_obj"]
         ).rename_axis(index="wb_id")

@@ -18,23 +18,23 @@
     "data":[
         {
             "sec_center_samples":50,
-            "stride_length_m":1.3168635136
+            "stride_length_m":1.3166438666
         },
         {
             "sec_center_samples":150,
-            "stride_length_m":1.2606422181
+            "stride_length_m":1.2604315132
         },
         {
             "sec_center_samples":250,
-            "stride_length_m":1.226180778
+            "stride_length_m":1.2259755836
         },
         {
             "sec_center_samples":350,
-            "stride_length_m":1.2050963992
+            "stride_length_m":1.2048945873
         },
         {
             "sec_center_samples":450,
-            "stride_length_m":1.2050963992
+            "stride_length_m":1.2048945873
         }
     ]
 }

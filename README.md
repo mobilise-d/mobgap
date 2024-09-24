@@ -5,6 +5,10 @@
 > 
 > Learn more about this in our blog post about the [alpha release](https://mobgap.readthedocs.io/en/latest/blog/20240322_alpha_release.html).
 
+> [!CAUTION]
+> v0.7.0 has a critical performance update for the default `Impaired Walking` pipeline! 
+> We highly recommend updating! See more in the Changelog. 
+
 
 <p align="center">
 <img src="./docs/_static/logo/mobilise_d_and_imi.png" height="200">
