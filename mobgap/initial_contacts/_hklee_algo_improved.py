@@ -88,7 +88,7 @@ class IcdHKLeeImproved(BaseIcDetector):
         gait evaluation using accelerometer." Electronics letters 46.17 (2010): 1185-1187.
     .. [2] Paraschiv-Ionescu, A. et al. "Real-world speed estimation using single trunk IMU:
        methodological challenges for impaired gait patterns". IEEE EMBC (2020): 4596-4599
-    .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/CADB_CADC/Library/Shin_algo_improved.m
+    .. [3] https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms/blob/master/CADB_CADC/Library/HKLee_algo_improved.m
 
     """
 
