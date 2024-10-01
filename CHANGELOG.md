@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - Unreleased
+
+### Changed
+- The `calculate_matched_gsd_performance_metrics` function now always return the error metrics that depend on TN 
+  samples, not just when TN samples exist.
+  This way the output structure is consistent, and we can avoid bugs in scorer functions, where some datapoints might
+  unexpectedly return a different set of error metrics.
+
+
 ## [0.8.0] - 2024-09-13 
 
 ### Scientific Changes

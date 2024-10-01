@@ -45,21 +45,20 @@ def calculate_matched_gsd_performance_metrics(
     - `precision`: Precision of the detected gait sequences.
     - `recall`: Recall of the detected gait sequences.
     - `f1_score`: F1 score of the detected gait sequences.
-
-    See the documentation of :func:`~mobgap.utils.evaluation.precision_recall_f1_score` for more details.
-
-    Further metrics are calculated if `matches` contains true negative intervals.
-    This can be achieved by passing `n_overall_samples` as additional information to
-    :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample`.
-
     - `tn_samples`: Number of samples that are correctly not detected as gait sequences.
     - `specificity`: Specificity of the detected gait sequences.
     - `accuracy`: Accuracy of the detected gait sequences.
     - `npv`: Negative predictive value of the detected gait sequences.
 
+    See the documentation of :func:`~mobgap.utils.evaluation.precision_recall_f1_score` for more details.
+
+    Note, that some of the metrics might run into zero division errors depending on the input data.
+    The resulting value can be controlled by the `zero_division` parameter.
     See the documentation of :func:`~mobgap.utils.evaluation.specificity_score`,
-     :func:`~mobgap.utils.evaluation.accuracy_score`, and :func:`~mobgap.utils.evaluation.npv_score` for more
-     details.
+    :func:`~mobgap.utils.evaluation.accuracy_score`, and :func:`~mobgap.utils.evaluation.npv_score` for more
+    details.
+    Note, that you can only control the behavior of the zero division for all metrics at once.
+    If you need individual control, you need to calculate the metrics separately.
 
     Parameters
     ----------
@@ -94,15 +93,16 @@ def calculate_matched_gsd_performance_metrics(
     # estimate performance metrics
     precision_recall_f1 = precision_recall_f1_score(matches, zero_division=zero_division)
 
-    gsd_metrics = {"tp_samples": tp_samples, "fp_samples": fp_samples, "fn_samples": fn_samples, **precision_recall_f1}
-
-    # tn-dependent metrics
-    if tn_samples != 0:
-        gsd_metrics["tn_samples"] = tn_samples
-        gsd_metrics["specificity"] = specificity_score(matches, zero_division=zero_division)
-        gsd_metrics["accuracy"] = accuracy_score(matches, zero_division=zero_division)
-        gsd_metrics["npv"] = npv_score(matches, zero_division=zero_division)
-
+    gsd_metrics = {
+        "tp_samples": tp_samples,
+        "fp_samples": fp_samples,
+        "fn_samples": fn_samples,
+        **precision_recall_f1,
+        "tn_samples": tn_samples,
+        "specificity": specificity_score(matches, zero_division=zero_division),
+        "accuracy": accuracy_score(matches, zero_division=zero_division),
+        "npv": npv_score(matches, zero_division=zero_division),
+    }
     return gsd_metrics
 
 
