@@ -52,7 +52,7 @@ def parse_single_test(data: mat_struct) -> pd.DataFrame:
 def process(path: Path) -> tuple[str, Optional[pd.DataFrame]]:
     path = path.resolve()
     cohort = path.parent.parent.name
-    condition = path.parent.name
+    condition = path.parent.name.lower().replace("-", "_")
     participant_id, *_, algo_name = path.name.split("_", 2)
     algo_name = algo_name.rsplit("_", 1)[0]
     new_participant_id = id_mapping[participant_id]
