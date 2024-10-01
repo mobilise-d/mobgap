@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This way the output structure is consistent, and we can avoid bugs in scorer functions, where some datapoints might
   unexpectedly return a different set of error metrics.
 
+### Fixed
+- The zero division hint for error functions did not properly replace the value with NaN, when the result of the 
+  operation was -inf instead of inf.
+
 
 ## [0.8.0] - 2024-09-13 
 

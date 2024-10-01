@@ -1,11 +1,30 @@
+import warnings
 from typing import Final, Literal, Union
 
 import numpy as np
 import pandas as pd
 from pingouin import intraclass_corr
 
-from mobgap._utils_internal.math import _handle_zero_division
 from mobgap.utils.df_operations import CustomOperation, _get_data_from_identifier
+
+
+def _handle_zero_division(
+    divisor: Union[pd.Series, pd.DataFrame],
+    zero_division_hint: Union[Literal["warn", "raise"], float],
+    caller_fct_name: str,
+) -> None:
+    if (divisor == 0).any():
+        if zero_division_hint not in ["warn", "raise", np.nan]:
+            raise ValueError('"zero_division" must be set to "warn", "raise" or `np.nan`!')
+        if zero_division_hint == "raise":
+            raise ZeroDivisionError(f"Zero division occurred in {caller_fct_name} because divisor contains zeroes.")
+        if zero_division_hint == "warn":
+            warnings.warn(
+                f"Zero division occurred in {caller_fct_name} because divisor contains zeroes. "
+                "Affected error metrics are set to NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 def error(df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected") -> pd.Series:
@@ -64,7 +83,7 @@ def rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "rel_error")
     result = (det - ref) / ref
-    result = result.replace(np.inf, np.nan)
+    result = result.replace([np.inf, -np.inf], np.nan)
     return result
 
 
@@ -126,7 +145,7 @@ def abs_rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "abs_rel_error")
     result = abs((det - ref) / ref)
-    result = result.replace(np.inf, np.nan)
+    result = result.replace([np.inf, -np.inf], np.nan)
     return result
 
 

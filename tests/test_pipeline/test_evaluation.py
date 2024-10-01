@@ -33,6 +33,19 @@ class TestTransformationAggregationFunctions:
         assert_series_equal(rel_error(df), pd.Series([-1, -1 / 2, -1 / 3]))
         assert_series_equal(abs_rel_error(df), pd.Series([1, 1 / 2, 1 / 3]))
 
+    def test_zero_division_negative_inf(self):
+        # This causes a - inf in rel error as (0 - 1) / 0 = -inf
+        df = pd.DataFrame([[1, 0], [1, 2], [2, 3]], columns=["detected", "reference"])
+        assert_series_equal(rel_error(df, zero_division_hint=np.nan), pd.Series([np.nan, -1 / 2, -1 / 3]))
+
+        # Just to be sure here the +inf case
+        df = pd.DataFrame([[-1, 0], [1, 2], [2, 3]], columns=["detected", "reference"])
+        assert_series_equal(rel_error(df, zero_division_hint=np.nan), pd.Series([np.nan, -1 / 2, -1 / 3]))
+
+        # And the 0 case
+        df = pd.DataFrame([[0, 0], [1, 2], [2, 3]], columns=["detected", "reference"])
+        assert_series_equal(rel_error(df, zero_division_hint=np.nan), pd.Series([np.nan, -1 / 2, -1 / 3]))
+
     def test_error_funcs_with_zero_division(self):
         df = pd.DataFrame([[0, 1], [1, 2], [2, 3]], columns=["reference", "detected"])
         assert_series_equal(error(df), pd.Series([1, 1, 1]))
