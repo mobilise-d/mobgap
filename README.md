@@ -137,8 +137,8 @@ The package is designed to be used in two modes:
 ## Used by
 
 <p float="left">
-   <img src="./docs/_static/used_by_logos/mobilise_d_logo.png" alt="Mobilise-D logo" height="25">  
-   <img src="./docs/_static/used_by_logos/actigraph_logo.svg" alt="Actigraph logo" height="25">
+   <img src="./docs/_static/used_by_logos/mobilise_d_logo.png" alt="Mobilise-D logo" height="25" align="top">  
+   <img src="./docs/_static/used_by_logos/actigraph_logo.svg" alt="Actigraph logo" height="25" align="top">
 </p>  
 
 While mobgap is a relatively young project, it is used in multiple projects and by multiple companies.
