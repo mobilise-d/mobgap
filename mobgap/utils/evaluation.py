@@ -301,8 +301,8 @@ def accuracy_score(
         tn = _estimate_number_tn_samples(matches_df, n_overall_samples, tn_warning=tn_warning)
     elif _input_is_icd_matches_df(matches_df):
         raise ValueError(
-            "The sample-wise accuracy score is not a meaningful metric for initial contact detection match dataframes,"
-            " as the number of true negatives always outweighs the number of false negatives, "
+            "The sample-wise accuracy score is not a meaningful metric for initial contact detection match dataframes, "
+            "as the number of true negatives always outweighs the number of false negatives, "
             "false positives, and true positives."
         )
     else:
