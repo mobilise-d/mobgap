@@ -6,8 +6,7 @@ This does the following steps:
 3. Recode the participant id to the new ids in line with the published TVS dataset.
 4. Save the results in one json file per algorithm.
 """
-import json
-import re
+
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +16,7 @@ from scipy.io.matlab import mat_struct
 from tqdm import tqdm
 
 from mobgap.data._mobilised_matlab_loader import _parse_matlab_struct, _parse_until_test_level
+from mobgap.utils.conversions import as_samples
 
 ROOT_DATA_PATH = Path("../../../mobgap_validation/")
 
@@ -44,9 +44,13 @@ def parse_single_test(data: mat_struct) -> pd.DataFrame:
     dps = [_parse_matlab_struct(dp) for dp in data]
     if dps:
         sampling_rate = dps[0]["GSD_fs"]
-        return pd.DataFrame.from_records(dps).drop(columns="GSD_fs").rename(columns=lambda s: s.lower()).mul(sampling_rate).astype(int)
+        return (
+            pd.DataFrame.from_records(dps)
+            .drop(columns="GSD_fs")
+            .rename(columns=lambda s: s.lower())
+            .pipe(lambda df_: as_samples(df_, sampling_rate))
+        )
     return pd.DataFrame(columns=["start", "end"]).astype({"start": int, "end": int})
-
 
 
 def process(path: Path) -> tuple[str, Optional[pd.DataFrame]]:
@@ -66,13 +70,14 @@ def process(path: Path) -> tuple[str, Optional[pd.DataFrame]]:
         per_file_results[identifier] = parse_single_test(test_data)
 
     if not per_file_results:
-        return condition , None
+        return condition, None
     col_names = ["algorithm", "cohort", "participant_id"]
-    if condition == "Free-living":
+    if condition == "free_living":
         col_names.extend(["time_measure", "recording"])
     else:
         col_names.extend(["time_measure", "test", "trial"])
     return condition, pd.concat(per_file_results, names=[*col_names, "wb_id"])
+
 
 # %%
 GSD_DATA_PATH = ROOT_DATA_PATH / "_old_data_raw/GSD"
@@ -90,4 +95,3 @@ for condition, result in all_results.items():
     out_dir.mkdir(exist_ok=True)
     for name, group in tqdm(list(out.groupby("algorithm"))):
         group.reset_index("algorithm", drop=True).to_json(out_dir / f"{name}.zip", orient="index", indent=2)
-
