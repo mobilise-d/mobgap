@@ -70,45 +70,6 @@ pip install .
 
 Or the equivalent commands of the python package manager you are using to install local dependencies.
 
-## Development Setup
-
-If you are planning to make any changes to the code, follow 
-[this guide](https://mobgap.readthedocs.io/en/latest/guides/developer_guide.html)
-
-To run typical development tasks, you can use the provided [poethepoet](https://github.com/nat-n/poethepoet) commands:
-
-```
->>> poetry run poe
-...
-CONFIGURED TASKS
-  format                      
-  format_unsafe               
-  lint                        Lint all files with ruff.
-  ci_check                    Check all potential format and linting issues.
-  test                        Run Pytest with coverage.
-  test_ci                     Run Pytest with coverage and fail on missing snapshots.
-  docs                        Build the html docs using Sphinx.
-  docs_clean                  Remove all old build files and build a clean version of the docs.
-  docs_linkcheck              Check all links in the built html docs.
-  docs_preview                Preview the built html docs.
-  version                     Bump the version number in all relevant files.
-  conf_jupyter                Add a new jupyter kernel for the project.
-  remove_jupyter              Remove the project specific jupyter kernel.
-  update_example_data         Update the example data registry.
-```
-
-Before you push, you should run the `format`, `lint` and `test` task to make sure your code is in a good state.
-
-### Note about tests
-
-Some of the tests can only be executed when certain data is available.
-To make sure that the tests concerning the TVS dataset are run, you need to export an environment variable
-with the path to the TVS dataset.
-
-```bash
-MOBGAP_TVS_DATASET_PATH="/path/to/tvs/dataset" poe test
-```
-
 ## Usage Recommendation
 
 The package is designed to be used in two modes:
@@ -173,6 +134,22 @@ The package is designed to be used in two modes:
    When appropriate, include the link to the mobgap library as a footnote or as an "online resource" in the reference
    list.
 
+## Used by
+
+<img src="./docs/_static/used_by_logos/mobilise_d_logo.png" alt="Mobilise-D logo" height="25">  
+<img src="./docs/_static/used_by_logos/actigraph_logo.svg" alt="Actigraph logo" height="25">
+
+
+While mobgap is a relatively young project, it is used in multiple projects and by multiple companies.
+Below a list (in no particular order) of projects and companies that use mobgap:
+
+- [Mobilise-D](https://mobilise-d.eu): (obviously)
+- [ActiGraph](https://theactigraph.com): [Learn
+more](https://blog.theactigraph.com/blog/mobilise-d-algorithms-centrepoint-integration)
+
+If you are using mobgap in your project or company and would like to be listed here, please let us know via Github 
+Issues or Email.
+
 ## License and Usage of Names
 
 The library was developed as part of [the Mobilise-D project](https://mobilise-d.eu) under the lead of the 
@@ -199,6 +176,46 @@ Ideally, we recommend using the names as described in the usage recommendation a
 "Mobilise-D algorithm pipeline" for any custom pipelines or pipelines with modified parameters.
 If in doubt, feel free ask using the [Github issue tracker](https://github.com/mobilise-d/mobgap/issues) or 
 the Github discussions.
+
+
+## Development Setup
+
+If you are planning to make any changes to the code, follow 
+[this guide](https://mobgap.readthedocs.io/en/latest/guides/developer_guide.html)
+
+To run typical development tasks, you can use the provided [poethepoet](https://github.com/nat-n/poethepoet) commands:
+
+```
+>>> poetry run poe
+...
+CONFIGURED TASKS
+  format                      
+  format_unsafe               
+  lint                        Lint all files with ruff.
+  ci_check                    Check all potential format and linting issues.
+  test                        Run Pytest with coverage.
+  test_ci                     Run Pytest with coverage and fail on missing snapshots.
+  docs                        Build the html docs using Sphinx.
+  docs_clean                  Remove all old build files and build a clean version of the docs.
+  docs_linkcheck              Check all links in the built html docs.
+  docs_preview                Preview the built html docs.
+  version                     Bump the version number in all relevant files.
+  conf_jupyter                Add a new jupyter kernel for the project.
+  remove_jupyter              Remove the project specific jupyter kernel.
+  update_example_data         Update the example data registry.
+```
+
+Before you push, you should run the `format`, `lint` and `test` task to make sure your code is in a good state.
+
+### Note about tests
+
+Some of the tests can only be executed when certain data is available.
+To make sure that the tests concerning the TVS dataset are run, you need to export an environment variable
+with the path to the TVS dataset.
+
+```bash
+MOBGAP_TVS_DATASET_PATH="/path/to/tvs/dataset" poe test
+```
 
 ## Funding and Support
 
