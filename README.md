@@ -139,6 +139,7 @@ The package is designed to be used in two modes:
 <p float="left">
    <img src="./docs/_static/used_by_logos/mobilise_d_logo.png" alt="Mobilise-D logo" height="25" align="bottom">  
    <img src="./docs/_static/used_by_logos/actigraph_logo.svg" alt="Actigraph logo" height="25" align="bottom">
+    <img src="./docs/_static/used_by_logos/empatica-logo-full-red.png" alt="Empatica logo" height="28" align="bottom">
 </p>  
 
 While mobgap is a relatively young project, it is used in multiple projects and by multiple companies.
@@ -147,6 +148,8 @@ Below a list (in no particular order) of projects and companies that use mobgap:
 - [Mobilise-D](https://mobilise-d.eu): (obviously)
 - [ActiGraph](https://theactigraph.com): [Learn
 more](https://blog.theactigraph.com/blog/mobilise-d-algorithms-centrepoint-integration)
+- [Empatica](https://www.empatica.com): [Learn
+more](https://www.empatica.com/blog/empatica-announces-integration-of-mobilise-d-mobility-outcomes,-advancing-toward-unified-solution-for-clinical-professionals.html) 
 
 If you are using mobgap in your project or company and would like to be listed here, please let us know via Github 
 Issues or Email.
