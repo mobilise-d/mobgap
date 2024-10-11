@@ -118,7 +118,7 @@ round_to_int_new_cols = [
 
 round_to_int = (
     round_to_int_original_cols
-    if agg.use_original_names
+    if agg.use_original_definitions
     else round_to_int_new_cols
 )
 

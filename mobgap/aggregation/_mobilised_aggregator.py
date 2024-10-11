@@ -109,8 +109,9 @@ class MobilisedAggregator(BaseAggregator):
         The name of the column (or index level) containing a unique identifier for every walking bout.
         The id does not have to be unique globally, but only within the groups defined by ``groupby``.
         Aka ``wb_dmos.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
-    use_original_names
+    use_original_definitions
         If ``True``, the original names used in Mobilise-D are used for the aggregated data.
+        Furthermore, all variance values are presented in percent.
         They use shorthands for many parameters and are hence, less easy to understand.
         The "new" names are more descriptive and easier to understand and are hence, the default.
 
@@ -246,6 +247,13 @@ class MobilisedAggregator(BaseAggregator):
         "walkdur_all_sum": 1 / 3600,
     }
 
+    _ORIGINAL_ONLY_UNIT_CONVERSIONS: typing.ClassVar = {
+        "wbdur_all_var": 1 / 100,
+        "cadence_all_var": 1 / 100,
+        "strdur_all_var": 1 / 100,
+        "strlen_30_var": 1 / 100,
+    }
+
     _COUNT_COLUMNS: typing.ClassVar = [
         "wb_10_sum",
         "wb_30_sum",
@@ -267,7 +275,7 @@ class MobilisedAggregator(BaseAggregator):
             {
                 "groupby": ["visit_type", "participant_id", "measurement_date"],
                 "unique_wb_id_column": "wb_id",
-                "use_original_names": True,
+                "use_original_definitions": True,
             }
         )
 
@@ -275,7 +283,7 @@ class MobilisedAggregator(BaseAggregator):
             {
                 "groupby": None,
                 "unique_wb_id_column": "wb_id",
-                "use_original_names": False,
+                "use_original_definitions": False,
             }
         )
 
@@ -285,11 +293,11 @@ class MobilisedAggregator(BaseAggregator):
         groupby: typing.Optional[typing.Sequence[str]],
         *,
         unique_wb_id_column: str,
-        use_original_names: bool,
+        use_original_definitions: bool,
     ) -> None:
         self.groupby = groupby
         self.unique_wb_id_column = unique_wb_id_column
-        self.use_original_names = use_original_names
+        self.use_original_definitions = use_original_definitions
 
     @base_aggregator_docfiller
     def aggregate(  # noqa: C901
@@ -378,7 +386,7 @@ class MobilisedAggregator(BaseAggregator):
         self.aggregated_data_ = self._fillna_count_columns(self.aggregated_data_)
         self.aggregated_data_ = self._convert_units(self.aggregated_data_)
 
-        if self.use_original_names is False:
+        if self.use_original_definitions is False:
             self.aggregated_data_ = self.aggregated_data_.rename(columns=self.ALTERNATIVE_NAMES, errors="ignore")
 
         return self
@@ -436,7 +444,10 @@ class MobilisedAggregator(BaseAggregator):
 
     def _convert_units(self, data: pd.DataFrame) -> pd.DataFrame:
         """Convert the units of the aggregated data to the desired output units."""
-        for col, factor in self._UNIT_CONVERSIONS.items():
+        conversions = self._UNIT_CONVERSIONS
+        if self.use_original_definitions:
+            conversions.update(self._ORIGINAL_ONLY_UNIT_CONVERSIONS)
+        for col, factor in conversions:
             if col in data.columns:
                 data.loc[:, col] *= factor
         return data
