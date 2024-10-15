@@ -15,7 +15,7 @@ This makes it a valuable resource for the development and validation of algorith
 The dataset was already used extensivly to benchmark the Mobilise-D algorithms individually [2]_ and in
 combination as a pipeline [3]_.
 
-The dataset is published on Zenodo and can be accessed here: (TODO: Add link)
+The dataset is published on Zenodo and can be accessed here: https://zenodo.org/records/13899386
 
 The recommended way to work with the dataset is to use this library and the provided classes to load the data.
 This will ensure that the data is loaded in a consistent way and that the data is correctly preprocessed.
