@@ -1,4 +1,4 @@
 # Exclude .mat files from line ending conversion
 *.mat -text
 # Declare test data files that will always have LF line endings on checkout (even on Windows).
-example_data/** text eol=lf
+example_data/** -text eol=lf
