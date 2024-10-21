@@ -149,11 +149,14 @@ class MobilisedAggregator(BaseAggregator):
     Notes
     -----
     The outputs of this aggregation algorithm are analogous to the outputs of the original Mobilise-D R-Script for
-    aggregation.
+    aggregation (when using `use_original_names=Tue`), with 2 exceptions.
+    Values are not rounded to 3 decimal places and stride length values are not converted to cm.
+    This is done for consistency within mobgap, but if you want to directly reproduce the original Mobilise-D results,
+    you can round the values and convert stride length to cm manually.
+
     However, there can be small differences in the second/third decimal place range in the results. This is due to
     different outputs of the quantile function in Python and R.
-    Furthermore, the parameter "strlen_30_var" is converted to cm for consistency, while it is in m in the original
-    R-Script.
+
     """
 
     ALTERNATIVE_NAMES: typing.ClassVar[dict[str, str]] = {
