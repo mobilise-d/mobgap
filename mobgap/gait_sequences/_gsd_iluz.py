@@ -3,10 +3,11 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks
+from numba import float32, float64, guvectorize, int32
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
+from mobgap._utils_internal.misc import timed_action_method
 from mobgap.consts import GRAV_MS2
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
@@ -70,6 +71,7 @@ class GsdIluz(BaseGsDetector):
     Attributes
     ----------
     %(gs_list_)s
+    %(perf_)s
 
     Notes
     -----
@@ -150,6 +152,7 @@ class GsdIluz(BaseGsDetector):
         self.allowed_acc_v_change_per_window = allowed_acc_v_change_per_window
         self.min_gsd_duration_s = min_gsd_duration_s
 
+    @timed_action_method
     @base_gsd_docfiller
     def detect(
         self,
@@ -226,25 +229,6 @@ class GsdIluz(BaseGsDetector):
         # The template is equivalent to cycle of a sin wave with a frequency of `sin_template_freq_hz`
         sin_template = np.sin(np.linspace(0, 2 * np.pi, round(sampling_rate_hz / self.sin_template_freq_hz)))
 
-        def find_n_peaks(signal: np.ndarray, threshold: float) -> int:
-            # Note: This is different to the original implementation. Here the sum of the signal and not the max of the
-            #       signal is checked. However, I believe that is an error.
-            if signal.max() < threshold:
-                return 0
-            peaks, _ = find_peaks(
-                signal,
-                # TODO: I don't really know, why a min distance of 1/10 of the sampling rate is used
-                # Note: The original find peaks implementation also uses some upper bound. However, due to the way this
-                #       is implemented, I don't think it does what is was originally intended to do.
-                #       So, I decided to not implement it here in favor of being able to use the basic find_peaks
-                #       method.
-                distance=sampling_rate_hz / 10,
-                height=threshold,
-            )
-            return len(peaks)
-
-        vec_find_n_peaks = np.vectorize(find_n_peaks, signature="(n), ()->()")
-
         selected_windows = np.empty((activity_windows.shape[0], 2), dtype=bool)
 
         for i, axis in enumerate(["acc_is", "acc_pa"]):
@@ -257,6 +241,12 @@ class GsdIluz(BaseGsDetector):
             n_peaks[activity_windows] = vec_find_n_peaks(
                 convolved_data_windowed[activity_windows],
                 self.step_detection_thresholds[i],
+                # TODO: I don't really know, why a min distance of 1/10 of the sampling rate is used
+                # Note: The original find peaks implementation also uses some upper bound. However, due to the way this
+                #       is implemented, I don't think it does what is was originally intended to do.
+                #       So, I decided to not implement it here in favor of being able to use the basic find_peaks
+                #       method.
+                sampling_rate_hz / 10,
             )
             # Note: The original implementation uses a different threshold for the second axis.
             #       Namely, on a 3-second window, they expect a minimum of only 1 step instead of 3.
@@ -299,3 +289,59 @@ class GsdIluz(BaseGsDetector):
         self.gs_list_ = _unify_gs_df(gs_list.reset_index(drop=True).copy())
 
         return self
+
+
+# Note: I HATE THIS! Implementing a peak detection algorithm by hand feels like a huge stupid antipattern.
+#       It makes everything harder to maintain, and is exactly the thing we wanted to avoid with the reimplementation...
+#       However, doing it this way results in an up to 2x speedup on long recordings, so I guess it is worth it.
+@guvectorize([(float64[:], float32, float32, int32[:])], "(n),(),()->()", target="parallel")
+def _find_n_peaks_2d(signal: np.ndarray, threshold: float, distance: float, n_peaks: np.ndarray) -> None:
+    """Parallelized version of find_n_peaks for processing each row of a 2D array.
+
+    This function is meant to be applied along an axis of a 2D array in parallel.
+    """
+    # Initialize n_peaks to 0
+    n_peaks[0] = 0
+
+    # Note: This is different to the original implementation. Here the sum of the signal and not the max of the
+    #       signal is checked. However, I believe that is an error.
+    if signal.max() < threshold:
+        return
+
+    # Step 1: Find all local maxima
+    peaks = []
+    n = len(signal)
+
+    for i in range(1, n - 1):
+        if (signal[i - 1] < signal[i] > signal[i + 1]) and signal[i] >= threshold:
+            peaks.append(i)
+
+    # Step 2: Enforce the minimum distance constraint
+    if len(peaks) > 1:
+        filtered_peaks = [peaks[0]]  # Always take the first peak
+        for peak in peaks[1:]:
+            if peak - filtered_peaks[-1] >= distance:
+                filtered_peaks.append(peak)
+        peaks = filtered_peaks
+
+    # Set the output n_peaks to the number of peaks found
+    n_peaks[0] = len(peaks)
+
+
+def vec_find_n_peaks(signal: np.ndarray, threshold: float, distance: float) -> np.ndarray:
+    """
+    Vectorized version of find_n_peaks for processing a 1D array.
+
+    Parameters
+    ----------
+    - signal: 1D array of signal values.
+    - threshold: Minimum height required for a peak.
+    - distance: Minimum distance required between peaks.
+
+    Returns
+    -------
+    - Number of peaks found in the signal.
+    """
+    output = np.zeros(signal.shape[0], dtype=np.int32)
+    _find_n_peaks_2d(signal, threshold, distance, output)
+    return output

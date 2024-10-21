@@ -8,6 +8,7 @@ from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
+from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
 
 base_gsd_docfiller = make_filldoc(
     {
@@ -58,7 +59,8 @@ base_gsd_docfiller = make_filldoc(
     self
         The instance of the class with the internal parameters optimized.
         """,
-    },
+    }
+    | timer_doc_filler._dict,
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseGsdDetector`.",
 )
 
@@ -103,6 +105,8 @@ class BaseGsDetector(Algorithm):
 
     # results
     gs_list_: pd.DataFrame
+
+    perf_: MeasureTimeResults
 
     @base_gsd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:

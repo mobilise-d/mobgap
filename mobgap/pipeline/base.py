@@ -6,6 +6,7 @@ import pandas as pd
 from tpcp import Pipeline
 
 from mobgap._docutils import make_filldoc
+from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
 from mobgap.data.base import BaseGaitDataset
 
 mobilised_pipeline_docfiller = make_filldoc(
@@ -177,6 +178,7 @@ mobilised_pipeline_docfiller = make_filldoc(
     For a step-by-step example of how these steps are executed, check out :ref:`mobilised_pipeline_step_by_step`.
     """,
     }
+    | timer_doc_filler._dict,
 )
 
 BaseGaitDatasetT = TypeVar("BaseGaitDatasetT", bound=BaseGaitDataset)
@@ -192,6 +194,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     Attributes
     ----------
     %(primary_results)s
+    %(perf_)s
 
     See Also
     --------
@@ -205,6 +208,8 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     per_wb_parameters_: pd.DataFrame
     per_wb_parameter_mask_: Optional[pd.DataFrame]
     aggregated_parameters_: Optional[pd.DataFrame]
+
+    perf_: MeasureTimeResults
 
     def get_recommended_cohorts(self) -> Optional[tuple[str, ...]]:
         """Get the recommended cohorts for this pipeline.

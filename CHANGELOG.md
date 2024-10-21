@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - Unreleased
+
+### Added
+- Added a simple way to add performance (as in "time algo needs to run") tracking to algorithms
+- Performance values are now reported by the GSD algorithms and the full pipelines via the `perf_` attribute.
+
+### Changed
+- Swapped out the peak detection per window in GSD Iluz to a custom vectorized one that can be jit compiled.
+  This provides a 2-3x speedup for large inputs.
+
 ## [0.9.0] - 2024-10-21
 
 ### Changed

@@ -8,6 +8,7 @@ from scipy.signal import find_peaks, hilbert
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
+from mobgap._utils_internal.misc import timed_action_method
 from mobgap.consts import BF_ACC_COLS, GRAV_MS2, SF_ACC_COLS
 from mobgap.data_transform import (
     CwtFilter,
@@ -81,6 +82,7 @@ class _BaseGsdIonescu(BaseGsDetector):
     def _find_step_candidates(self, acc_norm: np.ndarray, sampling_rate_hz: float) -> tuple:
         raise NotImplementedError()
 
+    @timed_action_method
     @base_gsd_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         """%(detect_short)s.
@@ -201,6 +203,7 @@ class GsdIonescu(_BaseGsdIonescu):
         Each row corresponds to a single gs.
     filtered_signal_
         The filtered acceleration norm used for step detection.
+    %(perf_)s
 
     Notes
     -----
@@ -329,6 +332,7 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
         This is either the adaptive threshold or the fallback threshold if no active periods were detected.
     adaptive_threshold_success_
         A boolean indicating whether the adaptive threshold estimation was successful.
+    %(perf_)s
 
     Notes
     -----

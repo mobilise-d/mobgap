@@ -8,6 +8,7 @@ from tpcp import cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self
 
+from mobgap._utils_internal.misc import timed_action_method
 from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
 from mobgap.cadence import CadFromIcDetector
@@ -66,6 +67,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     %(primary_results)s
     %(intermediate_results)s
     %(debug_results)s
+    %(perf_)s
 
     Notes
     -----
@@ -180,6 +182,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         """
         return self.recommended_cohorts
 
+    @timed_action_method
     @mobilised_pipeline_docfiller
     def run(self, datapoint: BaseGaitDatasetT) -> Self:
         """%(run_short)s.
@@ -442,6 +445,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     %(primary_results)s
     %(intermediate_results)s
     %(debug_results)s
+    %(perf_)s
 
     Notes
     -----
@@ -526,6 +530,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
     %(primary_results)s
     %(intermediate_results)s
     %(debug_results)s
+    %(perf_)s
 
     Notes
     -----
@@ -604,6 +609,8 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
         The pipeline that was used for the provided data with all its results.
     pipeline_name_
         The name of the pipeline that was used.
+    %(perf_)s
+
 
     Other Parameters
     ----------------
@@ -661,6 +668,7 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
     def aggregated_parameters_(self) -> Optional[pd.DataFrame]:
         return self.pipeline_.aggregated_parameters_
 
+    @timed_action_method
     @mobilised_pipeline_docfiller
     def run(self, datapoint: BaseGaitDatasetT) -> Self:
         """%(run_short)s.
