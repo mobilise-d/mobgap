@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   samples, not just when TN samples exist.
   This way the output structure is consistent, and we can avoid bugs in scorer functions, where some datapoints might
   unexpectedly return a different set of error metrics.
+- The official script to aggregate DMOs, now correctly converts stride length values to cm and variance values to cm^2.
+  Note, that the internal function within mobgap, does not do this conversion automatically, as we use different units
+  in mobgap internally. If you need to match the official script, you have to do this conversion manually.
+  see `examples/aggregation/_99_cvs_agg_pipeline_no_exc.py`.
 
 ### Fixed
 - The zero division hint for error functions did not properly replace the value with NaN, when the result of the 
