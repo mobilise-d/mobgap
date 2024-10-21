@@ -80,7 +80,15 @@ agg_values = agg_values.round(3)
 
 # %%
 # Further, we express the variance parameters in "%".
-agg_values[["wbdur_all_var", "cadence_all_var", "strdur_all_var", "ws_30_var", "strlen_30_var"]] *= 100
+agg_values[
+    [
+        "wbdur_all_var",
+        "cadence_all_var",
+        "strdur_all_var",
+        "ws_30_var",
+        "strlen_30_var",
+    ]
+] *= 100
 
 
 # %%
