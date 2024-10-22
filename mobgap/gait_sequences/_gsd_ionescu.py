@@ -4,9 +4,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from intervaltree import IntervalTree
-from numba import njit, jit
+from numba import njit
 from scipy.signal import find_peaks, hilbert
-from statsmodels.sandbox.distributions.estimators import cache
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
@@ -561,6 +560,7 @@ def active_regions_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, dur
 
     return active.astype(bool)
 
+
 @njit(cache=True)
 def _find_pulse_train_end(x: np.ndarray, step_threshold: float) -> np.ndarray:
     start_val = x[0]
@@ -576,6 +576,7 @@ def _find_pulse_train_end(x: np.ndarray, step_threshold: float) -> np.ndarray:
         if next_val - current_val > thd_step:
             return x[: n_steps + 1]
     return x
+
 
 @njit(cache=True)
 def find_pulse_trains(

@@ -1,11 +1,18 @@
 import contextlib
 import time
 from collections.abc import Generator
-from datetime import UTC, datetime
+from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, TypedDict, TypeVar
 
 from mobgap._docutils import make_filldoc
+
+try:
+    from datetime import UTC
+except ImportError:
+    from datetime import timezone
+
+    UTC = timezone.utc
 
 
 class MeasureTimeResults(TypedDict):
