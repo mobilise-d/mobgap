@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added a simple way to add performance (as in "time algo needs to run") tracking to algorithms
 - Performance values are now reported by the GSD algorithms and the full pipelines via the `perf_` attribute.
+- The TVS datasets now have two new columns `{test/recording}_name` and `{test/recording}_name_pretty` that have easier
+  to read names for the tests and recordings.
 
 ### Changed
 - Swapped out the peak detection per window in GSD Iluz to a custom vectorized one that can be jit compiled.
   This provides a 2-3x speedup for large inputs.
+- Critical path in GSD-Ionesco is now jit compiled.
+
+### For Developers
+
+- We now support adding a `.env` file to the root of the project to set environment variables and have them loaded
+  automatically when running the tests or examples for the TVS dataset.
+  When test depend on env vars, use the `mobgap.misc.get_env_var` function to access them.
 
 ## [0.9.0] - 2024-10-21
 

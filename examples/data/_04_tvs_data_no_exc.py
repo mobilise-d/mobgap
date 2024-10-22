@@ -61,12 +61,14 @@ This example demonstrate how to do this.
 import os
 from pathlib import Path
 
+from mobgap.utils.misc import get_env_var
+
 if "MOBGAP_TVS_DATASET_PATH" not in os.environ:
     raise ValueError(
         "Please set the environmental variable MOBGAP_TVS_DATASET_PATH to the path of the TVS dataset."
     )
 
-dataset_path = Path(os.getenv("MOBGAP_TVS_DATASET_PATH"))
+dataset_path = Path(get_env_var("MOBGAP_TVS_DATASET_PATH").strip('"'))
 
 # %%
 # Load the Dataset
@@ -106,8 +108,17 @@ labdata
 
 # %%
 # On the remaining data, we can easily filter by all columns that are in the index.
-# For example, we could filter for only Test 11 (simulated activities of daily living) and Test 5 (straight walking).
+# For example, we could filter for only Test 11 (simulated activities of daily living) and Test 5
+# (straight walking comfortable).
 test_subset = labdata.get_subset(test=["Test5", "Test11"])
+test_subset
+
+# %%
+# Note, that we can either filter by test or by test-name (or `test_name_pretty`).
+# For the Free-Living dataset, the columns are named `recording` and `recording_name`.
+test_subset = labdata.get_subset(
+    test_name=["WalkComfortable", "DailyActivities"]
+)
 test_subset
 
 # %%

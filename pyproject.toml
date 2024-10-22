@@ -31,6 +31,7 @@ pywavelets = ">=1.5.0"
 pooch = ">=1.8.1"
 pingouin = {version=">=0.5.4", optional=true}
 numba = ">=0.60.0"
+python-dotenv = ">=1.0.1"
 
 [tool.poetry.extras]
 all = ["openpyxl", "pingouin"]

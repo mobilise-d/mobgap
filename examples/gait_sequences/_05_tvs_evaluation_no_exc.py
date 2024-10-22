@@ -5,20 +5,15 @@ This script shows the actual performance evaluation that is run to benchmark the
 As this is run on the TVS dataset and has a long runtime, this example needs to be downloaded and run locally.
 """
 
-import os
 from pathlib import Path
 
 from joblib import Memory
 from mobgap import PACKAGE_ROOT
 from mobgap.data import TVSFreeLivingDataset
+from mobgap.utils.misc import get_env_var
 
-if "MOBGAP_TVS_DATASET_PATH" not in os.environ:
-    raise ValueError(
-        "Please set the environmental variable MOBGAP_TVS_DATASET_PATH to the path of the TVS dataset."
-    )
-
-dataset_path = Path(os.getenv("MOBGAP_TVS_DATASET_PATH"))
-n_jobs = os.environ.get("MOBGAP_N_JOBS", 1)
+dataset_path = Path(get_env_var("MOBGAP_TVS_DATASET_PATH").strip('"'))
+n_jobs = get_env_var("MOBGAP_N_JOBS", 1)
 
 free_living_data = TVSFreeLivingDataset(
     dataset_path,
@@ -30,11 +25,11 @@ free_living_data = TVSFreeLivingDataset(
 # %%
 # Run the non-CV evaluation for all implemented algorithms
 from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
-from mobgap.gait_sequences.pipeline import (
-    GsdEmulationPipeline,
+from mobgap.gait_sequences.evaluation import (
     GsdEvaluation,
     gsd_evaluation_scorer,
 )
+from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 results = {}
 for algo in (GsdIluz(), GsdIonescu(), GsdAdaptiveIonescu()):

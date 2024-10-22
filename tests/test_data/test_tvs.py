@@ -8,19 +8,19 @@ To run the tests, make sure you export `MOBGAP_TVS_DATASET_PATH` to the path of 
 The tests are focused on the additional features of the TVS dataset, so we will not repeat tests about data loading.
 """
 
-import os
-
 import pandas as pd
 import pytest
 
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
+from mobgap.utils.misc import get_env_var
+
+TVS_DATA_PATH = get_env_var("MOBGAP_TVS_DATASET_PATH", None)
+
 
 pytestmark = pytest.mark.skipif(
-    os.getenv("MOBGAP_TVS_DATASET_PATH") is None,
+    not TVS_DATA_PATH,
     reason="TVS dataset path (`MOBGAP_TVS_DATASET_PATH`) not set. Skipping tests.",
 )
-
-TVS_DATA_PATH = os.getenv("MOBGAP_TVS_DATASET_PATH")
 
 
 @pytest.mark.parametrize("dataset", [TVSLabDataset, TVSFreeLivingDataset])

@@ -240,3 +240,6 @@ _debug
 
 # Drawio backup files
 *.bkp
+
+# env
+.env

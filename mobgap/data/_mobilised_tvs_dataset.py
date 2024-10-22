@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Final, Literal, Optional, Union
 
 import joblib
 import pandas as pd
@@ -206,7 +206,13 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
 
     @property
     def _paths_list(self) -> list[Path]:
-        return sorted(Path(self.base_path).glob(f"**/{self._MEASUREMENT_CONDITION}/data.mat"))
+        files = sorted(Path(self.base_path).glob(f"**/{self._MEASUREMENT_CONDITION}/data.mat"))
+        if not files:
+            raise ValueError(
+                f"No files found in {self.base_path.resolve()}. "
+                "Are you sure you provided the correct path to the data?"
+            )
+        return files
 
     @property
     def _test_level_names(self) -> tuple[str, ...]:
@@ -290,9 +296,41 @@ class TVSLabDataset(BaseTVSDataset):
 
     _MEASUREMENT_CONDITION = "Laboratory"
 
+    TEST_NAMES_SHORT: Final = {
+        "Test4": "TimedUpGo",
+        "Test5": "WalkComfortable",
+        "Test6": "WalkSlow",
+        "Test7": "WalkFast",
+        "Test8": "L",
+        "Test9": "Surface",
+        "Test10": "Halway",
+        "Test11": "DailyActivities",
+    }
+
+    TEST_NAMES_PRETTY: Final = {
+        "Test4": "TUG",
+        "Test5": "Straight Walk Comfortable",
+        "Test6": "Straight Walk Slow",
+        "Test7": "Straight Walk Fast",
+        "Test8": "L-Test",
+        "Test9": "Surface Test",
+        "Test10": "Hallway Test",
+        "Test11": "Simulated Daily Activities",
+    }
+
+    def create_index(self) -> pd.DataFrame:
+        return (
+            super()
+            .create_index()
+            .assign(
+                test_name=lambda df: df.test.replace(self.TEST_NAMES_SHORT),
+                test_name_pretty=lambda df: df.test.replace(self.TEST_NAMES_PRETTY),
+            )
+        )
+
 
 @tvs_dataset_filler
-class TVSFreeLivingDataset(TVSLabDataset):
+class TVSFreeLivingDataset(BaseTVSDataset):
     """A dataset containing all Free-Living (2.5 hour) Data recorded within the Mobilise-D technical validation study.
 
     %(dataset_warning)s
@@ -313,3 +351,13 @@ class TVSFreeLivingDataset(TVSLabDataset):
     """
 
     _MEASUREMENT_CONDITION = "Free-living"
+
+    def create_index(self) -> pd.DataFrame:
+        return (
+            super()
+            .create_index()
+            .assign(
+                recording_name=lambda df: df.recording.replace({"Recording4": "2.5h"}),
+                recording_name_pretty=lambda df: df.recording.replace({"Recording4": "Free Living 2.5h"}),
+            )
+        )
