@@ -3,18 +3,16 @@ from typing import Any, Self, Unpack
 
 import pandas as pd
 from joblib import Memory, Parallel
-from tpcp.caching import hybrid_cache
-from tpcp.parallel import delayed
-
 from mobgap import PACKAGE_ROOT
 from mobgap.data import TVSLabDataset
-from mobgap.gait_sequences import GsdIluz, GsdIonescu, GsdAdaptiveIonescu
 from mobgap.gait_sequences._evaluation_challenge import (
     GsdEvaluation,
     gsd_evaluation_scorer,
 )
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
+from tpcp.caching import hybrid_cache
+from tpcp.parallel import delayed
 
 
 def load_old_gsd_results(result_file_path: Path) -> pd.DataFrame:
@@ -56,7 +54,9 @@ class DummyGsdEvaluationPipeline(GsdEmulationPipeline):
         # Instead of running anything, we just load the results from the original GSD output.
         self.algo_ = self.algo.clone()
 
-        cached_load_old_gsd_results = hybrid_cache(lru_cache_maxsize=1)(load_old_gsd_results)
+        cached_load_old_gsd_results = hybrid_cache(lru_cache_maxsize=1)(
+            load_old_gsd_results
+        )
 
         all_results = cached_load_old_gsd_results(
             self.base_result_folder
@@ -97,11 +97,9 @@ dummy_pipe = DummyGsdEvaluationPipeline(
 )
 
 
-
-
 pipelines = {}
 # for name in ['EPFL_V1-improved_th', 'EPFL_V1-original', 'EPFL_V2-original', 'Gaitpy', 'Hickey-original', 'Rai', 'TA_Iluz-original', 'TA_Wavelets_v2']:
-for name in ['TA_Iluz-original', 'TA_Wavelets_v2']:
+for name in ["TA_Iluz-original", "TA_Wavelets_v2"]:
     pipelines[name] = DummyGsdEvaluationPipeline(
         DummyGsdAlgo(name),
         base_result_folder=Path(
@@ -111,6 +109,7 @@ for name in ['TA_Iluz-original', 'TA_Wavelets_v2']:
 
 # for algo in (GsdIluz(), GsdIonescu(), GsdAdaptiveIonescu()):
 #     pipelines[algo.__class__.__name__] = GsdEmulationPipeline(algo)
+
 
 def run_evaluation(name, pipeline, dataset):
     print(name)
