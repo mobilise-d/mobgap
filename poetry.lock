@@ -3000,4 +3000,4 @@ all = ["openpyxl", "pingouin"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "f4643a3e229b57bd60a0c4e33c669ba022427bb5677d89da0b58cf4912815c59"
+content-hash = "99611926f7fcb53a31225aa1ffb3e1f74c92c279eed711ba40e1dab6e15a613a"
