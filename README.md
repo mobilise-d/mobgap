@@ -16,6 +16,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/mobgap)](https://pypi.org/project/mobgap/)
 [![Documentation Status](https://readthedocs.org/projects/mobgap/badge/?version=latest)](https://mobgap.readthedocs.io/en/latest/?badge=latest)
+[![DOI](https://zenodo.org/badge/685937416.svg)](https://doi.org/10.5281/zenodo.14035833)
 [![codecov](https://codecov.io/gh/mobilise-d/mobgap/branch/main/graph/badge.svg?token=ZNVT5LNYHO)](https://codecov.io/gh/mobilise-d/mobgap)
 [![Test and Lint](https://github.com/mobilise-d/mobgap/actions/workflows/test-and-lint.yml/badge.svg?branch=main)](https://github.com/mobilise-d/mobgap/actions/workflows/test-and-lint.yml)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/mobgap)
