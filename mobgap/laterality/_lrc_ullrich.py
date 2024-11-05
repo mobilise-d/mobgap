@@ -2,7 +2,7 @@ import warnings
 from collections.abc import Iterable
 from functools import cache
 from importlib.resources import files
-from itertools import repeat
+from itertools import chain, repeat
 from types import MappingProxyType
 from typing import Any, Final, Union
 
@@ -218,7 +218,18 @@ class LrcUllrich(BaseLRClassifier):
         ) is None:
             feature_matrix = feature_matrix.to_numpy()
 
-        ic_list["lr_label"] = self.clf_pipe.predict(feature_matrix, **kwargs)
+        # We use sklearn metadata routing to determine the valid kwargs for the predict method.
+        # This way, we avoid issues when invalid kwargs are passed to the predict method.
+        # TODO: Test this with proper metdata routing active
+        potential_meta_data_routed = chain(
+            *(
+                v.values()
+                for v in self.clf_pipe.get_metadata_routing().route_params(caller="predict", params=kwargs).values()
+            )
+        )
+        valid_predict_kwargs = {k: v for d in potential_meta_data_routed for k, v in d.items()}
+
+        ic_list["lr_label"] = self.clf_pipe.predict(feature_matrix, **valid_predict_kwargs)
         ic_list = ic_list.replace({"lr_label": {0: "left", 1: "right"}})
 
         self.ic_lr_list_ = _unify_ic_lr_list_df(ic_list)
@@ -272,7 +283,18 @@ class LrcUllrich(BaseLRClassifier):
         label_list = [ic_lr_list["lr_label"] for ic_lr_list in ref_ic_lr_list_per_sequence]
         all_labels = pd.concat(label_list, axis=0, ignore_index=True) if len(label_list) > 1 else label_list[0]
 
-        self.clf_pipe.fit(all_features, all_labels, **kwargs)
+        # We use sklearn metadata routing to determine the valid kwargs for the predict method.
+        # This way, we avoid issues when invalid kwargs are passed to the predict method.
+        # TODO: Test this with proper metdata routing active
+        potential_meta_data_routed = chain(
+            *(
+                v.values()
+                for v in self.clf_pipe.get_metadata_routing().route_params(caller="fit", params=kwargs).values()
+            )
+        )
+        valid_predict_kwargs = {k: v for d in potential_meta_data_routed for k, v in d.items()}
+
+        self.clf_pipe.fit(all_features, all_labels, **valid_predict_kwargs)
 
         return self
 

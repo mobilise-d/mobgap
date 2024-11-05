@@ -1,7 +1,7 @@
 import warnings
 from itertools import combinations
 from types import MappingProxyType
-from typing import Final, Generic, Optional
+from typing import Any, Final, Generic, Optional
 
 import pandas as pd
 from tpcp import cf
@@ -107,6 +107,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     raw_turn_list_: pd.DataFrame
     raw_per_sec_parameters_: pd.DataFrame
     raw_per_stride_parameters_: pd.DataFrame
+
+    _all_action_kwargs: dict[str, Any]
 
     class PredefinedParameters:
         regular_walking: Final = MappingProxyType(
@@ -220,12 +222,17 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         self.datapoint = datapoint
 
+        self._all_action_kwargs = {
+            **participant_metadata,
+            **datapoint.recording_metadata,
+            "dp_group": datapoint.group_label,
+            "sampling_rate_hz": datapoint.sampling_rate_hz,
+        }
+
         imu_data = to_body_frame(datapoint.data_ss)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(
-            imu_data, sampling_rate_hz=sampling_rate_hz
-        )
+        self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
         self.gs_list_ = self.gait_sequence_detection_.gs_list_
         self.gs_iterator_ = self._run_per_gs(self.gs_list_, imu_data, sampling_rate_hz, participant_metadata)
 
@@ -314,6 +321,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         )
         self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
 
+        del self._all_action_kwargs
         return self
 
     def _run_per_gs(
@@ -327,14 +335,12 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         # TODO: How to expose the individual algo instances of the algos that run in the loop?
 
         for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
-            icd = self.initial_contact_detection.clone().detect(gs_data, sampling_rate_hz=sampling_rate_hz)
-            lrc = self.laterality_classification.clone().predict(
-                gs_data, icd.ic_list_, sampling_rate_hz=sampling_rate_hz
-            )
+            icd = self.initial_contact_detection.clone().detect(gs_data, **self._all_action_kwargs)
+            lrc = self.laterality_classification.clone().predict(gs_data, icd.ic_list_, **self._all_action_kwargs)
             if self.turn_detection:
                 r.ic_list = lrc.ic_lr_list_
                 gs_data_bf = gs_data
-                turn = self.turn_detection.clone().detect(gs_data_bf, sampling_rate_hz=sampling_rate_hz)
+                turn = self.turn_detection.clone().detect(gs_data_bf, **self._all_action_kwargs)
                 r.turn_list = turn.turn_list_
 
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
@@ -345,18 +351,14 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                     cad = self.cadence_calculation.clone().calculate(
                         refined_gs_data,
                         initial_contacts=refined_ic_list,
-                        sampling_rate_hz=sampling_rate_hz,
-                        **participant_metadata,
+                        **self._all_action_kwargs,
                     )
                     cad_r = cad.cadence_per_sec_
                     rr.cadence_per_sec = cad_r
                 sl_r = None
                 if self.stride_length_calculation:
                     sl = self.stride_length_calculation.clone().calculate(
-                        refined_gs_data,
-                        initial_contacts=refined_ic_list,
-                        sampling_rate_hz=sampling_rate_hz,
-                        **participant_metadata,
+                        refined_gs_data, initial_contacts=refined_ic_list, **self._all_action_kwargs
                     )
                     sl_r = sl.stride_length_per_sec_
                     rr.stride_length_per_sec = sl.stride_length_per_sec_
@@ -366,8 +368,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                         initial_contacts=refined_ic_list,
                         cadence_per_sec=cad_r,
                         stride_length_per_sec=sl_r,
-                        sampling_rate_hz=sampling_rate_hz,
-                        **participant_metadata,
+                        **self._all_action_kwargs,
                     )
                     rr.walking_speed_per_sec = ws.walking_speed_per_sec_
 
