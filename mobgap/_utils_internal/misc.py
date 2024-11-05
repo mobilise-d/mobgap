@@ -3,7 +3,7 @@ import time
 from collections.abc import Generator
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, TypedDict, TypeVar
+from typing import Any, Callable, TypedDict, TypeVar, Iterable
 
 from mobgap._docutils import make_filldoc
 
@@ -78,6 +78,23 @@ def timed_action_method(meth: C) -> C:
     return timed_method
 
 
+timer_doc_filler = make_filldoc(
+    {
+        "perf_": """
+        perf_
+            A dictionary with the performance results of the action method.
+            This includes:
+
+            - start_datetime_utc_timestamp: The start time of the action in UTC as a timestamp.
+            - start_datetime: The start time of the action as a string.
+            - end_datetime_utc_timestamp: The end time of the action in UTC as a timestamp.
+            - end_datetime: The end time of the action as a string.
+            - runtime_s: The runtime of the action in seconds.
+        """
+    }
+)
+
+
 def set_attrs_from_dict(obj: Any, attr_dict: dict[str, Any], *, key_postfix: str = "", key_prefix: str = "") -> None:
     """Set attributes of an object from a dictionary.
 
@@ -99,18 +116,20 @@ def set_attrs_from_dict(obj: Any, attr_dict: dict[str, Any], *, key_postfix: str
         setattr(obj, f"{key_prefix}{key}{key_postfix}", value)
 
 
-timer_doc_filler = make_filldoc(
-    {
-        "perf_": """
-        perf_
-            A dictionary with the performance results of the action method.
-            This includes:
+def invert_list_of_dicts(list_of_dicts: Iterable[dict[str, any]]) -> dict[str, list[any]]:
+    """Invert a list of dictionaries.
 
-            - start_datetime_utc_timestamp: The start time of the action in UTC as a timestamp.
-            - start_datetime: The start time of the action as a string.
-            - end_datetime_utc_timestamp: The end time of the action in UTC as a timestamp.
-            - end_datetime: The end time of the action as a string.
-            - runtime_s: The runtime of the action in seconds.
-        """
-    }
-)
+    Parameters
+    ----------
+    list_of_dicts
+        The list of dictionaries to invert.
+
+    Returns
+    -------
+    dict
+        The inverted dictionary.
+    """
+    inverted_dict = {}
+    for key in list_of_dicts[0]:
+        inverted_dict[key] = [d[key] for d in list_of_dicts]
+    return inverted_dict

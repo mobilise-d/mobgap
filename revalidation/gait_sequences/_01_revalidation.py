@@ -1,11 +1,13 @@
 from pathlib import Path
-from typing import Any, Self, Unpack
+from typing import Any, Self, Unpack, Optional
 
 import pandas as pd
 from joblib import Memory, Parallel
+import warnings
+
 from mobgap import PACKAGE_ROOT
 from mobgap.data import TVSLabDataset
-from mobgap.gait_sequences._evaluation_challenge import (
+from mobgap.gait_sequences.evaluation import (
     GsdEvaluation,
     gsd_evaluation_scorer,
 )
@@ -17,42 +19,27 @@ from tpcp.parallel import delayed
 
 def load_old_gsd_results(result_file_path: Path) -> pd.DataFrame:
     assert result_file_path.exists(), result_file_path
-    data = pd.read_json(result_file_path, orient="index")
-    data.index = pd.MultiIndex.from_tuples(data.index.map(eval))
-    return data
+    data = pd.read_json(result_file_path, orient="records", lines=True)
+    data.index = pd.MultiIndex.from_tuples(data["id"])
+    return data.drop(columns="id")
 
 
 class DummyGsdAlgo(BaseGsDetector):
-    def __init__(self, old_algo_name: str):
+    def __init__(self, old_algo_name: str, base_result_folder: Path) -> None:
         self.old_algo_name = old_algo_name
+        self.base_result_folder = base_result_folder
 
     def detect(
         self,
         data: pd.DataFrame,
         *,
         sampling_rate_hz: float,
-        **kwargs: Unpack[dict[str, Any]],
+            measurement_condition: Optional[str] = None,
+        dp_group: Optional[tuple[str, ...]] = None,
+        **_: Unpack[dict[str, Any]],
     ) -> Self:
-        raise NotImplementedError
-
-
-class DummyGsdEvaluationPipeline(GsdEmulationPipeline):
-    def __init__(
-        self,
-        algo: BaseGsDetector,
-        *,
-        convert_to_body_frame: bool = True,
-        base_result_folder: Path,
-    ) -> None:
-        self.base_result_folder = base_result_folder
-        super().__init__(algo, convert_to_body_frame=convert_to_body_frame)
-
-    def run(self, datapoint):
-        if not isinstance(self.algo, DummyGsdAlgo):
-            raise ValueError(f"Expected DummyGsdAlgo, got {self.algo}")
-
-        # Instead of running anything, we just load the results from the original GSD output.
-        self.algo_ = self.algo.clone()
+        assert measurement_condition is not None, "measurement_condition must be provided"
+        assert dp_group is not None, "dp_group must be provided"
 
         cached_load_old_gsd_results = hybrid_cache(lru_cache_maxsize=1)(
             load_old_gsd_results
@@ -60,11 +47,11 @@ class DummyGsdEvaluationPipeline(GsdEmulationPipeline):
 
         all_results = cached_load_old_gsd_results(
             self.base_result_folder
-            / datapoint.recording_metadata["measurement_condition"]
-            / f"{self.algo.old_algo_name}.zip"
+            / measurement_condition
+            / f"{self.old_algo_name}.json"
         )
         try:
-            gs_list = all_results.loc[datapoint.group_label]
+            gs_list = all_results.loc[dp_group]
         except KeyError:
             gs_list = pd.DataFrame(columns=["start", "end"]).astype(
                 {"start": int, "end": int}
@@ -72,12 +59,11 @@ class DummyGsdEvaluationPipeline(GsdEmulationPipeline):
 
         # For some reason some algorithms provide start and end values that are larger than the length of the signal.
         # We clip them here.
-        gs_list["end"] = gs_list["end"].clip(upper=len(datapoint.data_ss))
-        # And then we remove the ones were the end is smaller or equal to start.
+        gs_list["end"] = gs_list["end"].clip(upper=len(data))
+        # And then we remove the ones where the end is smaller or equal to start.
         gs_list = gs_list[gs_list["start"] < gs_list["end"]]
 
-        self.algo_.gs_list_ = gs_list.rename_axis("gs_id").copy()
-
+        self.gs_list_ = gs_list.rename_axis("gs_id").copy()
         return self
 
 
@@ -89,22 +75,15 @@ tvs_labdataset = TVSLabDataset(
 )
 
 
-dummy_pipe = DummyGsdEvaluationPipeline(
-    DummyGsdAlgo("Gaitpy"),
-    base_result_folder=Path(
-        "/home/arne/Documents/repos/private/mobgap_validation/data/gsd/"
-    ),
-)
-
-
 pipelines = {}
 # for name in ['EPFL_V1-improved_th', 'EPFL_V1-original', 'EPFL_V2-original', 'Gaitpy', 'Hickey-original', 'Rai', 'TA_Iluz-original', 'TA_Wavelets_v2']:
 for name in ["TA_Iluz-original", "TA_Wavelets_v2"]:
-    pipelines[name] = DummyGsdEvaluationPipeline(
-        DummyGsdAlgo(name),
+    pipelines[name] = GsdEmulationPipeline(
+        DummyGsdAlgo(name,
         base_result_folder=Path(
             "/home/arne/Documents/repos/private/mobgap_validation/data/gsd/"
         ),
+                     )
     )
 
 # for algo in (GsdIluz(), GsdIonescu(), GsdAdaptiveIonescu()):
@@ -113,10 +92,13 @@ for name in ["TA_Iluz-original", "TA_Wavelets_v2"]:
 
 def run_evaluation(name, pipeline, dataset):
     print(name)
-    eval_pipe = GsdEvaluation(
-        dataset,
-        scoring=gsd_evaluation_scorer,
-    ).run(pipeline)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Zero division", category=UserWarning)
+        warnings.filterwarnings("ignore", message="multiple ICs", category=UserWarning)
+        eval_pipe = GsdEvaluation(
+            dataset,
+            scoring=gsd_evaluation_scorer,
+        ).run(pipeline)
     return eval_pipe.results_
 
 
