@@ -89,7 +89,7 @@ The package is designed to be used in two modes:
    APA or BibTeX formats directly from the "Cite this repository" section in the right sidebar of the repository’s landing page:
 
    <p align="center">
-   <img src="./docs/_static/Citation.png" height="200">
+   <img src="./docs/_static/Citation.png" width="400">
    </p>
 
    Additionally, you may refer to the original validation studies [[1]] and [[2]] as follows:
