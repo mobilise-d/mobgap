@@ -5,6 +5,12 @@ This does the following steps:
 2. Load the matlab file and extract the start and end of all GSD in all trials and time measures.
 3. Recode the participant id to the new ids in line with the published TVS dataset.
 4. Save the results in one json file per algorithm.
+
+Notes:
+    - Some algorithm results show GSDs that extend past the end of the data.
+      In most cases, these are rounding issues.
+      In case of the EPFL_V1-* algoritms, this is caused by an actual bug in the original implementation.
+      In both cases, you should clip the end of the GSD to the length of the data to avoid issues during evaluation.
 """
 
 from pathlib import Path
@@ -88,9 +94,12 @@ for path in tqdm(list(GSD_DATA_PATH.rglob("*.mat"))):
     if result is not None:
         all_results.setdefault(condition, []).append(result)
 
+# %%
 for condition, result in all_results.items():
     out = pd.concat(result).sort_index()
     out_dir = ROOT_DATA_PATH / "data/gsd" / condition
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, group in tqdm(list(out.groupby("algorithm"))):
-        group.reset_index("algorithm", drop=True).to_json(out_dir / f"{name}.json", orient="index", indent=2)
+        group = group.reset_index("algorithm", drop=True)
+        group.index = group.index.to_flat_index().rename("id")
+        group.reset_index().to_json(out_dir / f"{name}.json", orient="records", lines=True, indent=0)
