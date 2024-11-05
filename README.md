@@ -86,7 +86,11 @@ The package is designed to be used in two modes:
    Outside, this recommended use case, we cannot provide any supported evidence about the correctness of the results.
 
    If you are using the pipelines in this way, please cite the package as outlined in the [CITATION](./CITATION.cff) file. You can easily copy the citation in 
-   APA or BibTeX formats directly from the "Cite this repository" section in the right sidebar of the repository’s landing page.
+   APA or BibTeX formats directly from the "Cite this repository" section in the right sidebar of the repository’s landing page:
+
+   <p align="center">
+   <img src="./docs/_static/Citation.png" height="200">
+   </p>
 
    Additionally, you may refer to the original validation studies [[1]] and [[2]] as follows:
    
