@@ -4,13 +4,12 @@ from collections.abc import Iterator
 from typing import Any, TypedDict
 
 import pandas as pd
-from sklearn.metrics import accuracy_score
 from tpcp import OptimizableParameter, OptimizablePipeline
 from tpcp.validate import NoAgg
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.laterality.base import BaseLRClassifier
+from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline import GsIterator, iter_gs
 from mobgap.utils.conversions import to_body_frame
 
@@ -99,6 +98,13 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         ref_paras = datapoint.reference_parameters_relative_to_wb_
 
+        if ref_paras.wb_list.empty:
+            self.ic_lr_list_ = (
+                pd.DataFrame(columns=["wb_id", "ic", "lr_label"]).set_index("wb_id").pipe(_unify_ic_lr_list_df)
+            )
+            self.per_wb_algo_ = {}
+            return self
+
         wb_iterator = GsIterator()
 
         # TODO: maybe do it properly and create a custom iter type
@@ -112,7 +118,7 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             r.ic_list = algo.ic_lr_list_
 
         self.per_wb_algo_ = result_algo_list
-        self.ic_lr_list_ = wb_iterator.results_.ic_list
+        self.ic_lr_list_ = wb_iterator.results_.ic_list.pipe(_unify_ic_lr_list_df)
 
         return self
 
@@ -151,32 +157,6 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.algo.self_optimize(all_data, all_ics, all_reference, sampling_rate_hz=all_sampling_rate_hz, **kwargs)
 
         return self
-
-    def score(self, datapoint: BaseGaitDatasetWithReference) -> _LrcScores:
-        """Score the pipeline on a single datapoint.
-
-        This runs ``algo`` on the provided datapoint and returns the accuracy and the raw classified labels.
-
-        This method should be used in combination with the scoring/validation methods available in ``tpcp.optimize``
-
-        Parameters
-        ----------
-        datapoint
-            A single datapoint of a Gait Dataset with reference information.
-
-        Returns
-        -------
-        metrics
-            A dictionary with relevant performance metrics
-
-        """
-        predicted_lr_labels = self.safe_run(datapoint).ic_lr_list_
-
-        ref_labels = datapoint.reference_parameters_.ic_list["lr_label"]
-
-        combined = predicted_lr_labels.assign(ref_lr_label=ref_labels)
-
-        return {"accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]), "raw_results": NoAgg(combined)}
 
 
 __all__ = ["LrcEmulationPipeline"]
