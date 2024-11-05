@@ -188,8 +188,8 @@ Issues or Email.
 
 ## License and Usage of Names
 
-The library was developed as part of [the Mobilise-D project](https://mobilise-d.eu) under the lead of the 
-Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU).
+The library was developed under the lead of the Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU) as part of 
+[the Mobilise-D project](https://mobilise-d.eu). 
 The original copyright lies with the Machine Learning and Data Analytics Lab
 ([MAD Lab](https://www.mad.tf.fau.de/)) at the FAU (See [NOTICE](./NOTICE)).
 For any legal inquiries regarding copyright, contact 
