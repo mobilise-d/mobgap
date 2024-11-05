@@ -9,7 +9,7 @@ This does the following steps:
 Notes:
     - Some algorithm results show GSDs that extend past the end of the data.
       In most cases, these are rounding issues.
-      In case of the EPFL_V1-* algoritms, this is caused by an actual bug in the original implementation.
+      In case of the EPFL_V1-* algorithms, this is caused by an actual bug in the original implementation.
       In both cases, you should clip the end of the GSD to the length of the data to avoid issues during evaluation.
 """
 
