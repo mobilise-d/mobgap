@@ -32,7 +32,7 @@ id_mapping = (
 )
 
 ALGO_NAME_MAPPING = {}
-
+DATA_SAMPLING_RATE= 100
 
 def parse_single_test(data: mat_struct) -> pd.DataFrame:
     """Parse the data of a single test from the GSD output."""
@@ -43,12 +43,11 @@ def parse_single_test(data: mat_struct) -> pd.DataFrame:
 
     dps = [_parse_matlab_struct(dp) for dp in data]
     if dps:
-        sampling_rate = dps[0]["GSD_fs"]
         return (
             pd.DataFrame.from_records(dps)
             .drop(columns="GSD_fs")
             .rename(columns=lambda s: s.lower())
-            .pipe(lambda df_: as_samples(df_, sampling_rate))
+            .pipe(lambda df_: as_samples(df_, DATA_SAMPLING_RATE))
         )
     return pd.DataFrame(columns=["start", "end"]).astype({"start": int, "end": int})
 
@@ -92,6 +91,6 @@ for path in tqdm(list(GSD_DATA_PATH.rglob("*.mat"))):
 for condition, result in all_results.items():
     out = pd.concat(result).sort_index()
     out_dir = ROOT_DATA_PATH / "data/gsd" / condition
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     for name, group in tqdm(list(out.groupby("algorithm"))):
-        group.reset_index("algorithm", drop=True).to_json(out_dir / f"{name}.zip", orient="index", indent=2)
+        group.reset_index("algorithm", drop=True).to_json(out_dir / f"{name}.json", orient="index", indent=2)
