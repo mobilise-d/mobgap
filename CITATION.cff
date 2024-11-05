@@ -1,0 +1,111 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: MobGap
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Arne
+    family-names: Küderle
+    email: arne.kuederle@fau.de
+    affiliation: Friedrich-Alexander-Universität Erlangen-Nürnberg
+    orcid: 'https://orcid.org/0000-0002-5686-281X'
+  - given-names: Paolo
+    family-names: Tasca
+    email: paolo.tasca@polito.it
+    affiliation: Politecnico di Torino
+    orcid: 'https://orcid.org/0009-0008-7157-3451'
+  - given-names: Cameron
+    family-names: Kirk
+    email: cameron.kirk@newcastle.ac.uk
+    affiliation: Newcastle University
+    orcid: 'https://orcid.org/0000-0003-2508-5816'
+  - given-names: Dimitrios
+    family-names: Megaritis
+    orcid: 'https://orcid.org/0000-0001-6786-4346'
+    email: d.megaritis@northumbria.ac.uk
+    affiliation: Newcastle University
+  - given-names: Chloe
+    family-names: Hinchliffe
+    email: chloe.hinchliffe@newcastle.ac.uk
+    affiliation: Newcastle University
+    orcid: 'https://orcid.org/0000-0002-5002-1120'
+  - given-names: Alexandru
+    orcid: 'https://orcid.org/0000-0002-6073-671X'
+    family-names: Stihi
+    email: astihi1@sheffield.ac.uk
+    affiliation: University of Sheffield
+  - given-names: Annika
+    family-names: Muecke
+    email: annika.muecke@fau.de
+    affiliation: Friedrich-Alexander-Universität Erlangen-Nürnberg
+  - given-names: Zamal
+    family-names: Babar
+    affiliation: Friedrich-Alexander-Universität Erlangen-Nürnberg
+  - given-names: Felix
+    family-names: Kluge
+    email: felix.kluge@novartis.com
+    affiliation: Novartis Institutes for BioMedical Research Inc
+    orcid: 'https://orcid.org/0000-0003-4921-6104'
+  - given-names: Arne
+    family-names: Mueller
+    email: arne.mueller@novartis.com
+    affiliation: Novartis Institutes for BioMedical Research Inc
+  - given-names: Claudia
+    family-names: Mazzà
+    email: claudia.mazza@indivi.io
+    affiliation: INDIVI
+    orcid: 'https://orcid.org/0000-0002-5215-1746'
+  - given-names: Silvia
+    family-names: Del Din
+    email: silvia.del-din@newcastle.ac.uk
+    affiliation: Newcastle University
+    orcid: 'https://orcid.org/0000-0003-1154-4751'
+  - given-names: Andrea
+    family-names: Cereatti
+    email: andrea.cereatti@polito.it
+    affiliation: Politecnico di Torino
+    orcid: 'https://orcid.org/0000-0002-7276-5382'
+  - given-names: Lynn
+    family-names: Rochester
+    email: lynn.rochester@newcastle.ac.uk
+    affiliation: Newcastle University
+    orcid: 'https://orcid.org/0000-0001-5774-9272'
+  - given-names: Daniel
+    family-names: Rooks
+    affiliation: Novartis Institutes for BioMedical Research Inc
+    orcid: 'https://orcid.org/0000-0002-1121-3517'
+    email: daniel.rooks@novartis.com
+  - given-names: Brian
+    family-names: Caulfield
+    orcid: 'https://orcid.org/0000-0003-3877-475X'
+    affiliation: University of Dublin Trinity College
+    email: b.caulfield@ucd.ie
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.14035833
+    description: >-
+      This DOI points to the latest released version of
+      MobGap. If you want a DOI badge for a specific
+      release, please follow the DOI link for one of the
+      specific releases and grab DOI from the archived
+      record.
+repository-code: 'https://github.com/mobilise-d/mobgap/'
+url: 'https://mobgap.readthedocs.io/en/latest/README.html'
+repository: >-
+  https://github.com/mobilise-d/Mobilise-D-TVS-Recommended-Algorithms
+abstract: >-
+  A Python implementation of the Mobilise-D algorithm
+  pipeline for gait analysis using IMU worn at the lower
+  back. This package is meant as reference implementation
+  for research and production use.  
+keywords:
+  - gait analysis
+  - walking speed estimation
+  - wearable sensors
+  - end-to-end pipeline
+  - mobilise-d
+license: Apache-2.0
