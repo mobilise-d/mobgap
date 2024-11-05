@@ -85,11 +85,14 @@ The package is designed to be used in two modes:
    When using the pipelines in the recommended way, you can expect error ranges as reported in [[1]].
    Outside, this recommended use case, we cannot provide any supported evidence about the correctness of the results.
 
-   If you are using the pipelines in this way, we recommend citing [[1]] and [[2]] as follows:
+   If you are using the pipelines in this way, please cite the package as outlined in the [CITATION](./CITATION.cff) file. You can easily copy the citation in 
+   APA or BibTeX formats directly from the "Cite this repository" section in the right sidebar of the repository’s landing page.
 
+   Additionally, you may refer to the original validation studies [[1]] and [[2]] as follows:
+   
    > Gait parameters were obtained using the Mobilise-D algorithm pipeline [[1], [2]] in its official implementation
    > provided with the mobgap Python library version {insert version you used}.
-
+   
    When appropriate, include the link to the mobgap library as a footnote or as an "online resource" in the reference
    list.
 
@@ -117,7 +120,7 @@ The package is designed to be used in two modes:
    https://doi.org/10.1186/s12984-023-01198-5
    ```
 
-2. Usage of individual algorithms:
+3. Usage of individual algorithms:
 
    Besides the pipelines, we also provide individual algorithms to be used independently or in custom pipelines.
    This can be helpful to build highly customized pipelines in a research context.
