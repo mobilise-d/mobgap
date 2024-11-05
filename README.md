@@ -71,6 +71,32 @@ pip install .
 
 Or the equivalent commands of the python package manager you are using to install local dependencies.
 
+## Citing
+
+If you are using mobgap in your research or work, we would like to ask you to mention the library in your publications.
+For papers, we recommend citing the library using the following reference:
+
+```
+Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
+A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
+MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
+```
+
+```
+@software{Kuderle_MobGap,
+   author = {Küderle, Arne and Tasca, Paolo and Kirk, Cameron and Megaritis, Dimitrios and Hinchliffe, Chloe and
+    Stihi, Alexandru and Muecke, Annika and Babar, Zamal and Kluge, Felix and Mueller, Arne and Mazzà, Claudia 
+    and Del Din, Silvia and Cereatti, Andrea and Rochester, Lynn and Rooks, Daniel and Caulfield, Brian},
+   license = {Apache-2.0},
+   title = {{MobGap}},
+   url = {https://github.com/mobilise-d/mobgap/}
+   doi = {10.5281/zenodo.14035833},
+ }
+```
+
+For concrete examples on how to cite the library in your work, see the [Usage Recommendation](#usage-recommendation) 
+section below.
+
 ## Usage Recommendation
 
 The package is designed to be used in two modes:
@@ -85,20 +111,10 @@ The package is designed to be used in two modes:
    When using the pipelines in the recommended way, you can expect error ranges as reported in [[1]].
    Outside, this recommended use case, we cannot provide any supported evidence about the correctness of the results.
 
-   If you are using the pipelines in this way, please cite the package as outlined in the [CITATION](./CITATION.cff) file. You can easily copy the citation in 
-   APA or BibTeX formats directly from the "Cite this repository" section in the right sidebar of the repository’s landing page:
-
-   <p align="center">
-   <img src="./docs/_static/Citation.png" width="800">
-   </p>
-
-   Additionally, you may refer to the original validation studies [[1]] and [[2]] as follows:
+   If you are using the pipelines in this way, we recommend citing [[1], [2]] and mobgap [[3]] itself as follows:
    
    > Gait parameters were obtained using the Mobilise-D algorithm pipeline [[1], [2]] in its official implementation
-   > provided with the mobgap Python library version {insert version you used}.
-   
-   When appropriate, include the link to the mobgap library as a footnote or as an "online resource" in the reference
-   list.
+   > provided with the mobgap Python library [[3]] version {insert version you used}.
 
    In general, we would like to ask you to be precise about the version of the mobgap library you used and only
    use the term "Mobilise-D algorithm pipeline" if you used the pipelines as described in the technical validation
@@ -108,11 +124,8 @@ The package is designed to be used in two modes:
 
    > Gait parameters were obtained using an approach inspired by Mobilise-D algorithm pipeline [[1], [2]].
    > The algorithm pipeline was implemented based on {name of Pipeline class} available as part of the mobgap Python
-   > library version {insert version you used} with the following modifications:
+   > library [[3]] version {insert version you used} with the following modifications:
    > {insert modifications you made}.
-   
-   [1]: https://doi.org/10.1038/s41598-024-51766-5
-   [2]: https://doi.org/10.1186/s12984-023-01198-5
    
    ```
    [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in 
@@ -122,9 +135,13 @@ The package is designed to be used in two modes:
    [2] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology? 
    Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78 (2023). 
    https://doi.org/10.1186/s12984-023-01198-5
+   
+   [3] Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
+   A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
+   MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
    ```
 
-3. Usage of individual algorithms:
+2. Usage of individual algorithms:
 
    Besides the pipelines, we also provide individual algorithms to be used independently or in custom pipelines.
    This can be helpful to build highly customized pipelines in a research context.
@@ -137,10 +154,17 @@ The package is designed to be used in two modes:
    You can find the best references for each algorithm in the documentation of the respective algorithm.
 
    > Gait parameters were obtained using the {name of algorithm} algorithm [algo-citation] as implemented in the
-   > mobgap Python library version {insert version you used}.
+   > mobgap Python library [[3]] version {insert version you used}.
 
-   When appropriate, include the link to the mobgap library as a footnote or as an "online resource" in the reference
-   list.
+   ```
+   [3] Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
+   A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
+   MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
+   ```
+
+[1]: https://doi.org/10.1038/s41598-024-51766-5
+[2]: https://doi.org/10.1186/s12984-023-01198-5
+[3]: https://github.com/mobilise-d/mobgap/
 
 ## Used by
 
