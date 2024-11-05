@@ -7,7 +7,7 @@ from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.laterality.pipeline import LrcEmulationPipeline
 
 
-def score(pipeline: LrcEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict[str, any]:
+def laterality_evaluation_scorer(pipeline: LrcEmulationPipeline, datapoint: BaseGaitDatasetWithReference):
     """Score the pipeline on a single datapoint.
 
     This runs ``algo`` on the provided datapoint and returns the accuracy and the raw classified labels.
@@ -36,9 +36,4 @@ def score(pipeline: LrcEmulationPipeline, datapoint: BaseGaitDatasetWithReferenc
         "raw_results": no_agg(combined),
     }
 
-
-# TODO: Update this to follow our "raw" conventions
-
-lrc_score = Scorer(score)
-
-__all__ = ["lrc_score"]
+__all__ = ["laterality_evaluation_scorer"]

@@ -788,7 +788,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 )
             )
         else:
-            ics.append(pd.DataFrame(columns=list(set(ic_df_dtypes.keys()) - {"step_id"})))
+            ics.append(pd.DataFrame(columns=list(set(ic_df_dtypes.keys()))))
         if "turn_parameters" not in expect_none:
             turn_starts = _ensure_is_list(wb["Turn_Start"])
             turn_paras.append(
@@ -804,7 +804,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 )
             )
         else:
-            turn_paras.append(pd.DataFrame(columns=list(set(turn_df_dtypes.keys()) - {"turn_id"})))
+            turn_paras.append(pd.DataFrame(columns=list(set(turn_df_dtypes.keys()))))
 
         if "stride_parameters" not in expect_none:
             starts, ends = zip(*_ensure_is_list(wb["Stride_InitialContacts"]))
@@ -826,7 +826,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 )
             )
         else:
-            stride_paras.append(pd.DataFrame(columns=list(set(stride_df_dtypes.keys()) - {"s_id"})))
+            stride_paras.append(pd.DataFrame(columns=list(set(stride_df_dtypes.keys()))))
 
     walking_bouts = pd.DataFrame.from_records(walking_bouts)
     # For some reason, the matlab code contains empty arrays to signal a "missing" value in the data
@@ -847,33 +847,21 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     walking_bouts = walking_bouts.replace(np.array([]), np.nan)
     walking_bouts = _unify_wb_df(walking_bouts)
 
-    if len(stride_paras) != 0 and len(ics) == 0:
-        raise ValueError(
-            "Stride parameters are provided, but no initial contacts are found in the reference data. "
-            "They are required to correctly assign the left-right labels to the strides. "
-        )
+    ics = pd.concat(ics, ignore_index=True)
+    ics_is_na = ics["ic"].isna()
+    ics = ics[~ics_is_na].drop_duplicates()
+    # make left-right labels lowercase
+    ics["lr_label"] = ics["lr_label"].str.lower()
+    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
+    ics = _unify_ic_df(ics)
 
-    if len(ics) > 0:
-        ics = pd.concat(ics, ignore_index=True)
-        ics_is_na = ics["ic"].isna()
-        ics = ics[~ics_is_na].drop_duplicates()
-        # make left-right labels lowercase
-        ics["lr_label"] = ics["lr_label"].str.lower()
-        ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
-        ics = _unify_ic_df(ics)
-    else:
-        ics = None
-
-    if len(turn_paras) > 0:
-        turn_paras = (
-            pd.concat(turn_paras, ignore_index=True)
-            .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
-            .replace({"direction": {1: "left", -1: "right"}})
-        )
-        turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
-        turn_paras = _unify_turn_df(turn_paras)
-    else:
-        turn_paras = None
+    turn_paras = (
+        pd.concat(turn_paras, ignore_index=True)
+        .assign(direction=lambda df_: np.sign(df_["angle_deg"]))
+        .replace({"direction": {1: "left", -1: "right"}})
+    )
+    turn_paras[["start", "end"]] = (turn_paras[["start", "end"]] * data_sampling_rate_hz).round()
+    turn_paras = _unify_turn_df(turn_paras)
 
     if len(stride_paras) > 0:
         stride_paras = pd.concat(stride_paras, ignore_index=True)
@@ -912,21 +900,21 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 .astype("int64")
             )
 
-        # We also get the correct LR-label for the stride parameters from the ICs.
-        ic_duplicate_as_nan = ics.copy()
-        # We set the values to Nan first and then drop one of the duplicates.
-        ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
-        ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
-        if ic_duplicate_as_nan["lr_label"].isna().any():
-            warnings.warn(
-                "There were multiple ICs with the same index value, but different LR labels. "
-                "This is likely an issue with the reference system you should further investigate. "
-                "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
-                "However, both values still remain in the IC list.",
-                stacklevel=2,
-            )
-        stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
-        stride_paras = _unify_stride_df(stride_paras)
+    # We also get the correct LR-label for the stride parameters from the ICs.
+    ic_duplicate_as_nan = ics.copy()
+    # We set the values to Nan first and then drop one of the duplicates.
+    ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
+    ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+    if ic_duplicate_as_nan["lr_label"].isna().any():
+        warnings.warn(
+            "There were multiple ICs with the same index value, but different LR labels. "
+            "This is likely an issue with the reference system you should further investigate. "
+            "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
+            "However, both values still remain in the IC list.",
+            stacklevel=2,
+        )
+    stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
+    stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.
     # We need to fix 2 things:
@@ -939,12 +927,9 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     # All start values of intervals need to be adjusted by -1.
     # All end values of intervals stay the same, as the two adjustments cancel each other out.
     walking_bouts["start"] -= 1
-    if ics is not None:
-        ics["ic"] -= 1
-    if turn_paras is not None:
-        turn_paras["start"] -= 1
-    if stride_paras is not None:
-        stride_paras["start"] -= 1
+    ics["ic"] -= 1
+    turn_paras["start"] -= 1
+    stride_paras["start"] -= 1
 
     if relative_to_wb is True:
         ics = _relative_to_gs(ics, walking_bouts, "wb_id", columns_to_cut=["ic"])

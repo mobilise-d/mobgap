@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Final, Literal, Optional, Union
+from typing import ClassVar, Final, Literal, Optional, Union
 
 import joblib
 import pandas as pd
@@ -167,6 +167,8 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
 
 class BaseTVSDataset(BaseGenericMobilisedDataset):
     """Base class for the TVS datasets."""
+
+    _not_expected_per_ref_system: ClassVar = [("INDIP", ["turn_parameters"]), ("Stereophoto", ["turn_parameters"])]
 
     _MEASUREMENT_CONDITION: str
 

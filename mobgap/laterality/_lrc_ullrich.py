@@ -26,8 +26,11 @@ from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @cache
-def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
+def _load_model_files(file_name: str, expect_warning: bool = False) -> Union[SklearnClassifier, SklearnScaler]:
     file_path = files("mobgap") / "laterality" / "_ullrich_pretrained_models" / file_name
+    if not expect_warning:
+        return joblib.load(file_path)
+
     with file_path.open("rb") as file, warnings.catch_warnings():
         warnings.simplefilter("ignore", InconsistentVersionWarning)
         return joblib.load(file)
@@ -46,6 +49,7 @@ class LrcUllrich(BaseLRClassifier):
     We provide a set of pre-trained models that are based on the MS-Project ([2]_) dataset.
     They all use a Min-Max Scaler in combination with a linear SVC classifier.
     The parameters of the SVC depend on the cohort and were tuned as explained in the paper ([1]_).
+    See more on the models in the Notes section.
 
 
     Parameters
@@ -72,6 +76,10 @@ class LrcUllrich(BaseLRClassifier):
 
     Notes
     -----
+    Models: All models are trained based on the MsProject dataset. All models specified with the suffix "_old" were
+    trained using the original implementation of this algorithm using an old version of the sklearn library.
+    We don't recommend using them, unless you want to reproduce old results.
+
     Differences to original implementation:
 
     - Instead of using :func:`numpy.diff`, this implementation uses :func:`~numpy.gradient` to calculate the first and
@@ -113,17 +121,13 @@ class LrcUllrich(BaseLRClassifier):
             clf_pipe: Pipeline
 
         @classmethod
-        def _load_model_config(cls, model_name: str) -> _ModelConfig:
-            if model_name not in ["msproject_all", "msproject_hc", "msproject_ms"]:
-                raise ValueError("Invalid model name.")
-
-            model = _load_model_files(f"{model_name}_model.gz")
-            scaler = _load_model_files(f"{model_name}_scaler.gz")
+        def _load_old_model_config(cls, model_name: str) -> _ModelConfig:
+            model = _load_model_files(f"old/{model_name}_model.gz", expect_warning=True)
+            scaler = _load_model_files(f"old/{model_name}_scaler.gz", expect_warning=True)
 
             # Note: this clip property was added here to ensure compatibility with sklearn version 0.23.1, which was
             #  used for training the models and storing the corresponding min-max scalers.
             #  Since version 0.24 onwards, this needs to be specified.
-            # TODO: Might be a good idea to resave both the models and scalers to the current sklearn version.
             scaler.clip = False
 
             return MappingProxyType(
@@ -135,17 +139,32 @@ class LrcUllrich(BaseLRClassifier):
                 }
             )
 
+        @classmethod
+        def _load_model_config(cls, model_name: str) -> _ModelConfig:
+            pipe = _load_model_files(f"{model_name}_model.gz", expect_warning=True)
+
+            return MappingProxyType(
+                {
+                    "smoothing_filter": cls._BW_FILTER,
+                    "clf_pipe": pipe,
+                }
+            )
+
+        @classproperty
+        def msproject_all_old(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_old_model_config("msproject_all")
+
+        @classproperty
+        def msproject_hc_old(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_old_model_config("msproject_hc")
+
+        @classproperty
+        def msproject_ms_old(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_old_model_config("msproject_ms")
+
         @classproperty
         def msproject_all(cls) -> _ModelConfig:  # noqa: N805
             return cls._load_model_config("msproject_all")
-
-        @classproperty
-        def msproject_hc(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_model_config("msproject_hc")
-
-        @classproperty
-        def msproject_ms(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_model_config("msproject_ms")
 
         @classproperty
         def untrained_svc(self) -> _ModelConfig:
@@ -328,6 +347,8 @@ class LrcUllrich(BaseLRClassifier):
         feature_df
             The DataFrame containing the extracted features.
         """
+        assert_is_sensor_data(data, frame="body")
+
         gyr = data[["gyr_is", "gyr_pa"]]
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # We use numpy gradient instead of diff, as it preserves the shape of the input and hence, can handle ICs that

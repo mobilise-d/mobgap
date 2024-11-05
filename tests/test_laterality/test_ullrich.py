@@ -78,7 +78,9 @@ class TestLrcUllrich:
         ic_list = pd.DataFrame({"ic": [15, 38, 65]})
 
         algo = LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
-        output = algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
+        algo.predict(data=data, ic_list=ic_list, sampling_rate_hz=100.0)
+
+        output = algo.ic_lr_list_
 
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
@@ -113,9 +115,8 @@ class TestRegression:
     @pytest.mark.parametrize(
         "config_name, config",
         [
-            ("msprpject_all", LrcUllrich.PredefinedParameters.msproject_all),
-            ("msproject_hc", LrcUllrich.PredefinedParameters.msproject_hc),
-            ("msproject_ms", LrcUllrich.PredefinedParameters.msproject_ms),
+            ("msproject_all", LrcUllrich.PredefinedParameters.msproject_all),
+            ("msproject_all_old", LrcUllrich.PredefinedParameters.msproject_all_old),
         ],
     )
     def test_example_lab_data(self, datapoint, config_name, config, snapshot):
