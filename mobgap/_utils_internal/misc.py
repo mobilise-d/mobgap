@@ -1,9 +1,9 @@
 import contextlib
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, TypedDict, TypeVar, Iterable
+from typing import Any, Callable, TypedDict, TypeVar
 
 from mobgap._docutils import make_filldoc
 

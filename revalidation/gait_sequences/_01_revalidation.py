@@ -1,17 +1,16 @@
+import warnings
 from pathlib import Path
-from typing import Any, Self, Unpack, Optional
+from typing import Any, Optional, Self, Unpack
 
 import pandas as pd
 from joblib import Memory, Parallel
-import warnings
-
 from mobgap import PACKAGE_ROOT
 from mobgap.data import TVSLabDataset
+from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.gait_sequences.evaluation import (
     GsdEvaluation,
     gsd_evaluation_scorer,
 )
-from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 from tpcp.caching import hybrid_cache
 from tpcp.parallel import delayed
@@ -34,11 +33,13 @@ class DummyGsdAlgo(BaseGsDetector):
         data: pd.DataFrame,
         *,
         sampling_rate_hz: float,
-            measurement_condition: Optional[str] = None,
+        measurement_condition: Optional[str] = None,
         dp_group: Optional[tuple[str, ...]] = None,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        assert measurement_condition is not None, "measurement_condition must be provided"
+        assert (
+            measurement_condition is not None
+        ), "measurement_condition must be provided"
         assert dp_group is not None, "dp_group must be provided"
 
         cached_load_old_gsd_results = hybrid_cache(lru_cache_maxsize=1)(
@@ -79,11 +80,12 @@ pipelines = {}
 # for name in ['EPFL_V1-improved_th', 'EPFL_V1-original', 'EPFL_V2-original', 'Gaitpy', 'Hickey-original', 'Rai', 'TA_Iluz-original', 'TA_Wavelets_v2']:
 for name in ["TA_Iluz-original", "TA_Wavelets_v2"]:
     pipelines[name] = GsdEmulationPipeline(
-        DummyGsdAlgo(name,
-        base_result_folder=Path(
-            "/home/arne/Documents/repos/private/mobgap_validation/data/gsd/"
-        ),
-                     )
+        DummyGsdAlgo(
+            name,
+            base_result_folder=Path(
+                "/home/arne/Documents/repos/private/mobgap_validation/data/gsd/"
+            ),
+        )
     )
 
 # for algo in (GsdIluz(), GsdIonescu(), GsdAdaptiveIonescu()):
@@ -93,8 +95,12 @@ for name in ["TA_Iluz-original", "TA_Wavelets_v2"]:
 def run_evaluation(name, pipeline, dataset):
     print(name)
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="Zero division", category=UserWarning)
-        warnings.filterwarnings("ignore", message="multiple ICs", category=UserWarning)
+        warnings.filterwarnings(
+            "ignore", message="Zero division", category=UserWarning
+        )
+        warnings.filterwarnings(
+            "ignore", message="multiple ICs", category=UserWarning
+        )
         eval_pipe = GsdEvaluation(
             dataset,
             scoring=gsd_evaluation_scorer,

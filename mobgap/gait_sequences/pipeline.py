@@ -1,10 +1,9 @@
 """Helpful Pipelines to wrap the GSD algorithms for optimization and evaluation."""
 
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from tpcp.validate import Aggregator
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import invert_list_of_dicts
@@ -95,7 +94,12 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         single_sensor_imu_data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        kwargs ={"sampling_rate_hz": sampling_rate_hz, **datapoint.recording_metadata, **datapoint.participant_metadata, "dp_group": datapoint.group_label}
+        kwargs = {
+            "sampling_rate_hz": sampling_rate_hz,
+            **datapoint.recording_metadata,
+            **datapoint.participant_metadata,
+            "dp_group": datapoint.group_label,
+        }
 
         self.algo_ = self.algo.clone().detect(single_sensor_imu_data, **kwargs)
 
@@ -126,7 +130,9 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         """
         # TODO: This method is not really tested yet, as we don't have any ML based GSD algorithms.
         all_data = (_conditionally_to_bf(d.data_ss, self.convert_to_body_frame) for d in dataset)
-        dp_kwargs = invert_list_of_dicts(({**d.recording_metadata, **d.participant_metadata, "dp_group": d.group_label} for d in dataset))
+        dp_kwargs = invert_list_of_dicts(
+            {**d.recording_metadata, **d.participant_metadata, "dp_group": d.group_label} for d in dataset
+        )
         reference_wbs = (d.reference_parameters_.wb_list for d in dataset)
         sampling_rate_hz = (d.sampling_rate_hz for d in dataset)
 

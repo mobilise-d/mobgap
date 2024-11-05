@@ -6,7 +6,8 @@ This does the following steps:
 3. Recode the participant id to the new ids in line with the published TVS dataset.
 4. Save the results in one json file per algorithm.
 
-Notes:
+Notes
+-----
     - Some algorithm results show GSDs that extend past the end of the data.
       In most cases, these are rounding issues.
       In case of the EPFL_V1-* algorithms, this is caused by an actual bug in the original implementation.
@@ -38,7 +39,8 @@ id_mapping = (
 )
 
 ALGO_NAME_MAPPING = {}
-DATA_SAMPLING_RATE= 100
+DATA_SAMPLING_RATE = 100
+
 
 def parse_single_test(data: mat_struct) -> pd.DataFrame:
     """Parse the data of a single test from the GSD output."""
