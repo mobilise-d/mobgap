@@ -21,6 +21,7 @@ from mobgap.data._mobilised_matlab_loader import (
 )
 from mobgap.data._mobilised_tvs_dataset import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
 from mobgap.data._mobilsed_weartime_loader import load_weartime_from_daily_mcroberts_report
+from mobgap.data._ms_project import MsProjectDataset
 
 __all__ = [
     "load_mobilised_matlab_format",
@@ -42,4 +43,6 @@ __all__ = [
     "LabExampleDataset",
     "BaseGenericMobilisedDataset",
     "matlab_dataset_docfiller",
+    "MsProjectDataset",
 ]
+
