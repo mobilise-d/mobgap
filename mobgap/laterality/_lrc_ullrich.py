@@ -80,13 +80,6 @@ class LrcUllrich(BaseLRClassifier):
     trained using the original implementation of this algorithm using an old version of the sklearn library.
     We don't recommend using them, unless you want to reproduce old results.
 
-    Differences to original implementation:
-
-    - Instead of using :func:`numpy.diff`, this implementation uses :func:`~numpy.gradient` to calculate the first and
-      second derivative of the filtered signals.
-      Compared to diff, gradient can estimate reliable derivatives for values at the edges of the data, which is
-      important when the ICs are close to the beginning or end of the data.
-
     .. [1] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
            and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021,
            available at: https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=9630653
@@ -163,7 +156,7 @@ class LrcUllrich(BaseLRClassifier):
             return cls._load_old_model_config("msproject_ms")
 
         @classproperty
-        def msproject_all(cls) -> _ModelConfig:  # noqa: N805
+        def msproject_all(cls) -> _ModelConfig:
             return cls._load_model_config("msproject_all")
 
         @classproperty
@@ -353,8 +346,12 @@ class LrcUllrich(BaseLRClassifier):
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # We use numpy gradient instead of diff, as it preserves the shape of the input and hence, can handle ICs that
         # are close to the beginning or end of the data.
-        gyr_gradient = np.gradient(gyr_filtered, axis=0)
-        curvature = np.gradient(gyr_gradient, axis=0)
+        gyr_gradient = np.diff(gyr_filtered, axis=0)
+        # We repeat the last value of the gradient to keep the shape of the data
+        gyr_gradient = np.append(gyr_gradient, [gyr_gradient[-1]], axis=0)
+        curvature = np.diff(gyr_gradient, axis=0)
+        # Same as for the gradient, we repeat the last value of the curvature to keep the shape of the data
+        curvature = np.append(curvature, [curvature[-1]], axis=0)
         gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
         curvature = pd.DataFrame(curvature, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
 
