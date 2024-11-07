@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   At the moment this is only used in the `DummyAlgorithm` to load existing results based on the participant and test.
   For this to work across all algorithms, we had to change some logic in the `LrcUllrich` algorithm to selectively 
   parse the kwargs that it needs.
- (https://github.com/mobilise-d/mobgap/pull/182)
+  (https://github.com/mobilise-d/mobgap/pull/182)
 
 
 ### Removed
