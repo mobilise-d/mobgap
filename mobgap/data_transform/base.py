@@ -492,6 +492,7 @@ class IdentityFilter(BaseFilter):
 
     Just returns a copy of the input data.
     """
+
     def filter(
         self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
     ) -> Self:

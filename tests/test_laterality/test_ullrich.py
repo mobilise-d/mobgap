@@ -30,13 +30,14 @@ class TestMetaLrcUllrich(TestAlgorithmMixin):
 
 
 class TestLrcUllrich:
-
     model: dict
 
-    @pytest.fixture(autouse=True, params=[LrcUllrich.PredefinedParameters.msproject_all, LrcUllrich.PredefinedParameters.msproject_all_old])
+    @pytest.fixture(
+        autouse=True,
+        params=[LrcUllrich.PredefinedParameters.msproject_all, LrcUllrich.PredefinedParameters.msproject_all_old],
+    )
     def _select_model(self, request):
         self.model = request.param
-
 
     def test_empty_data(self):
         test_params = self.model
@@ -81,10 +82,10 @@ class TestLrcUllrich:
     def test_simple_sin_input(self):
         x = np.linspace(0, 4 * np.pi, 80)[:, None]
         x = np.tile(x, (1, 6))
-        # We shift the z values (2, 5) by pi/2
-        x[:, [2, 5]] = x[:, [2, 5]] + 10
+        # We shift the x values by pi/2
+        x[:, 0] = x[:, 0] + np.pi / 2 * 1.2
         y = np.sin(x)
-        y[:, [2, 5]] = y[:, [2, 5]] * -1  # make the z axis negative
+        y[:, 2] = y[:, 2] * -1  # make the z axis negative
         data = pd.DataFrame(y, columns=BF_SENSOR_COLS)
 
         ic_list = pd.DataFrame({"ic": [10, 30, 50, 70]})
