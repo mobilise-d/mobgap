@@ -5,7 +5,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdIluz
-from mobgap.gait_sequences._evaluation_challenge import GsdEvaluation, GsdEvaluationCV
+from mobgap.gait_sequences._evaluation_scorer import GsdEvaluation, GsdEvaluationCV
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 
 short_example_data = LabExampleDataset().get_subset(test="Test5", trial="Trial1")

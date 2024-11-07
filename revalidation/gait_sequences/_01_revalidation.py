@@ -1,4 +1,3 @@
-import warnings
 from pathlib import Path
 from typing import Any, Optional, Self, Unpack
 
@@ -6,12 +5,13 @@ import pandas as pd
 from joblib import Memory, Parallel
 from mobgap import PACKAGE_ROOT
 from mobgap.data import TVSLabDataset
-from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
+from mobgap.gait_sequences import GsdIluz
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.gait_sequences.evaluation import (
-    gsd_evaluation_scorer,
+    gsd_score,
 )
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
+from mobgap.utils.evaluation_challenges import Evaluation
 from mobgap.utils.misc import get_env_var
 from tpcp.caching import hybrid_cache
 from tpcp.parallel import delayed
@@ -94,53 +94,45 @@ tvs_labdataset = TVSLabDataset(
     reference_system="INDIP",
     memory=Memory(PACKAGE_ROOT.parent / ".cache"),
     missing_reference_error_type="skip",
-).get_subset(cohort=["PFF", "HA", "CHF"])
+).get_subset(cohort=["PFF", "HA", "CHF"])[:3]
 
 old_data_path = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "data/gsd"
 
 pipelines = {}
-for name in [
-    "EPFL_V1-improved_th",
-    "EPFL_V1-original",
-    "EPFL_V2-original",
-    "Gaitpy",
-    "Hickey-original",
-    "Rai",
-    "TA_Iluz-original",
-    "TA_Wavelets_v2",
-]:
-    pipelines[name] = GsdEmulationPipeline(
-        DummyGsdAlgo(name, base_result_folder=old_data_path)
-    )
-
-for algo in (GsdIluz(), GsdIonescu(), GsdAdaptiveIonescu()):
-    pipelines[algo.__class__.__name__] = GsdEmulationPipeline(algo)
+# for name in [
+#     "EPFL_V1-improved_th",
+#     "EPFL_V1-original",
+#     "EPFL_V2-original",
+#     "Gaitpy",
+#     "Hickey-original",
+#     "Rai",
+#     "TA_Iluz-original",
+#     "TA_Wavelets_v2",
+# ]:
+#     pipelines[name] = GsdEmulationPipeline(
+#         DummyGsdAlgo(name, base_result_folder=old_data_path)
+#     )
+#
+# for algo in (GsdIluz(), GsdIonescu(), GsdAdaptiveIonescu()):
+#     pipelines[algo.__class__.__name__] = GsdEmulationPipeline(algo)
 
 
 pipelines["GSDIluz"] = GsdEmulationPipeline(
     GsdIluz(use_original_peak_detection=False)
 )
-pipelines["GSDIluz_orig_peak"] = GsdEmulationPipeline(
-    GsdIluz(use_original_peak_detection=True)
-)
+# pipelines["GSDIluz_orig_peak"] = GsdEmulationPipeline(
+#     GsdIluz(use_original_peak_detection=True)
+# )
 
 # %%
-from mobgap.gait_sequences.evaluation import GsdEvaluation
 
 
 def run_evaluation(name, pipeline, dataset):
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", message="Zero division", category=UserWarning
-        )
-        warnings.filterwarnings(
-            "ignore", message="multiple ICs", category=UserWarning
-        )
-        eval_pipe = GsdEvaluation(
-            dataset,
-            scoring=gsd_evaluation_scorer,
-        ).run(pipeline)
-    return name, eval_pipe.results_
+    eval_pipe = Evaluation(
+        dataset,
+        scoring=gsd_score,
+    ).run(pipeline)
+    return name, eval_pipe
 
 
 with Parallel(n_jobs=3) as parallel:
@@ -151,24 +143,12 @@ with Parallel(n_jobs=3) as parallel:
         )
     )
 
-
-# %%
-def extract_single_performance(result):
-    result = pd.DataFrame(result)
-    single_cols = result.filter(like="single_").columns
-    result = result[["data_labels", *single_cols]]
-    result = result.explode(result.columns.to_list()).set_index("data_labels")
-    result.columns = [c.split("__")[-1] for c in result.columns]
-    result.index = pd.MultiIndex.from_tuples(result.index)
-    return result
-
-
 # %%
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 results_df = (
-    pd.concat({k: extract_single_performance(v) for k, v in results.items()})
+    pd.concat({k: v.get_single_results_as_df() for k, v in results.items()})
     .reset_index()
     .rename(columns={"level_0": "algo_name"})
 )
@@ -176,3 +156,11 @@ results_df = (
 sns.boxplot(data=results_df, x="cohort", y="accuracy", hue="algo_name")
 
 plt.show()
+
+# %%
+agg_results = pd.concat(
+    {k: v.get_aggregated_results_as_df().iloc[0] for k, v in results.items()},
+    names=["algo_name"],
+    axis=1,
+)
+agg_results

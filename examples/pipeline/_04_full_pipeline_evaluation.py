@@ -1,19 +1,22 @@
 from collections.abc import Sequence
-from typing import Any, Protocol, TypeAlias, Union
 
 import pandas as pd
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.gait_sequences.evaluation import categorize_intervals, get_matching_intervals
+from mobgap.gait_sequences.evaluation import (
+    categorize_intervals,
+    get_matching_intervals,
+)
 from mobgap.pipeline import GenericMobilisedPipeline
 from mobgap.pipeline.evaluation import (
     get_default_error_aggregations,
     get_default_error_transformations,
 )
-from mobgap.utils.df_operations import apply_aggregations, apply_transformations, create_multi_groupby
+from mobgap.utils.df_operations import (
+    apply_aggregations,
+    apply_transformations,
+)
 from tpcp import Dataset
-from tpcp.validate import Aggregator, no_agg
-from typing_extensions import Unpack
-
+from tpcp.validate import no_agg
 
 
 def _list_of_dfs_to_df(
@@ -24,6 +27,7 @@ def _list_of_dfs_to_df(
         axis=1,
         names=[*dataset[0].group_label.fields, dfs[0].index.names],
     )
+
 
 def _calc_and_agg_error(
     matched_vals: pd.DataFrame,
@@ -42,9 +46,11 @@ def _calc_and_agg_error(
     return agg_results
 
 
-
 def full_pipeline_per_datapoint_score(
-    pipeline: GenericMobilisedPipeline, datapoint: BaseGaitDatasetWithReference, agg_levels: list[str], agg_name_prefix: str
+    pipeline: GenericMobilisedPipeline,
+    datapoint: BaseGaitDatasetWithReference,
+    agg_levels: list[str],
+    agg_name_prefix: str,
 ):
     detected = pipeline.safe_run(datapoint).per_wb_parameters_
     reference = datapoint.reference_parameters_.wb_list
@@ -53,7 +59,9 @@ def full_pipeline_per_datapoint_score(
         pd.concat([detected, reference], keys=["detected", "reference"], axis=1)
         .reorder_levels((1, 0), axis=1)
         .sort_index(axis=1)
-        .groupby(level=agg_levels).mean().dropna()
+        .groupby(level=agg_levels)
+        .mean()
+        .dropna()
     )
 
     wb_tp_fp_fn = categorize_intervals(
@@ -69,8 +77,22 @@ def full_pipeline_per_datapoint_score(
     )
 
     return {
-        **{f"{agg_name_prefix}__{k}": v for k, v in _calc_and_agg_error(agg_matches, get_default_error_transformations(), get_default_error_aggregations()).items()},
-        **{f"tp__{k}": v for k, v in _calc_and_agg_error(tp_matches, get_default_error_transformations(), get_default_error_aggregations()).items()},
+        **{
+            f"{agg_name_prefix}__{k}": v
+            for k, v in _calc_and_agg_error(
+                agg_matches,
+                get_default_error_transformations(),
+                get_default_error_aggregations(),
+            ).items()
+        },
+        **{
+            f"tp__{k}": v
+            for k, v in _calc_and_agg_error(
+                tp_matches,
+                get_default_error_transformations(),
+                get_default_error_aggregations(),
+            ).items()
+        },
         "agg_matches": no_agg(agg_matches),
         "tp_matches": no_agg(tp_matches),
     }
