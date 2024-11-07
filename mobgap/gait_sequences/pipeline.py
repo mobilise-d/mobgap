@@ -1,12 +1,12 @@
 """Helpful Pipelines to wrap the GSD algorithms for optimization and evaluation."""
 
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from tpcp.validate import Aggregator
 from typing_extensions import Self, Unpack
 
+from mobgap._utils_internal.misc import invert_list_of_dicts
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.base import BaseGsDetector, base_gsd_docfiller
 from mobgap.utils.conversions import to_body_frame
@@ -45,6 +45,20 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         The GSD algo instance with all results after running the algorithm.
         This can be helpful for debugging or further analysis.
 
+
+    Notes
+    -----
+    All emulation pipelines pass available metadata of the dataset to the algorithm.
+    This includes the recording metadata (``recording_metadata``) and the participant metadata
+    (``participant_metadata``), which are passed as keyword arguments to the ``detect`` method of the algorithm.
+    In addition, we pass the group label of the datapoint as ``dp_group`` to the algorithm.
+    This is usually not required by algorithms (because this would mean that the algorithm changes behaviour based on
+    the exact recording provided).
+    However, it can be helpful when working with "dummy" algorithms, that simply return some fixed pre-defined results
+    or to be used as cache key, when the algorithm has internal caching mechanisms.
+
+    For the `self_optimize` method, we pass the same metadata to the algorithm, but each value is actually a list of
+    values, one for each datapoint in the dataset.
     """
 
     algo: OptimizableParameter[BaseGsDetector]
@@ -80,7 +94,14 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         single_sensor_imu_data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        self.algo_ = self.algo.clone().detect(single_sensor_imu_data, sampling_rate_hz=sampling_rate_hz)
+        kwargs = {
+            "sampling_rate_hz": sampling_rate_hz,
+            **datapoint.recording_metadata,
+            **datapoint.participant_metadata,
+            "dp_group": datapoint.group_label,
+        }
+
+        self.algo_ = self.algo.clone().detect(single_sensor_imu_data, **kwargs)
 
         return self
 
@@ -109,46 +130,17 @@ class GsdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         """
         # TODO: This method is not really tested yet, as we don't have any ML based GSD algorithms.
         all_data = (_conditionally_to_bf(d.data_ss, self.convert_to_body_frame) for d in dataset)
+        dp_kwargs = invert_list_of_dicts(
+            {**d.recording_metadata, **d.participant_metadata, "dp_group": d.group_label} for d in dataset
+        )
         reference_wbs = (d.reference_parameters_.wb_list for d in dataset)
         sampling_rate_hz = (d.sampling_rate_hz for d in dataset)
 
-        self.algo.self_optimize(all_data, reference_wbs, sampling_rate_hz=sampling_rate_hz, **kwargs)
+        all_kwargs = {"sampling_rate_hz": sampling_rate_hz, **dp_kwargs, **kwargs}
+
+        self.algo.self_optimize(all_data, reference_wbs, **all_kwargs)
 
         return self
-
-    def score(
-        self, datapoint: BaseGaitDatasetWithReference
-    ) -> Union[float, dict[str, Union[float, Aggregator]], Aggregator]:
-        """Score the performance of the GSD algorithm of a single datapoint using standard metrics.
-
-        This method applies the GSD algorithm to the datapoint (using the implemented ``run`` method) and calculates
-        the performance metrics based on the detected gait sequences and the reference gait sequences.
-
-        This method can be used as a scoring function in the ``tpcp.validate`` module.
-
-        Parameters
-        ----------
-        datapoint
-            A single datapoint of a Gait Dataset with reference information.
-
-        Returns
-        -------
-        dict
-            Dictionary of performance metrics.
-
-        See Also
-        --------
-        calculate_matched_gsd_performance_metrics
-            For calculating performance metrics based on the matched overlap with the reference.
-        calculate_unmatched_gsd_performance_metrics
-            For calculating performance metrics without matching the detected and reference gait sequences.
-        categorize_intervals_per_sample
-            For categorizing the detected and reference gait sequences on a sample-wise level.
-
-        """
-        from mobgap.gait_sequences._evaluation_challenge import gsd_evaluation_scorer
-
-        return gsd_evaluation_scorer(self, datapoint)
 
 
 __all__ = ["GsdEmulationPipeline"]

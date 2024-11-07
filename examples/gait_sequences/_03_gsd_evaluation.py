@@ -205,13 +205,16 @@ pipeline.safe_run(simulated_real_world_walking[0]).gs_list_
 # If we want to run it on all datapoints and evaluate the performance of the algorithm, we can use the
 # :func:`~tpcp.validate.validate` function.
 #
-# It uses the build in ``score`` method of the pipeline to calculate the performance of the algorithm on each datapoint
-# and then takes the mean of the results.
+# We use a predefined scorer for gsd algorithms, that combines most of the evaluation that was done above.
+# The scorer scores the algorithm on each datapoint and then takes the mean of the results.
 # All mean and individual results are returned in huge dictionary that can be easily converted to a pandas DataFrame.
+from mobgap.gait_sequences.evaluation import gsd_evaluation_scorer
 from tpcp.validate import validate
 
 evaluation_results = pd.DataFrame(
-    validate(pipeline, simulated_real_world_walking)
+    validate(
+        pipeline, simulated_real_world_walking, scoring=gsd_evaluation_scorer
+    )
 )
 
 evaluation_results.drop(["single__reference", "single__detected"], axis=1).T
@@ -257,10 +260,12 @@ cross_validate_results = pd.DataFrame(
             GsdEmulationPipeline(GsdIluz()),
             para_grid,
             return_optimized="precision",
+            scoring=gsd_evaluation_scorer,
         ),
         simulated_real_world_walking,
         cv=3,
         return_train_score=True,
+        scoring=gsd_evaluation_scorer,
     )
 )
 

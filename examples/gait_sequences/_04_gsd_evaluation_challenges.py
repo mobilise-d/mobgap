@@ -239,7 +239,9 @@ from sklearn.model_selection import ParameterGrid
 from tpcp.optimize import GridSearch
 
 para_grid = ParameterGrid({"algo__window_length_s": [2, 3, 4]})
-optimizer = GridSearch(pipe, para_grid, return_optimized="precision")
+optimizer = GridSearch(
+    pipe, para_grid, return_optimized="precision", scoring=gsd_evaluation_scorer
+)
 
 # %%
 # The optimizer can now be used in the same CV challenge as before.
