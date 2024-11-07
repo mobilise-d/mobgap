@@ -103,5 +103,4 @@ for condition, result in all_results.items():
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, group in tqdm(list(out.groupby("algorithm"))):
         group = group.reset_index("algorithm", drop=True)
-        group.index = group.index.to_flat_index().rename("id")
-        group.reset_index().to_json(out_dir / f"{name}.json", orient="records", lines=True, indent=0)
+        group.reset_index().to_csv(out_dir / f"{name}.csv", index=False)
