@@ -22,27 +22,27 @@
     "data":[
         {
             "gs_id":0,
-            "start":600,
-            "end":1901
+            "start":700,
+            "end":3501
         },
         {
             "gs_id":1,
-            "start":4500,
-            "end":6201
+            "start":4200,
+            "end":6301
         },
         {
             "gs_id":2,
-            "start":9700,
-            "end":10301
+            "start":9400,
+            "end":11001
         },
         {
             "gs_id":3,
-            "start":12700,
-            "end":14901
+            "start":11100,
+            "end":15001
         },
         {
             "gs_id":4,
-            "start":20100,
+            "start":19900,
             "end":22701
         }
     ]

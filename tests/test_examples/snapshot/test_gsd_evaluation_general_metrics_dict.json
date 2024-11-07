@@ -54,16 +54,16 @@
     "data":[
         {
             "index":0,
-            "tp_samples":4851,
-            "fp_samples":1766,
-            "fn_samples":1704,
-            "precision":0.733111682,
-            "recall":0.7400457666,
-            "f1_score":0.7365624051,
-            "tn_samples":14429,
-            "specificity":0.8909539981,
-            "accuracy":0.8474725275,
-            "npv":0.894377983
+            "tp_samples":6436,
+            "fp_samples":3339,
+            "fn_samples":117,
+            "precision":0.6584143223,
+            "recall":0.9821455822,
+            "f1_score":0.7883390495,
+            "tn_samples":12862,
+            "specificity":0.793901611,
+            "accuracy":0.8481146172,
+            "npv":0.990985438
         }
     ]
 }

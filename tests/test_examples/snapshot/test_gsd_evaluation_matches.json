@@ -32,8 +32,8 @@
             "index":0,
             "match_id":0,
             "gs_id_detected":0,
-            "gs_id_reference":0,
-            "match_type":"tp"
+            "gs_id_reference":null,
+            "match_type":"fp"
         },
         {
             "index":1,
@@ -46,40 +46,61 @@
             "index":2,
             "match_id":2,
             "gs_id_detected":2,
-            "gs_id_reference":3,
+            "gs_id_reference":2,
             "match_type":"tp"
         },
         {
             "index":3,
             "match_id":3,
             "gs_id_detected":3,
-            "gs_id_reference":4,
-            "match_type":"tp"
+            "gs_id_reference":null,
+            "match_type":"fp"
         },
         {
             "index":4,
             "match_id":4,
             "gs_id_detected":4,
-            "gs_id_reference":null,
-            "match_type":"fp"
+            "gs_id_reference":3,
+            "match_type":"tp"
         },
         {
             "index":5,
             "match_id":5,
+            "gs_id_detected":5,
+            "gs_id_reference":null,
+            "match_type":"fp"
+        },
+        {
+            "index":6,
+            "match_id":6,
+            "gs_id_detected":6,
+            "gs_id_reference":null,
+            "match_type":"fp"
+        },
+        {
+            "index":7,
+            "match_id":7,
+            "gs_id_detected":null,
+            "gs_id_reference":0,
+            "match_type":"fn"
+        },
+        {
+            "index":8,
+            "match_id":8,
             "gs_id_detected":null,
             "gs_id_reference":1,
             "match_type":"fn"
         },
         {
-            "index":6,
-            "match_id":6,
+            "index":9,
+            "match_id":9,
             "gs_id_detected":null,
-            "gs_id_reference":2,
+            "gs_id_reference":4,
             "match_type":"fn"
         },
         {
-            "index":7,
-            "match_id":7,
+            "index":10,
+            "match_id":10,
             "gs_id_detected":null,
             "gs_id_reference":5,
             "match_type":"fn"
