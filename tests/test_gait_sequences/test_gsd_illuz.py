@@ -49,9 +49,14 @@ class TestGsdIluz:
 
 class TestGsdIluzRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
-    def test_example_lab_data(self, datapoint, snapshot):
+    @pytest.mark.parametrize("use_original", [True, False])
+    def test_example_lab_data(self, datapoint, snapshot, use_original):
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        gs_list = GsdIluz().detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz).gs_list_
+        gs_list = (
+            GsdIluz(use_original_peak_detection=use_original)
+            .detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz)
+            .gs_list_
+        )
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))
