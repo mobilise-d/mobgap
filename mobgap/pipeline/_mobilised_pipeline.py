@@ -327,7 +327,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self,
         gait_sequences: pd.DataFrame,
         imu_data: pd.DataFrame,
-            action_kwargs: dict[str, Any],
+        action_kwargs: dict[str, Any],
     ) -> GsIterator:
         gs_iterator = GsIterator[FullPipelinePerGsResult]()
         # TODO: How to expose the individual algo instances of the algos that run in the loop?
