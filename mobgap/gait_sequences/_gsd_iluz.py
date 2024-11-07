@@ -356,7 +356,7 @@ def _find_n_peaks_2d(signal: np.ndarray, threshold: float, distance: float, n_pe
 
 
 @guvectorize([(float64[:], float32, float32, int32[:])], "(n),(),()->()", target="parallel", cache=True)
-def _find_n_peaks_exact_matlab_replication(
+def _find_n_peaks_exact_matlab_replication(  # noqa: C901
     signal: np.ndarray, threshold: float, min_distance: float, peaks_out: np.ndarray
 ) -> None:
     """Enhanced peak detection algorithm based on zero-crossings and local maxima.
