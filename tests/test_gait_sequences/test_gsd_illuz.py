@@ -31,6 +31,12 @@ class TestGsdIluz:
     If people run into bugs when changing parameters, we can add more tests.
     """
 
+    parameters: dict[str, any]
+
+    @pytest.fixture(autouse=True, params=[GsdIluz.PredefinedParameters.original, GsdIluz.PredefinedParameters.updated])
+    def set_parameters(self, request):
+        self.parameters = request.param
+
     def test_no_gsds(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
 
@@ -53,10 +59,7 @@ class TestGsdIluzRegression:
     def test_example_lab_data(self, datapoint, snapshot, use_original):
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
+        parameters = GsdIluz.PredefinedParameters.original if use_original else GsdIluz.PredefinedParameters.updated
 
-        gs_list = (
-            GsdIluz(use_original_peak_detection=use_original)
-            .detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz)
-            .gs_list_
-        )
+        gs_list = GsdIluz(**parameters).detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz).gs_list_
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))

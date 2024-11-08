@@ -144,7 +144,7 @@ class GsdIluz(BaseGsDetector):
             # Original filter order is 200, but just forward filtering is used.
             # We use a filtfilt (zero phase) implementation. This is roughly equivalent to a filter with double the
             # order.
-            "pre_filter": cf(FirFilter(order=100, cutoff_freq_hz=(0.5, 3), filter_type="bandpass")),
+            "pre_filter": FirFilter(order=100, cutoff_freq_hz=(0.5, 3), filter_type="bandpass"),
             "window_length_s": 3,
             "window_overlap": 0.5,
             "std_activity_threshold": 0.01 * GRAV_MS2,
