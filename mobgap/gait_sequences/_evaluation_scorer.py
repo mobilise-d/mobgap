@@ -1,8 +1,7 @@
 import warnings
 
 import pandas as pd
-from tpcp.validate import no_agg
-from tpcp.validate._scorer import Scorer
+from tpcp.validate import Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
@@ -95,6 +94,7 @@ def gsd_final_agg(
 
     aggregated_single_results = {
         "raw__detected": detected,
+        "raw__reference": reference,
     }
 
     sampling_rate_hz = single_results.pop("sampling_rate_hz")

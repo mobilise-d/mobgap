@@ -191,6 +191,34 @@ class Evaluation(Algorithm, Generic[T]):
         result.columns = [c.split("__", 1)[-1] for c in result.columns]
         return result
 
+    def get_raw_results(self) -> dict:
+        """Get the raw results of the cross-validation.
+
+        Get the direct output of the algorithms.
+        These are usually handed down through the `agg__raw__` parameters of the scoring output.
+
+        The exact structure of the results depends on the scorer and the optimizer used.
+        Usually, outputs are provided as pandas dataframes.
+
+        If the individual outputs are dataframes, they are concatenated along the `cv_fold` axis.
+        Otherwise, they are simply returned as a list, where each element represents the output of one cv-fold.
+
+        Returns
+        -------
+        dict
+            Raw algorithm results from teh cross-validation.
+
+        """
+        out = {}
+        for k, v in self.results_.items():
+            if not k.startswith("agg__raw__"):
+                continue
+            if isinstance(v[0], pd.DataFrame):
+                v = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
+            out[k.split("__", 2)[-1]] = v
+
+        return out
+
 
 @evaluation_challenges_docfiller
 class EvaluationCV(Algorithm, Generic[T]):
@@ -380,6 +408,34 @@ class EvaluationCV(Algorithm, Generic[T]):
         result = result[relevant_cols]
         result.columns = [c.split("__", 2)[-1] for c in result.columns]
         return result
+
+    def get_raw_results(self, *, group: Literal["test", "train"] = "test") -> dict:
+        """Get the raw results of the cross-validation.
+
+        Get the direct output of the algorithms.
+        These are usually handed down through the `agg__raw__` parameters of the scoring output.
+
+        The exact structure of the results depends on the scorer and the optimizer used.
+        Usually, outputs are provided as pandas dataframes.
+
+        If the individual outputs are dataframes, they are concatenated along the `cv_fold` axis.
+        Otherwise, they are simply returned as a list, where each element represents the output of one cv-fold.
+
+        Returns
+        -------
+        dict
+            Raw algorithm results from teh cross-validation.
+
+        """
+        out = {}
+        for k, v in self.results_.items():
+            if not k.startswith(f"{group}__agg__raw__"):
+                continue
+            if isinstance(v[0], pd.DataFrame):
+                v = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
+            out[k.split("__", 3)[-1]] = v
+
+        return out
 
 
 __all__ = ["Evaluation", "EvaluationCV"]
