@@ -213,8 +213,6 @@ class BaseGaitDatasetWithReference(BaseGaitDataset):
 __all__ = [
     "BaseGaitDataset",
     "BaseGaitDatasetWithReference",
-    "ParticipantMetadata",
-    "RecordingMetadata",
     "ReferenceData",
     "IMU_DATA_DTYPE",
     "base_gait_dataset_docfiller",
