@@ -6,7 +6,7 @@ from typing import Any, TypedDict
 import pandas as pd
 from sklearn.metrics import accuracy_score
 from tpcp import OptimizableParameter, OptimizablePipeline
-from tpcp.validate import NoAgg
+from tpcp.validate import no_agg
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
@@ -32,7 +32,7 @@ def _extract_data(dataset: BaseGaitDatasetWithReference) -> Iterator[pd.DataFram
 
 class _LrcScores(TypedDict):
     accuracy: float
-    raw_results: NoAgg
+    raw_results: no_agg
 
 
 class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
@@ -176,7 +176,10 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         combined = predicted_lr_labels.assign(ref_lr_label=ref_labels)
 
-        return {"accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]), "raw_results": NoAgg(combined)}
+        return {
+            "accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]),
+            "raw_results": no_agg(combined),
+        }
 
 
 __all__ = ["LrcEmulationPipeline"]
