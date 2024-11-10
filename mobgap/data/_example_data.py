@@ -25,7 +25,7 @@ if not (LOCAL_EXAMPLE_PATH / "README.md").is_file():
         # The remote data is on Github
         base_url=GITHUB_FOLDER_PATH,
         version=f"v{__version__}",
-        version_dev="master",
+        version_dev="main",
         registry=None,
         # The name of an environment variable that *can* overwrite the path
         env="MOBGAP_DATA_DIR",
