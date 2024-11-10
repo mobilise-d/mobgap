@@ -41,9 +41,25 @@ algorithms.update(
 )
 
 # %%
+# The code below loads the data and prepares it for the analysis.
+# By default, the data will be downloaded from an online repository (and cached locally).
+# If you want to use a local copy of the data, you can set the `MOBGAP_VALIDATION_DATA_PATH` environment variable.
+# and the MOBGAP_VALIDATION_USE_LOCA_DATA to `1`.
+#
+# The file download will print a couple log information, which can usually be ignored.
+# You can also change the `version` parameter to load a different version of the data.
+from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
-base_path = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/gsd"
+local_data_path = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    if get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0)
+    else None
+)
+loader = ValidationResultLoader(
+    "gsd", result_path=local_data_path, version="main"
+)
+
 
 free_living_index_cols = [
     "cohort",
@@ -55,7 +71,7 @@ free_living_index_cols = [
 ]
 
 results = {
-    v: load_single_results(k, "free_living", base_path, free_living_index_cols)
+    v: loader.load_single_results(k, "free_living")
     for k, v in algorithms.items()
 }
 results = pd.concat(results, names=["algo", "version", *free_living_index_cols])

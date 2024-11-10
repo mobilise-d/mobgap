@@ -429,6 +429,7 @@ def save_evaluation_results(
     condition: Literal["laboratory", "free_living"],
     base_path: Path,
     raw_result_filter: Optional[list[str]] = None,
+    include_non_stable_results: bool = False,
 ) -> None:
     """Save the results of an evaluation to a folder.
 
@@ -450,6 +451,10 @@ def save_evaluation_results(
     raw_result_filter
         A list of keys to filter the raw results.
         If None, all raw results will be stored.
+    include_non_stable_results
+        Whether to include non-stable results in the output.
+        This means results that might change from run to run even if the algorithm not changed.
+        This includes mainly the runtime.
     """
     folder = base_path / condition / name
     folder.mkdir(parents=True, exist_ok=True)
@@ -462,14 +467,15 @@ def save_evaluation_results(
 
     # Save aggregated results
     # Transposing for better readability
-    eval_obj.get_aggregated_results_as_df().T.to_csv(folder / "aggregated_results.csv")
+    eval_obj.get_aggregated_results_as_df().drop(columns="runtime_s").T.to_csv(folder / "aggregated_results.csv")
     # Save single results
-    eval_obj.get_single_results_as_df().to_csv(folder / "single_results.csv")
+    eval_obj.get_single_results_as_df().drop(columns="runtime_s").to_csv(folder / "single_results.csv")
 
     # Save timings
-    timing_result = eval_obj.perf_
-    with (folder / "timings.json").open("w") as f:
-        json.dump(timing_result, f, indent=2)
+    if include_non_stable_results:
+        timing_result = eval_obj.perf_
+        with (folder / "timings.json").open("w") as f:
+            json.dump(timing_result, f, indent=2)
 
 
 __all__ = ["Evaluation", "EvaluationCV", "save_evaluation_results"]
