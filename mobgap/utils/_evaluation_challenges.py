@@ -1,14 +1,17 @@
+import json
 from collections.abc import Iterator
-from typing import Generic, Literal, Optional, Self, TypeVar, Union
+from pathlib import Path
+from typing import Any, Generic, Literal, Optional, TypeVar, Union
 
 import pandas as pd
 from sklearn.model_selection import BaseCrossValidator
 from tpcp import Algorithm, Pipeline
 from tpcp.optimize import BaseOptimize
 from tpcp.validate import DatasetSplitter, ScorerTypes, cross_validate, validate
+from typing_extensions import Self
 
 from mobgap._docutils import make_filldoc
-from mobgap._utils_internal.misc import measure_time, set_attrs_from_dict
+from mobgap._utils_internal.misc import MeasureTimeResults, measure_time, timer_doc_filler
 from mobgap.data.base import BaseGaitDatasetWithReference
 
 T = TypeVar("T", bound=Pipeline)
@@ -24,22 +27,9 @@ evaluation_challenges_docfiller = make_filldoc(
         It should take a pipeline and a datapoint as input, run the pipeline on the datapoint and return a dictionary
         of performance metrics.
         These performance metrics are then aggregated across all datapoints.
-    """,
-        "timing_results": """
-    start_datetime_utc_timestamp_
-        The start time of the evaluation as UTC timestamp.
-    start_datetime_
-        The start time of the evaluation as human readable string.
-    end_datetime_utc_timestamp_
-        The end time of the evaluation as UTC timestamp.
-    end_datetime_
-        The end time of the evaluation as human readable string.
-    runtime_s_
-        The runtime of the evaluation in seconds.
-        Note, that the runtime might not be exactly the difference between the start and the end time.
-        The runtime is independently calculated using `time.perf_timer`.
-    """,
+    """
     }
+    | timer_doc_filler._dict,
 )
 
 
@@ -75,7 +65,7 @@ class Evaluation(Algorithm, Generic[T]):
         Dictionary with all results of the validation.
         The results are returned by :func:`~tpcp.validate.validate`.
         You can control what information is provided via ``validate_paras``
-    %(timing_results)s
+    %(perf_)s
 
     """
 
@@ -87,12 +77,7 @@ class Evaluation(Algorithm, Generic[T]):
     pipeline: T
 
     results_: dict
-    # timing results
-    start_datetime_utc_timestamp_: float
-    start_datetime_: str
-    end_datetime_utc_timestamp_: float
-    end_datetime_: str
-    runtime_s_: float
+    perf_: MeasureTimeResults
 
     def __init__(
         self,
@@ -132,7 +117,7 @@ class Evaluation(Algorithm, Generic[T]):
                 **(self.validate_paras or {}),
             )
 
-        set_attrs_from_dict(self, timing_results, key_postfix="_")
+        self.perf_ = timing_results
         return self
 
     def get_single_results_as_df(self, columns: Optional[list[str]] = None) -> pd.DataFrame:
@@ -213,9 +198,11 @@ class Evaluation(Algorithm, Generic[T]):
         for k, v in self.results_.items():
             if not k.startswith("agg__raw__"):
                 continue
+            key = k.split("__", 2)[-1]
             if isinstance(v[0], pd.DataFrame):
-                v = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
-            out[k.split("__", 2)[-1]] = v
+                out[key] = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
+            else:
+                out[key] = v
 
         return out
 
@@ -256,7 +243,7 @@ class EvaluationCV(Algorithm, Generic[T]):
         Dictionary with all results of the cross-validation.
         The results are returned by :func:`~tpcp.validate.cross_validate`.
         You can control what information is provided via ``cv_params``
-    %(timing_results)s
+    %(perf_)s
 
     """
 
@@ -270,12 +257,7 @@ class EvaluationCV(Algorithm, Generic[T]):
     optimizer: BaseOptimize[T, BaseGaitDatasetWithReference]
 
     results_: dict
-    # timing results
-    start_datetime_utc_timestamp_: float
-    start_datetime_: str
-    end_datetime_utc_timestamp_: float
-    end_datetime_: str
-    runtime_s_: float
+    perf_: MeasureTimeResults
 
     def __init__(
         self,
@@ -336,7 +318,7 @@ class EvaluationCV(Algorithm, Generic[T]):
                 **(self.cv_params or {}),
             )
 
-        set_attrs_from_dict(self, timing_results, key_postfix="_")
+        self.perf_ = timing_results
         return self
 
     def get_single_results_as_df(
@@ -424,18 +406,70 @@ class EvaluationCV(Algorithm, Generic[T]):
         Returns
         -------
         dict
-            Raw algorithm results from teh cross-validation.
+            Raw algorithm results from the cross-validation.
 
         """
         out = {}
         for k, v in self.results_.items():
             if not k.startswith(f"{group}__agg__raw__"):
                 continue
+            key = k.split("__", 3)[-1]
             if isinstance(v[0], pd.DataFrame):
-                v = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
-            out[k.split("__", 3)[-1]] = v
+                out[key] = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
+            else:
+                out[key] = v
 
         return out
 
 
-__all__ = ["Evaluation", "EvaluationCV"]
+def save_evaluation_results(
+    name: str,
+    eval_obj: Union[Evaluation[Any], EvaluationCV[Any]],
+    *,
+    condition: Literal["laboratory", "free_living"],
+    base_path: Path,
+    raw_result_filter: Optional[list[str]] = None,
+) -> None:
+    """Save the results of an evaluation to a folder.
+
+    This will store, the raw results, the aggregated results and the single results in separate files in a folder
+    under the path `base_path / condition / name`.
+
+    Parameters
+    ----------
+    name
+        Name to identify the result (usually the algorithm name).
+    eval_obj
+        The result object to save.
+        Aka the evaluation object after the `run` method has been called.
+    condition
+        The condition of the evaluation.
+        Should be one of "laboratory" or "free-living".
+    base_path
+        The base path where the results should be stored.
+    raw_result_filter
+        A list of keys to filter the raw results.
+        If None, all raw results will be stored.
+    """
+    folder = base_path / condition / name
+    folder.mkdir(parents=True, exist_ok=True)
+    # Save raw results
+    raw_results = eval_obj.get_raw_results()
+    if raw_result_filter is not None:
+        raw_results = {k: v for k, v in raw_results.items() if k in raw_result_filter}
+    for k, v in raw_results.items():
+        v.to_csv(folder / f"raw_{k}.csv")
+
+    # Save aggregated results
+    # Transposing for better readability
+    eval_obj.get_aggregated_results_as_df().T.to_csv(folder / "aggregated_results.csv")
+    # Save single results
+    eval_obj.get_single_results_as_df().to_csv(folder / "single_results.csv")
+
+    # Save timings
+    timing_result = eval_obj.perf_
+    with (folder / "timings.json").open("w") as f:
+        json.dump(timing_result, f, indent=2)
+
+
+__all__ = ["Evaluation", "EvaluationCV", "save_evaluation_results"]

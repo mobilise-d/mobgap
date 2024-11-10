@@ -1,5 +1,6 @@
 import warnings
 
+import numpy as np
 import pandas as pd
 from tpcp.validate import Scorer, no_agg
 
@@ -43,7 +44,8 @@ def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitD
         warnings.filterwarnings("ignore", message="multiple ICs", category=UserWarning)
 
         # Run the algorithm on the datapoint
-        detected_gs_list = pipeline.safe_run(datapoint).gs_list_
+        pipeline.safe_run(datapoint)
+        detected_gs_list = pipeline.gs_list_
         reference_gs_list = datapoint.reference_parameters_.wb_list[["start", "end"]]
         n_overall_samples = len(datapoint.data_ss)
         sampling_rate_hz = datapoint.sampling_rate_hz
@@ -66,6 +68,7 @@ def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitD
             "detected": no_agg(detected_gs_list),
             "reference": no_agg(reference_gs_list),
             "sampling_rate_hz": no_agg(sampling_rate_hz),
+            "runtime_s": getattr(pipeline.algo_, "perf_", {}).get("runtime_s", np.nan),
         }
 
     return performance_metrics
@@ -76,7 +79,7 @@ def gsd_final_agg(
     single_results: dict[str, list],
     _: GsdEmulationPipeline,
     dataset: BaseGaitDatasetWithReference,
-):
+) -> tuple[dict[str, any], dict[str, list[any]]]:
     from mobgap.gait_sequences.evaluation import (
         calculate_matched_gsd_performance_metrics,
         calculate_unmatched_gsd_performance_metrics,
