@@ -118,7 +118,10 @@ def gsd_final_agg(
     }
     combined_matched = {f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(matches).items()}
 
-    return {**aggregated_single_results, **agg_results, **combined_unmatched, **combined_matched}, single_results
+    # Note, that we pass the "aggregated_single_results" out via the single results and not the aggregated results
+    # The reason is that the aggregated results are expected to be a single value per metric, while the single results
+    # can be anything.
+    return {**agg_results, **combined_unmatched, **combined_matched}, {**single_results, **aggregated_single_results}
 
 
 gsd_score = Scorer(gsd_per_datapoint_score, final_aggregator=gsd_final_agg)

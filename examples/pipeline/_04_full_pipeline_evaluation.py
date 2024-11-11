@@ -1,3 +1,5 @@
+"""TEST"""
+
 from collections.abc import Sequence
 
 import pandas as pd

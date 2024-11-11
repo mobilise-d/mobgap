@@ -125,6 +125,8 @@ class Evaluation(Algorithm, Generic[T]):
 
         This will return the results as a pandas DataFrame with the columns specified in the ``columns`` parameter.
         If no columns are specified, all columns are returned.
+        We exclude `single__raw__` columns, as they are by convention reserved for the direct output of the pipeline and
+        usually don't make sense to view together with the single results.
 
         This will provide as one row per data label.
 
@@ -144,7 +146,7 @@ class Evaluation(Algorithm, Generic[T]):
         """
         result = pd.DataFrame(self.results_)
         if columns is None:
-            columns = [c for c in result.columns if c.startswith("single__")]
+            columns = [c for c in result.columns if c.startswith("single__") and not c.startswith("single__raw__")]
         else:
             columns = [f"single__{c}" for c in columns]
         relevant_cols = ["data_labels", *columns]
@@ -158,8 +160,6 @@ class Evaluation(Algorithm, Generic[T]):
         """Get the aggregated results as a pandas DataFrame.
 
         This will return all `agg__` columns that the scorer returned (see `results_` attribute) as a pandas dataframe.
-        We exclude `agg__raw__` columns, as they are by convention reserved for the direct output of the pipeline and
-        usually don't make sense to view together with the aggregated results.
 
         The returned Df just has a single row with the index `0` and each column represents one aggregated values.
         This shape is used, to provide equivalent output to the results of the cross-validation.
@@ -171,7 +171,7 @@ class Evaluation(Algorithm, Generic[T]):
 
         """
         result = pd.DataFrame(self.results_)
-        relevant_cols = [c for c in result.columns if c.startswith("agg__") and not c.startswith("agg__raw__")]
+        relevant_cols = [c for c in result.columns if c.startswith("agg__")]
         result = result[relevant_cols]
         result.columns = [c.split("__", 1)[-1] for c in result.columns]
         return result
@@ -180,7 +180,7 @@ class Evaluation(Algorithm, Generic[T]):
         """Get the raw results of the cross-validation.
 
         Get the direct output of the algorithms.
-        These are usually handed down through the `agg__raw__` parameters of the scoring output.
+        These are usually handed down through the `single__raw__` parameters of the scoring output.
 
         The exact structure of the results depends on the scorer and the optimizer used.
         Usually, outputs are provided as pandas dataframes.
@@ -196,7 +196,7 @@ class Evaluation(Algorithm, Generic[T]):
         """
         out = {}
         for k, v in self.results_.items():
-            if not k.startswith("agg__raw__"):
+            if not k.startswith("single__raw__"):
                 continue
             key = k.split("__", 2)[-1]
             if isinstance(v[0], pd.DataFrame):
@@ -239,7 +239,7 @@ class EvaluationCV(Algorithm, Generic[T]):
 
     Attributes
     ----------
-    cv_results_
+    results_
         Dictionary with all results of the cross-validation.
         The results are returned by :func:`~tpcp.validate.cross_validate`.
         You can control what information is provided via ``cv_params``
@@ -329,6 +329,9 @@ class EvaluationCV(Algorithm, Generic[T]):
         This will return the results as a pandas DataFrame with the columns specified in the ``columns`` parameter.
         If no columns are specified, all columns are returned.
 
+        We exclude `single__raw__` columns, as they are by convention reserved for the direct output of the pipeline
+        and usually don't make sense to view together with the other single results.
+
         This will provide as one row per data label of all datapoints across all cv-folds.
         Be aware, that this means, that these results were potentially generated with different models or
         hyperparameters (depending on what you are optimizing).
@@ -357,13 +360,18 @@ class EvaluationCV(Algorithm, Generic[T]):
         """
         result = pd.DataFrame(self.results_)
         if columns is None:
-            columns = [c for c in result.columns if c.startswith(f"{group}__single__")]
+            columns = [
+                c
+                for c in result.columns
+                if c.startswith(f"{group}__single__") and not c.startswith(f"{group}__single__raw__")
+            ]
         else:
             columns = [f"{group}__single__{c}" for c in columns]
-        relevant_cols = ["data_labels", *columns]
+        relevant_cols = [f"{group}__data_labels", *columns]
         result = result[relevant_cols]
-        result = result.explode(relevant_cols).set_index("data_labels")
+        result = result.explode(relevant_cols)
         result.columns = [c.split("__", 2)[-1] for c in result.columns]
+        result = result.set_index("data_labels")
         result.index = pd.MultiIndex.from_tuples([tuple(t) for t in result.index], names=result.index[0]._fields)
         return result
 
@@ -371,8 +379,7 @@ class EvaluationCV(Algorithm, Generic[T]):
         """Get the aggregated results as a pandas DataFrame.
 
         This will return all `agg__` columns that the scorer returned (see `results_` attribute) as a pandas dataframe.
-        We exclude `agg__raw__` columns, as they are by convention reserved for the direct output of the pipeline and
-        usually don't make sense to view together with the aggregated results.
+
 
         The returned Df will have the cv-folds as rows and the aggregated values as columns.
         This makes it convenient to then calculate typical metrics like mean, std, etc. across the cv-folds.
@@ -384,9 +391,7 @@ class EvaluationCV(Algorithm, Generic[T]):
 
         """
         result = pd.DataFrame(self.results_)
-        relevant_cols = [
-            c for c in result.columns if c.startswith(f"{group}__agg__") and not c.startswith("{group}__agg__raw__")
-        ]
+        relevant_cols = [c for c in result.columns if c.startswith(f"{group}__agg__")]
         result = result[relevant_cols]
         result.columns = [c.split("__", 2)[-1] for c in result.columns]
         return result
@@ -411,7 +416,7 @@ class EvaluationCV(Algorithm, Generic[T]):
         """
         out = {}
         for k, v in self.results_.items():
-            if not k.startswith(f"{group}__agg__raw__"):
+            if not k.startswith(f"{group}__single__raw__"):
                 continue
             key = k.split("__", 3)[-1]
             if isinstance(v[0], pd.DataFrame):

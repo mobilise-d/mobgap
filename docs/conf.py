@@ -187,8 +187,8 @@ intersphinx_mapping = {
 
 # Sphinx Gallary
 sphinx_gallery_conf = {
-    "examples_dirs": ["../examples"],
-    "gallery_dirs": ["./auto_examples"],
+    "examples_dirs": ["../examples", "../revalidation"],
+    "gallery_dirs": ["./auto_examples", "./auto_revalidation"],
     "reference_url": {"mobgap": None},
     # 'default_thumb_file': 'fig/logo.png',
     "backreferences_dir": "modules/generated/backreferences",
@@ -210,6 +210,7 @@ sphinx_gallery_conf = {
             "../examples/aggregation",
             "../examples/data_transform",
             "../examples/dev_guides",
+            "../revalidation/gait_sequences",
         ]
     ),
     "within_subsection_order": FileNameSortKey,
