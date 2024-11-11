@@ -49,13 +49,13 @@ def test_gsd_challenges(snapshot):
     from examples.gait_sequences._04_gsd_evaluation_challenges import (
         agg_results,
         agg_results_cv,
-        exploded_results,
-        exploded_results_cv,
+        single_results,
+        single_results_cv,
     )
 
-    snapshot.assert_match(agg_results_cv, "agg_results_cv")
+    snapshot.assert_match(agg_results_cv.drop(columns="runtime_s"), "agg_results_cv")
     snapshot.assert_match(
-        exploded_results_cv.drop(["detected", "reference"], axis=1).reset_index().infer_objects(), "exploded_results_cv"
+        single_results_cv.reset_index().infer_objects().drop(columns="runtime_s"), "exploded_results_cv"
     )
-    snapshot.assert_match(agg_results, "agg_results")
-    snapshot.assert_match(exploded_results.drop(["detected", "reference"], axis=1).reset_index(), "exploded_results")
+    snapshot.assert_match(agg_results.drop(columns="runtime_s"), "agg_results")
+    snapshot.assert_match(single_results.reset_index().drop(columns="runtime_s"), "exploded_results")

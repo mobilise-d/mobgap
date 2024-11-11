@@ -1,4 +1,9 @@
-"""TEST"""
+"""
+Full pipeline evaluation - WIP
+==============================
+
+
+"""
 
 from collections.abc import Sequence
 

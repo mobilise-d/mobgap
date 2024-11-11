@@ -11,6 +11,7 @@ from typing_extensions import Self, Unpack
 from mobgap.data import LabExampleDataset
 from mobgap.laterality import LrcMcCamley
 from mobgap.laterality.base import BaseLRClassifier
+from mobgap.laterality.evaluation import lrc_score
 from mobgap.laterality.pipeline import LrcEmulationPipeline
 
 
@@ -112,11 +113,11 @@ class TestLrcEmulationPipeline:
         dummy_lrc = DummyLrc(datapoint.reference_parameters_.ic_list.reset_index("wb_id", drop=True))
 
         pipeline = LrcEmulationPipeline(dummy_lrc)
-        scores = pipeline.score(datapoint)
+        agg_scores, single_scores = lrc_score(pipeline, datapoint)
 
-        raw_results = scores["raw_results"]._value
+        raw_results = single_scores["raw_results"][0]
 
-        assert scores["accuracy"] == 1.0
+        assert agg_scores["accuracy"] == 1.0
         assert isinstance(raw_results, pd.DataFrame)
         assert set(raw_results.columns) == {"ic", "lr_label", "ref_lr_label"}
         assert (raw_results["lr_label"] == raw_results["ref_lr_label"]).all()
