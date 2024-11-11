@@ -151,9 +151,11 @@ class Evaluation(Algorithm, Generic[T]):
             columns = [f"single__{c}" for c in columns]
         relevant_cols = ["data_labels", *columns]
         result = result[relevant_cols]
-        result = result.explode(relevant_cols).set_index("data_labels")
+        result = result.explode(relevant_cols).set_index("data_labels", append=True)
         result.columns = [c.split("__", 1)[-1] for c in result.columns]
-        result.index = pd.MultiIndex.from_tuples([tuple(t) for t in result.index], names=result.index[0]._fields)
+        result.index = pd.MultiIndex.from_tuples(
+            [(fold, *data_label) for fold, data_label in result.index], names=("fold", *result.index[0][1]._fields)
+        )
         return result
 
     def get_aggregated_results_as_df(self) -> pd.DataFrame:
@@ -174,6 +176,7 @@ class Evaluation(Algorithm, Generic[T]):
         relevant_cols = [c for c in result.columns if c.startswith("agg__")]
         result = result[relevant_cols]
         result.columns = [c.split("__", 1)[-1] for c in result.columns]
+        result = result.rename_axis(index="fold")
         return result
 
     def get_raw_results(self) -> dict:
@@ -200,7 +203,7 @@ class Evaluation(Algorithm, Generic[T]):
                 continue
             key = k.split("__", 2)[-1]
             if isinstance(v[0], pd.DataFrame):
-                out[key] = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
+                out[key] = pd.concat(v, keys=range(len(v)), names=["fold", *v[0].index.names])
             else:
                 out[key] = v
 
@@ -371,8 +374,10 @@ class EvaluationCV(Algorithm, Generic[T]):
         result = result[relevant_cols]
         result = result.explode(relevant_cols)
         result.columns = [c.split("__", 2)[-1] for c in result.columns]
-        result = result.set_index("data_labels")
-        result.index = pd.MultiIndex.from_tuples([tuple(t) for t in result.index], names=result.index[0]._fields)
+        result = result.set_index("data_labels", append=True)
+        result.index = pd.MultiIndex.from_tuples(
+            [(fold, *data_label) for fold, data_label in result.index], names=("fold", *result.index[0][1]._fields)
+        )
         return result
 
     def get_aggregated_results_as_df(self, *, group: Literal["test", "train"] = "test") -> pd.DataFrame:
@@ -394,6 +399,7 @@ class EvaluationCV(Algorithm, Generic[T]):
         relevant_cols = [c for c in result.columns if c.startswith(f"{group}__agg__")]
         result = result[relevant_cols]
         result.columns = [c.split("__", 2)[-1] for c in result.columns]
+        result = result.rename_axis(index="fold")
         return result
 
     def get_raw_results(self, *, group: Literal["test", "train"] = "test") -> dict:
@@ -420,7 +426,7 @@ class EvaluationCV(Algorithm, Generic[T]):
                 continue
             key = k.split("__", 3)[-1]
             if isinstance(v[0], pd.DataFrame):
-                out[key] = pd.concat(v, keys=range(len(v)), names=["cv_fold", *v[0].index.names])
+                out[key] = pd.concat(v, keys=range(len(v)), names=["fold", *v[0].index.names])
             else:
                 out[key] = v
 
