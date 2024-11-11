@@ -1,4 +1,5 @@
 """
+.. _gsd_val_gen:
 
 Revalidation of the gait sequence detection algorithms
 ======================================================

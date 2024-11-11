@@ -1,4 +1,6 @@
 """
+.. _gsd_val_results
+
 Performance of the gait sequences algorithm on the TVS dataset
 ==============================================================
 
@@ -6,25 +8,20 @@ The following provides an analysis and comparison of the GSD performance on the 
 We look into the actual performance of the algorithms compared to the reference data and compare these results with
 the performance of the original matlab algorithm.
 
+.. note:: If you are interested in how these results are calculated, head over to the
+   :ref:`processing page <gsd_val_results>`.
+
 We focus on the `single_results` (aka the performance per trail) and will aggregate it over multiple levels.
 
 """
 
-from pathlib import Path
-
-import pandas as pd
-
-
-def load_single_results(
-    algo_name: str, condition: str, base_path: Path, index_cols: list[str]
-) -> pd.DataFrame:
-    """Load the results for a specific condition."""
-    return pd.read_csv(
-        base_path / condition / algo_name / "single_results.csv",
-    ).set_index(index_cols)
-
-
 # %%
+# Below are the list of algorithms that we will compare.
+# Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
+# original matlab algorithms.
+# In case of the GsdIluz algorithm, we also have two reimplemented versions.
+# The version `new` uses a slightly modified peak detection algorithm, while the version `new_orig_peak` tries to
+# emulate the original peak detection algorithm as closely as possible.
 algorithms = {
     "GsdIonescu": ("GsdIonescu", "new"),
     "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "new"),
@@ -48,6 +45,9 @@ algorithms.update(
 #
 # The file download will print a couple log information, which can usually be ignored.
 # You can also change the `version` parameter to load a different version of the data.
+from pathlib import Path
+
+import pandas as pd
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
