@@ -79,11 +79,27 @@ results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
     _combined="combined",
 )
+duration_results = results[["reference_gs_duration_s", "detected_gs_duration_s", "gait_sequence_duration_error_s"]]
 
 
 # %%
-# All results across all cohorts.
-# Note, that the `new_orig_peak` version is a variant of the new GsdIluz algorithm for which we tried to emulate the
+# Free-Living Comparison
+# ----------------------
+# We focus the comparison on the free-living data, as this is the most relevant considering our final use-case.
+# In the free-living data, there is one 2.5 hour recording per participant.
+# This means, each datapoint in the plots below and in the summary statistics represents one participant.
+#
+# For each participant, performance metrics were calculated by classifying each sample in the recording as either
+# TP, FP, TN, or FN.
+# Based on these values recall (sensitivity), precision (positive predictive value), F1 score, accuracy, specificity
+# and many other metrics were calculated.
+# On top of that the duration of overall detected gait per participant was calculated.
+# From this we calculate the mean and confidence interval for both systems, the bias and limits of agreement (LoA)
+# between the algorithm output and the reference data, the absolute error and the ICC.
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the
 # original peak detection algorithm as closely as possible.
 # The regular `new` version uses a slightly modified peak detection algorithm.
 import matplotlib.pyplot as plt
@@ -101,6 +117,19 @@ sns.boxplot(
 plt.show()
 
 # %%
+from mobgap.pipeline.evaluation import CustomErrorAggregations as A
+
+custom_errors = [
+    ("reference_gs_duration_s", ["mean", A.quantiles])
+    ("detected_gs_duration_s", ["mean", A.quantiles])
+    ("gait_sequence_duration_error_s", ["mean", A.loa]),
+]
+
+
+
+# %%
+# Per Cohort
+# ~~~~~~~~~~
 # While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
 sns.boxplot(
     data=results_long, x="cohort", y="f1_score", hue="algo_with_version"
@@ -108,8 +137,10 @@ sns.boxplot(
 plt.show()
 
 # %%
+# Per relevant cohort
+# ~~~~~~~~~~~~~~~~~~~
 # Overview over all cohorts is good, but this is not how the GSD algorithms are used in our main pipeline.
-# Here, the HA, CHF, and COPD cohort use the `GsdIluz` algorithm, while the `GsdIonescu` algorithm is used for the
+# Here, the HA, CHF, and COPD cohort use the ``GsdIluz` algorithm, while the ``GsdIonescu`` algorithm is used for the
 # MS, PD, PFF cohorts.
 # Let's look at the performance of these algorithms on the respective cohorts.
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
