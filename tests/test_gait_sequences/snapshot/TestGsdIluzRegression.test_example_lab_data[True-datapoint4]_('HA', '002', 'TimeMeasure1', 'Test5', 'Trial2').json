@@ -20,10 +20,6 @@
         "pandas_version":"1.4.0"
     },
     "data":[
-        {
-            "gs_id":0,
-            "start":150,
-            "end":751
-        }
+
     ]
 }

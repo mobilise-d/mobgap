@@ -54,8 +54,10 @@ class TestGsdIluzRegression:
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
 
+        params = GsdIluz.PredefinedParameters.original if use_original else GsdIluz.PredefinedParameters.updated
+
         gs_list = (
-            GsdIluz(use_original_peak_detection=use_original)
+            GsdIluz(**params)
             .detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz)
             .gs_list_
         )
