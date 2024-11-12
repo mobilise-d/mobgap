@@ -35,16 +35,14 @@ evaluation_challenges_docfiller = make_filldoc(
 
 @evaluation_challenges_docfiller
 class Evaluation(Algorithm, Generic[T]):
-    """Evaluation challenge for Gait Sequence Detection (GSD) algorithms.
+    """Gneric Evaluation challenge for all algorithms.
 
-    This challenge applies the GSD algorithm wrapped in a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline`
-    to each datapoint in a dataset with reference information using :func:`~tpcp.validate.validate`.
-    For each datapoint the provided scoring function is called and performance results are aggregated.
+    This challenge wraps any valid gait pipeline together with a scoring function and runs and scores it on a dataset.
 
     This is a suitable approach, when you want to evaluate and compare algorithms that are not "trainable" in any way.
     For example, traditional algorithms or pre-trained models.
     Note, that if you are planning to compare algorithms that are trainable with non-trainable algorithms, you should
-    use the :class:`~mobgap.gait_sequences.GsdEvaluationCV` for all of them.
+    use the :class:`~mobgap.utils.evaluation.EvaluationCV` for all of them.
 
     Parameters
     ----------
@@ -212,10 +210,10 @@ class Evaluation(Algorithm, Generic[T]):
 
 @evaluation_challenges_docfiller
 class EvaluationCV(Algorithm, Generic[T]):
-    """Evaluation challenge for Gait Sequence Detection (GSD) algorithms using cross-validation.
+    """Generic Evaluation challenge for all algorithms using a cross-validation for scoring.
 
-    This class will use :func:`~tpcp.validate.cross_validate` to evaluate the performance of a GSD algorithm wrapped in
-    a :class:`~mobgap.gait_sequences.pipeline.GsdEmulationPipeline` on a dataset with reference information.
+    This class will use :func:`~tpcp.validate.cross_validate` to evaluate the performance of a pipeline on a dataset
+    with reference information.
     This is a suitable approach, when you want to evaluate and compare algorithms that are "trainable" in any way.
     This could be, because they are ML algorithms or because they have hyperparameters that can be optimized via
     Grid-Search.

@@ -271,7 +271,7 @@ def _get_data_from_identifier(
     return data
 
 
-def apply_transformations(  # noqa: C901
+def apply_transformations(  # noqa: C901, PLR0912
     df: pd.DataFrame,
     transformations: list[Union[tuple[str, Union[callable, list[callable]]], CustomOperation]],
     *,
