@@ -61,7 +61,7 @@ from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
 local_data_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
     if get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0)
     else None
 )

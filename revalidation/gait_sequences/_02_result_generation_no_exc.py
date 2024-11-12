@@ -160,7 +160,7 @@ from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
 
 pipelines["GsdIluz"] = GsdEmulationPipeline(GsdIluz())
 pipelines["GsdIluz_orig_peak"] = GsdEmulationPipeline(
-    GsdIluz(use_original_peak_detection=True)
+    GsdIluz(**GsdIluz.PredefinedParameters.original)
 )
 pipelines["GsdIonescu"] = GsdEmulationPipeline(GsdIonescu())
 pipelines["GsdAdaptiveIonescu"] = GsdEmulationPipeline(GsdAdaptiveIonescu())
