@@ -21,6 +21,7 @@ the performance of the original matlab algorithm.
 We focus on the `single_results` (aka the performance per trail) and will aggregate it over multiple levels.
 
 """
+
 # %%
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
@@ -122,9 +123,10 @@ sns.boxplot(
 plt.show()
 
 # %%
+from functools import partial
+
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
 from mobgap.utils.df_operations import CustomOperation, apply_aggregations
-from functools import partial
 
 custom_aggs = [
     CustomOperation(
