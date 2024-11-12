@@ -342,6 +342,12 @@ def apply_transformations(  # noqa: C901
         if getattr(transformation, "_TAG", None) == "CustomOperation":
             identifier = transformation.identifier
             functions = [transformation.function]
+            if isinstance(transformation.column_name, list):
+                raise ValueError(
+                    "Custom transformations should have a column name that is either a string or a tuple "
+                    "of string. "
+                    "For transformations, we don't support column spreading by supplying a list of names."
+                )
             col_names = [transformation.column_name]
         else:
             identifier, functions = transformation
@@ -551,6 +557,12 @@ def _allow_only_series(func: callable) -> callable:
     return wrapper
 
 
+def _construct_index_from_col_name(col_name: Union[tuple[str, ...], str]) -> pd.Index:
+    if isinstance(col_name, tuple):
+        return pd.MultiIndex.from_tuples([col_name])
+    return pd.Index([col_name])
+
+
 def _apply_manual_aggregations(  # noqa: C901
     df: pd.DataFrame, manual_aggregations: list[CustomOperation], missing_columns: Literal["raise", "ignore", "warn"]
 ) -> pd.Series:
@@ -582,11 +594,11 @@ def _apply_manual_aggregations(  # noqa: C901
                     "The number of column names provided does not match the number of results returned by the function."
                 )
             for col_name, res in zip(agg.column_name, result):
-                key = (col_name,) if not isinstance(col_name, tuple) else col_name
-                manual_aggregation_results.append(pd.Series([res], index=pd.MultiIndex.from_tuples([key])))
+                manual_aggregation_results.append(pd.Series([res], index=_construct_index_from_col_name(col_name)))
         else:
-            key = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
-            manual_aggregation_results.append(pd.Series([result], index=pd.MultiIndex.from_tuples([key])))
+            manual_aggregation_results.append(
+                pd.Series([result], index=_construct_index_from_col_name(agg.column_name))
+            )
     if len(manual_aggregation_results) == 0:
         return pd.Series()
     try:

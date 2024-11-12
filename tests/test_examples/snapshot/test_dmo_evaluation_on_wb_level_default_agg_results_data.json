@@ -60,7 +60,7 @@
             "metric":"cadence_spm",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.9958867337397626, array([0.96, 1.  ]))"
+            "values":"(0.9958926840983944, (0.74, 1.0))"
         },
         {
             "metric":"cadence_spm",
@@ -150,7 +150,7 @@
             "metric":"duration_s",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.9935066257807105, array([0.94, 1.  ]))"
+            "values":"(0.9935228258335583, (0.53, 1.0))"
         },
         {
             "metric":"duration_s",
@@ -240,7 +240,7 @@
             "metric":"n_steps",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.9927710843373494, array([0.93, 1.  ]))"
+            "values":"(0.9927710843373494, (0.93, 1.0))"
         },
         {
             "metric":"n_steps",
@@ -330,7 +330,7 @@
             "metric":"n_turns",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.8064516129032259, array([-0.03,  0.99]))"
+            "values":"(0.8125000000000001, (0.01, 0.99))"
         },
         {
             "metric":"n_turns",
@@ -420,7 +420,7 @@
             "metric":"stride_duration_s",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.12564828430955782, array([-0.77,  0.9 ]))"
+            "values":"(0.38552602088700777, (-0.02, 0.92))"
         },
         {
             "metric":"stride_duration_s",
@@ -510,7 +510,7 @@
             "metric":"stride_length_m",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.1021600349369979, array([-0.78,  0.9 ]))"
+            "values":"(0.34243949749278824, (-0.09, 0.91))"
         },
         {
             "metric":"stride_length_m",
@@ -600,7 +600,7 @@
             "metric":"walking_speed_mps",
             "origin":"all",
             "aggregation":"icc",
-            "values":"(0.20380942118620765, array([-0.74,  0.92]))"
+            "values":"(0.39835030924909465, (-0.09, 0.92))"
         },
         {
             "metric":"walking_speed_mps",

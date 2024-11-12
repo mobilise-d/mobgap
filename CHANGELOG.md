@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### SCIENTIFIC CHANGES
 
+- The default ICC calculation was changed from ICC1,1 to ICC2,1
+  (https://github.com/mobilise-d/mobgap/pull/176)
 - The GsdIluz algorithm was reworked. This fixes some discrepancies with the original implementation and should improve
   the results in many cases.
   We now also provide a version of the original peak detection algorithm that was used in the matlab implementation.
@@ -25,6 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   For this to work across all algorithms, we had to change some logic in the `LrcUllrich` algorithm to selectively 
   parse the kwargs that it needs.
   (https://github.com/mobilise-d/mobgap/pull/182)
+- When using Custom Aggregations, it is now easier to pass arguments to the underlying aggregation functions.
+  This is a breaking change, as we require you to now pass the desired name of the output column as part of the 
+  `column_name`. 
+  `CustomOperation(... func=A.icc, column_name="my_column")` -> `CustomOperation(... func=A.icc, column_name=("icc", "my_column"))`
+  This removes the requirement that `func` needs to be a proper function object with a `__name__` attribute.
+  Hence, you can now use lambdas and partials without issue.
+  (https://github.com/mobilise-d/mobgap/pull/176)
+- It is now possible to split custom aggregations into multiple columns.
+  For example, `A.icc` returned two values, the ICC and the confidence intervals.
+  Before, both values where put into the same column.
+  Now you can specify two column names in Custom Aggregation to split the values.
+  `CustomOperation(... func=A.icc, column_name=[("icc", "my_column"), ("icc_ci", "my_ci_column")])`
+  (https://github.com/mobilise-d/mobgap/pull/176)
+- Confidence intervals where added as a aggregation function.
+  (https://github.com/mobilise-d/mobgap/pull/176)
+
+
 
 
 ### Removed

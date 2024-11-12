@@ -99,9 +99,15 @@ class TestTransformationAggregationFunctions:
         assert_array_equal(loa(df_loa), [-1.96, 1.96])
 
         df_icc = pd.DataFrame([[0, 1], [0, 1], [0, 1]], columns=["detected", "reference"])
-        icc_val, ci_95 = icc(df_icc)
+        icc_val, ci_95 = icc(df_icc, icc_type="icc1")
         assert icc_val == -1
         assert_array_equal(ci_95, [-1, -1])
+        # Example for icc2
+        df_perfect = pd.DataFrame({"detected": [1, 2, 3, 4], "reference": [1, 2, 3, 4]})
+        icc_val, ci_95 = icc(df_perfect)
+        assert round(icc_val, 3) == 1.0
+        # Perfect aggrement -> variance between subjects is 0 -> CI is nan (penguin specific detail)
+        assert_array_equal(np.round(ci_95, 3), [np.nan, np.nan])
 
     def test_agg_funcs_with_nan(self):
         df_quantiles = pd.Series(np.arange(0, 12))
@@ -115,8 +121,8 @@ class TestTransformationAggregationFunctions:
 
         df_icc = pd.DataFrame([[0, 1], [0, 1], [0, 1], [np.nan, np.nan]], columns=["detected", "reference"])
         icc_val, ci_95 = icc(df_icc)
-        assert icc_val == -1
-        assert_array_equal(ci_95, [-1, -1])
+        assert icc_val == 0
+        assert_array_equal(ci_95, [np.nan, np.nan])
 
     @pytest.mark.parametrize(
         "col_names", [["not_detected", "reference"], ["detected", "not_reference"], ["not_detected", "not_reference"]]
@@ -256,11 +262,12 @@ class TestApplyAggregations:
             CustomOperation(
                 identifier=(combined_det_ref_dmo_df.columns.get_level_values(0)[0], "reference"),
                 function=unnamed_trafo_func,
-                column_name=("test_a", "test_b"),
+                column_name=("func_name", "test_a", "test_b"),
             )
         ]
-        with pytest.raises(ValueError):
-            apply_aggregations(combined_det_ref_dmo_df, aggs)
+        # This used to raise an error, but #186 introduces the option to pass nameless func.
+        res = apply_aggregations(combined_det_ref_dmo_df, aggs)
+        assert ("func_name", "test_a", "test_b") in res.index
 
     @staticmethod
     def _prepare_aggregation_mock_function(mock_fct, name, return_value):
@@ -393,6 +400,28 @@ class TestApplyAggregations:
         assert icc_mock.call_count == len(metrics)
         assert quantiles_mock.call_count == len(metrics) * len(origins)
 
+    def test_split_results_to_multi_cols(self):
+        def dummy_agg_func(df):
+            return 1, 2
+
+        df = pd.DataFrame(np.zeros((10, 1)), columns=["single_col"])
+
+        aggregations = [
+            CustomOperation(identifier="single_col", function=dummy_agg_func, column_name=["col_1", "col_2"])
+        ]
+        res = apply_aggregations(df, aggregations)
+        assert_series_equal(res, pd.Series({"col_1": 1, "col_2": 2}))
+
+    def test_split_results_to_multi_cols_invalid_length(self):
+        def dummy_agg_func(df):
+            return 1, 2
+
+        df = pd.DataFrame(np.zeros((10, 1)), columns=["single_col"])
+
+        aggregations = [CustomOperation(identifier="single_col", function=dummy_agg_func, column_name=["col_1"])]
+        with pytest.raises(ValueError):
+            apply_aggregations(df, aggregations)
+
     @patch("mobgap.pipeline._error_metrics.loa")
     @patch("mobgap.pipeline._error_metrics.quantiles")
     def test_apply_custom_aggs_with_nan_results(self, quantiles_mock, loa_mock, combined_det_ref_dmo_df_with_errors):
@@ -404,12 +433,14 @@ class TestApplyAggregations:
 
         aggregations = [
             *[
-                CustomOperation(identifier=(metric, origin), function=quantiles_mock, column_name=(metric, origin))
+                CustomOperation(
+                    identifier=(metric, origin), function=quantiles_mock, column_name=("quantiles", metric, origin)
+                )
                 for metric in metrics
                 for origin in origins
             ],
             *[
-                CustomOperation(identifier=(metric, origin), function=loa_mock, column_name=(metric, origin))
+                CustomOperation(identifier=(metric, origin), function=loa_mock, column_name=("loa", metric, origin))
                 for metric in metrics
                 for origin in origins
             ],

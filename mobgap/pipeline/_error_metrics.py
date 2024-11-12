@@ -220,6 +220,12 @@ def icc(
     detected_col_name
         The identifier of the column containing the detected values.
 
+    Notes
+    -----
+    Note, that in case of ICC2, the confidence interval is reported as [np.nan, np.nan] if the ICC is 1 or 0 (aka
+    perfect agreement or disagreement) as the confidence interval is not defined in this case.
+    Other implementations might return [1, 1] in this case.
+
     Returns
     -------
     icc, ci95
@@ -373,8 +379,8 @@ def get_default_error_aggregations() -> (
             for o in ["detected", "reference", "abs_error", "abs_rel_error"]
         ),
         *(((m, o), ["mean", loa]) for m in metrics for o in ["error", "rel_error"]),
-        *[CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics],
-        CustomOperation(identifier=None, function=n_datapoints, column_name=("all", "all")),
+        *[CustomOperation(identifier=m, function=icc, column_name=("icc", m, "all")) for m in metrics],
+        CustomOperation(identifier=None, function=n_datapoints, column_name=("n_datapoints", "all", "all")),
     ]
 
     return default_agg

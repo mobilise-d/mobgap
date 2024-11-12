@@ -197,7 +197,7 @@ aggregations_custom = [
     CustomOperation(
         identifier="cadence_spm",
         function=A.icc,
-        column_name=("cadence_spm", "all"),
+        column_name=("icc", "cadence_spm", "all"),
     )
 ]
 pprint(aggregations_custom)
