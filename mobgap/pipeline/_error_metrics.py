@@ -202,8 +202,8 @@ def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
 
 
 def icc(
-    df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected"
-) -> tuple[float, float]:
+    df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected", icc_type: str = "icc2"
+) -> tuple[float, tuple[float, float]]:
     """
     Calculate the intraclass correlation coefficient (ICC) for the detected and reference values.
 
@@ -211,10 +211,20 @@ def icc(
     ----------
     df
         The DataFrame containing the reference and detected values.
+    icc_type
+        The type of the ICC. Can be one of "icc1", "icc2", "icc3", "icc1k", "icc2k", "icc3k".
+        See the documentation of the `pingouin.intraclass_corr` function for more information.
+        Default is "icc2", often also referred to as ICC(2,1).
     reference_col_name
         The identifier of the column containing the reference values.
     detected_col_name
         The identifier of the column containing the detected values.
+
+    Notes
+    -----
+    Note, that in case of ICC2, the confidence interval is reported as [np.nan, np.nan] if the ICC is 1 or 0 (aka
+    perfect agreement or disagreement) as the confidence interval is not defined in this case.
+    Other implementations might return [1, 1] in this case.
 
     Returns
     -------
@@ -233,8 +243,12 @@ def icc(
         .rename("value")
         .reset_index()
     )
-    icc, ci95 = intraclass_corr(data=df, targets="targets", raters="rater", ratings="value").loc[0, ["ICC", "CI95%"]]
-    return float(icc), ci95
+    icc, ci95 = (
+        intraclass_corr(data=df, targets="targets", raters="rater", ratings="value")
+        .set_index("Type")
+        .loc[icc_type.upper(), ["ICC", "CI95%"]]
+    )
+    return float(icc), tuple(float(v) for v in ci95)
 
 
 def quantiles(series: pd.Series, lower: float = 0.05, upper: float = 0.95) -> tuple[float, float]:
@@ -277,6 +291,27 @@ def loa(series: pd.Series, agreement: float = 1.96) -> tuple[float, float]:
     return float(mean - std * agreement), float(mean + std * agreement)
 
 
+def conf_intervals(series: pd.Series, z_score: float = 1.96) -> tuple[float, float]:
+    """Calculate the confidence intervals of a measure.
+
+    Parameters
+    ----------
+    series
+        The Series containing the data column of interest.
+    z_score
+        The agreement level for the limits of agreement.
+
+    Returns
+    -------
+    conf_intervals
+        The lower and upper confidence intervals as a tuple.
+    """
+    mean = series.mean()
+    std = series.std()
+    se = std / np.sqrt(len(series))
+    return float(mean - se * z_score), float(mean + se * z_score)
+
+
 def n_datapoints(df: pd.DataFrame) -> int:
     return len(df)
 
@@ -294,19 +329,27 @@ class CustomErrorAggregations:
         This requires a dataframe with multiple columns as input.
         Returns two values: the ICC and the CI95% values as tuple.
     quantiles
-        Calculate the quantiles of a measure.
+        Calculate the quantiles of a measure (95% by default).
         This requires a series as input.
         Returns a tuple with the lower and upper quantiles.
     loa
         Calculate the limits of agreement of a measure.
         This requires a series as input.
         Returns a tuple with the lower and upper limits of agreement.
+    conf_intervals
+        Calculate the confidence intervals of a measure.
+        This requires a series as input.
+        Returns a tuple with the lower and upper confidence intervals.
+        Calculates the 95% confidence intervals (z-score 1.96) by default.
+    n_datapoints
+        Calculate the number of datapoints in a dataframe.
 
     """
 
     icc = icc
     quantiles = quantiles
     loa = loa
+    conf_intervals = conf_intervals
     n_datapoints = n_datapoints
 
 
@@ -336,8 +379,8 @@ def get_default_error_aggregations() -> (
             for o in ["detected", "reference", "abs_error", "abs_rel_error"]
         ),
         *(((m, o), ["mean", loa]) for m in metrics for o in ["error", "rel_error"]),
-        *[CustomOperation(identifier=m, function=icc, column_name=(m, "all")) for m in metrics],
-        CustomOperation(identifier=None, function=n_datapoints, column_name=("all", "all")),
+        *[CustomOperation(identifier=m, function=icc, column_name=("icc", m, "all")) for m in metrics],
+        CustomOperation(identifier=None, function=n_datapoints, column_name=("n_datapoints", "all", "all")),
     ]
 
     return default_agg

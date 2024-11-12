@@ -12,7 +12,11 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from typing_extensions import Unpack
 
-from mobgap.gait_sequences._evaluation_challenge import GsdEvaluation, GsdEvaluationCV, gsd_evaluation_scorer
+from mobgap.gait_sequences._evaluation_scorer import (
+    gsd_final_agg,
+    gsd_per_datapoint_score,
+    gsd_score,
+)
 from mobgap.utils.evaluation import (
     accuracy_score,
     count_samples_in_intervals,
@@ -791,7 +795,7 @@ __all__ = [
     "calculate_unmatched_gsd_performance_metrics",
     "plot_categorized_intervals",
     "get_matching_intervals",
-    "gsd_evaluation_scorer",
-    "GsdEvaluationCV",
-    "GsdEvaluation",
+    "gsd_per_datapoint_score",
+    "gsd_final_agg",
+    "gsd_score",
 ]

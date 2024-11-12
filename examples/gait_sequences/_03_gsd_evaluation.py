@@ -205,27 +205,27 @@ pipeline.safe_run(simulated_real_world_walking[0]).gs_list_
 # If we want to run it on all datapoints and evaluate the performance of the algorithm, we can use the
 # :func:`~tpcp.validate.validate` function.
 #
-# We use a predefined scorer for gsd algorithms, that combines most of the evaluation that was done above.
-# The scorer scores the algorithm on each datapoint and then takes the mean of the results.
-# All mean and individual results are returned in huge dictionary that can be easily converted to a pandas DataFrame.
-from mobgap.gait_sequences.evaluation import gsd_evaluation_scorer
+# For this we need to provide a score function that runs and evaluates the pipeline on a single datapoint.
+# We provide a default score function for GSD that calculates all the metrics shown above per datapoint and combined
+# accross all gait sequences (i.e. all gait sequences across all datapoints are pooled before metrics are calculated).
+from mobgap.gait_sequences.evaluation import gsd_score
 from tpcp.validate import validate
 
 evaluation_results = pd.DataFrame(
-    validate(
-        pipeline, simulated_real_world_walking, scoring=gsd_evaluation_scorer
-    )
+    validate(pipeline, simulated_real_world_walking, scoring=gsd_score)
 )
 
-evaluation_results.drop(["single__reference", "single__detected"], axis=1).T
+evaluation_results.drop(
+    ["single__raw__reference", "single__raw__detected"], axis=1
+).T
 # %%
 # In addition to the metrics, the method also returns the raw reference and detected gait sequences.
 # These can be used for further custom analysis.
 
-evaluation_results["single__reference"][0][0]
+evaluation_results["single__raw__reference"][0]
 
 # %%
-evaluation_results["single__detected"][0][0]
+evaluation_results["single__raw__detected"][0]
 
 # %%
 # If you want to calculate additional metrics, you can either create a custom score function or subclass the pipeline
@@ -260,21 +260,21 @@ cross_validate_results = pd.DataFrame(
             GsdEmulationPipeline(GsdIluz()),
             para_grid,
             return_optimized="precision",
-            scoring=gsd_evaluation_scorer,
+            scoring=gsd_score,
         ),
         simulated_real_world_walking,
+        scoring=gsd_score,
         cv=3,
         return_train_score=True,
-        scoring=gsd_evaluation_scorer,
     )
 )
 
 cross_validate_results.drop(
     [
-        "test__single__reference",
-        "test__single__detected",
-        "train__single__reference",
-        "train__single__detected",
+        "test__single__raw__reference",
+        "test__single__raw__detected",
+        "train__single__raw__reference",
+        "train__single__raw__detected",
     ],
     axis=1,
 ).T

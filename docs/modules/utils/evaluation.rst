@@ -5,6 +5,16 @@ General Performance Evaluation Metrics
     :no-members:
     :no-inherited-members:
 
+Evaluation Challenges
+---------------------
+.. currentmodule:: mobgap.utils.evaluation
+.. autosummary::
+   :toctree: ../generated/utils/evaluation
+   :template: class.rst
+
+    Evaluation
+    EvaluationCV
+
 Functions
 ---------
 

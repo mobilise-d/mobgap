@@ -1,12 +1,10 @@
 """Helpful Pipelines to wrap the LRC algorithms for optimization and evaluation."""
 
 from collections.abc import Iterator
-from typing import Any, TypedDict
+from typing import Any
 
 import pandas as pd
-from sklearn.metrics import accuracy_score
 from tpcp import OptimizableParameter, OptimizablePipeline
-from tpcp.validate import NoAgg
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
@@ -28,11 +26,6 @@ def _extract_data(dataset: BaseGaitDatasetWithReference) -> Iterator[pd.DataFram
         ref_params = datapoint.reference_parameters_relative_to_wb_
         for _, data in iter_gs(to_body_frame(datapoint.data_ss), ref_params.wb_list):
             yield data
-
-
-class _LrcScores(TypedDict):
-    accuracy: float
-    raw_results: NoAgg
 
 
 class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
@@ -151,32 +144,6 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.algo.self_optimize(all_data, all_ics, all_reference, sampling_rate_hz=all_sampling_rate_hz, **kwargs)
 
         return self
-
-    def score(self, datapoint: BaseGaitDatasetWithReference) -> _LrcScores:
-        """Score the pipeline on a single datapoint.
-
-        This runs ``algo`` on the provided datapoint and returns the accuracy and the raw classified labels.
-
-        This method should be used in combination with the scoring/validation methods available in ``tpcp.optimize``
-
-        Parameters
-        ----------
-        datapoint
-            A single datapoint of a Gait Dataset with reference information.
-
-        Returns
-        -------
-        metrics
-            A dictionary with relevant performance metrics
-
-        """
-        predicted_lr_labels = self.safe_run(datapoint).ic_lr_list_
-
-        ref_labels = datapoint.reference_parameters_.ic_list["lr_label"]
-
-        combined = predicted_lr_labels.assign(ref_lr_label=ref_labels)
-
-        return {"accuracy": accuracy_score(ref_labels, predicted_lr_labels["lr_label"]), "raw_results": NoAgg(combined)}
 
 
 __all__ = ["LrcEmulationPipeline"]

@@ -11,6 +11,7 @@ mobgap Docu Overview
    guides/index.rst
    modules/index.rst
    auto_examples/index.rst
+   auto_revalidation/index.rst
    blog/index.rst
    Changelog <CHANGELOG.md>
 

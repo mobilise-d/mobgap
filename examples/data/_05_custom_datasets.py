@@ -1,4 +1,6 @@
 """
+.. _custom_datasets:
+
 Custom Data and Datasets
 ========================
 

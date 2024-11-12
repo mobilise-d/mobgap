@@ -8,10 +8,10 @@ This does the following steps:
 
 Notes
 -----
-    - Some algorithm results show GSDs that extend past the end of the data.
-      In most cases, these are rounding issues.
-      In case of the EPFL_V1-* algorithms, this is caused by an actual bug in the original implementation.
-      In both cases, you should clip the end of the GSD to the length of the data to avoid issues during evaluation.
+- Some algorithm results show GSDs that extend past the end of the data.
+  In most cases, these are rounding issues.
+  In case of the EPFL_V1-* algorithms, this is caused by an actual bug in the original implementation.
+  In both cases, you should clip the end of the GSD to the length of the data to avoid issues during evaluation.
 """
 
 from pathlib import Path
@@ -24,8 +24,9 @@ from tqdm import tqdm
 
 from mobgap.data._mobilised_matlab_loader import _parse_matlab_struct, _parse_until_test_level
 from mobgap.utils.conversions import as_samples
+from mobgap.utils.misc import get_env_var
 
-ROOT_DATA_PATH = Path("../../../mobgap_validation/")
+ROOT_DATA_PATH = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
 
 PARTICIPANT_ID_MAPPING = Path("../../../mobilised_tvs_data/TVS-participant-22032024.csv")
 # The new ids are the first integer of the participantid concatenated with the newly generated ids.
@@ -99,7 +100,7 @@ for path in tqdm(list(GSD_DATA_PATH.rglob("*.mat"))):
 # %%
 for condition, result in all_results.items():
     out = pd.concat(result).sort_index()
-    out_dir = ROOT_DATA_PATH / "data/gsd" / condition
+    out_dir = ROOT_DATA_PATH / "_extracted_results/gsd" / condition
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, group in tqdm(list(out.groupby("algorithm"))):
         group = group.reset_index("algorithm", drop=True)

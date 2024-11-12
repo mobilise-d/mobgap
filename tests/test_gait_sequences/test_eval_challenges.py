@@ -5,8 +5,8 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdIluz
-from mobgap.gait_sequences._evaluation_challenge import GsdEvaluation, GsdEvaluationCV
 from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
+from mobgap.utils.evaluation import Evaluation, EvaluationCV
 
 short_example_data = LabExampleDataset().get_subset(test="Test5", trial="Trial1")
 
@@ -15,10 +15,13 @@ def dummy_scoring(x, y):
     return {"bla": 0}
 
 
+# TODO: Move to utils test file
+
+
 class TestMetaGsdEvaluationCV(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = GsdEvaluationCV
+    ALGORITHM_CLASS = EvaluationCV
     ONLY_DEFAULT_PARAMS = False
 
     @pytest.fixture()
@@ -31,7 +34,7 @@ class TestMetaGsdEvaluationCV(TestAlgorithmMixin):
 class TestMetaGsdEvaluation(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = GsdEvaluation
+    ALGORITHM_CLASS = Evaluation
     ONLY_DEFAULT_PARAMS = False
 
     @pytest.fixture()

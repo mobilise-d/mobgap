@@ -228,12 +228,16 @@ class CustomOperation(NamedTuple):
         There expected return value depends on the context the CustomOperation is used in.
     column_name
         The name of the resulting column in the output dataframe.
+        If a list of columns names is provided, the results of the custom function will be spread over multiple columns.
+        For example, if the function returns a tuple of two values, the column names should be a tuple of two strings,
+        if you want the results to be stored in two separate columns.
+        If just a single string is provided, the results will be stored in a single column.
 
     """
 
     identifier: Union[Hashable, Sequence, str, None]
     function: Callable
-    column_name: Union[str, tuple[str, ...]]
+    column_name: Union[str, tuple[str, ...], list[Union[str, tuple[str, ...]]]]
 
     @property
     def _TAG(self) -> str:  # noqa: N802
@@ -267,7 +271,7 @@ def _get_data_from_identifier(
     return data
 
 
-def apply_transformations(  # noqa: C901
+def apply_transformations(  # noqa: C901, PLR0912
     df: pd.DataFrame,
     transformations: list[Union[tuple[str, Union[callable, list[callable]]], CustomOperation]],
     *,
@@ -338,6 +342,12 @@ def apply_transformations(  # noqa: C901
         if getattr(transformation, "_TAG", None) == "CustomOperation":
             identifier = transformation.identifier
             functions = [transformation.function]
+            if isinstance(transformation.column_name, list):
+                raise ValueError(
+                    "Custom transformations should have a column name that is either a string or a tuple "
+                    "of string. "
+                    "For transformations, we don't support column spreading by supplying a list of names."
+                )
             col_names = [transformation.column_name]
         else:
             identifier, functions = transformation
@@ -547,15 +557,19 @@ def _allow_only_series(func: callable) -> callable:
     return wrapper
 
 
-def _apply_manual_aggregations(
+def _construct_index_from_col_name(col_name: Union[tuple[str, ...], str]) -> pd.Index:
+    if isinstance(col_name, tuple):
+        return pd.MultiIndex.from_tuples([col_name])
+    return pd.Index([col_name])
+
+
+def _apply_manual_aggregations(  # noqa: C901
     df: pd.DataFrame, manual_aggregations: list[CustomOperation], missing_columns: Literal["raise", "ignore", "warn"]
 ) -> pd.Series:
     # apply manual aggregations
     manual_aggregation_results = []
     for agg in manual_aggregations:
-        agg_functions = agg.function
-        if not isinstance(agg_functions, list):
-            agg_functions = [agg_functions]
+        agg_function = agg.function
 
         try:
             data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
@@ -566,18 +580,25 @@ def _apply_manual_aggregations(
                 warnings.warn(str(e), UserWarning, stacklevel=1)
             continue
 
-        for fct in agg_functions:
-            result = fct(data)
-            try:
-                fct_name = fct.__name__
-            except AttributeError as e:
+        result = agg_function(data)
+        if not agg.column_name:
+            raise ValueError(
+                "Custom aggregations always need to specify a column name that includes the metric."
+                "E.g. ('icc', 'speed_error') for the ICC of the speed error."
+            )
+        if isinstance(agg.column_name, list):
+            # We need to spread the results over multiple columns
+            result = result if isinstance(result, tuple) else (result,)
+            if not len(agg.column_name) == len(result):
                 raise ValueError(
-                    f"Transformation function {fct} applied for {agg.identifier} does not have a `__name__`-Attribute. "
-                    "Please use a named function or assign a name."
-                ) from e
-            column_name = (agg.column_name,) if not isinstance(agg.column_name, tuple) else agg.column_name
-            key = (fct_name, *column_name)
-            manual_aggregation_results.append(pd.Series([result], index=pd.MultiIndex.from_tuples([key])))
+                    "The number of column names provided does not match the number of results returned by the function."
+                )
+            for col_name, res in zip(agg.column_name, result):
+                manual_aggregation_results.append(pd.Series([res], index=_construct_index_from_col_name(col_name)))
+        else:
+            manual_aggregation_results.append(
+                pd.Series([result], index=_construct_index_from_col_name(agg.column_name))
+            )
     if len(manual_aggregation_results) == 0:
         return pd.Series()
     try:

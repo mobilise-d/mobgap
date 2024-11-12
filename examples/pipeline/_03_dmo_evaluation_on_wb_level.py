@@ -90,7 +90,7 @@ combined_dmos
 #           groups were either detected or reference data is missing.
 daily_matches = (
     combined_dmos.groupby(
-        level=["visit_type", "participant_id", "measurement_date"], axis=0
+        level=["visit_type", "participant_id", "measurement_date"]
     )
     .mean()
     .dropna()
@@ -367,9 +367,11 @@ pprint(aggregations_simple)
 #
 # 2. As a named tuple of Type `CustomOperation` taking three values: `identifier`, `function`, and `column_name`.
 #    `identifier` is a valid loc identifier selecting one or more columns from the dataframe, `function` is the (custom)
-#    aggregation function or list of functions to apply, and `column_name` is the name of the resulting column in the
-#    output dataframe (single-level column if `column_name` is a string, multi-level column if `column_name` is a
-#    tuple).
+#    aggregation function, and `column_name` is the name of the resulting column in the output dataframe (single-level
+#    column if `column_name` is a string, multi-level column if `column_name` is a tuple).
+#    Note, that this column name needs to include the metric name.
+#    For custom aggregations, we don't infer the name from the function name, as we do for the default aggregations.
+#
 #    This allows for more complex aggregations that require multiple columns as input, for example, the intraclass
 #    correlation coefficient (ICC) for the DMOs (see below).
 #    A valid aggregation list for calculating the ICC of all DMOs would look like this:
@@ -378,7 +380,7 @@ from mobgap.pipeline.evaluation import get_default_error_aggregations
 from mobgap.utils.df_operations import CustomOperation
 
 aggregations_custom = [
-    CustomOperation(identifier=m, function=A.icc, column_name=(m, "all"))
+    CustomOperation(identifier=m, function=A.icc, column_name=("icc", m, "all"))
     for m in metrics
 ]
 pprint(aggregations_custom)
@@ -392,7 +394,21 @@ sub_df = wb_matches_with_errors.loc[:, "stride_duration_s"]
 
 # %%
 # The ICC function just takes the ``detected`` and ``reference`` columns and calculates the ICC.
+# Note, that the function return a tuple with the ICC value and the confidence interval.
+# By default, these would be put into the same column of the aggregated dataframe.
+# However, we can also split them into two columns, by providing a tuple as the column name in the CustomOperation.
 A.icc(sub_df)
+
+# %%
+# Let's actually do that and split the ICC and the confidence interval into two columns.
+aggregations_custom = [
+    CustomOperation(
+        identifier=m,
+        function=A.icc,
+        column_name=[("icc", m, "all"), ("icc_ci", m, "all")],
+    )
+    for m in metrics
+]
 
 # %%
 # Within one aggregation list, both types of aggregations can be combined

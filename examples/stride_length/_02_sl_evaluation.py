@@ -208,7 +208,7 @@ aggregations_custom = [
     CustomOperation(
         identifier="stride_length_m",
         function=A.icc,
-        column_name=("stride_length_m", "all"),
+        column_name=("icc", "stride_length_m", "all"),
     )
 ]
 pprint(aggregations_custom)

@@ -5,17 +5,7 @@ from typing import Literal, Union
 
 import pandas as pd
 
-__all__ = [
-    "precision_recall_f1_score",
-    "precision_score",
-    "recall_score",
-    "specificity_score",
-    "accuracy_score",
-    "npv_score",
-    "f1_score",
-    "count_samples_in_match_intervals",
-    "count_samples_in_intervals",
-]
+from mobgap.utils._evaluation_challenges import Evaluation, EvaluationCV, save_evaluation_results
 
 
 def precision_recall_f1_score(
@@ -511,3 +501,19 @@ def _input_is_icd_matches_df(matches_df: pd.DataFrame) -> bool:
     except KeyError:
         return False
     return True
+
+
+__all__ = [
+    "precision_recall_f1_score",
+    "precision_score",
+    "recall_score",
+    "specificity_score",
+    "accuracy_score",
+    "npv_score",
+    "f1_score",
+    "count_samples_in_match_intervals",
+    "count_samples_in_intervals",
+    "Evaluation",
+    "EvaluationCV",
+    "save_evaluation_results",
+]

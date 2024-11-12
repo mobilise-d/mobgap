@@ -178,10 +178,11 @@ pipeline.safe_run(simulated_real_world_walking[0]).ic_lr_list_
 #
 # Note, that the ``LrdPipeline`` class already has a ``score`` method that returns the accuracy.
 # This is used by default, but you could supply your own scoring method as well.
+from mobgap.laterality.evaluation import lrc_score
 from tpcp.validate import validate
 
 evaluation_results_with_opti = pd.DataFrame(
-    validate(pipeline, simulated_real_world_walking)
+    validate(pipeline, simulated_real_world_walking, scoring=lrc_score)
 )
 evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
 
@@ -208,8 +209,7 @@ disp = ConfusionMatrixDisplay.from_predictions(
 disp.figure_.show()
 
 # %%
-# If you want to calculate additional metrics, you can either create a custom score function or subclass the pipeline
-# and overwrite the score function.
+# If you want to calculate additional metrics, you can either create a custom score function.
 #
 # Parameter Optimization and Model Training
 # -----------------------------------------
@@ -250,7 +250,9 @@ para_grid = ParameterGrid({"algo__clf_pipe__clf__C": [0.1, 1.0, 10.0]})
 # Then we path the pipeline to the optimizer.
 # We only select a 2-fold cross-validation for this example, as we will only have 2 datapoints per train set and we want
 # to minimize run time for this example.
-optimizer = GridSearchCV(pipeline, para_grid, return_optimized="accuracy", cv=2)
+optimizer = GridSearchCV(
+    pipeline, para_grid, scoring=lrc_score, return_optimized="accuracy", cv=2
+)
 
 # %%
 # Let's test the optimizer first on a manual train set.
@@ -263,14 +265,18 @@ results.loc[:, ~results.columns.str.endswith("raw_results")].T
 
 # %%
 # And apply/score the best performing and retrained model directly on the test set.
-optimizer.score(simulated_real_world_walking[2])["accuracy"]
+lrc_score(optimizer.optimized_pipeline_, simulated_real_world_walking[2])[0][
+    "accuracy"
+]
 
 # %%
 # Let's run everything combined with the external cross-validate to actually validate our optimization approach.
 from tpcp.validate import cross_validate
 
 evaluation_results_with_opti = pd.DataFrame(
-    cross_validate(optimizer, simulated_real_world_walking, cv=3)
+    cross_validate(
+        optimizer, simulated_real_world_walking, cv=3, scoring=lrc_score
+    )
 )
 evaluation_results_with_opti.loc[
     :, ~evaluation_results_with_opti.columns.str.endswith("raw_results")
@@ -287,7 +293,9 @@ optimizer = DummyOptimize(
 )
 
 evaluation_results_pre_trained = pd.DataFrame(
-    cross_validate(optimizer, simulated_real_world_walking, cv=3)
+    cross_validate(
+        optimizer, simulated_real_world_walking, cv=3, scoring=lrc_score
+    )
 )
 evaluation_results_pre_trained.loc[
     :, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")

@@ -2,138 +2,258 @@
     "schema":{
         "fields":[
             {
-                "name":"index",
+                "name":"fold",
                 "type":"integer"
             },
             {
-                "name":"agg__reference_gs_duration_s",
+                "name":"reference_gs_duration_s",
                 "type":"number"
             },
             {
-                "name":"agg__detected_gs_duration_s",
+                "name":"detected_gs_duration_s",
                 "type":"number"
             },
             {
-                "name":"agg__gs_duration_error_s",
+                "name":"gs_duration_error_s",
                 "type":"number"
             },
             {
-                "name":"agg__gs_relative_duration_error",
+                "name":"gs_relative_duration_error",
                 "type":"number"
             },
             {
-                "name":"agg__gs_absolute_duration_error_s",
+                "name":"gs_absolute_duration_error_s",
                 "type":"number"
             },
             {
-                "name":"agg__gs_absolute_relative_duration_error",
+                "name":"gs_absolute_relative_duration_error",
                 "type":"number"
             },
             {
-                "name":"agg__gs_absolute_relative_duration_error_log",
+                "name":"gs_absolute_relative_duration_error_log",
                 "type":"number"
             },
             {
-                "name":"agg__detected_num_gs",
+                "name":"detected_num_gs",
                 "type":"number"
             },
             {
-                "name":"agg__reference_num_gs",
+                "name":"reference_num_gs",
                 "type":"number"
             },
             {
-                "name":"agg__num_gs_error",
+                "name":"num_gs_error",
                 "type":"number"
             },
             {
-                "name":"agg__num_gs_relative_error",
+                "name":"num_gs_relative_error",
                 "type":"number"
             },
             {
-                "name":"agg__num_gs_absolute_error",
+                "name":"num_gs_absolute_error",
                 "type":"number"
             },
             {
-                "name":"agg__num_gs_absolute_relative_error",
+                "name":"num_gs_absolute_relative_error",
                 "type":"number"
             },
             {
-                "name":"agg__num_gs_absolute_relative_error_log",
+                "name":"num_gs_absolute_relative_error_log",
                 "type":"number"
             },
             {
-                "name":"agg__tp_samples",
+                "name":"tp_samples",
                 "type":"number"
             },
             {
-                "name":"agg__fp_samples",
+                "name":"fp_samples",
                 "type":"number"
             },
             {
-                "name":"agg__fn_samples",
+                "name":"fn_samples",
                 "type":"number"
             },
             {
-                "name":"agg__precision",
+                "name":"precision",
                 "type":"number"
             },
             {
-                "name":"agg__recall",
+                "name":"recall",
                 "type":"number"
             },
             {
-                "name":"agg__f1_score",
+                "name":"f1_score",
                 "type":"number"
             },
             {
-                "name":"agg__tn_samples",
+                "name":"tn_samples",
                 "type":"number"
             },
             {
-                "name":"agg__specificity",
+                "name":"specificity",
                 "type":"number"
             },
             {
-                "name":"agg__accuracy",
+                "name":"accuracy",
                 "type":"number"
             },
             {
-                "name":"agg__npv",
+                "name":"npv",
+                "type":"number"
+            },
+            {
+                "name":"combined__reference_gs_duration_s",
+                "type":"number"
+            },
+            {
+                "name":"combined__detected_gs_duration_s",
+                "type":"number"
+            },
+            {
+                "name":"combined__gs_duration_error_s",
+                "type":"number"
+            },
+            {
+                "name":"combined__gs_relative_duration_error",
+                "type":"number"
+            },
+            {
+                "name":"combined__gs_absolute_duration_error_s",
+                "type":"number"
+            },
+            {
+                "name":"combined__gs_absolute_relative_duration_error",
+                "type":"number"
+            },
+            {
+                "name":"combined__gs_absolute_relative_duration_error_log",
+                "type":"number"
+            },
+            {
+                "name":"combined__detected_num_gs",
+                "type":"integer"
+            },
+            {
+                "name":"combined__reference_num_gs",
+                "type":"integer"
+            },
+            {
+                "name":"combined__num_gs_error",
+                "type":"integer"
+            },
+            {
+                "name":"combined__num_gs_relative_error",
+                "type":"number"
+            },
+            {
+                "name":"combined__num_gs_absolute_error",
+                "type":"integer"
+            },
+            {
+                "name":"combined__num_gs_absolute_relative_error",
+                "type":"number"
+            },
+            {
+                "name":"combined__num_gs_absolute_relative_error_log",
+                "type":"number"
+            },
+            {
+                "name":"combined__tp_samples",
+                "type":"integer"
+            },
+            {
+                "name":"combined__fp_samples",
+                "type":"integer"
+            },
+            {
+                "name":"combined__fn_samples",
+                "type":"integer"
+            },
+            {
+                "name":"combined__precision",
+                "type":"number"
+            },
+            {
+                "name":"combined__recall",
+                "type":"number"
+            },
+            {
+                "name":"combined__f1_score",
+                "type":"number"
+            },
+            {
+                "name":"combined__tn_samples",
+                "type":"integer"
+            },
+            {
+                "name":"combined__specificity",
+                "type":"number"
+            },
+            {
+                "name":"combined__accuracy",
+                "type":"number"
+            },
+            {
+                "name":"combined__npv",
                 "type":"number"
             }
         ],
         "primaryKey":[
-            "index"
+            "fold"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "index":0,
-            "agg__reference_gs_duration_s":48.9266666667,
-            "agg__detected_gs_duration_s":62.6133333333,
-            "agg__gs_duration_error_s":13.6866666667,
-            "agg__gs_relative_duration_error":0.2370033971,
-            "agg__gs_absolute_duration_error_s":13.6866666667,
-            "agg__gs_absolute_relative_duration_error":0.2370033971,
-            "agg__gs_absolute_relative_duration_error_log":0.201070238,
-            "agg__detected_num_gs":5.6666666667,
-            "agg__reference_num_gs":5.0,
-            "agg__num_gs_error":0.6666666667,
-            "agg__num_gs_relative_error":0.1666666667,
-            "agg__num_gs_absolute_error":0.6666666667,
-            "agg__num_gs_absolute_relative_error":0.1666666667,
-            "agg__num_gs_absolute_relative_error_log":0.1472775841,
-            "agg__tp_samples":3902.6666666667,
-            "agg__fp_samples":2365.6666666667,
-            "agg__fn_samples":991.6666666667,
-            "agg__precision":0.6128324205,
-            "agg__recall":0.7595164188,
-            "agg__f1_score":0.6740945035,
-            "agg__tn_samples":10251.6666666667,
-            "agg__specificity":0.8110138277,
-            "agg__accuracy":0.7978928077,
-            "agg__npv":0.9014895239
+            "fold":0,
+            "reference_gs_duration_s":48.9266666667,
+            "detected_gs_duration_s":62.6133333333,
+            "gs_duration_error_s":13.6866666667,
+            "gs_relative_duration_error":0.2370033971,
+            "gs_absolute_duration_error_s":13.6866666667,
+            "gs_absolute_relative_duration_error":0.2370033971,
+            "gs_absolute_relative_duration_error_log":0.201070238,
+            "detected_num_gs":5.6666666667,
+            "reference_num_gs":5.0,
+            "num_gs_error":0.6666666667,
+            "num_gs_relative_error":0.1666666667,
+            "num_gs_absolute_error":0.6666666667,
+            "num_gs_absolute_relative_error":0.1666666667,
+            "num_gs_absolute_relative_error_log":0.1472775841,
+            "tp_samples":3902.6666666667,
+            "fp_samples":2365.6666666667,
+            "fn_samples":991.6666666667,
+            "precision":0.6128324205,
+            "recall":0.7595164188,
+            "f1_score":0.6740945035,
+            "tn_samples":10251.6666666667,
+            "specificity":0.8110138277,
+            "accuracy":0.7978928077,
+            "npv":0.9014895239,
+            "combined__reference_gs_duration_s":146.78,
+            "combined__detected_gs_duration_s":187.84,
+            "combined__gs_duration_error_s":41.06,
+            "combined__gs_relative_duration_error":0.279738384,
+            "combined__gs_absolute_duration_error_s":41.06,
+            "combined__gs_absolute_relative_duration_error":0.279738384,
+            "combined__gs_absolute_relative_duration_error_log":0.2466556695,
+            "combined__detected_num_gs":17,
+            "combined__reference_num_gs":15,
+            "combined__num_gs_error":2,
+            "combined__num_gs_relative_error":0.1333333333,
+            "combined__num_gs_absolute_error":2,
+            "combined__num_gs_absolute_relative_error":0.1333333333,
+            "combined__num_gs_absolute_relative_error_log":0.125163143,
+            "combined__tp_samples":11708,
+            "combined__fp_samples":7097,
+            "combined__fn_samples":2975,
+            "combined__precision":0.6226003722,
+            "combined__recall":0.7973847306,
+            "combined__f1_score":0.6992355471,
+            "combined__tn_samples":30755,
+            "combined__specificity":0.8125066047,
+            "combined__accuracy":0.8082801942,
+            "combined__npv":0.9117995849
         }
     ]
 }
