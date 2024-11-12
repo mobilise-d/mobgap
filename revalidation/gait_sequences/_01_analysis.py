@@ -155,7 +155,9 @@ custom_aggs = [
     ),
 ]
 
-perf_metrics_all = results.groupby(["algo", "version"]).apply(apply_aggregations, custom_aggs)
+perf_metrics_all = results.groupby(["algo", "version"]).apply(
+    apply_aggregations, custom_aggs
+)
 perf_metrics_all.T
 
 # %%
