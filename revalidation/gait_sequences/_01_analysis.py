@@ -15,6 +15,8 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 
 """
 
+from functools import partial
+
 # %%
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
@@ -79,8 +81,7 @@ results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
     _combined="combined",
 )
-duration_results = results[["reference_gs_duration_s", "detected_gs_duration_s", "gait_sequence_duration_error_s"]]
-
+cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 
 # %%
 # Free-Living Comparison
@@ -117,14 +118,38 @@ sns.boxplot(
 plt.show()
 
 # %%
+# TODO: Move these metrics to utils
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
+from mobgap.utils.df_operations import CustomOperation, apply_aggregations
 
-custom_errors = [
-    ("reference_gs_duration_s", ["mean", A.quantiles])
-    ("detected_gs_duration_s", ["mean", A.quantiles])
-    ("gait_sequence_duration_error_s", ["mean", A.loa]),
+custom_aggs = [
+    CustomOperation(
+        identifier=None,
+        function=A.n_datapoints,
+        column_name=[("n_participants", "all")],
+    ),
+    ("recall", ["mean", A.conf_intervals]),
+    ("precision", ["mean", A.conf_intervals]),
+    ("f1_score", ["mean", A.conf_intervals]),
+    ("accuracy", ["mean", A.conf_intervals]),
+    ("specificity", ["mean", A.conf_intervals]),
+    ("reference_gs_duration_s", ["mean", A.conf_intervals]),
+    ("detected_gs_duration_s", ["mean", A.conf_intervals]),
+    ("gs_duration_error_s", ["mean", A.loa]),
+    ("gs_absolute_duration_error_s", ["mean", A.conf_intervals]),
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            A.icc,
+            reference_col_name="reference_gs_duration_s",
+            detected_col_name="detected_gs_duration_s",
+            icc_type="icc2",
+        ),
+        column_name=[("icc", "gs_duration_s"), ("icc_ci", "gs_duration_s")],
+    ),
 ]
 
+perf_metrics_all = results.pipe(apply_aggregations, custom_aggs)
 
 
 # %%
@@ -136,6 +161,13 @@ sns.boxplot(
 )
 plt.show()
 
+perf_metrics_per_cohort = (
+    results.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs)
+    .swaplevel(axis=1)
+    .loc[cohort_order]
+)
+
 # %%
 # Per relevant cohort
 # ~~~~~~~~~~~~~~~~~~~
@@ -146,7 +178,7 @@ plt.show()
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
 
 low_impairment_algo = "GsdIluz"
-low_impairment_cohorts = MobilisedPipelineHealthy().recommended_cohorts
+low_impairment_cohorts = list(MobilisedPipelineHealthy().recommended_cohorts)
 
 low_impairment_results = results_long[
     results_long["cohort"].isin(low_impairment_cohorts)
@@ -171,8 +203,13 @@ plt.title(f"Low Impairment Cohorts ({low_impairment_algo})")
 plt.show()
 
 # %%
+perf_metrics_per_cohort.loc[
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+].reset_index("algo", drop=True)
+
+# %%
 high_impairment_algo = "GsdIonescu"
-high_impairment_cohorts = MobilisedPipelineImpaired().recommended_cohorts
+high_impairment_cohorts = list(MobilisedPipelineImpaired().recommended_cohorts)
 
 high_impairment_results = results_long[
     results_long["cohort"].isin(high_impairment_cohorts)
@@ -196,3 +233,8 @@ sns.boxplot(
 )
 plt.title(f"High Impairment Cohorts ({high_impairment_algo})")
 plt.show()
+
+# %%
+perf_metrics_per_cohort.loc[
+    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
+].reset_index("algo", drop=True)
