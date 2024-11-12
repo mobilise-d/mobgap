@@ -1,15 +1,15 @@
 """
+.. _gsd_val_results:
+
+Performance of the gait sequences algorithm on the TVS dataset
+==============================================================
+
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
   of its algorithm.
   The current state, **TECHNICAL EXPERIMENTATION**.
   Don't use these results or make any assumptions based on them.
-  We will update this page incrementatlly and provide further information, as soon as the state of any of the validation
+  We will update this page incrementally and provide further information, as soon as the state of any of the validation
   steps changes.
-
-.. _gsd_val_results
-
-Performance of the gait sequences algorithm on the TVS dataset
-==============================================================
 
 The following provides an analysis and comparison of the GSD performance on the TVS dataset (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data and compare these results with
@@ -132,7 +132,7 @@ custom_aggs = [
     CustomOperation(
         identifier=None,
         function=A.n_datapoints,
-        column_name=[("n_participants", "all")],
+        column_name=[("n_datapoints", "all")],
     ),
     ("recall", ["mean", A.conf_intervals]),
     ("precision", ["mean", A.conf_intervals]),
@@ -155,8 +155,8 @@ custom_aggs = [
     ),
 ]
 
-perf_metrics_all = results.pipe(apply_aggregations, custom_aggs)
-perf_metrics_all
+perf_metrics_all = results.groupby(["algo", "version"]).apply(apply_aggregations, custom_aggs)
+perf_metrics_all.T
 
 # %%
 # Per Cohort
@@ -173,7 +173,7 @@ perf_metrics_per_cohort = (
     .swaplevel(axis=1)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort
+perf_metrics_per_cohort.T
 
 # %%
 # Per relevant cohort
@@ -212,7 +212,7 @@ plt.show()
 # %%
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True)
+].reset_index("algo", drop=True).T
 
 # %%
 high_impairment_algo = "GsdIonescu"
@@ -244,4 +244,4 @@ plt.show()
 # %%
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True)
+].reset_index("algo", drop=True).T
