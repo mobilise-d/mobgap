@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The GsdIluz algorithm was reworked. This fixes some discrepancies with the original implementation and should improve
   the results in many cases.
   We now also provide a version of the original peak detection algorithm that was used in the matlab implementation.
-  This can be used by setting the `use_original_peak_detection` parameter to `True`.
-  (https://github.com/mobilise-d/mobgap/pull/182)
+  This can be used by setting `GsdIluz(**GsdIluz.PredefinedParameters.original).
+  (https://github.com/mobilise-d/mobgap/pull/182, https://github.com/mobilise-d/mobgap/pull/187)
 
 ### Added
 - We added first scripts for the revalidation.

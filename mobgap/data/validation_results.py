@@ -70,7 +70,7 @@ class ValidationResultLoader:
             ).set_index(self.CONDITION_INDEX_COLS[condition])
         if not self.brian.registry:
             registry = pooch.retrieve(
-                f"{self.VALIDATION_REPO_DATA.format(version=self.version)}/results/file_registry.txt",
+                f"{self.VALIDATION_REPO_DATA.format(version=self.version)}/results_file_registry.txt",
                 known_hash=None,
             )
             self.brian.load_registry(registry)
