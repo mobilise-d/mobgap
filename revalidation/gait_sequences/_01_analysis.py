@@ -125,7 +125,6 @@ sns.boxplot(
 plt.show()
 
 # %%
-# TODO: Move these metrics to utils
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
 from mobgap.utils.df_operations import CustomOperation, apply_aggregations
 
@@ -157,7 +156,7 @@ custom_aggs = [
 ]
 
 perf_metrics_all = results.pipe(apply_aggregations, custom_aggs)
-
+perf_metrics_all
 
 # %%
 # Per Cohort
@@ -174,6 +173,7 @@ perf_metrics_per_cohort = (
     .swaplevel(axis=1)
     .loc[cohort_order]
 )
+perf_metrics_per_cohort
 
 # %%
 # Per relevant cohort
