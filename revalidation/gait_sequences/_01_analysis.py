@@ -21,9 +21,6 @@ the performance of the original matlab algorithm.
 We focus on the `single_results` (aka the performance per trail) and will aggregate it over multiple levels.
 
 """
-
-from functools import partial
-
 # %%
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
@@ -61,7 +58,7 @@ from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
 local_data_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
     if get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0)
     else None
 )
@@ -125,9 +122,9 @@ sns.boxplot(
 plt.show()
 
 # %%
-# TODO: Move these metrics to utils
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
 from mobgap.utils.df_operations import CustomOperation, apply_aggregations
+from functools import partial
 
 custom_aggs = [
     CustomOperation(
@@ -157,7 +154,7 @@ custom_aggs = [
 ]
 
 perf_metrics_all = results.pipe(apply_aggregations, custom_aggs)
-
+perf_metrics_all
 
 # %%
 # Per Cohort
@@ -174,6 +171,7 @@ perf_metrics_per_cohort = (
     .swaplevel(axis=1)
     .loc[cohort_order]
 )
+perf_metrics_per_cohort
 
 # %%
 # Per relevant cohort
