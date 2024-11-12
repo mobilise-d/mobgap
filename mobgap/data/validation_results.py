@@ -11,7 +11,7 @@ import pooch
 class ValidationResultLoader:
     """Load the revalidation results either by downloading them or from a local folder."""
 
-    VALIDATION_REPO_DATA = "https://raw.githubusercontent.com/mobilise-d/mobgap_validation/{version}/"
+    VALIDATION_REPO_DATA = "https://raw.githubusercontent.com/mobilise-d/mobgap_validation/{version}"
 
     CONDITION_INDEX_COLS: Final[dict[Literal["free_living", "laboratory"], list[str]]] = {
         "free_living": [
