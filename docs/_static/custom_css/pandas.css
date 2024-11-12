@@ -1,13 +1,27 @@
-@media (min-width: 960px) {
+@media (min-width: 1200px) {
     .bd-sidebar-primary {
         font-size: var(--pst-sidebar-font-size);
         max-width: 25em;
     }
     .bd-page-width {
-        max-width: 2000px;
+        max-width: 200em;
     }
     .bd-main .bd-content .bd-article-container {
         max-width: 100%;
+    }
+    .bd-main .bd-content {
+        justify-content: left;
+    }
+    .bd-main .bd-content .bd-article-container article section > *:not(section, img, .output_html) {
+        max-width: 60em;
+    }
+    .bd-main .bd-content .bd-article-container article :is(h1, h2, h3, h4, h5, h6) {
+        max-width: 60em;
+    }
+    .bd-main .bd-content .bd-article-container .admonition {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 60em;
     }
 }
 
