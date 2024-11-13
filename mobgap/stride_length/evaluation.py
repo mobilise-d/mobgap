@@ -1,5 +1,5 @@
 import pandas as pd
-from statsmodels.compat.pandas import assert_frame_equal
+from pandas.testing import assert_frame_equal
 from tpcp.validate import Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDatasetWithReference

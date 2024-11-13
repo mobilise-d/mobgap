@@ -41,18 +41,24 @@ class SlEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         ref_paras = datapoint.reference_parameters_relative_to_wb_
 
         if len(ref_paras.wb_list) == 0:
-            warnings.warn(f"No walking bouts found in the reference data. {kwargs['dp_group']}", RuntimeWarning)
+            warnings.warn(
+                f"No walking bouts found in the reference data. {kwargs['dp_group']}", RuntimeWarning, stacklevel=1
+            )
             self.per_wb_algo_ = {}
-            self.stride_length_per_sec_ = pd.DataFrame(
-                {"stride_length_m": [], "sec_center_samples": [], "wb_id": []}
-            ).set_index(["wb_id", "sec_center_samples"])
-            self.stride_length_per_stride_ = pd.DataFrame(
-                {"stride_length_m": [], "start": [], "end": [], "lr_label": [], "wb_id": [], "s_id": []}
-            ).set_index(["wb_id", "s_id"])
+            self.stride_length_per_sec_ = (
+                pd.DataFrame({"stride_length_m": [], "sec_center_samples": [], "wb_id": []})
+                .astype({"stride_length_m": float, "sec_center_samples": int, "wb_id": int})
+                .set_index(["wb_id", "sec_center_samples"])
+            )
+            self.stride_length_per_stride_ = (
+                ref_paras.stride_parameters[["start", "end", "length_m"]]
+                .rename(columns={"length_m": "stride_length_m"})
+                .copy()
+            )
             return self
 
         result_algo_list = {}
-        for (wb, data), r in wb_iterator.iterate(to_body_frame(datapoint.data_ss), ref_paras.wb_list):
+        for (wb, _), r in wb_iterator.iterate(to_body_frame(datapoint.data_ss), ref_paras.wb_list):
             r.ic_list = ref_paras.ic_list.loc[wb.id]
 
             # The WBs from all reference systems are usually already defined so that they start and end with an
