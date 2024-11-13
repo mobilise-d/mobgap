@@ -176,6 +176,7 @@ class SlZijlstra(BaseSlCalculator):
         step_length_scaling_factor_ms_ms: Final = MappingProxyType({"step_length_scaling_factor": 4.587 / 4})
         step_length_scaling_factor_ms_all: Final = MappingProxyType({"step_length_scaling_factor": 4.739 / 4})
 
+    # TODO: Double check if we should have MS_MS or MS_ALL as default
     @set_defaults(**PredefinedParameters.step_length_scaling_factor_ms_ms)
     def __init__(
         self,
