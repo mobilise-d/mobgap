@@ -1,2 +1,2 @@
-Gait Sequences
---------------
+Stride Length
+-------------
