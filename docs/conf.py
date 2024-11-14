@@ -24,6 +24,7 @@ HERE = Path(__file__)
 
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent.parent))
+sys.path.insert(0, str(HERE.parent / "_ext"))
 
 
 def convert_github_links(base_url, text):
@@ -93,6 +94,7 @@ extensions = [
     # "sphinx.ext.imgconverter",
     "sphinx_gallery.gen_gallery",
     "myst_parser",
+    "fullscreen_gallery",
 ]
 
 # Taken from sklearn config
