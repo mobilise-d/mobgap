@@ -13,7 +13,8 @@ class ValidationResultLoader:
 
     VALIDATION_REPO_DATA = "https://raw.githubusercontent.com/mobilise-d/mobgap_validation/{version}"
     HTTP_HEADERS: Final = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/91.0.4472.124 Safari/537.36"
     }
 
     CONDITION_INDEX_COLS: Final[dict[Literal["free_living", "laboratory"], list[str]]] = {
@@ -66,7 +67,7 @@ class ValidationResultLoader:
         return self.sub_folder
 
     @property
-    def downloader(self):
+    def _downloader(self) -> pooch.HTTPDownloader:
         return pooch.HTTPDownloader(headers=self.HTTP_HEADERS, progressbar=True)
 
     def load_single_results(self, algo_name: str, condition: Literal["free_living", "laboratory"]) -> pd.DataFrame:
@@ -79,11 +80,11 @@ class ValidationResultLoader:
             registry = pooch.retrieve(
                 f"{self.VALIDATION_REPO_DATA.format(version=self.version)}/results_file_registry.txt",
                 known_hash=None,
-                downloader=self.downloader,
+                downloader=self._downloader,
             )
             self.brian.load_registry(registry)
         return pd.read_csv(
             self.brian.fetch(
-                f"{self.sub_folder}/{condition}/{algo_name}/single_results.csv", downloader=self.downloader
+                f"{self.sub_folder}/{condition}/{algo_name}/single_results.csv", downloader=self._downloader
             ),
         ).set_index(self.CONDITION_INDEX_COLS[condition])
