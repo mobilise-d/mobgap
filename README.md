@@ -9,7 +9,7 @@
 > v0.7.0 has a critical performance update for the default `Impaired Walking` pipeline! 
 > We highly recommend updating! See more in the Changelog. 
 
-
+Bla change
 <p align="center">
 <img src="./docs/_static/logo/mobilise_d_and_imi.png" height="200">
 </p>
