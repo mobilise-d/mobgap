@@ -7,6 +7,7 @@ from mobgap.data_transform import (
 )
 
 
+
 def filtering_signals_100hz(
         input_altitude: np.ndarray,
         filter_type: str,
