@@ -16,7 +16,8 @@ def sl_per_datapoint_score(pipeline: SlEmulationPipeline, datapoint: BaseGaitDat
 
     # The SlEmulation pipeline calculates the values for the exact same strides that are also in the reference data.
     # This means, we can calculate errors on the stride level and on the wb/gs level.
-    ref_strides = datapoint.reference_parameters_.stride_parameters
+    ref_paras = datapoint.reference_parameters_
+    ref_strides = ref_paras.stride_parameters
     ref_strides = ref_strides[~ref_strides.length_m.isna()][["start", "end", "length_m"]].rename(
         columns={"length_m": "stride_length_m"}
     )
@@ -31,21 +32,33 @@ def sl_per_datapoint_score(pipeline: SlEmulationPipeline, datapoint: BaseGaitDat
         names=["source"],
         axis=1,
     ).swaplevel(axis=1)
-    combined_wb_level = combined_stride_level.groupby("wb_id").mean()
+
+    # For the WB level, we calculate the average stride length for the algorithm, but we take the average values
+    # provided by the reference system directly instead of recalculating them.
+    # Because we are later interested in the dependency of the error on the gait speed, we also add this value from the
+    # reference system.
+    combined_wb_level = combined_stride_level.groupby("wb_id")[[("stride_length_m", "detected")]].mean()
+    combined_wb_level[("stride_length_m", "reference")] = ref_paras.wb_list["avg_stride_length_m"]
 
     stride_level_errors = apply_transformations(combined_stride_level, _errors)
     stride_level_values_with_errors = pd.concat([stride_level_errors, combined_stride_level], axis=1)
     wb_level_errors = apply_transformations(combined_wb_level, _errors)
     wb_level_values_with_errors = pd.concat([wb_level_errors, combined_wb_level], axis=1)
 
-    stride_level_performance_metrics = stride_level_errors.mean()["stride_length_m"].add_prefix("stride__").to_dict()
-    wb_level_errors = wb_level_errors.mean()["stride_length_m"].add_prefix("wb__").to_dict()
+    stride_level_performance_metrics = (
+        stride_level_values_with_errors.mean()["stride_length_m"].add_prefix("stride__").to_dict()
+    )
+    wb_level_errors = wb_level_values_with_errors.mean()["stride_length_m"].add_prefix("wb__").to_dict()
+
+    no_agg_wb_level_values_with_errors = wb_level_values_with_errors["stride_length_m"].assign(
+        reference_ws=ref_paras.wb_list["avg_walking_speed_mps"]
+    )
 
     return {
         **stride_level_performance_metrics,
         **wb_level_errors,
         "stride_level_values_with_errors": no_agg(stride_level_values_with_errors["stride_length_m"]),
-        "wb_level_values_with_errors": no_agg(wb_level_values_with_errors["stride_length_m"]),
+        "wb_level_values_with_errors": no_agg(no_agg_wb_level_values_with_errors),
     }
 
 

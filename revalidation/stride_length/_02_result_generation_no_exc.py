@@ -188,12 +188,12 @@ pipelines = {}
 #             matlab_algo_name, base_result_folder=matlab_algo_result_path
 #         )
 #     )
-pipelines["zjilsV3__MS_ALL"] = SlEmulationPipeline(
+pipelines["SlZjilstra__MS_ALL"] = SlEmulationPipeline(
     SlZijlstra(
         **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_all
     )
 )
-pipelines["zjilsV3__MS_MS"] = SlEmulationPipeline(
+pipelines["SlZjilstra__MS_MS"] = SlEmulationPipeline(
     SlZijlstra(
         **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_ms
     )

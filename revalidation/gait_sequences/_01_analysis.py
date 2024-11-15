@@ -60,7 +60,7 @@ from mobgap.utils.misc import get_env_var
 
 local_data_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
-    if get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0)
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
     else None
 )
 loader = ValidationResultLoader(
@@ -87,14 +87,9 @@ results_long = results.reset_index().assign(
     _combined="combined",
 )
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
-
 # %%
-# Free-Living Comparison
-# ----------------------
-# We focus the comparison on the free-living data, as this is the most relevant considering our final use-case.
-# In the free-living data, there is one 2.5 hour recording per participant.
-# This means, each datapoint in the plots below and in the summary statistics represents one participant.
-#
+# Performance metrics
+# -------------------
 # For each participant, performance metrics were calculated by classifying each sample in the recording as either
 # TP, FP, TN, or FN.
 # Based on these values recall (sensitivity), precision (positive predictive value), F1 score, accuracy, specificity
@@ -103,26 +98,7 @@ cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # From this we calculate the mean and confidence interval for both systems, the bias and limits of agreement (LoA)
 # between the algorithm output and the reference data, the absolute error and the ICC.
 #
-# All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the
-# original peak detection algorithm as closely as possible.
-# The regular `new` version uses a slightly modified peak detection algorithm.
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-hue_order = ["orig", "new", "new_orig_peak"]
-
-sns.boxplot(
-    data=results_long,
-    x="algo",
-    y="f1_score",
-    hue="version",
-    hue_order=hue_order,
-)
-plt.show()
-
-# %%
+# Below the functions that calculate these metrics are defined.
 from functools import partial
 
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
@@ -161,6 +137,11 @@ custom_aggs = [
 ]
 
 format_transforms = [
+    CustomOperation(
+        identifier=None,
+        function=lambda df_: df_[("n_datapoints", "all")].astype(int),
+        column_name=("General", "n_datapoints"),
+    ),
     *(
         CustomOperation(
             identifier=None,
@@ -169,7 +150,7 @@ format_transforms = [
                 value_col=("mean", c),
                 range_col=("conf_intervals", c),
             ),
-            column_name=c,
+            column_name=("GSD", c),
         )
         for c in [
             "recall",
@@ -177,6 +158,19 @@ format_transforms = [
             "f1_score",
             "accuracy",
             "specificity",
+        ]
+    ),
+    *(
+        CustomOperation(
+            identifier=None,
+            function=partial(
+                F.value_with_range,
+                value_col=("mean", c),
+                range_col=("conf_intervals", c),
+            ),
+            column_name=("GS duration", c),
+        )
+        for c in [
             "reference_gs_duration_s",
             "detected_gs_duration_s",
             "gs_absolute_duration_error_s",
@@ -189,7 +183,7 @@ format_transforms = [
             value_col=("mean", "gs_duration_error_s"),
             range_col=("loa", "gs_duration_error_s"),
         ),
-        column_name="gs_duration_error_s",
+        column_name=("GS duration", "gs_duration_error_s"),
     ),
     CustomOperation(
         identifier=None,
@@ -198,14 +192,65 @@ format_transforms = [
             value_col=("icc", "gs_duration_s"),
             range_col=("icc_ci", "gs_duration_s"),
         ),
-        column_name="icc",
+        column_name=("GS duration", "icc"),
     ),
 ]
 
-perf_metrics_all = results.groupby(["algo", "version"]).apply(
-    apply_aggregations, custom_aggs
+final_names = {
+    "n_datapoints": "# recordings",
+    "recall": "Recall",
+    "precision": "Precision",
+    "f1_score": "F1 Score",
+    "accuracy": "Accuracy",
+    "specificity": "Specificity",
+    "reference_gs_duration_s": "INDIP mean and CI [s]",
+    "detected_gs_duration_s": "WD mean and CI [s]",
+    "gs_duration_error_s": "Bias and LoA [s]",
+    "gs_absolute_duration_error_s": "Abs. Error [s]",
+    "icc": "ICC",
+}
+
+
+def format_results(df: pd.DataFrame) -> pd.DataFrame:
+    return (
+        df.pipe(apply_transformations, format_transforms)
+        .rename(columns=final_names)
+        .loc[:, pd.IndexSlice[:, list(final_names.values())]]
+    )
+
+
+# %%
+# Free-Living Comparison
+# ----------------------
+# We focus the comparison on the free-living data, as this is the most relevant considering our final use-case.
+# In the free-living data, there is one 2.5 hour recording per participant.
+# This means, each datapoint in the plots below and in the summary statistics represents one participant.
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the
+# original peak detection algorithm as closely as possible.
+# The regular `new` version uses a slightly modified peak detection algorithm.
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+hue_order = ["orig", "new", "new_orig_peak"]
+
+sns.boxplot(
+    data=results_long,
+    x="algo",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
 )
-perf_metrics_all.pipe(apply_transformations, format_transforms)
+plt.show()
+
+perf_metrics_all = (
+    results.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs)
+    .pipe(format_results)
+)
+perf_metrics_all
 
 # %%
 # Per Cohort
@@ -219,7 +264,7 @@ plt.show()
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs)
-    .pipe(apply_transformations, format_transforms)
+    .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort
