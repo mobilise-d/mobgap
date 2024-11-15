@@ -126,7 +126,12 @@ plt.show()
 from functools import partial
 
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
-from mobgap.utils.df_operations import CustomOperation, apply_aggregations
+from mobgap.utils.df_operations import (
+    CustomOperation,
+    apply_aggregations,
+    apply_transformations,
+)
+from mobgap.utils.tables import FormatTransformer as F
 
 custom_aggs = [
     CustomOperation(
@@ -155,10 +160,52 @@ custom_aggs = [
     ),
 ]
 
+format_transforms = [
+    *(
+        CustomOperation(
+            identifier=None,
+            function=partial(
+                F.value_with_range,
+                value_col=("mean", c),
+                range_col=("conf_intervals", c),
+            ),
+            column_name=c,
+        )
+        for c in [
+            "recall",
+            "precision",
+            "f1_score",
+            "accuracy",
+            "specificity",
+            "reference_gs_duration_s",
+            "detected_gs_duration_s",
+            "gs_absolute_duration_error_s",
+        ]
+    ),
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            F.value_with_range,
+            value_col=("mean", "gs_duration_error_s"),
+            range_col=("loa", "gs_duration_error_s"),
+        ),
+        column_name="gs_duration_error_s",
+    ),
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            F.value_with_range,
+            value_col=("icc", "gs_duration_s"),
+            range_col=("icc_ci", "gs_duration_s"),
+        ),
+        column_name="icc",
+    ),
+]
+
 perf_metrics_all = results.groupby(["algo", "version"]).apply(
     apply_aggregations, custom_aggs
 )
-perf_metrics_all.T
+perf_metrics_all.pipe(apply_transformations, format_transforms)
 
 # %%
 # Per Cohort
@@ -172,10 +219,10 @@ plt.show()
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs)
-    .swaplevel(axis=1)
+    .pipe(apply_transformations, format_transforms)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort.T
+perf_metrics_per_cohort
 
 # %%
 # Per relevant cohort
@@ -214,7 +261,7 @@ plt.show()
 # %%
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True).T
+].reset_index("algo", drop=True)
 
 # %%
 high_impairment_algo = "GsdIonescu"
@@ -246,4 +293,4 @@ plt.show()
 # %%
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True).T
+].reset_index("algo", drop=True)

@@ -387,6 +387,7 @@ def apply_transformations(  # noqa: C901, PLR0912
             "This is likely due to an unexpected return type of a custom function."
             "Please ensure that the return type is a pandas Series for all custom functions."
         ) from e
+    column_names = [col_name if isinstance(col_name, tuple) else (col_name,) for col_name in column_names]
     try:
         transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
     except ValueError as e:
