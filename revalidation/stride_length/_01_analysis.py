@@ -211,12 +211,9 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-sns.boxplot(
-    data=results,
-    x="algo_with_version",
-    y="wb__abs_error",
-)
-plt.show()
+fig, ax = plt.subplots()
+sns.boxplot(data=results, x="algo_with_version", y="wb__abs_error", ax=ax)
+fig.show()
 
 perf_metrics_all = (
     results.groupby(["algo", "version"])
@@ -229,14 +226,16 @@ perf_metrics_all
 # Per Cohort
 # ~~~~~~~~~~
 # The results below represent the average performance across all participants within a cohort.
+fig, ax = plt.subplots()
 sns.boxplot(
     data=results,
     x="cohort",
     y="wb__abs_error",
     hue="algo_with_version",
     order=cohort_order,
+    ax=ax,
 )
-plt.show()
+fig.show()
 perf_metrics_cohort = (
     results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)

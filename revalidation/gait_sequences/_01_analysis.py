@@ -236,14 +236,16 @@ import seaborn as sns
 
 hue_order = ["orig", "new", "new_orig_peak"]
 
+fig, ax = plt.subplots()
 sns.boxplot(
     data=results_long,
     x="algo",
     y="f1_score",
     hue="version",
     hue_order=hue_order,
+    ax=ax,
 )
-plt.show()
+fig.show()
 
 perf_metrics_all = (
     results.groupby(["algo", "version"])
@@ -256,10 +258,11 @@ perf_metrics_all
 # Per Cohort
 # ~~~~~~~~~~
 # While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
+fig, ax = plt.subplots()
 sns.boxplot(
-    data=results_long, x="cohort", y="f1_score", hue="algo_with_version"
+    data=results_long, x="cohort", y="f1_score", hue="algo_with_version", ax=ax
 )
-plt.show()
+fig.show()
 
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
@@ -285,12 +288,14 @@ low_impairment_results = results_long[
     results_long["cohort"].isin(low_impairment_cohorts)
 ].query("algo == @low_impairment_algo")
 
+fig, ax = plt.subplots()
 sns.boxplot(
     data=low_impairment_results,
     x="cohort",
     y="f1_score",
     hue="version",
     hue_order=hue_order,
+    ax=ax,
 )
 sns.boxplot(
     data=low_impairment_results,
@@ -299,9 +304,10 @@ sns.boxplot(
     hue="version",
     hue_order=hue_order,
     legend=False,
+    ax=ax,
 )
-plt.title(f"Low Impairment Cohorts ({low_impairment_algo})")
-plt.show()
+fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.show()
 
 # %%
 perf_metrics_per_cohort.loc[
@@ -317,12 +323,15 @@ high_impairment_results = results_long[
 ].query("algo == @high_impairment_algo")
 
 hue_order = ["orig", "new"]
+
+fig, ax = plt.subplots()
 sns.boxplot(
     data=high_impairment_results,
     x="cohort",
     y="f1_score",
     hue="version",
     hue_order=hue_order,
+    ax=ax,
 )
 sns.boxplot(
     data=high_impairment_results,
@@ -331,9 +340,10 @@ sns.boxplot(
     hue="version",
     hue_order=hue_order,
     legend=False,
+    ax=ax,
 )
-plt.title(f"High Impairment Cohorts ({high_impairment_algo})")
-plt.show()
+fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
+fig.show()
 
 # %%
 perf_metrics_per_cohort.loc[
