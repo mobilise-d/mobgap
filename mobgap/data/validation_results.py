@@ -14,7 +14,7 @@ class ValidationResultLoader:
     VALIDATION_REPO_DATA = "https://raw.githubusercontent.com/mobilise-d/mobgap_validation/{version}"
     HTTP_HEADERS: Final = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/91.0.4472.124 Safari/537.36"
+        "Chrome/91.0.4472.124 Safari/537.36"
     }
 
     CONDITION_INDEX_COLS: Final[dict[Literal["free_living", "laboratory"], list[str]]] = {
