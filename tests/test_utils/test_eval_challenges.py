@@ -15,10 +15,7 @@ def dummy_scoring(x, y):
     return {"bla": 0}
 
 
-# TODO: Move to utils test file
-
-
-class TestMetaGsdEvaluationCV(TestAlgorithmMixin):
+class TestMetaEvaluationCV(TestAlgorithmMixin):
     __test__ = True
 
     ALGORITHM_CLASS = EvaluationCV
@@ -31,7 +28,7 @@ class TestMetaGsdEvaluationCV(TestAlgorithmMixin):
         )
 
 
-class TestMetaGsdEvaluation(TestAlgorithmMixin):
+class TestMetaEvaluation(TestAlgorithmMixin):
     __test__ = True
 
     ALGORITHM_CLASS = Evaluation

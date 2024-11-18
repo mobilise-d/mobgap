@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from mobgap.utils.misc import get_env_var
+
 HERE = Path(__file__).parent
 
 
@@ -42,6 +44,17 @@ def task_update_example_data(raise_if_changes=False):
 
     if raise_if_changes and old_registry != new_registry:
         raise ValueError("The registry has changed. Please run `poe update_example_data`.")
+
+
+def task_update_validation_results():
+    import pooch
+
+    validation_data_repo = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+
+    registry_file_path = validation_data_repo / "results_file_registry.txt"
+    validation_results_folder = validation_data_repo / "results"
+
+    pooch.make_registry(str(validation_results_folder), str(registry_file_path))
 
 
 def task_docs(clean=False, builder="html"):

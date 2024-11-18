@@ -871,6 +871,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
         # parameters are also in seconds not in samples.
         if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
+            warnings.warn("Assuming stride parameters are provided in seconds and not in samples.", stacklevel=2)
             stride_paras[["start", "end"]] = (
                 (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
             )

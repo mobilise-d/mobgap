@@ -70,11 +70,13 @@ class ValidationResultLoader:
     def _downloader(self) -> pooch.HTTPDownloader:
         return pooch.HTTPDownloader(headers=self.HTTP_HEADERS, progressbar=True)
 
-    def load_single_results(self, algo_name: str, condition: Literal["free_living", "laboratory"]) -> pd.DataFrame:
-        """Load the results for a specific condition."""
+    def load_single_csv_file(
+        self, algo_name: str, condition: Literal["free_living", "laboratory"], file_name: str
+    ) -> pd.DataFrame:
+        """Load any of the results files by name."""
         if self.result_path is not None:
             return pd.read_csv(
-                self._base_path / condition / algo_name / "single_results.csv",
+                self._base_path / condition / algo_name / file_name,
             ).set_index(self.CONDITION_INDEX_COLS[condition])
         if not self.brian.registry:
             registry = pooch.retrieve(
@@ -84,7 +86,13 @@ class ValidationResultLoader:
             )
             self.brian.load_registry(registry)
         return pd.read_csv(
-            self.brian.fetch(
-                f"{self.sub_folder}/{condition}/{algo_name}/single_results.csv", downloader=self._downloader
-            ),
+            self.brian.fetch(f"{self.sub_folder}/{condition}/{algo_name}/{file_name}", downloader=self._downloader),
         ).set_index(self.CONDITION_INDEX_COLS[condition])
+
+    def load_single_results(self, algo_name: str, condition: Literal["free_living", "laboratory"]) -> pd.DataFrame:
+        """Load the results for a specific condition."""
+        return self.load_single_csv_file(algo_name, condition, "single_results.csv")
+
+    def load_agg_results(self, algo_name: str, condition: Literal["free_living", "laboratory"]) -> pd.DataFrame:
+        """Load the aggregated results for a specific condition."""
+        return self.load_single_csv_file(algo_name, condition, "aggregated_results.csv")

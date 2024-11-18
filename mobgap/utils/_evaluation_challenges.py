@@ -476,9 +476,11 @@ def save_evaluation_results(
 
     # Save aggregated results
     # Transposing for better readability
-    eval_obj.get_aggregated_results_as_df().drop(columns="runtime_s").T.to_csv(folder / "aggregated_results.csv")
+    eval_obj.get_aggregated_results_as_df().drop(columns="runtime_s", errors="ignore").T.to_csv(
+        folder / "aggregated_results.csv"
+    )
     # Save single results
-    eval_obj.get_single_results_as_df().drop(columns="runtime_s").to_csv(folder / "single_results.csv")
+    eval_obj.get_single_results_as_df().drop(columns="runtime_s", errors="ignore").to_csv(folder / "single_results.csv")
 
     # Save timings
     if include_non_stable_results:
