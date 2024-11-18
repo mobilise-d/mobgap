@@ -354,7 +354,7 @@ for k, v in results_free_living.items():
 # ~~~~~~~~~~
 # Now, we repeat the evaluation for the Laboratory part of the dataset.
 with Parallel(n_jobs=n_jobs) as parallel:
-    results_free_laboratory: dict[str, Evaluation[SlEmulationPipeline]] = dict(
+    results_laboratory: dict[str, Evaluation[SlEmulationPipeline]] = dict(
         parallel(
             delayed(run_evaluation)(name, pipeline, datasets_laboratory)
             for name, pipeline in pipelines.items()
@@ -363,11 +363,11 @@ with Parallel(n_jobs=n_jobs) as parallel:
 
 # %%
 # We create a quick plot for debugging.
-eval_debug_plot(results_free_laboratory)
+eval_debug_plot(results_laboratory)
 
 # %%
 # Then we save the results to disk.
-for k, v in results_free_laboratory.items():
+for k, v in results_laboratory.items():
     save_evaluation_results(
         k,
         v,

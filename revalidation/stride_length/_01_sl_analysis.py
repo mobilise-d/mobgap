@@ -18,7 +18,7 @@ Note, that at the time of writing, comparison with the original Matlab results i
 were not run on the same version of the TVS dataset.
 
 .. note:: If you are interested in how these results are calculated, head over to the
-    :ref:`processing page <sl_val_results>`.
+    :ref:`processing page <sl_val_gen>`.
 
 """
 

@@ -16,7 +16,7 @@ We look into the actual performance of the algorithms compared to the reference 
 the performance of the original matlab algorithm.
 
 .. note:: If you are interested in how these results are calculated, head over to the
-   :ref:`processing page <gsd_val_results>`.
+   :ref:`processing page <gsd_val_gen>`.
 
 We focus on the `single_results` (aka the performance per trail) and will aggregate it over multiple levels.
 
