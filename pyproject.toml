@@ -78,5 +78,6 @@ conf_jupyter = { cmd = "python -m ipykernel install --user --name mobgap", help 
 remove_jupyter = { cmd = "jupyter kernelspec uninstall mobgap", help = "Remove the project specific jupyter kernel."}
 update_example_data = { script="_tasks:task_update_example_data", help = "Update the example data registry."}
 _check_update_example_data = { script="_tasks:task_update_example_data(raise_if_changes=True)", help = "Update the example data registry."}
+update_validation_results = {script = "_tasks:task_update_validation_results()", help = "Update the validation results."}
 
 
