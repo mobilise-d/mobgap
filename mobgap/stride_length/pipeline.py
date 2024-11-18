@@ -1,4 +1,5 @@
 """Pipeline for running a stride length algorithm on a Gait Dataset."""
+
 import warnings
 
 import pandas as pd
