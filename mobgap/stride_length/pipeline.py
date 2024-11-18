@@ -1,4 +1,4 @@
-import warnings
+import warnings  # noqa: D100
 from typing import Self
 
 import pandas as pd
@@ -14,12 +14,50 @@ from mobgap.utils.interpolation import naive_sec_paras_to_regions
 
 
 class SlEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
-    """"""
+    """Run a stride length algorithm in isolation per gait sequence/WB on a Gait Dataset.
+
+    This wraps any stride length algorithm and allows running the algorithm on a single datapoint of a Gait Dataset.
+    The pipeline uses the reference data for all required inputs to the algorithm.
+
+    The algorithm will be executed once for each walking bout in the reference data.
+    The algorithm will be provided with the initial contacts from the reference data as direct input.
+
+    Parameters
+    ----------
+    algo
+        The stride length algorithm that should be run/evaluated.
+
+    Attributes
+    ----------
+    stride_length_per_sec_
+        Dataframe containing the stride length for each second of each WB.
+        This is the combined output of all algorithm results run on each WB.
+    stride_length_per_stride_
+        The interpolated stride length for each stride of each WB.
+        The reference system is used to define the strides.
+        Only strides that are considered valid by the reference system (stride length not NaN) are considered.
+        This means that this output can be compared directly to the reference data on a stride level.
+    per_wb_algo_
+        A dictionary containing the algorithm instance for each WB.
+        Each algorithm instance contains the results for the respective WB.
+        This might be used for further analysis or debugging.
+
+    Notes
+    -----
+    All emulation pipelines pass available metadata of the dataset to the algorithm.
+    This includes the recording metadata (``recording_metadata``) and the participant metadata
+    (``participant_metadata``), which are passed as keyword arguments to the ``detect`` method of the algorithm.
+    In addition, we pass the group label of the datapoint as ``dp_group`` to the algorithm.
+    This is usually not required by algorithms (because this would mean that the algorithm changes behaviour based on
+    the exact recording provided).
+    However, it can be helpful when working with "dummy" algorithms, that simply return some fixed pre-defined results
+    or to be used as cache key, when the algorithm has internal caching mechanisms.
+
+    """
 
     algo: OptimizableParameter[BaseSlCalculator]
 
     stride_length_per_sec_: pd.DataFrame
-    stride_length_per_stride_unfiltered_: pd.DataFrame
     stride_length_per_stride_: pd.DataFrame
     per_wb_algo_: dict[str, BaseSlCalculator]
 
@@ -27,6 +65,19 @@ class SlEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.algo = algo
 
     def run(self, datapoint: BaseGaitDatasetWithReference) -> Self:
+        """Run the stride length algorithm on a single datapoint.
+
+        Parameters
+        ----------
+        datapoint
+            A single datapoint of a Gait Dataset with reference information.
+
+        Returns
+        -------
+        self
+            The pipeline instance with all result attributes populated.
+
+        """
         self.datapoint = datapoint
         sampling_rate_hz = datapoint.sampling_rate_hz
 

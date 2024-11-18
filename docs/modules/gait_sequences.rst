@@ -46,7 +46,7 @@ Docu-helper
 -----------
 
 .. autosummary::
-   :toctree: generated/gsd
+   :toctree: generated/gait_sequences
    :template: func.rst
 
     base_gsd_docfiller
@@ -76,9 +76,13 @@ These scores are expected to be used in combination with :class:`~mobgap.utils.e
 .. currentmodule:: mobgap.gait_sequences.evaluation
 
 .. autosummary::
+   :toctree: generated/stride_length
+
+    gsd_score
+
+.. autosummary::
    :toctree: generated/gait_sequences
    :template: func.rst
 
-    gsd_score
     gsd_per_datapoint_score
     gsd_final_agg
