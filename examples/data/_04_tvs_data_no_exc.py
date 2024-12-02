@@ -63,11 +63,6 @@ from pathlib import Path
 
 from mobgap.utils.misc import get_env_var
 
-if "MOBGAP_TVS_DATASET_PATH" not in os.environ:
-    raise ValueError(
-        "Please set the environmental variable MOBGAP_TVS_DATASET_PATH to the path of the TVS dataset."
-    )
-
 dataset_path = Path(get_env_var("MOBGAP_TVS_DATASET_PATH").strip('"'))
 
 # %%
@@ -84,10 +79,19 @@ dataset_path = Path(get_env_var("MOBGAP_TVS_DATASET_PATH").strip('"'))
 #           (and have enough disk space available), it is highly recommended to use a diskcache by passing a joblib
 #           Memory instance to the ``memory`` parameter of the dataset class.
 #
-from mobgap.data import TVSLabDataset
+from mobgap.data import TVSLabDataset, TVSFreeLivingDataset
 
-labdata = TVSLabDataset(dataset_path, reference_system="Stereophoto")
-labdata
+labdata = TVSFreeLivingDataset(dataset_path, reference_system="INDIP", missing_reference_error_type="skip")
+duplicates = {}
+for dp in labdata:
+    ref = dp.reference_parameters_.ic_list
+    # We want to find cases, where we have duplicated ICs in the ic list
+    is_duplicated = ref.duplicated(subset=["ic"], keep=False)
+    if is_duplicated.any():
+        duplicates[dp.group_label] = ref[is_duplicated]
+
+        print(f"Found duplicated ICs in {dp.group_label}")
+        print(ref[is_duplicated])
 
 # %%
 # Selecting data
