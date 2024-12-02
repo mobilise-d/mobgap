@@ -29,6 +29,7 @@ The raw per second stride length and all performance metrics are saved to disk.
 #
 # Note, that this is not the most efficient way to do this, as we need to open the file repeatedly and also reload the
 # data from the matlab files, even though the dummy algorithm does not need it.
+import warnings
 from pathlib import Path
 from typing import Any, Literal, Optional
 
@@ -96,7 +97,7 @@ class DummySlAlgo(BaseSlCalculator):
             Literal["free_living", "laboratory"]
         ] = None,
         dp_group: Optional[tuple[str, ...]] = None,
-        current_gs: Region = None,
+        current_gs_absolute: Optional[Region] = None,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """ "Run" the algorithm."""
@@ -104,7 +105,9 @@ class DummySlAlgo(BaseSlCalculator):
             measurement_condition is not None
         ), "measurement_condition must be provided"
         assert dp_group is not None, "dp_group must be provided"
-        assert current_gs is not None, "current_gs must be provided"
+        assert (
+            current_gs_absolute is not None
+        ), "current_gs_start_absolute must be provided"
 
         cached_load_old_sl_results = hybrid_cache(lru_cache_maxsize=1)(
             load_old_sl_results
@@ -117,38 +120,63 @@ class DummySlAlgo(BaseSlCalculator):
         )
 
         unique_label = dp_group[:-2]
-        gs_start = current_gs.start
-        duration = len(data)
+        duration = data.shape[0] / sampling_rate_hz
         sec_centers = np.arange(0, duration) + 0.5
 
         try:
-            # We need to fuzzy search for the start, as rounding was done differently in the old pipeline.
-            sl_results = (
-                all_results.loc[unique_label]
-                .query(
-                    "start == @gs_start | start == @gs_start + 1 | start == @gs_start - 1"
-                )
-                .copy()
+            recording_results = all_results.loc[unique_label]
+        except KeyError:
+            warnings.warn(
+                f"No result found for recording {unique_label}. "
+                "We will replace results with NaNs.",
+                RuntimeWarning,
             )
-            assert len(sl_results) == 1, sl_results
-            assert sl_results["end"] == current_gs.end, sl_results
-            sl_per_sec = sl_results["sl_per_sec"].iloc[0]
-            mean_sl = sl_results["mean_sl"].iloc[0]
-        except AssertionError:
-            print(dp_group, current_gs)
-            # TODO: Decide what to do in this case!
-            # Maybe find a way to separate the cases where the data is missing and where the algo itself returned nan
-            sl_per_sec = np.full(len(sec_centers), np.nan)
-            mean_sl = np.nan
-        except:
-            # Maybe find a way to separate the cases where the data is missing and where the algo itself returned nan
-            sl_per_sec = np.full(len(sec_centers), np.nan)
-            mean_sl = np.nan
+            sl_per_sec = np.full_like(sec_centers, np.nan)
+            index = pd.Index(
+                as_samples(sec_centers, sampling_rate_hz),
+                name="sec_center_samples",
+            )
+            self.stride_length_per_sec_ = pd.DataFrame(
+                {"stride_length_m": sl_per_sec}, index=index
+            )
+            return self
 
-        assert len(sl_per_sec) == len(sec_centers), (
-            len(sl_per_sec),
-            len(sec_centers),
-        )
+        gs_start = current_gs_absolute.start
+        gs_end = current_gs_absolute.end
+
+        # We need to fuzzy search for the start, as rounding was done differently in the old pipeline.
+        sl_results = recording_results[
+            recording_results.start.isin([gs_start, gs_start + 1, gs_start - 1])
+        ]
+        if len(sl_results) == 0:
+            raise ValueError(
+                f"No results found for {dp_group}, {current_gs_absolute}"
+            )
+        if len(sl_results) > 1:
+            raise ValueError(
+                f"Multiple results found for {dp_group}, {current_gs_absolute}"
+            )
+        if sl_results.iloc[0].end not in [gs_end, gs_end - 1, gs_end + 1]:
+            raise ValueError(
+                f"End does not match for {dp_group}, {current_gs_absolute}"
+            )
+        sl_per_sec = sl_results["sl_per_sec"].iloc[0]
+
+        # The number of second in the old algorithms is sometimes different then for the new algorithms.
+        # In the new pipeline, we extrapolate slightly to ensure that we cover the full duration of the GS.
+        # In the old pipeline, only "full" seconds were used.
+        # So the old pipeline result could be 1 value shorter than the new pipeline result.
+        # In this case we replicate the last value.
+        # This is similar to what we do in the new pipeline.
+
+        if len(sl_per_sec) == len(sec_centers) - 1:
+            sl_per_sec = np.concatenate((sl_per_sec, [sl_per_sec[-1]]))
+
+        if len(sl_per_sec) != len(sec_centers):
+            raise ValueError(
+                f"Length mismatch between stride length per second and sec_centers: {len(sl_per_sec)} != {len(sec_centers)} "
+                "We assume that the results of the old pipeline either have the same number of seconds, or 1 value less."
+            )
 
         index = pd.Index(
             as_samples(sec_centers, sampling_rate_hz), name="sec_center_samples"
@@ -156,7 +184,6 @@ class DummySlAlgo(BaseSlCalculator):
         self.stride_length_per_sec_ = pd.DataFrame(
             {"stride_length_m": sl_per_sec}, index=index
         )
-        self.stride_length_mean_ = mean_sl
         return self
 
 
@@ -180,14 +207,15 @@ matlab_algo_result_path = (
 )
 
 pipelines = {}
-# for matlab_algo_name in [
-#     "zjilsV3__MS_ALL",
-# ]:
-#     pipelines[f"matlab_{matlab_algo_name}"] = SlEmulationPipeline(
-#         DummySlAlgo(
-#             matlab_algo_name, base_result_folder=matlab_algo_result_path
-#         )
-#     )
+for matlab_algo_name in [
+    "zjilsV3__MS_ALL",
+    "zjilsV3__MS_MS",
+]:
+    pipelines[f"matlab_{matlab_algo_name}"] = SlEmulationPipeline(
+        DummySlAlgo(
+            matlab_algo_name, base_result_folder=matlab_algo_result_path
+        )
+    )
 pipelines["SlZjilstra__MS_ALL"] = SlEmulationPipeline(
     SlZijlstra(
         **SlZijlstra.PredefinedParameters.step_length_scaling_factor_ms_all

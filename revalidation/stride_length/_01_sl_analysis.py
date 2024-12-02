@@ -29,8 +29,10 @@ were not run on the same version of the TVS dataset.
 # analysis on the MsProject dataset.
 
 algorithms = {
-    "SlZjilstra__MS_ALL": ("SlZjilstra", "new_ms_all"),
-    "SlZjilstra__MS_MS": ("SlZjilstra", "new_ms_ms"),
+    "SlZjilstra__MS_ALL": ("SlZjilstra - MS-all", "new"),
+    "SlZjilstra__MS_MS": ("SlZjilstra - MS-MS", "new"),
+    "matlab_zjilsV3__MS_ALL": ("SlZjilstra - MS-all", "old"),
+    "matlab_zjilsV3__MS_MS": ("SlZjilstra - MS-MS", "old"),
 }
 
 # %%
@@ -83,12 +85,30 @@ free_living_index_cols = [
     "recording_name_pretty",
 ]
 
-results = format_loaded_results(
+free_living_results = format_loaded_results(
     {
         v: loader.load_single_results(k, "free_living")
         for k, v in algorithms.items()
     },
     free_living_index_cols,
+)
+
+lab_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+lab_results = format_loaded_results(
+    {
+        v: loader.load_single_results(k, "laboratory")
+        for k, v in algorithms.items()
+    },
+    lab_index_cols,
 )
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
@@ -116,6 +136,11 @@ custom_aggs = [
         function=A.n_datapoints,
         column_name=[("n_datapoints", "all")],
     ),
+    CustomOperation(
+        identifier=None,
+        function=lambda df_: df_["wb__detected"].isna().sum(),
+        column_name=[("n_nan_detected", "all")],
+    ),
     ("wb__detected", ["mean", A.conf_intervals]),
     ("wb__reference", ["mean", A.conf_intervals]),
     ("wb__error", ["mean", A.loa]),
@@ -129,6 +154,8 @@ custom_aggs = [
             reference_col_name="wb__reference",
             detected_col_name="wb__detected",
             icc_type="icc2",
+            # For the lab data, some trials have no results for the old algorithms.
+            nan_policy="omit",
         ),
         column_name=[("icc", "wb_level"), ("icc_ci", "wb_level")],
     ),
@@ -139,6 +166,11 @@ format_transforms = [
         identifier=None,
         function=lambda df_: df_[("n_datapoints", "all")].astype(int),
         column_name="n_datapoints",
+    ),
+    CustomOperation(
+        identifier=None,
+        function=lambda df_: df_[("n_nan_detected", "all")].astype(int),
+        column_name="n_nan_detected",
     ),
     *(
         CustomOperation(
@@ -188,6 +220,7 @@ final_names = {
     "wb__rel_error": "Rel. Error [%]",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
+    "n_nan_detected": "# Failed WBs",
 }
 
 
@@ -212,11 +245,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 fig, ax = plt.subplots()
-sns.boxplot(data=results, x="algo_with_version", y="wb__abs_error", ax=ax)
+sns.boxplot(
+    data=free_living_results, x="algo_with_version", y="wb__abs_error", ax=ax
+)
 fig.show()
 
 perf_metrics_all = (
-    results.groupby(["algo", "version"])
+    free_living_results.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
 )
@@ -228,7 +263,7 @@ perf_metrics_all
 # The results below represent the average performance across all participants within a cohort.
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=results,
+    data=free_living_results,
     x="cohort",
     y="wb__abs_error",
     hue="algo_with_version",
@@ -237,7 +272,7 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    results.groupby(["cohort", "algo", "version"])
+    free_living_results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
     .loc[cohort_order]
@@ -266,8 +301,15 @@ wb_level_results = format_loaded_results(
     free_living_index_cols,
 )
 
-fig, axs = plt.subplots(2, 1, sharex=True, sharey=True, figsize=(12, 6))
-for ax, algo in zip(axs, wb_level_results.algo_with_version.unique()):
+algo_names = wb_level_results.algo_with_version.unique()
+fig, axs = plt.subplots(
+    len(algo_names),
+    1,
+    sharex=True,
+    sharey=True,
+    figsize=(12, 3 * len(algo_names)),
+)
+for ax, algo in zip(axs, algo_names):
     data = wb_level_results.query("algo_with_version == @algo").copy()
 
     # Create scatter plot
@@ -307,3 +349,45 @@ for ax, algo in zip(axs, wb_level_results.algo_with_version.unique()):
 
 fig.tight_layout()
 fig.show()
+
+# %%
+# Laboratory Comparison
+# ----------------------
+# Every datapoint below is one trial of a test.
+# Note, that each datapoint is weighted equally in the calculation of the performance metrics.
+# This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context
+# can vary significantly.
+# For a full picture, different groups of tests should be analyzed separately.
+# The approach below should still provide a good overview to compare the algorithms.
+fig, ax = plt.subplots()
+sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
+fig.show()
+
+perf_metrics_all = (
+    lab_results.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+)
+perf_metrics_all
+
+# %%
+# Per Cohort
+# ~~~~~~~~~~
+# The results below represent the average performance across all trails of all participants within a cohort.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results,
+    x="cohort",
+    y="wb__abs_error",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+perf_metrics_cohort = (
+    lab_results.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+    .loc[cohort_order]
+)
+perf_metrics_cohort
