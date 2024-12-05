@@ -72,7 +72,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "sl", result_path=local_data_path, version="sl_new_old_results"
+    "sl", result_path=local_data_path, version="main"
 )
 
 
