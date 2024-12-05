@@ -87,10 +87,11 @@ def get_info(path: Path) -> InfoDict:
     path = path.resolve()
     cohort = path.parent.parent.name
     condition = path.parent.name.lower().replace("-", "_")
-    trained_dataset = path.parent.parent.parent.name.split("_", 1)[1]
-    trained_on = path.parent.parent.parent.parent.name.split("_", 1)[1]
-    model_name = f"{DATASET_MAPPING.get(trained_dataset, trained_dataset)}_{trained_on}"
-    participant_id, *_, algo_name = path.name.split("_", 2)
+    trained_on, participant_id, *_, algo_name = path.name.split("_", 3)
+    # The data that we rerun all were trained on the MS_Project dataset.
+    # So we just hardcode this here.
+    trained_dataset = "MS_Project"
+    model_name = f"{DATASET_MAPPING.get(trained_dataset, trained_dataset)}_{trained_on.upper()}"
     algo_name = algo_name.split("-SL_")[1].rsplit("_", 1)[0]
     new_participant_id = id_mapping[participant_id]
     new_algo_name = f"{ALGO_NAME_MAPPING.get(algo_name, algo_name)}__{model_name}"

@@ -8,7 +8,7 @@ from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts import refine_gs
-from mobgap.pipeline import GsIterator
+from mobgap.pipeline import GsIterator, Region
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.utils.conversions import to_body_frame
 from mobgap.utils.df_operations import create_multi_groupby
@@ -49,9 +49,11 @@ class SlEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
     All emulation pipelines pass available metadata of the dataset to the algorithm.
     This includes the recording metadata (``recording_metadata``) and the participant metadata
     (``participant_metadata``), which are passed as keyword arguments to the ``detect`` method of the algorithm.
-    In addition, we pass the group label of the datapoint as ``dp_group`` to the algorithm.
-    This is usually not required by algorithms (because this would mean that the algorithm changes behaviour based on
-    the exact recording provided).
+    In addition, we pass the group label of the datapoint as ``dp_group`` and the ``current_gs_absolute`` that
+    provides the actual start and end of a GS relative to the start of the recording (instead of relative to surrounding
+    region of interest).
+    These two pieces of information are usually not required by algorithms (because this would mean that the algorithm
+    changes behaviour based on the exact recording provided, or where in the data a WB occurred).
     However, it can be helpful when working with "dummy" algorithms, that simply return some fixed pre-defined results
     or to be used as cache key, when the algorithm has internal caching mechanisms.
 
@@ -121,7 +123,16 @@ class SlEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             refined_wb_list, refined_ic_list = refine_gs(r.ic_list)
 
             with wb_iterator.subregion(refined_wb_list) as ((refined_wb, refined_gs_data), rr):
-                algo = self.algo.clone().calculate(refined_gs_data, refined_ic_list, **kwargs, current_gs=refined_wb)
+                # Not quite happy, that we have to pass the current-gs offset here, but I don't see an easy way to
+                # still make this pipeline universally usable and support our revalidation dummy algos.
+                current_wb_absolute = Region(wb.id, wb.start + refined_wb.start, wb.end + refined_wb.start)
+                algo = self.algo.clone().calculate(
+                    refined_gs_data,
+                    refined_ic_list,
+                    **kwargs,
+                    current_gs=refined_wb,
+                    current_gs_absolute=current_wb_absolute,
+                )
                 result_algo_list[wb.id] = algo
                 rr.stride_length_per_sec = algo.stride_length_per_sec_
 

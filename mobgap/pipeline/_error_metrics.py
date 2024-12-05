@@ -202,7 +202,12 @@ def get_default_error_transformations() -> list[tuple[str, list[callable]]]:
 
 
 def icc(
-    df: pd.DataFrame, reference_col_name: str = "reference", detected_col_name: str = "detected", icc_type: str = "icc2"
+    df: pd.DataFrame,
+    reference_col_name: str = "reference",
+    detected_col_name: str = "detected",
+    *,
+    icc_type: str = "icc2",
+    nan_policy: Literal["raise", "omit"] = "raise",
 ) -> tuple[float, tuple[float, float]]:
     """
     Calculate the intraclass correlation coefficient (ICC) for the detected and reference values.
@@ -211,14 +216,17 @@ def icc(
     ----------
     df
         The DataFrame containing the reference and detected values.
-    icc_type
-        The type of the ICC. Can be one of "icc1", "icc2", "icc3", "icc1k", "icc2k", "icc3k".
-        See the documentation of the `pingouin.intraclass_corr` function for more information.
-        Default is "icc2", often also referred to as ICC(2,1).
     reference_col_name
         The identifier of the column containing the reference values.
     detected_col_name
         The identifier of the column containing the detected values.
+    icc_type
+        The type of the ICC. Can be one of "icc1", "icc2", "icc3", "icc1k", "icc2k", "icc3k".
+        See the documentation of the `pingouin.intraclass_corr` function for more information.
+        Default is "icc2", often also referred to as ICC(2,1).
+    nan_policy
+        How to handle NaN values. Can be one of "raise" (error is raised), or "omit" (NaN values are ignored).
+        Default is "raise".
 
     Notes
     -----
@@ -244,7 +252,7 @@ def icc(
         .reset_index()
     )
     icc, ci95 = (
-        intraclass_corr(data=df, targets="targets", raters="rater", ratings="value")
+        intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
         .set_index("Type")
         .loc[icc_type.upper(), ["ICC", "CI95%"]]
     )
