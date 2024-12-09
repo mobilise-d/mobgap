@@ -28,7 +28,7 @@ from mobgap.utils.misc import get_env_var
 
 ROOT_DATA_PATH = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
 
-PARTICIPANT_ID_MAPPING = Path("../../../mobilised_tvs_data/TVS-participant-22032024.csv")
+PARTICIPANT_ID_MAPPING = ROOT_DATA_PATH / "_old_data_raw/TVS-participant-22032024.csv"
 # The new ids are the first integer of the participantid concatenated with the newly generated ids.
 # This way we keep the information about the original about the original recording site.
 id_mapping = (
