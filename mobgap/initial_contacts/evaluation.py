@@ -224,6 +224,92 @@ def categorize_ic_list(
     return matches
 
 
+def get_matching_ics(
+    *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame, matches: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Extract the detected and reference initial contacts that are considered as matches sequence-by-sequence (tps).
+
+    The metrics of the detected and reference initial contacts are extracted and returned in a DataFrame
+    for further comparison.
+
+    Parameters
+    ----------
+    metrics_detected
+       Each row corresponds to a detected initial contact interval as output from the ICD algorithms.
+       The columns contain the metrics estimated for each respective initial contact based on these detected intervals.
+       The columns present in both `metrics_detected` and `metrics_reference` are regarded for the matching,
+       while the other columns are discarded.
+    metrics_reference
+       Each row corresponds to a reference initial contact interval as retrieved from the reference system.
+       The columns contain the metrics estimated for each respective initial contact based on these reference intervals.
+       The columns present in both `metrics_detected` and `metrics_reference` are regarded for the matching,
+       while the other columns are discarded.
+    matches
+        A DataFrame containing the matched initial contacts
+        as output by :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics`.
+        Must have been calculated based on the same interval data as `metrics_detected` and `metrics_reference`.
+        Expected to have the columns `ic_id_detected`, `ic_id_reference`, and `match_type`.
+
+    Returns
+    -------
+    matches: pd.DataFrame
+        The detected initial contaccts that are considered as matches assigned to the reference sequences
+        they are matching with.
+        As index, the unique identifier for each matched initial contact assigned in the `matches` DataFrame is used.
+        The columns are two-level MultiIndex columns, consisting of a `metrics` and an `origin` level.
+        As first column level, all columns present in both `metrics_detected` and `metrics_reference` are included.
+        The second column level indicates the origin of the respective value, either `detected` or `reference` for
+        metrics that were estimated based on the detected or reference initial contacts, respectively.
+
+    Examples
+    --------
+    >>> from mobgap.initial_contacts.evaluation import (
+    ...     categorize_ic_list,
+    ...     get_matching_ics,
+    ... )
+    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis(
+    ...     "ic_id"
+    ... )
+    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis(
+    ...     "ic_id"
+    ... )
+    >>> matches = categorize_ic_list(
+    ...     ic_list_detected=ic_detected,
+    ...     ic_list_reference=ic_reference,
+    ...     tolerance_samples=2,
+    ... )
+    >>> match_ics = get_matching_ics(
+    ...     metrics_detected=ic_detected,
+    ...     metrics_reference=ic_reference,
+    ...     matches=matches,
+    ... )
+    >>> match_ics
+            ic
+            detected reference
+    id
+    0       11        10
+    1       30        32
+
+    """
+    matches = _check_matches_sanity(matches)
+
+    tp_matches = matches.query("match_type == 'tp'")
+    from mobgap.gait_sequences.evaluation import (
+        _combine_detected_and_reference_metrics,
+        _extract_tp_matches,
+    )
+
+    detected_matches = _extract_tp_matches(metrics_detected, tp_matches["ic_id_detected"])
+    reference_matches = _extract_tp_matches(metrics_reference, tp_matches["ic_id_reference"])
+
+    combined_matches = _combine_detected_and_reference_metrics(
+        detected_matches, reference_matches, tp_matches=tp_matches
+    )
+
+    return combined_matches
+
+
 def _match_label_lists(
     list_left: np.ndarray, list_right: np.ndarray, tolerance_samples: Union[int, float] = 0
 ) -> tuple[np.ndarray, np.ndarray]:
