@@ -72,6 +72,67 @@ def calculate_matched_icd_performance_metrics(
     return icd_metrics
 
 
+def calculate_matched_icd_error(
+    ic_list_detected: pd.DataFrame, ic_list_reference: pd.DataFrame, matches: pd.DataFrame, sampling_rate_hz: float
+) -> dict[str, Union[float, int]]:
+    """
+    Calculate error metrics for initial contact detection results.
+
+    This function assumes that you already classified the detected initial contacts as true positive (tp), false
+    positive (fp), or false negative (fn) matches using the
+    :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list` function.
+    The dataframe returned by categorize function can then be used as input to this function.
+
+    The following metrics are calculated for each true positive initial contact:
+
+    - `ic_absolute_error_s`: Absolute time difference (in seconds) between the detected and reference initial contact.
+    - `ic_relative_error`: All absolute errors, within a walking bout, divided by the average step duration estimated
+     by the INDIP.
+
+    Parameters
+    ----------
+    ic_list_detected: pd.DataFrame
+        The dataframe of detected initial contacts.
+    ic_list_reference: pd.DataFrame
+        The ground truth initial contact dataframe.
+    matches: pd.DataFrame
+        A dataframe containing the matches between detected and reference initial contacts as output
+        by :func:`~mobgap.initial_contacts.evaluation.evaluate_initial_contact_list`.
+    sampling_rate_hz: float
+        Sampling rate of the data.
+
+    Returns
+    -------
+    error_metrics: dict
+
+    """
+    # matching ics (within the window)
+    match_ics = get_matching_ics(
+        metrics_detected=ic_list_detected,
+        metrics_reference=ic_list_reference,
+        matches=matches,
+    )
+
+    # calculate absolute error in seconds
+    ic_absolute_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
+
+    # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
+    # estimated by the INDIP)
+    mean_ref_step_s = (
+        ic_list_detected.groupby(level="wb_id")["ic"].diff().dropna().groupby(level="wb_id").mean() / sampling_rate_hz
+    )
+
+    ic_relative_error = ic_absolute_error_s / mean_ref_step_s
+
+    # return mean after dropping nans, if then empty, return 0
+    error_metrics = {
+        "ic_absolute_error_s": ic_absolute_error_s.dropna().mean() if not ic_absolute_error_s.dropna().empty else 0,
+        "ic_relative_error": ic_relative_error.dropna().mean() if not ic_relative_error.dropna().empty else 0,
+    }
+
+    return error_metrics
+
+
 def categorize_ic_list(
     *,
     ic_list_detected: pd.DataFrame,
