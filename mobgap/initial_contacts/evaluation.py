@@ -7,6 +7,11 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
 
+from mobgap.initial_contacts._evaluation_scorer import (
+    icd_final_agg,
+    icd_per_datapoint_score,
+    icd_score,
+)
 from mobgap.utils.evaluation import precision_recall_f1_score
 
 
@@ -484,3 +489,14 @@ def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "refer
     if not ic_list.index.is_unique:
         raise ValueError(f"The index of `ic_list_{list_type}` must be unique!")
     return ic_list, is_multindex
+
+
+__all__ = [
+    "calculate_matched_icd_performance_metrics",
+    "calculate_matched_icd_error",
+    "categorize_ic_list",
+    "_match_label_lists",
+    "icd_per_datapoint_score",
+    "icd_final_agg",
+    "icd_score",
+]
