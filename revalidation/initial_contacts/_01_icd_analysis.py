@@ -26,6 +26,10 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
 # original matlab algorithms.
+
+# Note also that the IcdIonescu algorithm is the reimplementation of the Ani_McCamley algorithm in the original
+# matlab algorithms. The  other two algorithms (IcdShinImproved and IcdHKLeeImproved) are actually cadence algorithms.
+# As they can also be used to detect initial contacts, we present their results as well.
 algorithms = {
     "IcdIonescu": ("IcdIonescu", "new"),
     "IcdShinImproved": ("IcdShinImproved", "new"),
@@ -34,7 +38,7 @@ algorithms = {
 # We only load the matlab algorithms that were also reimplemented
 algorithms.update(
     {
-        "matlab_Ani_McCamley": ("Ani_McCamley", "orig"),
+        "matlab_Ani_McCamley": ("IcdIonescu", "orig"),
     }
 )
 
