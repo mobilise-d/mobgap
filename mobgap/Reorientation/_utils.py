@@ -42,7 +42,10 @@ def acceleration(
     a = np.zeros((len(q), 3))
     for i in range(len(q)):
         a[i, :] = quaterot(q[i, :], IMU.iloc[i, 0:3])
-    return pd.DataFrame(a, columns=['acc_x', 'acc_y', 'acc_z'])
+
+    # Using the original column names
+    column_names = IMU.columns[:3]
+    return pd.DataFrame(a, columns=column_names)
 
 
 def quaterot(
