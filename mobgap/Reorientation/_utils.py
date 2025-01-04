@@ -43,7 +43,7 @@ def acceleration(
     for i in range(len(q)):
         a[i, :] = quaterot(q[i, :], IMU.iloc[i, 0:3])
 
-    # Using the original column names
+    # Using the original acceleration column names
     column_names = IMU.columns[:3]
     return pd.DataFrame(a, columns=column_names)
 
