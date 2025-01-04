@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.signal import correlate
 from sklearn.decomposition import PCA
-from gaitmap.trajectory_reconstruction import MadgwickAHRS
+from mobgap.orientation_estimation._madgwick import MadgwickAHRS
 from mobgap.Reorientation._utils import acceleration
 from mobgap.data_transform import (
     SavgolFilter,
