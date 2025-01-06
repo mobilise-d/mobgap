@@ -76,7 +76,8 @@ plt.show()
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
 # The signal is rotated by 30 degrees on the ML axis to the opposite direction than the convention.
-# Looks like the reorientation does not work as expected in this kind of signal.
+# After the re-orientation it looks like the reorientation does not work as expected in this kind of signal.
+# Within walking bouts, the inferior-superior (vertical) axis is reduced close to 0 instead increasing close to 10 m/s^2.
 
 # Loading the data
 path = 'example_data/data_csv/data_reorientation/BodyCurvature.csv'
@@ -119,8 +120,8 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed upside down, vertical and mediolateral axes will be inverted
-# TODO: update csv with negating the mediolateral
+# The signal comes from a sensor placed upside down, so inferior-superior (vertical) and mediolateral axes will be inverted
+# After the reorientation inferior-superior (vertical) is corrected but mediolateral remains the same
 
 # Loading the data for Upsidedown
 path = 'example_data/data_csv/data_reorientation/Upsidedown.csv'  # Adjust the file path
@@ -161,7 +162,7 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed inside out, mediolateral and anteroposterior are inverted.
+# The signal comes from a sensor placed inside out, so mediolateral and anteroposterior are inverted compared to the correct orientation.
 # After the reorientation, mediolateral and anteroposterior remain the same
 
 # Loading the data for InsideOut
@@ -203,11 +204,13 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed upside down and inside out, vertical and anteroposterior are inverted
+# The signal comes from a sensor placed upside down and inside out, so the inferior-superior (vertical) and anteroposterior
+# are inverted compared to the correct orientation
 # After the reorientation, vertical is inverted but anteroposterior remains the same
-# TODO: correct all plots
-# TODO: recheck all signals
-# TODO: if i had an updated version somehow erased in the past
+
+
+# TODO: compare ends and starts of WBs with this signal
+# TODO: check that all have a explanation of how the orientation is wrong and then its solution
 
 # Loading the data for UpsidedownInsideOut
 path = 'example_data/data_csv/data_reorientation/UpsidedownInsideOut.csv'  # Adjust the file path
@@ -248,10 +251,13 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed Clockwise with a 90-degree rotation
+# The signal comes from a sensor rotated clockwise by 90-degrees so infererior-superior (vertical) is equal to the mediolateral
+# of the correct orientation and the mediolateral is equal to the opposite of the inferior-superior (vertical) of
+# the correct orientation
+# After the re-orientation only within the walking bouts, some corrections are made to the mediolateral axis
 
 # Loading the data for C90
-path = 'example_data/data_csv/data_reorientation/C90.csv'  # Adjust the file path
+path = 'example_data/data_csv/data_reorientation/C90.csv'
 IMU_C90 = pd.read_csv(path)
 
 # Assuming CorrectOrientationSensorAxes is defined elsewhere in your code
@@ -289,10 +295,13 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor rotated clockwise by 90-degrees and inside out
+# The signal comes from a sensor rotated clockwise by 90-degrees and "inside out" so anteroposterior is reversed
+# compared to the correct orientation, mediolateral is similar to inferior-superior but reversed compared to the correct
+# orientation, inferior-superior is similar to mediolateral
+# After the re-orientation only within the walking bouts, some corrections are made to the mediolateral axis
 
 # Loading the data for C90IO
-path = 'example_data/data_csv/data_reorientation/C90IO.csv'  # Adjust the file path
+path = 'example_data/data_csv/data_reorientation/C90IO.csv'
 IMU_C90IO = pd.read_csv(path)
 
 # Assuming CorrectOrientationSensorAxes is defined elsewhere in your code
@@ -330,10 +339,13 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed rotated counter-clockwise by 90-degrees
+# The signal comes from a sensor placed rotated counter-clockwise by 90-degrees so mediolateral is similar to the
+# inferior-superior (vertical) of the correct orientation and inferior-superior (vertical) is the opposite of
+# mediolateral of the correct orientation
+# After the re-orientation only within the walking bouts, some corrections are made only to the mediolateral axis
 
 # Loading the data for CC90
-path = 'example_data/data_csv/data_reorientation/CC90.csv'  # Adjust the file path
+path = 'example_data/data_csv/data_reorientation/CC90.csv'
 IMU_CC90 = pd.read_csv(path)
 
 # Assuming CorrectOrientationSensorAxes is defined elsewhere in your code
@@ -371,10 +383,13 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor retated counter-clockwise by 90-degrees and inside out
+# The signal comes from a sensor rotated counter-clockwise by 90-degrees and inside out so inferior-superior (vertical)
+# is similar to mediolateral of the correct orientation, mediolateral is similar to inferior-superior (vertical) of
+# the correct orientation, and anterior-posterior is reversed
+# After the re-orientation only within the walking bouts, some corrections are made only to the mediolateral axis
 
 # Loading the data for CC90IO
-path = 'example_data/data_csv/data_reorientation/CC90IO.csv'  # Adjust the file path
+path = 'example_data/data_csv/data_reorientation/CC90IO.csv'
 IMU_CC90IO = pd.read_csv(path)
 
 # Assuming CorrectOrientationSensorAxes is defined elsewhere in your code
