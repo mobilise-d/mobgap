@@ -4,7 +4,7 @@ import scipy.constants
 from typing_extensions import Self
 from mobgap.pipeline import iter_gs
 from mobgap.Reorientation._correct_sensor_orientation_dynamic import CorrectSensorOrientationDynamic
-from mobgap.gait_sequences import GsdIluz
+from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIonescu
 from mobgap.Reorientation._filteringsignals_100Hz import filtering_signals_100hz
 from mobgap.initial_contacts._hklee_algo_improved import groupfind
 from mobgap.data_transform import (
@@ -84,7 +84,7 @@ class CorrectOrientationSensorAxes:
             # Output of filter chains should be a pd.DataFrame so the iter_gs function can work
             av_filt1 = pd.DataFrame(av_filt1, columns=['acc_is'])
 
-            gs = GsdIluz().detect(data, sampling_rate_hz=self.sampling_rate_hz).gs_list_
+            gs = GsdIonescu().detect(data, sampling_rate_hz=self.sampling_rate_hz).gs_list_
 
             # Adding a specific index to gs so the iter_gs function can work
             if gs.index.name is None:
