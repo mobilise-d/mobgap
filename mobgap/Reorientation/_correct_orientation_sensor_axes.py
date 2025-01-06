@@ -135,7 +135,7 @@ class CorrectOrientationSensorAxes:
                 if avm >= th:
                     self.corIMUdata.iloc[GS.start:GS.end, 0:3] = acc.iloc[GS.start:GS.end, :]
                 elif avm <= -th:
-                    self.corIMUdata.iloc[GS.start:GS.end+1, 0] = -acc.iloc[GS.start:GS.end, 0]
+                    self.corIMUdata.iloc[GS.start:GS.end+1, 0] = -acc.iloc[GS.start:GS.end+1, 0]
 
         else:
             return self
