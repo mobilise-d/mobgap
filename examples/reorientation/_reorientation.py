@@ -48,8 +48,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU.index, IMU['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU.index, IMU['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU.index, IMU['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU.index, IMU['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU.index, IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -57,15 +57,18 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
 pl2.legend()
 
 plt.tight_layout()
+plt.savefig('/Users/dimitrismegaritis/Desktop/correctorientation.png')
+
 plt.show()
+
 
 
 # %%
@@ -73,6 +76,7 @@ plt.show()
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
 # The signal is rotated by 30 degrees on the ML axis to the opposite direction than the convention.
+# Looks like the reorientation does not work as expected in this kind of signal.
 
 # Loading the data
 path = 'example_data/data_csv/data_reorientation/BodyCurvature.csv'
@@ -92,8 +96,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_BD.index, IMU_BD['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_BD.index, IMU_BD['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_BD.index, IMU_BD['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_BD.index, IMU_BD['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_BD.index, IMU_BD['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -101,8 +105,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -115,7 +119,8 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed upside downvertical and mediolateral axes will be inverted
+# The signal comes from a sensor placed upside down, vertical and mediolateral axes will be inverted
+# TODO: update csv with negating the mediolateral
 
 # Loading the data for Upsidedown
 path = 'example_data/data_csv/data_reorientation/Upsidedown.csv'  # Adjust the file path
@@ -133,8 +138,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_Upsidedown.index, IMU_Upsidedown['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_Upsidedown.index, IMU_Upsidedown['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_Upsidedown.index, IMU_Upsidedown['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_Upsidedown.index, IMU_Upsidedown['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_Upsidedown.index, IMU_Upsidedown['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -142,8 +147,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -157,6 +162,7 @@ plt.show()
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
 # The signal comes from a sensor placed inside out, mediolateral and anteroposterior are inverted.
+# After the reorientation, mediolateral and anteroposterior remain the same
 
 # Loading the data for InsideOut
 path = 'example_data/data_csv/data_reorientation/InsideOut.csv'  # Adjust the file path
@@ -174,8 +180,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_InsideOut.index, IMU_InsideOut['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_InsideOut.index, IMU_InsideOut['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_InsideOut.index, IMU_InsideOut['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_InsideOut.index, IMU_InsideOut['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_InsideOut.index, IMU_InsideOut['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -183,8 +189,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -198,6 +204,10 @@ plt.show()
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
 # The signal comes from a sensor placed upside down and inside out, vertical and anteroposterior are inverted
+# After the reorientation, vertical is inverted but anteroposterior remains the same
+# TODO: correct all plots
+# TODO: recheck all signals
+# TODO: if i had an updated version somehow erased in the past
 
 # Loading the data for UpsidedownInsideOut
 path = 'example_data/data_csv/data_reorientation/UpsidedownInsideOut.csv'  # Adjust the file path
@@ -215,8 +225,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_UpsidedownInsideOut.index, IMU_UpsidedownInsideOut['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_UpsidedownInsideOut.index, IMU_UpsidedownInsideOut['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_UpsidedownInsideOut.index, IMU_UpsidedownInsideOut['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_UpsidedownInsideOut.index, IMU_UpsidedownInsideOut['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_UpsidedownInsideOut.index, IMU_UpsidedownInsideOut['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -224,8 +234,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -256,8 +266,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_C90.index, IMU_C90['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_C90.index, IMU_C90['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_C90.index, IMU_C90['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_C90.index, IMU_C90['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_C90.index, IMU_C90['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -265,8 +275,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -279,7 +289,7 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed Clockwise with a 90-degree and inside out
+# The signal comes from a sensor rotated clockwise by 90-degrees and inside out
 
 # Loading the data for C90IO
 path = 'example_data/data_csv/data_reorientation/C90IO.csv'  # Adjust the file path
@@ -297,8 +307,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_C90IO.index, IMU_C90IO['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_C90IO.index, IMU_C90IO['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_C90IO.index, IMU_C90IO['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_C90IO.index, IMU_C90IO['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_C90IO.index, IMU_C90IO['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -306,8 +316,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -320,7 +330,7 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed counter-clockwise with a 90-degree rotation
+# The signal comes from a sensor placed rotated counter-clockwise by 90-degrees
 
 # Loading the data for CC90
 path = 'example_data/data_csv/data_reorientation/CC90.csv'  # Adjust the file path
@@ -338,8 +348,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_CC90.index, IMU_CC90['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_CC90.index, IMU_CC90['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_CC90.index, IMU_CC90['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_CC90.index, IMU_CC90['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_CC90.index, IMU_CC90['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -347,8 +357,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
@@ -361,7 +371,7 @@ plt.show()
 # Applying the algorithm in wrongly oriented data
 # ----------------------
 # Below we apply the reorientation block to a lab trial with wrongly oriented data.
-# The signal comes from a sensor placed counter-clockwise with a 90-degree rotation and inside out
+# The signal comes from a sensor retated counter-clockwise by 90-degrees and inside out
 
 # Loading the data for CC90IO
 path = 'example_data/data_csv/data_reorientation/CC90IO.csv'  # Adjust the file path
@@ -379,8 +389,8 @@ fig, (pl1, pl2) = plt.subplots(2, 1, figsize=(10, 12))
 
 # Pre reorientation
 pl1.plot(IMU_CC90IO.index, IMU_CC90IO['acc_is'], label='inferior-superior', color='green')
-pl1.plot(IMU_CC90IO.index, IMU_CC90IO['acc_ml'], label='posterior-anterior', color='red')
-pl1.plot(IMU_CC90IO.index, IMU_CC90IO['acc_pa'], label='medial-lateral', color='blue')
+pl1.plot(IMU_CC90IO.index, IMU_CC90IO['acc_ml'], label='medial-lateral', color='red')
+pl1.plot(IMU_CC90IO.index, IMU_CC90IO['acc_pa'], label='posterior-anterior', color='blue')
 pl1.set_xlabel('Index')
 pl1.set_ylabel('Acc')
 pl1.set_title('Pre')
@@ -388,8 +398,8 @@ pl1.legend()
 
 # Post reorientation
 pl2.plot(corrected_IMU.index, corrected_IMU['acc_is'], label='inferior-superior', color='green')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='posterior-anterior', color='red')
-pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='medial-lateral', color='blue')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_ml'], label='medial-lateral', color='red')
+pl2.plot(corrected_IMU.index, corrected_IMU['acc_pa'], label='posterior-anterior', color='blue')
 pl2.set_xlabel('Index')
 pl2.set_ylabel('Acc')
 pl2.set_title('Post')
