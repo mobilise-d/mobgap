@@ -208,10 +208,6 @@ plt.show()
 # are inverted compared to the correct orientation
 # After the reorientation, vertical is inverted but anteroposterior remains the same
 
-
-# TODO: compare ends and starts of WBs with this signal
-# TODO: check that all have a explanation of how the orientation is wrong and then its solution
-
 # Loading the data for UpsidedownInsideOut
 path = 'example_data/data_csv/data_reorientation/UpsidedownInsideOut.csv'  # Adjust the file path
 IMU_UpsidedownInsideOut = pd.read_csv(path)
