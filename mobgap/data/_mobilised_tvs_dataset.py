@@ -61,11 +61,13 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         engine="openpyxl",
         header=[0, 1],
         na_values=["N/A", "N.A.", "N.A"],
-        # We need to skip the last row, as this is the legend for the summary row.
-        # The last row is not loaded anyway for some reason.
-        skipfooter=1,
     )
+    # The file contains summary rows at the end that we have to skip.
+    # However, depending on how the file was saved, they are either 1 or 2 rows (see #197).
+    # Instead of skipping by number we skip all rows that don't contain a participant id.
+    # This should work for all cases.
     cols = clinical_info.columns.to_list()
+    clinical_info = clinical_info[clinical_info[cols[0]].notna()]
     # We delay the setting of the index, as we need to set the correct dtypes first.
     # For some reason that is not possible in the loading step.
     clinical_info = (
@@ -118,6 +120,7 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         )[original_col_order]
         .assign()
         .reset_index()
+        .infer_objects()
         .astype(
             {
                 "age": "Int8",

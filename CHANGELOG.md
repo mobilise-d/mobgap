@@ -43,8 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Confidence intervals where added as a aggregation function.
   (https://github.com/mobilise-d/mobgap/pull/176)
 
+### Fixed
 
-
+- Obscure bug when loading the TVS dataset causing a `IntCastingNaNError`, when the `participant_information.xlsx` file
+  was opened and resaved using Microsoft Excel. For more infos see (https://github.com/mobilise-d/mobgap/issues/197)
 
 ### Removed
 

@@ -58,15 +58,9 @@ This example demonstrate how to do this.
 # For this example we get the path from an environmental variable, so that we don't have to hardcode the path here.
 # When you run this on your local machine, you can set the environmental variable to the path of the dataset or just
 # replace the path in the code below.
-import os
 from pathlib import Path
 
 from mobgap.utils.misc import get_env_var
-
-if "MOBGAP_TVS_DATASET_PATH" not in os.environ:
-    raise ValueError(
-        "Please set the environmental variable MOBGAP_TVS_DATASET_PATH to the path of the TVS dataset."
-    )
 
 dataset_path = Path(get_env_var("MOBGAP_TVS_DATASET_PATH").strip('"'))
 
