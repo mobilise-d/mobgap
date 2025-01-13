@@ -25,16 +25,13 @@ scipy = ">=1.11.2"
 numpy = ">=1.25.2"
 scikit-learn = ">=1.3.0"
 joblib = ">=1.3.2"
-openpyxl = {version=">=3.1.2", optional=true}
+openpyxl = ">=3.1.2"
 intervaltree = ">=3.1.0"
 pywavelets = ">=1.5.0"
 pooch = ">=1.8.1"
-pingouin = {version=">=0.5.4", optional=true}
+pingouin = ">=0.5.4"
 numba = ">=0.60.0"
 python-dotenv = ">=1.0.1"
-
-[tool.poetry.extras]
-all = ["openpyxl", "pingouin"]
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.22.0"
