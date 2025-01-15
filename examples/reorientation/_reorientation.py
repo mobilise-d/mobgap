@@ -65,10 +65,7 @@ pl2.set_title('Post')
 pl2.legend()
 
 plt.tight_layout()
-plt.savefig('/Users/dimitrismegaritis/Desktop/correctorientation.png')
-
 plt.show()
-
 
 
 # %%
