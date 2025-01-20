@@ -80,7 +80,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
             )
         )
         # check if matches_per_wb has the required columns
-        if matches_per_wb.shape[1] == 1:
+        if matches_per_wb.empty == 1:
             # then it is an empty dataframe without required columns
             matches_per_wb = pd.DataFrame(
                 {
