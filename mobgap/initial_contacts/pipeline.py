@@ -3,6 +3,7 @@
 import warnings
 
 import pandas as pd
+import numpy as np
 from tpcp import OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self
 
@@ -10,6 +11,7 @@ from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 from mobgap.pipeline import GsIterator
 from mobgap.utils.conversions import to_body_frame
+from mobgap._utils_internal.misc import Timer
 
 
 def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
@@ -87,6 +89,9 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             The pipeline instance with the detected initial contacts stored in the ``ic_list_`` attribute.
 
         """
+        # start timer (calculate the performance on the pipeline level)
+        timer = Timer()
+        timer.start()
         imu_data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
@@ -108,6 +113,7 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
                 {"wb_id": float, "step_id": int, "ic": int}
             )
             self.ic_list_ = self.ic_list_.set_index(["wb_id", "step_id"])
+            self.runtime_s = 0
             return self
         wb_iterator = GsIterator()
         result_algo_list = {}
@@ -117,6 +123,9 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             r.ic_list = algo.ic_list_
         self.per_wb_algo_ = result_algo_list
         self.ic_list_ = wb_iterator.results_.ic_list
+        # calculate time
+        timer.stop()
+        self.runtime_s = timer.results["runtime_s"] # in seconds
         return self
 
 
