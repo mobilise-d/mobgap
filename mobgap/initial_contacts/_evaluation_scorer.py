@@ -51,6 +51,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         calculate_matched_icd_error,
         calculate_matched_icd_performance_metrics,
         categorize_ic_list,
+        get_matching_ics,
     )
     from mobgap.utils.conversions import as_samples
     from mobgap.utils.df_operations import create_multi_groupby
@@ -66,7 +67,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         reference_ic_list = datapoint.reference_parameters_.ic_list
         sampling_rate_hz = datapoint.sampling_rate_hz
 
-        # tolerance around the reference ic
+        # tolerance around the reference ic (this is a centered window - half window in both directions)
         tolerance_s = 0.5
         tolerance_samples = as_samples(tolerance_s, sampling_rate_hz)
 
@@ -94,6 +95,13 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         # calculate run time on pipeline level
         runtime_s = pipeline.runtime_s
 
+        # match initial contacts, get true positives
+        match_ics = get_matching_ics(
+            metrics_detected=detected_ic_list,
+            metrics_reference=reference_ic_list,
+            matches=matches_per_wb,
+        )
+
         # Calculate the performance metrics
         performance_metrics = {
             **calculate_matched_icd_performance_metrics(
@@ -101,13 +109,13 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
             ),
             **calculate_matched_icd_error(
                 detected_ic_list,
-                reference_ic_list,
-                matches_per_wb,
+                match_ics,
                 sampling_rate_hz,
             ),
             "matches": no_agg(matches_per_wb),
             "detected": no_agg(detected_ic_list),
             "reference": no_agg(reference_ic_list),
+            "match_ics": no_agg(match_ics),
             "sampling_rate_hz": no_agg(sampling_rate_hz),
             "runtime_s": runtime_s,
         }
@@ -163,6 +171,7 @@ def icd_final_agg(
     """
     from mobgap.initial_contacts.evaluation import (
         calculate_matched_icd_performance_metrics,
+        calculate_matched_icd_error,
     )
 
     data_labels = [d.group_label for d in dataset]
@@ -174,6 +183,8 @@ def icd_final_agg(
     detected = pd.concat(detected, keys=data_labels, names=[*data_label_names, *detected[0].index.names])
     reference = single_results.pop("reference")
     reference = pd.concat(reference, keys=data_labels, names=[*data_label_names, *reference[0].index.names])
+    match_ics = single_results.pop("match_ics")
+    match_ics = pd.concat(match_ics, keys=data_labels, names=[*data_label_names, *match_ics[0].index.names])
 
     aggregated_single_results = {
         "raw__detected": detected,
@@ -188,7 +199,13 @@ def icd_final_agg(
             "Provide a custom scorer that can handle this case."
         )
 
-    combined_matched = {f"combined__{k}": v for k, v in calculate_matched_icd_performance_metrics(matches).items()}
+    combined_matched = {
+        f"combined__{k}": v
+        for k, v in {
+        **calculate_matched_icd_performance_metrics(matches),
+        **calculate_matched_icd_error(detected, match_ics, sampling_rate_hz[0])
+    }.items()
+    }
 
     # Note, that we pass the "aggregated_single_results" out via the single results and not the aggregated results
     # The reason is that the aggregated results are expected to be a single value per metric, while the single results
@@ -216,15 +233,17 @@ Raw metrics (part of the single results):
 Metrics per datapoint (single results):
 *These values are all provided as a list of values, one per datapoint.*
 
-- All outputs of :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` averaged per
+- All outputs of :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
+  :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_error` averaged per
   datapoint. These are stored as ``single__{metric_name}``
 - ``single__runtime_s``: The runtime of the algorithm in seconds.
 
 Aggregated metrics (aggregated results):
 
 - All single outputs averaged over all datapoints. These are stored as ``agg__{metric_name}``.
-- All metrics from :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` recalculated
-  on all detected ICs across all datapoints. These are stored as ``combined__{metric_name}``.
+- All metrics from :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
+  :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_error` recalculated on all detected ICs across 
+  all datapoints. These are stored as ``combined__{metric_name}``.
   Compared to the per-datapoint results (which are calculated, as errors per recording -> average over all
   recordings), these metrics are calculated as combining all ICDs from all recordings and then calculating the
   performance metrics.

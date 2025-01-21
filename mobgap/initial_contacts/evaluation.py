@@ -78,7 +78,7 @@ def calculate_matched_icd_performance_metrics(
 
 
 def calculate_matched_icd_error(
-    ic_list_detected: pd.DataFrame, ic_list_reference: pd.DataFrame, matches: pd.DataFrame, sampling_rate_hz: float
+    ic_list_detected: pd.DataFrame, match_ics: pd.DataFrame, sampling_rate_hz: float
 ) -> dict[str, Union[float, int]]:
     """
     Calculate error metrics for initial contact detection results.
@@ -98,11 +98,8 @@ def calculate_matched_icd_error(
     ----------
     ic_list_detected: pd.DataFrame
         The dataframe of detected initial contacts.
-    ic_list_reference: pd.DataFrame
-        The ground truth initial contact dataframe.
-    matches: pd.DataFrame
-        A dataframe containing the matches between detected and reference initial contacts as output
-        by :func:`~mobgap.initial_contacts.evaluation.evaluate_initial_contact_list`.
+    match_ics: pd.DataFrame
+        Initial contact true positives as output by :func:`~mobgap.initial_contacts.evaluation.get_matching_ics`.
     sampling_rate_hz: float
         Sampling rate of the data.
 
@@ -111,13 +108,6 @@ def calculate_matched_icd_error(
     error_metrics: dict
 
     """
-    # matching ics (within the window)
-    match_ics = get_matching_ics(
-        metrics_detected=ic_list_detected,
-        metrics_reference=ic_list_reference,
-        matches=matches,
-    )
-
     # calculate absolute error in seconds
     ic_absolute_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
 
@@ -499,4 +489,5 @@ __all__ = [
     "icd_per_datapoint_score",
     "icd_final_agg",
     "icd_score",
+    "get_matching_ics"
 ]
