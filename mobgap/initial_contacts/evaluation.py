@@ -12,7 +12,11 @@ from mobgap.initial_contacts._evaluation_scorer import (
     icd_per_datapoint_score,
     icd_score,
 )
-from mobgap.utils.evaluation import precision_recall_f1_score
+from mobgap.utils.evaluation import (
+    precision_recall_f1_score,
+    extract_tp_matches,
+    combine_detected_and_reference_metrics
+)
 
 
 def calculate_matched_icd_performance_metrics(
@@ -351,17 +355,12 @@ def get_matching_ics(
     matches = _check_matches_sanity(matches)
 
     tp_matches = matches.query("match_type == 'tp'")
-    from mobgap.gait_sequences.evaluation import (
-        _combine_detected_and_reference_metrics,
-        _extract_tp_matches,
-    )
 
-    detected_matches = _extract_tp_matches(metrics_detected, tp_matches["ic_id_detected"])
-    reference_matches = _extract_tp_matches(metrics_reference, tp_matches["ic_id_reference"])
+    detected_matches = extract_tp_matches(metrics_detected, tp_matches["ic_id_detected"])
+    reference_matches = extract_tp_matches(metrics_reference, tp_matches["ic_id_reference"])
 
-    combined_matches = _combine_detected_and_reference_metrics(
-        detected_matches, reference_matches, tp_matches=tp_matches
-    )
+    combined_matches = combine_detected_and_reference_metrics(detected_matches, reference_matches,
+                                                              tp_matches=tp_matches)
 
     return combined_matches
 

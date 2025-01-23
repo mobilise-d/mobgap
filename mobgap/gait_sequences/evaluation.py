@@ -24,6 +24,8 @@ from mobgap.utils.evaluation import (
     npv_score,
     precision_recall_f1_score,
     specificity_score,
+    extract_tp_matches,
+    combine_detected_and_reference_metrics,
 )
 
 
@@ -721,12 +723,11 @@ def get_matching_intervals(
 
     tp_matches = matches.query("match_type == 'tp'")
 
-    detected_matches = _extract_tp_matches(metrics_detected, tp_matches["gs_id_detected"])
-    reference_matches = _extract_tp_matches(metrics_reference, tp_matches["gs_id_reference"])
+    detected_matches = extract_tp_matches(metrics_detected, tp_matches["gs_id_detected"])
+    reference_matches = extract_tp_matches(metrics_reference, tp_matches["gs_id_reference"])
 
-    combined_matches = _combine_detected_and_reference_metrics(
-        detected_matches, reference_matches, tp_matches=tp_matches
-    )
+    combined_matches = combine_detected_and_reference_metrics(detected_matches, reference_matches,
+                                                              tp_matches=tp_matches)
 
     return combined_matches
 
@@ -745,46 +746,6 @@ def _check_gs_level_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
     # check if `match_type` column contains only valid values
     if not matches["match_type"].isin(["tp", "fp", "fn"]).all():
         raise ValueError("`match_type` must contain only the values 'tp', 'fp', and 'fn'.")
-    return matches
-
-
-def _extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.DataFrame:
-    try:
-        matches = metrics.loc[match_indices]
-    except KeyError as e:
-        raise ValueError(
-            "The indices from the provided `matches` DataFrame do not fit to the metrics DataFrames. "
-            "Please ensure that the `matches` DataFrame is calculated based on the same data "
-            "as the `metrics` DataFrames and thus refers to valid indices."
-        ) from e
-    return matches
-
-
-def _combine_detected_and_reference_metrics(
-    detected: pd.DataFrame, reference: pd.DataFrame, tp_matches: Union[pd.DataFrame, None] = None
-) -> pd.DataFrame:
-    # if wb_id in index, add it as a column to preserve it in the combined DataFrame
-    if "wb_id" in detected.index.names and "wb_id" in reference.index.names:
-        detected.insert(0, "wb_id", detected.index.get_level_values("wb_id"))
-        reference.insert(0, "wb_id", reference.index.get_level_values("wb_id"))
-
-    common_columns = list(set(reference.columns).intersection(detected.columns))
-    if len(common_columns) == 0:
-        raise ValueError("No common columns found in `metrics_detected` and `metrics_reference`.")
-
-    detected = detected[common_columns]
-    reference = reference[common_columns]
-
-    if tp_matches is not None:
-        detected.index = tp_matches.index
-        reference.index = tp_matches.index
-
-    matches = detected.merge(reference, left_index=True, right_index=True, suffixes=("_det", "_ref"))
-
-    # construct MultiIndex columns
-    matches.columns = pd.MultiIndex.from_product([["detected", "reference"], common_columns])
-    # make 'metrics' level the uppermost level and sort columns accordingly for readability
-    matches = matches.swaplevel(axis=1).sort_index(axis=1, level=0)
     return matches
 
 

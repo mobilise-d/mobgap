@@ -448,6 +448,46 @@ def count_samples_in_intervals(intervals: pd.DataFrame) -> int:
     return int((intervals["end"] - intervals["start"] + 1).sum())
 
 
+def extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.DataFrame:
+    try:
+        matches = metrics.loc[match_indices]
+    except KeyError as e:
+        raise ValueError(
+            "The indices from the provided `matches` DataFrame do not fit to the metrics DataFrames. "
+            "Please ensure that the `matches` DataFrame is calculated based on the same data "
+            "as the `metrics` DataFrames and thus refers to valid indices."
+        ) from e
+    return matches
+
+
+def combine_detected_and_reference_metrics(
+    detected: pd.DataFrame, reference: pd.DataFrame, tp_matches: Union[pd.DataFrame, None] = None
+) -> pd.DataFrame:
+    # if wb_id in index, add it as a column to preserve it in the combined DataFrame
+    if "wb_id" in detected.index.names and "wb_id" in reference.index.names:
+        detected.insert(0, "wb_id", detected.index.get_level_values("wb_id"))
+        reference.insert(0, "wb_id", reference.index.get_level_values("wb_id"))
+
+    common_columns = list(set(reference.columns).intersection(detected.columns))
+    if len(common_columns) == 0:
+        raise ValueError("No common columns found in `metrics_detected` and `metrics_reference`.")
+
+    detected = detected[common_columns]
+    reference = reference[common_columns]
+
+    if tp_matches is not None:
+        detected.index = tp_matches.index
+        reference.index = tp_matches.index
+
+    matches = detected.merge(reference, left_index=True, right_index=True, suffixes=("_det", "_ref"))
+
+    # construct MultiIndex columns
+    matches.columns = pd.MultiIndex.from_product([["detected", "reference"], common_columns])
+    # make 'metrics' level the uppermost level and sort columns accordingly for readability
+    matches = matches.swaplevel(axis=1).sort_index(axis=1, level=0)
+    return matches
+
+
 def _estimate_number_tn_samples(matches_df: pd.DataFrame, n_overall_samples: Union[int, None], tn_warning: bool) -> int:
     tn = count_samples_in_match_intervals(matches_df, "tn")
     if tn > 0 and n_overall_samples is not None:
@@ -516,4 +556,6 @@ __all__ = [
     "Evaluation",
     "EvaluationCV",
     "save_evaluation_results",
+    "extract_tp_matches",
+    "combine_detected_and_reference_metrics",
 ]
