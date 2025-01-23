@@ -90,8 +90,8 @@ def calculate_matched_icd_error(
 
     The following metrics are calculated for each true positive initial contact:
 
-    - `ic_absolute_error_s`: Absolute time difference (in seconds) between the detected and reference initial contact.
-    - `ic_relative_error`: All absolute errors, within a walking bout, divided by the average step duration estimated
+    - `tp_absolute_error_s`: Absolute time difference (in seconds) between the detected and reference initial contact.
+    - `tp_relative_error`: All absolute errors, within a walking bout, divided by the average step duration estimated
      by the INDIP.
 
     Parameters
@@ -109,7 +109,7 @@ def calculate_matched_icd_error(
 
     """
     # calculate absolute error in seconds
-    ic_absolute_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
+    tp_absolute_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
 
     # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
     # estimated by the INDIP)
@@ -117,12 +117,12 @@ def calculate_matched_icd_error(
         ic_list_detected.groupby(level="wb_id")["ic"].diff().dropna().groupby(level="wb_id").mean() / sampling_rate_hz
     )
 
-    ic_relative_error = ic_absolute_error_s / mean_ref_step_s
+    tp_relative_error = tp_absolute_error_s / mean_ref_step_s
 
     # return mean after dropping nans, if then empty, return 0
     error_metrics = {
-        "ic_absolute_error_s": ic_absolute_error_s.dropna().mean() if not ic_absolute_error_s.dropna().empty else 0,
-        "ic_relative_error": ic_relative_error.dropna().mean() if not ic_relative_error.dropna().empty else 0,
+        "tp_absolute_error_s": tp_absolute_error_s.dropna().mean() if not tp_absolute_error_s.dropna().empty else 0,
+        "tp_relative_error": tp_relative_error.dropna().mean() if not tp_relative_error.dropna().empty else 0,
     }
 
     return error_metrics
