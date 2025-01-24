@@ -247,3 +247,5 @@ fig.show()
 final_perf_metrics = perf_metrics_per_cohort.query(
     "algo == 'IcdIonescu'"
 ).reset_index(level="algo", drop=True)
+
+final_perf_metrics
