@@ -62,7 +62,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "icd", result_path=local_data_path, version="main"
+    "icd", result_path=local_data_path, version="initial_contact_reval"
 )
 
 
