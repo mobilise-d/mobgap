@@ -226,80 +226,18 @@ perf_metrics_per_cohort = (
 )
 perf_metrics_per_cohort
 
+
 # %%
-# Per relevant cohort
-# ~~~~~~~~~~~~~~~~~~~
-# Overview over all cohorts is good, but this is not how the icd algorithms are used in our main pipeline.
-# Here, the HA, CHF, and COPD cohort use the ``IcdIonescu` algorithm, while the ``IcdShinImproved`` algorithm is used
-# for the MS, PD, PFF cohorts. # TODO: Check if this is the case
-# Let's look at the performance of these algorithms on the respective cohorts.
-from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
-
-low_impairment_algo = "IcdIonescu"
-low_impairment_cohorts = list(MobilisedPipelineHealthy().recommended_cohorts)
-
-low_impairment_results = results_long[
-    results_long["cohort"].isin(low_impairment_cohorts)
-].query("algo == @low_impairment_algo")
-
+# Per Cohort
+# ~~~~~~~~~~
+# Finally, we present comparison of the old and new implementations of IcdIonescu. IcdShinImproved and
+# IcdHKLeeImproved are excluded because they are cadence algorithms and we don't calculate ICs with these algos in the
+# old Matlab implementation.
+Ionescu_results = results_long.query("algo == 'IcdIonescu'")
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=low_impairment_results,
-    x="cohort",
-    y="f1_score",
-    hue="version",
-    hue_order=hue_order,
-    ax=ax,
+    data=Ionescu_results, x="cohort", y="f1_score", hue="algo_with_version", ax=ax
 )
-sns.boxplot(
-    data=low_impairment_results,
-    x="_combined",
-    y="f1_score",
-    hue="version",
-    hue_order=hue_order,
-    legend=False,
-    ax=ax,
-)
-fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
-# %%
-perf_metrics_per_cohort.loc[
-    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True)
-
-# %%
-high_impairment_algo = "IcdShinImproved"
-high_impairment_cohorts = list(MobilisedPipelineImpaired().recommended_cohorts)
-
-high_impairment_results = results_long[
-    results_long["cohort"].isin(high_impairment_cohorts)
-].query("algo == @high_impairment_algo")
-
-hue_order = ["orig", "new"]
-
-fig, ax = plt.subplots()
-sns.boxplot(
-    data=high_impairment_results,
-    x="cohort",
-    y="f1_score",
-    hue="version",
-    hue_order=hue_order,
-    ax=ax,
-)
-sns.boxplot(
-    data=high_impairment_results,
-    x="_combined",
-    y="f1_score",
-    hue="version",
-    hue_order=hue_order,
-    legend=False,
-    ax=ax,
-)
-fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
-fig.show()
-
-# %%
-perf_metrics_per_cohort.loc[
-    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True)
+final_perf_metrics = perf_metrics_per_cohort.query("algo == 'IcdIonescu'").reset_index(level='algo', drop=True)
