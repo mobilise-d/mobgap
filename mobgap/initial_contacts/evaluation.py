@@ -81,7 +81,7 @@ def calculate_matched_icd_performance_metrics(
     return icd_metrics
 
 
-def calculate_matched_icd_error(
+def calculate_true_positive_icd_error(
     ic_list_detected: pd.DataFrame, match_ics: pd.DataFrame, sampling_rate_hz: float
 ) -> dict[str, Union[float, int]]:
     """
@@ -483,7 +483,7 @@ def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "refer
 
 __all__ = [
     "calculate_matched_icd_performance_metrics",
-    "calculate_matched_icd_error",
+    "calculate_true_positive_icd_error",
     "categorize_ic_list",
     "_match_label_lists",
     "icd_per_datapoint_score",

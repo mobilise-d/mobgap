@@ -47,7 +47,7 @@ Evaluation
    :template: func.rst
 
     calculate_matched_icd_performance_metrics
-    calculate_matched_icd_error
+    calculate_true_positive_icd_error
     categorize_ic_list
     get_matching_ics
 

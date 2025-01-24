@@ -47,8 +47,8 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
 
     """
     from mobgap.initial_contacts.evaluation import (
-        calculate_matched_icd_error,
         calculate_matched_icd_performance_metrics,
+        calculate_true_positive_icd_error,
         categorize_ic_list,
         get_matching_ics,
     )
@@ -106,7 +106,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
             **calculate_matched_icd_performance_metrics(
                 matches_per_wb,
             ),
-            **calculate_matched_icd_error(
+            **calculate_true_positive_icd_error(
                 detected_ic_list,
                 match_ics,
                 sampling_rate_hz,
@@ -169,8 +169,8 @@ def icd_final_agg(
 
     """
     from mobgap.initial_contacts.evaluation import (
-        calculate_matched_icd_error,
         calculate_matched_icd_performance_metrics,
+        calculate_true_positive_icd_error,
     )
 
     data_labels = [d.group_label for d in dataset]
@@ -202,7 +202,7 @@ def icd_final_agg(
         f"combined__{k}": v
         for k, v in {
             **calculate_matched_icd_performance_metrics(matches),
-            **calculate_matched_icd_error(detected, match_ics, sampling_rate_hz[0]),
+            **calculate_true_positive_icd_error(detected, match_ics, sampling_rate_hz[0]),
         }.items()
     }
 
@@ -233,7 +233,7 @@ Metrics per datapoint (single results):
 *These values are all provided as a list of values, one per datapoint.*
 
 - All outputs of :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
-  :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_error` averaged per
+  :func:`~mobgap.initial_contacts.evaluation.calculate_true_positive_icd_error` averaged per
   datapoint. These are stored as ``single__{metric_name}``
 - ``single__runtime_s``: The runtime of the algorithm in seconds.
 
@@ -241,7 +241,7 @@ Aggregated metrics (aggregated results):
 
 - All single outputs averaged over all datapoints. These are stored as ``agg__{metric_name}``.
 - All metrics from :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
-  :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_error` recalculated on all detected ICs across
+  :func:`~mobgap.initial_contacts.evaluation.calculate_true_positive_icd_error` recalculated on all detected ICs across
   all datapoints. These are stored as ``combined__{metric_name}``.
   Compared to the per-datapoint results (which are calculated, as errors per recording -> average over all
   recordings), these metrics are calculated as combining all ICDs from all recordings and then calculating the
