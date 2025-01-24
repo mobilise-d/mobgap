@@ -150,7 +150,7 @@ for matlab_algo_name in [
     )
 
 # %%
-# For the reimplemented algorithm, we set up version with different default presets.
+# The reimplemented algorithms:
 from mobgap.initial_contacts import (
     IcdHKLeeImproved,
     IcdIonescu,
