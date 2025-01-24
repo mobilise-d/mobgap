@@ -115,8 +115,8 @@ custom_aggs = [
     ("recall", ["mean", A.conf_intervals]),
     ("precision", ["mean", A.conf_intervals]),
     ("f1_score", ["mean", A.conf_intervals]),
-    ("ic_absolute_error_s", ["mean", A.loa]),
-    ("ic_relative_error", ["mean", A.loa]),
+    ("tp_absolute_error_s", ["mean", A.loa]),
+    ("tp_relative_error", ["mean", A.loa]),
 ]
 
 format_transforms = [
@@ -149,11 +149,11 @@ format_transforms = [
                 value_col=("mean", c),
                 range_col=("loa", c),
             ),
-            column_name=("IC Duration", c),
+            column_name=("IC Timing", c),
         )
         for c in [
-            "ic_absolute_error_s",
-            "ic_relative_error",
+            "tp_absolute_error_s",
+            "tp_relative_error",
         ]
     ),
 ]
@@ -163,8 +163,8 @@ final_names = {
     "recall": "Recall",
     "precision": "Precision",
     "f1_score": "F1 Score",
-    "ic_absolute_error_s": "Abs. Error [s]",
-    "ic_relative_error": "Bias and LoA",
+    "tp_absolute_error_s": "Abs. Error [s]",
+    "tp_relative_error": "Bias and LoA",
 }
 
 
