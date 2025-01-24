@@ -1,11 +1,10 @@
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
 
-def _datetime_to_seconds_since_midnight(dt: datetime) -> int:
-    return dt.hour * 3600 + dt.minute * 60 + dt.second
+def _datetime_col_to_seconds_since_midnight(series: pd.Series) -> int:
+    return series.dt.hour * 3600 + series.dt.minute * 60 + series.dt.second
 
 
 def load_weartime_from_daily_mcroberts_report(path: Path, waking_hours: tuple[float, float] = (7, 22)) -> pd.DataFrame:
@@ -43,24 +42,24 @@ def load_weartime_from_daily_mcroberts_report(path: Path, waking_hours: tuple[fl
 
     waking_hours_as_seconds = (waking_hours[0] * 3600, waking_hours[1] * 3600)
 
-    per_min_report = pd.read_csv(
-        path, delimiter=";", parse_dates=["interval_starttime"], usecols=["interval_starttime", "DUR_total_worn"]
-    )
-    per_min_report["visit_date"] = per_min_report["interval_starttime"].dt.date
-    per_min_report = per_min_report.set_index("interval_starttime")
-    result = (
-        per_min_report.groupby("visit_date")
+    return (
+        pd.read_csv(
+            path, delimiter=";", parse_dates=["interval_starttime"], usecols=["interval_starttime", "DUR_total_worn"]
+        )
+        .assign(
+            visit_date=lambda x: x["interval_starttime"].dt.date,
+            seconds_since_midnight=lambda x: _datetime_col_to_seconds_since_midnight(x["interval_starttime"]),
+        )
+        .set_index(["visit_date", "seconds_since_midnight"])
+        .sort_index()
+        .groupby("visit_date")
         .agg(
             total_worn_h=("DUR_total_worn", "sum"),
             total_worn_during_waking_h=(
                 "DUR_total_worn",
-                lambda x: x[
-                    (x.index.time >= datetime.fromtimestamp(waking_hours_as_seconds[0]).time())
-                    & (x.index.time < datetime.fromtimestamp(waking_hours_as_seconds[1]).time())
-                ].sum(),
+                lambda x: x[x.index.to_frame().seconds_since_midnight.between(*waking_hours_as_seconds)].sum(),
             ),
         )
         .fillna(0)
+        / 3600
     )
-
-    return result / 3600
