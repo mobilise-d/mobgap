@@ -54,6 +54,8 @@ def load_weartime_from_daily_mcroberts_report(path: Path, waking_hours: tuple[fl
         .set_index(["visit_date", "seconds_since_midnight"])
         .sort_index()
         .groupby("visit_date")
+        # DUR_total_worn contains the second values for each row (which represents 1 minute).
+        # So the sum over all valid rows is the number of weartime in seconds.
         .agg(
             total_worn_h=("DUR_total_worn", "sum"),
             total_worn_during_waking_h=(
