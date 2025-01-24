@@ -3,15 +3,14 @@
 import warnings
 
 import pandas as pd
-import numpy as np
 from tpcp import OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self
 
+from mobgap._utils_internal.misc import Timer
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 from mobgap.pipeline import GsIterator
 from mobgap.utils.conversions import to_body_frame
-from mobgap._utils_internal.misc import Timer
 
 
 def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
@@ -125,7 +124,7 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.ic_list_ = wb_iterator.results_.ic_list
         # calculate time
         timer.stop()
-        self.runtime_s = timer.results["runtime_s"] # in seconds
+        self.runtime_s = timer.results["runtime_s"]  # in seconds
         return self
 
 

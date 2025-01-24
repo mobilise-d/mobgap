@@ -1,6 +1,5 @@
 import warnings
 
-import numpy as np
 import pandas as pd
 from tpcp.validate import Scorer, no_agg
 
@@ -170,8 +169,8 @@ def icd_final_agg(
 
     """
     from mobgap.initial_contacts.evaluation import (
-        calculate_matched_icd_performance_metrics,
         calculate_matched_icd_error,
+        calculate_matched_icd_performance_metrics,
     )
 
     data_labels = [d.group_label for d in dataset]
@@ -202,9 +201,9 @@ def icd_final_agg(
     combined_matched = {
         f"combined__{k}": v
         for k, v in {
-        **calculate_matched_icd_performance_metrics(matches),
-        **calculate_matched_icd_error(detected, match_ics, sampling_rate_hz[0])
-    }.items()
+            **calculate_matched_icd_performance_metrics(matches),
+            **calculate_matched_icd_error(detected, match_ics, sampling_rate_hz[0]),
+        }.items()
     }
 
     # Note, that we pass the "aggregated_single_results" out via the single results and not the aggregated results
@@ -242,7 +241,7 @@ Aggregated metrics (aggregated results):
 
 - All single outputs averaged over all datapoints. These are stored as ``agg__{metric_name}``.
 - All metrics from :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
-  :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_error` recalculated on all detected ICs across 
+  :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_error` recalculated on all detected ICs across
   all datapoints. These are stored as ``combined__{metric_name}``.
   Compared to the per-datapoint results (which are calculated, as errors per recording -> average over all
   recordings), these metrics are calculated as combining all ICDs from all recordings and then calculating the

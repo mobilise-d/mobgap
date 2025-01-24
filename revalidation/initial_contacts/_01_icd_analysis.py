@@ -236,8 +236,14 @@ perf_metrics_per_cohort
 Ionescu_results = results_long.query("algo == 'IcdIonescu'")
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=Ionescu_results, x="cohort", y="f1_score", hue="algo_with_version", ax=ax
+    data=Ionescu_results,
+    x="cohort",
+    y="f1_score",
+    hue="algo_with_version",
+    ax=ax,
 )
 fig.show()
 
-final_perf_metrics = perf_metrics_per_cohort.query("algo == 'IcdIonescu'").reset_index(level='algo', drop=True)
+final_perf_metrics = perf_metrics_per_cohort.query(
+    "algo == 'IcdIonescu'"
+).reset_index(level="algo", drop=True)

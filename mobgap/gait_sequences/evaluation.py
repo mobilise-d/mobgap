@@ -19,13 +19,13 @@ from mobgap.gait_sequences._evaluation_scorer import (
 )
 from mobgap.utils.evaluation import (
     accuracy_score,
+    combine_detected_and_reference_metrics,
     count_samples_in_intervals,
     count_samples_in_match_intervals,
+    extract_tp_matches,
     npv_score,
     precision_recall_f1_score,
     specificity_score,
-    extract_tp_matches,
-    combine_detected_and_reference_metrics,
 )
 
 
@@ -726,8 +726,9 @@ def get_matching_intervals(
     detected_matches = extract_tp_matches(metrics_detected, tp_matches["gs_id_detected"])
     reference_matches = extract_tp_matches(metrics_reference, tp_matches["gs_id_reference"])
 
-    combined_matches = combine_detected_and_reference_metrics(detected_matches, reference_matches,
-                                                              tp_matches=tp_matches)
+    combined_matches = combine_detected_and_reference_metrics(
+        detected_matches, reference_matches, tp_matches=tp_matches
+    )
 
     return combined_matches
 

@@ -13,9 +13,9 @@ from mobgap.initial_contacts._evaluation_scorer import (
     icd_score,
 )
 from mobgap.utils.evaluation import (
-    precision_recall_f1_score,
+    combine_detected_and_reference_metrics,
     extract_tp_matches,
-    combine_detected_and_reference_metrics
+    precision_recall_f1_score,
 )
 
 
@@ -359,8 +359,9 @@ def get_matching_ics(
     detected_matches = extract_tp_matches(metrics_detected, tp_matches["ic_id_detected"])
     reference_matches = extract_tp_matches(metrics_reference, tp_matches["ic_id_reference"])
 
-    combined_matches = combine_detected_and_reference_metrics(detected_matches, reference_matches,
-                                                              tp_matches=tp_matches)
+    combined_matches = combine_detected_and_reference_metrics(
+        detected_matches, reference_matches, tp_matches=tp_matches
+    )
 
     return combined_matches
 
@@ -488,5 +489,5 @@ __all__ = [
     "icd_per_datapoint_score",
     "icd_final_agg",
     "icd_score",
-    "get_matching_ics"
+    "get_matching_ics",
 ]
