@@ -28,14 +28,16 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 # original matlab algorithms.
 
 # Note also that the IcdIonescu algorithm is the reimplementation of the Ani_McCamley algorithm in the original
-# matlab algorithms. The  other two algorithms (IcdShinImproved and IcdHKLeeImproved) are actually cadence algorithms.
+# matlab algorithms.
+# The  other two algorithms (IcdShinImproved and IcdHKLeeImproved) are actually cadence algorithms.
 # As they can also be used to detect initial contacts, we present their results as well.
+# However, you should check the dedicated cadence analysis for a more detailed comparison of these algorithms.
 algorithms = {
     "IcdIonescu": ("IcdIonescu", "new"),
     "IcdShinImproved": ("IcdShinImproved", "new"),
     "IcdHKLeeImproved": ("IcdHKLeeImproved", "new"),
 }
-# We only load the matlab algorithms that were also reimplemented
+# We only load the matlab algorithms that we reimplemented
 algorithms.update(
     {
         "matlab_Ani_McCamley": ("IcdIonescu", "orig"),
@@ -64,7 +66,6 @@ local_data_path = (
 loader = ValidationResultLoader(
     "icd", result_path=local_data_path, version="initial_contact_reval"
 )
-
 
 free_living_index_cols = [
     "cohort",
@@ -228,8 +229,8 @@ perf_metrics_per_cohort
 
 
 # %%
-# Per Cohort
-# ~~~~~~~~~~
+# Only relevant algorithms
+# ~~~~~~~~~~~~~~~~~~~~~~~~
 # Finally, we present comparison of the old and new implementations of IcdIonescu. IcdShinImproved and
 # IcdHKLeeImproved are excluded because they are cadence algorithms and we don't calculate ICs with these algos in the
 # old Matlab implementation.

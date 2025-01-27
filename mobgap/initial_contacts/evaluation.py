@@ -94,9 +94,14 @@ def calculate_true_positive_icd_error(
 
     The following metrics are calculated for each true positive initial contact:
 
-    - `tp_absolute_error_s`: Absolute time difference (in seconds) between the detected and reference initial contact.
-    - `tp_relative_error`: All absolute errors, within a walking bout, divided by the average step duration estimated
-     by the INDIP.
+    - `tp_absolute_timing_error_s`: Absolute time difference (in seconds) between the detected and reference initial contact.
+    - `tp_relative_timing_error`: All absolute errors, within a walking bout, divided by the average step duration estimated
+      by the INDIP.
+
+    In case no ICs are detected, the error metrics will be 0.
+    Note, that this will introduce a bias when comparing these values, because algorithms that don't find any ICs will
+    have a lower error than algorithms that find ICs but with a higher error.
+    The value should always be considered together with the number of correctly detected ICs.
 
     Parameters
     ----------
@@ -113,20 +118,24 @@ def calculate_true_positive_icd_error(
 
     """
     # calculate absolute error in seconds
-    tp_absolute_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
+    tp_absolute_timing_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
 
     # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
-    # estimated by the INDIP)
-    mean_ref_step_s = (
+    # estimated by the reference system)
+    mean_ref_step_time_s = (
         ic_list_detected.groupby(level="wb_id")["ic"].diff().dropna().groupby(level="wb_id").mean() / sampling_rate_hz
     )
 
-    tp_relative_error = tp_absolute_error_s / mean_ref_step_s
+    tp_relative_timing_error = tp_absolute_timing_error_s / mean_ref_step_time_s
 
-    # return mean after dropping nans, if then empty, return 0
+    # return mean after dropping nans, unless empty, return 0
     error_metrics = {
-        "tp_absolute_error_s": tp_absolute_error_s.dropna().mean() if not tp_absolute_error_s.dropna().empty else 0,
-        "tp_relative_error": tp_relative_error.dropna().mean() if not tp_relative_error.dropna().empty else 0,
+        "tp_absolute_timing_error_s": tp_absolute_timing_error_s.dropna().mean()
+        if not tp_absolute_timing_error_s.dropna().empty
+        else 0,
+        "tp_relative_timing_error": tp_relative_timing_error.dropna().mean()
+        if not tp_relative_timing_error.dropna().empty
+        else 0,
     }
 
     return error_metrics

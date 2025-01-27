@@ -95,7 +95,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         runtime_s = pipeline.runtime_s
 
         # match initial contacts, get true positives
-        match_ics = get_matching_ics(
+        tp_ics = get_matching_ics(
             metrics_detected=detected_ic_list,
             metrics_reference=reference_ic_list,
             matches=matches_per_wb,
@@ -108,13 +108,13 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
             ),
             **calculate_true_positive_icd_error(
                 detected_ic_list,
-                match_ics,
+                tp_ics,
                 sampling_rate_hz,
             ),
             "matches": no_agg(matches_per_wb),
             "detected": no_agg(detected_ic_list),
             "reference": no_agg(reference_ic_list),
-            "match_ics": no_agg(match_ics),
+            "tp_ics": no_agg(tp_ics),
             "sampling_rate_hz": no_agg(sampling_rate_hz),
             "runtime_s": runtime_s,
         }
@@ -182,8 +182,8 @@ def icd_final_agg(
     detected = pd.concat(detected, keys=data_labels, names=[*data_label_names, *detected[0].index.names])
     reference = single_results.pop("reference")
     reference = pd.concat(reference, keys=data_labels, names=[*data_label_names, *reference[0].index.names])
-    match_ics = single_results.pop("match_ics")
-    match_ics = pd.concat(match_ics, keys=data_labels, names=[*data_label_names, *match_ics[0].index.names])
+    tp_ics = single_results.pop("tp_ics")
+    tp_ics = pd.concat(tp_ics, keys=data_labels, names=[*data_label_names, *tp_ics[0].index.names])
 
     aggregated_single_results = {
         "raw__detected": detected,
@@ -202,7 +202,7 @@ def icd_final_agg(
         f"combined__{k}": v
         for k, v in {
             **calculate_matched_icd_performance_metrics(matches),
-            **calculate_true_positive_icd_error(detected, match_ics, sampling_rate_hz[0]),
+            **calculate_true_positive_icd_error(detected, tp_ics, sampling_rate_hz[0]),
         }.items()
     }
 
@@ -235,7 +235,8 @@ Metrics per datapoint (single results):
 - All outputs of :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
   :func:`~mobgap.initial_contacts.evaluation.calculate_true_positive_icd_error` averaged per
   datapoint. These are stored as ``single__{metric_name}``
-- ``single__runtime_s``: The runtime of the algorithm in seconds.
+- ``single__runtime_s``: The runtime of the algorithm in seconds. If multiple WBs were processed, is the runtime it 
+  took to process all WBs.
 
 Aggregated metrics (aggregated results):
 

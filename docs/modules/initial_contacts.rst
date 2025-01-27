@@ -61,6 +61,7 @@ These scores are expected to be used in combination with :class:`~mobgap.utils.e
 
 .. autosummary::
    :toctree: generated/initial_contacts
+   :template: class.rst
 
     icd_score
 
