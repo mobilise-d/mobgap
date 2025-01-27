@@ -70,6 +70,8 @@ def load_weartime_from_daily_mcroberts_report(path: Path, waking_hours: tuple[fl
     )
 
 
+# We keep this function around, in case we need to compare with old results.
+# However, this function produces WRTONG outputs!
 def load_weartime_from_daily_mcroberts_report_old(
     path: Path, waking_hours: tuple[float, float] = (7, 22)
 ) -> pd.DataFrame:
@@ -119,6 +121,7 @@ def load_weartime_from_daily_mcroberts_report_old(
             total_worn_during_waking_h=(
                 "DUR_total_worn",
                 lambda x: x[
+                    # Using from_timestamp here is wrong and produces an offset dependeing on the timezone.slee
                     (x.index.time >= datetime.fromtimestamp(waking_hours_as_seconds[0]).time())
                     & (x.index.time < datetime.fromtimestamp(waking_hours_as_seconds[1]).time())
                 ].sum(),
