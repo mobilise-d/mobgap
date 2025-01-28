@@ -89,12 +89,14 @@ cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
 # -------------------
-# For each participant, performance metrics were calculated by classifying each sample in the recording as either
-# TP, FP, or FN.
-# Based on these values recall (sensitivity), precision (positive predictive value), F1 score were calculated.
-# On top of that the duration of overall detected initial contact per participant was calculated.
-# From this we calculate the mean and confidence interval for both systems, the bias and limits of agreement (LoA)
-# between the algorithm output and the reference data, the absolute error and the ICC.
+# For each participant, performance metrics were calculated by classifying the detected initial contacts as TP, FP or
+# FN matches. Based on these values, recall (sensitivity), precision (positive predictive value), F1 score were
+# calculated.
+# On top of that, absolute error for each true positive initial contact was calculated as the temporal difference
+# between detected and reference values. Relative error was calculated by dividing all absolute errors, within a walking
+# bout, by the average step duration estimated from the reference system.
+# From these, we calculate the mean and confidence interval for both systems, the bias and limits of agreement (LoA)
+# between the algorithm output and the reference data, and the ICC.
 #
 # Below the functions that calculate these metrics are defined.
 from functools import partial
@@ -116,8 +118,8 @@ custom_aggs = [
     ("recall", ["mean", A.conf_intervals]),
     ("precision", ["mean", A.conf_intervals]),
     ("f1_score", ["mean", A.conf_intervals]),
-    ("tp_absolute_error_s", ["mean", A.loa]),
-    ("tp_relative_error", ["mean", A.loa]),
+    ("tp_absolute_timing_error_s", ["mean", A.loa]),
+    ("tp_relative_timing_error", ["mean", A.loa]),
 ]
 
 format_transforms = [
@@ -153,8 +155,8 @@ format_transforms = [
             column_name=("IC Timing", c),
         )
         for c in [
-            "tp_absolute_error_s",
-            "tp_relative_error",
+            "tp_absolute_timing_error_s",
+            "tp_relative_timing_error",
         ]
     ),
 ]
@@ -164,8 +166,8 @@ final_names = {
     "recall": "Recall",
     "precision": "Precision",
     "f1_score": "F1 Score",
-    "tp_absolute_error_s": "Abs. Error [s]",
-    "tp_relative_error": "Bias and LoA",
+    "tp_absolute_timing_error_s": "Abs. Error [s]",
+    "tp_relative_timing_error": "Bias and LoA",
 }
 
 

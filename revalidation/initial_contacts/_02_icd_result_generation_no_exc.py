@@ -240,8 +240,8 @@ def eval_debug_plot(
         "precision",
         "recall",
         "f1_score",
-        "tp_absolute_error_s",
-        "tp_relative_error",
+        "tp_absolute_timing_error_s",
+        "tp_relative_timing_error",
     ]
     fig, axes = plt.subplots(2, 3, figsize=(18, 6))
 
