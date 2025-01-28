@@ -227,7 +227,7 @@ final_names = {
     "icc": "ICC",
 }
 
-comparisons = {
+validation_thresholds = {
     ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
     ("GSD", "Precision"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
@@ -292,7 +292,9 @@ perf_metrics_all = (
     .apply(apply_aggregations, custom_aggs)
     .pipe(format_results)
 )
-perf_metrics_all.style.pipe(revalidation_table_styles, comparisons, ["algo"])
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
 
 # Per Cohort
 # ~~~~~~~~~~
@@ -311,7 +313,7 @@ perf_metrics_per_cohort = (
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, comparisons, ["cohort", "algo"]
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 
 # %%
@@ -355,7 +357,7 @@ fig.show()
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, comparisons, ["cohort"]
+    revalidation_table_styles, validation_thresholds, ["cohort"]
 )
 
 # %%
@@ -393,5 +395,5 @@ fig.show()
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, comparisons, ["cohort"]
+    revalidation_table_styles, validation_thresholds, ["cohort"]
 )

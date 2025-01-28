@@ -397,6 +397,8 @@ def apply_transformations(  # noqa: C901, PLR0912
             "in the transformed DataFrame."
             "This is likely due to an unexpected return shape of a CustomOperation function."
         ) from e
+    if transformation_results.columns.nlevels == 1:
+        transformation_results.columns = transformation_results.columns.get_level_values(0)
     return transformation_results
 
 

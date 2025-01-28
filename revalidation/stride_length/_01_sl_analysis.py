@@ -51,9 +51,11 @@ from mobgap.utils.misc import get_env_var
 
 
 def format_loaded_results(
-    values: dict[tuple[str, str], pd.DataFrame], index_cols: list[str]
+    values: dict[tuple[str, str], pd.DataFrame],
+    index_cols: list[str],
+    convert_rel_error: bool = False,
 ) -> pd.DataFrame:
-    return (
+    formatted = (
         pd.concat(values, names=["algo", "version", *index_cols])
         .reset_index()
         .assign(
@@ -64,6 +66,11 @@ def format_loaded_results(
             _combined="combined",
         )
     )
+    if not convert_rel_error:
+        return formatted
+    rel_cols = [c for c in formatted.columns if "rel_error" in c]
+    formatted[rel_cols] = formatted[rel_cols] * 100
+    return formatted
 
 
 local_data_path = (
@@ -91,6 +98,7 @@ free_living_results = format_loaded_results(
         for k, v in algorithms.items()
     },
     free_living_index_cols,
+    convert_rel_error=True,
 )
 
 lab_index_cols = [
@@ -109,6 +117,7 @@ lab_results = format_loaded_results(
         for k, v in algorithms.items()
     },
     lab_index_cols,
+    convert_rel_error=True,
 )
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
@@ -129,6 +138,7 @@ from mobgap.utils.df_operations import (
     apply_transformations,
 )
 from mobgap.utils.tables import FormatTransformer as F
+from mobgap.utils.tables import RevalidationInfo, revalidation_table_styles
 
 custom_aggs = [
     CustomOperation(
@@ -223,6 +233,15 @@ final_names = {
     "n_nan_detected": "# Failed WBs",
 }
 
+validation_thresholds = {
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Rel. Error [%]": RevalidationInfo(
+        threshold=20, higher_is_better=False
+    ),
+    "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
+    "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
+}
+
 
 def format_tables(df: pd.DataFrame) -> pd.DataFrame:
     return (
@@ -255,7 +274,9 @@ perf_metrics_all = (
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
 )
-perf_metrics_all
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
 
 # %%
 # Per Cohort
@@ -277,7 +298,9 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort
+perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
 
 # %%
 # Speed dependency
@@ -368,7 +391,9 @@ perf_metrics_all = (
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
 )
-perf_metrics_all
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
 
 # %%
 # Per Cohort
@@ -390,4 +415,6 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort
+perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
