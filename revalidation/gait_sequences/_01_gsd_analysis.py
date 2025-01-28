@@ -81,7 +81,17 @@ results = {
     v: loader.load_single_results(k, "free_living")
     for k, v in algorithms.items()
 }
-results = pd.concat(results, names=["algo", "version", *free_living_index_cols])
+results = pd.concat(
+    results, names=["algo", "version", *free_living_index_cols]
+).assign(
+    # We convert all relative errors to percentages
+    gs_absolute_relative_duration_error=lambda df: df[
+        "gs_absolute_relative_duration_error"
+    ]
+    * 100,
+    gs_relative_duration_error=lambda df: df["gs_relative_duration_error"]
+    * 100,
+)
 results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
     _combined="combined",
@@ -108,6 +118,10 @@ from mobgap.utils.df_operations import (
     apply_transformations,
 )
 from mobgap.utils.tables import FormatTransformer as F
+from mobgap.utils.tables import (
+    RevalidationInfo,
+    revalidation_table_styles,
+)
 
 custom_aggs = [
     CustomOperation(
@@ -124,6 +138,7 @@ custom_aggs = [
     ("detected_gs_duration_s", ["mean", A.conf_intervals]),
     ("gs_duration_error_s", ["mean", A.loa]),
     ("gs_absolute_duration_error_s", ["mean", A.conf_intervals]),
+    ("gs_absolute_relative_duration_error", ["mean", A.conf_intervals]),
     CustomOperation(
         identifier=None,
         function=partial(
@@ -174,6 +189,7 @@ format_transforms = [
             "reference_gs_duration_s",
             "detected_gs_duration_s",
             "gs_absolute_duration_error_s",
+            "gs_absolute_relative_duration_error",
         ]
     ),
     CustomOperation(
@@ -207,7 +223,29 @@ final_names = {
     "detected_gs_duration_s": "WD mean and CI [s]",
     "gs_duration_error_s": "Bias and LoA [s]",
     "gs_absolute_duration_error_s": "Abs. Error [s]",
+    "gs_absolute_relative_duration_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
+}
+
+comparisons = {
+    ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("GSD", "Precision"): RevalidationInfo(
+        threshold=0.7, higher_is_better=True
+    ),
+    ("GSD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("GSD", "Accuracy"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("GSD", "Specificity"): RevalidationInfo(
+        threshold=0.7, higher_is_better=True
+    ),
+    ("GS duration", "Abs. Error [s]"): RevalidationInfo(
+        threshold=None, higher_is_better=False
+    ),
+    ("GS duration", "Abs. Rel. Error [%]"): RevalidationInfo(
+        threshold=20, higher_is_better=False
+    ),
+    ("GS duration", "ICC"): RevalidationInfo(
+        threshold=0.7, higher_is_better=True
+    ),
 }
 
 
@@ -247,14 +285,15 @@ sns.boxplot(
 )
 fig.show()
 
+# %%
+
 perf_metrics_all = (
     results.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs)
     .pipe(format_results)
 )
-perf_metrics_all
+perf_metrics_all.style.pipe(revalidation_table_styles, comparisons, ["algo"])
 
-# %%
 # Per Cohort
 # ~~~~~~~~~~
 # While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
@@ -264,19 +303,22 @@ sns.boxplot(
 )
 fig.show()
 
+# %%
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs)
     .pipe(format_results)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort
+perf_metrics_per_cohort.style.pipe(
+    revalidation_table_styles, comparisons, ["cohort", "algo"]
+)
 
 # %%
 # Per relevant cohort
 # ~~~~~~~~~~~~~~~~~~~
 # Overview over all cohorts is good, but this is not how the GSD algorithms are used in our main pipeline.
-# Here, the HA, CHF, and COPD cohort use the ``GsdIluz` algorithm, while the ``GsdIonescu`` algorithm is used for the
+# Here, the HA, CHF, and COPD cohort use the ``GsdIluz`` algorithm, while the ``GsdIonescu`` algorithm is used for the
 # MS, PD, PFF cohorts.
 # Let's look at the performance of these algorithms on the respective cohorts.
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
@@ -312,7 +354,9 @@ fig.show()
 # %%
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True)
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, comparisons, ["cohort"]
+)
 
 # %%
 high_impairment_algo = "GsdIonescu"
@@ -348,4 +392,6 @@ fig.show()
 # %%
 perf_metrics_per_cohort.loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True)
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, comparisons, ["cohort"]
+)

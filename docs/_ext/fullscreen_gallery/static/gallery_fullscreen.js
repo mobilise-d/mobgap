@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             const wrapper = this.closest('.gallery-fullscreen-wrapper');
-            const content = wrapper.querySelector('img, div');
+            const content = wrapper.querySelector('img, table, div');
 
             if (content) {
                 const clone = content.cloneNode(true);
