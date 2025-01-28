@@ -505,8 +505,7 @@ def combine_detected_and_reference_metrics(
     detected: pd.DataFrame, reference: pd.DataFrame, tp_matches: Union[pd.DataFrame, None] = None
 ) -> pd.DataFrame:
     """
-    Combine metrics from detected and reference DataFrames, aligning by common columns and using a
-    set of true positive (TP) matches to reindex the DataFrames.
+    Combine metrics from detected and reference DataFrames using a set of true positive matches to reindex.
 
     This function is used in :func:`~mobgap.gait_sequences.evaluation.get_matching_intervals` and
     :func:`~mobgap.initial_contacts.evaluation.get_matching_ics` to merge two DataFrames (`detected`
