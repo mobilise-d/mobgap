@@ -92,7 +92,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
             ).set_index(["wb_id"])
 
         # calculate run time on pipeline level
-        runtime_s = pipeline.runtime_s
+        runtime_s = pipeline.perf_["runtime_s"]
 
         # match initial contacts, get true positives
         tp_ics = get_matching_ics(

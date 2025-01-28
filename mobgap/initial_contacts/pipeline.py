@@ -6,7 +6,7 @@ import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self
 
-from mobgap._utils_internal.misc import Timer
+from mobgap._utils_internal.misc import timed_action_method
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 from mobgap.pipeline import GsIterator
@@ -71,6 +71,7 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         self.algo = algo
         self.convert_to_body_frame = convert_to_body_frame
 
+    @timed_action_method
     def run(self, datapoint: BaseGaitDatasetWithReference) -> Self:
         """Run the pipeline on a single data point.
 
@@ -88,9 +89,6 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             The pipeline instance with the detected initial contacts stored in the ``ic_list_`` attribute.
 
         """
-        # start timer (calculate the performance on the pipeline level)
-        timer = Timer()
-        timer.start()
         imu_data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
@@ -122,9 +120,6 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             r.ic_list = algo.ic_list_
         self.per_wb_algo_ = result_algo_list
         self.ic_list_ = wb_iterator.results_.ic_list
-        # calculate time
-        timer.stop()
-        self.runtime_s = timer.results["runtime_s"]  # in seconds
         return self
 
 
