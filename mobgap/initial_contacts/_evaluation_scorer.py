@@ -107,7 +107,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
                 matches_per_wb,
             ),
             **calculate_true_positive_icd_error(
-                detected_ic_list,
+                reference_ic_list,
                 tp_ics,
                 sampling_rate_hz,
             ),
@@ -202,7 +202,7 @@ def icd_final_agg(
         f"combined__{k}": v
         for k, v in {
             **calculate_matched_icd_performance_metrics(matches),
-            **calculate_true_positive_icd_error(detected, tp_ics, sampling_rate_hz[0]),
+            **calculate_true_positive_icd_error(reference, tp_ics, sampling_rate_hz[0]),
         }.items()
     }
 
@@ -235,7 +235,7 @@ Metrics per datapoint (single results):
 - All outputs of :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics` and
   :func:`~mobgap.initial_contacts.evaluation.calculate_true_positive_icd_error` averaged per
   datapoint. These are stored as ``single__{metric_name}``
-- ``single__runtime_s``: The runtime of the algorithm in seconds. If multiple WBs were processed, is the runtime it 
+- ``single__runtime_s``: The runtime of the algorithm in seconds. If multiple WBs were processed, is the runtime it
   took to process all WBs.
 
 Aggregated metrics (aggregated results):

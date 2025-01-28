@@ -82,7 +82,7 @@ def calculate_matched_icd_performance_metrics(
 
 
 def calculate_true_positive_icd_error(
-    ic_list_detected: pd.DataFrame, match_ics: pd.DataFrame, sampling_rate_hz: float
+    ic_list_reference: pd.DataFrame, match_ics: pd.DataFrame, sampling_rate_hz: float
 ) -> dict[str, Union[float, int]]:
     """
     Calculate error metrics for initial contact detection results.
@@ -94,9 +94,10 @@ def calculate_true_positive_icd_error(
 
     The following metrics are calculated for each true positive initial contact:
 
-    - `tp_absolute_timing_error_s`: Absolute time difference (in seconds) between the detected and reference initial contact.
-    - `tp_relative_timing_error`: All absolute errors, within a walking bout, divided by the average step duration estimated
-      by the INDIP.
+    - `tp_absolute_timing_error_s`: Absolute time difference (in seconds) between the detected and reference initial
+      contact.
+    - `tp_relative_timing_error`: All absolute errors, within a walking bout, divided by the average step duration
+      estimated by the INDIP.
 
     In case no ICs are detected, the error metrics will be 0.
     Note, that this will introduce a bias when comparing these values, because algorithms that don't find any ICs will
@@ -105,8 +106,8 @@ def calculate_true_positive_icd_error(
 
     Parameters
     ----------
-    ic_list_detected: pd.DataFrame
-        The dataframe of detected initial contacts.
+    ic_list_reference: pd.DataFrame
+        The dataframe of reference initial contacts.
     match_ics: pd.DataFrame
         Initial contact true positives as output by :func:`~mobgap.initial_contacts.evaluation.get_matching_ics`.
     sampling_rate_hz: float
@@ -123,7 +124,7 @@ def calculate_true_positive_icd_error(
     # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
     # estimated by the reference system)
     mean_ref_step_time_s = (
-        ic_list_detected.groupby(level="wb_id")["ic"].diff().dropna().groupby(level="wb_id").mean() / sampling_rate_hz
+        ic_list_reference.groupby(level="wb_id")["ic"].diff().dropna().groupby(level="wb_id").mean() / sampling_rate_hz
     )
 
     tp_relative_timing_error = tp_absolute_timing_error_s / mean_ref_step_time_s
