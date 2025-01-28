@@ -449,6 +449,47 @@ def count_samples_in_intervals(intervals: pd.DataFrame) -> int:
 
 
 def extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.DataFrame:
+    """
+    Extract true positive (TP) matches from the metrics DataFrame based on provided match indices.
+
+    This function is used in :func:`~mobgap.gait_sequences.evaluation.get_matching_intervals` and
+    :func:`~mobgap.initial_contacts.evaluation.get_matching_ics` to filter out the TP matches from
+    a larger DataFrame of evaluation metrics (e.g., detected/reference gait sequences or initial
+    contacts). TP matches are calculated by :func:`~mobgap.gait_sequences.evaluation.categorize_intervals`
+    and :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list` for gait sequence and initial
+    contact detection, respectively.
+
+    Parameters
+    ----------
+    metrics: pd.DataFrame
+        The DataFrame containing metrics from which to extract the matches.
+    match_indices: pd.Series
+        A Series of indices indicating the rows in `metrics` to be extracted.
+
+    Returns
+    -------
+    matches: pd.DataFrame
+        A DataFrame containing the rows of `metrics` corresponding to the indices in `match_indices`.
+
+    Raises
+    ------
+    ValueError
+        If any of the indices in `match_indices` are not found in the `metrics` DataFrame,
+        indicating that there is a mismatch between the provided indices and the data.
+
+    Examples
+    --------
+    >>> metrics = pd.DataFrame({
+    >>>     'step_id': [0, 1, 2, 3],
+    >>>     'metric': [597, 660, 720, 797]
+    >>> }).set_index("step_id")
+    >>> match_indices = pd.Series([0, 2])
+    >>> extract_tp_matches(metrics, match_indices)
+                metric
+    step_id
+    0            597
+    2            720
+    """
     try:
         matches = metrics.loc[match_indices]
     except KeyError as e:
@@ -463,6 +504,73 @@ def extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.Da
 def combine_detected_and_reference_metrics(
     detected: pd.DataFrame, reference: pd.DataFrame, tp_matches: Union[pd.DataFrame, None] = None
 ) -> pd.DataFrame:
+    """
+    Combine metrics from detected and reference DataFrames, aligning by common columns and using a
+    set of true positive (TP) matches to reindex the DataFrames.
+
+    This function is used in :func:`~mobgap.gait_sequences.evaluation.get_matching_intervals` and
+    :func:`~mobgap.initial_contacts.evaluation.get_matching_ics` to merge two DataFrames (`detected`
+    and `reference`) based on their common columns. The dataframes are obtained by
+    :func:`~mobgap.utils.evaluation.extract_tp_matches`. Optionally, if a set of true positive matches
+    (`tp_matches`) is provided, it will reindex both DataFrames before merging.
+    The result is a combined DataFrame where detected and reference metrics are placed side-by-side
+    for each matching index with multi-level columns.
+
+    Parameters
+    ----------
+    detected : pd.DataFrame
+        The DataFrame containing the detected metrics (gait sequences or initial contacts).
+    reference : pd.DataFrame
+        The DataFrame containing the reference metrics.
+    tp_matches : Union[pd.DataFrame, None], optional
+        A DataFrame containing true positive matches, by default None. If provided, the indices
+        of the `detected` and `reference` DataFrames will be reindexed to match the true positive
+        matches before combining. If None, no reindexing is done.
+
+    Returns
+    -------
+    pd.DataFrame
+        A combined DataFrame with the detected and reference metrics side-by-side. The columns
+        are multi-indexed with levels corresponding to `detected` and `reference` for easier
+        comparison of corresponding metrics.
+
+    Raises
+    ------
+    ValueError
+        If no common columns are found between `detected` and `reference`.
+
+    Notes
+    -----
+    - If the index of the `detected` and `reference` DataFrames contains the level `'wb_id'`,
+      this index level is preserved by inserting it as a new column in both DataFrames.
+    - The merged DataFrame has multi-level columns, where the top level indicates the source
+      (`detected` or `reference`) and the lower level corresponds to the metric name.
+
+    Examples
+    --------
+    >>> detected = pd.DataFrame({
+    >>>     'metric_1': [1.2, 2.5, 3.8],
+    >>>     'metric_2': [0.9, 1.8, 3.1],
+    >>>     'step_id': [0, 1, 2],
+    >>> }).set_index("step_id")
+    >>> reference = pd.DataFrame({
+    >>>     'metric_1': [1.3, 2.4, 3.7],
+    >>>     'metric_2': [1.0, 1.7, 3.0],
+    >>>     'step_id': [0, 1, 2],
+    >>> }).set_index("step_id")
+    >>> match_indices = pd.Series([0, 2])
+    >>> tp_matches = pd.DataFrame({"step_id": [0, 2]}).set_index("step_id")
+    >>> detected_matches = extract_tp_matches(detected, match_indices)
+    >>> reference_matches = extract_tp_matches(reference, match_indices)
+    >>> combine_detected_and_reference_metrics(
+    ...     detected_matches, reference_matches, tp_matches
+    ... )
+                         metric_1           metric_2
+            detected reference detected reference
+    step_id
+    0            1.2       1.3      0.9       1.0
+    2            3.8       3.7      3.1       3.0
+    """
     # if wb_id in index, add it as a column to preserve it in the combined DataFrame
     if "wb_id" in detected.index.names and "wb_id" in reference.index.names:
         detected.insert(0, "wb_id", detected.index.get_level_values("wb_id"))
