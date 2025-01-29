@@ -6,7 +6,7 @@ import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self
 
-from mobgap._utils_internal.misc import timed_action_method
+from mobgap._utils_internal.misc import timed_action_method, MeasureTimeResults
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 from mobgap.pipeline import GsIterator
@@ -65,7 +65,9 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
     algo: OptimizableParameter[BaseIcDetector]
     convert_to_body_frame: bool
 
-    algo_: BaseIcDetector
+    per_wb_algo_: dict[str, BaseIcDetector]
+    ic_list_: pd.DataFrame
+    perf_: MeasureTimeResults
 
     def __init__(self, algo: BaseIcDetector, *, convert_to_body_frame: bool = True) -> None:
         self.algo = algo
@@ -110,7 +112,6 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
                 {"wb_id": float, "step_id": int, "ic": int}
             )
             self.ic_list_ = self.ic_list_.set_index(["wb_id", "step_id"])
-            self.runtime_s = 0
             return self
         wb_iterator = GsIterator()
         result_algo_list = {}
