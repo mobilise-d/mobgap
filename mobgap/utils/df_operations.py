@@ -387,6 +387,10 @@ def apply_transformations(  # noqa: C901, PLR0912
             "This is likely due to an unexpected return type of a custom function."
             "Please ensure that the return type is a pandas Series for all custom functions."
         ) from e
+    if all([not isinstance(c, tuple) for c in column_names]):
+        # This should be a normal index not mutliindex
+        transformation_results.columns = pd.Index(column_names)
+        return transformation_results
     column_names = [col_name if isinstance(col_name, tuple) else (col_name,) for col_name in column_names]
     try:
         transformation_results.columns = pd.MultiIndex.from_tuples(column_names)
@@ -397,8 +401,6 @@ def apply_transformations(  # noqa: C901, PLR0912
             "in the transformed DataFrame."
             "This is likely due to an unexpected return shape of a CustomOperation function."
         ) from e
-    if transformation_results.columns.nlevels == 1:
-        transformation_results.columns = transformation_results.columns.get_level_values(0)
     return transformation_results
 
 

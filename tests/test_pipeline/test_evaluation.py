@@ -252,6 +252,26 @@ class TestApplyTransformations:
         with pytest.raises(ValueError):
             apply_transformations(df, transformations, missing_columns="ignore")
 
+    def test_returns_normal_col_index_instead_of_multi_index(self, combined_det_ref_dmo_df):
+        # When all column names are strings and not tuples, the output should be a normal column index and not
+        # Multiindex
+        metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
+        transformations = [
+            CustomOperation(identifier=metric, function=error, column_name="test1"),
+            CustomOperation(identifier=metric, function=abs_error, column_name="test2"),
+        ]
+        res = apply_transformations(combined_det_ref_dmo_df, transformations)
+        assert not isinstance(res.columns, pd.MultiIndex)
+
+        # Inverted test with single value tuples
+        metric = combined_det_ref_dmo_df.columns.get_level_values(0)[0]
+        transformations = [
+            CustomOperation(identifier=metric, function=error, column_name=("test1",)),
+            CustomOperation(identifier=metric, function=abs_error, column_name=("test2",)),
+        ]
+        res = apply_transformations(combined_det_ref_dmo_df, transformations)
+        assert isinstance(res.columns, pd.MultiIndex)
+
 
 class TestApplyAggregations:
     def test_apply_agg_with_unnamed_fct(self, combined_det_ref_dmo_df):
