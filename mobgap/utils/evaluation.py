@@ -540,59 +540,25 @@ def combine_detected_and_reference_metrics(
 
     Notes
     -----
-    - If the index of the `detected` and `reference` DataFrames contains the level `'wb_id'`,
-      this index level is preserved by inserting it as a new column in both DataFrames.
     - The merged DataFrame has multi-level columns, where the top level indicates the source
       (`detected` or `reference`) and the lower level corresponds to the metric name.
+    - We add a new column `orig_index` to both DataFrames to keep track of the original index
 
-    Examples
-    --------
-    >>> detected = pd.DataFrame({
-    >>>     'metric_1': [1.2, 2.5, 3.8],
-    >>>     'metric_2': [0.9, 1.8, 3.1],
-    >>>     'step_id': [0, 1, 2],
-    >>> }).set_index("step_id")
-    >>> reference = pd.DataFrame({
-    >>>     'metric_1': [1.3, 2.4, 3.7],
-    >>>     'metric_2': [1.0, 1.7, 3.0],
-    >>>     'step_id': [0, 1, 2],
-    >>> }).set_index("step_id")
-    >>> match_indices = pd.Series([0, 2])
-    >>> tp_matches = pd.DataFrame({"step_id": [0, 2]}).set_index("step_id")
-    >>> detected_matches = extract_tp_matches(detected, match_indices)
-    >>> reference_matches = extract_tp_matches(reference, match_indices)
-    >>> combine_detected_and_reference_metrics(
-    ...     detected_matches, reference_matches, tp_matches
-    ... )
-                         metric_1           metric_2
-            detected reference detected reference
-    step_id
-    0            1.2       1.3      0.9       1.0
-    2            3.8       3.7      3.1       3.0
     """
-    # if wb_id in index, add it as a column to preserve it in the combined DataFrame
-    if "wb_id" in detected.index.names and "wb_id" in reference.index.names:
-        detected.insert(0, "wb_id", detected.index.get_level_values("wb_id"))
-        reference.insert(0, "wb_id", reference.index.get_level_values("wb_id"))
-
     common_columns = list(set(reference.columns).intersection(detected.columns))
     if len(common_columns) == 0:
         raise ValueError("No common columns found in `metrics_detected` and `metrics_reference`.")
 
-    detected = detected[common_columns]
-    reference = reference[common_columns]
+    detected = detected[common_columns].assign(orig_index=lambda df_: df_.index.to_list()).reset_index(drop=True)
+    reference = reference[common_columns].assign(orig_index=lambda df_: df_.index.to_list()).reset_index(drop=True)
 
-    if tp_matches is not None:
-        detected.index = tp_matches.index
-        reference.index = tp_matches.index
-
-    matches = detected.merge(reference, left_index=True, right_index=True, suffixes=("_det", "_ref"))
-
-    # construct MultiIndex columns
-    matches.columns = pd.MultiIndex.from_product([["detected", "reference"], common_columns])
+    combined = pd.concat({"detected": detected, "reference": reference}, axis=1)
     # make 'metrics' level the uppermost level and sort columns accordingly for readability
-    matches = matches.swaplevel(axis=1).sort_index(axis=1, level=0)
-    return matches
+    combined = combined.swaplevel(axis=1).sort_index(axis=1, level=0)
+    if tp_matches is not None:
+        combined.index = tp_matches.index
+
+    return combined
 
 
 def _estimate_number_tn_samples(matches_df: pd.DataFrame, n_overall_samples: Union[int, None], tn_warning: bool) -> int:

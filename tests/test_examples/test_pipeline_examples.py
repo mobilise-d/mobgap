@@ -75,12 +75,9 @@ def test_dmo_evaluation_on_wb_level(snapshot):
     # flatten multiindex columns as they are not supported by snapshot
     wb_matches.columns = ["_".join(pair) for pair in wb_matches.columns]
     snapshot.assert_match(wb_matches.reset_index(), "det_ref_daily")
+    snapshot.assert_match(wb_matches.reset_index(), "wb_matches")
 
     snapshot.assert_match(wb_tp_fp_fn, "wb_tp_fp_fn")
-
-    # flatten multiindex columns as they are not supported by snapshot
-    wb_matches.columns = ["_".join(pair) for pair in wb_matches.columns]
-    snapshot.assert_match(wb_matches.reset_index(), "wb_matches")
 
     # flatten multiindex columns as they are not supported by snapshot
     wb_errors.columns = ["_".join(pair) for pair in wb_errors.columns]

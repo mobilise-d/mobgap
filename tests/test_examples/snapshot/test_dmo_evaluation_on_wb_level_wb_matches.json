@@ -22,84 +22,84 @@
                 "type":"integer"
             },
             {
-                "name":"c_a_d_e_n_c_e___s_p_m___d_e_t_e_c_t_e_d",
+                "name":"cadence_spm_detected",
                 "type":"number"
             },
             {
-                "name":"c_a_d_e_n_c_e___s_p_m___r_e_f_e_r_e_n_c_e",
+                "name":"cadence_spm_reference",
                 "type":"number"
             },
             {
-                "name":"d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d",
+                "name":"duration_s_detected",
                 "type":"number"
             },
             {
-                "name":"d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e",
+                "name":"duration_s_reference",
                 "type":"number"
             },
             {
-                "name":"e_n_d___d_e_t_e_c_t_e_d",
+                "name":"end_detected",
                 "type":"integer"
             },
             {
-                "name":"e_n_d___r_e_f_e_r_e_n_c_e",
+                "name":"end_reference",
                 "type":"integer"
             },
             {
-                "name":"n___s_t_e_p_s___d_e_t_e_c_t_e_d",
+                "name":"n_steps_detected",
                 "type":"integer"
             },
             {
-                "name":"n___s_t_e_p_s___r_e_f_e_r_e_n_c_e",
+                "name":"n_steps_reference",
                 "type":"integer"
             },
             {
-                "name":"n___t_u_r_n_s___d_e_t_e_c_t_e_d",
+                "name":"n_turns_detected",
                 "type":"integer"
             },
             {
-                "name":"n___t_u_r_n_s___r_e_f_e_r_e_n_c_e",
+                "name":"n_turns_reference",
                 "type":"integer"
             },
             {
-                "name":"s_t_a_r_t___d_e_t_e_c_t_e_d",
+                "name":"orig_index_detected",
+                "type":"string"
+            },
+            {
+                "name":"orig_index_reference",
+                "type":"string"
+            },
+            {
+                "name":"start_detected",
                 "type":"integer"
             },
             {
-                "name":"s_t_a_r_t___r_e_f_e_r_e_n_c_e",
+                "name":"start_reference",
                 "type":"integer"
             },
             {
-                "name":"s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d",
+                "name":"stride_duration_s_detected",
                 "type":"number"
             },
             {
-                "name":"s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e",
+                "name":"stride_duration_s_reference",
                 "type":"number"
             },
             {
-                "name":"s_t_r_i_d_e___l_e_n_g_t_h___m___d_e_t_e_c_t_e_d",
+                "name":"stride_length_m_detected",
                 "type":"number"
             },
             {
-                "name":"s_t_r_i_d_e___l_e_n_g_t_h___m___r_e_f_e_r_e_n_c_e",
+                "name":"stride_length_m_reference",
                 "type":"number"
             },
             {
-                "name":"w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___d_e_t_e_c_t_e_d",
+                "name":"walking_speed_mps_detected",
                 "type":"number"
             },
             {
-                "name":"w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___r_e_f_e_r_e_n_c_e",
+                "name":"walking_speed_mps_reference",
                 "type":"number"
-            },
-            {
-                "name":"w_b___i_d___d_e_t_e_c_t_e_d",
-                "type":"integer"
-            },
-            {
-                "name":"w_b___i_d___r_e_f_e_r_e_n_c_e",
-                "type":"integer"
             }
         ],
         "primaryKey":[
@@ -114,26 +114,36 @@
             "participant_id":12345,
             "measurement_date":"2023-01-01",
             "match_id":0,
-            "c_a_d_e_n_c_e___s_p_m___d_e_t_e_c_t_e_d":100.2324317085,
-            "c_a_d_e_n_c_e___s_p_m___r_e_f_e_r_e_n_c_e":99.82188,
-            "d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":5.1303145487,
-            "d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":4.74702,
-            "e_n_d___d_e_t_e_c_t_e_d":5,
-            "e_n_d___r_e_f_e_r_e_n_c_e":4,
-            "n___s_t_e_p_s___d_e_t_e_c_t_e_d":8,
-            "n___s_t_e_p_s___r_e_f_e_r_e_n_c_e":8,
-            "n___t_u_r_n_s___d_e_t_e_c_t_e_d":1,
-            "n___t_u_r_n_s___r_e_f_e_r_e_n_c_e":0,
-            "s_t_a_r_t___d_e_t_e_c_t_e_d":0,
-            "s_t_a_r_t___r_e_f_e_r_e_n_c_e":0,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":2.3848070177,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":1.58675,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___d_e_t_e_c_t_e_d":2.9073425098,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___r_e_f_e_r_e_n_c_e":2.51885,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___d_e_t_e_c_t_e_d":2.0616591597,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___r_e_f_e_r_e_n_c_e":1.16079,
-            "w_b___i_d___d_e_t_e_c_t_e_d":0,
-            "w_b___i_d___r_e_f_e_r_e_n_c_e":0
+            "cadence_spm_detected":100.2324317085,
+            "cadence_spm_reference":99.82188,
+            "duration_s_detected":5.1303145487,
+            "duration_s_reference":4.74702,
+            "end_detected":5,
+            "end_reference":4,
+            "n_steps_detected":8,
+            "n_steps_reference":8,
+            "n_turns_detected":1,
+            "n_turns_reference":0,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                0
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                0
+            ],
+            "start_detected":0,
+            "start_reference":0,
+            "stride_duration_s_detected":2.3848070177,
+            "stride_duration_s_reference":1.58675,
+            "stride_length_m_detected":2.9073425098,
+            "stride_length_m_reference":2.51885,
+            "walking_speed_mps_detected":2.0616591597,
+            "walking_speed_mps_reference":1.16079
         },
         {
             "index":1,
@@ -141,26 +151,36 @@
             "participant_id":12345,
             "measurement_date":"2023-01-01",
             "match_id":2,
-            "c_a_d_e_n_c_e___s_p_m___d_e_t_e_c_t_e_d":87.4843290301,
-            "c_a_d_e_n_c_e___s_p_m___r_e_f_e_r_e_n_c_e":86.53527,
-            "d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":9.1405757466,
-            "d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":8.52727,
-            "e_n_d___d_e_t_e_c_t_e_d":25,
-            "e_n_d___r_e_f_e_r_e_n_c_e":24,
-            "n___s_t_e_p_s___d_e_t_e_c_t_e_d":12,
-            "n___s_t_e_p_s___r_e_f_e_r_e_n_c_e":12,
-            "n___t_u_r_n_s___d_e_t_e_c_t_e_d":3,
-            "n___t_u_r_n_s___r_e_f_e_r_e_n_c_e":2,
-            "s_t_a_r_t___d_e_t_e_c_t_e_d":20,
-            "s_t_a_r_t___r_e_f_e_r_e_n_c_e":20,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":3.472869224,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":2.56092,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___d_e_t_e_c_t_e_d":2.572194542,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___r_e_f_e_r_e_n_c_e":1.66305,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___d_e_t_e_c_t_e_d":2.2559309823,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___r_e_f_e_r_e_n_c_e":1.60044,
-            "w_b___i_d___d_e_t_e_c_t_e_d":2,
-            "w_b___i_d___r_e_f_e_r_e_n_c_e":2
+            "cadence_spm_detected":87.4843290301,
+            "cadence_spm_reference":86.53527,
+            "duration_s_detected":9.1405757466,
+            "duration_s_reference":8.52727,
+            "end_detected":25,
+            "end_reference":24,
+            "n_steps_detected":12,
+            "n_steps_reference":12,
+            "n_turns_detected":3,
+            "n_turns_reference":2,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                2
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                2
+            ],
+            "start_detected":20,
+            "start_reference":20,
+            "stride_duration_s_detected":3.472869224,
+            "stride_duration_s_reference":2.56092,
+            "stride_length_m_detected":2.572194542,
+            "stride_length_m_reference":1.66305,
+            "walking_speed_mps_detected":2.2559309823,
+            "walking_speed_mps_reference":1.60044
         },
         {
             "index":2,
@@ -168,26 +188,36 @@
             "participant_id":12345,
             "measurement_date":"2023-01-01",
             "match_id":4,
-            "c_a_d_e_n_c_e___s_p_m___d_e_t_e_c_t_e_d":93.9889414049,
-            "c_a_d_e_n_c_e___s_p_m___r_e_f_e_r_e_n_c_e":93.69895,
-            "d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":6.2172281615,
-            "d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":6.09907,
-            "e_n_d___d_e_t_e_c_t_e_d":45,
-            "e_n_d___r_e_f_e_r_e_n_c_e":44,
-            "n___s_t_e_p_s___d_e_t_e_c_t_e_d":9,
-            "n___s_t_e_p_s___r_e_f_e_r_e_n_c_e":8,
-            "n___t_u_r_n_s___d_e_t_e_c_t_e_d":0,
-            "n___t_u_r_n_s___r_e_f_e_r_e_n_c_e":0,
-            "s_t_a_r_t___d_e_t_e_c_t_e_d":40,
-            "s_t_a_r_t___r_e_f_e_r_e_n_c_e":40,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":3.3131197829,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":2.35295,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___d_e_t_e_c_t_e_d":2.3382232273,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___r_e_f_e_r_e_n_c_e":1.95969,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___d_e_t_e_c_t_e_d":2.5481554328,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___r_e_f_e_r_e_n_c_e":2.3323,
-            "w_b___i_d___d_e_t_e_c_t_e_d":4,
-            "w_b___i_d___r_e_f_e_r_e_n_c_e":4
+            "cadence_spm_detected":93.9889414049,
+            "cadence_spm_reference":93.69895,
+            "duration_s_detected":6.2172281615,
+            "duration_s_reference":6.09907,
+            "end_detected":45,
+            "end_reference":44,
+            "n_steps_detected":9,
+            "n_steps_reference":8,
+            "n_turns_detected":0,
+            "n_turns_reference":0,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                4
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                4
+            ],
+            "start_detected":40,
+            "start_reference":40,
+            "stride_duration_s_detected":3.3131197829,
+            "stride_duration_s_reference":2.35295,
+            "stride_length_m_detected":2.3382232273,
+            "stride_length_m_reference":1.95969,
+            "walking_speed_mps_detected":2.5481554328,
+            "walking_speed_mps_reference":2.3323
         },
         {
             "index":3,
@@ -195,26 +225,36 @@
             "participant_id":12345,
             "measurement_date":"2023-01-01",
             "match_id":6,
-            "c_a_d_e_n_c_e___s_p_m___d_e_t_e_c_t_e_d":87.4288802029,
-            "c_a_d_e_n_c_e___s_p_m___r_e_f_e_r_e_n_c_e":87.09312,
-            "d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":14.0346487047,
-            "d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":13.5208,
-            "e_n_d___d_e_t_e_c_t_e_d":65,
-            "e_n_d___r_e_f_e_r_e_n_c_e":64,
-            "n___s_t_e_p_s___d_e_t_e_c_t_e_d":17,
-            "n___s_t_e_p_s___r_e_f_e_r_e_n_c_e":17,
-            "n___t_u_r_n_s___d_e_t_e_c_t_e_d":1,
-            "n___t_u_r_n_s___r_e_f_e_r_e_n_c_e":1,
-            "s_t_a_r_t___d_e_t_e_c_t_e_d":60,
-            "s_t_a_r_t___r_e_f_e_r_e_n_c_e":60,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___d_e_t_e_c_t_e_d":2.6274958317,
-            "s_t_r_i_d_e___d_u_r_a_t_i_o_n___s___r_e_f_e_r_e_n_c_e":2.00582,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___d_e_t_e_c_t_e_d":3.30913068,
-            "s_t_r_i_d_e___l_e_n_g_t_h___m___r_e_f_e_r_e_n_c_e":2.41782,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___d_e_t_e_c_t_e_d":2.7831202734,
-            "w_a_l_k_i_n_g___s_p_e_e_d___m_p_s___r_e_f_e_r_e_n_c_e":2.09538,
-            "w_b___i_d___d_e_t_e_c_t_e_d":6,
-            "w_b___i_d___r_e_f_e_r_e_n_c_e":6
+            "cadence_spm_detected":87.4288802029,
+            "cadence_spm_reference":87.09312,
+            "duration_s_detected":14.0346487047,
+            "duration_s_reference":13.5208,
+            "end_detected":65,
+            "end_reference":64,
+            "n_steps_detected":17,
+            "n_steps_reference":17,
+            "n_turns_detected":1,
+            "n_turns_reference":1,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                6
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                6
+            ],
+            "start_detected":60,
+            "start_reference":60,
+            "stride_duration_s_detected":2.6274958317,
+            "stride_duration_s_reference":2.00582,
+            "stride_length_m_detected":3.30913068,
+            "stride_length_m_reference":2.41782,
+            "walking_speed_mps_detected":2.7831202734,
+            "walking_speed_mps_reference":2.09538
         }
     ]
 }

@@ -1,6 +1,7 @@
 """Class to evaluate initial contact detection algorithms."""
 
 import warnings
+from collections.abc import Hashable
 from typing import Literal, Union
 
 import numpy as np
@@ -82,7 +83,10 @@ def calculate_matched_icd_performance_metrics(
 
 
 def calculate_true_positive_icd_error(
-    ic_list_reference: pd.DataFrame, match_ics: pd.DataFrame, sampling_rate_hz: float
+    ic_list_reference: pd.DataFrame,
+    match_ics: pd.DataFrame,
+    sampling_rate_hz: float,
+    groupby: Union[Hashable, tuple[Hashable, ...]] = "wb_id",
 ) -> dict[str, Union[float, int]]:
     """
     Calculate error metrics for initial contact detection results.
@@ -112,6 +116,8 @@ def calculate_true_positive_icd_error(
         Initial contact true positives as output by :func:`~mobgap.initial_contacts.evaluation.get_matching_ics`.
     sampling_rate_hz: float
         Sampling rate of the data.
+    groupby
+        A valid pandas groupby argument to group the initial contacts by to calculate the average step duration.
 
     Returns
     -------
@@ -123,9 +129,7 @@ def calculate_true_positive_icd_error(
 
     # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
     # estimated by the reference system)
-    mean_ref_step_time_s = (
-        ic_list_reference.groupby(level="wb_id")["ic"].diff().dropna().groupby(level="wb_id").mean() / sampling_rate_hz
-    )
+    mean_ref_step_time_s = ic_list_reference["ic"].diff().dropna().groupby(groupby).mean() / sampling_rate_hz
 
     tp_relative_timing_error = tp_absolute_timing_error_s / mean_ref_step_time_s
 
