@@ -335,10 +335,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
             icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
             lrc = self.laterality_classification.clone().predict(gs_data, icd.ic_list_, **action_kwargs)
+            r.ic_list = lrc.ic_lr_list_
             if self.turn_detection:
-                r.ic_list = lrc.ic_lr_list_
-                gs_data_bf = gs_data
-                turn = self.turn_detection.clone().detect(gs_data_bf, **action_kwargs)
+                turn = self.turn_detection.clone().detect(gs_data, **action_kwargs)
                 r.turn_list = turn.turn_list_
 
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
