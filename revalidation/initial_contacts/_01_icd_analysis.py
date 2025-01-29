@@ -2,7 +2,7 @@
 .. _icd_val_results:
 
 Performance of the initial contact algorithms on the TVS dataset
-==============================================================
+================================================================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
   of its algorithm.

@@ -129,7 +129,9 @@ def calculate_true_positive_icd_error(
 
     # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
     # estimated by the reference system)
-    mean_ref_step_time_s = ic_list_reference["ic"].diff().dropna().groupby(groupby).mean() / sampling_rate_hz
+    mean_ref_step_time_s = (
+        ic_list_reference.groupby(groupby)["ic"].diff().dropna().groupby(groupby).mean() / sampling_rate_hz
+    )
 
     tp_relative_timing_error = tp_absolute_timing_error_s / mean_ref_step_time_s
 

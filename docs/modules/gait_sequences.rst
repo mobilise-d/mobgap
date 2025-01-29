@@ -77,7 +77,6 @@ These scores are expected to be used in combination with :class:`~mobgap.utils.e
 
 .. autosummary::
    :toctree: generated/stride_length
-   :template: class.rst
 
     gsd_score
 

@@ -2,7 +2,7 @@
 .. _icd_val_gen:
 
 Revalidation of the initial contact detection algorithms
-======================================================
+========================================================
 
 .. note:: This is the code to create the results! If you are interested in viewing the results, please check the
     :ref:`results report <icd_val_results>`.
