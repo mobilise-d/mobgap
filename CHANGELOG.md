@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/pull/176)
 - Confidence intervals where added as a aggregation function.
   (https://github.com/mobilise-d/mobgap/pull/176)
+- Helper for styling and formatting tables. They are primarily used within the revalidation docs.
+  But feel free to copy them for your own use.
+  (https://github.com/mobilise-d/mobgap/pull/192 , https://github.com/mobilise-d/mobgap/pull/199)
 
 ### Fixed
 

@@ -47,7 +47,10 @@ def value_with_range(df: pd.DataFrame, value_col: str, range_col: str, precision
     """Combine a value column (float) and a range column tuple(float, float) into one column.
 
     Note, that the return value is not a string, but a custom object that has the expected string representation.
-    However, it also contains the underlying data for further processing.
+    This means that if you apply this to a pandas dataframe, you can still perform regular comparisons with the values.
+    The comparisons are based on the value only and not the range.
+    Don't overuse this "magic trick".
+    We are just using it to still apply styles based on the value in the final dataframe.
 
     Parameters
     ----------
@@ -215,3 +218,14 @@ def revalidation_table_styles(
         .apply(border_after_group_styler(groupby), axis=None)
         .set_table_attributes('class="dataframe"')
     )
+
+
+__all__ = [
+    "FormatTransformer",
+    "best_in_group_styler",
+    "border_after_group_styler",
+    "compare_to_threshold_styler",
+    "revalidation_table_styles",
+    "ValueWithRange",
+    "RevalidationInfo",
+]
