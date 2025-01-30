@@ -64,7 +64,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "icd", result_path=local_data_path, version="initial_contact_reval"
+    "icd", result_path=local_data_path, version="main"
 )
 
 free_living_index_cols = [
