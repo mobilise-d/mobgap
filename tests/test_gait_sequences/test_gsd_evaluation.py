@@ -627,17 +627,18 @@ class TestCombineDetectedReference:
             )
 
     def test_get_matching_gs_no_matches(self, dmo_df, matches_df):
-        matches_df["match_type"] = "fp" * len(matches_df)
+        matches_df["match_type"] = "fp"
         combined = get_matching_intervals(
             metrics_detected=dmo_df,
             metrics_reference=dmo_df,
             matches=pd.DataFrame(columns=matches_df.columns),
         )
         assert combined.empty
-        assert_array_equal(
-            list(combined.columns[:-2].to_numpy()), list(product(dmo_df.columns, ["detected", "reference"]))
-        )
-        assert_array_equal(list(combined.columns[-2:].to_numpy()), list(product(["wb_id"], ["detected", "reference"])))
+        cols = np.array(combined.columns.to_list())
+        cols.sort()
+        expected_cols = np.array(list(product([*dmo_df.columns, "orig_index"], ["detected", "reference"])))
+        expected_cols.sort()
+        assert_array_equal(cols, expected_cols)
 
     def test_get_matching_gs_invalid_matches(self, dmo_df, matches_df):
         with pytest.raises(TypeError):
@@ -673,6 +674,9 @@ class TestCombineDetectedReference:
         assert_array_equal(combined.index, matches_df.query("match_type == 'tp'").index)
         assert_array_equal(
             list(combined.columns.to_numpy()),
-            list(product(dmo_df.columns, ["detected", "reference"])) + [("wb_id", "detected"), ("wb_id", "reference")],
+            list(product(dmo_df.columns, ["detected", "reference"]))
+            + [("orig_index", "detected"), ("orig_index", "reference")],
         )
-        snapshot.assert_match(combined.to_numpy()[0], "combined")
+        # We combine the columns for the snapshot test
+        combined.columns = ["_".join(col) for col in combined.columns]
+        snapshot.assert_match(combined, "combined")

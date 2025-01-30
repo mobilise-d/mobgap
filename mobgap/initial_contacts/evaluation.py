@@ -1,13 +1,23 @@
 """Class to evaluate initial contact detection algorithms."""
 
 import warnings
+from collections.abc import Hashable
 from typing import Literal, Union
 
 import numpy as np
 import pandas as pd
 from scipy.spatial import KDTree
 
-from mobgap.utils.evaluation import precision_recall_f1_score
+from mobgap.initial_contacts._evaluation_scorer import (
+    icd_final_agg,
+    icd_per_datapoint_score,
+    icd_score,
+)
+from mobgap.utils.evaluation import (
+    combine_detected_and_reference_metrics,
+    extract_tp_matches,
+    precision_recall_f1_score,
+)
 
 
 def calculate_matched_icd_performance_metrics(
@@ -70,6 +80,72 @@ def calculate_matched_icd_performance_metrics(
     }
 
     return icd_metrics
+
+
+def calculate_true_positive_icd_error(
+    ic_list_reference: pd.DataFrame,
+    match_ics: pd.DataFrame,
+    sampling_rate_hz: float,
+    groupby: Union[Hashable, tuple[Hashable, ...]] = "wb_id",
+) -> dict[str, Union[float, int]]:
+    """
+    Calculate error metrics for initial contact detection results.
+
+    This function assumes that you already classified the detected initial contacts as true positive (tp), false
+    positive (fp), or false negative (fn) matches using the
+    :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list` function.
+    The dataframe returned by categorize function can then be used as input to this function.
+
+    The following metrics are calculated for each true positive initial contact:
+
+    - `tp_absolute_timing_error_s`: Absolute time difference (in seconds) between the detected and reference initial
+      contact.
+    - `tp_relative_timing_error`: All absolute errors, within a walking bout, divided by the average step duration
+      estimated by the INDIP.
+
+    In case no ICs are detected, the error metrics will be 0.
+    Note, that this will introduce a bias when comparing these values, because algorithms that don't find any ICs will
+    have a lower error than algorithms that find ICs but with a higher error.
+    The value should always be considered together with the number of correctly detected ICs.
+
+    Parameters
+    ----------
+    ic_list_reference: pd.DataFrame
+        The dataframe of reference initial contacts.
+    match_ics: pd.DataFrame
+        Initial contact true positives as output by :func:`~mobgap.initial_contacts.evaluation.get_matching_ics`.
+    sampling_rate_hz: float
+        Sampling rate of the data.
+    groupby
+        A valid pandas groupby argument to group the initial contacts by to calculate the average step duration.
+
+    Returns
+    -------
+    error_metrics: dict
+
+    """
+    # calculate absolute error in seconds
+    tp_absolute_timing_error_s = abs(match_ics["ic"]["detected"] - match_ics["ic"]["reference"]) / sampling_rate_hz
+
+    # relative error (estimated by dividing all absolute errors, within a walking bout, by the average step duration
+    # estimated by the reference system)
+    mean_ref_step_time_s = (
+        ic_list_reference.groupby(groupby)["ic"].diff().dropna().groupby(groupby).mean() / sampling_rate_hz
+    )
+
+    tp_relative_timing_error = tp_absolute_timing_error_s / mean_ref_step_time_s
+
+    # return mean after dropping nans, unless empty, return 0
+    error_metrics = {
+        "tp_absolute_timing_error_s": tp_absolute_timing_error_s.dropna().mean()
+        if not tp_absolute_timing_error_s.dropna().empty
+        else 0,
+        "tp_relative_timing_error": tp_relative_timing_error.dropna().mean()
+        if not tp_relative_timing_error.dropna().empty
+        else 0,
+    }
+
+    return error_metrics
 
 
 def categorize_ic_list(
@@ -224,6 +300,88 @@ def categorize_ic_list(
     return matches
 
 
+def get_matching_ics(
+    *, metrics_detected: pd.DataFrame, metrics_reference: pd.DataFrame, matches: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Extract the detected and reference initial contacts that are considered as matches sequence-by-sequence (tps).
+
+    The metrics of the detected and reference initial contacts are extracted and returned in a DataFrame
+    for further comparison.
+
+    Parameters
+    ----------
+    metrics_detected
+       Each row corresponds to a detected initial contact interval as output from the ICD algorithms.
+       The columns contain the metrics estimated for each respective initial contact based on these detected intervals.
+       The columns present in both `metrics_detected` and `metrics_reference` are regarded for the matching,
+       while the other columns are discarded.
+    metrics_reference
+       Each row corresponds to a reference initial contact interval as retrieved from the reference system.
+       The columns contain the metrics estimated for each respective initial contact based on these reference intervals.
+       The columns present in both `metrics_detected` and `metrics_reference` are regarded for the matching,
+       while the other columns are discarded.
+    matches
+        A DataFrame containing the matched initial contacts
+        as output by :func:`~mobgap.initial_contacts.evaluation.calculate_matched_icd_performance_metrics`.
+        Must have been calculated based on the same interval data as `metrics_detected` and `metrics_reference`.
+        Expected to have the columns `ic_id_detected`, `ic_id_reference`, and `match_type`.
+
+    Returns
+    -------
+    matches: pd.DataFrame
+        The detected initial contaccts that are considered as matches assigned to the reference sequences
+        they are matching with.
+        As index, the unique identifier for each matched initial contact assigned in the `matches` DataFrame is used.
+        The columns are two-level MultiIndex columns, consisting of a `metrics` and an `origin` level.
+        As first column level, all columns present in both `metrics_detected` and `metrics_reference` are included.
+        The second column level indicates the origin of the respective value, either `detected` or `reference` for
+        metrics that were estimated based on the detected or reference initial contacts, respectively.
+
+    Examples
+    --------
+    >>> from mobgap.initial_contacts.evaluation import (
+    ...     categorize_ic_list,
+    ...     get_matching_ics,
+    ... )
+    >>> ic_detected = pd.DataFrame([11, 23, 30, 50], columns=["ic"]).rename_axis(
+    ...     "ic_id"
+    ... )
+    >>> ic_reference = pd.DataFrame([10, 20, 32, 40], columns=["ic"]).rename_axis(
+    ...     "ic_id"
+    ... )
+    >>> matches = categorize_ic_list(
+    ...     ic_list_detected=ic_detected,
+    ...     ic_list_reference=ic_reference,
+    ...     tolerance_samples=2,
+    ... )
+    >>> match_ics = get_matching_ics(
+    ...     metrics_detected=ic_detected,
+    ...     metrics_reference=ic_reference,
+    ...     matches=matches,
+    ... )
+    >>> match_ics
+            ic
+            detected reference
+    id
+    0       11        10
+    1       30        32
+
+    """
+    matches = _check_matches_sanity(matches)
+
+    tp_matches = matches.query("match_type == 'tp'")
+
+    detected_matches = extract_tp_matches(metrics_detected, tp_matches["ic_id_detected"])
+    reference_matches = extract_tp_matches(metrics_reference, tp_matches["ic_id_reference"])
+
+    combined_matches = combine_detected_and_reference_metrics(
+        detected_matches, reference_matches, tp_matches=tp_matches
+    )
+
+    return combined_matches
+
+
 def _match_label_lists(
     list_left: np.ndarray, list_right: np.ndarray, tolerance_samples: Union[int, float] = 0
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -337,3 +495,15 @@ def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "refer
     if not ic_list.index.is_unique:
         raise ValueError(f"The index of `ic_list_{list_type}` must be unique!")
     return ic_list, is_multindex
+
+
+__all__ = [
+    "calculate_matched_icd_performance_metrics",
+    "calculate_true_positive_icd_error",
+    "categorize_ic_list",
+    "_match_label_lists",
+    "icd_per_datapoint_score",
+    "icd_final_agg",
+    "icd_score",
+    "get_matching_ics",
+]

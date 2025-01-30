@@ -62,6 +62,14 @@
                 "type":"integer"
             },
             {
+                "name":"orig_index_detected",
+                "type":"string"
+            },
+            {
+                "name":"orig_index_reference",
+                "type":"string"
+            },
+            {
                 "name":"start_detected",
                 "type":"integer"
             },
@@ -92,14 +100,6 @@
             {
                 "name":"walking_speed_mps_reference",
                 "type":"number"
-            },
-            {
-                "name":"wb_id_detected",
-                "type":"integer"
-            },
-            {
-                "name":"wb_id_reference",
-                "type":"integer"
             }
         ],
         "primaryKey":[
@@ -124,6 +124,18 @@
             "n_steps_reference":8,
             "n_turns_detected":1,
             "n_turns_reference":0,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                0
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                0
+            ],
             "start_detected":0,
             "start_reference":0,
             "stride_duration_s_detected":2.3848070177,
@@ -131,9 +143,7 @@
             "stride_length_m_detected":2.9073425098,
             "stride_length_m_reference":2.51885,
             "walking_speed_mps_detected":2.0616591597,
-            "walking_speed_mps_reference":1.16079,
-            "wb_id_detected":0,
-            "wb_id_reference":0
+            "walking_speed_mps_reference":1.16079
         },
         {
             "index":1,
@@ -151,6 +161,18 @@
             "n_steps_reference":12,
             "n_turns_detected":3,
             "n_turns_reference":2,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                2
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                2
+            ],
             "start_detected":20,
             "start_reference":20,
             "stride_duration_s_detected":3.472869224,
@@ -158,9 +180,7 @@
             "stride_length_m_detected":2.572194542,
             "stride_length_m_reference":1.66305,
             "walking_speed_mps_detected":2.2559309823,
-            "walking_speed_mps_reference":1.60044,
-            "wb_id_detected":2,
-            "wb_id_reference":2
+            "walking_speed_mps_reference":1.60044
         },
         {
             "index":2,
@@ -178,6 +198,18 @@
             "n_steps_reference":8,
             "n_turns_detected":0,
             "n_turns_reference":0,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                4
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                4
+            ],
             "start_detected":40,
             "start_reference":40,
             "stride_duration_s_detected":3.3131197829,
@@ -185,9 +217,7 @@
             "stride_length_m_detected":2.3382232273,
             "stride_length_m_reference":1.95969,
             "walking_speed_mps_detected":2.5481554328,
-            "walking_speed_mps_reference":2.3323,
-            "wb_id_detected":4,
-            "wb_id_reference":4
+            "walking_speed_mps_reference":2.3323
         },
         {
             "index":3,
@@ -205,6 +235,18 @@
             "n_steps_reference":17,
             "n_turns_detected":1,
             "n_turns_reference":1,
+            "orig_index_detected":[
+                "T1",
+                12345,
+                "2023-01-01",
+                6
+            ],
+            "orig_index_reference":[
+                "T1",
+                12345,
+                "2023-01-01",
+                6
+            ],
             "start_detected":60,
             "start_reference":60,
             "stride_duration_s_detected":2.6274958317,
@@ -212,9 +254,7 @@
             "stride_length_m_detected":3.30913068,
             "stride_length_m_reference":2.41782,
             "walking_speed_mps_detected":2.7831202734,
-            "walking_speed_mps_reference":2.09538,
-            "wb_id_detected":6,
-            "wb_id_reference":6
+            "walking_speed_mps_reference":2.09538
         }
     ]
 }

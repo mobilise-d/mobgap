@@ -448,6 +448,119 @@ def count_samples_in_intervals(intervals: pd.DataFrame) -> int:
     return int((intervals["end"] - intervals["start"] + 1).sum())
 
 
+def extract_tp_matches(metrics: pd.DataFrame, match_indices: pd.Series) -> pd.DataFrame:
+    """
+    Extract true positive (TP) matches from the metrics DataFrame based on provided match indices.
+
+    This function is used in :func:`~mobgap.gait_sequences.evaluation.get_matching_intervals` and
+    :func:`~mobgap.initial_contacts.evaluation.get_matching_ics` to filter out the TP matches from
+    a larger DataFrame of evaluation metrics (e.g., detected/reference gait sequences or initial
+    contacts). TP matches are calculated by :func:`~mobgap.gait_sequences.evaluation.categorize_intervals`
+    and :func:`~mobgap.initial_contacts.evaluation.categorize_ic_list` for gait sequence and initial
+    contact detection, respectively.
+
+    Parameters
+    ----------
+    metrics: pd.DataFrame
+        The DataFrame containing metrics from which to extract the matches.
+    match_indices: pd.Series
+        A Series of indices indicating the rows in `metrics` to be extracted.
+
+    Returns
+    -------
+    matches: pd.DataFrame
+        A DataFrame containing the rows of `metrics` corresponding to the indices in `match_indices`.
+
+    Raises
+    ------
+    ValueError
+        If any of the indices in `match_indices` are not found in the `metrics` DataFrame,
+        indicating that there is a mismatch between the provided indices and the data.
+
+    Examples
+    --------
+    >>> metrics = pd.DataFrame({
+    >>>     'step_id': [0, 1, 2, 3],
+    >>>     'metric': [597, 660, 720, 797]
+    >>> }).set_index("step_id")
+    >>> match_indices = pd.Series([0, 2])
+    >>> extract_tp_matches(metrics, match_indices)
+                metric
+    step_id
+    0            597
+    2            720
+    """
+    try:
+        matches = metrics.loc[match_indices]
+    except KeyError as e:
+        raise ValueError(
+            "The indices from the provided `matches` DataFrame do not fit to the metrics DataFrames. "
+            "Please ensure that the `matches` DataFrame is calculated based on the same data "
+            "as the `metrics` DataFrames and thus refers to valid indices."
+        ) from e
+    return matches
+
+
+def combine_detected_and_reference_metrics(
+    detected: pd.DataFrame, reference: pd.DataFrame, tp_matches: Union[pd.DataFrame, None] = None
+) -> pd.DataFrame:
+    """
+    Combine metrics from detected and reference DataFrames using a set of true positive matches to reindex.
+
+    This function is used in :func:`~mobgap.gait_sequences.evaluation.get_matching_intervals` and
+    :func:`~mobgap.initial_contacts.evaluation.get_matching_ics` to merge two DataFrames (`detected`
+    and `reference`) based on their common columns. The dataframes are obtained by
+    :func:`~mobgap.utils.evaluation.extract_tp_matches`. Optionally, if a set of true positive matches
+    (`tp_matches`) is provided, it will reindex both DataFrames before merging.
+    The result is a combined DataFrame where detected and reference metrics are placed side-by-side
+    for each matching index with multi-level columns.
+
+    Parameters
+    ----------
+    detected : pd.DataFrame
+        The DataFrame containing the detected metrics (gait sequences or initial contacts).
+    reference : pd.DataFrame
+        The DataFrame containing the reference metrics.
+    tp_matches : Union[pd.DataFrame, None], optional
+        A DataFrame containing true positive matches, by default None. If provided, the indices
+        of the `detected` and `reference` DataFrames will be reindexed to match the true positive
+        matches before combining. If None, no reindexing is done.
+
+    Returns
+    -------
+    pd.DataFrame
+        A combined DataFrame with the detected and reference metrics side-by-side. The columns
+        are multi-indexed with levels corresponding to `detected` and `reference` for easier
+        comparison of corresponding metrics.
+
+    Raises
+    ------
+    ValueError
+        If no common columns are found between `detected` and `reference`.
+
+    Notes
+    -----
+    - The merged DataFrame has multi-level columns, where the top level indicates the source
+      (`detected` or `reference`) and the lower level corresponds to the metric name.
+    - We add a new column `orig_index` to both DataFrames to keep track of the original index
+
+    """
+    common_columns = list(set(reference.columns).intersection(detected.columns))
+    if len(common_columns) == 0:
+        raise ValueError("No common columns found in `metrics_detected` and `metrics_reference`.")
+
+    detected = detected[common_columns].assign(orig_index=lambda df_: df_.index.to_list()).reset_index(drop=True)
+    reference = reference[common_columns].assign(orig_index=lambda df_: df_.index.to_list()).reset_index(drop=True)
+
+    combined = pd.concat({"detected": detected, "reference": reference}, axis=1)
+    # make 'metrics' level the uppermost level and sort columns accordingly for readability
+    combined = combined.swaplevel(axis=1).sort_index(axis=1, level=0)
+    if tp_matches is not None:
+        combined.index = tp_matches.index
+
+    return combined
+
+
 def _estimate_number_tn_samples(matches_df: pd.DataFrame, n_overall_samples: Union[int, None], tn_warning: bool) -> int:
     tn = count_samples_in_match_intervals(matches_df, "tn")
     if tn > 0 and n_overall_samples is not None:
@@ -516,4 +629,6 @@ __all__ = [
     "Evaluation",
     "EvaluationCV",
     "save_evaluation_results",
+    "extract_tp_matches",
+    "combine_detected_and_reference_metrics",
 ]

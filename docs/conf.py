@@ -213,6 +213,7 @@ sphinx_gallery_conf = {
             "../examples/data_transform",
             "../examples/dev_guides",
             "../revalidation/gait_sequences",
+            "../revalidation/initial_contacts",
             "../revalidation/stride_length",
         ]
     ),
