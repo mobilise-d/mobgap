@@ -28,13 +28,12 @@ The helpers create functions that can be applied to the Styler object of a dataf
 .. currentmodule:: mobgap.utils.tables
 .. autosummary::
    :toctree: ../generated/utils/tables
-   :template: class.rst
+   :template: function.rst
 
     best_in_group_styler
     border_after_group_styler
     compare_to_threshold_styler
     revalidation_table_styles
-    RevalidationInfo
 
 
 Types
