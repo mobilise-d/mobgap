@@ -108,6 +108,7 @@ from mobgap.utils.df_operations import (
     apply_transformations,
 )
 from mobgap.utils.tables import FormatTransformer as F
+from mobgap.utils.tables import RevalidationInfo, revalidation_table_styles
 
 custom_aggs = [
     CustomOperation(
@@ -170,6 +171,14 @@ final_names = {
     "tp_relative_timing_error": "Bias and LoA",
 }
 
+validation_thresholds = {
+    ("ICD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("ICD", "Precision"): RevalidationInfo(
+        threshold=0.7, higher_is_better=True
+    ),
+    ("ICD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+}
+
 
 def format_results(df: pd.DataFrame) -> pd.DataFrame:
     return (
@@ -209,7 +218,9 @@ perf_metrics_all = (
     .apply(apply_aggregations, custom_aggs)
     .pipe(format_results)
 )
-perf_metrics_all
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
 
 # %%
 # Per Cohort
@@ -227,7 +238,9 @@ perf_metrics_per_cohort = (
     .pipe(format_results)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort
+perf_metrics_per_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
 
 
 # %%
@@ -236,10 +249,9 @@ perf_metrics_per_cohort
 # Finally, we present comparison of the old and new implementations of IcdIonescu. IcdShinImproved and
 # IcdHKLeeImproved are excluded because they are cadence algorithms and we don't calculate ICs with these algos in the
 # old Matlab implementation.
-Ionescu_results = results_long.query("algo == 'IcdIonescu'")
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=Ionescu_results,
+    data=results_long.query("algo == 'IcdIonescu'"),
     x="cohort",
     y="f1_score",
     hue="algo_with_version",
@@ -251,4 +263,6 @@ final_perf_metrics = perf_metrics_per_cohort.query(
     "algo == 'IcdIonescu'"
 ).reset_index(level="algo", drop=True)
 
-final_perf_metrics
+final_perf_metrics.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
