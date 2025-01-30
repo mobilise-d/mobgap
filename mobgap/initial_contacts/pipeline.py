@@ -6,7 +6,7 @@ import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self
 
-from mobgap._utils_internal.misc import timed_action_method, MeasureTimeResults
+from mobgap._utils_internal.misc import MeasureTimeResults, timed_action_method
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts.base import BaseIcDetector, base_icd_docfiller
 from mobgap.pipeline import GsIterator
