@@ -387,7 +387,7 @@ def apply_transformations(  # noqa: C901, PLR0912
             "This is likely due to an unexpected return type of a custom function."
             "Please ensure that the return type is a pandas Series for all custom functions."
         ) from e
-    if all([not isinstance(c, tuple) for c in column_names]):
+    if all(not isinstance(c, tuple) for c in column_names):
         # This should be a normal index not mutliindex
         transformation_results.columns = pd.Index(column_names)
         return transformation_results
