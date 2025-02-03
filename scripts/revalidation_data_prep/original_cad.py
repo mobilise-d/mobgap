@@ -17,6 +17,7 @@ from scipy.io.matlab import mat_struct
 from tqdm import tqdm
 
 from mobgap.data._mobilised_matlab_loader import _parse_matlab_struct, _parse_until_test_level
+from mobgap.utils.conversions import as_samples
 from mobgap.utils.misc import get_env_var
 
 ROOT_DATA_PATH = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
@@ -60,9 +61,10 @@ def parse_single_test(data: mat_struct) -> pd.DataFrame:
                     # Note, that we don't adjust the end, because we also want the last sample to be inclusive.
                     # This is valid here, even though the values are calculated from the second values.
                     # We align with the way the values were used in the matlab code.
-                    start=lambda df_: df_.start * DATA_SAMPLING_RATE - 1,
-                    end=lambda df_: df_.end * DATA_SAMPLING_RATE,
+                    start=lambda df_: as_samples(df_.start, DATA_SAMPLING_RATE) - 1,
+                    end=lambda df_: as_samples(df_.end, DATA_SAMPLING_RATE),
                 )
+                .astype({"start": int, "end": int, "cad_per_sec": object, "cad_mean": float})
             )
 
     return pd.DataFrame(columns=["start", "end", "cad_per_sec", "cad_mean"]).astype(
