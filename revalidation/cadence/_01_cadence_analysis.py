@@ -292,7 +292,7 @@ fig.show()
 perf_metrics_cohort = (
     free_living_results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
-    # .pipe(format_tables)
+    .pipe(format_tables)
     .loc[cohort_order]
 )
 perf_metrics_cohort.style.pipe(
