@@ -220,10 +220,10 @@ format_transforms = [
 
 final_names = {
     "n_datapoints": "# participants",
-    "wb__detected": "WD mean and CI [m]",
-    "wb__reference": "INDIP mean and CI [m]",
-    "wb__error": "Bias and LoA [m]",
-    "wb__abs_error": "Abs. Error [m]",
+    "wb__detected": "WD mean and CI [1/min]",
+    "wb__reference": "INDIP mean and CI [1/min]",
+    "wb__error": "Bias and LoA [1/min]",
+    "wb__abs_error": "Abs. Error [1/min]",
     "wb__rel_error": "Rel. Error [%]",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
