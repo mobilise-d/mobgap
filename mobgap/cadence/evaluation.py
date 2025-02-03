@@ -10,7 +10,6 @@ from mobgap.pipeline.evaluation import ErrorTransformFuncs as E  # noqa: N814
 from mobgap.utils.df_operations import apply_transformations
 
 _errors = [("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error])]
-_error_aggregates = []
 
 
 def cad_per_datapoint_score(pipeline: CadEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
@@ -41,7 +40,7 @@ def cad_per_datapoint_score(pipeline: CadEmulationPipeline, datapoint: BaseGaitD
     Parameters
     ----------
     pipeline
-        An instance of :class:`~mobgab.cadence.pipeline.CadEmulationPipeline`that wraps the algorithm that should
+        An instance of :class:`~mobgab.cadence.pipeline.CadEmulationPipeline` that wraps the algorithm that should
         be evaluated.
     datapoint
         The datapoint to be evaluated.

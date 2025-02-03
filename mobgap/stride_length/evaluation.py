@@ -10,7 +10,6 @@ from mobgap.stride_length.pipeline import SlEmulationPipeline
 from mobgap.utils.df_operations import apply_transformations
 
 _errors = [("stride_length_m", [E.error, E.abs_error, E.rel_error, E.abs_rel_error])]
-_error_aggregates = []
 
 
 def sl_per_datapoint_score(pipeline: SlEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
