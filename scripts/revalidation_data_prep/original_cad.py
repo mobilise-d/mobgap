@@ -51,13 +51,17 @@ def parse_single_test(data: mat_struct) -> pd.DataFrame:
             return (
                 df[["start", "stop", "cadSec", "cadMean"]]
                 .rename({"cadSec": "cad_per_sec", "cadMean": "cad_mean", "stop": "end"}, axis=1)
+                # For cadence the start and the end values are provided in seconds for some reason.
                 .assign(
                     cad_per_sec=lambda df_: df_.cad_per_sec.apply(
                         lambda x: [x] if isinstance(x, float) else x.tolist()
                     ),
                     # We adjust the start to be 0-based (from matlab 1 based)
                     # Note, that we don't adjust the end, because we also want the last sample to be inclusive.
-                    start=lambda df_: df_.start - 1,
+                    # This is valid here, even though the values are calculated from the second values.
+                    # We align with the way the values were used in the matlab code.
+                    start=lambda df_: df_.start * DATA_SAMPLING_RATE - 1,
+                    end=lambda df_: df_.end * DATA_SAMPLING_RATE,
                 )
             )
 
