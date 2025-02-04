@@ -63,7 +63,7 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         na_values=["N/A", "N.A.", "N.A"],
         # We need to skip the last row, as this is the legend for the summary row.
         # The last row is not loaded anyway for some reason.
-        skipfooter=1,
+        skipfooter=2,
     )
     cols = clinical_info.columns.to_list()
     # We delay the setting of the index, as we need to set the correct dtypes first.

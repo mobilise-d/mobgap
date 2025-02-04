@@ -269,7 +269,7 @@ datasets_laboratory = TVSLabDataset(
 
 # %%
 # Running the evaluation
-# ----------------------
+# ------------- ---------
 # We multiprocess the evaluation on the level of algorithms using joblib.
 # Each algorithm pipeline is run using its own instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #

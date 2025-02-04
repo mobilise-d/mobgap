@@ -214,6 +214,7 @@ sphinx_gallery_conf = {
             "../examples/dev_guides",
             "../revalidation/gait_sequences",
             "../revalidation/stride_length",
+            "../revalidation/full_pipeline",
         ]
     ),
     "within_subsection_order": FileNameSortKey,
