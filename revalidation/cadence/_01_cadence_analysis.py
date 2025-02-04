@@ -76,7 +76,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "cad", result_path=local_data_path, version="cad_reval"
+    "cad", result_path=local_data_path, version="main"
 )
 
 
