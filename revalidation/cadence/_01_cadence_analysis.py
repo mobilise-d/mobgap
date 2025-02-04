@@ -299,6 +299,90 @@ perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 
+
+# %%
+# Per relevant cohort
+# ~~~~~~~~~~~~~~~~~~~
+# Overview over all cohorts is good, but this is not how the Cadence algorithms are used in our main pipeline.
+# Here, the HA, CHF, and COPD cohort use the ``IcdShinImproved`` algorithm, while the ``IcdHKLeeImproved``
+# algorithm is used for the MS, PD, PFF cohorts.
+# Let's look at the performance of these algorithms on the respective cohorts.
+from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
+
+low_impairment_algo = "ShinImproved"
+low_impairment_cohorts = list(MobilisedPipelineHealthy().recommended_cohorts)
+
+low_impairment_results = free_living_results[
+    free_living_results["cohort"].isin(low_impairment_cohorts)
+].query("algo == @low_impairment_algo")
+
+hue_order = ["old", "new"]
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=low_impairment_results,
+    x="cohort",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=low_impairment_results,
+    x="_combined",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_cohort.loc[
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
+# %%
+high_impairment_algo = "HKLeeImproved"
+high_impairment_cohorts = list(MobilisedPipelineImpaired().recommended_cohorts)
+
+high_impairment_results = free_living_results[
+    free_living_results["cohort"].isin(high_impairment_cohorts)
+].query("algo == @high_impairment_algo")
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=high_impairment_results,
+    x="cohort",
+    y="wb__abs_error",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=high_impairment_results,
+    x="_combined",
+    y="wb__abs_error",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_cohort.loc[
+    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
+
 # %%
 # Speed dependency
 # ~~~~~~~~~~~~~~~~
