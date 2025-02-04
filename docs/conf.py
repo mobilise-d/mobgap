@@ -214,6 +214,7 @@ sphinx_gallery_conf = {
             "../examples/dev_guides",
             "../revalidation/gait_sequences",
             "../revalidation/initial_contacts",
+            "../revalidation/cadence",
             "../revalidation/stride_length",
         ]
     ),

@@ -1,7 +1,7 @@
 """
-.. _sl_val_results:
+.. _cad_val_results:
 
-Performance of the stride length algorithms on the TVS dataset
+Performance of the cadence algorithms on the TVS dataset
 ==============================================================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
@@ -11,28 +11,25 @@ Performance of the stride length algorithms on the TVS dataset
   We will update this page incrementally and provide further information, as soon as the state of any of the validation
   steps changes.
 
-The following provides an analysis and comparison of the stride length algorithms on the TVS dataset
-(lab and free-living).
+The following provides an analysis and comparison of the cadence algorithms on the TVS dataset (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data.
 Note, that at the time of writing, comparison with the original Matlab results is not possible, as these algorithms
 were not run on the same version of the TVS dataset.
 
 .. note:: If you are interested in how these results are calculated, head over to the
-    :ref:`processing page <sl_val_gen>`.
+    :ref:`processing page <cad_val_gen>`.
 
 """
 
 # %%
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
-# For the zjils algorithm, we compare both potential threshold values that were determined as part of the pre-validation
-# analysis on the MsProject dataset.
 
 algorithms = {
-    "SlZjilstra__MS_ALL": ("SlZjilstra - MS-all", "new"),
-    "SlZjilstra__MS_MS": ("SlZjilstra - MS-MS", "new"),
-    "matlab_zjilsV3__MS_ALL": ("SlZjilstra - MS-all", "old"),
-    "matlab_zjilsV3__MS_MS": ("SlZjilstra - MS-MS", "old"),
+    "HKLeeImproved": ("HKLeeImproved", "new"),
+    "ShinImproved": ("ShinImproved", "new"),
+    "matlab_HKLee_Imp2": ("HKLeeImproved", "old"),
+    "matlab_Shin_Imp": ("ShinImproved", "old"),
 }
 
 # %%
@@ -79,7 +76,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "sl", result_path=local_data_path, version="main"
+    "cad", result_path=local_data_path, version="main"
 )
 
 
@@ -126,7 +123,7 @@ cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # -------------------
 # Below you can find the setup for all performance metrics that we will calculate.
 # We only use the `wb__` results for the comparison.
-# These results are calculated by first calculating the average stride length per WB.
+# These results are calculated by first calculating the average cadence per WB.
 # Then calculating the error metrics for each WB.
 # Then we take the average over all WBs of a participant to get the `wb__` results.
 from functools import partial
@@ -223,10 +220,10 @@ format_transforms = [
 
 final_names = {
     "n_datapoints": "# participants",
-    "wb__detected": "WD mean and CI [m]",
-    "wb__reference": "INDIP mean and CI [m]",
-    "wb__error": "Bias and LoA [m]",
-    "wb__abs_error": "Abs. Error [m]",
+    "wb__detected": "WD mean and CI [1/min]",
+    "wb__reference": "INDIP mean and CI [1/min]",
+    "wb__error": "Bias and LoA [1/min]",
+    "wb__abs_error": "Abs. Error [1/min]",
     "wb__rel_error": "Rel. Error [%]",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
@@ -234,7 +231,9 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Error [1/min]": RevalidationInfo(
+        threshold=None, higher_is_better=False
+    ),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
@@ -301,6 +300,90 @@ perf_metrics_cohort = (
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
+
+
+# %%
+# Per relevant cohort
+# ~~~~~~~~~~~~~~~~~~~
+# Overview over all cohorts is good, but this is not how the Cadence algorithms are used in our main pipeline.
+# Here, the HA, CHF, and COPD cohort use the ``IcdShinImproved`` algorithm, while the ``IcdHKLeeImproved``
+# algorithm is used for the MS, PD, PFF cohorts.
+# Let's look at the performance of these algorithms on the respective cohorts.
+from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
+
+low_impairment_algo = "ShinImproved"
+low_impairment_cohorts = list(MobilisedPipelineHealthy().recommended_cohorts)
+
+low_impairment_results = free_living_results[
+    free_living_results["cohort"].isin(low_impairment_cohorts)
+].query("algo == @low_impairment_algo")
+
+hue_order = ["old", "new"]
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=low_impairment_results,
+    x="cohort",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=low_impairment_results,
+    x="_combined",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_cohort.loc[
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
+# %%
+high_impairment_algo = "HKLeeImproved"
+high_impairment_cohorts = list(MobilisedPipelineImpaired().recommended_cohorts)
+
+high_impairment_results = free_living_results[
+    free_living_results["cohort"].isin(high_impairment_cohorts)
+].query("algo == @high_impairment_algo")
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=high_impairment_results,
+    x="cohort",
+    y="wb__abs_error",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=high_impairment_results,
+    x="_combined",
+    y="wb__abs_error",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_cohort.loc[
+    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
 
 # %%
 # Speed dependency
