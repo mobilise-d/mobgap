@@ -231,7 +231,9 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [1/min]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Error [1/min]": RevalidationInfo(
+        threshold=None, higher_is_better=False
+    ),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
