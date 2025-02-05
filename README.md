@@ -79,7 +79,7 @@ For papers, we recommend citing the library using the following reference:
 ```
 Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
 A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
-MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
+MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
 ```
 
 ```
