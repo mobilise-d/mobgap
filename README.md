@@ -77,14 +77,14 @@ If you are using mobgap in your research or work, we would like to ask you to me
 For papers, we recommend citing the library using the following reference:
 
 ```
-Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
+Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
 A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
 MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
 ```
 
 ```
 @software{Kuderle_MobGap,
-   author = {Küderle, Arne and Tasca, Paolo and Kirk, Cameron and Megaritis, Dimitrios and Hinchliffe, Chloe and
+   author = {Küderle, Arne and Tasca, Paolo and Bicer, Metin and Kirk, Cameron and Megaritis, Dimitrios and Hinchliffe, Chloe and
     Stihi, Alexandru and Muecke, Annika and Babar, Zamal and Kluge, Felix and Mueller, Arne and Mazzà, Claudia 
     and Del Din, Silvia and Cereatti, Andrea and Rochester, Lynn and Rooks, Daniel and Caulfield, Brian},
    license = {Apache-2.0},
@@ -136,7 +136,7 @@ The package is designed to be used in two modes:
    Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78 (2023). 
    https://doi.org/10.1186/s12984-023-01198-5
    
-   [3] Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
+   [3] Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
    A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
    MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
    ```
@@ -157,7 +157,7 @@ The package is designed to be used in two modes:
    > mobgap Python library [[3]] version {insert version you used}.
 
    ```
-   [3] Küderle, A., Tasca, P., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
+   [3] Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
    A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
    MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
    ```
