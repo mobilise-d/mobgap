@@ -243,3 +243,4 @@ _debug
 
 # env
 .env
+docs/sg_execution_times.rst

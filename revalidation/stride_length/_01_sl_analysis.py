@@ -21,13 +21,13 @@ were not run on the same version of the TVS dataset.
     :ref:`processing page <sl_val_gen>`.
 
 """
-# sphinx_gallery_multi_image = "single"
 
 # %%
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
 # For the zjils algorithm, we compare both potential threshold values that were determined as part of the pre-validation
 # analysis on the MsProject dataset.
+
 
 algorithms = {
     "SlZjilstra__MS_ALL": ("SlZjilstra - MS-all", "new"),
@@ -309,6 +309,7 @@ perf_metrics_cohort.style.pipe(
 # Below, you can find detailed correlation and residual plots comparing the new and the old implementation of each
 # algorithm.
 # Each datapoint represents one participant.
+
 from mobgap.plotting import (
     calc_min_max_with_margin,
     make_square,
@@ -508,3 +509,6 @@ perf_metrics_cohort = (
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
+
+
+# sphinx_gallery_multi_image = "single"

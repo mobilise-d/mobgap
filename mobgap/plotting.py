@@ -2,6 +2,7 @@
 
 Mostly meant to be used in the context of the revalidation of the mobgap algorithms.
 """
+
 from typing import Literal, Optional
 
 import matplotlib.pyplot as plt
@@ -180,6 +181,7 @@ def residual_plot(data: pd.DataFrame, reference: str, detected: str, hue: str, u
     ax.set_xlabel(f"Reference [{unit}]")
 
     return ax
+
 
 __all__ = [
     "blandaltman_stats",
