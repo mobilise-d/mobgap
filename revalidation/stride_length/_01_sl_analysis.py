@@ -395,7 +395,7 @@ def compare_scatter_plot(data):
     sns.scatterplot(reformated_data, x="old", y="new", hue="cohort", ax=ax)
     plot_regline(reformated_data["old"], reformated_data["new"], ax=ax)
     make_square(ax, min_max, draw_diagonal=True)
-    move_legend_outside(fig, axs[-1])
+    move_legend_outside(fig, ax)
     ax.set_title(data.name)
     ax.set_xlabel("Old algorithm version [m]")
     ax.set_ylabel("New algorithm version [m]")
