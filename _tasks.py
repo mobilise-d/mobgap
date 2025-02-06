@@ -64,6 +64,7 @@ def task_docs(clean=False, builder="html"):
         shutil.rmtree(str(HERE / "docs/modules/generated"), ignore_errors=True)
         shutil.rmtree(str(HERE / "docs/_build"), ignore_errors=True)
         shutil.rmtree(str(HERE / "docs/auto_examples"), ignore_errors=True)
+        shutil.rmtree(str(HERE / "docs/auto_revalidation"), ignore_errors=True)
 
     subprocess.run(f"sphinx-build -b {builder} -j auto -d docs/_build docs docs/_build/html", shell=True, check=True)
 

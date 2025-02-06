@@ -1,21 +1,15 @@
 let scrollPosition = 0;
 
 function openModal(modal) {
-    scrollPosition = window.pageYOffset;
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollPosition}px`;
-    document.body.style.width = '100%';
-    modal.classList.add('active');
+  scrollPosition = window.scrollY;
+  document.body.classList.add('modal-open');
+  modal.classList.add('active');
 }
 
 function closeModal(modal) {
-    document.body.style.removeProperty('overflow');
-    document.body.style.removeProperty('position');
-    document.body.style.removeProperty('top');
-    document.body.style.removeProperty('width');
-    window.scrollTo(0, scrollPosition);
-    modal.classList.remove('active');
+  document.body.classList.remove('modal-open');
+  window.scrollTo(0, scrollPosition); // Restore scroll position
+  modal.classList.remove('active');
 }
 
 

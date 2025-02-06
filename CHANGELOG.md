@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Helper for styling and formatting tables. They are primarily used within the revalidation docs.
   But feel free to copy them for your own use.
   (https://github.com/mobilise-d/mobgap/pull/192 , https://github.com/mobilise-d/mobgap/pull/199)
+- Plotting helper for validation plots (https://github.com/mobilise-d/mobgap/pull/204)
 
 ### Fixed
 

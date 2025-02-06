@@ -303,6 +303,111 @@ perf_metrics_cohort.style.pipe(
 )
 
 # %%
+# Deep Dive Analysis of Main Algorithms
+# -------------------------------------
+# Below, you can find detailed correlation and residual plots comparing the new and the old implementation of each
+# algorithm.
+# Each datapoint represents one participant.
+
+from mobgap.plotting import (
+    calc_min_max_with_margin,
+    make_square,
+    move_legend_outside,
+    plot_regline,
+    residual_plot,
+)
+
+
+def combo_residual_plot(data):
+    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
+    fig.suptitle(data.name)
+    for (version, subdata), ax in zip(data.groupby("version"), axs):
+        residual_plot(
+            subdata,
+            "wb__reference",
+            "wb__detected",
+            "cohort",
+            "m",
+            ax=ax,
+            legend=ax == axs[-1],
+        )
+        ax.set_title(version)
+    move_legend_outside(fig, axs[-1])
+    plt.tight_layout()
+    plt.show()
+
+
+def combo_scatter_plot(data):
+    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
+    fig.suptitle(data.name)
+    min_max = calc_min_max_with_margin(
+        data["wb__reference"], data["wb__detected"]
+    )
+    for (version, subdata), ax in zip(data.groupby("version"), axs):
+        subdata = subdata[["wb__reference", "wb__detected", "cohort"]].dropna(
+            how="any"
+        )
+        sns.scatterplot(
+            subdata,
+            x="wb__reference",
+            y="wb__detected",
+            hue="cohort",
+            ax=ax,
+            legend=ax == axs[-1],
+        )
+        plot_regline(subdata["wb__reference"], subdata["wb__detected"], ax=ax)
+        make_square(ax, min_max, draw_diagonal=True)
+        ax.set_title(version)
+        ax.set_xlabel("Reference [m]")
+        ax.set_ylabel("Detected [m]")
+    move_legend_outside(fig, axs[-1])
+    plt.tight_layout()
+    plt.show()
+
+
+free_living_results.groupby("algo").apply(
+    combo_residual_plot, include_groups=False
+)
+free_living_results.groupby("algo").apply(
+    combo_scatter_plot, include_groups=False
+)
+
+# %%
+# Below, we show the direct correlation between the results from the old and the new implementation.
+# Each datapoint represents one participant.
+
+
+def compare_scatter_plot(data):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    reformated_data = (
+        data.pivot_table(
+            values="wb__detected",
+            index=("cohort", "participant_id"),
+            columns="version",
+        )
+        .reset_index()
+        .dropna(how="any")
+    )
+
+    min_max = calc_min_max_with_margin(
+        reformated_data["old"], reformated_data["new"]
+    )
+    sns.scatterplot(reformated_data, x="old", y="new", hue="cohort", ax=ax)
+    plot_regline(reformated_data["old"], reformated_data["new"], ax=ax)
+    make_square(ax, min_max, draw_diagonal=True)
+    move_legend_outside(fig, ax)
+    ax.set_title(data.name)
+    ax.set_xlabel("Old algorithm version [m]")
+    ax.set_ylabel("New algorithm version [m]")
+    plt.tight_layout()
+    plt.show()
+
+
+free_living_results.groupby("algo").apply(
+    compare_scatter_plot, include_groups=False
+)
+
+# %%
 # Speed dependency
 # ~~~~~~~~~~~~~~~~
 # One important aspect of the algorithm performance is the dependency on the walking speed.
@@ -418,3 +523,6 @@ perf_metrics_cohort = (
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
+
+
+# sphinx_gallery_multi_image = "single"
