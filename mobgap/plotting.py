@@ -1,3 +1,7 @@
+"""Optinionated helper to produce plots.
+
+Mostly meant to be used in the context of the revalidation of the mobgap algorithms.
+"""
 from typing import Literal, Optional
 
 import matplotlib.pyplot as plt
@@ -7,32 +11,42 @@ import seaborn as sns
 from matplotlib import transforms
 from scipy import stats
 
-color_blind_friendly_pallet_dict = {
-    "Or": (0.9, 0.6, 0),
-    "SB": (0.35, 0.7, 0.9),
-    "bG": (0, 0.6, 0.5),
-    "Ye": (0.95, 0.9, 0.25),
-    "Bu": (0, 0.45, 0.7),
-    "Ve": (0.8, 0.4, 0),
-    "rP": (0.8, 0.6, 0.7),
-    "Bl": (0, 0, 0),
-}
-
-color_blind_friendly_pallet = list(color_blind_friendly_pallet_dict.values())
-
 
 def blandaltman_stats(
-    m1: pd.Series, m2: pd.Series, x_val: Literal["mean", "m1", "m2"] = "mean"
+    reference: pd.Series, detected: pd.Series, x_val: Literal["mean", "reference", "detected"] = "mean"
 ) -> tuple[pd.Series, pd.Series]:
+    """Calculate the Bland-Altman statistics.
+
+    Parameters
+    ----------
+    reference
+        The reference measurements
+    detected
+        The detected measurements
+    x_val
+        Which value to use for the x-axis. Can be one of `mean`, `reference`, `detected`.
+        `mean` is the mean of the reference and detected values.
+        This is typically used for a Bland-Altman plot.
+        `reference` is the reference values.
+        This is typically used for a residual plot.
+
+    Returns
+    -------
+    x
+        The x-values for the plot (depends on `x_val`, is always a copy)
+    y
+        The y-values for the plot (detected - reference)
+
+    """
     if x_val == "mean":
-        x = (m1 + m2) / 2
-    elif x_val == "m1":
-        x = m1.copy()
-    elif x_val == "m2":
-        x = m2.copy()
+        x = (reference + reference) / 2
+    elif x_val == "reference":
+        x = reference.copy()
+    elif x_val == "detected":
+        x = detected.copy()
     else:
-        raise ValueError("x_val must be one of `mean`, `m1`, `m2`.")
-    return x, m1 - m2
+        raise ValueError("x_val must be one of `mean`, `detected`, `reference`.")
+    return x, detected - reference
 
 
 def plot_blandaltman_annotations(
@@ -106,7 +120,7 @@ def plot_blandaltman_annotations(
     return ax
 
 
-def plot_regline(x: pd.Series, y: pd.Series, ax) -> None:
+def plot_regline(x: pd.Series, y: pd.Series, ax: plt.Axes) -> None:
     """Plot a regression line using seaborn's regplot and add the equation to the plot as legend."""
     sns.regplot(x=x, y=y, ax=ax, scatter=False, line_kws={"color": "black", "linestyle": "--"}, truncate=True)
     # Create label
@@ -127,7 +141,11 @@ def plot_regline(x: pd.Series, y: pd.Series, ax) -> None:
 
 
 def calc_min_max_with_margin(data_x: pd.Series, data_y: pd.Series, margin: float = 0.05) -> tuple[float, float]:
-    """Calculate the min and max values of a dataset with a margin."""
+    """Calculate the min and max values of a dataset with a margin.
+
+    This will calculate the combined min and max values of two datasets.
+    The added margin is a percentage of the overall range of the data.
+    """
     data_min = min(data_x.min(), data_y.min())
     data_max = max(data_x.max(), data_y.max())
     data_range = data_max - data_min
@@ -136,6 +154,7 @@ def calc_min_max_with_margin(data_x: pd.Series, data_y: pd.Series, margin: float
 
 
 def make_square(ax: plt.Axes, min_max: tuple[float, float], draw_diagonal: bool = True) -> None:
+    """Apply axes settings to make a plot square for a correlation plot."""
     ax.set_aspect("equal")
     ax.set_xlim(*min_max)
     ax.set_ylim(*min_max)
@@ -143,15 +162,15 @@ def make_square(ax: plt.Axes, min_max: tuple[float, float], draw_diagonal: bool 
         ax.axline((min_max[0], min_max[0]), slope=1, color="black", linestyle="-", zorder=-100)
 
 
-def residual_plot(data, reference: str, detected: str, hue: str, unit: str, ax: plt.Axes) -> plt.Axes:
+def residual_plot(data: pd.DataFrame, reference: str, detected: str, hue: str, unit: str, ax: plt.Axes) -> plt.Axes:
     """Create residual plots for method comparison using a Bland-Altman style analysis."""
     # We need to drop Na values, as the plotting functions don't handle them well
     data = data[[detected, reference, hue]].dropna(how="any")
 
     x, diff = blandaltman_stats(
-        data[detected].astype(float),
-        data[reference].astype(float),
-        x_val="m2",
+        detected=data[detected].astype(float),
+        reference=data[reference].astype(float),
+        x_val="reference",
     )
 
     sns.scatterplot(x=x, y=diff, hue=data[hue], ax=ax)
@@ -161,3 +180,12 @@ def residual_plot(data, reference: str, detected: str, hue: str, unit: str, ax: 
     ax.set_xlabel(f"Reference [{unit}]")
 
     return ax
+
+__all__ = [
+    "blandaltman_stats",
+    "plot_blandaltman_annotations",
+    "plot_regline",
+    "calc_min_max_with_margin",
+    "make_square",
+    "residual_plot",
+]
