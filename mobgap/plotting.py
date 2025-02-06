@@ -3,7 +3,7 @@
 Mostly meant to be used in the context of the revalidation of the mobgap algorithms.
 """
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -163,7 +163,17 @@ def make_square(ax: plt.Axes, min_max: tuple[float, float], draw_diagonal: bool 
         ax.axline((min_max[0], min_max[0]), slope=1, color="black", linestyle="-", zorder=-100)
 
 
-def residual_plot(data: pd.DataFrame, reference: str, detected: str, hue: str, unit: str, ax: plt.Axes) -> plt.Axes:
+def move_legend_outside(fig: plt.Figure, ax: plt.Axes, **kwargs: dict[str, Any]) -> None:
+    """Move the legend from the axes to the figure and place it outside the plot."""
+    fig.legend(
+        *ax.get_legend_handles_labels(), **{"loc": "center", "bbox_to_anchor": (0.5, -0.05), "ncol": 3, **kwargs}
+    )
+    ax.get_legend().remove()
+
+
+def residual_plot(
+    data: pd.DataFrame, reference: str, detected: str, hue: str, unit: str, ax: plt.Axes, legend: bool = True
+) -> plt.Axes:
     """Create residual plots for method comparison using a Bland-Altman style analysis."""
     # We need to drop Na values, as the plotting functions don't handle them well
     data = data[[detected, reference, hue]].dropna(how="any")
@@ -174,7 +184,7 @@ def residual_plot(data: pd.DataFrame, reference: str, detected: str, hue: str, u
         x_val="reference",
     )
 
-    sns.scatterplot(x=x, y=diff, hue=data[hue], ax=ax)
+    sns.scatterplot(x=x, y=diff, hue=data[hue], ax=ax, legend=legend)
     plot_blandaltman_annotations(diff, ax=ax)
     plot_regline(x, diff, ax=ax)
     ax.set_ylabel(f"WD - Reference [{unit}]")
@@ -189,5 +199,6 @@ __all__ = [
     "plot_regline",
     "calc_min_max_with_margin",
     "make_square",
+    "move_legend_outside",
     "residual_plot",
 ]

@@ -312,6 +312,7 @@ perf_metrics_cohort.style.pipe(
 from mobgap.plotting import (
     calc_min_max_with_margin,
     make_square,
+    move_legend_outside,
     plot_regline,
     residual_plot,
 )
@@ -322,9 +323,16 @@ def combo_residual_plot(data):
     fig.suptitle(data.name)
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         residual_plot(
-            subdata, "wb__reference", "wb__detected", "cohort", "m", ax=ax
+            subdata,
+            "wb__reference",
+            "wb__detected",
+            "cohort",
+            "m",
+            ax=ax,
+            legend=ax == axs[-1],
         )
         ax.set_title(version)
+    move_legend_outside(fig, axs[-1])
     plt.tight_layout()
     plt.show()
 
@@ -340,13 +348,19 @@ def combo_scatter_plot(data):
             how="any"
         )
         sns.scatterplot(
-            subdata, x="wb__reference", y="wb__detected", hue="cohort", ax=ax
+            subdata,
+            x="wb__reference",
+            y="wb__detected",
+            hue="cohort",
+            ax=ax,
+            legend=ax == axs[-1],
         )
         plot_regline(subdata["wb__reference"], subdata["wb__detected"], ax=ax)
         make_square(ax, min_max, draw_diagonal=True)
         ax.set_title(version)
         ax.set_xlabel("Reference [m]")
         ax.set_ylabel("Detected [m]")
+    move_legend_outside(fig, axs[-1])
     plt.tight_layout()
     plt.show()
 
@@ -381,6 +395,7 @@ def compare_scatter_plot(data):
     sns.scatterplot(reformated_data, x="old", y="new", hue="cohort", ax=ax)
     plot_regline(reformated_data["old"], reformated_data["new"], ax=ax)
     make_square(ax, min_max, draw_diagonal=True)
+    move_legend_outside(fig, axs[-1])
     ax.set_title(data.name)
     ax.set_xlabel("Old algorithm version [m]")
     ax.set_ylabel("New algorithm version [m]")
