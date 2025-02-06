@@ -1,3 +1,23 @@
+body.modal-open {
+    overflow: hidden; /* Prevent scrolling on the body */
+    padding-right: var(
+      --scrollbar-width,
+      0px
+    ); /* Prevent content from shifting */
+  }
+  
+  /* Calculate scrollbar width */
+  body {
+    --scrollbar-width: calc(
+      (100vw - var(--content-width, 100vw))
+    ); /* Define the variable */
+  }
+  
+  body:not(.modal-open) {
+    --content-width: 100vw; /* Calculate content width when modal is closed */
+  }
+  
+
 .gallery-fullscreen-wrapper {
     position: relative;
 }
