@@ -28,7 +28,6 @@ were not run on the same version of the TVS dataset.
 # For the zjils algorithm, we compare both potential threshold values that were determined as part of the pre-validation
 # analysis on the MsProject dataset.
 
-
 algorithms = {
     "SlZjilstra__MS_ALL": ("SlZjilstra - MS-all", "new"),
     "SlZjilstra__MS_MS": ("SlZjilstra - MS-MS", "new"),
