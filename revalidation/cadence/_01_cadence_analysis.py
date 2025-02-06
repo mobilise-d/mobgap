@@ -360,7 +360,7 @@ fig, ax = plt.subplots()
 sns.boxplot(
     data=high_impairment_results,
     x="cohort",
-    y="wb__abs_error",
+    y="wb__abs_rel_error",
     hue="version",
     hue_order=hue_order,
     ax=ax,
@@ -368,7 +368,7 @@ sns.boxplot(
 sns.boxplot(
     data=high_impairment_results,
     x="_combined",
-    y="wb__abs_error",
+    y="wb__abs_rel_error",
     hue="version",
     hue_order=hue_order,
     legend=False,
