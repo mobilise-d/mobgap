@@ -1,7 +1,7 @@
 let scrollPosition = 0;
 
 function openModal(modal) {
-    scrollPosition = window.pageYOffset;
+    scrollPosition = window.scrollY;
     document.body.style.overflow = 'hidden';
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollPosition}px`;

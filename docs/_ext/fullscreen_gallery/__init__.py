@@ -4,6 +4,7 @@ A Sphinx extension that adds fullscreen buttons to gallery outputs.
 
 from pathlib import Path
 
+from bs4 import BeautifulSoup
 from sphinx.util import logging
 from sphinx.util.fileutil import copy_asset
 
@@ -56,12 +57,21 @@ def process_html_file(html_file):
 
 def add_buttons_to_content(content):
     """Add fullscreen buttons to gallery outputs in HTML content"""
-    # Add buttons to tables
-    content = content.replace(
-        '<div class="output_subarea output_html rendered_html output_result">',
-        '<div class="output_subarea output_html rendered_html output_result gallery-fullscreen-wrapper">'
-        '<button class="gallery-fullscreen-btn" title="View fullscreen">'
-        "<span>⤢</span></button>",
-    )
+    soup = BeautifulSoup(content, "html.parser")
 
-    return content
+    # Add buttons to tables
+    for div in soup.find_all("div", class_="output_subarea output_html rendered_html output_result"):
+        div["class"].append("gallery-fullscreen-wrapper")
+        button = soup.new_tag("button", attrs={"class": "gallery-fullscreen-btn", "title": "View fullscreen"})
+        button.string = "⤢"
+        div.insert(0, button)
+
+    # Add buttons to images
+    for img in soup.find_all("img", class_="sphx-glr-single-img"):
+        wrapper = soup.new_tag("div", attrs={"class": "gallery-fullscreen-wrapper"})
+        button = soup.new_tag("button", attrs={"class": "gallery-fullscreen-btn", "title": "View fullscreen"})
+        button.string = "⤢"
+        img.wrap(wrapper)
+        wrapper.insert(0, button)
+
+    return str(soup)
