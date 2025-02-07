@@ -70,7 +70,7 @@ out = convert_github_links(URL, out)
 out = convert_github_md_admonitions(out)
 out = out.replace("./LICENSE", URL + "/blob/main/LICENSE")
 out = out.replace("./NOTICE", URL + "/blob/main/NOTICE")
-out = out.replace("./docs/_static/logo/", "./_static/logo/")
+out = out.replace("./docs/_static/", "./_static/")
 with (HERE / "README.md").open("w+") as f:
     f.write(out)
 

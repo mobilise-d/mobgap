@@ -8,7 +8,7 @@ Plotting Helpers
 .. currentmodule:: mobgap.plotting
 
 .. autosummary::
-   :toctree: ../generated/plotting
+   :toctree: ./generated/plotting
    :template: function.rst
 
     blandaltman_stats
