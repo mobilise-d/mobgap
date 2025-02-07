@@ -165,10 +165,14 @@ def make_square(ax: plt.Axes, min_max: tuple[float, float], draw_diagonal: bool 
 
 def move_legend_outside(fig: plt.Figure, ax: plt.Axes, **kwargs: dict[str, Any]) -> None:
     """Move the legend from the axes to the figure and place it outside the plot."""
+    handles, labels = ax.get_legend_handles_labels()
     fig.legend(
-        *ax.get_legend_handles_labels(), **{"loc": "center", "bbox_to_anchor": (0.5, -0.05), "ncol": 3, **kwargs}
+        handles,
+        labels,
+        **{"loc": "upper center", "bbox_to_anchor": (0.5, 0.95), "ncol": len(labels), "fontsize": 8, **kwargs},
     )
-    ax.get_legend().remove()
+    for axs in fig.axes:
+        axs.get_legend().remove()
 
 
 def residual_plot(
