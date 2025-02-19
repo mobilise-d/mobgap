@@ -4,28 +4,16 @@ Note, that this just provides some reexports of the evaluation functions from so
 
 """
 
-__all__ = [
-    "categorize_intervals_per_sample",
-    "categorize_intervals",
-    "get_matching_intervals",
-    "ErrorTransformFuncs",
-    "error",
-    "rel_error",
-    "abs_error",
-    "abs_rel_error",
-    "get_default_error_transformations",
-    "get_default_error_aggregations",
-    "CustomErrorAggregations",
-    "icc",
-    "loa",
-    "quantiles",
-]
+import pandas as pd
+from tpcp.validate import Scorer, no_agg
 
+from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.gait_sequences.evaluation import (
     categorize_intervals,
     categorize_intervals_per_sample,
     get_matching_intervals,
 )
+from mobgap.pipeline import MobilisedPipelineUniversal
 from mobgap.pipeline._error_metrics import (
     CustomErrorAggregations,
     ErrorTransformFuncs,
@@ -39,28 +27,21 @@ from mobgap.pipeline._error_metrics import (
     quantiles,
     rel_error,
 )
-"""
-Evaluation tools and functions for the Mobilise-D pipeline for the estimation of primary DMOs: 
-- Cadence
-- Stride length 
-- Walking speed
-"""
-
-import pandas as pd
-from tpcp.validate import Scorer, no_agg
-
-from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.pipeline import MobilisedPipelineUniversal
-from mobgap.pipeline.evaluation import categorize_intervals, get_matching_intervals, ErrorTransformFuncs as E  # noqa: N814
 from mobgap.utils.df_operations import apply_transformations
 
-_errors = [("walking_speed_mps", [E.error, E.abs_error, E.rel_error, E.abs_rel_error])]
-           # ("stride_length_m", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
-           # ("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error])]
+E = ErrorTransformFuncs
+
+_errors = [
+    ("walking_speed_mps", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
+    ("stride_length_m", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
+    ("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
+]
 _error_aggregates = []
 
 
-def pipeline_per_datapoint_score(pipeline: MobilisedPipelineUniversal, datapoint: BaseGaitDatasetWithReference) -> dict: #TODO: correct type for argument pipeline?
+def pipeline_per_datapoint_score(
+    pipeline: MobilisedPipelineUniversal, datapoint: BaseGaitDatasetWithReference
+) -> dict:  # TODO: correct type for argument pipeline?
     """Evaluate the performance of the Mobilise-D pipeline for primary DMOs estimation on a single datapoint.
 
     .. warning:: This function is not meant to be called directly, but as a scoring function in a
@@ -68,7 +49,8 @@ def pipeline_per_datapoint_score(pipeline: MobilisedPipelineUniversal, datapoint
        If you are writing custom scoring functions, you can use this function as a template or wrap it in a new
        function.
 
-    This function calculates the median DMO reference and detected values and errors on a per datapoint level (per trial/recording).
+    This function calculates the median DMO reference and detected values and errors on a per datapoint level
+    (per trial/recording).
 
     The following metrics are calculated:
 
@@ -101,127 +83,45 @@ def pipeline_per_datapoint_score(pipeline: MobilisedPipelineUniversal, datapoint
 
     """
     pipeline.safe_run(datapoint)
+    # Extracting main results (average values per WB)
+    # We don't drop NaNs here, as we want to keep Cadence values even if other values are missing
+    calculated_walking_speed_per_wb = pipeline.per_wb_parameters_[
+        ["walking_speed_mps", "stride_length_m", "cadence_spm"]
+    ]
+    reference_walking_speed_per_wb = datapoint.reference_parameters_.wb_list[
+        ["avg_walking_speed_mps", "avg_stride_length_m", "avg_cadence_spm"]
+    ]
+    reference_walking_speed_per_wb.columns = reference_walking_speed_per_wb.columns.str.removeprefix("avg_")
 
     # Combined evaluation
-    #-------------------------------------------------------------------------------------------------------------------
-    # Walking speed
-    #-------------------------------------------------------------------------------------------------------------------
-
-    # Here we extract the average walking speed per WB (as provided by the pipeline and the ground truth)
-    calculated_walking_speed_raw = pipeline.per_wb_parameters_["walking_speed_mps"].dropna()
-    reference_walking_speed_raw = datapoint.reference_parameters_.wb_list["avg_walking_speed_mps"].rename(
-        "walking_speed_mps"
-    ).dropna()
-
-    # Here we concatenate into the same dataframe and calculate errors
-    combined_ws_wb_level = pd.concat([calculated_walking_speed_raw, reference_walking_speed_raw], axis=1)
-    combined_ws_wb_level.columns = pd.MultiIndex.from_tuples([("walking_speed_mps", "detected"), ("walking_speed_mps", "reference")])
-    wb_level_ws_errors = apply_transformations(combined_ws_wb_level, _errors)
-    wb_level_ws_values_with_errors = pd.concat([wb_level_ws_errors, combined_ws_wb_level], axis=1)
-
-    # Here we calculate the median of the detected and reference walking speed across all WBs in the current datapoint
-    median_ws = pd.DataFrame(
-    [[calculated_walking_speed_raw.median(), reference_walking_speed_raw.median()]],
-    columns=pd.MultiIndex.from_tuples([
-        ("walking_speed_mps", "detected"),
-        ("walking_speed_mps", "reference")
-    ])
+    # Agg/Combined Evaluation
+    median_parameters = (
+        pd.concat(
+            {"detected": calculated_walking_speed_per_wb.median(), "reference": reference_walking_speed_per_wb.median()}
+        )
+        .to_frame()
+        .swaplevel()
+        .T
     )
-    # Here we calculate pre-defined errors for the combined evaluation as reported in Kirk et al., (2024)
-    median_ws_errors = apply_transformations(median_ws, _errors)
-    # Here we concatenate detected and reference values with errors
-    median_ws_values_with_errors = (pd.concat([median_ws_errors, median_ws], axis=1)["walking_speed_mps"]
-                                    .add_prefix("combined__")
-                                    .iloc[0]
-                                    .to_dict())
-    # Add information on average reference walking speed (not really necessary when walking speed is the DMO)
-    no_agg_wb_level_ws_values_with_errors = wb_level_ws_values_with_errors["walking_speed_mps"].assign(
-        reference_ws=reference_walking_speed_raw
-    )
-    # # -------------------------------------------------------------------------------------------------------------------
-    # # Stride length
-    # # -------------------------------------------------------------------------------------------------------------------
-    #
-    # # Here we extract the average stride length per WB (as provided by the pipeline and the ground truth)
-    # calculated_stride_length_raw = pipeline.per_wb_parameters_["stride_length_m"].dropna()
-    # reference_stride_length_raw = datapoint.reference_parameters_.wb_list["avg_stride_length_m"].rename(
-    #     "stride_length_m"
-    # ).dropna()
-    #
-    # # Here we concatenate into the same dataframe and calculate errors
-    # combined_sl_wb_level = pd.concat([calculated_stride_length_raw, reference_stride_length_raw], axis=1)
-    # combined_sl_wb_level.columns = pd.MultiIndex.from_tuples(
-    #     [("stride_length_m", "detected"), ("stride_length_m", "reference")])
-    # wb_level_sl_errors = apply_transformations(combined_sl_wb_level, _errors)
-    # wb_level_sl_values_with_errors = pd.concat([wb_level_sl_errors, combined_sl_wb_level], axis=1)
-    #
-    # # Here we calculate the median of the detected and reference stride length across all WBs in the current datapoint
-    # median_sl = pd.DataFrame(
-    #     [[calculated_stride_length_raw.median(), reference_stride_length_raw.median()]],
-    #     columns=pd.MultiIndex.from_tuples([
-    #         ("stride_length_m", "detected"),
-    #         ("stride_length_m", "reference")
-    #     ])
-    # )
-    # # Here we calculate pre-defined errors for the combined evaluation as reported in Kirk et al., (2024)
-    # median_sl_errors = apply_transformations(median_sl, _errors)
-    # # Here we concatenate detected and reference values with errors
-    # median_sl_values_with_errors = (pd.concat([median_sl_errors, median_sl], axis=1)["stride_length_m"]
-    #                                 .add_prefix("combined__").
-    #                                 to_dict())
-    # # Add information on average reference stride length
-    # no_agg_wb_level_sl_values_with_errors = wb_level_sl_values_with_errors["stride_length_m"].assign(
-    #     reference_ws=reference_walking_speed_raw
-    # )
-    # # -------------------------------------------------------------------------------------------------------------------
-    # # Cadence
-    # # -------------------------------------------------------------------------------------------------------------------
-    #
-    # # Here we extract the average cadence per WB (as provided by the pipeline and the ground truth)
-    # calculated_cadence_raw = pipeline.per_wb_parameters_["cadence_spm"].dropna()
-    # reference_cadence_raw = datapoint.reference_parameters_.wb_list["avg_cadence_spm"].rename(
-    #     "cadence_spm"
-    # ).dropna()
-    #
-    # # Here we concatenate into the same dataframe and calculate errors
-    # combined_cad_wb_level = pd.concat([calculated_cadence_raw, reference_cadence_raw], axis=1)
-    # combined_cad_wb_level.columns = pd.MultiIndex.from_tuples(
-    #     [("cadence_spm", "detected"), ("cadence_spm", "reference")])
-    # wb_level_cad_errors = apply_transformations(combined_cad_wb_level, _errors)
-    # wb_level_cad_values_with_errors = pd.concat([wb_level_cad_errors, combined_cad_wb_level], axis=1)
-    #
-    # # Here we calculate the median of the detected and reference cadence across all WBs in the current datapoint
-    # median_cad = pd.DataFrame(
-    #     [[calculated_cadence_raw.median(), reference_cadence_raw.median()]],
-    #     columns=pd.MultiIndex.from_tuples([
-    #         ("cadence_spm", "detected"),
-    #         ("cadence_spm", "reference")
-    #     ])
-    # )
-    # # Here we calculate pre-defined errors for the combined evaluation as reported in Kirk et al., (2024)
-    # median_cad_errors = apply_transformations(median_cad, _errors)
-    # # Here we concatenate detected and reference values with errors
-    # median_cad_values_with_errors = (pd.concat([median_cad_errors, median_cad], axis=1)["stride_length_m"]
-    #                                 .add_prefix("combined__").
-    #                                 to_dict())
-    # # Add information on average reference cadence
-    # no_agg_wb_level_cad_values_with_errors = wb_level_cad_values_with_errors["cadence_spm"].assign(
-    #     reference_ws=reference_walking_speed_raw
-    # )
+    median_parameters_errors = apply_transformations(median_parameters, _errors)
+    median_parameters_with_errors = pd.concat([median_parameters_errors, median_parameters], axis=1)
+    median_parameters_with_errors.columns = ["__".join(levels) for levels in median_parameters_with_errors.columns]
+    assert len(median_parameters_with_errors) == 1
+    # There is only one value per datapoint, so we can just take the first row
+    median_parameters_with_errors = median_parameters_with_errors.add_prefix("combined__").iloc[0]
+
     return {
-        **median_ws_values_with_errors,
-        # **median_sl_values_with_errors,
-        # **median_cad_values_with_errors,
-        "wb_level_ws_values_with_errors": no_agg(no_agg_wb_level_ws_values_with_errors),
-        # "wb_level_sl_values_with_errors": no_agg(no_agg_wb_level_sl_values_with_errors),
-        # "wb_level_cad_values_with_errors": no_agg(no_agg_wb_level_sl_values_with_errors),
+        # We also pass the results of the combined analysis directly as single values.
+        # This way there means are available directly as a single value for optimization.
+        **median_parameters_with_errors.to_dict(),
+        "combined_error": no_agg(median_parameters_with_errors),
     }
 
 
 def pipeline_final_agg(
     agg_results: dict[str, float],
     single_results: dict[str, list],
-    _: MobilisedPipelineUniversal, # TODO: is it the correct object type?
+    _: MobilisedPipelineUniversal,  # TODO: is it the correct object type?
     dataset: BaseGaitDatasetWithReference,
 ) -> tuple[dict[str, any], dict[str, list[any]]]:
     """Aggregate the results of the pipeline evaluation.
@@ -240,15 +140,11 @@ def pipeline_final_agg(
     data_labels = [d.group_label for d in dataset]
     data_label_names = data_labels[0]._fields
 
-    wb_level_ws_values_with_errors_list = single_results.pop("wb_level_ws_values_with_errors")
-    wb_level_ws_values_with_errors = pd.concat(
-        wb_level_ws_values_with_errors_list,
-        keys=data_labels,
-        names=[*data_label_names, *wb_level_ws_values_with_errors_list[0].index.names],
-    )
+    combined_errors = single_results.pop("combined_error")
+    combined_errors = pd.concat(combined_errors, keys=data_labels, names=data_label_names, axis=1)
 
     aggregated_single_results = {
-        "raw__wb_level_ws_values_with_errors": wb_level_ws_values_with_errors,
+        "raw__combined_errors": combined_errors,
     }
 
     return agg_results, {**single_results, **aggregated_single_results}
@@ -284,4 +180,22 @@ Aggregated metrics (agg results):
 """
 
 
-__all__ = ["pipeline_score", "pipeline_per_datapoint_score", "pipeline_final_agg"]
+__all__ = [
+    "categorize_intervals_per_sample",
+    "categorize_intervals",
+    "get_matching_intervals",
+    "ErrorTransformFuncs",
+    "error",
+    "rel_error",
+    "abs_error",
+    "abs_rel_error",
+    "get_default_error_transformations",
+    "get_default_error_aggregations",
+    "CustomErrorAggregations",
+    "icc",
+    "loa",
+    "quantiles",
+    "pipeline_score",
+    "pipeline_per_datapoint_score",
+    "pipeline_final_agg",
+]

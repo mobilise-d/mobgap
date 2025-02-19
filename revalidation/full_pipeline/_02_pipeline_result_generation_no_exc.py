@@ -19,9 +19,16 @@ The raw per second cadence, stride length, walking speed and all performance met
    They can assist with the process.
 
 """
+
 from pathlib import Path
-from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired, MobilisedPipelineUniversal
+
 import pandas as pd
+from mobgap.pipeline import (
+    MobilisedPipelineHealthy,
+    MobilisedPipelineImpaired,
+    MobilisedPipelineUniversal,
+)
+
 
 def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
     assert result_file_path.exists(), result_file_path
@@ -32,6 +39,8 @@ def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
         sl_per_sec=lambda df_: df_.avg_speed
     )
     return data
+
+
 # %%
 # Setting up the algorithms
 # -------------------------
@@ -48,14 +57,19 @@ def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
 from mobgap.utils.misc import get_env_var
 
 matlab_algo_result_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "_extracted_results/full_pipeline"
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    / "_extracted_results/full_pipeline"
 )
-base_result_folder=matlab_algo_result_path
+base_result_folder = matlab_algo_result_path
 measurement_condition = "free_living"
 matlab_algo_name = "escience_mobilised_pipeline"
-result_file_path = base_result_folder / measurement_condition/ f"{matlab_algo_name}.csv"
+result_file_path = (
+    base_result_folder / measurement_condition / f"{matlab_algo_name}.csv"
+)
 
-old_results = load_old_fp_results(result_file_path) # not necessary for this example
+old_results = load_old_fp_results(
+    result_file_path
+)  # not necessary for this example
 
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
 pipelines = {}
@@ -131,16 +145,17 @@ def run_evaluation(name, pipeline, ds):
     return name, eval_pipe
 
 
-
 # %%
 # Free-Living
 # ~~~~~~~~~~~
 # Let's start with the Free-Living part of the dataset.
 with Parallel(n_jobs=n_jobs) as parallel:
-    results_free_living: dict[str, Evaluation[MobilisedPipelineUniversal]] = dict(
-        parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
+    results_free_living: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
+        dict(
+            parallel(
+                delayed(run_evaluation)(name, pipeline, datasets_free_living)
+                for name, pipeline in pipelines.items()
+            )
         )
     )
 results_free_living
