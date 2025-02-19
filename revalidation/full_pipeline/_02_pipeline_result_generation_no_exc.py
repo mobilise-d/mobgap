@@ -119,7 +119,7 @@ from mobgap.utils.evaluation import Evaluation
 
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/pipeline"
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/full_pipeline"
 )
 
 
