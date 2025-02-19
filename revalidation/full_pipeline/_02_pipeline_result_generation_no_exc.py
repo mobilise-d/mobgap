@@ -136,7 +136,6 @@ def run_evaluation(name, pipeline, ds):
 # Free-Living
 # ~~~~~~~~~~~
 # Let's start with the Free-Living part of the dataset.
-datasets_free_living = datasets_free_living[:2]
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[MobilisedPipelineUniversal]] = dict(
         parallel(

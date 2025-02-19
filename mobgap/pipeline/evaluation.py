@@ -131,8 +131,9 @@ def pipeline_per_datapoint_score(pipeline: MobilisedPipelineUniversal, datapoint
     median_ws_errors = apply_transformations(median_ws, _errors)
     # Here we concatenate detected and reference values with errors
     median_ws_values_with_errors = (pd.concat([median_ws_errors, median_ws], axis=1)["walking_speed_mps"]
-                                    .add_prefix("combined__").
-                                    to_dict())
+                                    .add_prefix("combined__")
+                                    .iloc[0]
+                                    .to_dict())
     # Add information on average reference walking speed (not really necessary when walking speed is the DMO)
     no_agg_wb_level_ws_values_with_errors = wb_level_ws_values_with_errors["walking_speed_mps"].assign(
         reference_ws=reference_walking_speed_raw
