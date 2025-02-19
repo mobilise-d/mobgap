@@ -429,18 +429,35 @@ wb_level_results = format_loaded_results(
     free_living_index_cols,
 )
 
-algo_names = wb_level_results.algo_with_version.unique()
+# For plotting all participants at the end
+combined = wb_level_results.copy()
+combined["cohort"] = "Combined"
+wb_level_results = pd.concat([wb_level_results, combined]).reset_index(
+    drop=True
+)
+
+algo_names = wb_level_results["algo_with_version"].unique()
+cohort_names = wb_level_results["cohort"].unique()
+
+wb_level_results["cohort"] = pd.Categorical(
+    wb_level_results["cohort"], categories=cohort_names, ordered=True
+)
+wb_level_results["algo_with_version"] = pd.Categorical(
+    wb_level_results["algo_with_version"], categories=algo_names, ordered=True
+)
+
 fig, axs = plt.subplots(
     len(algo_names),
-    1,
+    len(cohort_names),
     sharex=True,
     sharey=True,
     figsize=(12, 3 * len(algo_names)),
 )
-for ax, algo in zip(axs, algo_names):
-    data = wb_level_results.query("algo_with_version == @algo").copy()
 
-    # Create scatter plot
+for ax, (_, data) in zip(
+    axs.flatten(),
+    wb_level_results.groupby(["algo_with_version", "cohort"], observed=True),
+):
     sns.scatterplot(
         data=data,
         x="reference_ws",
@@ -449,7 +466,6 @@ for ax, algo in zip(axs, algo_names):
         alpha=0.3,
     )
 
-    # Create bins and calculate medians
     bins = np.arange(0, data["reference_ws"].max() + 0.05, 0.05)
     data["speed_bin"] = pd.cut(data["reference_ws"], bins=bins)
 
@@ -458,7 +474,9 @@ for ax, algo in zip(axs, algo_names):
 
     # Calculate medians per bin and cohort
     binned_data = (
-        data.groupby("bin_center", observed=True)["abs_rel_error"]
+        data.groupby(["cohort", "bin_center"], observed=True)[
+            "abs_rel_error"
+        ]
         .median()
         .reset_index()
     )
@@ -470,12 +488,27 @@ for ax, algo in zip(axs, algo_names):
         y="abs_rel_error",
         ax=ax,
     )
-
-    ax.set_title(algo)
     ax.set_xlabel("Walking Speed (m/s)")
     ax.set_ylabel("Absolute Relative Error")
 
+for ax, title in zip(axs[0, :], cohort_names):
+    ax.set_title(title)
 fig.tight_layout()
+fig.subplots_adjust(right=0.97)
+for ax, algo in zip(axs[:, 0], algo_names):
+    ylab_pos = ax.yaxis.label.get_position()
+    label_y_in_fig = ax.transAxes.transform((0, ylab_pos[1]))
+    label_y_in_fig = fig.transFigure.inverted().transform(label_y_in_fig)
+    fig.text(
+        0.98,
+        label_y_in_fig[1],
+        algo,
+        va="center",
+        ha="center",
+        rotation="vertical",
+        fontsize=10,
+    )
+
 fig.show()
 
 # %%
