@@ -566,8 +566,8 @@ sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
 fig.show()
 
 perf_metrics_all = (
-    lab_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    lab_results
+    .pipe(agg_errors, groupby=["algo"], stats_between="version")
     .pipe(format_tables)
 )
 perf_metrics_all.style.pipe(
@@ -589,8 +589,8 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    lab_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    lab_results
+    .pipe(agg_errors, groupby=["cohort", "algo"], stats_between="version")
     .pipe(format_tables)
     .loc[cohort_order]
 )
