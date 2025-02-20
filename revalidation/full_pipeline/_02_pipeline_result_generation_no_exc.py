@@ -1,7 +1,7 @@
 """
 .. _pipeline_val_gen:
 
-Revalidation of the Mobilise-D computational pipeline for cadence, stride length and walking speed estimation
+Revalidation of the Mobilise-D algorithm pipeline for cadence, stride length and walking speed estimation
 =============================================================================================================
 
 .. note:: This is the code to create the results! If you are interested in viewing the results, please check the
@@ -23,6 +23,8 @@ The raw per second cadence, stride length, walking speed and all performance met
 from pathlib import Path
 
 import pandas as pd
+from matplotlib import pyplot as plt
+import seaborn as sns
 from mobgap.pipeline import (
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
@@ -124,10 +126,6 @@ datasets_laboratory = TVSLabDataset(
 #
 # The evaluation object iterates over the entire dataset, runs the algorithm on each recording and calculates the
 # score using the :func:`~mobgap.gait_sequences._evaluation_scorer.gsd_score` function.
-
-from pathlib import Path
-
-import pandas as pd
 from mobgap.pipeline.evaluation import pipeline_score
 from mobgap.utils.evaluation import Evaluation
 
@@ -144,6 +142,31 @@ def run_evaluation(name, pipeline, ds):
     ).run(pipeline)
     return name, eval_pipe
 
+def pipeline_eval_debug_plot(results: dict) -> None:
+    evaluation_obj = results["Official_MobiliseD_Pipeline"]
+
+    df = evaluation_obj.get_single_results_as_df()  # Extract the results_ attribute
+
+    # Define the metrics and outcomes of interest
+    outcomes = ["walking_speed_mps", "stride_length_m", "cadence_spm"]
+    metrics = ["error", "rel_error"]
+
+    # Create the 2x3 boxplot figure
+    fig, axes = plt.subplots(2, 3, figsize=(12, 6))
+
+    for col, outcome in enumerate(outcomes):
+        for row, metric in enumerate(metrics):
+            ax = axes[row, col]
+            sns.boxplot(
+                data=df,
+                y=f"combined__{outcome}__{metric}",
+                ax=ax,
+                showmeans=True,
+            )
+            ax.set_title(f"{metric} for {outcome}")
+
+    plt.tight_layout()
+    plt.show()
 
 # %%
 # Free-Living
@@ -167,7 +190,7 @@ results_free_living
 # Measurement-level means that each datapoint is a single recording/participant.
 # The value error value per participant was itself calculated as the mean of the error values of all walking bouts of
 # that participant.
-# eval_debug_plot(results_free_living)
+pipeline_eval_debug_plot(results_free_living)
 
 # %%
 # Then we save the results to disk.
