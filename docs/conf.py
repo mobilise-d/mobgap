@@ -54,10 +54,10 @@ def convert_github_md_admonitions(text):
 
 URL = "https://github.com/mobilise-d/mobgap/"
 # Info from poetry config:
-info = toml.load("../pyproject.toml")["tool"]["poetry"]
+info = toml.load("../pyproject.toml")["project"]
 
 project = info["name"]
-author = ", ".join(info["authors"])
+author = ", ".join(f"{author['name']} <{author['email']}>" for author in info["authors"])
 release = info["version"]
 
 copyright = f"2023 - {datetime.now().year}, MaD Lab, FAU in the name of the Mobilise-D consortium"
