@@ -3,7 +3,7 @@
 Mostly meant to be used in the context of the revalidation of the mobgap algorithms.
 """
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Unpack
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -141,14 +141,14 @@ def plot_regline(x: pd.Series, y: pd.Series, ax: plt.Axes) -> None:
     ax.add_artist(new_legend)
 
 
-def calc_min_max_with_margin(data_x: pd.Series, data_y: pd.Series, margin: float = 0.05) -> tuple[float, float]:
-    """Calculate the min and max values of a dataset with a margin.
+def calc_min_max_with_margin(*data: Unpack[pd.Series], margin: float = 0.05) -> tuple[float, float]:
+    """Calculate the min and max values of one or multiple datasets.
 
     This will calculate the combined min and max values of two datasets.
     The added margin is a percentage of the overall range of the data.
     """
-    data_min = min(data_x.min(), data_y.min())
-    data_max = max(data_x.max(), data_y.max())
+    data_min = min([d.min() for d in data])
+    data_max = max([d.max() for d in data])
     data_range = data_max - data_min
     data_min_max = data_min - data_range * margin, data_max + data_range * margin
     return data_min_max

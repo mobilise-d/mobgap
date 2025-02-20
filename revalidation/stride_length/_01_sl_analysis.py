@@ -446,66 +446,61 @@ wb_level_results["algo_with_version"] = pd.Categorical(
     wb_level_results["algo_with_version"], categories=algo_names, ordered=True
 )
 
-fig, axs = plt.subplots(
-    len(algo_names),
-    len(cohort_names),
-    sharex=True,
-    sharey=True,
-    figsize=(12, 3 * len(algo_names)),
-)
 
-for ax, (_, data) in zip(
-    axs.flatten(),
-    wb_level_results.groupby(["algo_with_version", "cohort"], observed=True),
+fig = plt.figure(constrained_layout=True, figsize=(18, 3 * len(algo_names)))
+subfigs = fig.subfigures(len(algo_names), 1, wspace=0.1, hspace=0.1)
+
+min_max_x = calc_min_max_with_margin(wb_level_results["reference_ws"])
+min_max_y = calc_min_max_with_margin(wb_level_results["abs_rel_error"])
+
+for subfig, (algo, data) in zip(
+    subfigs, wb_level_results.groupby("algo_with_version", observed=True)
 ):
-    sns.scatterplot(
-        data=data,
-        x="reference_ws",
-        y="abs_rel_error",
-        ax=ax,
-        alpha=0.3,
-    )
+    subfig.suptitle(algo)
+    subfig.supxlabel("Walking Speed (m/s)")
+    subfig.supylabel("Absolute Relative Error")
+    axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)
+    for ax, (cohort, cohort_data) in zip(
+        axs, data.groupby("cohort", observed=True)
+    ):
+        sns.scatterplot(
+            data=cohort_data,
+            x="reference_ws",
+            y="abs_rel_error",
+            ax=ax,
+            alpha=0.3,
+        )
 
-    bins = np.arange(0, data["reference_ws"].max() + 0.05, 0.05)
-    data["speed_bin"] = pd.cut(data["reference_ws"], bins=bins)
+        bins = np.arange(0, cohort_data["reference_ws"].max() + 0.05, 0.05)
+        cohort_data["speed_bin"] = pd.cut(
+            cohort_data["reference_ws"], bins=bins
+        )
 
-    # Calculate bin centers for plotting
-    data["bin_center"] = data["speed_bin"].apply(lambda x: x.mid)
+        # Calculate bin centers for plotting
+        cohort_data["bin_center"] = cohort_data["speed_bin"].apply(
+            lambda x: x.mid
+        )
 
-    # Calculate medians per bin and cohort
-    binned_data = (
-        data.groupby(["cohort", "bin_center"], observed=True)["abs_rel_error"]
-        .median()
-        .reset_index()
-    )
+        # Calculate medians per bin and cohort
+        binned_data = (
+            cohort_data.groupby("bin_center", observed=True)["abs_rel_error"]
+            .median()
+            .reset_index()
+        )
 
-    # Plot median lines
-    sns.scatterplot(
-        data=binned_data,
-        x="bin_center",
-        y="abs_rel_error",
-        ax=ax,
-    )
-    ax.set_xlabel("Walking Speed (m/s)")
-    ax.set_ylabel("Absolute Relative Error")
+        # Plot median lines
+        sns.scatterplot(
+            data=binned_data,
+            x="bin_center",
+            y="abs_rel_error",
+            ax=ax,
+        )
+        ax.set_title(cohort)
+        ax.set_xlabel(None)
+        ax.set_ylabel(None)
 
-for ax, title in zip(axs[0, :], cohort_names):
-    ax.set_title(title)
-fig.tight_layout()
-fig.subplots_adjust(right=0.97)
-for ax, algo in zip(axs[:, 0], algo_names):
-    ylab_pos = ax.yaxis.label.get_position()
-    label_y_in_fig = ax.transAxes.transform((0, ylab_pos[1]))
-    label_y_in_fig = fig.transFigure.inverted().transform(label_y_in_fig)
-    fig.text(
-        0.98,
-        label_y_in_fig[1],
-        algo,
-        va="center",
-        ha="center",
-        rotation="vertical",
-        fontsize=10,
-    )
+        ax.set_xlim(*min_max_x)
+        ax.set_ylim(*min_max_y)
 
 fig.show()
 
