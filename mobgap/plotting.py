@@ -3,7 +3,7 @@
 Mostly meant to be used in the context of the revalidation of the mobgap algorithms.
 """
 
-from typing import Any, Literal, Optional, Unpack
+from typing import Any, Literal, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +11,7 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import transforms
 from scipy import stats
+from typing_extensions import Unpack
 
 
 def blandaltman_stats(
