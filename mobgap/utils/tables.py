@@ -70,6 +70,33 @@ def value_with_range(df: pd.DataFrame, value_col: str, range_col: str, precision
     )
 
 
+def _format_stats_results(row: pd.Series, p_value_col: str, effect_size_col: str, precision: int) -> str:
+    p_value = row[p_value_col]
+    if p_value < 0.001:
+        p_value = "<0.001"
+    
+
+def stats_result(df: pd.DataFrame, p_value_col: str, effect_size_col: str, precision: int = 2) -> pd.Series:
+    """Combine a p-value column (float) and an effect size column (float) into one column.
+
+    Parameters
+    ----------
+    df
+        The DataFrame containing the columns.
+    p_value_col
+        The name of the column containing the p-value.
+    effect_size_col
+        The name of the column containing the effect size.
+    precision
+        The precision to use for the value and range.
+
+    """
+    return df.apply(
+        lambda row: f"{row[p_value_col]:.{precision}f} ({row[effect_size_col]:.{precision}f})",
+        axis=1,
+    )
+
+
 class FormatTransformer:
     """Formatting functions that can be applied to a DataFrame using :func:`~mobgap.utils.df_operations.apply_transformations`.
 
@@ -84,6 +111,7 @@ class FormatTransformer:
     """  # noqa: E501
 
     value_with_range = value_with_range
+    stats_result = stats_result
 
 
 def best_in_group_styler(
