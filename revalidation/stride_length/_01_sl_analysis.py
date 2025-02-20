@@ -474,9 +474,7 @@ for ax, (_, data) in zip(
 
     # Calculate medians per bin and cohort
     binned_data = (
-        data.groupby(["cohort", "bin_center"], observed=True)[
-            "abs_rel_error"
-        ]
+        data.groupby(["cohort", "bin_center"], observed=True)["abs_rel_error"]
         .median()
         .reset_index()
     )
