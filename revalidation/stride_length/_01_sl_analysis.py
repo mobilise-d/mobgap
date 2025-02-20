@@ -207,9 +207,9 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
-                value_col=("T", "wb__abs_error"),
-                range_col=("p", "wb__abs_error"),
+                F.stats_result,
+                p_value_col=("T", "wb__abs_error"),
+                effect_size_col=("p", "wb__abs_error"),
             ),
             column_name="wb__abs_error__stats",
         ),
