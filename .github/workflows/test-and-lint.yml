@@ -51,4 +51,4 @@ jobs:
       run: uv sync --all-extras --dev
     - name: Linting
       run: |
-        poetry run poe ci_check
+        uv run poe ci_check
