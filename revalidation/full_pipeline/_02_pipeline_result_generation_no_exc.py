@@ -43,6 +43,19 @@ def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
     return data
 
 
+def process_old_per_wb_results(wb_df: pd.DataFrame) -> pd.DataFrame:
+    # Filter out Recording3 ( used for calibration purposes only)
+    wb_df = wb_df[wb_df.index.get_level_values('recording') != 'Recording3']
+
+    # Compute median values per subject
+    median_values = wb_df.groupby('participant_id').agg(
+        median_walking_speed=('avg_speed', 'median'),
+        median_stride_length=('avg_stride_length', 'median'),
+        median_cadence=('avg_cadence', 'median')
+    ).reset_index()
+
+    return median_values
+
 # %%
 # Setting up the algorithms
 # -------------------------
