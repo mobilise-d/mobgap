@@ -85,19 +85,19 @@ def pipeline_per_datapoint_score(
     pipeline.safe_run(datapoint)
     # Extracting main results (average values per WB)
     # We don't drop NaNs here, as we want to keep Cadence values even if other values are missing
-    calculated_walking_speed_per_wb = pipeline.per_wb_parameters_[
+    calculated_per_wb = pipeline.per_wb_parameters_[
         ["walking_speed_mps", "stride_length_m", "cadence_spm"]
     ]
-    reference_walking_speed_per_wb = datapoint.reference_parameters_.wb_list[
+    reference_per_wb = datapoint.reference_parameters_.wb_list[
         ["avg_walking_speed_mps", "avg_stride_length_m", "avg_cadence_spm"]
     ]
-    reference_walking_speed_per_wb.columns = reference_walking_speed_per_wb.columns.str.removeprefix("avg_")
+    reference_per_wb.columns = reference_per_wb.columns.str.removeprefix("avg_")
 
     # Combined evaluation
     # Agg/Combined Evaluation
     median_parameters = (
         pd.concat(
-            {"detected": calculated_walking_speed_per_wb.median(), "reference": reference_walking_speed_per_wb.median()}
+            {"detected": calculated_per_wb.median(), "reference": reference_per_wb.median()}
         )
         .to_frame()
         .swaplevel()
@@ -112,7 +112,7 @@ def pipeline_per_datapoint_score(
 
     return {
         # We also pass the results of the combined analysis directly as single values.
-        # This way there means are available directly as a single value for optimization.
+        # This way there medians are available directly as a single value for optimization.
         **median_parameters_with_errors.to_dict(),
         "combined_error": no_agg(median_parameters_with_errors),
     }
