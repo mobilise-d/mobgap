@@ -319,8 +319,8 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    free_living_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    free_living_results
+    .pipe(agg_errors, groupby=["cohort", "algo"], stats_between="version")
     .pipe(format_tables)
     .loc[cohort_order]
 )
