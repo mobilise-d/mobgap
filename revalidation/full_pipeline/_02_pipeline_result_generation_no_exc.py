@@ -60,9 +60,14 @@ def process_old_per_wb_results(per_wb_dmos_original: pd.DataFrame) -> pd.DataFra
         grouping_var = "test"
         per_wb_dmos_original = per_wb_dmos_original[per_wb_dmos_original.index.get_level_values("test") != "Test3"] # Laboratory
     # Compute median values per subject
-    combined_eval_df = per_wb_dmos_original.groupby(["participant_id", grouping_var])[
+    combined_eval_df = (per_wb_dmos_original.groupby(["participant_id", grouping_var])[
         ["avg_speed", "avg_stride_length", "avg_cadence"]
     ].median()
+    .rename(columns={
+        "combined__walking_speed_mps__original": "walking_speed_mps",
+        "combined__stride_length_m__original": "stride_length_m",
+        "combined__cadence_spm__original": "cadence_spm"
+    }))
 
     return combined_eval_df
 
@@ -196,7 +201,7 @@ def pipeline_eval_debug_plot(results: dict, median_original_results: pd.DataFram
     new_results_with_errors = evaluation_obj.get_single_results_as_df()  # Extract the results_ attribute
 
     # Merge reference values with computed medians
-    # TODO: subject 2079 has no available reference data, hence this prevents it to be included in the dataframe
+    # TODO: subject 2079 has no available reference data for Free-living condition, hence this prevents it to be included in the dataframe
     merged_df = new_results_with_errors.merge(
         median_original_results,
         left_on='participant_id',
@@ -256,7 +261,6 @@ def pipeline_eval_debug_plot(results: dict, median_original_results: pd.DataFram
 # Free-Living
 # ~~~~~~~~~~~
 # Let's start with the Free-Living part of the dataset.
-datasets_free_living = datasets_free_living
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
         dict(
