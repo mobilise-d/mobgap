@@ -42,17 +42,28 @@ def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
     )
     return data
 
+from mobgap.pipeline._error_metrics import ErrorTransformFuncs
+from mobgap.utils.df_operations import apply_transformations
+
+E = ErrorTransformFuncs
+
+_errors = [
+    ("walking_speed_mps", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
+    ("stride_length_m", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
+    ("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
+]
+
 
 def process_old_per_wb_results(wb_df: pd.DataFrame) -> pd.DataFrame:
-    # Filter out Recording3 ( used for calibration purposes only)
+    # Filter out Recording3 (used for calibration purposes only)
     wb_df = wb_df[wb_df.index.get_level_values('recording') != 'Recording3']
 
     # Compute median values per subject
     median_values = wb_df.groupby('participant_id').agg(
-        median_walking_speed=('avg_speed', 'median'),
-        median_stride_length=('avg_stride_length', 'median'),
-        median_cadence=('avg_cadence', 'median')
-    ).reset_index()
+        combined__walking_speed_mps__old=('avg_speed', 'median'),
+        combined__stride_length_m__old=('avg_stride_length', 'median'),
+        combined__cadence_spm__old=('avg_cadence', 'median')
+    )
 
     return median_values
 
@@ -85,6 +96,9 @@ result_file_path = (
 old_results = load_old_fp_results(
     result_file_path
 )  # not necessary for this example
+
+# Process old per-wb results
+median_old_results = process_old_per_wb_results(old_results)
 
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
 pipelines = {}
@@ -155,10 +169,43 @@ def run_evaluation(name, pipeline, ds):
     ).run(pipeline)
     return name, eval_pipe
 
-def pipeline_eval_debug_plot(results: dict) -> None:
+def pipeline_eval_debug_plot(results: dict, median_old_results: pd.DataFrame) -> None:
     evaluation_obj = results["Official_MobiliseD_Pipeline"]
 
     df = evaluation_obj.get_single_results_as_df()  # Extract the results_ attribute
+
+    # Merge reference values with computed medians
+    # TODO: subject 2079 has no available reference data, hence this prevents it to be included in the dataframe
+    merged_df = df.merge(
+        median_old_results,
+        left_on='participant_id',
+        right_on='participant_id',
+        how='inner'
+    )
+
+    # Create MultiIndex columns
+    final_df = merged_df[[
+        'combined__walking_speed_mps__reference', 'combined__walking_speed_mps__old',
+        'combined__stride_length_m__reference', 'combined__stride_length_m__old',
+        'combined__cadence_spm__reference', 'combined__cadence_spm__old'
+    ]]
+
+    final_df.columns = pd.MultiIndex.from_tuples([
+        ('walking_speed_mps', 'reference'), ('walking_speed_mps', 'detected'),
+        ('stride_length_m', 'reference'), ('stride_length_m', 'detected'),
+        ('cadence_spm', 'reference'), ('cadence_spm', 'detected')
+    ])
+    old_results_errors = apply_transformations(final_df, _errors)
+    old_results_with_errors = pd.concat([old_results_errors, final_df], axis=1)
+    old_results_with_errors.columns = ["__".join(levels) for levels in old_results_with_errors.columns]
+    old_results_with_errors = old_results_with_errors.add_prefix("combined__")
+
+    # Add a source column to distinguish between the two datasets
+    df['source'] = 'mobgap'
+    old_results_with_errors['source'] = 'matlab'
+
+    # Combine both datasets for plotting
+    combined_df = pd.concat([df, old_results_with_errors])
 
     # Define the metrics and outcomes of interest
     outcomes = ["walking_speed_mps", "stride_length_m", "cadence_spm"]
@@ -171,10 +218,13 @@ def pipeline_eval_debug_plot(results: dict) -> None:
         for row, metric in enumerate(metrics):
             ax = axes[row, col]
             sns.boxplot(
-                data=df,
+                data=combined_df,
+                x = "source",
                 y=f"combined__{outcome}__{metric}",
                 ax=ax,
                 showmeans=True,
+                hue="source",  # Use color to distinguish the datasets
+                legend = "full"
             )
             ax.set_title(f"{metric} for {outcome}")
 
@@ -185,6 +235,7 @@ def pipeline_eval_debug_plot(results: dict) -> None:
 # Free-Living
 # ~~~~~~~~~~~
 # Let's start with the Free-Living part of the dataset.
+datasets_free_living = datasets_free_living
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
         dict(
@@ -203,7 +254,7 @@ results_free_living
 # Measurement-level means that each datapoint is a single recording/participant.
 # The value error value per participant was itself calculated as the mean of the error values of all walking bouts of
 # that participant.
-pipeline_eval_debug_plot(results_free_living)
+pipeline_eval_debug_plot(results_free_living, median_old_results)
 
 # %%
 # Then we save the results to disk.
