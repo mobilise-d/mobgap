@@ -14,8 +14,6 @@ Performance of the Mobilise-D algorithm pipeline on the TVS dataset
 The following provides an analysis and comparison of the Mobilise-D algorithm pipeline on the TVS dataset
 for the estimation of cadence, stride length, and walking speed (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data.
-Note, that at the time of writing, comparison with the original Matlab results is not possible, as these algorithms
-were not run on the same version of the TVS dataset.
 
 .. note:: If you are interested in how these results are calculated, head over to the
     :ref:`processing page <pipeline_val_gen>`.
@@ -25,8 +23,6 @@ were not run on the same version of the TVS dataset.
 # %%
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
-# For the zjils algorithm, we compare both potential threshold values that were determined as part of the pre-validation
-# analysis on the MsProject dataset.
 
 algorithms = {
     "Official_MobiliseD_Pipeline": ("Official_MobiliseD_Pipeline", "new"),
@@ -72,7 +68,7 @@ def format_loaded_results(
 
 local_data_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
-    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 1))
     else None
 )
 loader = ValidationResultLoader(
@@ -228,5 +224,71 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
         .rename(columns=final_names)
         .loc[:, list(final_names.values())]
     )
+# %%
+# Free-Living Comparison
+# ----------------------
+# We focus on the free-living data for the comparison as this is the expected use case for the algorithms.
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# The results below represent the average performance across all participants independent of the
+# cohort in terms of absolute relative error.
+import matplotlib.pyplot as plt
+import seaborn as sns
+metric = "abs_rel_error" # For filtering results
+metric_pretty = "Abs. Rel. Error (%)" # For plotting
+overall_df = (free_living_results[
+    [f"combined__walking_speed_mps__{metric}",
+     f"combined__stride_length_m__{metric}",
+     f"combined__cadence_spm__{metric}"]]
+    .rename(columns={
+    f"combined__walking_speed_mps__{metric}": "walking_speed_mps",
+    f"combined__stride_length_m__{metric}": "stride_length_m",
+    f"combined__cadence_spm__{metric}": "cadence_spm"
+    })
+    .melt(var_name="Metric", value_name=metric_pretty))
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=overall_df,
+    x="Metric",
+    y=metric_pretty,
+    ax=ax
+)
+fig.show()
+
+perf_metrics_all = (
+    free_living_results.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+)
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
+
+# %%
+# Per Cohort
+# ~~~~~~~~~~
+# The results below represent the average performance across all participants within a cohort.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=free_living_results,
+    x="cohort",
+    y="wb__abs_error",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+perf_metrics_cohort = (
+    free_living_results.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+    .loc[cohort_order]
+)
+perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
 
 
