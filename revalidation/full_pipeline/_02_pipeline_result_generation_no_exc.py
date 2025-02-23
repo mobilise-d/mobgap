@@ -209,7 +209,7 @@ def pipeline_eval_debug_plot(results: dict, median_old_results: pd.DataFrame) ->
 
     # Define the metrics and outcomes of interest
     outcomes = ["walking_speed_mps", "stride_length_m", "cadence_spm"]
-    metrics = ["error", "rel_error"]
+    metrics = ["abs_error", "abs_rel_error"]
 
     # Create the 2x3 boxplot figure
     fig, axes = plt.subplots(2, 3, figsize=(12, 6))
