@@ -115,13 +115,12 @@ from mobgap.pipeline import (
     MobilisedPipelineUniversal,
 )
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
-pipelines = {}
-pipelines["Official_MobiliseD_Pipeline"] = MobilisedPipelineUniversal(
+pipelines = {"Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(
     pipelines=[
         ("healthy", MobilisedPipelineHealthy()),
         ("impaired", MobilisedPipelineImpaired()),
     ]
-)
+)}
 # %%
 # Setting up the dataset
 # ----------------------
