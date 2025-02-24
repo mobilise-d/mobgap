@@ -85,7 +85,7 @@ free_living_index_cols = [
     "recording_name_pretty",
 ]
 
-free_living_results2 = format_loaded_results(
+free_living_results = format_loaded_results(
     {
         v: loader.load_single_results(k, "free_living")
         for k, v in algorithms.items()
@@ -95,6 +95,22 @@ free_living_results2 = format_loaded_results(
 )
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
+# %% Load original results
+from revalidation.full_pipeline._02_pipeline_result_generation_no_exc import load_old_fp_results, process_old_per_wb_results
+matlab_algo_result_path = ( # Path to the folder with original results
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    / "_extracted_results/full_pipeline"
+)
+# Free-living original results
+original_result_file_path_fl = (
+    matlab_algo_result_path / "free_living" / "escience_mobilised_pipeline.csv"
+)
+
+per_wb_dmos_original_fl = load_old_fp_results(
+    original_result_file_path_fl
+)
+# Process old per-wb results
+median_original_results_fl = process_old_per_wb_results(per_wb_dmos_original_fl)
 
 # %%
 # Performance metrics
@@ -237,7 +253,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 metric = "abs_rel_error" # For filtering results
 metric_pretty = "Abs. Rel. Error (%)" # For plotting
-overall_df = (free_living_results2[
+overall_df = (free_living_results[
     [f"combined__walking_speed_mps__{metric}",
      f"combined__stride_length_m__{metric}",
      f"combined__cadence_spm__{metric}"]]
@@ -258,7 +274,7 @@ sns.boxplot(
 fig.show()
 
 perf_metrics_all = (
-    free_living_results2.groupby(["algo", "version"])
+    free_living_results.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
 )
@@ -272,7 +288,7 @@ perf_metrics_all.style.pipe(
 # The results below represent the average performance across all participants within a cohort.
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=free_living_results2,
+    data=free_living_results,
     x="cohort",
     y="combined__walking_speed_mps__abs_error",
     hue="algo_with_version",
@@ -281,13 +297,82 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    free_living_results2.groupby(["cohort", "algo", "version"])
+    free_living_results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
     .loc[cohort_order]
 )
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+# %%
+# Deep Dive Analysis of Main Algorithms
+# -------------------------------------
+# Below, you can find detailed correlation and residual plots comparing the new and the old implementation of each
+# algorithm.
+# Each datapoint represents one participant.
+
+from mobgap.plotting import (
+    calc_min_max_with_margin,
+    make_square,
+    move_legend_outside,
+    plot_regline,
+    residual_plot,
+)
+
+
+def combo_residual_plot(data):
+    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
+    fig.suptitle(data.name)
+    for (version, subdata), ax in zip(data.groupby("version"), axs):
+        residual_plot(
+            subdata,
+            "combined__walking_speed_mps__reference",
+            "combined__walking_speed_mps__detected",
+            "cohort",
+            "m",
+            ax=ax,
+            legend=ax == axs[-1],
+        )
+        ax.set_title(version)
+    # move_legend_outside(fig, axs[-1])
+    plt.tight_layout()
+    plt.show()
+
+
+def combo_scatter_plot(data):
+    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
+    fig.suptitle(data.name)
+    min_max = calc_min_max_with_margin(
+        data["combined__walking_speed_mps__reference"], data["combined__walking_speed_mps__detected"]
+    )
+    for (version, subdata), ax in zip(data.groupby("version"), axs):
+        subdata = subdata[["combined__walking_speed_mps__reference", "combined__walking_speed_mps__detected", "cohort"]].dropna(
+            how="any"
+        )
+        sns.scatterplot(
+            subdata,
+            x="combined__walking_speed_mps__reference",
+            y="combined__walking_speed_mps__detected",
+            hue="cohort",
+            ax=ax,
+            legend=ax == axs[-1],
+        )
+        plot_regline(subdata["combined__walking_speed_mps__reference"], subdata["combined__walking_speed_mps__detected"], ax=ax)
+        make_square(ax, min_max, draw_diagonal=True)
+        ax.set_title(version)
+        ax.set_xlabel("Reference [m]")
+        ax.set_ylabel("Detected [m]")
+    # move_legend_outside(fig, axs[-1])
+    plt.tight_layout()
+    plt.show()
+
+
+free_living_results.groupby("algo").apply(
+    combo_residual_plot, include_groups=False
+)
+free_living_results.groupby("algo").apply(
+    combo_scatter_plot, include_groups=False
 )
 
 

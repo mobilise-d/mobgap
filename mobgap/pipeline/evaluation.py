@@ -141,7 +141,7 @@ def pipeline_final_agg(
     data_label_names = data_labels[0]._fields
 
     combined_errors = single_results.pop("combined_error")
-    combined_errors = pd.concat(combined_errors, keys=data_labels, names=data_label_names, axis=1).dropna()
+    combined_errors = pd.concat(combined_errors, keys=data_labels, names=data_label_names, axis=1).dropna(axis = 1)
 
     aggregated_single_results = {
         "raw__combined_errors": combined_errors,
