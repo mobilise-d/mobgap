@@ -85,7 +85,7 @@ free_living_index_cols = [
     "recording_name_pretty",
 ]
 
-free_living_results = format_loaded_results(
+free_living_results2 = format_loaded_results(
     {
         v: loader.load_single_results(k, "free_living")
         for k, v in algorithms.items()
@@ -123,26 +123,26 @@ custom_aggs = [
     ),
     CustomOperation(
         identifier=None,
-        function=lambda df_: df_["wb__detected"].isna().sum(),
+        function=lambda df_: df_["combined__walking_speed_mps__detected"].isna().sum(),
         column_name=[("n_nan_detected", "all")],
     ),
-    ("wb__detected", ["mean", A.conf_intervals]),
-    ("wb__reference", ["mean", A.conf_intervals]),
-    ("wb__error", ["mean", A.loa]),
-    ("wb__abs_error", ["mean", A.conf_intervals]),
-    ("wb__rel_error", ["mean", A.conf_intervals]),
-    ("wb__abs_rel_error", ["mean", A.conf_intervals]),
+    ("combined__walking_speed_mps__detected", ["mean", A.conf_intervals]),
+    ("combined__walking_speed_mps__reference", ["mean", A.conf_intervals]),
+    ("combined__walking_speed_mps__error", ["mean", A.loa]),
+    ("combined__walking_speed_mps__abs_error", ["mean", A.conf_intervals]),
+    ("combined__walking_speed_mps__rel_error", ["mean", A.conf_intervals]),
+    ("combined__walking_speed_mps__abs_rel_error", ["mean", A.conf_intervals]),
     CustomOperation(
         identifier=None,
         function=partial(
             A.icc,
-            reference_col_name="wb__reference",
-            detected_col_name="wb__detected",
+            reference_col_name="combined__walking_speed_mps__reference",
+            detected_col_name="combined__walking_speed_mps__detected",
             icc_type="icc2",
             # For the lab data, some trials have no results for the old algorithms.
             nan_policy="omit",
         ),
-        column_name=[("icc", "wb_level"), ("icc_ci", "wb_level")],
+        column_name=[("icc", "trial_level"), ("icc_ci", "trial_level")],
     ),
 ]
 
@@ -168,28 +168,28 @@ format_transforms = [
             column_name=c,
         )
         for c in [
-            "wb__reference",
-            "wb__detected",
-            "wb__abs_error",
-            "wb__rel_error",
-            "wb__abs_rel_error",
+            "combined__walking_speed_mps__reference",
+            "combined__walking_speed_mps__detected",
+            "combined__walking_speed_mps__abs_error",
+            "combined__walking_speed_mps__rel_error",
+            "combined__walking_speed_mps__abs_rel_error",
         ]
     ),
     CustomOperation(
         identifier=None,
         function=partial(
             F.value_with_range,
-            value_col=("mean", "wb__error"),
-            range_col=("loa", "wb__error"),
+            value_col=("mean", "combined__walking_speed_mps__error"),
+            range_col=("loa", "combined__walking_speed_mps__error"),
         ),
-        column_name="wb__error",
+        column_name="combined__walking_speed_mps__error",
     ),
     CustomOperation(
         identifier=None,
         function=partial(
             F.value_with_range,
-            value_col=("icc", "wb_level"),
-            range_col=("icc_ci", "wb_level"),
+            value_col=("icc", "trial_level"),
+            range_col=("icc_ci", "trial_level"),
         ),
         column_name="icc",
     ),
@@ -198,12 +198,12 @@ format_transforms = [
 
 final_names = {
     "n_datapoints": "# participants",
-    "wb__detected": "WD mean and CI [m]",
-    "wb__reference": "INDIP mean and CI [m]",
-    "wb__error": "Bias and LoA [m]",
-    "wb__abs_error": "Abs. Error [m]",
-    "wb__rel_error": "Rel. Error [%]",
-    "wb__abs_rel_error": "Abs. Rel. Error [%]",
+    "combined__walking_speed_mps__detected": "WD mean and CI [m]",
+    "combined__walking_speed_mps__reference": "INDIP mean and CI [m]",
+    "combined__walking_speed_mps__error": "Bias and LoA [m]",
+    "combined__walking_speed_mps__abs_error": "Abs. Error [m]",
+    "combined__walking_speed_mps__rel_error": "Rel. Error [%]",
+    "combined__walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
     "n_nan_detected": "# Failed WBs",
 }
@@ -237,7 +237,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 metric = "abs_rel_error" # For filtering results
 metric_pretty = "Abs. Rel. Error (%)" # For plotting
-overall_df = (free_living_results[
+overall_df = (free_living_results2[
     [f"combined__walking_speed_mps__{metric}",
      f"combined__stride_length_m__{metric}",
      f"combined__cadence_spm__{metric}"]]
@@ -258,7 +258,7 @@ sns.boxplot(
 fig.show()
 
 perf_metrics_all = (
-    free_living_results.groupby(["algo", "version"])
+    free_living_results2.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
 )
@@ -272,16 +272,16 @@ perf_metrics_all.style.pipe(
 # The results below represent the average performance across all participants within a cohort.
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=free_living_results,
+    data=free_living_results2,
     x="cohort",
-    y="wb__abs_error",
+    y="combined__walking_speed_mps__abs_error",
     hue="algo_with_version",
     order=cohort_order,
     ax=ax,
 )
 fig.show()
 perf_metrics_cohort = (
-    free_living_results.groupby(["cohort", "algo", "version"])
+    free_living_results2.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
     .loc[cohort_order]
