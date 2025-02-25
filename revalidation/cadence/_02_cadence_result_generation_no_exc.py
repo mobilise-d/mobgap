@@ -370,7 +370,7 @@ for k, v in results_free_living.items():
         v,
         condition="free_living",
         base_path=results_base_path,
-        raw_result_filter=["wb_level_values_with_errors"],
+        raw_results=["wb_level_values_with_errors"],
     )
 
 
@@ -398,5 +398,5 @@ for k, v in results_laboratory.items():
         v,
         condition="laboratory",
         base_path=results_base_path,
-        raw_result_filter=["wb_level_values_with_errors"],
+        raw_results=["wb_level_values_with_errors"],
     )
