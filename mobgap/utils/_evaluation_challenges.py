@@ -437,7 +437,7 @@ def save_evaluation_results(
     *,
     condition: Literal["laboratory", "free_living"],
     base_path: Path,
-    raw_result_filter: Optional[list[str]] = None,
+    raw_results: Union[list[str], bool] = False,
     include_non_stable_results: bool = False,
 ) -> None:
     """Save the results of an evaluation to a folder.
@@ -457,9 +457,11 @@ def save_evaluation_results(
         Should be one of "laboratory" or "free-living".
     base_path
         The base path where the results should be stored.
-    raw_result_filter
+    raw_results
         A list of keys to filter the raw results.
-        If None, all raw results will be stored.
+        If provided only these raw results are stored.
+        If set to False (default), no raw results are stored.
+        If set to True, all raw results are stored.
     include_non_stable_results
         Whether to include non-stable results in the output.
         This means results that might change from run to run even if the algorithm not changed.
@@ -468,10 +470,16 @@ def save_evaluation_results(
     folder = base_path / condition / name
     folder.mkdir(parents=True, exist_ok=True)
     # Save raw results
-    raw_results = eval_obj.get_raw_results()
-    if raw_result_filter is not None:
-        raw_results = {k: v for k, v in raw_results.items() if k in raw_result_filter}
-    for k, v in raw_results.items():
+    raw_results_vals = eval_obj.get_raw_results()
+    if raw_results is False:
+        raw_results_vals = {}
+    elif raw_results is True:
+        pass
+    elif isinstance(raw_results, list):
+        raw_results_vals = {k: v for k, v in raw_results_vals.items() if k in raw_results}
+    else:
+        raise ValueError("raw_results must be a list of keys or True or False")
+    for k, v in raw_results_vals.items():
         v.to_csv(folder / f"raw_{k}.csv")
 
     # Save aggregated results
