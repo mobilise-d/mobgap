@@ -25,7 +25,8 @@ We look into the actual performance of the algorithms compared to the reference 
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
 
 algorithms = {
-    "Official_MobiliseD_Pipeline": ("Official_MobiliseD_Pipeline", "new"),
+    "Official_MobiliseD_Pipeline": ("MobiliseD_Pipeline", "new"),
+    "EScience_MobiliseD_Pipeline": ("MobiliseD_Pipeline", "old"),
 }
 
 # %%
@@ -95,22 +96,6 @@ free_living_results = format_loaded_results(
 )
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
-# %% Load original results
-from revalidation.full_pipeline._02_pipeline_result_generation_no_exc import load_old_fp_results, process_old_per_wb_results
-matlab_algo_result_path = ( # Path to the folder with original results
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
-    / "_extracted_results/full_pipeline"
-)
-# Free-living original results
-original_result_file_path_fl = (
-    matlab_algo_result_path / "free_living" / "escience_mobilised_pipeline.csv"
-)
-
-per_wb_dmos_original_fl = load_old_fp_results(
-    original_result_file_path_fl
-)
-# Process old per-wb results
-median_original_results_fl = process_old_per_wb_results(per_wb_dmos_original_fl)
 
 # %%
 # Performance metrics
@@ -139,7 +124,9 @@ custom_aggs = [
     ),
     CustomOperation(
         identifier=None,
-        function=lambda df_: df_["combined__walking_speed_mps__detected"].isna().sum(),
+        function=lambda df_: df_["combined__walking_speed_mps__detected"]
+        .isna()
+        .sum(),
         column_name=[("n_nan_detected", "all")],
     ),
     ("combined__walking_speed_mps__detected", ["mean", A.conf_intervals]),
@@ -240,6 +227,8 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
         .rename(columns=final_names)
         .loc[:, list(final_names.values())]
     )
+
+
 # %%
 # Free-Living Comparison
 # ----------------------
@@ -251,26 +240,29 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
 # cohort in terms of absolute relative error.
 import matplotlib.pyplot as plt
 import seaborn as sns
-metric = "abs_rel_error" # For filtering results
-metric_pretty = "Abs. Rel. Error (%)" # For plotting
-overall_df = (free_living_results[
-    [f"combined__walking_speed_mps__{metric}",
-     f"combined__stride_length_m__{metric}",
-     f"combined__cadence_spm__{metric}"]]
-    .rename(columns={
-    f"combined__walking_speed_mps__{metric}": "walking_speed_mps",
-    f"combined__stride_length_m__{metric}": "stride_length_m",
-    f"combined__cadence_spm__{metric}": "cadence_spm"
-    })
-    .melt(var_name="Metric", value_name=metric_pretty))
+
+metric = "abs_rel_error"  # For filtering results
+metric_pretty = "Abs. Rel. Error (%)"  # For plotting
+overall_df = (
+    free_living_results[
+        [
+            f"combined__walking_speed_mps__{metric}",
+            f"combined__stride_length_m__{metric}",
+            f"combined__cadence_spm__{metric}",
+        ]
+    ]
+    .rename(
+        columns={
+            f"combined__walking_speed_mps__{metric}": "walking_speed_mps",
+            f"combined__stride_length_m__{metric}": "stride_length_m",
+            f"combined__cadence_spm__{metric}": "cadence_spm",
+        }
+    )
+    .melt(var_name="Metric", value_name=metric_pretty)
+)
 
 fig, ax = plt.subplots()
-sns.boxplot(
-    data=overall_df,
-    x="Metric",
-    y=metric_pretty,
-    ax=ax
-)
+sns.boxplot(data=overall_df, x="Metric", y=metric_pretty, ax=ax)
 fig.show()
 
 perf_metrics_all = (
@@ -315,7 +307,6 @@ perf_metrics_cohort.style.pipe(
 from mobgap.plotting import (
     calc_min_max_with_margin,
     make_square,
-    move_legend_outside,
     plot_regline,
     residual_plot,
 )
@@ -344,12 +335,17 @@ def combo_scatter_plot(data):
     fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
     fig.suptitle(data.name)
     min_max = calc_min_max_with_margin(
-        data["combined__walking_speed_mps__reference"], data["combined__walking_speed_mps__detected"]
+        data["combined__walking_speed_mps__reference"],
+        data["combined__walking_speed_mps__detected"],
     )
     for (version, subdata), ax in zip(data.groupby("version"), axs):
-        subdata = subdata[["combined__walking_speed_mps__reference", "combined__walking_speed_mps__detected", "cohort"]].dropna(
-            how="any"
-        )
+        subdata = subdata[
+            [
+                "combined__walking_speed_mps__reference",
+                "combined__walking_speed_mps__detected",
+                "cohort",
+            ]
+        ].dropna(how="any")
         sns.scatterplot(
             subdata,
             x="combined__walking_speed_mps__reference",
@@ -358,7 +354,11 @@ def combo_scatter_plot(data):
             ax=ax,
             legend=ax == axs[-1],
         )
-        plot_regline(subdata["combined__walking_speed_mps__reference"], subdata["combined__walking_speed_mps__detected"], ax=ax)
+        plot_regline(
+            subdata["combined__walking_speed_mps__reference"],
+            subdata["combined__walking_speed_mps__detected"],
+            ax=ax,
+        )
         make_square(ax, min_max, draw_diagonal=True)
         ax.set_title(version)
         ax.set_xlabel("Reference [m]")
@@ -374,6 +374,3 @@ free_living_results.groupby("algo").apply(
 free_living_results.groupby("algo").apply(
     combo_scatter_plot, include_groups=False
 )
-
-
-

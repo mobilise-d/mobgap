@@ -92,65 +92,17 @@ def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
             columns=["start_datetime_utc", "start_timestamp_utc", "time_zone"]
         )
     )
-    # per_wb_dmos_original = per_wb_dmos_original.set_index(per_wb_dmos_original.columns[:-4].to_list()).assign(
-    #     ws=lambda df_: df_.avg_speed
-    # )
     return per_wb_dmos_original
 
 
-def process_old_per_wb_results(
-    per_wb_dmos_original: pd.DataFrame,
-) -> pd.DataFrame:
-    # Filter out Test3/Recording3 (used for calibration purposes only) #TODO: should I keep Test3/Recording3?
-    if "recording" in per_wb_dmos_original.index.names:  # Free-living
-        grouping_var = "recording"
-        per_wb_dmos_original = per_wb_dmos_original[
-            per_wb_dmos_original.index.get_level_values("recording")
-            != "Recording3"
-        ]
-    elif "test" in per_wb_dmos_original.index.names:
-        grouping_var = "test"
-        per_wb_dmos_original = per_wb_dmos_original[
-            per_wb_dmos_original.index.get_level_values("test") != "Test3"
-        ]  # Laboratory
-    # Compute median values per subject
-    combined_eval_df = (
-        per_wb_dmos_original.groupby(["participant_id", grouping_var])[
-            ["avg_speed", "avg_stride_length", "avg_cadence"]
-        ]
-        .median()
-        .rename(
-            columns={
-                "combined__walking_speed_mps__original": "walking_speed_mps",
-                "combined__stride_length_m__original": "stride_length_m",
-                "combined__cadence_spm__original": "cadence_spm",
-            }
-        )
-    )
-
-    return combined_eval_df
-
-
 class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
-    per_wb_parameters_: pd.DataFrame
-    per_wb_parameter_mask_: Optional[pd.DataFrame]
-    aggregated_parameters_: Optional[pd.DataFrame]
-
     def __init__(self, result_file_path: Path) -> None:
         self.result_file_path = result_file_path
 
     def get_recommended_cohorts(self) -> Optional[tuple[str, ...]]:
-        """Get the recommended cohorts for this pipeline.
-
-        Returns
-        -------
-        recommended_cohorts
-            The recommended cohorts for this pipeline or None
-        """
         return MobilisedPipelineUniversal().get_recommended_cohorts()
 
     def run(self, datapoint: BaseTVSDataset) -> Self:
-        # These results are the "per-wb" parameters
         cached_load_old_fp_results = hybrid_cache(lru_cache_maxsize=1)(
             load_old_fp_results
         )
@@ -166,7 +118,6 @@ class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
         )
 
         try:
-            # TODO: Adapt for laboratory data
             per_wb_results = old_results.loc[
                 datapoint.group_label[:n_relevant_index_cols]
             ]
@@ -175,20 +126,10 @@ class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
             per_wb_results = pd.DataFrame(
                 columns=["walking_speed_mps", "stride_length_m", "cadence_spm"]
             )
-        # TODO: Formatting
-
         self.per_wb_parameters_ = per_wb_results
         return self
 
 
-escience_pipeline_result_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
-    / "_extracted_results/full_pipeline"
-)
-
-# Process old per-wb results
-# median_original_results_fl = process_old_per_wb_results(per_wb_dmos_original_fl)
-# median_original_results_lab = process_old_per_wb_results(per_wb_dmos_original_lab)
 # %%
 # Setting up the algorithms
 # -------------------------
@@ -206,6 +147,11 @@ from mobgap.pipeline import (
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
     MobilisedPipelineUniversal,
+)
+
+escience_pipeline_result_path = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    / "_extracted_results/full_pipeline"
 )
 
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
