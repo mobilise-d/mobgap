@@ -31,14 +31,25 @@ The raw per second cadence, stride length, walking speed and all performance met
    They can assist with the process.
 
 """
+
+import warnings
+
 # %%
 # Loading the "old" results
 # -----------------------------------------------------
 # Results obtained with the original Matlab-based implementation of the Mobilise-D algorithm pipeline are loaded.
-
+# We wrap these results in a dummy pipeline that acts like the real pipeline, but simply returns the pre-calculated
+# results.
+# This way, we can ensure that the exact format, order and participants are used for the comparison.
 from pathlib import Path
+from typing import Optional, Self
+
 import pandas as pd
+from mobgap.data import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
+from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.misc import get_env_var
+from tpcp.caching import hybrid_cache
+
 
 def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
     # A simple function to load full-pipeline results obtained with the original implementation.
@@ -46,56 +57,138 @@ def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
     per_wb_dmos_original = pd.read_csv(result_file_path).astype(
         {"participant_id": str, "start": int, "end": int}
     )
-    per_wb_dmos_original = per_wb_dmos_original.set_index(per_wb_dmos_original.columns[:-4].to_list()).assign(
-        ws=lambda df_: df_.avg_speed
+    if "recording" in per_wb_dmos_original.columns:
+        index_cols = [
+            "cohort",
+            "participant_id",
+            "time_measure",
+            "recording",
+            "wb_id",
+        ]
+    elif "test" in per_wb_dmos_original.columns:
+        index_cols = [
+            "cohort",
+            "participant_id",
+            "time_measure",
+            "test",
+            "trial",
+            "wb_id",
+        ]
+    else:
+        raise ValueError("Could not determine the index columns.")
+
+    per_wb_dmos_original = (
+        per_wb_dmos_original.set_index(index_cols)
+        .rename(
+            columns={
+                "avg_cadence": "cadence_spm",
+                "avg_stride_length": "stride_length_m",
+                "avg_stride_duration": "stride_duration_s",
+                "avg_speed": "walking_speed_mps",
+                "duration_s": "duration_s",
+            }
+        )
+        .drop(
+            columns=["start_datetime_utc", "start_timestamp_utc", "time_zone"]
+        )
     )
+    # per_wb_dmos_original = per_wb_dmos_original.set_index(per_wb_dmos_original.columns[:-4].to_list()).assign(
+    #     ws=lambda df_: df_.avg_speed
+    # )
     return per_wb_dmos_original
 
-def process_old_per_wb_results(per_wb_dmos_original: pd.DataFrame) -> pd.DataFrame:
+
+def process_old_per_wb_results(
+    per_wb_dmos_original: pd.DataFrame,
+) -> pd.DataFrame:
     # Filter out Test3/Recording3 (used for calibration purposes only) #TODO: should I keep Test3/Recording3?
-    if "recording" in per_wb_dmos_original.index.names: # Free-living
+    if "recording" in per_wb_dmos_original.index.names:  # Free-living
         grouping_var = "recording"
-        per_wb_dmos_original = per_wb_dmos_original[per_wb_dmos_original.index.get_level_values("recording") != "Recording3"]
+        per_wb_dmos_original = per_wb_dmos_original[
+            per_wb_dmos_original.index.get_level_values("recording")
+            != "Recording3"
+        ]
     elif "test" in per_wb_dmos_original.index.names:
         grouping_var = "test"
-        per_wb_dmos_original = per_wb_dmos_original[per_wb_dmos_original.index.get_level_values("test") != "Test3"] # Laboratory
+        per_wb_dmos_original = per_wb_dmos_original[
+            per_wb_dmos_original.index.get_level_values("test") != "Test3"
+        ]  # Laboratory
     # Compute median values per subject
-    combined_eval_df = (per_wb_dmos_original.groupby(["participant_id", grouping_var])[
-        ["avg_speed", "avg_stride_length", "avg_cadence"]
-    ].median()
-    .rename(columns={
-        "combined__walking_speed_mps__original": "walking_speed_mps",
-        "combined__stride_length_m__original": "stride_length_m",
-        "combined__cadence_spm__original": "cadence_spm"
-    }))
+    combined_eval_df = (
+        per_wb_dmos_original.groupby(["participant_id", grouping_var])[
+            ["avg_speed", "avg_stride_length", "avg_cadence"]
+        ]
+        .median()
+        .rename(
+            columns={
+                "combined__walking_speed_mps__original": "walking_speed_mps",
+                "combined__stride_length_m__original": "stride_length_m",
+                "combined__cadence_spm__original": "cadence_spm",
+            }
+        )
+    )
 
     return combined_eval_df
 
-matlab_algo_result_path = ( # Path to the folder with original results
+
+class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
+    per_wb_parameters_: pd.DataFrame
+    per_wb_parameter_mask_: Optional[pd.DataFrame]
+    aggregated_parameters_: Optional[pd.DataFrame]
+
+    def __init__(self, result_file_path: Path) -> None:
+        self.result_file_path = result_file_path
+
+    def get_recommended_cohorts(self) -> Optional[tuple[str, ...]]:
+        """Get the recommended cohorts for this pipeline.
+
+        Returns
+        -------
+        recommended_cohorts
+            The recommended cohorts for this pipeline or None
+        """
+        return MobilisedPipelineUniversal().get_recommended_cohorts()
+
+    def run(self, datapoint: BaseTVSDataset) -> Self:
+        # These results are the "per-wb" parameters
+        cached_load_old_fp_results = hybrid_cache(lru_cache_maxsize=1)(
+            load_old_fp_results
+        )
+
+        old_results = cached_load_old_fp_results(
+            self.result_file_path
+            / datapoint.recording_metadata["measurement_condition"]
+            / "escience_mobilised_pipeline.csv"
+        )
+
+        n_relevant_index_cols = (
+            4 if "recording" in old_results.index.names else 5
+        )
+
+        try:
+            # TODO: Adapt for laboratory data
+            per_wb_results = old_results.loc[
+                datapoint.group_label[:n_relevant_index_cols]
+            ]
+        except KeyError:
+            warnings.warn(f"No results found for {datapoint.group_label}.")
+            per_wb_results = pd.DataFrame(
+                columns=["walking_speed_mps", "stride_length_m", "cadence_spm"]
+            )
+        # TODO: Formatting
+
+        self.per_wb_parameters_ = per_wb_results
+        return self
+
+
+escience_pipeline_result_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
     / "_extracted_results/full_pipeline"
 )
-# Free-living original results
-original_result_file_path_fl = (
-    matlab_algo_result_path / "free_living" / "escience_mobilised_pipeline.csv"
-)
-
-per_wb_dmos_original_fl = load_old_fp_results(
-    original_result_file_path_fl
-)
-# Laboratory original results
-
-original_result_file_path_lab = (
-    matlab_algo_result_path / "laboratory" / "escience_mobilised_pipeline.csv"
-)
-
-per_wb_dmos_original_lab = load_old_fp_results(
-    original_result_file_path_lab
-)
 
 # Process old per-wb results
-median_original_results_fl = process_old_per_wb_results(per_wb_dmos_original_fl)
-median_original_results_lab = process_old_per_wb_results(per_wb_dmos_original_lab)
+# median_original_results_fl = process_old_per_wb_results(per_wb_dmos_original_fl)
+# median_original_results_lab = process_old_per_wb_results(per_wb_dmos_original_lab)
 # %%
 # Setting up the algorithms
 # -------------------------
@@ -114,13 +207,19 @@ from mobgap.pipeline import (
     MobilisedPipelineImpaired,
     MobilisedPipelineUniversal,
 )
+
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
-pipelines = {"Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(
-    pipelines=[
-        ("healthy", MobilisedPipelineHealthy()),
-        ("impaired", MobilisedPipelineImpaired()),
-    ]
-)}
+pipelines = {
+    "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(
+        pipelines=[
+            ("healthy", MobilisedPipelineHealthy()),
+            ("impaired", MobilisedPipelineImpaired()),
+        ]
+    ),
+    "EScience_MobiliseD_Pipeline": DummyFullPipeline(
+        escience_pipeline_result_path
+    ),
+}
 # %%
 # Setting up the dataset
 # ----------------------
@@ -140,7 +239,6 @@ pipelines = {"Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(
 
 from joblib import Memory, Parallel, delayed
 from mobgap import PACKAGE_ROOT
-from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
 
 cache_dir = Path(
     get_env_var("MOBGAP_CACHE_DIR_PATH", PACKAGE_ROOT.parent / ".cache")
@@ -160,6 +258,7 @@ datasets_laboratory = TVSLabDataset(
     missing_reference_error_type="skip",
 )
 
+
 # %%
 # Running the evaluation
 # ------------- ---------
@@ -175,6 +274,8 @@ n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/full_pipeline"
 )
+
+
 def run_evaluation(name, pipeline, ds):
     eval_pipe = Evaluation(
         ds,
@@ -182,79 +283,44 @@ def run_evaluation(name, pipeline, ds):
     ).run(pipeline)
     return name, eval_pipe
 
-from mobgap.pipeline._error_metrics import ErrorTransformFuncs
-from mobgap.utils.df_operations import apply_transformations
-E = ErrorTransformFuncs
-from matplotlib import pyplot as plt
+
 import seaborn as sns
+from matplotlib import pyplot as plt
 
-_errors = [
-    ("walking_speed_mps", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
-    ("stride_length_m", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
-    ("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error]),
-]
 
-def pipeline_eval_debug_plot(results: dict, median_original_results: pd.DataFrame) -> None:
-    evaluation_obj = results["Official_MobiliseD_Pipeline"]
-
-    new_results_with_errors = evaluation_obj.get_single_results_as_df()  # Extract the results_ attribute
-
-    # Merge reference values with computed medians
-    # TODO: subject 2079 has no available reference data for Free-living condition, hence this prevents it to be included in the dataframe
-    merged_df = new_results_with_errors.merge(
-        median_original_results,
-        left_on='participant_id',
-        right_on='participant_id',
-        how='inner'
+def pipeline_eval_debug_plot(
+    results: dict[str, Evaluation[BaseMobilisedPipeline]],
+) -> None:
+    results_df_wb = (
+        pd.concat({k: v.get_single_results_as_df() for k, v in results.items()})
+        .reset_index()
+        .rename(columns={"level_0": "algo_name"})
     )
-
-    # Create MultiIndex columns
-    final_df = merged_df[[
-        'combined__walking_speed_mps__reference', 'combined__walking_speed_mps__original',
-        'combined__stride_length_m__reference', 'combined__stride_length_m__original',
-        'combined__cadence_spm__reference', 'combined__cadence_spm__original'
-    ]]
-
-    final_df.columns = pd.MultiIndex.from_tuples([
-        ('walking_speed_mps', 'reference'), ('walking_speed_mps', 'detected'),
-        ('stride_length_m', 'reference'), ('stride_length_m', 'detected'),
-        ('cadence_spm', 'reference'), ('cadence_spm', 'detected')
-    ])
-    original_results_errors = apply_transformations(final_df, _errors) # Calculate error metrics
-    original_results_with_errors = pd.concat([original_results_errors, final_df], axis=1) # Concatenate new and original results
-    original_results_with_errors.columns = ["__".join(levels) for levels in original_results_with_errors.columns]
-    original_results_with_errors = original_results_with_errors.add_prefix("combined__")
-
-    # Add a source column to distinguish between the two datasets
-    new_results_with_errors['source'] = 'mobgap'
-    original_results_with_errors['source'] = 'matlab'
-
-    # Combine both datasets for plotting
-    combined_df = pd.concat([new_results_with_errors, original_results_with_errors])
 
     # Define the metrics and outcomes of interest
     outcomes = ["walking_speed_mps", "stride_length_m", "cadence_spm"]
-    metrics = ["abs_error", "abs_rel_error"]
+    metrics = ["error", "abs_error", "abs_rel_error"]
 
     # Create the 2x3 boxplot figure
-    fig, axes = plt.subplots(2, 3, figsize=(12, 6))
+    fig, axes = plt.subplots(3, 3, figsize=(12, 12))
 
     for col, outcome in enumerate(outcomes):
         for row, metric in enumerate(metrics):
             ax = axes[row, col]
             sns.boxplot(
-                data=combined_df,
-                x = "source",
+                data=results_df_wb,
+                x="algo_name",
                 y=f"combined__{outcome}__{metric}",
                 ax=ax,
                 showmeans=True,
-                hue="source",  # Use color to distinguish the datasets
-                legend = "full"
+                hue="algo_name",
+                legend=False,
             )
             ax.set_title(f"{metric} for {outcome}")
 
     plt.tight_layout()
     plt.show()
+
 
 # %%
 # Free-Living
@@ -278,7 +344,7 @@ results_free_living
 # Measurement-level means that each datapoint is a single recording/participant.
 # The value error value per participant was itself calculated as the mean of the error values of all walking bouts of
 # that participant.
-pipeline_eval_debug_plot(results_free_living, median_original_results_fl)
+pipeline_eval_debug_plot(results_free_living)
 
 # %%
 # Then we save the results to disk.
@@ -290,7 +356,6 @@ for k, v in results_free_living.items():
         v,
         condition="free_living",
         base_path=results_base_path,
-        raw_result_filter=["wb_level_values_with_errors"],
     )
 
 
@@ -299,16 +364,18 @@ for k, v in results_free_living.items():
 # ~~~~~~~~~~
 # Now, we repeat the combined evaluation for the Laboratory part of the dataset.
 with Parallel(n_jobs=n_jobs) as parallel:
-    results_laboratory: dict[str, Evaluation[MobilisedPipelineUniversal]] = dict(
-        parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_laboratory)
-            for name, pipeline in pipelines.items()
+    results_laboratory: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
+        dict(
+            parallel(
+                delayed(run_evaluation)(name, pipeline, datasets_laboratory)
+                for name, pipeline in pipelines.items()
+            )
         )
     )
 
 # %%
 # We create a quick plot for debugging.
-pipeline_eval_debug_plot(results_laboratory, median_original_results_lab)
+pipeline_eval_debug_plot(results_laboratory)
 
 # %%
 # Then we save the results to disk.
@@ -318,5 +385,4 @@ for k, v in results_laboratory.items():
         v,
         condition="laboratory",
         base_path=results_base_path,
-        raw_result_filter=["wb_level_values_with_errors"],
     )
