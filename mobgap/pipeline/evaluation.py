@@ -27,6 +27,7 @@ from mobgap.pipeline._error_metrics import (
     quantiles,
     rel_error,
 )
+from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.df_operations import apply_transformations
 
 E = ErrorTransformFuncs
@@ -39,9 +40,7 @@ _errors = [
 _error_aggregates = []
 
 
-def pipeline_per_datapoint_score(
-    pipeline: MobilisedPipelineUniversal, datapoint: BaseGaitDatasetWithReference
-) -> dict:  # TODO: correct type for argument pipeline?
+def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
     """Evaluate the performance of the Mobilise-D pipeline for primary DMOs estimation on a single datapoint.
 
     .. warning:: This function is not meant to be called directly, but as a scoring function in a
@@ -60,14 +59,14 @@ def pipeline_per_datapoint_score(
       (``wb_level_<DMO>_values_with_errors``). These are returned as a dataframe wrapped in ``no_agg``.
       The dataframe also contains the average walking speed for each WB extracted from the reference system to provide
       context for further analysis.
-    - The average WB-level error metrics on a per-data-point level. These are returned as ``combined__<DMO>_<metric>`` and
-      will be averaged over all datapoints in the Scorer.
+    - The average WB-level error metrics on a per-data-point level. These are returned as ``combined__<DMO>_<metric>``
+      and will be averaged over all datapoints in the Scorer.
 
     Parameters
     ----------
     pipeline
-        An instance of :class:`~mobgab.pipeline.MobilisedPipelineUniversal`that wraps the pipeline that should #TODO: correct type for argument pipeline?
-        be evaluated.
+        An instance of :class:`~mobgab.pipeline.base.BaseMobilisedPipeline` that provides at least `per_wb_parameters_`
+        as result.
     datapoint
         The datapoint to be evaluated.
 
@@ -137,7 +136,7 @@ def pipeline_final_agg(
     data_label_names = data_labels[0]._fields
 
     combined_errors = single_results.pop("combined_error")
-    combined_errors = pd.concat(combined_errors, keys=data_labels, names=data_label_names, axis=1).dropna(axis = 1)
+    combined_errors = pd.concat(combined_errors, keys=data_labels, names=data_label_names, axis=1).dropna(axis=1)
 
     aggregated_single_results = {
         "raw__combined_errors": combined_errors,
@@ -151,8 +150,8 @@ def pipeline_final_agg(
 pipeline_score = Scorer(pipeline_per_datapoint_score, final_aggregator=pipeline_final_agg)
 pipeline_score.__doc__ = """Scorer for the Mobilise-D pipeline evaluation.
 
-This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`pipeline_per_datapoint_score` function as
-per-datapoint scorer and the :func:`pipeline_final_agg` function as final aggregator.
+This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`pipeline_per_datapoint_score` function
+as per-datapoint scorer and the :func:`pipeline_final_agg` function as final aggregator.
 For more information about Scorer, head to the tpcp documentation (:class:`~tpcp.validate.Scorer`).
 For usage information in the context of mobgap, have a look at the :ref:`evaluation example <sl_evaluation>` for GSD.
 
@@ -160,8 +159,8 @@ The following metrics are calculated:
 
 Raw metrics (part of the single results):
 
-- ``single__raw__wb_level_<dmo>_values_with_errors``: A dataframe containing the WB level values and errors for each WB in the
-  dataset.
+- ``single__raw__wb_level_<dmo>_values_with_errors``: A dataframe containing the WB level values and errors for each WB
+  in the dataset.
   In addition, to the DMO values and errors, the dataframe also contains the average walking speed for each WB
   extracted from the reference system to provide context for further analysis.
 
