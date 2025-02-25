@@ -13,7 +13,6 @@ from mobgap.gait_sequences.evaluation import (
     categorize_intervals_per_sample,
     get_matching_intervals,
 )
-from mobgap.pipeline import MobilisedPipelineUniversal
 from mobgap.pipeline._error_metrics import (
     CustomErrorAggregations,
     ErrorTransformFuncs,
@@ -116,7 +115,7 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
 def pipeline_final_agg(
     agg_results: dict[str, float],
     single_results: dict[str, list],
-    _: MobilisedPipelineUniversal,  # TODO: is it the correct object type?
+    _: BaseMobilisedPipeline,
     dataset: BaseGaitDatasetWithReference,
 ) -> tuple[dict[str, any], dict[str, list[any]]]:
     """Aggregate the results of the pipeline evaluation.
