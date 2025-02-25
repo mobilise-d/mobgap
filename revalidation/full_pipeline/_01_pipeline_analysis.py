@@ -47,10 +47,12 @@ from mobgap.utils.misc import get_env_var
 def format_loaded_results(
     values: dict[tuple[str, str], pd.DataFrame],
     index_cols: list[str],
+    col_prefix_filter: str,
     convert_rel_error: bool = False,
 ) -> pd.DataFrame:
     formatted = (
         pd.concat(values, names=["algo", "version", *index_cols])
+        .filter(like=col_prefix_filter)
         .reset_index()
         .assign(
             algo_with_version=lambda df: df["algo"]
@@ -64,6 +66,7 @@ def format_loaded_results(
         return formatted
     rel_cols = [c for c in formatted.columns if "rel_error" in c]
     formatted[rel_cols] = formatted[rel_cols] * 100
+    formatted.columns = formatted.columns.str.removeprefix(col_prefix_filter)
     return formatted
 
 
@@ -86,14 +89,23 @@ free_living_index_cols = [
     "recording_name_pretty",
 ]
 
-free_living_results = format_loaded_results(
-    {
-        v: loader.load_single_results(k, "free_living")
-        for k, v in algorithms.items()
-    },
+_free_living_results = {
+    v: loader.load_single_results(k, "free_living")
+    for k, v in algorithms.items()
+}
+free_living_results_combined = format_loaded_results(
+    _free_living_results,
     free_living_index_cols,
+    "combined__",
     convert_rel_error=True,
 )
+free_living_results_matched = format_loaded_results(
+    _free_living_results,
+    free_living_index_cols,
+    "matched__",
+    convert_rel_error=True,
+)
+del _free_living_results
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 
@@ -124,23 +136,21 @@ custom_aggs = [
     ),
     CustomOperation(
         identifier=None,
-        function=lambda df_: df_["combined__walking_speed_mps__detected"]
-        .isna()
-        .sum(),
+        function=lambda df_: df_["walking_speed_mps__detected"].isna().sum(),
         column_name=[("n_nan_detected", "all")],
     ),
-    ("combined__walking_speed_mps__detected", ["mean", A.conf_intervals]),
-    ("combined__walking_speed_mps__reference", ["mean", A.conf_intervals]),
-    ("combined__walking_speed_mps__error", ["mean", A.loa]),
-    ("combined__walking_speed_mps__abs_error", ["mean", A.conf_intervals]),
-    ("combined__walking_speed_mps__rel_error", ["mean", A.conf_intervals]),
-    ("combined__walking_speed_mps__abs_rel_error", ["mean", A.conf_intervals]),
+    ("walking_speed_mps__detected", ["mean", A.conf_intervals]),
+    ("walking_speed_mps__reference", ["mean", A.conf_intervals]),
+    ("walking_speed_mps__error", ["mean", A.loa]),
+    ("walking_speed_mps__abs_error", ["mean", A.conf_intervals]),
+    ("walking_speed_mps__rel_error", ["mean", A.conf_intervals]),
+    ("walking_speed_mps__abs_rel_error", ["mean", A.conf_intervals]),
     CustomOperation(
         identifier=None,
         function=partial(
             A.icc,
-            reference_col_name="combined__walking_speed_mps__reference",
-            detected_col_name="combined__walking_speed_mps__detected",
+            reference_col_name="walking_speed_mps__reference",
+            detected_col_name="walking_speed_mps__detected",
             icc_type="icc2",
             # For the lab data, some trials have no results for the old algorithms.
             nan_policy="omit",
@@ -171,21 +181,21 @@ format_transforms = [
             column_name=c,
         )
         for c in [
-            "combined__walking_speed_mps__reference",
-            "combined__walking_speed_mps__detected",
-            "combined__walking_speed_mps__abs_error",
-            "combined__walking_speed_mps__rel_error",
-            "combined__walking_speed_mps__abs_rel_error",
+            "walking_speed_mps__reference",
+            "walking_speed_mps__detected",
+            "walking_speed_mps__abs_error",
+            "walking_speed_mps__rel_error",
+            "walking_speed_mps__abs_rel_error",
         ]
     ),
     CustomOperation(
         identifier=None,
         function=partial(
             F.value_with_range,
-            value_col=("mean", "combined__walking_speed_mps__error"),
-            range_col=("loa", "combined__walking_speed_mps__error"),
+            value_col=("mean", "walking_speed_mps__error"),
+            range_col=("loa", "walking_speed_mps__error"),
         ),
-        column_name="combined__walking_speed_mps__error",
+        column_name="walking_speed_mps__error",
     ),
     CustomOperation(
         identifier=None,
@@ -201,12 +211,12 @@ format_transforms = [
 
 final_names = {
     "n_datapoints": "# participants",
-    "combined__walking_speed_mps__detected": "WD mean and CI [m]",
-    "combined__walking_speed_mps__reference": "INDIP mean and CI [m]",
-    "combined__walking_speed_mps__error": "Bias and LoA [m]",
-    "combined__walking_speed_mps__abs_error": "Abs. Error [m]",
-    "combined__walking_speed_mps__rel_error": "Rel. Error [%]",
-    "combined__walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
+    "walking_speed_mps__detected": "WD mean and CI [m]",
+    "walking_speed_mps__reference": "INDIP mean and CI [m]",
+    "walking_speed_mps__error": "Bias and LoA [m]",
+    "walking_speed_mps__abs_error": "Abs. Error [m]",
+    "walking_speed_mps__rel_error": "Rel. Error [%]",
+    "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
     "n_nan_detected": "# Failed WBs",
 }
@@ -234,6 +244,9 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
 # ----------------------
 # We focus on the free-living data for the comparison as this is the expected use case for the algorithms.
 #
+# Combined/Aggregated Analysis
+# ****************************
+# #TODO: Explain the combined analysis
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
@@ -244,18 +257,18 @@ import seaborn as sns
 metric = "abs_rel_error"  # For filtering results
 metric_pretty = "Abs. Rel. Error (%)"  # For plotting
 overall_df = (
-    free_living_results[
+    free_living_results_combined[
         [
-            f"combined__walking_speed_mps__{metric}",
-            f"combined__stride_length_m__{metric}",
-            f"combined__cadence_spm__{metric}",
+            f"walking_speed_mps__{metric}",
+            f"stride_length_m__{metric}",
+            f"cadence_spm__{metric}",
         ]
     ]
     .rename(
         columns={
-            f"combined__walking_speed_mps__{metric}": "walking_speed_mps",
-            f"combined__stride_length_m__{metric}": "stride_length_m",
-            f"combined__cadence_spm__{metric}": "cadence_spm",
+            f"walking_speed_mps__{metric}": "walking_speed_mps",
+            f"stride_length_m__{metric}": "stride_length_m",
+            f"cadence_spm__{metric}": "cadence_spm",
         }
     )
     .melt(var_name="Metric", value_name=metric_pretty)
@@ -265,12 +278,12 @@ fig, ax = plt.subplots()
 sns.boxplot(data=overall_df, x="Metric", y=metric_pretty, ax=ax)
 fig.show()
 
-perf_metrics_all = (
-    free_living_results.groupby(["algo", "version"])
+combined_perf_metrics_all = (
+    free_living_results_combined.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
 )
-perf_metrics_all.style.pipe(
+combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 
@@ -280,16 +293,16 @@ perf_metrics_all.style.pipe(
 # The results below represent the average performance across all participants within a cohort.
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=free_living_results,
+    data=free_living_results_combined,
     x="cohort",
-    y="combined__walking_speed_mps__abs_error",
+    y="walking_speed_mps__abs_error",
     hue="algo_with_version",
     order=cohort_order,
     ax=ax,
 )
 fig.show()
 perf_metrics_cohort = (
-    free_living_results.groupby(["cohort", "algo", "version"])
+    free_living_results_combined.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
     .loc[cohort_order]
@@ -318,8 +331,8 @@ def combo_residual_plot(data):
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         residual_plot(
             subdata,
-            "combined__walking_speed_mps__reference",
-            "combined__walking_speed_mps__detected",
+            "walking_speed_mps__reference",
+            "walking_speed_mps__detected",
             "cohort",
             "m",
             ax=ax,
@@ -335,28 +348,28 @@ def combo_scatter_plot(data):
     fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
     fig.suptitle(data.name)
     min_max = calc_min_max_with_margin(
-        data["combined__walking_speed_mps__reference"],
-        data["combined__walking_speed_mps__detected"],
+        data["walking_speed_mps__reference"],
+        data["walking_speed_mps__detected"],
     )
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         subdata = subdata[
             [
-                "combined__walking_speed_mps__reference",
-                "combined__walking_speed_mps__detected",
+                "walking_speed_mps__reference",
+                "walking_speed_mps__detected",
                 "cohort",
             ]
         ].dropna(how="any")
         sns.scatterplot(
             subdata,
-            x="combined__walking_speed_mps__reference",
-            y="combined__walking_speed_mps__detected",
+            x="walking_speed_mps__reference",
+            y="walking_speed_mps__detected",
             hue="cohort",
             ax=ax,
             legend=ax == axs[-1],
         )
         plot_regline(
-            subdata["combined__walking_speed_mps__reference"],
-            subdata["combined__walking_speed_mps__detected"],
+            subdata["walking_speed_mps__reference"],
+            subdata["walking_speed_mps__detected"],
             ax=ax,
         )
         make_square(ax, min_max, draw_diagonal=True)
@@ -368,9 +381,46 @@ def combo_scatter_plot(data):
     plt.show()
 
 
-free_living_results.groupby("algo").apply(
+free_living_results_combined.groupby("algo").apply(
     combo_residual_plot, include_groups=False
 )
-free_living_results.groupby("algo").apply(
+free_living_results_combined.groupby("algo").apply(
     combo_scatter_plot, include_groups=False
+)
+
+
+# %%
+# Matched Analysis
+# ****************
+# #TODO: Explain the matched analysis
+# Note, that compared to the results published in Kirk et al. (2024), the primary analysis on the matched results is
+# performed on the average performance metrics across all matched WBs **per recording/per participant**.
+# The original publication considered the average performance metrics across all matched WBs without additional
+# aggregation.
+#
+# Per Cohort
+# ~~~~~~~~~~
+# Each datapoint in the tables and plots below is a single participant/recording.
+# %%
+# Per Cohort
+# ~~~~~~~~~~
+# The results below represent the average performance across all participants within a cohort.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=free_living_results_matched,
+    x="cohort",
+    y="walking_speed_mps__abs_error",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+perf_metrics_cohort = (
+    free_living_results_matched.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+    .loc[cohort_order]
+)
+perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
