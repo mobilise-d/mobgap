@@ -79,17 +79,33 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
         similar as scorer.
         This functions will aggregate the results and provide a summary of the performance metrics.
 
+    Notes
+    -----
+    The aggregated analysis takes the median of a DMO per recording (gait test in lab, full recording in free-living)
+    and then calculates the error metrics based on the median values.
+    This results in a single "row" of metrics per recording.
+
+    The "matched" or "true positive" analysis is based on the WB level.
+    We first categorize the WBs into true positives, false positives, and false negatives based on the overlap of the
+    detected and reference WBs.
+    A bidirectional overlap of 80% is considered a match.
+    For the matched WBs, we calculate the error metrics based on the detected and reference values.
+    The errors are then provided on two granularities:
+    - The error dataframe where each row corresponds to a matched WB.
+    - The aggregated error metrics based on the mean of all errors of all matched WBs in a recording.
+
     """
     pipeline.safe_run(datapoint)
     # Extracting main results (average values per WB)
     # We don't drop NaNs here, as we want to keep Cadence values even if other values are missing
-    calculated_per_wb = pipeline.per_wb_parameters_[["walking_speed_mps", "stride_length_m", "cadence_spm"]]
+    calculated_per_wb = pipeline.per_wb_parameters_[
+        ["start", "end", "walking_speed_mps", "stride_length_m", "cadence_spm"]
+    ]
     reference_per_wb = datapoint.reference_parameters_.wb_list[
-        ["avg_walking_speed_mps", "avg_stride_length_m", "avg_cadence_spm"]
+        ["start", "end", "avg_walking_speed_mps", "avg_stride_length_m", "avg_cadence_spm"]
     ]
     reference_per_wb.columns = reference_per_wb.columns.str.removeprefix("avg_")
 
-    # Combined evaluation
     # Agg/Combined Evaluation
     median_parameters = (
         pd.concat({"detected": calculated_per_wb.median(), "reference": reference_per_wb.median()})
@@ -101,14 +117,39 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
     median_parameters_with_errors = pd.concat([median_parameters_errors, median_parameters], axis=1)
     median_parameters_with_errors.columns = ["__".join(levels) for levels in median_parameters_with_errors.columns]
     assert len(median_parameters_with_errors) == 1
-    # There is only one value per datapoint, so we can just take the first row
     median_parameters_with_errors = median_parameters_with_errors.add_prefix("combined__").iloc[0]
 
+    # True positive evaluation
+    wb_tp_fp_fn = categorize_intervals(
+        gsd_list_detected=calculated_per_wb,
+        gsd_list_reference=reference_per_wb,
+        overlap_threshold=0.8,
+        multiindex_warning=False,
+    )
+    wb_matches = get_matching_intervals(
+        metrics_detected=calculated_per_wb,
+        metrics_reference=reference_per_wb,
+        matches=wb_tp_fp_fn,
+    )
+
+    matched_errors = apply_transformations(wb_matches, _errors)
+    matched_parameters_with_errors = pd.concat([matched_errors, wb_matches], axis=1)
+    # Compared to the median values, we have multiple values per datapoint here.
+    # Each matched WB has its own row.
+    matched_parameters_with_errors.columns = ["__".join(levels) for levels in matched_parameters_with_errors.columns]
+
+    # We calculate the mean error across all errors of all WBs
+    matched_parameters_with_errors_agg = (
+        matched_parameters_with_errors.mean()
+        .assign(n_matched_wbs=len(matched_parameters_with_errors))
+        .add_prefix("matched__")
+    )
+
     return {
-        # We also pass the results of the combined analysis directly as single values.
-        # This way there medians are available directly as a single value for optimization.
         **median_parameters_with_errors.to_dict(),
-        "combined_error": no_agg(median_parameters_with_errors),
+        **matched_parameters_with_errors_agg.to_dict(),
+        # We also pass the raw matched parameters to allow for detailed analysis on the WB level.
+        "matched_error": no_agg(matched_parameters_with_errors),
     }
 
 
@@ -134,11 +175,11 @@ def pipeline_final_agg(
     data_labels = [d.group_label for d in dataset]
     data_label_names = data_labels[0]._fields
 
-    combined_errors = single_results.pop("combined_error")
-    combined_errors = pd.concat(combined_errors, keys=data_labels, names=data_label_names, axis=1).dropna(axis=1)
+    matched_errors = single_results.pop("matched_error")
+    matched_errors = pd.concat(matched_errors, keys=data_labels, names=data_label_names, axis=0)
 
     aggregated_single_results = {
-        "raw__combined_errors": combined_errors,
+        "raw__matched_errors": matched_errors,
     }
 
     return agg_results, {**single_results, **aggregated_single_results}
@@ -147,6 +188,7 @@ def pipeline_final_agg(
 #: :data:: pipeline_score
 #: Scorer class instance for the Mobilise-D pipeline.
 pipeline_score = Scorer(pipeline_per_datapoint_score, final_aggregator=pipeline_final_agg)
+# TODO: Update docstrings with the scoring outputs
 pipeline_score.__doc__ = """Scorer for the Mobilise-D pipeline evaluation.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`pipeline_per_datapoint_score` function

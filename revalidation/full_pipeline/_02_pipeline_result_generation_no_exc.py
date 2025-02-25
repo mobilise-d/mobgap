@@ -124,7 +124,13 @@ class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
         except KeyError:
             warnings.warn(f"No results found for {datapoint.group_label}.")
             per_wb_results = pd.DataFrame(
-                columns=["walking_speed_mps", "stride_length_m", "cadence_spm"]
+                columns=[
+                    "start",
+                    "end",
+                    "walking_speed_mps",
+                    "stride_length_m",
+                    "cadence_spm",
+                ]
             )
         self.per_wb_parameters_ = per_wb_results
         return self
@@ -302,6 +308,7 @@ for k, v in results_free_living.items():
         v,
         condition="free_living",
         base_path=results_base_path,
+        raw_results=["matched_errors"],
     )
 
 
@@ -331,4 +338,5 @@ for k, v in results_laboratory.items():
         v,
         condition="laboratory",
         base_path=results_base_path,
+        raw_results=["matched_errors"],
     )
