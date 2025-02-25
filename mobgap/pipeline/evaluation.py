@@ -85,9 +85,7 @@ def pipeline_per_datapoint_score(
     pipeline.safe_run(datapoint)
     # Extracting main results (average values per WB)
     # We don't drop NaNs here, as we want to keep Cadence values even if other values are missing
-    calculated_per_wb = pipeline.per_wb_parameters_[
-        ["walking_speed_mps", "stride_length_m", "cadence_spm"]
-    ]
+    calculated_per_wb = pipeline.per_wb_parameters_[["walking_speed_mps", "stride_length_m", "cadence_spm"]]
     reference_per_wb = datapoint.reference_parameters_.wb_list[
         ["avg_walking_speed_mps", "avg_stride_length_m", "avg_cadence_spm"]
     ]
@@ -96,9 +94,7 @@ def pipeline_per_datapoint_score(
     # Combined evaluation
     # Agg/Combined Evaluation
     median_parameters = (
-        pd.concat(
-            {"detected": calculated_per_wb.median(), "reference": reference_per_wb.median()}
-        )
+        pd.concat({"detected": calculated_per_wb.median(), "reference": reference_per_wb.median()})
         .to_frame()
         .swaplevel()
         .T
