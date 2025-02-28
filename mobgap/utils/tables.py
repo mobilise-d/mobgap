@@ -70,12 +70,6 @@ def value_with_range(df: pd.DataFrame, value_col: str, range_col: str, precision
     )
 
 
-def _format_stats_results(row: pd.Series, p_value_col: str, effect_size_col: str, precision: int) -> str:
-    p_value = row[p_value_col]
-    if p_value < 0.001:
-        p_value = "<0.001"
-    
-
 def stats_result(df: pd.DataFrame, p_value_col: str, effect_size_col: str, precision: int = 2) -> pd.Series:
     """Combine a p-value column (float) and an effect size column (float) into one column.
 
@@ -92,7 +86,7 @@ def stats_result(df: pd.DataFrame, p_value_col: str, effect_size_col: str, preci
 
     """
     return df.apply(
-        lambda row: f"{row[p_value_col]:.{precision}f} ({row[effect_size_col]:.{precision}f})",
+        lambda row: ValueWithRange(row[effect_size_col], (row[p_value_col], row[p_value_col]), precision),
         axis=1,
     )
 
@@ -169,6 +163,8 @@ def border_after_group_styler(
 def compare_to_threshold_styler(
     thresholds: dict[Hashable, float],
     higher_is_pass: dict[Hashable, float],
+    stats_orig_cols: dict[Hashable, float],
+    stats_to: str = "old",
     pass_style: str = "background-color: lightgreen",
     fail_style: str = "background-color: lightcoral",
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
@@ -180,6 +176,8 @@ def compare_to_threshold_styler(
         A dictionary with the column names as keys and the threshold values as values.
     higher_is_pass
         A dictionary with the column names as keys and the threshold values as values.
+    stats_orig_cols
+        A dictionary with the stat results column names as keys and their original column names as values.
     pass_style
         The CSS style to apply to the elements that pass the threshold.
     fail_style
@@ -192,6 +190,20 @@ def compare_to_threshold_styler(
             mask = data[col] > threshold if higher_is_pass[col] else data[col] < threshold
             styled.loc[mask, col] = pass_style
             styled.loc[~mask, col] = fail_style
+
+        # Highlight significant tests
+        def stat_formatter(row: pd.Series, col_stat: str, col_orig: str) -> str:
+            row_orig_str = str(row[col_orig])
+            if stats_to in row.name[-1]:  # TODO: Is row.name[-1] always the stats_between column (containing stats_to)?
+                return row_orig_str
+            if row[col_stat] < 0.01:
+                return row_orig_str + "<sup>*</sup>"
+            if row[col_stat] < 0.05:
+                return row_orig_str + "<sup>+</sup>"
+            return row_orig_str
+
+        for stats_col, orig_col in stats_orig_cols.items():
+            data.loc[:, orig_col] = data.apply(stat_formatter, args=(stats_col, orig_col), axis=1)
 
         return styled
 
@@ -212,10 +224,14 @@ class RevalidationInfo(NamedTuple):
 
     threshold: Optional[float]
     higher_is_better: Optional[bool]
+    stat_col: Optional[list] = ""
 
 
 def revalidation_table_styles(
-    st: Styler, thresholds: dict[Hashable, RevalidationInfo], groupby: Union[Hashable, list[Hashable]]
+    st: Styler,
+    thresholds: dict[Hashable, RevalidationInfo],
+    groupby: Union[Hashable, list[Hashable]],
+    stats_to: str = "",
 ) -> Styler:
     """Apply styles to a DataFrame appropriate for the revalidation.
 
@@ -234,17 +250,22 @@ def revalidation_table_styles(
     groupby
         A valid groupby argument for :func:`~pandas.DataFrame.groupby`.
         This is used by ``best_in_group_styler`` and ``border_after_group_styler``.
+    stats_to
+        The value of the column between which stats are calculated. Other values of the column will be marked if there
+        is any significant difference to `stats_to`. E.g. "old" in `version` is used to calculate stats.
     """
     higher_is_better = {
         col: info.higher_is_better for col, info in thresholds.items() if info.higher_is_better is not None
     }
+    stats_orig_cols = {info.stat_col: col for col, info in thresholds.items() if info.stat_col}
     thresholds = {col: info.threshold for col, info in thresholds.items() if info.threshold is not None}
 
     return (
         st.apply(best_in_group_styler(groupby=groupby, columns=higher_is_better), axis=None)
-        .apply(compare_to_threshold_styler(thresholds, higher_is_better), axis=None)
+        .apply(compare_to_threshold_styler(thresholds, higher_is_better, stats_orig_cols, stats_to), axis=None)
         .apply(border_after_group_styler(groupby), axis=None)
         .set_table_attributes('class="dataframe"')
+        .hide(stats_orig_cols.keys(), axis=1)
     )
 
 
