@@ -92,7 +92,7 @@ def stats_result(df: pd.DataFrame, p_value_col: str, effect_size_col: str, preci
 
     """
     return df.apply(
-        lambda row: f"{row[p_value_col]:.{precision}f} ({row[effect_size_col]:.{precision}f})",
+        lambda row: ValueWithRange(row[effect_size_col], (row[p_value_col], row[p_value_col]), precision),
         axis=1,
     )
 
