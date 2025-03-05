@@ -141,7 +141,8 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
     # We calculate the mean error across all errors of all WBs
     matched_parameters_with_errors_agg = (
         matched_parameters_with_errors.mean()
-        .assign(n_matched_wbs=len(matched_parameters_with_errors))
+        # .to_frame() # Convert back to dataframe
+        # .assign(n_matched_wbs=len(matched_parameters_with_errors))
         .add_prefix("matched__")
     )
 
