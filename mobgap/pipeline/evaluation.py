@@ -139,12 +139,9 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
     matched_parameters_with_errors.columns = ["__".join(levels) for levels in matched_parameters_with_errors.columns]
 
     # We calculate the mean error across all errors of all WBs
-    matched_parameters_with_errors_agg = (
-        matched_parameters_with_errors.mean()
-        # .to_frame() # Convert back to dataframe
-        # .assign(n_matched_wbs=len(matched_parameters_with_errors))
-        .add_prefix("matched__")
-    )
+    matched_parameters_with_errors_agg = matched_parameters_with_errors.mean()
+    matched_parameters_with_errors_agg["n_matched_wbs"] = len(matched_parameters_with_errors)
+    matched_parameters_with_errors_agg = matched_parameters_with_errors_agg.add_prefix("matched__")
 
     return {
         **median_parameters_with_errors.to_dict(),
