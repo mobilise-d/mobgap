@@ -247,7 +247,7 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error Stats. [m]"),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
