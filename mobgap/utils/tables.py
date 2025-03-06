@@ -224,7 +224,7 @@ class RevalidationInfo(NamedTuple):
 
     threshold: Optional[float]
     higher_is_better: Optional[bool]
-    stat_col: Optional[list] = ""
+    stat_col: Optional[str] = ""
 
 
 def revalidation_table_styles(
