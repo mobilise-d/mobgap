@@ -79,7 +79,7 @@ loader = ValidationResultLoader(
     "full_pipeline", result_path=local_data_path, version="main"
 )
 
-
+# Loading free-living data
 free_living_index_cols = [
     "cohort",
     "participant_id",
@@ -105,8 +105,36 @@ free_living_results_matched = format_loaded_results(
     "matched__",
     convert_rel_error=True,
 )
+
 del _free_living_results
 
+# Loading laboratory data
+laboratory_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+_laboratory_results = {
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+laboratory_results_combined = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "combined__",
+    convert_rel_error=True,
+)
+laboratory_results_matched = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "matched__",
+    convert_rel_error=True,
+)
+del _laboratory_results
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 
 # %%
@@ -491,3 +519,66 @@ perf_metrics_cohort = (
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
+# %%
+# Distribution of walking speed and WB count with respect to WB duration
+# -------------------------------------
+matched_new_data_path = (local_data_path /
+                         "full_pipeline" /
+                         "free_living" /
+                         "Official_MobiliseD_Pipeline" /
+                         "raw_matched_errors.csv")
+raw_matched_new = pd.read_csv(matched_new_data_path)
+
+matched_old_data_path = (local_data_path /
+                         "full_pipeline" /
+                         "free_living" /
+                         "EScience_MobiliseD_Pipeline" /
+                         "raw_matched_errors.csv")
+raw_matched_old = pd.read_csv(matched_old_data_path)
+
+def plot_wb_analysis(df, title_):
+    """Plots a bar diagram of WB count by duration and a boxplot of absolute walking speed error."""
+    df['duration_s'] = (df['end__reference'] - df['start__reference']) / 100
+
+    bins = {
+        'All': df,
+        '> 10 s': df[df['duration_s'] > 10],
+        '<= 10 s': df[df['duration_s'] <= 10],
+        '10 - 30 s': df[(df['duration_s'] >= 10) & (df['duration_s'] < 30)],
+        '30 - 60 s': df[(df['duration_s'] >= 30) & (df['duration_s'] < 60)],
+        '60 - 120 s': df[(df['duration_s'] >= 60) & (df['duration_s'] < 120)],
+        '> 120 s': df[df['duration_s'] > 120]
+    }
+
+    # Bar Plot
+    plt.figure(figsize=(8, 6))
+    plt.bar(bins.keys(), [len(b) for b in bins.values()], color='blue')
+    # Annotate each bar with its count
+    counts = [len(b) for b in bins.values()]
+    for i, count in enumerate(counts):
+        plt.text(i, count + 5, str(count), ha='center', fontsize=12, color='black', fontweight='bold')
+    plt.xlabel("Duration")
+    plt.ylabel("WB Count")
+    plt.title(title_)
+    plt.show()
+    # Box Plot
+    bin_labels = []
+    errors = []
+
+    for label, b in bins.items():
+        bin_labels.extend([label] * len(b))
+        errors.extend(b['walking_speed_mps__abs_error'])
+
+    df_boxplot = pd.DataFrame({'Duration': bin_labels, 'Absolute Error': errors})
+
+    plt.figure(figsize=(8, 6))
+    sns.boxplot(x='Duration', y='Absolute Error', data=df_boxplot, hue='Duration', palette='Blues', legend=False)
+
+    plt.xlabel("Duration")
+    plt.ylabel("Absolute Walking Speed Error (m/s)")
+    plt.title("Distribution of Absolute Walking Speed Error by Duration")
+    plt.show()
+
+# Generate WB analysis plots
+plot_wb_analysis(raw_matched_new, "New")
+plot_wb_analysis(raw_matched_old, "Old")
