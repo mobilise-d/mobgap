@@ -211,10 +211,10 @@ format_transforms = [
 
 final_names = {
     "n_datapoints": "# participants",
-    "walking_speed_mps__detected": "WD mean and CI [m]",
-    "walking_speed_mps__reference": "INDIP mean and CI [m]",
-    "walking_speed_mps__error": "Bias and LoA [m]",
-    "walking_speed_mps__abs_error": "Abs. Error [m]",
+    "walking_speed_mps__detected": "WD mean and CI [m/s]",
+    "walking_speed_mps__reference": "INDIP mean and CI [m/s]",
+    "walking_speed_mps__error": "Bias and LoA [m/s]",
+    "walking_speed_mps__abs_error": "Abs. Error [m/s]",
     "walking_speed_mps__rel_error": "Rel. Error [%]",
     "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
@@ -246,7 +246,10 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
 #
 # Combined/Aggregated Analysis
 # ****************************
-# #TODO: Explain the combined analysis
+# To mimic actual use of wearable device where reference data may not be available, we performed a second evaluation
+# for which we combined all WBs for a Laboratory test and 2.5 h recording in the real world by taking the median of the
+# calculated DMOs. These combined values were then compared between the systems.
+# ****************************
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
@@ -286,6 +289,70 @@ combined_perf_metrics_all = (
 combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
+# %% Residual plot
+from scipy.stats import linregress
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+def plot_residuals(df, stats, version, title):
+    """Generates a residual plot for a given version of the algorithm ('new' or 'old')."""
+    df_filtered = df[df['version'] == version].dropna()
+
+    # Compute statistics
+    mean_error, (LoA_lower, LoA_upper) = stats.value, stats.err_range
+
+    # Regression Analysis
+    slope, intercept, r_value, p_value, _ = linregress(
+        df_filtered['walking_speed_mps__reference'], df_filtered['walking_speed_mps__error']
+    )
+    x_vals = np.linspace(df_filtered['walking_speed_mps__reference'].min(),
+                         df_filtered['walking_speed_mps__reference'].max(), 100)
+    y_vals = slope * x_vals + intercept
+
+    # Plot
+    plt.figure(figsize=(8, 6))
+    scatter = sns.scatterplot(data=df_filtered, x='walking_speed_mps__reference', y='walking_speed_mps__error',
+                              hue='cohort', palette='tab10', s=100, edgecolor='black')
+
+    # Mean and LoA lines
+    for y_val, label, style in zip([mean_error, LoA_upper, LoA_lower], ["Mean", "Upper LoA", "Lower LoA"],
+                                   ['-', ':', ':']):
+        plt.axhline(y_val, color='black', linestyle=style, linewidth=2 if style == '-' else 1.5)
+        plt.text(1.5, y_val + 0.02, label, fontsize=12, color="black", ha="left")
+        plt.text(1.5, y_val - 0.08, f"{y_val:.2f}", fontsize=12, color="black", ha="left")
+
+    # Regression line
+    plt.plot(x_vals, y_vals, 'k--', linewidth=4)
+
+    # Regression box
+    plt.text(0.1, 0.6, f"Regression:\nR = {r_value:.2f}\nP-value = {p_value:.3f}", fontsize=12, color="black",
+             ha="left",
+             bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"))
+
+    # Customize legend (horizontal)
+    scatter.legend_.remove()
+    handles, labels = scatter.get_legend_handles_labels()
+    plt.legend(handles, labels, title="Cohort", loc="lower center", fontsize=10, frameon=True,
+               ncol=3)
+
+    # Axis settings
+    plt.xlim(0, 2)
+    plt.ylim(-0.8, 0.8)
+    plt.xlabel('Reference (m/s)')
+    plt.ylabel('Error (m/s)')
+    plt.title(f'Walking speed - {title}')
+    plt.show()
+
+
+# Generate residual plots for 'new' and 'old' data
+version = "new"
+stats = combined_perf_metrics_all.loc[('MobiliseD_Pipeline', version)][final_names["walking_speed_mps__error"]]
+plot_residuals(free_living_results_combined, stats, version, 'New')
+version = "old"
+stats = combined_perf_metrics_all.loc[('MobiliseD_Pipeline', version)][final_names["walking_speed_mps__error"]]
+plot_residuals(free_living_results_combined, stats,version, 'Old')
 
 # %%
 # Per Cohort

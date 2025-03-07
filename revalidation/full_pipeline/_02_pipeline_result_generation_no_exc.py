@@ -316,6 +316,7 @@ for k, v in results_free_living.items():
 # Laboratory
 # ~~~~~~~~~~
 # Now, we repeat the combined evaluation for the Laboratory part of the dataset.
+datasets_laboratory = datasets_laboratory[:22]
 with Parallel(n_jobs=n_jobs) as parallel:
     results_laboratory: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
         dict(
