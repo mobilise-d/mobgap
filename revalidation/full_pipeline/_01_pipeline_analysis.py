@@ -405,6 +405,8 @@ perf_metrics_cohort = (
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
+perf_metrics_cohort.to_excel(r"C:\Users\paolo\Downloads\cohort_combined_rw.xlsx")
+
 # %%
 # Deep Dive Analysis of Main Algorithms
 # -------------------------------------
@@ -510,15 +512,16 @@ sns.boxplot(
     ax=ax,
 )
 fig.show()
-perf_metrics_cohort = (
+perf_metrics_cohort_tpe = (
     free_living_results_matched.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.style.pipe(
+perf_metrics_cohort_tpe.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
+perf_metrics_cohort_tpe.to_excel(r"C:\Users\paolo\Downloads\cohort_tpe_rw.xlsx")
 # %%
 # Distribution of walking speed and WB count with respect to WB duration
 # -------------------------------------
