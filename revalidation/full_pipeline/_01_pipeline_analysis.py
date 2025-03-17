@@ -73,7 +73,7 @@ def format_loaded_results(
 
 local_data_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
-    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 1)) #TODO: try changing to 0
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0)) #TODO: try changing to 0
     else None
 )
 loader = ValidationResultLoader(
