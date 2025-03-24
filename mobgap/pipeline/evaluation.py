@@ -1,8 +1,4 @@
-"""Evaluation utils for final pipeline outputs.
-
-Note, that this just provides some reexports of the evaluation functions from some of the other modules.
-
-"""
+"""Evaluation tools and functions for final pipeline outputs."""
 
 import pandas as pd
 from tpcp.validate import Scorer, no_agg
@@ -47,19 +43,26 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
        If you are writing custom scoring functions, you can use this function as a template or wrap it in a new
        function.
 
-    This function calculates the median DMO reference and detected values and errors on a per datapoint level
-    (per trial/recording).
+    This function calculates and evaluates DMO values in a two-ways fashion:
+
+    - Aggregate analysis ("originally referred to as "Combined Evaluation"): Median DMO reference and estimated values
+      are calculated on a per-datapoint level. As a result, a pair of reference and estimated values is returned for
+      each datapoint (datapoint = trial in the case of the laboratory dataset, datapoint = recording in the case of the
+      free-living dataset).
+    - Matched analysis (originally referred to as "True Positive Evaluation"): Estimated walking bouts (WB) are matched
+      with the reference WB (overlap: 80%). Average reference and estimated DMO values are calculated on a per-WB level.
+      As a result, a pair of reference and estimated values is returned for each matched WB.
 
     The following metrics are calculated:
 
-    - The error, absolute error, relative error, and absolute relative error for each WB. The WB-level metrics are
-      calculated as the average values of the DMO for each WB in the algorithm output.
-      Both the detected and reference values of the DMOs are taken directly from the wb-level reference data.
-      (``wb_level_<DMO>_values_with_errors``). These are returned as a dataframe wrapped in ``no_agg``.
-      The dataframe also contains the average walking speed for each WB extracted from the reference system to provide
-      context for further analysis.
-    - The average WB-level error metrics on a per-data-point level. These are returned as ``combined__<DMO>_<metric>``
-      and will be averaged over all datapoints in the Scorer.
+    - The error, absolute error, relative error, and absolute relative error of DMO estimation for each matched WB
+      (``matched_parameters_with_errors``). These are returned as a dataframe wrapped in ``no_agg``. The dataframe also
+      contains the average walking speed for each WB extracted from the reference system to provide context for further
+      analysis.
+    - The average matched WB-level error metrics on a per-datapoint level. These are returned as
+      ``matched__<DMO>__<metric>`` and will be averaged over all datapoints in the Scorer.
+    - The median error metrics on a per-datapoint level. These are returned as ``combined__<DMO>__<metric>`` and will be
+      averaged over all datapoints in the Scorer.
 
     Parameters
     ----------
@@ -106,7 +109,7 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
     ]
     reference_per_wb.columns = reference_per_wb.columns.str.removeprefix("avg_")
 
-    # Agg/Combined Evaluation
+    # Aggregate analysis (Combined Evaluation)
     median_parameters = (
         pd.concat({"detected": calculated_per_wb.median(), "reference": reference_per_wb.median()})
         .to_frame()
@@ -119,7 +122,7 @@ def pipeline_per_datapoint_score(pipeline: BaseMobilisedPipeline, datapoint: Bas
     assert len(median_parameters_with_errors) == 1
     median_parameters_with_errors = median_parameters_with_errors.add_prefix("combined__").iloc[0]
 
-    # True positive evaluation
+    # Matched analysis (True positive Evaluation)
     wb_tp_fp_fn = categorize_intervals(
         gsd_list_detected=calculated_per_wb,
         gsd_list_reference=reference_per_wb,
@@ -166,7 +169,7 @@ def pipeline_final_agg(
 
     This function aggregates the performance metrics as follows:
 
-    - The raw WB level values are combined into one dataframe each across the entire dataset.
+    - The raw per-datapoint level values are combined into one dataframe each across the entire dataset.
     - All other values are passed through unchanged.
 
     """
@@ -186,7 +189,6 @@ def pipeline_final_agg(
 #: :data:: pipeline_score
 #: Scorer class instance for the Mobilise-D pipeline.
 pipeline_score = Scorer(pipeline_per_datapoint_score, final_aggregator=pipeline_final_agg)
-# TODO: Update docstrings with the scoring outputs
 pipeline_score.__doc__ = """Scorer for the Mobilise-D pipeline evaluation.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`pipeline_per_datapoint_score` function
@@ -198,7 +200,7 @@ The following metrics are calculated:
 
 Raw metrics (part of the single results):
 
-- ``single__raw__wb_level_<dmo>_values_with_errors``: A dataframe containing the WB level values and errors for each WB
+- ``single__raw__matched_errors``: A dataframe containing the WB level values and errors for each WB
   in the dataset.
   In addition, to the DMO values and errors, the dataframe also contains the average walking speed for each WB
   extracted from the reference system to provide context for further analysis.
@@ -206,11 +208,13 @@ Raw metrics (part of the single results):
 Metrics per datapoint (single results):
 *These values are all provided as a list of values, one per datapoint.*
 
-- ``single__wb__{metric}``: The median of WB level values for each datapoint.
+- ``combined__<DMO>__{metric}``: The per-datapoint WB-level metrics calculated from median reference and estimated values.
+- ``matched__<DMO>__{metric}``: The average over the per-WB-averaged matched WB-level metrics of each datapoint.
 
 Aggregated metrics (agg results):
 
-- ``agg__wb__{metric}``: The average over the per-datapoint-averaged WB level metrics.
+- ``combined__<DMO>__{metric}``: The average over the per-datapoint-averaged aggregate WB-level metrics.
+- ``matched__<DMO>__{metric}``: The average over the per-datapoint-averaged matched WB-level metrics.
 """
 
 

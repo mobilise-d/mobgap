@@ -253,7 +253,7 @@ def pipeline_eval_debug_plot(
     outcomes = ["walking_speed_mps", "stride_length_m", "cadence_spm"]
     metrics = ["error", "abs_error", "abs_rel_error"]
 
-    # Create the 2x3 boxplot figure
+    # Create the 3x3 boxplot figure
     fig, axes = plt.subplots(3, 3, figsize=(12, 12))
 
     for col, outcome in enumerate(outcomes):
