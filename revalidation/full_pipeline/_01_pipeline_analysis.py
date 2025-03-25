@@ -11,20 +11,24 @@ Performance of the Mobilise-D algorithm pipeline on the TVS dataset
   We will update this page incrementally and provide further information, as soon as the state of any of the validation
   steps changes.
 
-The following provides an analysis and comparison of the Mobilise-D algorithm pipeline on the TVS dataset
-for the estimation of walking speed (free-living).
-We look into the actual performance of the algorithms compared to the reference data.
+The following provides an analysis and comparison of the Mobilise-D algorithm pipeline on the
+`Mobilise-D Technical Validation Study (TVS) dataset <https://zenodo.org/records/13987963>`_
+for the estimation of walking speed (free-living). # TODO: add laboratory analysis
+In this example, we look into the performance of the Python implementation of the pipeline compared to the reference
+data. We also compare the actual performance to that obtained by the original Matlab-based implementation.
 
 .. note:: If you are interested in how these results are calculated, head over to the
     :ref:`processing page <pipeline_val_gen>`.
 
 """
-#TODO: choose between combined and aggregate
-#TODO: add laboratory and other metrics (stride length, cadence)
 
 # %%
-# Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
+# Below the list of pipelines that are compared is shown.
+# Note, that we use the prefix "new" to refer to the reimplemented python algorithms, and the prefix "old" to refer to
+# original Matlab-based implementation [1]_.
+# .. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+#        multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
+#        https://doi.org/10.1038/s41598-024-51766-5
 
 algorithms = {
     "Official_MobiliseD_Pipeline": ("MobiliseD_Pipeline", "new"),
