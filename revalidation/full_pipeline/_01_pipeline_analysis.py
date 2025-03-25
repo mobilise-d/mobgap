@@ -1,8 +1,8 @@
 """
 .. _pipeline_val_results:
 
-Performance of the Mobilise-D algorithm pipeline on the TVS dataset
-==============================================================
+Performance of the Mobilise-D algorithm pipeline on the TVS dataset for walking speed estimation
+================================================================================================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
   of its algorithm.
@@ -13,9 +13,12 @@ Performance of the Mobilise-D algorithm pipeline on the TVS dataset
 
 The following provides an analysis and comparison of the Mobilise-D algorithm pipeline on the
 `Mobilise-D Technical Validation Study (TVS) dataset <https://zenodo.org/records/13987963>`_
-for the estimation of walking speed (free-living). # TODO: add laboratory analysis
+for the estimation of walking speed (free-living).
 In this example, we look into the performance of the Python implementation of the pipeline compared to the reference
-data. We also compare the actual performance to that obtained by the original Matlab-based implementation.
+data. We also compare the actual performance to that obtained by the original Matlab-based implementation  [1]_.
+.. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
+       multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
+       https://doi.org/10.1038/s41598-024-51766-5
 
 .. note:: If you are interested in how these results are calculated, head over to the
     :ref:`processing page <pipeline_val_gen>`.
@@ -25,10 +28,7 @@ data. We also compare the actual performance to that obtained by the original Ma
 # %%
 # Below the list of pipelines that are compared is shown.
 # Note, that we use the prefix "new" to refer to the reimplemented python algorithms, and the prefix "old" to refer to
-# original Matlab-based implementation [1]_.
-# .. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
-#        multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
-#        https://doi.org/10.1038/s41598-024-51766-5
+# the original Matlab-based implementation.
 
 algorithms = {
     "Official_MobiliseD_Pipeline": ("MobiliseD_Pipeline", "new"),
@@ -38,7 +38,7 @@ algorithms = {
 # The code below loads the data and prepares it for the analysis.
 # By default, the data will be downloaded from an online repository (and cached locally).
 # If you want to use a local copy of the data, you can set the `MOBGAP_VALIDATION_DATA_PATH` environment variable.
-# and the MOBGAP_VALIDATION_USE_LOCA_DATA to `1`.
+# and the `MOBGAP_VALIDATION_USE_LOCA_DATA` to `1`.
 #
 # The file download will print a couple log information, which can usually be ignored.
 # You can also change the `version` parameter to load a different version of the data.
@@ -77,7 +77,7 @@ def format_loaded_results(
 
 local_data_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
-    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0)) #TODO: try changing to 0
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
     else None
 )
 loader = ValidationResultLoader(
@@ -118,7 +118,7 @@ free_living_results_matched = format_loaded_results(
 free_living_results_matched_raw = format_loaded_results(
     values = _free_living_results_raw,
     index_cols = free_living_index_cols,
-    col_prefix_filter = "matched__", # TODO: this argument is actually not used
+    col_prefix_filter = "matched__", # This argument is actually not used
     use_col_prefix_filter = False,
     convert_rel_error=True,
 )
@@ -126,13 +126,17 @@ free_living_results_matched_raw = format_loaded_results(
 del _free_living_results, _free_living_results_raw
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
+
 # Performance metrics
 # -------------------
 # Below you can find the setup for all performance metrics that we will calculate.
 # We only use the `single__` results for the comparison.
-# These results are calculated by first calculating the average stride length per WB.
-# Then calculating the error metrics for each WB.
-# Then we take the average over all WBs of a participant to get the `wb__` results.
+# These results are calculated by first calculating the average walking speed per walking bout (WB).
+# Then all WBs of a participant are aggregated. Eventually, the error metrics for each WB are calculated.
+#
+# .. note:: For the evaluation of the full pipeline performance, two types of aggregation are performed, which will be
+#           described later on in the example.
+#
 from functools import partial
 
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
@@ -255,18 +259,17 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 # %%
-# Free-Living Comparison (Walking Speed Only)
-# ------------------------------------------
-# We focus on the free-living data for the comparison as this is the expected use case for the algorithms.
-#
 # Combined/Aggregated Evaluation
-# ****************************
-# To mimic actual use of wearable device where reference data may not be available, we performed a second evaluation
-# for which we combined all WBs for a 2.5 h recording in the real world by taking the median of the
-# calculated walking speed. These combined values were then compared between the systems.
-# ****************************
+# ------------------------------------------
+# To mimic actual use of wearable device where reference data may not be available, we performed a first evaluation
+# for which we combined all WBs for a datapoint by taking the median of the calculated walking speed. These combined
+# values were then compared between the systems.
+#
+# .. note:: In the free-living dataset, each datapoint represents one 2.5h recording. In the laboratory dataset, each
+#           datapoint represents one trial.
+#
 # All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ******************************
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 
@@ -278,9 +281,9 @@ fontsize_ = 20
 metrics = ["abs_rel_error", "error", "rel_error", "abs_error"]
 metric_titles = {
     "abs_rel_error": "Abs. Rel. Error (%)",
-    "error": "Error",
+    "error": "Error (m/s)",
     "rel_error": "Rel. Error (%)",
-    "abs_error": "Abs. Error",
+    "abs_error": "Abs. Error (m/s)",
 }
 
 # Create figure with 2x2 subplots
@@ -328,7 +331,7 @@ combined_perf_metrics_all = (
 combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
-# %% Residual plot #TODO: decide if we want to keep this (more similar to the plot in Kirk et al.) or if we want to use combo_residual_plot instead
+# %% Residual plot
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -538,9 +541,9 @@ fontsize_ = 20
 metrics = ["abs_rel_error", "error", "rel_error", "abs_error"]
 metric_titles = {
     "abs_rel_error": "Abs. Rel. Error (%)",
-    "error": "Error",
+    "error": "Error (m/s)",
     "rel_error": "Rel. Error (%)",
-    "abs_error": "Abs. Error",
+    "abs_error": "Abs. Error (m/s)",
 }
 
 # Create figure with 2x2 subplots
