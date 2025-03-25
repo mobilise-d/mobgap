@@ -16,6 +16,7 @@ The following provides an analysis and comparison of the Mobilise-D algorithm pi
 for the estimation of walking speed (free-living).
 In this example, we look into the performance of the Python implementation of the pipeline compared to the reference
 data. We also compare the actual performance to that obtained by the original Matlab-based implementation  [1]_.
+
 .. [1] Kirk, C., Küderle, A., Micó-Amigo, M.E. et al. Mobilise-D insights to estimate real-world walking speed in
        multiple conditions with a wearable device. Sci Rep 14, 1754 (2024).
        https://doi.org/10.1038/s41598-024-51766-5
@@ -331,7 +332,11 @@ combined_perf_metrics_all = (
 combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
-# %% Residual plot
+# %%
+# Per-cohort analysis
+# ******************************
+# Residual plot
+# ~~~~~~~~~~~~~~~~~~~~
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -405,7 +410,7 @@ plot_residuals(free_living_results_combined, stats, version, 'Old', axes[1])
 plt.tight_layout()
 plt.show()
 # %%
-# Per Cohort
+# Boxplot
 # ~~~~~~~~~~
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
@@ -420,6 +425,7 @@ sns.boxplot(
 )
 fig.show()
 # %%
+# Processing the per-cohort performance table
 combined_perf_metrics_cohort = (
     free_living_results_combined.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
