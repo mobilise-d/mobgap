@@ -26,7 +26,9 @@ from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @cache
-def _load_model_files(file_name: str, expect_warning: bool = False) -> Union[SklearnClassifier, SklearnScaler]:
+def _load_model_files(
+    file_name: str, expect_warning: bool = False
+) -> Union[SklearnClassifier, SklearnScaler, Pipeline]:
     file_path = files("mobgap") / "laterality" / "_ullrich_pretrained_models" / file_name
     if not expect_warning:
         return joblib.load(file_path)
@@ -134,7 +136,8 @@ class LrcUllrich(BaseLRClassifier):
 
         @classmethod
         def _load_model_config(cls, model_name: str) -> _ModelConfig:
-            pipe = _load_model_files(f"{model_name}_model.gz", expect_warning=True)
+            # We reinitialze the pipeline to avoid issues with changes of the pipeline class between sklearn versions.
+            pipe = Pipeline(_load_model_files(f"{model_name}_model.gz", expect_warning=False).steps)
 
             return MappingProxyType(
                 {

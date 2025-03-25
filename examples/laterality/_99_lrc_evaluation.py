@@ -178,14 +178,14 @@ pipeline.safe_run(simulated_real_world_walking[0]).ic_lr_list_
 #
 # Note, that the ``LrdPipeline`` class already has a ``score`` method that returns the accuracy.
 # This is used by default, but you could supply your own scoring method as well.
-from mobgap.laterality.evaluation import laterality_evaluation_scorer
+from mobgap.laterality.evaluation import lrc_score
 from tpcp.validate import validate
 
 evaluation_results_with_opti = pd.DataFrame(
     validate(
         pipeline,
         simulated_real_world_walking,
-        scoring=laterality_evaluation_scorer,
+        scoring=lrc_score,
     )
 )
 evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
@@ -259,7 +259,7 @@ optimizer = GridSearchCV(
     para_grid,
     return_optimized="accuracy",
     cv=2,
-    scoring=laterality_evaluation_scorer,
+    scoring=lrc_score,
 )
 
 # %%
@@ -274,9 +274,9 @@ results.loc[:, ~results.columns.str.endswith("raw_results")].T
 # %%
 # And apply/score the best performing and retrained model directly on the test set.
 
-laterality_evaluation_scorer(
-    optimizer.optimized_pipeline_, simulated_real_world_walking[2]
-)["accuracy"]
+lrc_score(optimizer.optimized_pipeline_, simulated_real_world_walking[2])[
+    "accuracy"
+]
 
 # %%
 # Let's run everything combined with the external cross-validate to actually validate our optimization approach.
@@ -287,7 +287,7 @@ evaluation_results_with_opti = pd.DataFrame(
         optimizer,
         simulated_real_world_walking,
         cv=3,
-        scoring=laterality_evaluation_scorer,
+        scoring=lrc_score,
     )
 )
 evaluation_results_with_opti.loc[
@@ -309,7 +309,7 @@ evaluation_results_pre_trained = pd.DataFrame(
         optimizer,
         simulated_real_world_walking,
         cv=3,
-        scoring=laterality_evaluation_scorer,
+        scoring=lrc_score,
     )
 )
 evaluation_results_pre_trained.loc[
