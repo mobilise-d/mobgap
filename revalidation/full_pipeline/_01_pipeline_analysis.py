@@ -234,7 +234,7 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Error [m/s]": RevalidationInfo(threshold=None, higher_is_better=False),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
@@ -324,7 +324,7 @@ combined_perf_metrics_all = (
 combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
-# %% Residual plot #TODO: decide if we want to keet this (more similar to the plot in Kirk et al.) or if we want to use combo_residual_plot instead
+# %% Residual plot #TODO: decide if we want to keep this (more similar to the plot in Kirk et al.) or if we want to use combo_residual_plot instead
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
 import seaborn as sns
