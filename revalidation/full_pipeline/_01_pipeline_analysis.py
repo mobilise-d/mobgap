@@ -312,7 +312,7 @@ for i, metric in enumerate(metrics):
 # Improve layout and show plot
 plt.tight_layout()
 plt.show()
-
+# %%
 # Processing the performance table
 combined_perf_metrics_all = (
     free_living_results_combined.groupby(["algo", "version"])
@@ -412,6 +412,7 @@ sns.boxplot(
     ax=ax,
 )
 fig.show()
+# %%
 combined_perf_metrics_cohort = (
     free_living_results_combined.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
@@ -571,7 +572,7 @@ for i, metric in enumerate(metrics):
 # Improve layout and show plot
 plt.tight_layout()
 plt.show()
-
+# %%
 # Processing the performance table
 matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
@@ -598,6 +599,7 @@ sns.boxplot(
     ax=ax,
 )
 fig.show()
+# %%
 matched_perf_metrics_cohort = (
     free_living_results_matched.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs, include_groups=False)
