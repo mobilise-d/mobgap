@@ -124,7 +124,12 @@ cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # Performance metrics
 # -------------------
 # Below you can find the setup for all performance metrics that we will calculate.
-# For laterality, this is really simple, as we just calculate the accuracy of the binary classification.
+# For laterality, this is really simple, as we just calculate the accuracy of the binary classification and the
+# "pariwise accuracy" that checks if consecutive ICs have been assigned either the same or different laterality.
+# High "pairwise accuracy" provides an better indicator if steps and strides would be correctly defined based on the
+# laterality information.
+# This metrics explicitly ignores the actual label of the laterality, as would not impact the main gait metrics, if
+# the laterality is swapped consistently.
 from functools import partial
 
 from mobgap.pipeline.evaluation import CustomErrorAggregations as A
@@ -207,6 +212,11 @@ import seaborn as sns
 fig, ax = plt.subplots()
 sns.boxplot(
     data=free_living_results, x="algo_with_version", y="accuracy", ax=ax
+)
+fig.show()
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=free_living_results, x="algo_with_version", y="accuracy_pairwise", ax=ax
 )
 fig.show()
 
