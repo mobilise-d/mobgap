@@ -882,7 +882,9 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
         # parameters are also in seconds not in samples.
         if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
-            warnings.warn("Assuming stride parameters are provided in seconds and not in samples.", stacklevel=2)
+            warnings.warn(
+                "Assuming stride start and end values are provided in seconds and not in samples.", stacklevel=1
+            )
             stride_paras[["start", "end"]] = (
                 (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
             )
@@ -911,7 +913,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
             "This is likely an issue with the reference system you should further investigate. "
             "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
             "However, both values still remain in the IC list.",
-            stacklevel=2,
+            stacklevel=1,
         )
     stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
     stride_paras = _unify_stride_df(stride_paras)

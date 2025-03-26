@@ -46,8 +46,11 @@ tvs_dataset_filler = make_filldoc(
         - 3: Recording is good
     """,
         "dataset_warning": """
-    .. warning:: The dataset is not yet available. The data will be made available end of June 2024. Then you need to
-        download the data from Zenodo and provide the path to the data folder.
+    .. note:: The data to be used with this dataset class is available on
+       `https://zenodo.org/records/13899386 <Zenodo>`_.
+       Download all files and extract them to a folder on your local machine.
+       Make sure you don't change the folder structure (each zip file should be extracted to a separate folder).
+       Then use the path to the folder containing the data as the ``base_path`` argument.
     """,
     }
 )
