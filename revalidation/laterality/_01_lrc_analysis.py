@@ -111,13 +111,13 @@ lab_index_cols = [
     "test_name_pretty",
 ]
 
-# lab_results = format_loaded_results(
-#     {
-#         v: loader.load_single_results(k, "laboratory")
-#         for k, v in algorithms.items()
-#     },
-#     lab_index_cols,
-# )
+lab_results = format_loaded_results(
+    {
+        v: loader.load_single_results(k, "laboratory")
+        for k, v in algorithms.items()
+    },
+    lab_index_cols,
+)
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
@@ -319,6 +319,11 @@ free_living_results.query("algo == 'Ullrich - MS-ALL'").pipe(
 fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="accuracy", ax=ax)
 fig.show()
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results, x="algo_with_version", y="accuracy_pairwise", ax=ax
+)
+fig.show()
 
 perf_metrics_all = (
     lab_results.groupby(["algo", "version"])
@@ -338,6 +343,16 @@ sns.boxplot(
     data=lab_results,
     x="cohort",
     y="accuracy",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results,
+    x="cohort",
+    y="accuracy_pairwise",
     hue="algo_with_version",
     order=cohort_order,
     ax=ax,
