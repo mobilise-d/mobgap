@@ -76,7 +76,7 @@ MS Project Dataset
    :toctree: generated/data
    :template: class.rst
 
-    MSProjectDataset
+    MsProjectDataset
 
 
 Base Classes

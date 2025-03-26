@@ -9,7 +9,7 @@ from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.laterality.pipeline import LrcEmulationPipeline
 
 
-def lrc_per_datapoint_scorer(pipeline: LrcEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
+def lrc_per_datapoint_score(pipeline: LrcEmulationPipeline, datapoint: BaseGaitDatasetWithReference) -> dict:
     """Calculate the accuracy of the LRC pipeline for a single datapoint.
 
     .. warning:: This function is not meant to be called directly, but as a scoring function in a
@@ -123,7 +123,7 @@ def lrc_final_agg(
 
 #: :data:: lrc_score
 #: Scorer class instance for LRC algorithms.
-lrc_score = Scorer(lrc_per_datapoint_scorer, final_aggregator=lrc_final_agg)
+lrc_score = Scorer(lrc_per_datapoint_score, final_aggregator=lrc_final_agg)
 lrc_score.__doc__ = """Scorer for LRC algorithms.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`lrc_per_datapoint_score` function as
@@ -132,4 +132,4 @@ For more information about Scorer, head to the tpcp documentation (:class:`~tpcp
 For usage information in the context of mobgap, have a look at the :ref:`evaluation example <lrc_evaluation>` for LRC.
 """
 
-__all__ = ["lrc_score", "lrc_final_agg", "lrc_per_datapoint_scorer"]
+__all__ = ["lrc_score", "lrc_final_agg", "lrc_per_datapoint_score"]
