@@ -582,7 +582,6 @@ matched_perf_metrics_all.style.pipe(
 # %%
 # Per-cohort analysis
 # ******************************
-# %%
 # Residual plot
 # ~~~~~~~~~~
 # Create a 1x2 subplot figure
