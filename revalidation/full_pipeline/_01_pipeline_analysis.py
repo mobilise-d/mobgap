@@ -375,7 +375,7 @@ def plot_residuals(df, stats, version, title, ax):
     ax.plot(x_vals, y_vals, 'k--', linewidth=4)
 
     # Regression box
-    ax.text(0.1, 0.6, f"Regression:\nR = {r_value:.2f}\nP-value = {p_value:.3f}", fontsize=12, color="black",
+    ax.text(1.5, 0.6, f"Regression:\nR = {r_value:.2f}\nP-value = {p_value:.3f}", fontsize=12, color="black",
              ha="left",
              bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"))
 
@@ -436,46 +436,27 @@ combined_perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 # %%
-# Deep Dive Analysis of Main Algorithms
-# -------------------------------------
-# Below, you can find detailed correlation and residual plots comparing the new and the old implementation of each
-# algorithm.
+# Scatter plot
+# ~~~~~~~~~~
+# The results below represent the detected and reference values of walking speed scattered across all participants
+# within a cohort. Correlation factor, p-value and confidence intervals of the regression line are shown in the plot.
 # Each datapoint represents one participant.
 
 from mobgap.plotting import (
     calc_min_max_with_margin,
     make_square,
-    plot_regline,
-    residual_plot,
+    plot_regline
 )
-
-
-def combo_residual_plot(data):
-    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
-    fig.suptitle(data.name)
-    for (version, subdata), ax in zip(data.groupby("version"), axs):
-        residual_plot(
-            subdata,
-            "walking_speed_mps__reference",
-            "walking_speed_mps__detected",
-            "cohort",
-            "m",
-            ax=ax,
-            legend=ax == axs[-1],
-        )
-        ax.set_title(version)
-    # move_legend_outside(fig, axs[-1])
-    plt.tight_layout()
-    plt.show()
-
 
 def combo_scatter_plot(data):
     fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
-    fig.suptitle(data.name)
+    fig.suptitle(data.name, fontsize=20)  # Increase title font size
+
     min_max = calc_min_max_with_margin(
         data["walking_speed_mps__reference"],
         data["walking_speed_mps__detected"],
     )
+
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         subdata = subdata[
             [
@@ -484,6 +465,7 @@ def combo_scatter_plot(data):
                 "cohort",
             ]
         ].dropna(how="any")
+
         sns.scatterplot(
             subdata,
             x="walking_speed_mps__reference",
@@ -491,47 +473,47 @@ def combo_scatter_plot(data):
             hue="cohort",
             ax=ax,
             legend=ax == axs[-1],
+            s=100,  # Increase marker size
         )
+
         plot_regline(
             subdata["walking_speed_mps__reference"],
             subdata["walking_speed_mps__detected"],
             ax=ax,
         )
+
         make_square(ax, min_max, draw_diagonal=True)
-        ax.set_title(version)
-        ax.set_xlabel("Reference [m]")
-        ax.set_ylabel("Detected [m]")
-    # move_legend_outside(fig, axs[-1])
+
+        ax.set_title(version, fontsize=20)
+        ax.set_xlabel("Reference [m]", fontsize=20)
+        ax.set_ylabel("Detected [m]", fontsize=20)
+        ax.tick_params(axis='both', labelsize=20)
+
     plt.tight_layout()
     plt.show()
 
-
-free_living_results_combined.groupby("algo").apply(
-    combo_residual_plot, include_groups=False
-)
 free_living_results_combined.groupby("algo").apply(
     combo_scatter_plot, include_groups=False
 )
-
-
 # %%
 # Matched/True Positive Evaluation
-# ****************
+# ------------------------------------------
 # The "Matched" Evaluation directly compares the performance of walking speed estimation on only the WBs that were
 # detected in both systems (true positives). This allows for the calculation of traditional comparison metrics
 # (e.g., interclass correlation and Bland–Altman plots), that require a direct comparison of individual measurement
-# points. WBs were included in the true positive analysis, if there was an overlap of more than 80% between WBs detected
-# by the two systems (details about the selection of this threshold can be found in Kirk et al. (2024)). The threshold
-# of 80% was selected as a trade-off to allow us: (i) to consider as much as possible a like-for-like comparison between
-# selected WBs (INDIP vs. wearable device), and at the same time (ii) to include the minimum number of WBs to ensure
-# sufficient statistical power for the analyses (i.e., at least 101 walking bouts for each cohort). This target was
-# based upon the number of WBs rather than a percentage of total walking bouts that would allow us to meet criteria
-# established by statistical experts for robust statistical analysis after sample-size re-evaluation
+# points on a per-WB level. WBs were included in the true positive analysis, if there was an overlap of more than 80%
+# between WBs detected by the two systems (details about the selection of this threshold can be found in [1]_).
+# The threshold of 80% was selected as a trade-off to allow us: (i) to consider as much as possible a like-for-like
+# comparison between selected WBs (INDIP vs. wearable device), and at the same time (ii) to include the minimum number of WBs to ensure sufficient statistical power for the analyses (i.e., at least 101 walking bouts for
+# each cohort).
+# This target was based upon the number of WBs rather than a percentage of total walking bouts that would allow us to
+# meet criteria established by statistical experts for robust statistical analysis after sample-size re-evaluation
 # (total WB number > 101 corresponding to ICC > 0.7 and a CI = 0.2).
-# Note, that compared to the results published in Kirk et al. (2024), the primary analysis on the matched results is
-# performed on the average performance metrics across all matched WBs **per recording/per participant**.
-# The original publication considered the average performance metrics across all matched WBs without additional
-# aggregation.
+#
+# .. note:: compared to the results published in [1]_, the primary analysis on the matched results is performed on the
+#           average performance metrics across all matched WBs **per recording/per participant**.
+#           The original publication considered the average performance metrics across all matched WBs without
+#           additional aggregation.
 #
 # ****************************
 # All results across all cohorts
@@ -598,37 +580,11 @@ matched_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 # %%
-# Per Cohort
-# ~~~~~~~~~~
-# Each datapoint in the tables and plots below is a single participant/recording.
-# The results below represent the average absolute error across all participants within a cohort.
-fig, ax = plt.subplots()
-sns.boxplot(
-    data=free_living_results_matched,
-    x="cohort",
-    y="walking_speed_mps__abs_error",
-    hue="algo_with_version",
-    order=cohort_order,
-    ax=ax,
-)
-fig.show()
+# Per-cohort analysis
+# ******************************
 # %%
-matched_perf_metrics_cohort = (
-    free_living_results_matched.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-    .loc[cohort_order]
-)
-matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
-)
-
-matched_perf_metrics_all = (
-    free_living_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-)
-# %% Residual plot
+# Residual plot
+# ~~~~~~~~~~
 # Create a 1x2 subplot figure
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))  # 1 row, 2 columns
 
@@ -646,6 +602,42 @@ plot_residuals(free_living_results_matched_raw, stats, version, 'Old', axes[1])
 plt.tight_layout()
 plt.show()
 # %%
+# Boxplot
+# ~~~~~~~~~~
+# The results below represent the average absolute error on walking speed estimation
+# across all participants within a cohort.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=free_living_results_matched,
+    x="cohort",
+    y="walking_speed_mps__abs_error",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+# %%
+# Processing the per-cohort performance table
+matched_perf_metrics_cohort = (
+    free_living_results_matched.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+    .loc[cohort_order]
+)
+matched_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
+matched_perf_metrics_all = (
+    free_living_results_matched.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    .pipe(format_tables)
+)
+# %%
+# Deep dive investigation: does errors depend on WB duration or walking speed?
+# **********
+# Effect of WB duration
+# ~~~~~~~~~~
 # We investigate the dependency of the absolute walking speed error of all true-positive WBs from the real-world
 # recording on the WB duration reported by the reference system. In the top, WB errors are grouped by various duration
 # bouts. In the bottom the number of bouts within each duration group is visualized.
@@ -732,11 +724,13 @@ def plot_wb_analysis_combined(df):
 
 # Call the function with the combined data (new and old) including the 'version' column
 plot_wb_analysis_combined(free_living_results_matched_raw)
-# %% Speed dependency
+# %%
+# Effect of walking speed on error
+# ~~~~~~~~~~
 # One important aspect of the algorithm performance is the dependency on the walking speed. Aka, how well do the
-# algorithms perform at different walking speeds. For this we plot the absolute relative error against the walking speed
+# algorithms perform at different walking speeds. For this we plot the absolute error against the walking speed
 # of the reference data. For better granularity, we use the values per WB, instead of the aggregates per participant.
-# The overlayed dots represent the trend-line calculated by taking the median of the absolute relative error within bins
+# The overlayed dots represent the trend-line calculated by taking the median of the absolute error within bins
 # of 0.05 m/s.
 
 # For plotting all participants at the end
@@ -762,7 +756,7 @@ subfigs = fig.subfigures(len(algo_names), 1, wspace=0.1, hspace=0.1)
 
 # Define the min and max limits for x and y axes
 min_max_x = calc_min_max_with_margin(ws_level_results["walking_speed_mps__reference"])
-min_max_y = calc_min_max_with_margin(ws_level_results["walking_speed_mps__abs_rel_error"])
+min_max_y = calc_min_max_with_margin(ws_level_results["walking_speed_mps__abs_error"])
 
 # Plotting each algorithm version
 for subfig, (algo, data) in zip(
@@ -770,7 +764,7 @@ for subfig, (algo, data) in zip(
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
-    subfig.supylabel("Absolute Relative Error (%)")
+    subfig.supylabel("Absolute Error (%)")
 
     # Create subplots for each cohort
     axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)
@@ -782,7 +776,7 @@ for subfig, (algo, data) in zip(
         sns.scatterplot(
             data=cohort_data,
             x="walking_speed_mps__reference",  # Reference walking speed
-            y="walking_speed_mps__abs_rel_error",  # Absolute error
+            y="walking_speed_mps__abs_error",  # Absolute error
             ax=ax,
             alpha=0.3,
         )
@@ -800,7 +794,7 @@ for subfig, (algo, data) in zip(
 
         # Calculate median error per bin and cohort
         binned_data = (
-            cohort_data.groupby("bin_center", observed=True)["walking_speed_mps__abs_rel_error"]
+            cohort_data.groupby("bin_center", observed=True)["walking_speed_mps__abs_error"]
             .median()
             .reset_index()
         )
@@ -809,7 +803,7 @@ for subfig, (algo, data) in zip(
         sns.scatterplot(
             data=binned_data,
             x="bin_center",
-            y="walking_speed_mps__abs_rel_error",  # Median error
+            y="walking_speed_mps__abs_error",  # Median error
             ax=ax,
         )
 
