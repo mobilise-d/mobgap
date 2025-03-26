@@ -48,7 +48,7 @@
             "wb_id":0,
             "step_id":2,
             "ic":1129,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":0,
@@ -150,7 +150,7 @@
             "wb_id":1,
             "step_id":8,
             "ic":5211,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":1,
@@ -198,7 +198,7 @@
             "wb_id":2,
             "step_id":2,
             "ic":9872,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":2,
@@ -222,7 +222,7 @@
             "wb_id":2,
             "step_id":7,
             "ic":10245,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":2,
@@ -234,25 +234,25 @@
             "wb_id":2,
             "step_id":9,
             "ic":10399,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":2,
             "step_id":10,
             "ic":10399,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":2,
             "step_id":11,
             "ic":10568,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":3,
             "step_id":0,
             "ic":12337,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":3,
@@ -312,7 +312,7 @@
             "wb_id":3,
             "step_id":11,
             "ic":13234,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":3,
@@ -420,13 +420,13 @@
             "wb_id":3,
             "step_id":29,
             "ic":14378,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":3,
             "step_id":30,
             "ic":14451,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":3,
@@ -480,7 +480,7 @@
             "wb_id":4,
             "step_id":5,
             "ic":20467,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":4,
@@ -528,7 +528,7 @@
             "wb_id":5,
             "step_id":1,
             "ic":21450,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":5,
@@ -546,7 +546,7 @@
             "wb_id":5,
             "step_id":4,
             "ic":21613,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":5,
@@ -558,7 +558,7 @@
             "wb_id":5,
             "step_id":6,
             "ic":21837,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":5,
@@ -582,7 +582,7 @@
             "wb_id":5,
             "step_id":10,
             "ic":22089,
-            "lr_label":"right"
+            "lr_label":"left"
         },
         {
             "wb_id":5,

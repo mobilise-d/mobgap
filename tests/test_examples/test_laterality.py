@@ -15,10 +15,10 @@ def test_ullrich(snapshot):
 
 
 def _merge_cv_nested_results(results_df):
-    raw_results = results_df[["test__data_labels", "test__single__raw_results"]]
+    raw_results = results_df[["test__data_labels", "test__single__raw__predictions"]]
     merged_results = {}
     for i, row in raw_results.iterrows():
-        merged_results[i] = pd.concat(row["test__single__raw_results"], keys=row["test__data_labels"])
+        merged_results[i] = row["test__single__raw__predictions"]
 
     return pd.concat(merged_results)
 
