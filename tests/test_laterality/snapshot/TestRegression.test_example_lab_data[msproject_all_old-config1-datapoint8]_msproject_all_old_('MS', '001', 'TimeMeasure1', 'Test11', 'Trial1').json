@@ -306,7 +306,7 @@
             "wb_id":3,
             "step_id":10,
             "ic":13167,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":3,
@@ -480,7 +480,7 @@
             "wb_id":4,
             "step_id":5,
             "ic":20467,
-            "lr_label":"left"
+            "lr_label":"right"
         },
         {
             "wb_id":4,

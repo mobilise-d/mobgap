@@ -188,7 +188,7 @@ evaluation_results_with_opti = pd.DataFrame(
         scoring=lrc_score,
     )
 )
-evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
+evaluation_results_with_opti.drop(["single__raw__predictions"], axis=1).T
 
 # %%
 # The accuracy provided is the mean accuracy over all datapoints.
@@ -197,18 +197,14 @@ evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
 # In addition to the metrics, we also provide the raw results for each datapoint in the ``single_raw_results`` column.
 # This could be used for further analysis.
 # For example to calculate the confusion matrix over all ICs of all datapoints.
-raw_results = pd.concat(
-    evaluation_results_with_opti["single__raw_results"][0],
-    keys=evaluation_results_with_opti["data_labels"][0],
-    axis=0,
-)
+raw_results = evaluation_results_with_opti["single__raw__predictions"][0]
 
 raw_results.head()
 
 # %%
 # The confusion matrix can be calculated using the same functions as before.
 disp = ConfusionMatrixDisplay.from_predictions(
-    raw_results["ref_lr_label"], raw_results["lr_label"]
+    raw_results["reference"], raw_results["predicted"]
 )
 disp.figure_.show()
 
@@ -274,7 +270,7 @@ results.loc[:, ~results.columns.str.endswith("raw_results")].T
 # %%
 # And apply/score the best performing and retrained model directly on the test set.
 
-lrc_score(optimizer.optimized_pipeline_, simulated_real_world_walking[2])[
+lrc_score(optimizer.optimized_pipeline_, simulated_real_world_walking[2])[0][
     "accuracy"
 ]
 
@@ -291,7 +287,7 @@ evaluation_results_with_opti = pd.DataFrame(
     )
 )
 evaluation_results_with_opti.loc[
-    :, ~evaluation_results_with_opti.columns.str.endswith("raw_results")
+    :, ~evaluation_results_with_opti.columns.str.endswith("raw__predictions")
 ].T
 
 # %%
@@ -313,7 +309,7 @@ evaluation_results_pre_trained = pd.DataFrame(
     )
 )
 evaluation_results_pre_trained.loc[
-    :, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")
+    :, ~evaluation_results_pre_trained.columns.str.endswith("raw__predictions")
 ].T
 
 # %%
