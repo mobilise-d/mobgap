@@ -216,7 +216,10 @@ sns.boxplot(
 fig.show()
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=free_living_results, x="algo_with_version", y="accuracy_pairwise", ax=ax
+    data=free_living_results,
+    x="algo_with_version",
+    y="accuracy_pairwise",
+    ax=ax,
 )
 fig.show()
 
