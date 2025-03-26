@@ -31,6 +31,11 @@ def _load_model_files(
 ) -> Union[SklearnClassifier, SklearnScaler, Pipeline]:
     file_path = files("mobgap") / "laterality" / "_ullrich_pretrained_models" / file_name
     if not expect_warning:
+        # In case this line throws a `InconsistentVersionWarning` for one of the models, create an issue in Mobgap, so
+        # that we can update our models to the newest version of sklearn.
+        # You can still use the models in the meantime (they will likely work just fine).
+        # In case you are a developer and you are here, because someone created an issue, checkout the section in the
+        # developer guide (docs/guides/developer_guide.rst) on how to update the models.
         return joblib.load(file_path)
 
     with file_path.open("rb") as file, warnings.catch_warnings():
@@ -151,21 +156,17 @@ class LrcUllrich(BaseLRClassifier):
             return cls._load_old_model_config("msproject_all")
 
         @classproperty
-        def msproject_hc_old(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_old_model_config("msproject_hc")
-
-        @classproperty
         def msproject_ms_old(cls) -> _ModelConfig:  # noqa: N805
             return cls._load_old_model_config("msproject_ms")
 
         @classproperty
-        def msproject_all(cls) -> _ModelConfig:
+        def msproject_all(cls) -> _ModelConfig:  # noqa: N805
             return cls._load_model_config("msproject_all")
 
         @classproperty
-        def untrained_svc(self) -> _ModelConfig:
+        def untrained_svc(cls) -> _ModelConfig:  # noqa: N805
             return {
-                "smoothing_filter": self._BW_FILTER,
+                "smoothing_filter": cls._BW_FILTER,
                 "clf_pipe": Pipeline([("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))]),
             }
 

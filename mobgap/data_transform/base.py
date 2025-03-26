@@ -493,9 +493,18 @@ class IdentityFilter(BaseFilter):
     Just returns a copy of the input data.
     """
 
-    def filter(
-        self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **kwargs: Unpack[dict[str, Any]]
-    ) -> Self:
+    @scipy_filter_docfiller
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
+        """Filter the data by doing absolutely nothing.
+
+        Parameters
+        ----------
+        %(filter_para)s
+        %(filter_kwargs)s
+
+        %(filter_return)s
+
+        """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.transformed_data_ = data.copy()

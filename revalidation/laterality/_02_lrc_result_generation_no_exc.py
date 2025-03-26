@@ -8,11 +8,6 @@ Revalidation of the laterality classification algorithms
     :ref:`results report <lrc_val_results>`.
 
 This script reproduces the validation results on TVS dataset for the laterality detection algorithms.
-Compared to the other revalidation scripts, this one does not load the old "matlab" results, as there are no old results.
-The laterality algorithm by Ulrich et al. was validated independently and was already written in Python.
-The implemented version follows the old version very closely.
-The goal of this revalidation, is to validate the re-trained model (with the updated training code) on the TVS dataset.
-We compare it against the old model and the McCamley algorithm.
 
 Performance metrics are calculated on a per-trial/per-recording basis and aggregated (mean for most metrics)
 over the whole dataset.
@@ -44,10 +39,13 @@ from mobgap.utils.misc import get_env_var
 
 pipelines = {
     "McCamley": LrcEmulationPipeline(LrcMcCamley()),
-    "UllrichOld": LrcEmulationPipeline(
+    "UllrichOld__ms_all": LrcEmulationPipeline(
         LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all_old)
     ),
-    "UllrichNew": LrcEmulationPipeline(
+    "UllrichOld__ms_ms": LrcEmulationPipeline(
+        LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_ms_old)
+    ),
+    "UllrichNew__ms_all": LrcEmulationPipeline(
         LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all)
     ),
 }
@@ -147,7 +145,7 @@ def eval_debug_plot(
 # Free-Living
 # ~~~~~~~~~~~
 # Let's start with the Free-Living part of the dataset.
-
+#
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[LrcEmulationPipeline]] = dict(
         parallel(
@@ -160,9 +158,9 @@ with Parallel(n_jobs=n_jobs) as parallel:
 # We create a quick plot for debugging.
 # This is not meant to be a comprehensive analysis, but rather a quick check to see if the results are as expected.
 eval_debug_plot(results_free_living)
-
-# %%
-# Then we save the results to disk.
+#
+# # %%
+# # Then we save the results to disk.
 from mobgap.utils.evaluation import save_evaluation_results
 
 for k, v in results_free_living.items():
@@ -171,7 +169,6 @@ for k, v in results_free_living.items():
         v,
         condition="free_living",
         base_path=results_base_path,
-        raw_result_filter=["detected"],
     )
 
 
@@ -199,5 +196,4 @@ for k, v in results_laboratory.items():
         v,
         condition="laboratory",
         base_path=results_base_path,
-        raw_result_filter=["detected"],
     )

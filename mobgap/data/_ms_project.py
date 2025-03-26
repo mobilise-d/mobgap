@@ -17,7 +17,7 @@ from mobgap.data.base import ParticipantMetadata, RecordingMetadata
 
 
 @lru_cache(maxsize=1)
-def _load_participant_metadata(base_path: Path):
+def _load_participant_metadata(base_path: Path) -> pd.DataFrame:
     return (
         pd.read_excel(base_path / "Clinical Info.xlsx", header=0)
         .rename(
