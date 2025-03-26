@@ -1,8 +1,7 @@
-import warnings
-
 from joblib import Memory
-from sklearn.model_selection import ParameterGrid
+from sklearn.model_selection import ParameterGrid, StratifiedKFold
 from tpcp.optimize import GridSearchCV
+from tpcp.validate import DatasetSplitter
 
 from mobgap import PACKAGE_ROOT
 from mobgap.data import MsProjectDataset
@@ -17,14 +16,6 @@ ms_project_dataset = MsProjectDataset(
     memory=Memory(PACKAGE_ROOT / ".cache"),
 )
 
-
-def scoring_no_warning(pipeline, datapoint):
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=UserWarning, message="There were multiple ICs")
-        warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered")
-        return lrc_score(pipeline, datapoint)
-
-
 # %%
 # Single Full Retrain
 # with Gridsearch
@@ -33,7 +24,12 @@ algo = LrcUllrich(**LrcUllrich.PredefinedParameters.untrained_svc)
 
 pipeline_trained_all = LrcEmulationPipeline(algo)
 gs = GridSearchCV(
-    pipeline_trained_all, parameters, n_jobs=3, scoring=scoring_no_warning, cv=3, return_optimized="accuracy"
+    pipeline_trained_all,
+    parameters,
+    n_jobs=3,
+    scoring=lrc_score,
+    cv=DatasetSplitter(StratifiedKFold(3), stratify="cohort"),
+    return_optimized="accuracy",
 )
 gs.optimize(ms_project_dataset)
 
