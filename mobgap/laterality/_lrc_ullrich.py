@@ -349,12 +349,8 @@ class LrcUllrich(BaseLRClassifier):
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # We use numpy gradient instead of diff, as it preserves the shape of the input and hence, can handle ICs that
         # are close to the beginning or end of the data.
-        gyr_gradient = np.diff(gyr_filtered, axis=0)
-        # We repeat the last value of the gradient to keep the shape of the data
-        gyr_gradient = np.append(gyr_gradient, [gyr_gradient[-1]], axis=0)
-        curvature = np.diff(gyr_gradient, axis=0)
-        # Same as for the gradient, we repeat the last value of the curvature to keep the shape of the data
-        curvature = np.append(curvature, [curvature[-1]], axis=0)
+        gyr_gradient = np.gradient(gyr_filtered, axis=0)
+        curvature = np.gradient(gyr_gradient, axis=0)
         gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
         curvature = pd.DataFrame(curvature, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
 

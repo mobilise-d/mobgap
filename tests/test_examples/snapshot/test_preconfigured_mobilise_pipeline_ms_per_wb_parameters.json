@@ -79,10 +79,10 @@
             "n_strides":11,
             "rule_name":"max_break",
             "duration_s":9.15,
-            "stride_duration_s":1.1272727273,
-            "cadence_spm":100.2098688636,
-            "stride_length_m":0.6709562442,
-            "walking_speed_mps":0.5629759132
+            "stride_duration_s":1.0745454545,
+            "cadence_spm":100.5759340407,
+            "stride_length_m":0.6781291751,
+            "walking_speed_mps":0.5714366002
         },
         {
             "wb_id":3,
@@ -99,14 +99,14 @@
         {
             "wb_id":4,
             "start":20287,
-            "end":22353,
+            "end":22435,
             "n_strides":26,
             "rule_name":"max_break",
-            "duration_s":20.66,
-            "stride_duration_s":1.3503846154,
-            "cadence_spm":83.5678863149,
-            "stride_length_m":0.9060510999,
-            "walking_speed_mps":0.6333174275
+            "duration_s":21.48,
+            "stride_duration_s":1.2576923077,
+            "cadence_spm":84.2254055687,
+            "stride_length_m":0.9018333789,
+            "walking_speed_mps":0.6384396831
         }
     ]
 }

@@ -80,9 +80,9 @@
             "rule_name":"max_break",
             "duration_s":10.87,
             "stride_duration_s":1.4746153846,
-            "cadence_spm":79.0293869132,
-            "stride_length_m":0.8102983516,
-            "walking_speed_mps":0.5613518619
+            "cadence_spm":78.8684362555,
+            "stride_length_m":0.8089419349,
+            "walking_speed_mps":0.5593932533
         },
         {
             "wb_id":3,

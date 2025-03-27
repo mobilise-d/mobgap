@@ -726,7 +726,7 @@
             "trial":"Trial1",
             "wb_id":4,
             "step_id":7,
-            "predicted":"left",
+            "predicted":"right",
             "reference":"left"
         },
         {
@@ -822,7 +822,7 @@
             "trial":"Trial1",
             "wb_id":5,
             "step_id":7,
-            "predicted":"left",
+            "predicted":"right",
             "reference":"left"
         },
         {
@@ -834,7 +834,7 @@
             "trial":"Trial1",
             "wb_id":0,
             "step_id":0,
-            "predicted":"right",
+            "predicted":"left",
             "reference":"right"
         },
         {
@@ -1158,7 +1158,7 @@
             "trial":"Trial1",
             "wb_id":2,
             "step_id":0,
-            "predicted":"left",
+            "predicted":"right",
             "reference":"left"
         },
         {
@@ -1266,7 +1266,7 @@
             "trial":"Trial1",
             "wb_id":2,
             "step_id":9,
-            "predicted":"right",
+            "predicted":"left",
             "reference":"right"
         },
         {
@@ -1374,7 +1374,7 @@
             "trial":"Trial1",
             "wb_id":2,
             "step_id":20,
-            "predicted":"left",
+            "predicted":"right",
             "reference":"right"
         },
         {
@@ -1626,7 +1626,7 @@
             "trial":"Trial1",
             "wb_id":1,
             "step_id":9,
-            "predicted":"right",
+            "predicted":"left",
             "reference":"right"
         },
         {
@@ -1806,7 +1806,7 @@
             "trial":"Trial1",
             "wb_id":2,
             "step_id":11,
-            "predicted":"left",
+            "predicted":"right",
             "reference":"left"
         },
         {
@@ -2106,7 +2106,7 @@
             "trial":"Trial1",
             "wb_id":3,
             "step_id":25,
-            "predicted":"right",
+            "predicted":"left",
             "reference":"right"
         },
         {

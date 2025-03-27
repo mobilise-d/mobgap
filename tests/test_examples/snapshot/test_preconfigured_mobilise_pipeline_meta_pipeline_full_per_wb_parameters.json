@@ -85,10 +85,10 @@
             "n_strides":9,
             "rule_name":"max_break",
             "duration_s":6.17,
-            "stride_duration_s":1.1522222222,
+            "stride_duration_s":1.0833333333,
             "cadence_spm":98.0376228951,
-            "stride_length_m":1.1223767557,
-            "walking_speed_mps":0.9186075541
+            "stride_length_m":1.1192089054,
+            "walking_speed_mps":0.9161707462
         },
         {
             "level_0":"HA",
@@ -154,9 +154,9 @@
             "rule_name":"max_break",
             "duration_s":10.87,
             "stride_duration_s":1.4746153846,
-            "cadence_spm":79.0293869132,
-            "stride_length_m":0.8102983516,
-            "walking_speed_mps":0.5613518619
+            "cadence_spm":78.8684362555,
+            "stride_length_m":0.8089419349,
+            "walking_speed_mps":0.5593932533
         },
         {
             "level_0":"HA",
@@ -391,10 +391,10 @@
             "n_strides":11,
             "rule_name":"max_break",
             "duration_s":9.15,
-            "stride_duration_s":1.1272727273,
-            "cadence_spm":100.2098688636,
-            "stride_length_m":0.6709562442,
-            "walking_speed_mps":0.5629759132
+            "stride_duration_s":1.0745454545,
+            "cadence_spm":100.5759340407,
+            "stride_length_m":0.6781291751,
+            "walking_speed_mps":0.5714366002
         },
         {
             "level_0":"MS",
@@ -421,14 +421,14 @@
             "level_4":"Trial1",
             "wb_id":4,
             "start":20287,
-            "end":22353,
+            "end":22435,
             "n_strides":26,
             "rule_name":"max_break",
-            "duration_s":20.66,
-            "stride_duration_s":1.3503846154,
-            "cadence_spm":83.5678863149,
-            "stride_length_m":0.9060510999,
-            "walking_speed_mps":0.6333174275
+            "duration_s":21.48,
+            "stride_duration_s":1.2576923077,
+            "cadence_spm":84.2254055687,
+            "stride_length_m":0.9018333789,
+            "walking_speed_mps":0.6384396831
         }
     ]
 }
