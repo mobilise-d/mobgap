@@ -470,9 +470,8 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 # Matched/True Positive Evaluation
 # ------------------------------------------
 # The "Matched" Evaluation directly compares the performance of walking speed estimation on only the WBs that were
-# detected in both systems (true positives). This allows for the calculation of traditional comparison metrics
-# (e.g., interclass correlation and Bland–Altman plots), that require a direct comparison of individual measurement
-# points on a per-WB level. WBs were included in the true positive analysis, if there was an overlap of more than 80%
+# detected in both systems (true positives).
+# WBs were included in the true positive analysis, if there was an overlap of more than 80%
 # between WBs detected by the two systems (details about the selection of this threshold can be found in [1]_).
 # The threshold of 80% was selected as a trade-off to allow us: (i) to consider as much as possible a like-for-like
 # comparison between selected WBs (INDIP vs. wearable device), and at the same time (ii) to include the minimum number
