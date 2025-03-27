@@ -182,9 +182,13 @@ from mobgap.laterality.evaluation import lrc_score
 from tpcp.validate import validate
 
 evaluation_results_with_opti = pd.DataFrame(
-    validate(pipeline, simulated_real_world_walking, scoring=lrc_score)
+    validate(
+        pipeline,
+        simulated_real_world_walking,
+        scoring=lrc_score,
+    )
 )
-evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
+evaluation_results_with_opti.drop(["single__raw__predictions"], axis=1).T
 
 # %%
 # The accuracy provided is the mean accuracy over all datapoints.
@@ -193,18 +197,14 @@ evaluation_results_with_opti.drop(["single__raw_results"], axis=1).T
 # In addition to the metrics, we also provide the raw results for each datapoint in the ``single_raw_results`` column.
 # This could be used for further analysis.
 # For example to calculate the confusion matrix over all ICs of all datapoints.
-raw_results = pd.concat(
-    evaluation_results_with_opti["single__raw_results"][0],
-    keys=evaluation_results_with_opti["data_labels"][0],
-    axis=0,
-)
+raw_results = evaluation_results_with_opti["single__raw__predictions"][0]
 
 raw_results.head()
 
 # %%
 # The confusion matrix can be calculated using the same functions as before.
 disp = ConfusionMatrixDisplay.from_predictions(
-    raw_results["ref_lr_label"], raw_results["lr_label"]
+    raw_results["reference"], raw_results["predicted"]
 )
 disp.figure_.show()
 
@@ -251,7 +251,11 @@ para_grid = ParameterGrid({"algo__clf_pipe__clf__C": [0.1, 1.0, 10.0]})
 # We only select a 2-fold cross-validation for this example, as we will only have 2 datapoints per train set and we want
 # to minimize run time for this example.
 optimizer = GridSearchCV(
-    pipeline, para_grid, scoring=lrc_score, return_optimized="accuracy", cv=2
+    pipeline,
+    para_grid,
+    return_optimized="accuracy",
+    cv=2,
+    scoring=lrc_score,
 )
 
 # %%
@@ -265,6 +269,7 @@ results.loc[:, ~results.columns.str.endswith("raw_results")].T
 
 # %%
 # And apply/score the best performing and retrained model directly on the test set.
+
 lrc_score(optimizer.optimized_pipeline_, simulated_real_world_walking[2])[0][
     "accuracy"
 ]
@@ -275,11 +280,14 @@ from tpcp.validate import cross_validate
 
 evaluation_results_with_opti = pd.DataFrame(
     cross_validate(
-        optimizer, simulated_real_world_walking, cv=3, scoring=lrc_score
+        optimizer,
+        simulated_real_world_walking,
+        cv=3,
+        scoring=lrc_score,
     )
 )
 evaluation_results_with_opti.loc[
-    :, ~evaluation_results_with_opti.columns.str.endswith("raw_results")
+    :, ~evaluation_results_with_opti.columns.str.endswith("raw__predictions")
 ].T
 
 # %%
@@ -294,11 +302,14 @@ optimizer = DummyOptimize(
 
 evaluation_results_pre_trained = pd.DataFrame(
     cross_validate(
-        optimizer, simulated_real_world_walking, cv=3, scoring=lrc_score
+        optimizer,
+        simulated_real_world_walking,
+        cv=3,
+        scoring=lrc_score,
     )
 )
 evaluation_results_pre_trained.loc[
-    :, ~evaluation_results_pre_trained.columns.str.endswith("raw_results")
+    :, ~evaluation_results_pre_trained.columns.str.endswith("raw__predictions")
 ].T
 
 # %%

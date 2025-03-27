@@ -55,10 +55,10 @@
             "n_strides":12,
             "rule_name":"max_break",
             "duration_s":8.56,
-            "stride_duration_s":1.2591666667,
-            "cadence_spm":92.8572323488,
-            "stride_length_m":0.9231750204,
-            "walking_speed_mps":0.7459042466
+            "stride_duration_s":1.305,
+            "cadence_spm":92.9003655441,
+            "stride_length_m":0.9236297928,
+            "walking_speed_mps":0.7467274709
         },
         {
             "wb_id":1,
@@ -76,13 +76,13 @@
             "wb_id":2,
             "start":9715,
             "end":10630,
-            "n_strides":12,
+            "n_strides":11,
             "rule_name":"max_break",
             "duration_s":9.15,
-            "stride_duration_s":0.985,
-            "cadence_spm":100.6564844282,
-            "stride_length_m":0.6768067385,
-            "walking_speed_mps":0.5704738816
+            "stride_duration_s":1.0745454545,
+            "cadence_spm":100.5759340407,
+            "stride_length_m":0.6781291751,
+            "walking_speed_mps":0.5714366002
         },
         {
             "wb_id":3,
@@ -91,22 +91,22 @@
             "n_strides":27,
             "rule_name":"max_break",
             "duration_s":16.96,
-            "stride_duration_s":1.1066666667,
-            "cadence_spm":100.8470404966,
-            "stride_length_m":0.8796726775,
-            "walking_speed_mps":0.7426304347
+            "stride_duration_s":1.1281481481,
+            "cadence_spm":100.8109219782,
+            "stride_length_m":0.8792665863,
+            "walking_speed_mps":0.7419642122
         },
         {
             "wb_id":4,
             "start":20287,
             "end":22435,
-            "n_strides":25,
+            "n_strides":26,
             "rule_name":"max_break",
             "duration_s":21.48,
-            "stride_duration_s":1.1348,
-            "cadence_spm":82.417072749,
-            "stride_length_m":0.9034172436,
-            "walking_speed_mps":0.6253032219
+            "stride_duration_s":1.2576923077,
+            "cadence_spm":84.2254055687,
+            "stride_length_m":0.9018333789,
+            "walking_speed_mps":0.6384396831
         }
     ]
 }

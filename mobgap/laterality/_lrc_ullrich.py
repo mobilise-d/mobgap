@@ -26,8 +26,18 @@ from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @cache
-def _load_model_files(file_name: str) -> Union[SklearnClassifier, SklearnScaler]:
+def _load_model_files(
+    file_name: str, expect_warning: bool = False
+) -> Union[SklearnClassifier, SklearnScaler, Pipeline]:
     file_path = files("mobgap") / "laterality" / "_ullrich_pretrained_models" / file_name
+    if not expect_warning:
+        # In case this line throws a `InconsistentVersionWarning` for one of the models, create an issue in Mobgap, so
+        # that we can update our models to the newest version of sklearn.
+        # You can still use the models in the meantime (they will likely work just fine).
+        # In case you are a developer and you are here, because someone created an issue, checkout the section in the
+        # developer guide (docs/guides/developer_guide.rst) on how to update the models.
+        return joblib.load(file_path)
+
     with file_path.open("rb") as file, warnings.catch_warnings():
         warnings.simplefilter("ignore", InconsistentVersionWarning)
         return joblib.load(file)
@@ -46,7 +56,7 @@ class LrcUllrich(BaseLRClassifier):
     We provide a set of pre-trained models that are based on the MS-Project ([2]_) dataset.
     They all use a Min-Max Scaler in combination with a linear SVC classifier.
     The parameters of the SVC depend on the cohort and were tuned as explained in the paper ([1]_).
-
+    See more on the models in the Notes section.
 
     Parameters
     ----------
@@ -72,12 +82,9 @@ class LrcUllrich(BaseLRClassifier):
 
     Notes
     -----
-    Differences to original implementation:
-
-    - Instead of using :func:`numpy.diff`, this implementation uses :func:`~numpy.gradient` to calculate the first and
-      second derivative of the filtered signals.
-      Compared to diff, gradient can estimate reliable derivatives for values at the edges of the data, which is
-      important when the ICs are close to the beginning or end of the data.
+    Models: All models are trained based on the MsProject dataset. All models specified with the suffix "_old" were
+    trained using the original implementation of this algorithm using an old version of the sklearn library.
+    We don't recommend using them, unless you want to reproduce old results.
 
     .. [1] Ullrich M, Küderle A, Reggi L, Cereatti A, Eskofier BM, Kluge F. Machine learning-based distinction of left
            and right foot contacts in lower back inertial sensor gait data. Annu Int Conf IEEE Eng Med Biol Soc. 2021,
@@ -113,17 +120,13 @@ class LrcUllrich(BaseLRClassifier):
             clf_pipe: Pipeline
 
         @classmethod
-        def _load_model_config(cls, model_name: str) -> _ModelConfig:
-            if model_name not in ["msproject_all", "msproject_hc", "msproject_ms"]:
-                raise ValueError("Invalid model name.")
-
-            model = _load_model_files(f"{model_name}_model.gz")
-            scaler = _load_model_files(f"{model_name}_scaler.gz")
+        def _load_old_model_config(cls, model_name: str) -> _ModelConfig:
+            model = _load_model_files(f"old/{model_name}_model.gz", expect_warning=True)
+            scaler = _load_model_files(f"old/{model_name}_scaler.gz", expect_warning=True)
 
             # Note: this clip property was added here to ensure compatibility with sklearn version 0.23.1, which was
             #  used for training the models and storing the corresponding min-max scalers.
             #  Since version 0.24 onwards, this needs to be specified.
-            # TODO: Might be a good idea to resave both the models and scalers to the current sklearn version.
             scaler.clip = False
 
             return MappingProxyType(
@@ -135,22 +138,34 @@ class LrcUllrich(BaseLRClassifier):
                 }
             )
 
+        @classmethod
+        def _load_model_config(cls, model_name: str) -> _ModelConfig:
+            # We reinitialze the pipeline to avoid issues with changes of the pipeline class between sklearn versions.
+            pipe = Pipeline(_load_model_files(f"{model_name}_model.gz", expect_warning=False).steps)
+
+            return MappingProxyType(
+                {
+                    "smoothing_filter": cls._BW_FILTER,
+                    "clf_pipe": pipe,
+                }
+            )
+
+        @classproperty
+        def msproject_all_old(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_old_model_config("msproject_all")
+
+        @classproperty
+        def msproject_ms_old(cls) -> _ModelConfig:  # noqa: N805
+            return cls._load_old_model_config("msproject_ms")
+
         @classproperty
         def msproject_all(cls) -> _ModelConfig:  # noqa: N805
             return cls._load_model_config("msproject_all")
 
         @classproperty
-        def msproject_hc(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_model_config("msproject_hc")
-
-        @classproperty
-        def msproject_ms(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_model_config("msproject_ms")
-
-        @classproperty
-        def untrained_svc(self) -> _ModelConfig:
+        def untrained_svc(cls) -> _ModelConfig:  # noqa: N805
             return {
-                "smoothing_filter": self._BW_FILTER,
+                "smoothing_filter": cls._BW_FILTER,
                 "clf_pipe": Pipeline([("scaler", MinMaxScaler()), ("clf", SVC(kernel="linear"))]),
             }
 
@@ -328,6 +343,8 @@ class LrcUllrich(BaseLRClassifier):
         feature_df
             The DataFrame containing the extracted features.
         """
+        assert_is_sensor_data(data, frame="body")
+
         gyr = data[["gyr_is", "gyr_pa"]]
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_
         # We use numpy gradient instead of diff, as it preserves the shape of the input and hence, can handle ICs that

@@ -115,9 +115,9 @@ class TestLrcEmulationPipeline:
         pipeline = LrcEmulationPipeline(dummy_lrc)
         agg_scores, single_scores = lrc_score(pipeline, datapoint)
 
-        raw_results = single_scores["raw_results"][0]
+        raw_results = single_scores["raw__predictions"]
 
         assert agg_scores["accuracy"] == 1.0
         assert isinstance(raw_results, pd.DataFrame)
-        assert set(raw_results.columns) == {"ic", "lr_label", "ref_lr_label"}
-        assert (raw_results["lr_label"] == raw_results["ref_lr_label"]).all()
+        assert set(raw_results.columns) == {"reference", "predicted"}
+        assert (raw_results["reference"] == raw_results["predicted"]).all()

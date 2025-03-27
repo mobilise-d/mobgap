@@ -8,7 +8,7 @@ from tpcp import OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.laterality.base import BaseLRClassifier
+from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline import GsIterator, iter_gs
 from mobgap.utils.conversions import to_body_frame
 
@@ -92,6 +92,13 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         ref_paras = datapoint.reference_parameters_relative_to_wb_
 
+        if ref_paras.wb_list.empty:
+            self.ic_lr_list_ = (
+                pd.DataFrame(columns=["wb_id", "ic", "lr_label"]).set_index("wb_id").pipe(_unify_ic_lr_list_df)
+            )
+            self.per_wb_algo_ = {}
+            return self
+
         wb_iterator = GsIterator()
 
         # TODO: maybe do it properly and create a custom iter type
@@ -105,7 +112,7 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
             r.ic_list = algo.ic_lr_list_
 
         self.per_wb_algo_ = result_algo_list
-        self.ic_lr_list_ = wb_iterator.results_.ic_list
+        self.ic_lr_list_ = wb_iterator.results_.ic_list.pipe(_unify_ic_lr_list_df)
 
         return self
 

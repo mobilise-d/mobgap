@@ -487,10 +487,35 @@ class ScipyFilter(BaseFilter):
         raise NotImplementedError()
 
 
+class IdentityFilter(BaseFilter):
+    """Do nothing.
+
+    Just returns a copy of the input data.
+    """
+
+    @scipy_filter_docfiller
+    def filter(self, data: DfLike, *, sampling_rate_hz: Optional[float] = None, **_: Unpack[dict[str, Any]]) -> Self:
+        """Filter the data by doing absolutely nothing.
+
+        Parameters
+        ----------
+        %(filter_para)s
+        %(filter_kwargs)s
+
+        %(filter_return)s
+
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.transformed_data_ = data.copy()
+        return self
+
+
 __all__ = [
     "BaseTransformer",
     "BaseFilter",
     "FixedFilter",
+    "IdentityFilter",
     "fixed_filter_docfiller",
     "ScipyFilter",
     "scipy_filter_docfiller",

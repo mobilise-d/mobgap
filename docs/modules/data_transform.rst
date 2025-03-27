@@ -62,6 +62,7 @@ Base Classes
     BaseFilter
     FixedFilter
     ScipyFilter
+    IdentityFilter
 
 Docu-helper
 -----------

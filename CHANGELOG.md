@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   We now also provide a version of the original peak detection algorithm that was used in the matlab implementation.
   This can be used by setting `GsdIluz(**GsdIluz.PredefinedParameters.original).
   (https://github.com/mobilise-d/mobgap/pull/182, https://github.com/mobilise-d/mobgap/pull/187)
+- The models behind the Left-Right detection algorithm by Ullrich et al. have been retrained and made reproducible.
+  This results in some changes in the results (mostly improvements) and some changes in the output, even for the old
+  models, as parts of the pre-processing was adapted to better reflect the original implementation.
+  (https://github.com/mobilise-d/mobgap/pull/186)
 
 ### Added
 - We added first scripts for the revalidation.
@@ -46,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   But feel free to copy them for your own use.
   (https://github.com/mobilise-d/mobgap/pull/192 , https://github.com/mobilise-d/mobgap/pull/199)
 - Plotting helper for validation plots (https://github.com/mobilise-d/mobgap/pull/204)
+- The MSDataset now has a dedicated dataset class that can be used to work with it. The dataset will be published on 
+  Zenodo in the future. (https://github.com/mobilise-d/mobgap/pull/186)
 
 ### Fixed
 

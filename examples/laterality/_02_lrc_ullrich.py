@@ -128,8 +128,8 @@ algo = algo.self_optimize(
 # We will use the last sequence for this.
 predictions = algo.predict(
     per_gs_data[-1], ic_list=per_gs_ic[-1], sampling_rate_hz=sampling_rate_hz
-).ic_lr_list_
-predictions.assign(ref_lr_label=per_gs_ic_lr[-1]["lr_label"])
+).ic_lr_list_.assign(ref_lr_label=per_gs_ic_lr[-1]["lr_label"])
+predictions
 
 # %%
 # Note, that we don't expect particularly good performance, as we trained on very little data.

@@ -67,6 +67,17 @@ Technical Validation Study (TVS) Data Loader
     TVSLabDataset
     TVSFreeLivingDataset
 
+MS Project Dataset
+------------------
+
+.. currentmodule:: mobgap.data
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    MsProjectDataset
+
 
 Base Classes
 ++++++++++++

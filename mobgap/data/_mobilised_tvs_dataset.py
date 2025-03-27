@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Final, Literal, Optional, Union
+from typing import ClassVar, Final, Literal, Optional, Union
 
 import joblib
 import pandas as pd
@@ -46,8 +46,11 @@ tvs_dataset_filler = make_filldoc(
         - 3: Recording is good
     """,
         "dataset_warning": """
-    .. warning:: The dataset is not yet available. The data will be made available end of June 2024. Then you need to
-        download the data from Zenodo and provide the path to the data folder.
+    .. note:: The data to be used with this dataset class is available on
+       `https://zenodo.org/records/13899386 <Zenodo>`_.
+       Download all files and extract them to a folder on your local machine.
+       Make sure you don't change the folder structure (each zip file should be extracted to a separate folder).
+       Then use the path to the folder containing the data as the ``base_path`` argument.
     """,
     }
 )
@@ -167,6 +170,8 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
 
 class BaseTVSDataset(BaseGenericMobilisedDataset):
     """Base class for the TVS datasets."""
+
+    _not_expected_per_ref_system: ClassVar = [("INDIP", ["turn_parameters"]), ("Stereophoto", ["turn_parameters"])]
 
     _MEASUREMENT_CONDITION: str
 
