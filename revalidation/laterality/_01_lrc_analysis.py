@@ -80,7 +80,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "lrc", result_path=local_data_path, version="lrc"
+    "lrc", result_path=local_data_path, version="main"
 )
 
 
