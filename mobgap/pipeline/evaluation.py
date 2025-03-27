@@ -208,7 +208,8 @@ Raw metrics (part of the single results):
 Metrics per datapoint (single results):
 *These values are all provided as a list of values, one per datapoint.*
 
-- ``combined__<DMO>__{metric}``: The per-datapoint WB-level metrics calculated from median reference and estimated values.
+- ``combined__<DMO>__{metric}``: The per-datapoint WB-level metrics calculated from median reference and estimated
+  values.
 - ``matched__<DMO>__{metric}``: The average over the per-WB-averaged matched WB-level metrics of each datapoint.
 
 Aggregated metrics (agg results):

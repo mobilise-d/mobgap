@@ -164,7 +164,9 @@ def make_square(ax: plt.Axes, min_max: tuple[float, float], draw_diagonal: bool 
         ax.axline((min_max[0], min_max[0]), slope=1, color="black", linestyle="-", zorder=-100)
 
 
-def move_legend_outside(fig: plt.Figure, ax: plt.Axes, position: Literal["below", "above"] = "below", padding=1.5, **kwargs: Any) -> None:
+def move_legend_outside(
+    fig: plt.Figure, ax: plt.Axes, position: Literal["below", "above"] = "below", padding: float = 1.5, **kwargs: Any
+) -> None:
     """Move the legend from the axes to the figure and place it outside the plot.
 
     .. note:: This is still not well supported by matplotlib. Specifically, matplotlib, can not set outside padding.

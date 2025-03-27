@@ -25,9 +25,8 @@ data. We also compare the actual performance to that obtained by the original Ma
     :ref:`processing page <pipeline_val_gen>`.
 
 """
-from typing import Optional
 
-from IPython.core.pylabtools import figsize
+from typing import Optional
 
 # %%
 # Below the list of pipelines that are compared is shown.
@@ -47,9 +46,11 @@ algorithms = {
 # The file download will print a couple log information, which can usually be ignored.
 # You can also change the `version` parameter to load a different version of the data.
 from pathlib import Path
+
 import pandas as pd
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
+
 
 def format_loaded_results(
     values: dict[tuple[str, str], pd.DataFrame],
@@ -59,22 +60,32 @@ def format_loaded_results(
 ) -> pd.DataFrame:
     formatted = (
         pd.concat(values, names=["algo", "version", *index_cols])
-        .pipe(lambda df: df.filter(like=col_prefix_filter) if col_prefix_filter else df)
+        .pipe(
+            lambda df: df.filter(like=col_prefix_filter)
+            if col_prefix_filter
+            else df
+        )
         .reset_index()
         .assign(
-            algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
+            algo_with_version=lambda df: df["algo"]
+            + " ("
+            + df["version"]
+            + ")",
             _combined="combined",
         )
     )
 
     if col_prefix_filter:
-        formatted.columns = formatted.columns.str.removeprefix(col_prefix_filter)
+        formatted.columns = formatted.columns.str.removeprefix(
+            col_prefix_filter
+        )
 
     if convert_rel_error:
         rel_cols = [c for c in formatted.columns if "rel_error" in c]
         formatted[rel_cols] = formatted[rel_cols] * 100
 
     return formatted
+
 
 local_data_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
@@ -95,12 +106,12 @@ free_living_index_cols = [
     "recording_name_pretty",
 ]
 
-_free_living_results = { # Matched and aggregate/combined per-recording results for the 2.5 h free-living recordings
+_free_living_results = {  # Matched and aggregate/combined per-recording results for the 2.5 h free-living recordings
     v: loader.load_single_results(k, "free_living")
     for k, v in algorithms.items()
 }
 
-_free_living_results_raw = { # Matched per-WB results for the 2.5 h free-living recordings
+_free_living_results_raw = {  # Matched per-WB results for the 2.5 h free-living recordings
     v: loader.load_single_csv_file(k, "free_living", "raw_matched_errors.csv")
     for k, v in algorithms.items()
 }
@@ -117,9 +128,9 @@ free_living_results_matched = format_loaded_results(
     convert_rel_error=True,
 )
 free_living_results_matched_raw = format_loaded_results(
-    values = _free_living_results_raw,
-    index_cols = free_living_index_cols,
-    col_prefix_filter = None,
+    values=_free_living_results_raw,
+    index_cols=free_living_index_cols,
+    col_prefix_filter=None,
     convert_rel_error=True,
 )
 
@@ -241,7 +252,9 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m/s]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Error [m/s]": RevalidationInfo(
+        threshold=None, higher_is_better=False
+    ),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
@@ -256,6 +269,7 @@ def format_tables(df: pd.DataFrame) -> pd.DataFrame:
         .rename(columns=final_names)
         .loc[:, list(final_names.values())]
     )
+
 
 # %%
 # Combined/Aggregated Evaluation
@@ -285,28 +299,32 @@ metrics = {
     "rel_error": "Rel. Error (%)",
     "abs_error": "Abs. Error (m/s)",
 }
+
+
 def multi_metric_plot(data, metrics, nrows, ncols):
-    fig, axs = plt.subplots(nrows, ncols, sharex=True, figsize=(ncols * 6, nrows*4 + 2))
+    fig, axs = plt.subplots(
+        nrows, ncols, sharex=True, figsize=(ncols * 6, nrows * 4 + 2)
+    )
     for ax, (metric, metric_label) in zip(axs.flatten(), metrics.items()):
-        overall_df = (
-            data[
-                ["version", f"walking_speed_mps__{metric}"]
-            ]
-            .rename(columns={f"walking_speed_mps__{metric}": metric_label})
+        overall_df = data[["version", f"walking_speed_mps__{metric}"]].rename(
+            columns={f"walking_speed_mps__{metric}": metric_label}
         )
 
-        sns.boxplot(data=overall_df, x="version", hue="version", y=metric_label, ax=ax)
+        sns.boxplot(
+            data=overall_df, x="version", hue="version", y=metric_label, ax=ax
+        )
 
         ax.set_title(metric_label)
         ax.set_ylabel(metric_label)
 
-        ax.tick_params(axis='both', which='major')
-        ax.tick_params(axis='both', which='minor')
+        ax.tick_params(axis="both", which="major")
+        ax.tick_params(axis="both", which="minor")
 
         ax.grid(True)
 
     plt.tight_layout()
     plt.show()
+
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
@@ -322,11 +340,18 @@ combined_perf_metrics_all.style.pipe(
 # %%
 # Residual plots
 # ~~~~~~~~~~~~~~
-from mobgap.plotting import residual_plot, move_legend_outside
+from mobgap.plotting import move_legend_outside, residual_plot
+
 
 def combo_residual_plot(data, name=None):
     name = name or data.name
-    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(12, 6), constrained_layout=True)
+    fig, axs = plt.subplots(
+        ncols=2,
+        sharey=True,
+        sharex=True,
+        figsize=(12, 9),
+        constrained_layout=True,
+    )
     fig.suptitle(name)
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         residual_plot(
@@ -383,15 +408,18 @@ combined_perf_metrics_cohort.style.pipe(
 # within a cohort. Correlation factor, p-value and confidence intervals of the regression line are shown in the plot.
 # Each datapoint represents one participant.
 
-from mobgap.plotting import (
-    calc_min_max_with_margin,
-    make_square,
-    plot_regline
-)
+from mobgap.plotting import calc_min_max_with_margin, make_square, plot_regline
+
 
 def combo_scatter_plot(data, name=None):
     name = name or data.name
-    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(12, 8), constrained_layout=True)
+    fig, axs = plt.subplots(
+        ncols=2,
+        sharey=True,
+        sharex=True,
+        figsize=(12, 8),
+        constrained_layout=True,
+    )
     fig.suptitle(name)
 
     min_max = calc_min_max_with_margin(
@@ -428,11 +456,12 @@ def combo_scatter_plot(data, name=None):
         ax.set_title(version)
         ax.set_xlabel("Reference [m]")
         ax.set_ylabel("Detected [m]")
-        ax.tick_params(axis='both', labelsize=20)
+        ax.tick_params(axis="both", labelsize=20)
 
     move_legend_outside(fig, axs[-1])
 
     plt.show()
+
 
 free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
     combo_scatter_plot, name="Mobilise-D Pipeline - Walking Speed"
@@ -476,7 +505,9 @@ matched_perf_metrics_all.style.pipe(
 # %%
 # Residual plot
 # ~~~~~~~~~~~~
-free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(combo_residual_plot, name="Matched WBs - Walking Speed")
+free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
+    combo_residual_plot, name="Matched WBs - Walking Speed"
+)
 # %%
 # Per-cohort analysis
 # *******************
@@ -525,33 +556,49 @@ matched_perf_metrics_all = (
 import numpy as np
 from mobgap.utils.df_operations import cut_into_overlapping_bins
 
+
 def plot_wb_duration_analysis(df):
     """Generates a single figure with:
-       - First row: Two side-by-side boxplot for "new" and "old" cases.
-       - Second row: A grouped bar chart comparing WB counts for "new" and "old" cases.
+    - First row: Two side-by-side boxplot for "new" and "old" cases.
+    - Second row: A grouped bar chart comparing WB counts for "new" and "old" cases.
 
-       df: DataFrame containing 'version' column with values 'new' or 'old' to distinguish data
+    df: DataFrame containing 'version' column with values 'new' or 'old' to distinguish data
     """
-    fig, axs = plt.subplot_mosaic([["v"], ["v"], ["v"], ["n"]], sharex=True, figsize=(12, 9))
+    fig, axs = plt.subplot_mosaic(
+        [["v"], ["v"], ["v"], ["n"]], sharex=True, figsize=(12, 9)
+    )
     # Compute WB durations in seconds
-    df_with_durations = df.assign(duration_s=lambda df_: (df_["end__reference"] - df_["start__reference"]) / 100)
+    df_with_durations = df.assign(
+        duration_s=lambda df_: (df_["end__reference"] - df_["start__reference"])
+        / 100
+    )
 
     bins = {
-        'All': (-np.inf, np.inf),
-        '> 10 s': (10, np.inf),
-        '<= 10 s': (0, 10),
-        '10 - 30 s': (10, 30),
-        '30 - 60 s': (30, 60),
-        '60 - 120 s': (60, 120),
-        '> 120 s': (120, np.inf)
+        "All": (-np.inf, np.inf),
+        "> 10 s": (10, np.inf),
+        "<= 10 s": (0, 10),
+        "10 - 30 s": (10, 30),
+        "30 - 60 s": (30, 60),
+        "60 - 120 s": (60, 120),
+        "> 120 s": (120, np.inf),
     }
 
-    binned_df = cut_into_overlapping_bins(df_with_durations, 'duration_s', bins).reset_index()
-    n = sns.countplot(data=binned_df, x="bin", hue="version", ax=axs["n"], legend=False)
+    binned_df = cut_into_overlapping_bins(
+        df_with_durations, "duration_s", bins
+    ).reset_index()
+    n = sns.countplot(
+        data=binned_df, x="bin", hue="version", ax=axs["n"], legend=False
+    )
     for container in n.containers:
         n.bar_label(container, size=10)
 
-    sns.boxplot(data=binned_df, x="bin", y="walking_speed_mps__abs_error", hue="version", ax=axs["v"])
+    sns.boxplot(
+        data=binned_df,
+        x="bin",
+        y="walking_speed_mps__abs_error",
+        hue="version",
+        ax=axs["v"],
+    )
     sns.despine(fig)
 
     axs["v"].set_ylabel("Absolute Walking Speed Error (m/s)")
@@ -559,7 +606,10 @@ def plot_wb_duration_analysis(df):
     axs["n"].set_xlabel("Ref. WB Duration")
     fig.show()
 
-free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(plot_wb_duration_analysis)
+
+free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
+    plot_wb_duration_analysis
+)
 # %%
 # Effect of walking speed on error
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -572,9 +622,9 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(plot
 # For plotting all participants at the end
 combined = free_living_results_matched_raw.copy()
 combined["cohort"] = "Combined"
-ws_level_results = pd.concat([free_living_results_matched_raw, combined]).reset_index(
-    drop=True
-)
+ws_level_results = pd.concat(
+    [free_living_results_matched_raw, combined]
+).reset_index(drop=True)
 
 algo_names = ws_level_results["algo_with_version"].unique()
 cohort_names = ws_level_results["cohort"].unique()
@@ -591,12 +641,16 @@ fig = plt.figure(constrained_layout=True, figsize=(24, 5 * len(algo_names)))
 subfigs = fig.subfigures(len(algo_names), 1, wspace=0.1, hspace=0.1)
 
 # Define the min and max limits for x and y axes
-min_max_x = calc_min_max_with_margin(ws_level_results["walking_speed_mps__reference"])
-min_max_y = calc_min_max_with_margin(ws_level_results["walking_speed_mps__abs_error"])
+min_max_x = calc_min_max_with_margin(
+    ws_level_results["walking_speed_mps__reference"]
+)
+min_max_y = calc_min_max_with_margin(
+    ws_level_results["walking_speed_mps__abs_error"]
+)
 
 # Plotting each algorithm version
 for subfig, (algo, data) in zip(
-        subfigs, ws_level_results.groupby("algo_with_version", observed=True)
+    subfigs, ws_level_results.groupby("algo_with_version", observed=True)
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
@@ -606,7 +660,7 @@ for subfig, (algo, data) in zip(
     axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)
 
     for ax, (cohort, cohort_data) in zip(
-            axs, data.groupby("cohort", observed=True)
+        axs, data.groupby("cohort", observed=True)
     ):
         # Scatter plot for the cohort data
         sns.scatterplot(
@@ -618,7 +672,9 @@ for subfig, (algo, data) in zip(
         )
 
         # Define bins for walking speed
-        bins = np.arange(0, cohort_data["walking_speed_mps__reference"].max() + 0.05, 0.05)
+        bins = np.arange(
+            0, cohort_data["walking_speed_mps__reference"].max() + 0.05, 0.05
+        )
         cohort_data["speed_bin"] = pd.cut(
             cohort_data["walking_speed_mps__reference"], bins=bins
         )
@@ -630,7 +686,9 @@ for subfig, (algo, data) in zip(
 
         # Calculate median error per bin and cohort
         binned_data = (
-            cohort_data.groupby("bin_center", observed=True)["walking_speed_mps__abs_error"]
+            cohort_data.groupby("bin_center", observed=True)[
+                "walking_speed_mps__abs_error"
+            ]
             .median()
             .reset_index()
         )
