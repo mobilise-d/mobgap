@@ -187,7 +187,6 @@ pipelines = {
 # recordings.
 # Depending on how you want to interpret the results, you might not want to use the aggregated results, but rather
 # perform custom aggregations over the provided "single_results".
-# TODO: ensure that only subjects included in Kirk et al. (2024) are loaded.
 
 from joblib import Memory, Parallel, delayed
 from mobgap import PACKAGE_ROOT
