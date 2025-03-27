@@ -66,7 +66,8 @@ def lrc_per_datapoint_score(pipeline: LrcEmulationPipeline, datapoint: BaseGaitD
 
     # We also calculate the "pairwise" accuracy. Instead of comparing the left right label independently, we compare
     # pares of consecutive labels, if they have the same value.
-    pairwise_predictions = np.diff(combined_for_comparison, axis=0)
+    # So, LRRLR would be converted to 1011.
+    pairwise_predictions = np.abs(np.diff(combined_for_comparison, axis=0))
 
     return {
         "accuracy": accuracy_score(combined_for_comparison[:, 1], combined_for_comparison[:, 0]),
