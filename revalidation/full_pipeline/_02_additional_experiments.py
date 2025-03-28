@@ -89,7 +89,7 @@ local_data_path = (
 loader = ValidationResultLoader(
     "full_pipeline",
     result_path=local_data_path,
-    version="additional_experiments",
+    version="main",
 )
 
 # Loading free-living data
