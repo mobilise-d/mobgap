@@ -558,6 +558,7 @@ sns.barplot(
     hue="version",
     y="n_matched_wbs",
     x="cohort",
+    order=cohort_order,
     ax=ax,
 )
 fig.show()
