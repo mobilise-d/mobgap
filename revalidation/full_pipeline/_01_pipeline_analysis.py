@@ -93,7 +93,7 @@ local_data_path = (
     else None
 )
 loader = ValidationResultLoader(
-    "full_pipeline", result_path=local_data_path, version="full_pipeline_reval"
+    "full_pipeline", result_path=local_data_path, version="main"
 )
 
 # Loading free-living data
@@ -158,16 +158,11 @@ from mobgap.utils.df_operations import (
 from mobgap.utils.tables import FormatTransformer as F
 from mobgap.utils.tables import RevalidationInfo, revalidation_table_styles
 
-custom_aggs = [
+custom_aggs_combined = [
     CustomOperation(
         identifier=None,
         function=A.n_datapoints,
         column_name=[("n_datapoints", "all")],
-    ),
-    CustomOperation(
-        identifier=None,
-        function=lambda df_: df_["walking_speed_mps__detected"].isna().sum(),
-        column_name=[("n_nan_detected", "all")],
     ),
     ("walking_speed_mps__detected", ["mean", A.conf_intervals]),
     ("walking_speed_mps__reference", ["mean", A.conf_intervals]),
@@ -185,20 +180,24 @@ custom_aggs = [
             # For the lab data, some trials have no results for the old algorithms.
             nan_policy="omit",
         ),
-        column_name=[("icc", "trial_level"), ("icc_ci", "trial_level")],
+        column_name=[("icc", "all"), ("icc_ci", "all")],
     ),
 ]
 
-format_transforms = [
+custom_aggs_matched = [
+    CustomOperation(
+        identifier=None,
+        function=lambda df_: df_["n_matched_wbs"].sum(),
+        column_name=[("n_wbs_matched", "all")],
+    ),
+    *custom_aggs_combined,
+]
+
+format_transforms_combined = [
     CustomOperation(
         identifier=None,
         function=lambda df_: df_[("n_datapoints", "all")].astype(int),
         column_name="n_datapoints",
-    ),
-    CustomOperation(
-        identifier=None,
-        function=lambda df_: df_[("n_nan_detected", "all")].astype(int),
-        column_name="n_nan_detected",
     ),
     *(
         CustomOperation(
@@ -231,15 +230,24 @@ format_transforms = [
         identifier=None,
         function=partial(
             F.value_with_range,
-            value_col=("icc", "trial_level"),
-            range_col=("icc_ci", "trial_level"),
+            value_col=("icc", "all"),
+            range_col=("icc_ci", "all"),
         ),
         column_name="icc",
     ),
 ]
 
+format_transforms_matched = [
+    CustomOperation(
+        identifier=None,
+        function=lambda df_: df_[("n_wbs_matched", "all")].astype(int),
+        column_name="n_wbs_matched",
+    ),
+    *format_transforms_combined,
+]
 
-final_names = {
+
+final_names_combined = {
     "n_datapoints": "# participants",
     "walking_speed_mps__detected": "WD mean and CI [m/s]",
     "walking_speed_mps__reference": "INDIP mean and CI [m/s]",
@@ -248,7 +256,11 @@ final_names = {
     "walking_speed_mps__rel_error": "Rel. Error [%]",
     "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
-    "n_nan_detected": "# Failed WBs",
+}
+
+final_names_matched = {
+    **final_names_combined,
+    "n_wbs_matched": "# Matched WBs",
 }
 
 validation_thresholds = {
@@ -263,11 +275,19 @@ validation_thresholds = {
 }
 
 
-def format_tables(df: pd.DataFrame) -> pd.DataFrame:
+def format_tables_combined(df: pd.DataFrame) -> pd.DataFrame:
     return (
-        df.pipe(apply_transformations, format_transforms)
-        .rename(columns=final_names)
-        .loc[:, list(final_names.values())]
+        df.pipe(apply_transformations, format_transforms_combined)
+        .rename(columns=final_names_combined)
+        .loc[:, list(final_names_combined.values())]
+    )
+
+
+def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
+    return (
+        df.pipe(apply_transformations, format_transforms_matched)
+        .rename(columns=final_names_matched)
+        .loc[:, list(final_names_matched.values())]
     )
 
 
@@ -330,8 +350,8 @@ free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
 combined_perf_metrics_all = (
     free_living_results_combined.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
+    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    .pipe(format_tables_combined)
 )
 combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
@@ -394,8 +414,8 @@ fig.show()
 # %%
 combined_perf_metrics_cohort = (
     free_living_results_combined.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
+    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    .pipe(format_tables_combined)
     .loc[cohort_order]
 )
 combined_perf_metrics_cohort.style.pipe(
@@ -492,10 +512,24 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
 
 # %%
+# As each pipeline version produces different WB's, it is important to compare the number of matched WBs to put all
+# other metrics into perspective.
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.barplot(
+    data=free_living_results_matched.groupby(["version"])["n_matched_wbs"]
+    .sum()
+    .reset_index(),
+    x="version",
+    y="n_matched_wbs",
+    ax=ax,
+)
+fig.show()
+
+# %%
 matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
 )
 
 matched_perf_metrics_all.style.pipe(
@@ -515,6 +549,22 @@ free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
 fig, ax = plt.subplots(figsize=(12, 6))
+sns.barplot(
+    data=free_living_results_matched.groupby(["version", "cohort"])[
+        "n_matched_wbs"
+    ]
+    .sum()
+    .reset_index(),
+    hue="version",
+    y="n_matched_wbs",
+    x="cohort",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+
+# %%
+fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
     data=free_living_results_matched,
     x="cohort",
@@ -530,8 +580,8 @@ fig.show()
 # Processing the per-cohort performance table
 matched_perf_metrics_cohort = (
     free_living_results_matched.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 matched_perf_metrics_cohort.style.pipe(
@@ -540,8 +590,8 @@ matched_perf_metrics_cohort.style.pipe(
 
 matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
