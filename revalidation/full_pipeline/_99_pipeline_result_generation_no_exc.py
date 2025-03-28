@@ -46,9 +46,12 @@ from typing import Optional, Self
 
 import pandas as pd
 from mobgap.data import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
+from mobgap.laterality import LrcUllrich
 from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.misc import get_env_var
 from tpcp.caching import hybrid_cache
+
+from revalidation.gait_sequences import DummyGsdAlgo
 
 
 def load_old_fp_results(result_file_path: Path) -> pd.DataFrame:
@@ -159,18 +162,60 @@ escience_pipeline_result_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
     / "_extracted_results/full_pipeline"
 )
+escience_pipeline_result_path_gsd = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "_extracted_results/gsd"
+)
 
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
 pipelines = {
-    "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(
+    # "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(),
+    "Official_MobiliseD_Pipeline__old_gs": MobilisedPipelineUniversal(
         pipelines=[
-            ("healthy", MobilisedPipelineHealthy()),
-            ("impaired", MobilisedPipelineImpaired()),
+            (
+                "healthy",
+                MobilisedPipelineHealthy(
+                    gait_sequence_detection=DummyGsdAlgo(
+                        "EPFL_V1-improved_th",
+                        escience_pipeline_result_path_gsd,
+                        min_gs_duration_s=3,
+                    )
+                ),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(
+                    gait_sequence_detection=DummyGsdAlgo(
+                        "EPFL_V1-improved_th",
+                        escience_pipeline_result_path_gsd,
+                        min_gs_duration_s=3,
+                    )
+                ),
+            ),
         ]
     ),
-    "EScience_MobiliseD_Pipeline": DummyFullPipeline(
-        escience_pipeline_result_path
+    "Official_MobiliseD_Pipeline__old_lrc": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(
+                    laterality_classification=LrcUllrich(
+                        **LrcUllrich.PredefinedParameters.msproject_all_old
+                    )
+                ),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(
+                    laterality_classification=LrcUllrich(
+                        **LrcUllrich.PredefinedParameters.msproject_all_old
+                    )
+                ),
+            ),
+        ]
     ),
+    # "EScience_MobiliseD_Pipeline": DummyFullPipeline(
+    #     escience_pipeline_result_path
+    # ),
 }
 # %%
 # Setting up the dataset
