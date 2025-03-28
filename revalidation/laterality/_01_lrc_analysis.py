@@ -282,7 +282,7 @@ from mobgap.plotting import (
 
 
 def compare_scatter_plot(data, name):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
     reformated_data = (
         data.pivot_table(
             values="accuracy",
@@ -301,8 +301,8 @@ def compare_scatter_plot(data, name):
     make_square(ax, min_max, draw_diagonal=True)
     move_legend_outside(fig, ax)
     ax.set_title(name)
-    ax.set_xlabel("Old algorithm version [m]")
-    ax.set_ylabel("New algorithm version [m]")
+    ax.set_xlabel("Old algorithm version")
+    ax.set_ylabel("New algorithm version")
     plt.tight_layout()
     plt.show()
 
