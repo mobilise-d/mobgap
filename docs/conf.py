@@ -212,6 +212,8 @@ sphinx_gallery_conf = {
             "../examples/aggregation",
             "../examples/data_transform",
             "../examples/dev_guides",
+            "../revalidation/full_pipeline",
+            "../revalidation/full_pipeline",
             "../revalidation/gait_sequences",
             "../revalidation/initial_contacts",
             "../revalidation/laterality",

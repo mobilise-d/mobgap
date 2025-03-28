@@ -318,7 +318,13 @@ from mobgap.plotting import (
 
 
 def combo_residual_plot(data):
-    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
+    fig, axs = plt.subplots(
+        ncols=2,
+        sharey=True,
+        sharex=True,
+        figsize=(15, 9),
+        constrained_layout=True,
+    )
     fig.suptitle(data.name)
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         residual_plot(
@@ -337,7 +343,13 @@ def combo_residual_plot(data):
 
 
 def combo_scatter_plot(data):
-    fig, axs = plt.subplots(ncols=2, sharey=True, sharex=True, figsize=(15, 8))
+    fig, axs = plt.subplots(
+        ncols=2,
+        sharey=True,
+        sharex=True,
+        figsize=(15, 8),
+        constrained_layout=True,
+    )
     fig.suptitle(data.name)
     min_max = calc_min_max_with_margin(
         data["wb__reference"], data["wb__detected"]
@@ -377,7 +389,7 @@ free_living_results.groupby("algo").apply(
 
 
 def compare_scatter_plot(data):
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(9, 9), constrained_layout=True)
     reformated_data = (
         data.pivot_table(
             values="wb__detected",

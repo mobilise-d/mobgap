@@ -626,4 +626,47 @@ def _check_number_of_index_levels(agg_results: list[Union[pd.Series, pd.DataFram
         )
 
 
-__all__ = ["MultiGroupBy", "create_multi_groupby", "CustomOperation", "apply_transformations", "apply_aggregations"]
+def cut_into_overlapping_bins(
+    df: pd.DataFrame, column: str, interval_dict: dict[str, tuple[float, float]]
+) -> pd.DataFrame:
+    """
+    Cut a DataFrame column into potentially overlapping bins.
+
+    .. warning:: Overlapping areas of the intervals will be duplicated in the output DataFrame.
+       This could lead to large performance slowdowns.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame containing the data to bin
+    column : str
+        The name of the column to bin
+    interval_dict : dict
+        Dictionary where keys are bin labels and values are (min, max) tuples
+        defining the intervals, e.g. {'all': (-np.inf, np.inf), '10+': (10, np.inf)}
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with the same columns as the orignal df and an addtion 'bin' (categorical bin labels) columns,
+        with potentially duplicated rows for values that fall into multiple bins
+    """
+    # Create a list to store rows for the new DataFrame
+    col_of_interest = df[column]
+    groups = {key: df[(col_of_interest > val[0]) & (col_of_interest <= val[1])] for key, val in interval_dict.items()}
+
+    return (
+        pd.concat(groups, names=["bin", *df.index.names])
+        .reset_index("bin")
+        .astype({"bin": pd.CategoricalDtype(list(interval_dict.keys()), ordered=True)})
+    )
+
+
+__all__ = [
+    "MultiGroupBy",
+    "create_multi_groupby",
+    "CustomOperation",
+    "apply_transformations",
+    "apply_aggregations",
+    "cut_into_overlapping_bins",
+]

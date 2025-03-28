@@ -591,8 +591,12 @@ def categorize_intervals(
     if overlap_threshold > 1:
         raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
 
-    detected.loc[:, "range_index"] = range(len(detected))
-    tree = IntervalTree.from_tuples(detected[["start", "end", "range_index"]].to_numpy())
+    tree = IntervalTree.from_tuples(
+        detected.reset_index(drop=True)
+        .rename_axis("range_index")
+        .reset_index()[["start", "end", "range_index"]]
+        .to_numpy()
+    )
     detected_index = []
     reference_index = []
 
