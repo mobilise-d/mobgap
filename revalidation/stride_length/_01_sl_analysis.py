@@ -45,6 +45,7 @@ algorithms = {
 from pathlib import Path
 
 import pandas as pd
+import pingouin as pg
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
@@ -202,6 +203,15 @@ format_transforms = [
     CustomOperation(
         identifier=None,
         function=partial(
+            F.stats_result,
+            p_value_col=("T", "wb__abs_error"),
+            effect_size_col=("p", "wb__abs_error"),
+        ),
+        column_name="wb__abs_error__stats",
+    ),
+    CustomOperation(
+        identifier=None,
+        function=partial(
             F.value_with_range,
             value_col=("mean", "wb__error"),
             range_col=("loa", "wb__error"),
@@ -226,6 +236,7 @@ final_names = {
     "wb__reference": "INDIP mean and CI [m]",
     "wb__error": "Bias and LoA [m]",
     "wb__abs_error": "Abs. Error [m]",
+    "wb__abs_error__stats": "Abs. Error Stats. [m]",
     "wb__rel_error": "Rel. Error [%]",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
@@ -233,13 +244,49 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error Stats. [m]"),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
+
+
+def pairwise_tests(
+    df: pd.DataFrame, dv: str, between: str
+) -> tuple[float, float]:
+    result = pg.pairwise_tests(data=df, dv=dv, between=between)
+    assert len(result) == 1
+    return tuple(result.iloc[0][["T", "p-unc"]].to_list())
+
+
+def agg_errors(
+    df: pd.DataFrame, groupby: list[str], stats_between="version"
+) -> pd.DataFrame:
+    error_agg = df.groupby([*groupby, stats_between]).apply(
+        apply_aggregations, custom_aggs, include_groups=False
+    )
+    stats = df.groupby(groupby).apply(
+        apply_aggregations,
+        [
+            CustomOperation(
+                identifier=None,
+                function=partial(
+                    pairwise_tests, dv="wb__abs_error", between="version"
+                ),
+                column_name=[
+                    (
+                        "T",
+                        "wb__abs_error",
+                    ),
+                    ("p", "wb__abs_error"),
+                ],
+            )
+        ],
+        include_groups=False,
+    )
+    return error_agg.join(stats, on=groupby, how="left")
 
 
 def format_tables(df: pd.DataFrame) -> pd.DataFrame:
@@ -268,13 +315,11 @@ sns.boxplot(
 )
 fig.show()
 
-perf_metrics_all = (
-    free_living_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-)
+perf_metrics_all = free_living_results.pipe(
+    agg_errors, groupby=["algo"], stats_between="version"
+).pipe(format_tables)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="old"
 )
 
 # %%
@@ -292,13 +337,17 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    free_living_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    free_living_results.pipe(
+        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    )
     .pipe(format_tables)
     .loc[cohort_order]
 )
 perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="old",
 )
 
 # %%
@@ -528,13 +577,11 @@ fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
 fig.show()
 
-perf_metrics_all = (
-    lab_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-)
+perf_metrics_all = lab_results.pipe(
+    agg_errors, groupby=["algo"], stats_between="version"
+).pipe(format_tables)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="old"
 )
 
 # %%
@@ -552,13 +599,17 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    lab_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    lab_results.pipe(
+        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    )
     .pipe(format_tables)
     .loc[cohort_order]
 )
 perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="old",
 )
 
 
