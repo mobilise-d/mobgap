@@ -135,7 +135,48 @@ free_living_results_matched_raw = format_loaded_results(
 )
 
 del _free_living_results, _free_living_results_raw
-cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
+
+# Loading laboratory data
+laboratory_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+_laboratory_results = {  # Matched and aggregate/combined per-recording results for the laboratory recordings
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+
+_laboratory_results_raw = {  # Matched per-WB results for the laboratory recordings
+    v: loader.load_single_csv_file(k, "laboratory", "raw_matched_errors.csv")
+    for k, v in algorithms.items()
+}
+laboratory_results_combined = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "combined__",
+    convert_rel_error=True,
+)
+laboratory_results_matched = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "matched__",
+    convert_rel_error=True,
+)
+laboratory_results_matched_raw = format_loaded_results(
+    values=_laboratory_results_raw,
+    index_cols=laboratory_index_cols,
+    col_prefix_filter=None,
+    convert_rel_error=True,
+)
+
+del _laboratory_results, _laboratory_results_raw
+cohort_order  = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
 # -------------------
@@ -347,15 +388,25 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-combined_perf_metrics_all = (
+laboratory_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
+# %%
+free_living_combined_perf_metrics_all = (
     free_living_results_combined.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
 )
-combined_perf_metrics_all.style.pipe(
+free_living_combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
-
+# %%
+laboratory_combined_perf_metrics_all = (
+    laboratory_results_combined.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    .pipe(format_tables_combined)
+)
+laboratory_combined_perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
 # %%
 # Residual plots
 # ~~~~~~~~~~~~~~
@@ -390,7 +441,10 @@ def combo_residual_plot(data, name=None):
 free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
     combo_residual_plot, name="Aggregated Analysis  - Walking Speed"
 )
-
+# %%
+laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
+    combo_residual_plot, name="Aggregated Analysis  - Walking Speed"
+)
 # %%
 # Per-cohort analysis
 # *******************
@@ -411,13 +465,37 @@ ax.set_ylabel("Absolute Error [m/s]")
 ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
-combined_perf_metrics_cohort = (
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.boxplot(
+    data=laboratory_results_combined,
+    x="cohort",
+    y="walking_speed_mps__abs_error",
+    hue="version",
+    order=cohort_order,
+    showmeans=True,
+    ax=ax,
+).legend().set_title(None)
+ax.set_ylabel("Absolute Error [m/s]")
+ax.set_title("Absolute Error - Combined Analysis")
+fig.show()
+# %%
+free_living_combined_perf_metrics_cohort = (
     free_living_results_combined.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-combined_perf_metrics_cohort.style.pipe(
+free_living_combined_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+# %%
+laboratory_combined_perf_metrics_cohort = (
+    laboratory_results_combined.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    .pipe(format_tables_combined)
+    .loc[cohort_order]
+)
+laboratory_combined_perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 # %%
@@ -486,6 +564,10 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
     combo_scatter_plot, name="Mobilise-D Pipeline - Walking Speed"
 )
 # %%
+laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
+    combo_scatter_plot, name="Mobilise-D Pipeline - Walking Speed"
+)
+# %%
 # Matched/True Positive Evaluation
 # ------------------------------------------
 # The "Matched" Evaluation directly compares the performance of walking speed estimation on only the WBs that were
@@ -509,6 +591,8 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
+# %%
+laboratory_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
 
 # %%
 # As each pipeline version produces different WB's, it is important to compare the number of matched WBs to put all
@@ -523,15 +607,35 @@ sns.barplot(
     ax=ax,
 )
 fig.show()
-
 # %%
-matched_perf_metrics_all = (
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.barplot(
+    data=laboratory_results_matched.groupby(["version"])["n_matched_wbs"]
+    .sum()
+    .reset_index(),
+    x="version",
+    y="n_matched_wbs",
+    ax=ax,
+)
+fig.show()
+# %%
+free_living_matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
 )
 
-matched_perf_metrics_all.style.pipe(
+free_living_matched_perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
+# %%
+laboratory_matched_perf_metrics_all = (
+    laboratory_results_matched.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
+)
+
+laboratory_matched_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 # %%
@@ -541,9 +645,13 @@ free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
     combo_residual_plot, name="Matched WBs - Walking Speed"
 )
 # %%
+laboratory_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
+    combo_residual_plot, name="Matched WBs - Walking Speed"
+)
+# %%
 # Per-cohort analysis
 # *******************
-# Boxplot
+# Barplot
 # ~~~~~~~~~~
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
@@ -561,8 +669,23 @@ sns.barplot(
     ax=ax,
 )
 fig.show()
-
 # %%
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.barplot(
+    data=laboratory_results_matched.groupby(["version", "cohort"])[
+        "n_matched_wbs"
+    ]
+    .sum()
+    .reset_index(),
+    hue="version",
+    y="n_matched_wbs",
+    x="cohort",
+    order=cohort_order,
+    ax=ax,
+)
+fig.show()
+# %%
+# Boxplot
 fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
     data=free_living_results_matched,
@@ -576,19 +699,48 @@ ax.set_ylabel("Absolute Error [m/s]")
 ax.set_title("Absolute Error - Matched Analysis")
 fig.show()
 # %%
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.boxplot(
+    data=laboratory_results_matched,
+    x="cohort",
+    y="walking_speed_mps__abs_error",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+).legend().set_title(None)
+ax.set_ylabel("Absolute Error [m/s]")
+ax.set_title("Absolute Error - Matched Analysis")
+fig.show()
+# %%
 # Processing the per-cohort performance table
-matched_perf_metrics_cohort = (
+free_living_matched_perf_metrics_cohort = (
     free_living_results_matched.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
-matched_perf_metrics_cohort.style.pipe(
+free_living_matched_perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 
-matched_perf_metrics_all = (
+free_living_matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
+)
+# %%
+laboratory_matched_perf_metrics_cohort = (
+    laboratory_results_matched.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
+    .loc[cohort_order]
+)
+laboratory_matched_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
+laboratory_matched_perf_metrics_all = (
+    laboratory_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
 )
@@ -659,6 +811,10 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
     plot_wb_duration_analysis
 )
 # %%
+laboratory_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
+    plot_wb_duration_analysis
+)
+# %%
 # Effect of walking speed on error
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # One important aspect of the algorithm performance is the dependency on the walking speed. Aka, how well do the
@@ -668,20 +824,20 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
 # of 0.05 m/s.
 
 # For plotting all participants at the end
-combined = free_living_results_matched_raw.copy()
-combined["cohort"] = "Combined"
-ws_level_results = pd.concat(
-    [free_living_results_matched_raw, combined]
+free_living_combined = free_living_results_matched_raw.copy()
+free_living_combined ["cohort"] = "Combined"
+free_living_combined_ws_level_results = pd.concat(
+    [free_living_results_matched_raw, free_living_combined ]
 ).reset_index(drop=True)
 
-algo_names = ws_level_results["algo_with_version"].unique()
-cohort_names = ws_level_results["cohort"].unique()
+algo_names = free_living_combined_ws_level_results["algo_with_version"].unique()
+cohort_names = free_living_combined_ws_level_results["cohort"].unique()
 
-ws_level_results["cohort"] = pd.Categorical(
-    ws_level_results["cohort"], categories=cohort_names, ordered=True
+free_living_combined_ws_level_results["cohort"] = pd.Categorical(
+    free_living_combined_ws_level_results["cohort"], categories=cohort_names, ordered=True
 )
-ws_level_results["algo_with_version"] = pd.Categorical(
-    ws_level_results["algo_with_version"], categories=algo_names, ordered=True
+free_living_combined_ws_level_results["algo_with_version"] = pd.Categorical(
+    free_living_combined_ws_level_results["algo_with_version"], categories=algo_names, ordered=True
 )
 
 # Create the figure with subplots
@@ -690,15 +846,106 @@ subfigs = fig.subfigures(len(algo_names), 1, wspace=0.1, hspace=0.1)
 
 # Define the min and max limits for x and y axes
 min_max_x = calc_min_max_with_margin(
-    ws_level_results["walking_speed_mps__reference"]
+    free_living_combined_ws_level_results["walking_speed_mps__reference"]
 )
 min_max_y = calc_min_max_with_margin(
-    ws_level_results["walking_speed_mps__abs_error"]
+    free_living_combined_ws_level_results["walking_speed_mps__abs_error"]
 )
 
 # Plotting each algorithm version
 for subfig, (algo, data) in zip(
-    subfigs, ws_level_results.groupby("algo_with_version", observed=True)
+    subfigs, free_living_combined_ws_level_results.groupby("algo_with_version", observed=True)
+):
+    subfig.suptitle(algo)
+    subfig.supxlabel("Walking Speed (m/s)")
+    subfig.supylabel("Absolute Error (m/s)")
+
+    # Create subplots for each cohort
+    axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)
+
+    for ax, (cohort, cohort_data) in zip(
+        axs, data.groupby("cohort", observed=True)
+    ):
+        # Scatter plot for the cohort data
+        sns.scatterplot(
+            data=cohort_data,
+            x="walking_speed_mps__reference",  # Reference walking speed
+            y="walking_speed_mps__abs_error",  # Absolute error
+            ax=ax,
+            alpha=0.3,
+        )
+
+        # Define bins for walking speed
+        bins = np.arange(
+            0, cohort_data["walking_speed_mps__reference"].max() + 0.05, 0.05
+        )
+        cohort_data["speed_bin"] = pd.cut(
+            cohort_data["walking_speed_mps__reference"], bins=bins
+        )
+
+        # Calculate bin centers
+        cohort_data["bin_center"] = cohort_data["speed_bin"].apply(
+            lambda x: x.mid
+        )
+
+        # Calculate median error per bin and cohort
+        binned_data = (
+            cohort_data.groupby("bin_center", observed=True)[
+                "walking_speed_mps__abs_error"
+            ]
+            .median()
+            .reset_index()
+        )
+
+        # Plot the median lines for each bin
+        sns.scatterplot(
+            data=binned_data,
+            x="bin_center",
+            y="walking_speed_mps__abs_error",  # Median error
+            ax=ax,
+        )
+
+        ax.set_title(cohort)
+        ax.set_xlabel(None)
+        ax.set_ylabel(None)
+
+        # Set axis limits
+        ax.set_xlim(*min_max_x)
+        ax.set_ylim(*min_max_y)
+
+fig.show()
+# %%
+laboratory_combined = laboratory_results_matched_raw.copy()
+laboratory_combined ["cohort"] = "Combined"
+laboratory_combined_ws_level_results = pd.concat(
+    [laboratory_results_matched_raw, laboratory_combined ]
+).reset_index(drop=True)
+
+algo_names = laboratory_combined_ws_level_results["algo_with_version"].unique()
+cohort_names = laboratory_combined_ws_level_results["cohort"].unique()
+
+laboratory_combined_ws_level_results["cohort"] = pd.Categorical(
+    laboratory_combined_ws_level_results["cohort"], categories=cohort_names, ordered=True
+)
+laboratory_combined_ws_level_results["algo_with_version"] = pd.Categorical(
+    laboratory_combined_ws_level_results["algo_with_version"], categories=algo_names, ordered=True
+)
+
+# Create the figure with subplots
+fig = plt.figure(constrained_layout=True, figsize=(24, 5 * len(algo_names)))
+subfigs = fig.subfigures(len(algo_names), 1, wspace=0.1, hspace=0.1)
+
+# Define the min and max limits for x and y axes
+min_max_x = calc_min_max_with_margin(
+    laboratory_combined_ws_level_results["walking_speed_mps__reference"]
+)
+min_max_y = calc_min_max_with_margin(
+    laboratory_combined_ws_level_results["walking_speed_mps__abs_error"]
+)
+
+# Plotting each algorithm version
+for subfig, (algo, data) in zip(
+    subfigs, laboratory_combined_ws_level_results.groupby("algo_with_version", observed=True)
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
