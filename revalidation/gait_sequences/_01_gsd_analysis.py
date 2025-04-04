@@ -96,6 +96,37 @@ results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
     _combined="combined",
 )
+
+lab_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+lab_results = {
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+lab_results = pd.concat(
+    lab_results, names=["algo", "version", *lab_index_cols]
+).assign(
+    # We convert all relative errors to percentages
+    gs_absolute_relative_duration_error=lambda df: df[
+        "gs_absolute_relative_duration_error"
+    ]
+    * 100,
+    gs_relative_duration_error=lambda df: df["gs_relative_duration_error"]
+    * 100,
+)
+lab_results_long = lab_results.reset_index().assign(
+    algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
+    _combined="combined",
+)
+
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
@@ -285,8 +316,6 @@ sns.boxplot(
 )
 fig.show()
 
-# %%
-
 perf_metrics_all = (
     results.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs)
@@ -305,7 +334,6 @@ sns.boxplot(
 )
 fig.show()
 
-# %%
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs)
@@ -407,37 +435,7 @@ perf_metrics_per_cohort.loc[
 # can vary significantly.
 # For a full picture, different groups of tests should be analyzed separately.
 # The approach below should still provide a good overview to compare the algorithms.
-
-lab_index_cols = [
-    "cohort",
-    "participant_id",
-    "time_measure",
-    "test",
-    "trial",
-    "test_name",
-    "test_name_pretty",
-]
-
-lab_results = {
-    v: loader.load_single_results(k, "laboratory")
-    for k, v in algorithms.items()
-}
-lab_results = pd.concat(
-    lab_results, names=["algo", "version", *lab_index_cols]
-).assign(
-    # We convert all relative errors to percentages
-    gs_absolute_relative_duration_error=lambda df: df[
-        "gs_absolute_relative_duration_error"
-    ]
-    * 100,
-    gs_relative_duration_error=lambda df: df["gs_relative_duration_error"]
-    * 100,
-)
-lab_results_long = lab_results.reset_index().assign(
-    algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
-    _combined="combined",
-)
-
+#
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the

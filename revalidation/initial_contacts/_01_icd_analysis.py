@@ -85,6 +85,27 @@ results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
     _combined="combined",
 )
+
+lab_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+lab_results = {
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+lab_results = pd.concat(lab_results, names=["algo", "version", *lab_index_cols])
+lab_results_long = lab_results.reset_index().assign(
+    algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
+    _combined="combined",
+)
+
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
@@ -276,27 +297,6 @@ final_perf_metrics.style.pipe(
 # can vary significantly.
 # For a full picture, different groups of tests should be analyzed separately.
 # The approach below should still provide a good overview to compare the algorithms.
-
-lab_index_cols = [
-    "cohort",
-    "participant_id",
-    "time_measure",
-    "test",
-    "trial",
-    "test_name",
-    "test_name_pretty",
-]
-
-lab_results = {
-    v: loader.load_single_results(k, "laboratory")
-    for k, v in algorithms.items()
-}
-lab_results = pd.concat(lab_results, names=["algo", "version", *lab_index_cols])
-lab_results_long = lab_results.reset_index().assign(
-    algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
-    _combined="combined",
-)
-
 hue_order = ["orig", "new"]
 
 fig, ax = plt.subplots()
