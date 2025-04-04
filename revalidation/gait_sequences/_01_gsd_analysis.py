@@ -24,23 +24,26 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
-# original matlab algorithms.
+# Note, that we use the prefix "MobGap" to refer to the reimplemented python algorithms and "Original Implementation"
+# to refer to the original matlab algorithms.
 # In case of the GsdIluz algorithm, we also have two reimplemented versions.
-# The version `new` uses a slightly modified peak detection algorithm, while the version `new_orig_peak` tries to
-# emulate the original peak detection algorithm as closely as possible.
+# The version `MobGap` uses a slightly modified peak detection algorithm, while the version `MobGap (original peak)`
+# tries to emulate the original peak detection algorithm as closely as possible.
 algorithms = {
-    "GsdIonescu": ("GsdIonescu", "new"),
-    "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "new"),
-    "GsdIluz": ("GsdIluz", "new"),
-    "GsdIluz_orig_peak": ("GsdIluz", "new_orig_peak"),
+    "GsdIonescu": ("GsdIonescu", "MobGap"),
+    "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "MobGap"),
+    "GsdIluz": ("GsdIluz", "MobGap"),
+    "GsdIluz_orig_peak": ("GsdIluz", "MobGap (original peak)"),
 }
 # We only load the matlab algorithms that were also reimplemented
 algorithms.update(
     {
-        "matlab_EPFL_V1-improved_th": ("GsdIonescu", "orig"),
-        "matlab_EPFL_V2-original": ("GsdAdaptiveIonescu", "orig"),
-        "matlab_TA_Iluz-original": ("GsdIluz", "orig"),
+        "matlab_EPFL_V1-improved_th": ("GsdIonescu", "Original Implementation"),
+        "matlab_EPFL_V2-original": (
+            "GsdAdaptiveIonescu",
+            "Original Implementation",
+        ),
+        "matlab_TA_Iluz-original": ("GsdIluz", "Original Implementation"),
     }
 )
 
@@ -96,6 +99,37 @@ results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
     _combined="combined",
 )
+
+lab_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+lab_results = {
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+lab_results = pd.concat(
+    lab_results, names=["algo", "version", *lab_index_cols]
+).assign(
+    # We convert all relative errors to percentages
+    gs_absolute_relative_duration_error=lambda df: df[
+        "gs_absolute_relative_duration_error"
+    ]
+    * 100,
+    gs_relative_duration_error=lambda df: df["gs_relative_duration_error"]
+    * 100,
+)
+lab_results_long = lab_results.reset_index().assign(
+    algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
+    _combined="combined",
+)
+
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
@@ -266,13 +300,13 @@ def format_results(df: pd.DataFrame) -> pd.DataFrame:
 #
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the
-# original peak detection algorithm as closely as possible.
-# The regular `new` version uses a slightly modified peak detection algorithm.
+# Note, that the `MobGap (original peak)` version is a variant of the new ``GsdIluz`` algorithm for which we tried
+# to emulate the original peak detection algorithm as closely as possible.
+# The regular `MobGap` version uses a slightly modified peak detection algorithm.
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-hue_order = ["orig", "new", "new_orig_peak"]
+hue_order = ["Original Implementation", "MobGap", "MobGap (original peak)"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -284,8 +318,6 @@ sns.boxplot(
     ax=ax,
 )
 fig.show()
-
-# %%
 
 perf_metrics_all = (
     results.groupby(["algo", "version"])
@@ -305,7 +337,6 @@ sns.boxplot(
 )
 fig.show()
 
-# %%
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs)
@@ -368,7 +399,142 @@ high_impairment_results = results_long[
     results_long["cohort"].isin(high_impairment_cohorts)
 ].query("algo == @high_impairment_algo")
 
-hue_order = ["orig", "new"]
+hue_order = ["Original Implementation", "MobGap"]
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=high_impairment_results,
+    x="cohort",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=high_impairment_results,
+    x="_combined",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_per_cohort.loc[
+    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
+# %%
+# Laboratory Comparison
+# ----------------------
+# Every datapoint below is one trial of a test.
+# Note, that each datapoint is weighted equally in the calculation of the performance metrics.
+# This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context
+# can vary significantly.
+# For a full picture, different groups of tests should be analyzed separately.
+# The approach below should still provide a good overview to compare the algorithms.
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+hue_order = ["Original Implementation", "MobGap", "MobGap (original peak)"]
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results_long,
+    x="algo",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+fig.show()
+
+# %%
+perf_metrics_all = (
+    lab_results.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs)
+    .pipe(format_results)
+)
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
+
+# %%
+# Per Cohort
+# ~~~~~~~~~~
+# While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results_long,
+    x="cohort",
+    y="f1_score",
+    hue="algo_with_version",
+    ax=ax,
+)
+fig.show()
+
+# %%
+perf_metrics_per_cohort = (
+    lab_results.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs)
+    .pipe(format_results)
+    .loc[cohort_order]
+)
+perf_metrics_per_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
+# %%
+# Per relevant cohort
+# ~~~~~~~~~~~~~~~~~~~
+# Overview over all cohorts is good, but this is not how the GSD algorithms are used in our main pipeline.
+# Here, the HA, CHF, and COPD cohort use the ``GsdIluz`` algorithm, while the ``GsdIonescu`` algorithm is used for the
+# MS, PD, PFF cohorts.
+# Let's look at the performance of these algorithms on the respective cohorts.
+
+low_impairment_results = lab_results_long[
+    lab_results_long["cohort"].isin(low_impairment_cohorts)
+].query("algo == @low_impairment_algo")
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=low_impairment_results,
+    x="cohort",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=low_impairment_results,
+    x="_combined",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_per_cohort.loc[
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
+# %%
+high_impairment_results = lab_results_long[
+    lab_results_long["cohort"].isin(high_impairment_cohorts)
+].query("algo == @high_impairment_algo")
+
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
