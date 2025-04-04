@@ -28,17 +28,17 @@ We compare it against the old model and the McCamley algorithm.
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the newly trained model and old refers to the models trained as
-# part of previous work.
+# Note, that we use the prefix "MobGap" to refer to the newly trained model and "Original Implementation" refers to the
+# models trained as part of previous work.
 # We compare all the available models.
 # For context, the "MS_ALL" models are used by default in the pipelines.
 # For the McCamley algorithm, only a single version exists.
 
 algorithms = {
     "McCamley": ("McCamley", "-"),
-    "UllrichOld__ms_all": ("Ullrich - MS-ALL", "old"),
-    "UllrichOld__ms_ms": ("Ullrich - MS-MS", "old"),
-    "UllrichNew__ms_all": ("Ullrich - MS-ALL", "new"),
+    "UllrichOld__ms_all": ("Ullrich - MS-ALL", "Original Implementation"),
+    "UllrichOld__ms_ms": ("Ullrich - MS-MS", "Original Implementation"),
+    "UllrichNew__ms_all": ("Ullrich - MS-ALL", "MobGap"),
 }
 
 # %%
@@ -294,15 +294,15 @@ def compare_scatter_plot(data, name):
     )
 
     min_max = calc_min_max_with_margin(
-        reformated_data["old"], reformated_data["new"]
+        reformated_data["Original Implementation"], reformated_data["MobGap"]
     )
-    sns.scatterplot(reformated_data, x="old", y="new", hue="cohort", ax=ax)
-    plot_regline(reformated_data["old"], reformated_data["new"], ax=ax)
+    sns.scatterplot(reformated_data, x="Original Implementation", y="MobGap", hue="cohort", ax=ax)
+    plot_regline(reformated_data["Original Implementation"], reformated_data["MobGap"], ax=ax)
     make_square(ax, min_max, draw_diagonal=True)
     move_legend_outside(fig, ax)
     ax.set_title(name)
-    ax.set_xlabel("Old algorithm version")
-    ax.set_ylabel("New algorithm version")
+    ax.set_xlabel("Original Implementation")
+    ax.set_ylabel("MobGap")
     plt.tight_layout()
     plt.show()
 

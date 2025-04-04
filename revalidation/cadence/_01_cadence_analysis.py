@@ -23,13 +23,13 @@ were not run on the same version of the TVS dataset.
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
+# Note, that we use the prefix "MobGap" to refer to the reimplemented python algorithms.
 
 algorithms = {
-    "HKLeeImproved": ("HKLeeImproved", "new"),
-    "ShinImproved": ("ShinImproved", "new"),
-    "matlab_HKLee_Imp2": ("HKLeeImproved", "old"),
-    "matlab_Shin_Imp": ("ShinImproved", "old"),
+    "HKLeeImproved": ("HKLeeImproved", "MobGap"),
+    "ShinImproved": ("ShinImproved", "MobGap"),
+    "matlab_HKLee_Imp2": ("HKLeeImproved", "Original Implementation"),
+    "matlab_Shin_Imp": ("ShinImproved", "Original Implementation"),
 }
 
 # %%
@@ -161,7 +161,7 @@ custom_aggs = [
             reference_col_name="wb__reference",
             detected_col_name="wb__detected",
             icc_type="icc2",
-            # For the lab data, some trials have no results for the old algorithms.
+            # For the lab data, some trials have no results for the Original algorithms.
             nan_policy="omit",
         ),
         column_name=[("icc", "wb_level"), ("icc_ci", "wb_level")],
@@ -318,7 +318,7 @@ low_impairment_results = free_living_results[
     free_living_results["cohort"].isin(low_impairment_cohorts)
 ].query("algo == @low_impairment_algo")
 
-hue_order = ["old", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -519,7 +519,7 @@ low_impairment_results = lab_results[
     lab_results["cohort"].isin(low_impairment_cohorts)
 ].query("algo == @low_impairment_algo")
 
-hue_order = ["old", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(

@@ -24,23 +24,23 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
-# original matlab algorithms.
+# Note, that we use the prefix "MobGap" to refer to the reimplemented python algorithms and "Original Implementation"
+# to refer to the original matlab algorithms.
 # In case of the GsdIluz algorithm, we also have two reimplemented versions.
-# The version `new` uses a slightly modified peak detection algorithm, while the version `new_orig_peak` tries to
-# emulate the original peak detection algorithm as closely as possible.
+# The version `MobGap` uses a slightly modified peak detection algorithm, while the version `MobGap (original peak)`
+# tries to emulate the original peak detection algorithm as closely as possible.
 algorithms = {
-    "GsdIonescu": ("GsdIonescu", "new"),
-    "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "new"),
-    "GsdIluz": ("GsdIluz", "new"),
-    "GsdIluz_orig_peak": ("GsdIluz", "new_orig_peak"),
+    "GsdIonescu": ("GsdIonescu", "MobGap"),
+    "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "MobGap"),
+    "GsdIluz": ("GsdIluz", "MobGap"),
+    "GsdIluz_orig_peak": ("GsdIluz", "MobGap (original peak)"),
 }
 # We only load the matlab algorithms that were also reimplemented
 algorithms.update(
     {
-        "matlab_EPFL_V1-improved_th": ("GsdIonescu", "orig"),
-        "matlab_EPFL_V2-original": ("GsdAdaptiveIonescu", "orig"),
-        "matlab_TA_Iluz-original": ("GsdIluz", "orig"),
+        "matlab_EPFL_V1-improved_th": ("GsdIonescu", "Original Implementation"),
+        "matlab_EPFL_V2-original": ("GsdAdaptiveIonescu", "Original Implementation"),
+        "matlab_TA_Iluz-original": ("GsdIluz", "Original Implementation"),
     }
 )
 
@@ -297,13 +297,13 @@ def format_results(df: pd.DataFrame) -> pd.DataFrame:
 #
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the
-# original peak detection algorithm as closely as possible.
-# The regular `new` version uses a slightly modified peak detection algorithm.
+# Note, that the `MobGap (original peak)` version is a variant of the new ``GsdIluz`` algorithm for which we tried
+# to emulate the original peak detection algorithm as closely as possible.
+# The regular `MobGap` version uses a slightly modified peak detection algorithm.
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-hue_order = ["orig", "new", "new_orig_peak"]
+hue_order = ["Original Implementation", "MobGap", "MobGap (original peak)"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -396,7 +396,7 @@ high_impairment_results = results_long[
     results_long["cohort"].isin(high_impairment_cohorts)
 ].query("algo == @high_impairment_algo")
 
-hue_order = ["orig", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -438,11 +438,7 @@ perf_metrics_per_cohort.loc[
 #
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Note, that the `new_orig_peak` version is a variant of the new ``GsdIluz`` algorithm for which we tried to emulate the
-# original peak detection algorithm as closely as possible.
-# The regular `new` version uses a slightly modified peak detection algorithm.
-
-hue_order = ["orig", "new", "new_orig_peak"]
+hue_order = ["Original Implementation", "MobGap", "MobGap (original peak)"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -531,7 +527,7 @@ high_impairment_results = lab_results_long[
     lab_results_long["cohort"].isin(high_impairment_cohorts)
 ].query("algo == @high_impairment_algo")
 
-hue_order = ["orig", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(

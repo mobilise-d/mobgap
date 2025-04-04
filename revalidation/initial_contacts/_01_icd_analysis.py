@@ -24,8 +24,8 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms and "orig" to refer to the
-# original matlab algorithms.
+# Note, that we use the prefix "MobGap" to refer to the reimplemented python algorithms and "Original Implementation" to
+# refer to the original matlab algorithms.
 
 # Note also that the IcdIonescu algorithm is the reimplementation of the Ani_McCamley algorithm in the original
 # matlab algorithms.
@@ -33,14 +33,14 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 # As they can also be used to detect initial contacts, we present their results as well.
 # However, you should check the dedicated cadence analysis for a more detailed comparison of these algorithms.
 algorithms = {
-    "IcdIonescu": ("IcdIonescu", "new"),
-    "IcdShinImproved": ("IcdShinImproved", "new"),
-    "IcdHKLeeImproved": ("IcdHKLeeImproved", "new"),
+    "IcdIonescu": ("IcdIonescu", "MobGap"),
+    "IcdShinImproved": ("IcdShinImproved", "MobGap"),
+    "IcdHKLeeImproved": ("IcdHKLeeImproved", "MobGap"),
 }
 # We only load the matlab algorithms that we reimplemented
 algorithms.update(
     {
-        "matlab_Ani_McCamley": ("IcdIonescu", "orig"),
+        "matlab_Ani_McCamley": ("IcdIonescu", "Original Implementation"),
     }
 )
 
@@ -221,7 +221,7 @@ def format_results(df: pd.DataFrame) -> pd.DataFrame:
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-hue_order = ["orig", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -297,7 +297,7 @@ final_perf_metrics.style.pipe(
 # can vary significantly.
 # For a full picture, different groups of tests should be analyzed separately.
 # The approach below should still provide a good overview to compare the algorithms.
-hue_order = ["orig", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
