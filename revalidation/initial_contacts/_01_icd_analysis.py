@@ -266,3 +266,100 @@ final_perf_metrics = perf_metrics_per_cohort.query(
 final_perf_metrics.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort"]
 )
+
+# %%
+# Laboratory Comparison
+# ----------------------
+# Every datapoint below is one trial of a test.
+# Note, that each datapoint is weighted equally in the calculation of the performance metrics.
+# This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context
+# can vary significantly.
+# For a full picture, different groups of tests should be analyzed separately.
+# The approach below should still provide a good overview to compare the algorithms.
+
+lab_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+lab_results = {
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+lab_results = pd.concat(lab_results, names=["algo", "version", *lab_index_cols])
+lab_results_long = lab_results.reset_index().assign(
+    algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
+    _combined="combined",
+)
+
+hue_order = ["orig", "new"]
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results_long,
+    x="algo",
+    y="f1_score",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+fig.show()
+
+perf_metrics_all = (
+    lab_results.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs)
+    .pipe(format_results)
+)
+perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
+
+# %%
+# Per Cohort
+# ~~~~~~~~~~
+# While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results_long, x="cohort", y="f1_score", hue="algo_with_version", ax=ax
+)
+fig.show()
+
+perf_metrics_per_cohort = (
+    lab_results.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs)
+    .pipe(format_results)
+    .loc[cohort_order]
+)
+perf_metrics_per_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
+
+# %%
+# Only relevant algorithms
+# ~~~~~~~~~~~~~~~~~~~~~~~~
+# Finally, we present comparison of the old and new implementations of IcdIonescu. IcdShinImproved and
+# IcdHKLeeImproved are excluded because they are cadence algorithms and we don't calculate ICs with these algos in the
+# old Matlab implementation.
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=lab_results_long.query("algo == 'IcdIonescu'"),
+    x="cohort",
+    y="f1_score",
+    hue="algo_with_version",
+    ax=ax,
+)
+fig.show()
+
+final_perf_metrics = perf_metrics_per_cohort.query(
+    "algo == 'IcdIonescu'"
+).reset_index(level="algo", drop=True)
+
+final_perf_metrics.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
