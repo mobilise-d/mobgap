@@ -325,7 +325,11 @@ perf_metrics_all.style.pipe(
 # While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
 fig, ax = plt.subplots()
 sns.boxplot(
-    data=lab_results_long, x="cohort", y="f1_score", hue="algo_with_version", ax=ax
+    data=lab_results_long,
+    x="cohort",
+    y="f1_score",
+    hue="algo_with_version",
+    ax=ax,
 )
 fig.show()
 

@@ -296,8 +296,18 @@ def compare_scatter_plot(data, name):
     min_max = calc_min_max_with_margin(
         reformated_data["Original Implementation"], reformated_data["MobGap"]
     )
-    sns.scatterplot(reformated_data, x="Original Implementation", y="MobGap", hue="cohort", ax=ax)
-    plot_regline(reformated_data["Original Implementation"], reformated_data["MobGap"], ax=ax)
+    sns.scatterplot(
+        reformated_data,
+        x="Original Implementation",
+        y="MobGap",
+        hue="cohort",
+        ax=ax,
+    )
+    plot_regline(
+        reformated_data["Original Implementation"],
+        reformated_data["MobGap"],
+        ax=ax,
+    )
     make_square(ax, min_max, draw_diagonal=True)
     move_legend_outside(fig, ax)
     ax.set_title(name)
