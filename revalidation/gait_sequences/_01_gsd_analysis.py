@@ -63,9 +63,7 @@ local_data_path = (
     if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
     else None
 )
-loader = ValidationResultLoader(
-    "gsd", result_path=local_data_path, version="main"
-)
+loader = ValidationResultLoader("gsd", local_result_path=local_data_path)
 
 
 free_living_index_cols = [
