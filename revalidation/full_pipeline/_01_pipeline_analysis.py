@@ -45,7 +45,6 @@ algorithms = {
 #
 # The file download will print a couple log information, which can usually be ignored.
 # You can also change the `version` parameter to load a different version of the data.
-from pathlib import Path
 
 import pandas as pd
 from mobgap.data.validation_results import ValidationResultLoader
@@ -87,13 +86,9 @@ def format_loaded_results(
     return formatted
 
 
-local_data_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
-    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
-    else None
-)
+local_data_path = get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", None)
 loader = ValidationResultLoader(
-    "full_pipeline", result_path=local_data_path, version="main"
+    "full_pipeline", local_result_path=local_data_path
 )
 
 # Loading free-living data
