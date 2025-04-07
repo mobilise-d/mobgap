@@ -89,7 +89,7 @@ def format_loaded_results(
 
 local_data_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
-    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 1))
     else None
 )
 loader = ValidationResultLoader(
@@ -312,7 +312,7 @@ validation_thresholds = {
         threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
-    "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
+    # "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
 
 
@@ -395,6 +395,9 @@ free_living_combined_perf_metrics_all = (
     free_living_results_combined.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
+)
+free_living_combined_perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
 )
 free_living_combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
