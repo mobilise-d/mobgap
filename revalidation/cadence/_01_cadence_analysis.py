@@ -23,13 +23,13 @@ were not run on the same version of the TVS dataset.
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms.
+# Note, that we use the prefix "MobGap" to refer to the reimplemented python algorithms.
 
 algorithms = {
-    "HKLeeImproved": ("HKLeeImproved", "new"),
-    "ShinImproved": ("ShinImproved", "new"),
-    "matlab_HKLee_Imp2": ("HKLeeImproved", "old"),
-    "matlab_Shin_Imp": ("ShinImproved", "old"),
+    "HKLeeImproved": ("HKLeeImproved", "MobGap"),
+    "ShinImproved": ("ShinImproved", "MobGap"),
+    "matlab_HKLee_Imp2": ("HKLeeImproved", "Original Implementation"),
+    "matlab_Shin_Imp": ("ShinImproved", "Original Implementation"),
 }
 
 # %%
@@ -161,7 +161,7 @@ custom_aggs = [
             reference_col_name="wb__reference",
             detected_col_name="wb__detected",
             icc_type="icc2",
-            # For the lab data, some trials have no results for the old algorithms.
+            # For the lab data, some trials have no results for the Original algorithms.
             nan_policy="omit",
         ),
         column_name=[("icc", "wb_level"), ("icc_ci", "wb_level")],
@@ -318,7 +318,7 @@ low_impairment_results = free_living_results[
     free_living_results["cohort"].isin(low_impairment_cohorts)
 ].query("algo == @low_impairment_algo")
 
-hue_order = ["old", "new"]
+hue_order = ["Original Implementation", "MobGap"]
 
 fig, ax = plt.subplots()
 sns.boxplot(
@@ -465,6 +465,11 @@ fig.show()
 # can vary significantly.
 # For a full picture, different groups of tests should be analyzed separately.
 # The approach below should still provide a good overview to compare the algorithms.
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# The results below represent the average performance across all participants independent of the
+# cohort.
 fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
 fig.show()
@@ -500,4 +505,79 @@ perf_metrics_cohort = (
 )
 perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
+# %%
+# Per relevant cohort
+# ~~~~~~~~~~~~~~~~~~~
+# Overview over all cohorts is good, but this is not how the Cadence algorithms are used in our main pipeline.
+# Here, the HA, CHF, and COPD cohort use the ``IcdShinImproved`` algorithm, while the ``IcdHKLeeImproved``
+# algorithm is used for the MS, PD, PFF cohorts.
+# Let's look at the performance of these algorithms on the respective cohorts.
+
+low_impairment_results = lab_results[
+    lab_results["cohort"].isin(low_impairment_cohorts)
+].query("algo == @low_impairment_algo")
+
+hue_order = ["Original Implementation", "MobGap"]
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=low_impairment_results,
+    x="cohort",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=low_impairment_results,
+    x="_combined",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_cohort.loc[
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
+)
+
+# %%
+high_impairment_results = lab_results[
+    lab_results["cohort"].isin(high_impairment_cohorts)
+].query("algo == @high_impairment_algo")
+
+fig, ax = plt.subplots()
+sns.boxplot(
+    data=high_impairment_results,
+    x="cohort",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    ax=ax,
+)
+sns.boxplot(
+    data=high_impairment_results,
+    x="_combined",
+    y="wb__abs_rel_error",
+    hue="version",
+    hue_order=hue_order,
+    legend=False,
+    ax=ax,
+)
+fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
+fig.show()
+
+# %%
+perf_metrics_cohort.loc[
+    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
+].reset_index("algo", drop=True).style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort"]
 )
