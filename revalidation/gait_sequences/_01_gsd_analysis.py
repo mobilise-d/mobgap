@@ -318,6 +318,7 @@ sns.boxplot(
     ax=ax,
 )
 fig.show()
+# %%
 
 perf_metrics_all = (
     results.groupby(["algo", "version"])
@@ -328,6 +329,7 @@ perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 
+# %%
 # Per Cohort
 # ~~~~~~~~~~
 # While this provides a good overview, it does not fully reflect how these algorithms perform on the different cohorts.
@@ -336,6 +338,7 @@ sns.boxplot(
     data=results_long, x="cohort", y="f1_score", hue="algo_with_version", ax=ax
 )
 fig.show()
+# %%
 
 perf_metrics_per_cohort = (
     results.groupby(["cohort", "algo", "version"])
