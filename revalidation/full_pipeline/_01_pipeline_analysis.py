@@ -305,14 +305,14 @@ final_names_matched = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m/s]": RevalidationInfo(
-        threshold=None, higher_is_better=False
-    ),
+    # "Abs. Error [m/s]": RevalidationInfo(
+    #     threshold=None, higher_is_better=False
+    # ),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
-    "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
+    # "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
 
 
