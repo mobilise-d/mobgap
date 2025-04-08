@@ -57,6 +57,21 @@ body.modal-open {
     display: flex;
 }
 
+html[data-theme="dark"] {
+    .gallery-fullscreen-content {
+        background: #121212;
+        color: white;
+    }
+    .gallery-fullscreen-close {
+        background: #cccccc;
+        color: white;
+    }
+    .gallery-fullscreen-btn {
+        background: rgba(0, 0, 0, 0.6);
+        color: white;
+    }
+}
+
 .gallery-fullscreen-content {
     max-width: 95%;
     max-height: 95vh;
