@@ -336,6 +336,24 @@ Then follow the following steps:
   the release notes
 - Wait for the "publish" job to finish -> Double-check the PyPI page if the new version is available
 
+## Environment Variables during development
+
+Some aspects of mobgap (in particular in the examples, scripts, and revalidation files) are controlled by environment 
+variables as settings need to be specific to the user or are path references to data files that need to be downloaded
+independently.
+Environment variables are usually only required for developers, or for users that want to rerun the examples without
+modified them (however, for them it is usually easier to just modify the example).
+
+To avoid needing to set these variables every time, developers can create a `.env` file in the root of the project.
+When an environment variable is read by using `mobgap.utils.misc.get_env_variable`, it will first check if the variable
+is set in the environment and if not, the value from `.env` file will be used.
+A list of variables with their explanations that are used in the project can be found in `.env.template` in the root folder.
+
+The `.env` file is ignored by git, and should not be committed to the repository.
+
+When working with values returned by `mobgap.utils.misc.get_env_variable`, keep in mind that they are always strings.
+You need to handle parsing accordingly.
+In most cases, empty string, or `0` is used to indicate that the variable is not set.
 
 ## Git Workflow
 

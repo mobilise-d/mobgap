@@ -53,7 +53,7 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         get_matching_ics,
     )
     from mobgap.utils.conversions import as_samples
-    from mobgap.utils.df_operations import create_multi_groupby
+    from mobgap.utils.df_operations import MultiGroupByPrimaryDfEmptyError, create_multi_groupby
 
     with warnings.catch_warnings():
         # We know that these errors might happen, and they are usually not relevant for the evaluation
@@ -71,17 +71,16 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         tolerance_samples = as_samples(tolerance_s, sampling_rate_hz)
 
         # match types
-        matches_per_wb = create_multi_groupby(detected_ic_list, reference_ic_list, groupby="wb_id").apply(
-            lambda df1, df2: categorize_ic_list(
-                ic_list_detected=df1,
-                ic_list_reference=df2,
-                tolerance_samples=tolerance_samples,
-                multiindex_warning=False,
+        try:
+            matches_per_wb = create_multi_groupby(detected_ic_list, reference_ic_list, groupby="wb_id").apply(
+                lambda df1, df2: categorize_ic_list(
+                    ic_list_detected=df1,
+                    ic_list_reference=df2,
+                    tolerance_samples=tolerance_samples,
+                    multiindex_warning=False,
+                )
             )
-        )
-        # check if matches_per_wb has the required columns
-        if matches_per_wb.empty == 1:
-            # then it is an empty dataframe without required columns
+        except MultiGroupByPrimaryDfEmptyError:
             matches_per_wb = pd.DataFrame(
                 {
                     "ic_id_detected": [],

@@ -22,6 +22,10 @@ def _get_group_with_empty_fallback(
         return pd.DataFrame(columns=original_df.columns, index=index)
 
 
+class MultiGroupByPrimaryDfEmptyError(Exception):
+    """Error raised, when the primary df is empty."""
+
+
 class MultiGroupBy:
     """Object representing the grouping result of multiple dataframes.
 
@@ -43,6 +47,11 @@ class MultiGroupBy:
         groupby: Union[str, list[str]],
         **kwargs: Unpack[dict[str, Any]],
     ) -> None:
+        if len(primary_df) == 0:
+            raise MultiGroupByPrimaryDfEmptyError(
+                "The primary df is empty and no groups could be identified. "
+                "This error should be handled explicitly to decide what outputshape is desired in this case."
+            )
         groupby_as_list = [groupby] if isinstance(groupby, str) else groupby
         self._kwargs = kwargs
 
@@ -664,6 +673,7 @@ def cut_into_overlapping_bins(
 
 __all__ = [
     "MultiGroupBy",
+    "MultiGroupByPrimaryDfEmptyError",
     "create_multi_groupby",
     "CustomOperation",
     "apply_transformations",
