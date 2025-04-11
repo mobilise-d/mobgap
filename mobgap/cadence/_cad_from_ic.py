@@ -1,16 +1,18 @@
 import warnings
-from typing import Any
+from types import MappingProxyType
+from typing import Any, Final
 
 import numpy as np
 import pandas as pd
 from tpcp import cf
+from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap.cadence.base import BaseCadCalculator, base_cad_docfiller
 from mobgap.data_transform import HampelFilter
 from mobgap.data_transform.base import BaseFilter
-from mobgap.initial_contacts import IcdShinImproved
+from mobgap.initial_contacts import IcdHKLeeImproved, IcdShinImproved
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.interpolation import robust_step_para_to_sec
@@ -270,13 +272,32 @@ class CadFromIcDetector(CadFromIc):
 
     ic_detector_: BaseIcDetector
 
+    class PredefinedParameters:
+        """Predefined parameters for the :class:`CadFromIc` class.
+
+        These are used to create instances of the :class:`CadFromIc` class with the recommended parameter for regular
+        and impaired walking.
+        """
+
+        _base_paras: Final = MappingProxyType(
+            {
+                "step_time_smoothing": HampelFilter(2, 3.0),
+                "max_interpolation_gap_s": 3,
+                "silence_ic_warning": False,
+            }
+        )
+
+        regular_walking: Final = MappingProxyType({"ic_detector": IcdShinImproved(), **_base_paras})
+        impaired_walking: Final = MappingProxyType({"ic_detector": IcdHKLeeImproved(), **_base_paras})
+
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.regular_walking.items()})
     def __init__(
         self,
-        ic_detector: BaseIcDetector = cf(IcdShinImproved()),
+        ic_detector: BaseIcDetector,
         *,
-        step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
-        max_interpolation_gap_s: int = 3,
-        silence_ic_warning: bool = False,
+        step_time_smoothing: BaseFilter,
+        max_interpolation_gap_s: int,
+        silence_ic_warning: bool,
     ) -> None:
         self.ic_detector = ic_detector
         self.silence_ic_warning = silence_ic_warning

@@ -15,7 +15,7 @@ from mobgap.cadence import CadFromIcDetector
 from mobgap.cadence.base import BaseCadCalculator
 from mobgap.gait_sequences import GsdIluz, GsdIonescu
 from mobgap.gait_sequences.base import BaseGsDetector
-from mobgap.initial_contacts import IcdHKLeeImproved, IcdIonescu, IcdShinImproved, refine_gs
+from mobgap.initial_contacts import IcdIonescu, refine_gs
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
@@ -115,7 +115,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "gait_sequence_detection": GsdIluz(),
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
-                "cadence_calculation": CadFromIcDetector(IcdShinImproved(), silence_ic_warning=True),
+                "cadence_calculation": CadFromIcDetector(
+                    **dict(CadFromIcDetector.PredefinedParameters.regular_walking, silence_ic_warning=True)
+                ),
                 "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": WsNaive(),
                 "turn_detection": TdElGohary(),
@@ -132,7 +134,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "gait_sequence_detection": GsdIonescu(),
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
-                "cadence_calculation": CadFromIcDetector(IcdHKLeeImproved(), silence_ic_warning=True),
+                "cadence_calculation": CadFromIcDetector(
+                    **dict(CadFromIcDetector.PredefinedParameters.impaired_walking, silence_ic_warning=True)
+                ),
                 "stride_length_calculation": SlZijlstra(),
                 "walking_speed_calculation": WsNaive(),
                 "turn_detection": TdElGohary(),
