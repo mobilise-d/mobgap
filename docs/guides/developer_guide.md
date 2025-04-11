@@ -338,7 +338,7 @@ Then follow the following steps:
 
 ## Environment Variables during development
 
-Some aspects of mobgap (in particular in the examples, scripts, and revalidation files) is controlled by environment 
+Some aspects of mobgap (in particular in the examples, scripts, and revalidation files) are controlled by environment 
 variables as settings need to be specific to the user or are path references to data files that need to be downloaded
 independently.
 Environment variables are usually only required for developers, or for users that want to rerun the examples without

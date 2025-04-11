@@ -50,7 +50,7 @@ class MultiGroupBy:
         if len(primary_df) == 0:
             raise MultiGroupByPrimaryDfEmptyError(
                 "The primary df is empty and no groups could be identified. "
-                "This error should be handled explicitly to decide what outputshape is desire in this case."
+                "This error should be handled explicitly to decide what outputshape is desired in this case."
             )
         groupby_as_list = [groupby] if isinstance(groupby, str) else groupby
         self._kwargs = kwargs
