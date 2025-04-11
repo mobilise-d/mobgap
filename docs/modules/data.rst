@@ -54,6 +54,13 @@ Load Functions
     load_mobilised_matlab_format
     parse_reference_parameters
 
+Validation Results Data Loader
+------------------------------
+.. autosummary::
+   :toctree: generated/data/validation_results
+   :template: class.rst
+
+    validation_results.ValidationResultLoader
 
 Technical Validation Study (TVS) Data Loader
 --------------------------------------------
@@ -79,6 +86,16 @@ MS Project Dataset
     MsProjectDataset
 
 
+Example Data
+------------
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    LabExampleDataset
+
+
 Base Classes
 ++++++++++++
 .. autosummary::
@@ -86,10 +103,6 @@ Base Classes
    :template: class.rst
 
     BaseTVSDataset
-
-
-Example Data
-------------
 
 Dataset Classes
 +++++++++++++++
@@ -114,7 +127,7 @@ Load Functions
     get_all_lab_example_data_paths
 
 
-Mobilise-D v1.0 Pipeline Result Loaders
+Mobilise-D Original Pipeline Result Loaders
 ---------------------------------------
 .. currentmodule:: mobgap.data
 
