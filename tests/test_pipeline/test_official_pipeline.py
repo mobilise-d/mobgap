@@ -51,3 +51,18 @@ class TestMetaMobilisedMetaPipeline(TestAlgorithmMixin):
     @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().run(LabExampleDataset()[0])
+
+
+class TestFullPipelineRegression:
+    @pytest.mark.parametrize("pipeline", [MobilisedPipelineHealthy, MobilisedPipelineImpaired])
+    def test_full_pipeline(self, pipeline, snapshot):
+        # Test the full pipeline with a sample dataset (note, that this is really short, and does not cover all edge
+        # cases, the pipeline is ready to handle)
+        dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+            cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+        )
+        result = pipeline().run(dataset)
+
+        snapshot.assert_match(result.per_stride_parameters_, name="per_stride_parameters")
+        snapshot.assert_match(result.per_wb_parameters_.drop(columns="rule_obj"), name="per_wb_parameters")
+        snapshot.assert_match(result.aggregated_parameters_, name="aggregated_parameters")
