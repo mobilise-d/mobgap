@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-SRC_ROOT = Path(__file__).parent.parent
-PACKAGE_ROOT = Path(__file__).parent
+SRC_ROOT = Path(__file__).parent
+PACKAGE_ROOT = SRC_ROOT.parent.parent
 
 __version__ = "0.10.0"
