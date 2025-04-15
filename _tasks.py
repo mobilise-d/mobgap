@@ -29,7 +29,7 @@ def task_no_long_file_names():
 def task_update_example_data(raise_if_changes=False):
     import pooch
 
-    REGISTRY_PATH = HERE / "mobgap/data/_example_data_registry.txt"
+    REGISTRY_PATH = HERE / "src/mobgap/data/_example_data_registry.txt"
 
     # Hash of old registry
     with open(REGISTRY_PATH) as f:
@@ -87,6 +87,7 @@ def update_version_strings(file_path, new_version):
 
 
 def update_version(version):
+    # TODO: Update for UV
     subprocess.run(["poetry", "version", version], shell=False, check=True)
     new_version = (
         subprocess.run(["poetry", "version"], shell=False, check=True, capture_output=True)
