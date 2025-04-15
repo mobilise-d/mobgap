@@ -10,7 +10,7 @@ from mobgap.data._mobilised_matlab_loader import (
     matlab_dataset_docfiller,
 )
 
-LOCAL_EXAMPLE_PATH = PACKAGE_ROOT.parent / "example_data/"
+LOCAL_EXAMPLE_PATH = PACKAGE_ROOT / "example_data/"
 
 BRIAN = None
 
