@@ -9,7 +9,7 @@ specific cohort and height.
 """
 
 import pandas as pd
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
 # %%
@@ -21,7 +21,7 @@ from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 # Luckily, the all the example data is from the same participant, just recorded at different times.
 
 DATA_PATH = (
-    PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
+    PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 )
 
 data = pd.read_csv(
