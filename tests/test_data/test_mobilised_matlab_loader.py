@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.data import (
     GenericMobilisedDataset,
     get_all_lab_example_data_paths,
@@ -22,7 +22,7 @@ def example_data_path():
 
 @pytest.fixture
 def example_missing_data_path():
-    potential_paths = (PACKAGE_ROOT / "tests" / "test_data" / "data" / "lab_missing_sensor").rglob("data.mat")
+    potential_paths = (PROJECT_ROOT / "tests" / "test_data" / "data" / "lab_missing_sensor").rglob("data.mat")
     return {(path.parents[1].name, path.parents[0].name): path.parent for path in potential_paths}[("HA", "001")]
 
 
@@ -334,7 +334,7 @@ class TestDatasetClass:
 
     def test_invalid_path_type(self):
         ds = GenericMobilisedDataset(
-            (PACKAGE_ROOT / "example_data/data/lab").rglob("data.mat"),
+            (PROJECT_ROOT / "example_data/data/lab").rglob("data.mat"),
             test_level_names=GenericMobilisedDataset.COMMON_TEST_LEVEL_NAMES["tvs_lab"],
             measurement_condition="laboratory",
         )

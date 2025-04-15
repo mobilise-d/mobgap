@@ -7,9 +7,10 @@ from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.aggregation import MobilisedAggregator
+from mobgap import PROJECT_ROOT
 
-BASE_PATH = Path(__file__).parent.parent.parent
-DATA_PATH = BASE_PATH / "example_data/original_results/mobilised_aggregator"
+
+DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 
 
 @pytest.fixture
