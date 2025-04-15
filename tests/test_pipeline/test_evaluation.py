@@ -525,7 +525,7 @@ class TestApplyAggregations:
             apply_aggregations(df, aggs, missing_columns="ignore")
 
 
-@pytest.fixture()
+@pytest.fixture
 def combined_det_ref_dmo_df():
     metrics = [
         "cadence_spm",
@@ -543,7 +543,7 @@ def combined_det_ref_dmo_df():
     return df
 
 
-@pytest.fixture()
+@pytest.fixture
 def combined_det_ref_dmo_df_with_errors():
     metrics = [
         "cadence_spm",

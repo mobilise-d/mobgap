@@ -2,14 +2,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mobgap import PACKAGE_ROOT
+from mobgap import SRC_ROOT
 from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 
 
 class TestDataThresholds:
     def test_snapshot(self, snapshot):
         input_data = pd.read_csv(
-            PACKAGE_ROOT.parent / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
+            SRC_ROOT / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
         )
         thresholds = get_mobilised_dmo_thresholds()
 
@@ -22,7 +22,7 @@ class TestDataThresholds:
 
     def test_heights(self):
         input_data = pd.read_csv(
-            PACKAGE_ROOT.parent / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
+            SRC_ROOT / "example_data//original_results//mobilised_aggregator//aggregation_test_input.csv"
         )
         thresholds = get_mobilised_dmo_thresholds()
 

@@ -16,7 +16,7 @@ class TestMetaCadFromIc(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = CadFromIc
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().calculate(
             pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),
@@ -30,7 +30,7 @@ class TestMetaCadFromIcDetector(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = CadFromIcDetector
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(silence_ic_warning=True).calculate(
             pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),

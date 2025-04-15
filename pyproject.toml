@@ -3,19 +3,6 @@ name = "mobgap"
 version = "0.10.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = [
-<<<<<<< HEAD
-    "Arne Küderle <arne.kuederle@fau.de>",
-    "Felix Kluge <felix.kluge@novartis.com>",
-    "Paolo Tasca <paolo.tasca@polito.it>",
-	"Metin Bicer <metin.bicer@newcastle.ac.uk>",
-    "Annika Mücke <annika-muecke@outlook.de>",
-    "Dimitrios Megaritis <Dimitris.Megaritis@newcastle.ac.uk>",
-    "Zamal Babar <zamalali9866@gmail.com>",
-    "Alexandru Stihi <astihi1@sheffield.ac.uk>",
-    "Chloe Hinchliffe <Chloe.Hinchliffe@newcastle.ac.uk>",
-    "Cameron Kirk <Cameron.Kirk@newcastle.ac.uk>",
-    "Björn Eskofier <bjoern.eskofier@fau.de>"
-=======
     { name = "Arne Küderle", email = "arne.kuederle@fau.de" },
     { name = "Felix Kluge", email = "felix.kluge@novartis.com" },
     { name = "Paolo Tasca", email = "paolo.tasca@polito.it" },
@@ -27,9 +14,8 @@ authors = [
     { name = "Chloe Hinchliffe", email = "Chloe.Hinchliffe@newcastle.ac.uk" },
     { name = "Cameron Kirk", email = "Cameron.Kirk@newcastle.ac.uk" },
     { name = "Björn Eskofier", email = "bjoern.eskofier@fau.de" },
->>>>>>> ded8eff1 (Experiemntal migration to uv)
 ]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
@@ -51,20 +37,20 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "poethepoet>=0.22.0,<0.23",
-    "pytest>=7.4.0,<8",
-    "pytest-cov>=4.1.0,<5",
-    "ruff>=0.5.0,<0.6",
-    "sphinx>=7.2.6,<8",
-    "sphinx-gallery>=0.18.0,<0.19",
-    "memory-profiler>=0.61.0,<0.62",
-    "matplotlib>=3.7.2,<4",
-    "toml>=0.10.2,<0.11",
-    "pydata-sphinx-theme>=0.16.0,<0.17",
-    "myst-parser>=2.0.0,<3",
-    "ipykernel>=6.25.1,<7",
-    "numpydoc>=1.6.0,<2",
-    "ipympl>=0.9.4,<0.10",
+    "poethepoet>=0.22.0",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.5.0",
+    "sphinx>=7.2.6",
+    "sphinx-gallery>=0.18.0",
+    "memory-profiler>=0.61.0",
+    "matplotlib>=3.7.2",
+    "toml>=0.10.2",
+    "pydata-sphinx-theme>=0.16.0",
+    "myst-parser>=2.0.0",
+    "ipykernel>=6.25.1",
+    "numpydoc>=1.6.0",
+    "ipympl>=0.9.4",
 ]
 
 [build-system]
@@ -77,8 +63,8 @@ _auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
 _auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_auto_fix", "_format"]
 format_unsafe = ["_auto_fix_unsafe", "_format"]
-lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff check mobgap --output-format=github"
+lint = { cmd = "ruff check src --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff check src --output-format=github"
 _check_format = "ruff format . --check"
 _file_length = { "script" = "_tasks:task_no_long_file_names()", help = "Check the length of all files." }
 ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data", "_file_length"], help = "Check all potential format and linting issues." }
