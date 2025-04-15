@@ -1,5 +1,5 @@
-from unittest.mock import patch
 import warnings
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -372,7 +372,7 @@ class TestApplyAggregations:
                 with pytest.warns(UserWarning) as w:
                     res = apply_aggregations(
                         combined_det_ref_dmo_df_with_errors, aggregations, missing_columns=missing_columns
-                )
+                    )
                 assert len(w) == 1
             else:
                 with warnings.catch_warnings(record=True) as w:

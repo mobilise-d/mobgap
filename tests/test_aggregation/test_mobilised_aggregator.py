@@ -1,14 +1,11 @@
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.aggregation import MobilisedAggregator
 from mobgap import PROJECT_ROOT
-
+from mobgap.aggregation import MobilisedAggregator
 
 DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 

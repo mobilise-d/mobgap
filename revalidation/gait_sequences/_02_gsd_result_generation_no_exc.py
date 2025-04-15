@@ -112,9 +112,7 @@ from joblib import Memory
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
 
-cache_dir = Path(
-    get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache")
-)
+cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
 datasets_free_living = TVSFreeLivingDataset(
     get_env_var("MOBGAP_TVS_DATASET_PATH"),
