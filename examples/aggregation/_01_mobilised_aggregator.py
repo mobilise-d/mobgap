@@ -21,9 +21,7 @@ import pandas as pd
 from mobgap import PROJECT_ROOT
 from mobgap.aggregation import MobilisedAggregator
 
-DATA_PATH = (
-    PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
-)
+DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 
 data = pd.read_csv(
     DATA_PATH / "aggregation_test_input.csv", index_col=0

@@ -20,9 +20,7 @@ from mobgap.aggregation import apply_thresholds, get_mobilised_dmo_thresholds
 # as meta-data such as the participant's height is required.
 # Luckily, the all the example data is from the same participant, just recorded at different times.
 
-DATA_PATH = (
-    PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
-)
+DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 
 data = pd.read_csv(
     DATA_PATH / "aggregation_test_input.csv", index_col=0
