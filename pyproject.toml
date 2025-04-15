@@ -3,19 +3,6 @@ name = "mobgap"
 version = "0.10.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = [
-<<<<<<< HEAD
-    "Arne Küderle <arne.kuederle@fau.de>",
-    "Felix Kluge <felix.kluge@novartis.com>",
-    "Paolo Tasca <paolo.tasca@polito.it>",
-	"Metin Bicer <metin.bicer@newcastle.ac.uk>",
-    "Annika Mücke <annika-muecke@outlook.de>",
-    "Dimitrios Megaritis <Dimitris.Megaritis@newcastle.ac.uk>",
-    "Zamal Babar <zamalali9866@gmail.com>",
-    "Alexandru Stihi <astihi1@sheffield.ac.uk>",
-    "Chloe Hinchliffe <Chloe.Hinchliffe@newcastle.ac.uk>",
-    "Cameron Kirk <Cameron.Kirk@newcastle.ac.uk>",
-    "Björn Eskofier <bjoern.eskofier@fau.de>"
-=======
     { name = "Arne Küderle", email = "arne.kuederle@fau.de" },
     { name = "Felix Kluge", email = "felix.kluge@novartis.com" },
     { name = "Paolo Tasca", email = "paolo.tasca@polito.it" },
@@ -27,9 +14,8 @@ authors = [
     { name = "Chloe Hinchliffe", email = "Chloe.Hinchliffe@newcastle.ac.uk" },
     { name = "Cameron Kirk", email = "Cameron.Kirk@newcastle.ac.uk" },
     { name = "Björn Eskofier", email = "bjoern.eskofier@fau.de" },
->>>>>>> ded8eff1 (Experiemntal migration to uv)
 ]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
@@ -79,8 +65,8 @@ _auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
 _auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_rst_heading_fix", "_auto_fix", "_format"]
 format_unsafe = ["_auto_fix_unsafe", "_format"]
-lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
-_lint_ci = "ruff check mobgap --output-format=github"
+lint = { cmd = "ruff check src --fix", help = "Lint all files with ruff." }
+_lint_ci = "ruff check src --output-format=github"
 _check_format = "ruff format . --check"
 _file_length = { "script" = "_tasks:task_no_long_file_names()", help = "Check the length of all files." }
 ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data", "_file_length"], help = "Check all potential format and linting issues." }

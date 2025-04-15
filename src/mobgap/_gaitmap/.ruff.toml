@@ -1,0 +1,6 @@
+extend = "../../../.ruff.toml"
+
+[lint]
+ignore = [
+    "ANN"
+]

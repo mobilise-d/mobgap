@@ -12,7 +12,7 @@ class TestMetaWsNaive(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = WsNaive
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().calculate(
             data=pd.DataFrame(np.zeros((100, 3)), columns=["acc_x", "acc_y", "acc_z"]),

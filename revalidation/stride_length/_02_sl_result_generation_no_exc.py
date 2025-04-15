@@ -101,13 +101,13 @@ class DummySlAlgo(BaseSlCalculator):
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """ "Run" the algorithm."""
-        assert (
-            measurement_condition is not None
-        ), "measurement_condition must be provided"
+        assert measurement_condition is not None, (
+            "measurement_condition must be provided"
+        )
         assert dp_group is not None, "dp_group must be provided"
-        assert (
-            current_gs_absolute is not None
-        ), "current_gs_start_absolute must be provided"
+        assert current_gs_absolute is not None, (
+            "current_gs_start_absolute must be provided"
+        )
 
         cached_load_old_sl_results = hybrid_cache(lru_cache_maxsize=1)(
             load_old_sl_results

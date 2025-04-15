@@ -12,7 +12,7 @@ from mobgap.initial_contacts.evaluation import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_ic_list_default():
     return pd.DataFrame([10, 20, 40, 50], columns=["ic"]).rename_axis("ic_id")
 
