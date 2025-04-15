@@ -1,4 +1,5 @@
 from unittest.mock import patch
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -367,16 +368,20 @@ class TestApplyAggregations:
             ]
 
         if missing_columns in ["ignore", "warn"]:
-            with pytest.warns(UserWarning if missing_columns == "warn" else None) as w:
-                res = apply_aggregations(
-                    combined_det_ref_dmo_df_with_errors, aggregations, missing_columns=missing_columns
-                )
-            assert_series_equal(res, pd.Series())
-
             if missing_columns == "warn":
+                with pytest.warns(UserWarning) as w:
+                    res = apply_aggregations(
+                        combined_det_ref_dmo_df_with_errors, aggregations, missing_columns=missing_columns
+                )
                 assert len(w) == 1
             else:
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always")
+                    res = apply_aggregations(
+                        combined_det_ref_dmo_df_with_errors, aggregations, missing_columns=missing_columns
+                    )
                 assert len(w) == 0
+            assert_series_equal(res, pd.Series())
 
         elif missing_columns == "raise":
             with pytest.raises(MissingDataColumnsError):
