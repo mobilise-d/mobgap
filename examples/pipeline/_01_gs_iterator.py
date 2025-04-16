@@ -242,12 +242,14 @@ for (_, data), custom_result in custom_iterator.iterate(
 # We have to explicitly cast the value if we care about the type-correctness,
 from typing import cast
 
-n_samples = cast(pd.Series, custom_iterator.results_.n_samples)
+n_samples = cast("pd.Series", custom_iterator.results_.n_samples)
 n_samples
 
 # %%
 # For the filtered data, we did not apply any aggregation and hence just get a list of all results.
-filtered_data = cast(list[pd.DataFrame], custom_iterator.results_.filtered_data)
+filtered_data = cast(
+    "list[pd.DataFrame]", custom_iterator.results_.filtered_data
+)
 filtered_data
 
 

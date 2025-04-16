@@ -35,9 +35,9 @@ from pprint import pprint
 
 import numpy as np
 import pandas as pd
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 
-DATA_PATH = PACKAGE_ROOT.parent / "example_data/dmo_data/dummy_dmo_data"
+DATA_PATH = PROJECT_ROOT / "example_data/dmo_data/dummy_dmo_data"
 
 detected_dmo = pd.read_csv(DATA_PATH / "detected_dmo_data.csv").set_index(
     ["visit_type", "participant_id", "measurement_date", "wb_id"]

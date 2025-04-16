@@ -21,7 +21,7 @@ class TestMetaLrcEmulationPipeline(TestAlgorithmMixin):
     ALGORITHM_CLASS = LrcEmulationPipeline
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(LrcMcCamley()).run(
             LabExampleDataset(reference_system="INDIP").get_subset(
