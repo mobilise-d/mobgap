@@ -70,8 +70,8 @@ _lint_ci = "ruff check src --output-format=github"
 _check_format = "ruff format . --check"
 _file_length = { "script" = "_tasks:task_no_long_file_names()", help = "Check the length of all files." }
 ci_check = { sequence = ["_check_format", "_lint_ci", "_check_update_example_data", "_file_length"], help = "Check all potential format and linting issues." }
-test = { cmd = "pytest tests --cov=mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
-test_ci = { cmd = "pytest tests --cov=mobgap --cov-report=term-missing --cov-report=xml --snapshot-only-check", help = "Run Pytest with coverage and fail on missing snapshots." }
+test = { cmd = "pytest tests --cov=src/mobgap --cov-report=term-missing --cov-report=xml", help = "Run Pytest with coverage." }
+test_ci = { cmd = "pytest tests --cov=src/mobgap --cov-report=term-missing --cov-report=xml --snapshot-only-check", help = "Run Pytest with coverage and fail on missing snapshots." }
 docs = { "script" = "_tasks:task_docs()",  help = "Build the html docs using Sphinx." }
 docs_clean = { "script" = "_tasks:task_docs(clean=True)",  help = "Remove all old build files and build a clean version of the docs." }
 docs_linkcheck = { "script" = "_tasks:task_docs(builder='linkcheck')", help = "Check all links in the built html docs." }
