@@ -2,12 +2,12 @@
 # Development Guide
 
 This document contains information for developers that need further in-depth information on how to setup and use tools
-and learn about programing methods used in development of this project.
+and learn about programming methods used in development of this project.
 
 If you are looking for a higher level overview over the guiding ideas and structure of this project, please visit the
 [Project Structure document](#proj_struct).
 
-## Project Setup and Poetry
+## Project Setup and UV
 
 ### Repo cloning
 
@@ -22,75 +22,34 @@ cd mobgap
 
 ### Setup Python
 
-*mobgap* only supports Python 3.9 and newer.
-First, install a compatible version of Python.
-We highly recommend to follow [this guide](https://github.com/mad-lab-fau/mad-cookiecutter/blob/main/python-setup-tips.md)
+*mobgap* uses `uv` as a Python version and dependency manager.
+`uv` can handle both the installation of Python and any dependencies.
 
-*mobgap* uses [poetry](https://python-poetry.org) to manage its dependencies.
-First install poetry `>=1.5`.
+Install `uv` following the instructions found [here](https://docs.astral.sh/uv/getting-started/installation/).
+Once you have uv installed, open a terminal and run `uv --help` to check if it is running correctly.
 
-Then you need to decide, if you want to store the virtual environment in the project folder or not.
-By default, poetry will create the venv in a global location.
-This is a good default, but if you think you will regularly need to delete the venv, you might want to store it in the
-project folder.
-To do this, run the following command **inside the mobgap folder**:
+Then navigate to the project directory and run the following commands:
 
 ```bash
-poetry config virtualenvs.in-project true
+uv python pin 3.11
+uv sync
 ```
+This will create a new virtual environment with Python 3.11 and install all dependencies listed in `pyproject.toml`.
 
+If you want a different python version for testing, rerun these two commands with a different version.
 
-Once you installed poetry, run the following commands **inside the mobgap folder** to initialize a virtual env and 
-install all development dependencies:
+For more tips for using `uv` check out [this guide](https://github.com/mad-lab-fau/mad-cookiecutter/blob/main/python-setup-tips.md)
 
-```bash
-# Check the linked install guide above to learn how to find the Python version
-poetry env use "path/to/python/you/want/to/use"
-poetry install --all-extras
-```
-
-Depending on the configuration above this will create a new folder called `.venv` inside your project dir or a new venv
-in the poetry cache directory.
-It contains the python interpreter and all site packages.
-You can point your IDE to this folder to use this version of Python.
-For PyCharm you can find information about this 
-[here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html) and newer versions of PyCharm should also support Poetry environments directly.
-
-**In case you encounter any issues (with this command or any command below), please check the section on
- [troubleshooting](#trouble-shooting)**.
- 
-To add new dependencies:
-
-```bash
-poetry add <package name>
-
-# Or in case of a dev dependency
-poetry add --group dev <package name>
-```
-
-For more commands see the [official documentation](https://python-poetry.org/docs/cli/).
-
-To update dependencies after the `pyproject.toml` file was changed (It is a good idea to run this after a `git pull`):
-```bash
-poetry install
-
-# or (see differences below)
-poetry update
-```
-
-Running `poetry install` will only install packages that are not yet installed. `poetry update` will also check, if 
-newer versions of already installed packages exist.
 
 ## Tools we are using
 
 To make it easier to run commandline tasks we use [poethepoet](https://github.com/nat-n/poethepoet) to provide a 
 cross-platform cli for common tasks.
-All commands need to be executed in the `venv` created by poetry.
 
 To list the available tasks, run:
 
 ```bash
-$ poetry run poe
+$ uv run poe
 ...
 CONFIGURED TASKS
   format            
@@ -110,10 +69,10 @@ CONFIGURED TASKS
 
 To run one of the commands execute (e.g. the `test` command):
 ```bash
-poetry run poe test
+uv run poe test
 ```
 
-**Protip**: If you installed poethepoet globally, you can skip the `poetry run` part at the beginning.
+**Protip**: If you installed poethepoet globally, you can skip the `uv run` part at the beginning.
 
 ### Formatting and Linting
 
@@ -126,13 +85,13 @@ To make your live easier, you should also set your IDE tools to support the nump
 To run formatting you can use
 
 ```bash
-poetry run poe format
+uv run poe format
 ```
 
 and for linting you can run
 
 ```bash
-poetry run poe lint
+uv run poe lint
 ```
 
 Tou should run this as often as possible!
@@ -144,13 +103,13 @@ At least once before any `git push`.
 To build the documentation, run:
 
 ```bash
-poetry run poe docs
+uv run poe docs
 ```
 
 Afterwards, you can preview the documentation by running:
 
 ```bash
-poetry run poe docs_preview
+uv run poe docs_preview
 ```
 
 This should display a URL in your terminal, which you can open in your browser.
@@ -159,7 +118,7 @@ Sometimes building the documentation fails, because you still have some old file
 In this case, you can run:
 
 ```bash
-poetry run poe docs_clean
+uv run poe docs_clean
 ```
 
 to force a clean build.
@@ -241,14 +200,6 @@ The results of a snapshot test should be committed to the repo.
 Make reasonable decisions when it comes to the datasize of this data.
 
 For more information see `tpcp.testing.PyTestSnapshotTest`.
-
-#### Manual Testing
-
-While all automated tests should go in the test folder, it might be helpful to create some external test script from 
-time to time.
-For this you can simply install the package locally (using `poetry install`) and even get a Jupyter kernel with all
-dependencies installed (see [IDE Config](#Configure-your-IDE)).
-
  
 ## Configure your IDE
 (Configure-your-IDE)=
@@ -274,9 +225,7 @@ prototype your scientific code.
 To set up a Jupyter environment that has mobgap and all dependencies installed, run the following commands:
 
 ```bash
-# poetry install including root!
-poetry install
-poetry run poe conf_jupyter
+uv run poe conf_jupyter
 ``` 
 
 After this you can start Jupyter as always, but select "mobgap" as a kernel when you want to run a notebook.
@@ -321,7 +270,7 @@ Releases can happen often and even with small added features.
 If you are ready to release a new version, you can use the following command:
 
 ```bash
-poetry run poe version {major|minor|patch}
+uv run poe version {major|minor|patch}
 ```
 
 This will update the version number in all relevant files.
@@ -455,18 +404,6 @@ git config --global core.longpaths true
 
 Learn more about this here: https://stackoverflow.com/questions/22575662/filename-too-long-in-git-for-windows
 
-### Warning/Error about outdated/missing dependencies in the lock file when running `install` or `update`
-
-This happens when the `pyproject.toml` file was changed either by a git update or by manual editing.
-To resolve this issue, run the following and then rerun the command you wanted to run:
-
-```bash
-poetry update --lock
-``` 
-
-This will synchronise the lock file with the packages listed in `pyproject.toml` 
-
-
 ## Other important information
 
 ### Sklearn Versions and InconsistentVersionWarning
@@ -474,10 +411,10 @@ This will synchronise the lock file with the packages listed in `pyproject.toml`
 Scikit learn model are not guaranteed to work across sklearn versions.
 The laterality algorithms that we use ships a pretrained model that is generated by the `scripts/retrain_lrc_ullrich_msproject.py` script.
 This script uses the sklearn version that is installed in the environment.
-In case, users use the model with a different sklearn version, they might encounter a `InconsistentVersionWarning` when they import the respecive
+In case, users use the model with a different sklearn version, they might encounter a `InconsistentVersionWarning` when they import the respective
 module.
 
 This is not generally a problem, but from time to time, we should retrain the model with the latest sklearn version
-and then update the minumum sklearn version that we support in the pyproject.toml file.
+and then update the minimum sklearn version that we support in the pyproject.toml file.
 
 This is not ideal... But there is no real way of packaging models that are version independent.
