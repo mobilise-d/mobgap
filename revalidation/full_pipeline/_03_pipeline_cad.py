@@ -35,7 +35,10 @@ from typing import Optional
 
 algorithms = {
     "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "MobGap"),
-    "EScience_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "Original Implementation"),
+    "EScience_MobiliseD_Pipeline": (
+        "Mobilise-D Pipeline",
+        "Original Implementation",
+    ),
 }
 # %%
 # The code below loads the data and prepares it for the analysis.
@@ -691,9 +694,7 @@ subfigs = fig.subfigures(len(algo_names), 1, wspace=0.1, hspace=0.1)
 min_max_x = calc_min_max_with_margin(
     ws_level_results["walking_speed_mps__reference"]
 )
-min_max_y = calc_min_max_with_margin(
-    ws_level_results["cadence_spm__abs_error"]
-)
+min_max_y = calc_min_max_with_margin(ws_level_results["cadence_spm__abs_error"])
 
 # Plotting each algorithm version
 for subfig, (algo, data) in zip(

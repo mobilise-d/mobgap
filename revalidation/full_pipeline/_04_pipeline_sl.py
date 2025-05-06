@@ -35,7 +35,10 @@ from typing import Optional
 
 algorithms = {
     "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "MobGap"),
-    "EScience_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "Original Implementation"),
+    "EScience_MobiliseD_Pipeline": (
+        "Mobilise-D Pipeline",
+        "Original Implementation",
+    ),
 }
 # %%
 # The code below loads the data and prepares it for the analysis.
@@ -262,9 +265,7 @@ final_names_matched = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(
-        threshold=None, higher_is_better=False
-    ),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
