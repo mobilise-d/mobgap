@@ -1,7 +1,7 @@
 """
 .. _pipeline_val_results:
 
-Performance of the Mobilise-D algorithm pipeline on the TVS dataset for walking speed estimation
+Walking speed estimation
 ================================================================================================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
