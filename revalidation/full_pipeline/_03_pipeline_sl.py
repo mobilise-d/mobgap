@@ -1,7 +1,7 @@
 """
 .. _pipeline_val_results:
 
-Walking speed estimation
+Stride length estimation
 ================================================================================================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
@@ -13,7 +13,7 @@ Walking speed estimation
 
 The following provides an analysis and comparison of the Mobilise-D algorithm pipeline on the
 `Mobilise-D Technical Validation Study (TVS) dataset <https://zenodo.org/records/13987963>`_
-for the estimation of walking speed (free-living).
+for the estimation of stride length (free-living).
 In this example, we look into the performance of the Python implementation of the pipeline compared to the reference
 data. We also compare the actual performance to that obtained by the original Matlab-based implementation  [1]_.
 
@@ -34,8 +34,11 @@ from typing import Optional
 # the original Matlab-based implementation.
 
 algorithms = {
-    "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "new"),
-    "EScience_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "old"),
+    "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "MobGap"),
+    "EScience_MobiliseD_Pipeline": (
+        "Mobilise-D Pipeline",
+        "Original Implementation",
+    ),
 }
 # %%
 # The code below loads the data and prepares it for the analysis.
@@ -141,8 +144,6 @@ cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # -------------------
 # Below you can find the setup for all performance metrics that we will calculate.
 # We only use the `single__` results for the comparison.
-# These results are calculated by first calculating the average walking speed per walking bout (WB).
-# Then all WBs of a participant are aggregated. Eventually, the error metrics for each WB are calculated.
 #
 # .. note:: For the evaluation of the full pipeline performance, two types of aggregation are performed, which will be
 #           described later on in the example.
@@ -164,18 +165,18 @@ custom_aggs_combined = [
         function=A.n_datapoints,
         column_name=[("n_datapoints", "all")],
     ),
-    ("walking_speed_mps__detected", ["mean", A.conf_intervals]),
-    ("walking_speed_mps__reference", ["mean", A.conf_intervals]),
-    ("walking_speed_mps__error", ["mean", A.loa]),
-    ("walking_speed_mps__abs_error", ["mean", A.conf_intervals]),
-    ("walking_speed_mps__rel_error", ["mean", A.conf_intervals]),
-    ("walking_speed_mps__abs_rel_error", ["mean", A.conf_intervals]),
+    ("stride_length_m__detected", ["mean", A.conf_intervals]),
+    ("stride_length_m__reference", ["mean", A.conf_intervals]),
+    ("stride_length_m__error", ["mean", A.loa]),
+    ("stride_length_m__abs_error", ["mean", A.conf_intervals]),
+    ("stride_length_m__rel_error", ["mean", A.conf_intervals]),
+    ("stride_length_m__abs_rel_error", ["mean", A.conf_intervals]),
     CustomOperation(
         identifier=None,
         function=partial(
             A.icc,
-            reference_col_name="walking_speed_mps__reference",
-            detected_col_name="walking_speed_mps__detected",
+            reference_col_name="stride_length_m__reference",
+            detected_col_name="stride_length_m__detected",
             icc_type="icc2",
             # For the lab data, some trials have no results for the old algorithms.
             nan_policy="omit",
@@ -210,21 +211,21 @@ format_transforms_combined = [
             column_name=c,
         )
         for c in [
-            "walking_speed_mps__reference",
-            "walking_speed_mps__detected",
-            "walking_speed_mps__abs_error",
-            "walking_speed_mps__rel_error",
-            "walking_speed_mps__abs_rel_error",
+            "stride_length_m__reference",
+            "stride_length_m__detected",
+            "stride_length_m__abs_error",
+            "stride_length_m__rel_error",
+            "stride_length_m__abs_rel_error",
         ]
     ),
     CustomOperation(
         identifier=None,
         function=partial(
             F.value_with_range,
-            value_col=("mean", "walking_speed_mps__error"),
-            range_col=("loa", "walking_speed_mps__error"),
+            value_col=("mean", "stride_length_m__error"),
+            range_col=("loa", "stride_length_m__error"),
         ),
-        column_name="walking_speed_mps__error",
+        column_name="stride_length_m__error",
     ),
     CustomOperation(
         identifier=None,
@@ -249,12 +250,12 @@ format_transforms_matched = [
 
 final_names_combined = {
     "n_datapoints": "# participants",
-    "walking_speed_mps__detected": "WD mean and CI [m/s]",
-    "walking_speed_mps__reference": "INDIP mean and CI [m/s]",
-    "walking_speed_mps__error": "Bias and LoA [m/s]",
-    "walking_speed_mps__abs_error": "Abs. Error [m/s]",
-    "walking_speed_mps__rel_error": "Rel. Error [%]",
-    "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
+    "stride_length_m__detected": "WD mean and CI [m]",
+    "stride_length_m__reference": "INDIP mean and CI [m]",
+    "stride_length_m__error": "Bias and LoA [m]",
+    "stride_length_m__abs_error": "Abs. Error [m]",
+    "stride_length_m__rel_error": "Rel. Error [%]",
+    "stride_length_m__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
 
@@ -264,9 +265,7 @@ final_names_matched = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m/s]": RevalidationInfo(
-        threshold=None, higher_is_better=False
-    ),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
@@ -293,11 +292,11 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
 # %%
 # Combined/Aggregated Evaluation
 # ------------------------------------------
-# To mimic actual use of wearable device where actual decissions are made on aggregated measures over a longer
+# To mimic actual use of wearable device where actual decisions are made on aggregated measures over a longer
 # measurement period and not WB per WB, our primary comparison is based on the median gait metrics over the entire
 # recording.
 # We call this combined or aggregated evaluation.
-# For this we combined all WBs for a datapoint by taking the median of the calculated walking speed.
+# For this we combined all WBs for a datapoint by taking the median of the calculated stride length.
 # These combined values were then compared between the systems.
 #
 # .. note:: In the free-living dataset, each datapoint represents one 2.5h recording.
@@ -314,9 +313,9 @@ import seaborn as sns
 sns.set_context("talk")
 metrics = {
     "abs_rel_error": "Abs. Rel. Error (%)",
-    "error": "Error (m/s)",
+    "error": "Error (m)",
     "rel_error": "Rel. Error (%)",
-    "abs_error": "Abs. Error (m/s)",
+    "abs_error": "Abs. Error (m)",
 }
 
 
@@ -325,8 +324,8 @@ def multi_metric_plot(data, metrics, nrows, ncols):
         nrows, ncols, sharex=True, figsize=(ncols * 6, nrows * 4 + 2)
     )
     for ax, (metric, metric_label) in zip(axs.flatten(), metrics.items()):
-        overall_df = data[["version", f"walking_speed_mps__{metric}"]].rename(
-            columns={f"walking_speed_mps__{metric}": metric_label}
+        overall_df = data[["version", f"stride_length_m__{metric}"]].rename(
+            columns={f"stride_length_m__{metric}": metric_label}
         )
 
         sns.boxplot(
@@ -375,8 +374,8 @@ def combo_residual_plot(data, name=None):
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         residual_plot(
             subdata,
-            "walking_speed_mps__reference",
-            "walking_speed_mps__detected",
+            "stride_length_m__reference",
+            "stride_length_m__detected",
             "cohort",
             "m",
             ax=ax,
@@ -388,26 +387,26 @@ def combo_residual_plot(data, name=None):
 
 
 free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
-    combo_residual_plot, name="Aggregated Analysis  - Walking Speed"
+    combo_residual_plot, name="Aggregated Analysis  - Stride Length"
 )
 
 # %%
 # Per-cohort analysis
 # *******************
 #
-# The results below represent the average absolute error on walking speed estimation
+# The results below represent the average absolute error on stride length estimation
 # across all participants within a cohort.
 fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
     data=free_living_results_combined,
     x="cohort",
-    y="walking_speed_mps__abs_error",
+    y="stride_length_m__abs_error",
     hue="version",
     order=cohort_order,
     showmeans=True,
     ax=ax,
 ).legend().set_title(None)
-ax.set_ylabel("Absolute Error [m/s]")
+ax.set_ylabel("Absolute Error [m]")
 ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
@@ -423,7 +422,7 @@ combined_perf_metrics_cohort.style.pipe(
 # %%
 # Scatter plot
 # ~~~~~~~~~~~~
-# The results below represent the detected and reference values of walking speed scattered across all participants
+# The results below represent the detected and reference values of stride length scattered across all participants
 # within a cohort. Correlation factor, p-value and confidence intervals of the regression line are shown in the plot.
 # Each datapoint represents one participant.
 
@@ -442,31 +441,31 @@ def combo_scatter_plot(data, name=None):
     fig.suptitle(name)
 
     min_max = calc_min_max_with_margin(
-        data["walking_speed_mps__reference"],
-        data["walking_speed_mps__detected"],
+        data["stride_length_m__reference"],
+        data["stride_length_m__detected"],
     )
 
     for (version, subdata), ax in zip(data.groupby("version"), axs):
         subdata = subdata[
             [
-                "walking_speed_mps__reference",
-                "walking_speed_mps__detected",
+                "stride_length_m__reference",
+                "stride_length_m__detected",
                 "cohort",
             ]
         ].dropna(how="any")
 
         sns.scatterplot(
             subdata,
-            x="walking_speed_mps__reference",
-            y="walking_speed_mps__detected",
+            x="stride_length_m__reference",
+            y="stride_length_m__detected",
             hue="cohort",
             ax=ax,
             legend=ax == axs[-1],
         )
 
         plot_regline(
-            subdata["walking_speed_mps__reference"],
-            subdata["walking_speed_mps__detected"],
+            subdata["stride_length_m__reference"],
+            subdata["stride_length_m__detected"],
             ax=ax,
         )
 
@@ -483,12 +482,12 @@ def combo_scatter_plot(data, name=None):
 
 
 free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
-    combo_scatter_plot, name="Mobilise-D Pipeline - Walking Speed"
+    combo_scatter_plot, name="Mobilise-D Pipeline - Stride Length"
 )
 # %%
 # Matched/True Positive Evaluation
 # ------------------------------------------
-# The "Matched" Evaluation directly compares the performance of walking speed estimation on only the WBs that were
+# The "Matched" Evaluation directly compares the performance of stride length estimation on only the WBs that were
 # detected in both systems (true positives).
 # WBs were included in the true positive analysis, if there was an overlap of more than 80%
 # between WBs detected by the two systems (details about the selection of this threshold can be found in [1]_).
@@ -538,14 +537,14 @@ matched_perf_metrics_all.style.pipe(
 # Residual plot
 # ~~~~~~~~~~~~
 free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
-    combo_residual_plot, name="Matched WBs - Walking Speed"
+    combo_residual_plot, name="Matched WBs - Stride Length"
 )
 # %%
 # Per-cohort analysis
 # *******************
 # Boxplot
 # ~~~~~~~~~~
-# The results below represent the average absolute error on walking speed estimation
+# The results below represent the average absolute error on stride length estimation
 # across all participants within a cohort.
 fig, ax = plt.subplots(figsize=(12, 6))
 sns.barplot(
@@ -567,12 +566,12 @@ fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
     data=free_living_results_matched,
     x="cohort",
-    y="walking_speed_mps__abs_error",
+    y="stride_length_m__abs_error",
     hue="algo_with_version",
     order=cohort_order,
     ax=ax,
 ).legend().set_title(None)
-ax.set_ylabel("Absolute Error [m/s]")
+ax.set_ylabel("Absolute Error [m]")
 ax.set_title("Absolute Error - Matched Analysis")
 fig.show()
 # %%
@@ -597,7 +596,7 @@ matched_perf_metrics_all = (
 # ****************************************************************************
 # Effect of WB duration
 # ~~~~~~~~~~~~~~~~~~~~~
-# We investigate the dependency of the absolute walking speed error of all true-positive WBs from the real-world
+# We investigate the dependency of the absolute stride length error of all true-positive WBs from the real-world
 # recording on the WB duration reported by the reference system.
 # In the top, WB errors are grouped by various duration bouts.
 # In the bottom the number of bouts within each duration group is visualized.
@@ -643,13 +642,13 @@ def plot_wb_duration_analysis(df):
     sns.boxplot(
         data=binned_df,
         x="bin",
-        y="walking_speed_mps__abs_error",
+        y="stride_length_m__abs_error",
         hue="version",
         ax=axs["v"],
     )
     sns.despine(fig)
 
-    axs["v"].set_ylabel("Absolute Walking Speed Error (m/s)")
+    axs["v"].set_ylabel("Absolute Stride Length Error (m)")
     axs["n"].set_ylabel("WB Count")
     axs["n"].set_xlabel("Ref. WB Duration")
     fig.show()
@@ -659,10 +658,10 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
     plot_wb_duration_analysis
 )
 # %%
-# Effect of walking speed on error
+# Effect of walking_speed on error
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# One important aspect of the algorithm performance is the dependency on the walking speed. Aka, how well do the
-# algorithms perform at different walking speeds. For this we plot the absolute error against the walking speed
+# One important aspect of the algorithm performance is the dependency on the stride length. Aka, how well do the
+# algorithms perform at different walking speeds. For this we plot the absolute error against the stride length
 # of the reference data. For better granularity, we use the values per WB, instead of the aggregates per participant.
 # The overlayed dots represent the trend-line calculated by taking the median of the absolute error within bins
 # of 0.05 m/s.
@@ -693,7 +692,7 @@ min_max_x = calc_min_max_with_margin(
     ws_level_results["walking_speed_mps__reference"]
 )
 min_max_y = calc_min_max_with_margin(
-    ws_level_results["walking_speed_mps__abs_error"]
+    ws_level_results["stride_length_m__abs_error"]
 )
 
 # Plotting each algorithm version
@@ -702,7 +701,7 @@ for subfig, (algo, data) in zip(
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
-    subfig.supylabel("Absolute Error (m/s)")
+    subfig.supylabel("Absolute Error (m)")
 
     # Create subplots for each cohort
     axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)
@@ -714,7 +713,7 @@ for subfig, (algo, data) in zip(
         sns.scatterplot(
             data=cohort_data,
             x="walking_speed_mps__reference",  # Reference walking speed
-            y="walking_speed_mps__abs_error",  # Absolute error
+            y="stride_length_m__abs_error",  # Absolute error
             ax=ax,
             alpha=0.3,
         )
@@ -735,7 +734,7 @@ for subfig, (algo, data) in zip(
         # Calculate median error per bin and cohort
         binned_data = (
             cohort_data.groupby("bin_center", observed=True)[
-                "walking_speed_mps__abs_error"
+                "stride_length_m__abs_error"
             ]
             .median()
             .reset_index()
@@ -745,7 +744,7 @@ for subfig, (algo, data) in zip(
         sns.scatterplot(
             data=binned_data,
             x="bin_center",
-            y="walking_speed_mps__abs_error",  # Median error
+            y="stride_length_m__abs_error",  # Median error
             ax=ax,
         )
 
