@@ -270,7 +270,6 @@ validation_thresholds = {
         threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
-    "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
 
 
