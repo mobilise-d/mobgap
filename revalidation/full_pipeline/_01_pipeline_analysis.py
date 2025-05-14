@@ -719,15 +719,17 @@ free_living_matched_perf_metrics_cohort = (
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
-free_living_matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
-)
 
 free_living_matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
 )
+
+free_living_matched_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
 # %%
 laboratory_matched_perf_metrics_cohort = (
     laboratory_results_matched.groupby(["cohort", "algo", "version"])
@@ -735,14 +737,15 @@ laboratory_matched_perf_metrics_cohort = (
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
-laboratory_matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
-)
 
 laboratory_matched_perf_metrics_all = (
     laboratory_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
+)
+
+laboratory_matched_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
