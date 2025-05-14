@@ -10,7 +10,7 @@ class TestStrideSelectionMeta(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = StrideSelection
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self, naive_stride_list) -> StrideSelection:
         return self.ALGORITHM_CLASS([("simple_thres", IntervalParameterCriteria("para_1", 1.5, 2.5))]).filter(
             naive_stride_list, sampling_rate_hz=1
