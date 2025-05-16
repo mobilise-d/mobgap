@@ -617,18 +617,18 @@ def _input_is_icd_matches_df(matches_df: pd.DataFrame) -> bool:
 
 
 __all__ = [
+    "Evaluation",
+    "EvaluationCV",
+    "accuracy_score",
+    "combine_detected_and_reference_metrics",
+    "count_samples_in_intervals",
+    "count_samples_in_match_intervals",
+    "extract_tp_matches",
+    "f1_score",
+    "npv_score",
     "precision_recall_f1_score",
     "precision_score",
     "recall_score",
-    "specificity_score",
-    "accuracy_score",
-    "npv_score",
-    "f1_score",
-    "count_samples_in_match_intervals",
-    "count_samples_in_intervals",
-    "Evaluation",
-    "EvaluationCV",
     "save_evaluation_results",
-    "extract_tp_matches",
-    "combine_detected_and_reference_metrics",
+    "specificity_score",
 ]

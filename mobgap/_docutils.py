@@ -61,4 +61,4 @@ def make_filldoc(docdict: dict[str, str], *, doc_summary: Optional[str] = None) 
     return inner
 
 
-__all__ = ["make_filldoc", "inherit_docstring_from"]
+__all__ = ["inherit_docstring_from", "make_filldoc"]

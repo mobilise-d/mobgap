@@ -498,12 +498,12 @@ def _sanitize_index(ic_list: pd.DataFrame, list_type: Literal["detected", "refer
 
 
 __all__ = [
+    "_match_label_lists",
     "calculate_matched_icd_performance_metrics",
     "calculate_true_positive_icd_error",
     "categorize_ic_list",
-    "_match_label_lists",
-    "icd_per_datapoint_score",
-    "icd_final_agg",
-    "icd_score",
     "get_matching_ics",
+    "icd_final_agg",
+    "icd_per_datapoint_score",
+    "icd_score",
 ]

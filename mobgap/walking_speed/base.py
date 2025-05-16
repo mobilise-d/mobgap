@@ -124,4 +124,4 @@ class BaseWsCalculator(Algorithm):
         raise NotImplementedError
 
 
-__all__ = ["base_ws_docfiller", "BaseWsCalculator"]
+__all__ = ["BaseWsCalculator", "base_ws_docfiller"]

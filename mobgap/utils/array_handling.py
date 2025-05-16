@@ -62,4 +62,4 @@ def sliding_window_view(data: np.ndarray, window_size_samples: int, overlap_samp
     return view
 
 
-__all__ = ["sliding_window_view", "bool_array_to_start_end_array", "start_end_array_to_bool_array", "merge_intervals"]
+__all__ = ["bool_array_to_start_end_array", "merge_intervals", "sliding_window_view", "start_end_array_to_bool_array"]

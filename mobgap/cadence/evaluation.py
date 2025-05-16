@@ -6,7 +6,7 @@ from tpcp.validate import Scorer, no_agg
 
 from mobgap.cadence.pipeline import CadEmulationPipeline
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.pipeline.evaluation import ErrorTransformFuncs as E  # noqa: N814
+from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 from mobgap.utils.df_operations import apply_transformations
 
 _errors = [("cadence_spm", [E.error, E.abs_error, E.rel_error, E.abs_rel_error])]
@@ -186,4 +186,4 @@ Aggregated metrics (agg results):
 """
 
 
-__all__ = ["cad_score", "cad_per_datapoint_score", "cad_final_agg"]
+__all__ = ["cad_final_agg", "cad_per_datapoint_score", "cad_score"]

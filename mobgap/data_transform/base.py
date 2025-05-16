@@ -512,13 +512,13 @@ class IdentityFilter(BaseFilter):
 
 
 __all__ = [
-    "BaseTransformer",
     "BaseFilter",
+    "BaseTransformer",
     "FixedFilter",
     "IdentityFilter",
-    "fixed_filter_docfiller",
     "ScipyFilter",
-    "scipy_filter_docfiller",
     "base_filter_docfiller",
     "base_transformer_docfiller",
+    "fixed_filter_docfiller",
+    "scipy_filter_docfiller",
 ]

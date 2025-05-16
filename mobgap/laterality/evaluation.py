@@ -133,4 +133,4 @@ For more information about Scorer, head to the tpcp documentation (:class:`~tpcp
 For usage information in the context of mobgap, have a look at the :ref:`evaluation example <lrc_evaluation>` for LRC.
 """
 
-__all__ = ["lrc_score", "lrc_final_agg", "lrc_per_datapoint_score"]
+__all__ = ["lrc_final_agg", "lrc_per_datapoint_score", "lrc_score"]

@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal
 from tpcp.validate import Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.pipeline.evaluation import ErrorTransformFuncs as E  # noqa: N814
+from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 from mobgap.stride_length.pipeline import SlEmulationPipeline
 from mobgap.utils.df_operations import apply_transformations
 
@@ -183,4 +183,4 @@ Aggregated metrics (agg results):
 """
 
 
-__all__ = ["sl_score", "sl_per_datapoint_score", "sl_final_agg"]
+__all__ = ["sl_final_agg", "sl_per_datapoint_score", "sl_score"]

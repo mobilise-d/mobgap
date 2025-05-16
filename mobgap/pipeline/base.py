@@ -222,4 +222,4 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
         raise NotImplementedError
 
 
-__all__ = ["BaseMobilisedPipeline", "mobilised_pipeline_docfiller", "BaseGaitDatasetT"]
+__all__ = ["BaseGaitDatasetT", "BaseMobilisedPipeline", "mobilised_pipeline_docfiller"]

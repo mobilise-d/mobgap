@@ -209,10 +209,10 @@ def residual_plot(
 
 __all__ = [
     "blandaltman_stats",
-    "plot_blandaltman_annotations",
-    "plot_regline",
     "calc_min_max_with_margin",
     "make_square",
     "move_legend_outside",
+    "plot_blandaltman_annotations",
+    "plot_regline",
     "residual_plot",
 ]

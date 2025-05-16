@@ -16,17 +16,17 @@ from mobgap.data_transform._savgol_filter import SavgolFilter
 from mobgap.data_transform._utils import chain_transformers
 
 __all__ = [
-    "EpflGaitFilter",
+    "ButterworthFilter",
+    "Crop",
+    "CwtFilter",
     "EpflDedriftFilter",
     "EpflDedriftedGaitFilter",
-    "chain_transformers",
-    "ButterworthFilter",
+    "EpflGaitFilter",
     "FirFilter",
-    "HampelFilter",
-    "Resample",
-    "CwtFilter",
     "GaussianFilter",
-    "SavgolFilter",
+    "HampelFilter",
     "Pad",
-    "Crop",
+    "Resample",
+    "SavgolFilter",
+    "chain_transformers",
 ]

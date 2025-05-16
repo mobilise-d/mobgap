@@ -7,14 +7,14 @@ from mobgap.wba._wb_criteria import LeftRightCriteria, MaxBreakCriteria, NStride
 from mobgap.wba._wb_criteria_base import BaseSummaryCriteria, BaseWbCriteria
 
 __all__ = [
-    "StrideSelection",
     "BaseIntervalCriteria",
-    "IntervalParameterCriteria",
+    "BaseSummaryCriteria",
+    "BaseWbCriteria",
     "IntervalDurationCriteria",
+    "IntervalParameterCriteria",
     "LeftRightCriteria",
     "MaxBreakCriteria",
     "NStridesCriteria",
-    "BaseWbCriteria",
-    "BaseSummaryCriteria",
+    "StrideSelection",
     "WbAssembly",
 ]
