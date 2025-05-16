@@ -19,7 +19,7 @@ class TestMetaLrcUllrich(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = LrcUllrich
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().predict(
             data=pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),

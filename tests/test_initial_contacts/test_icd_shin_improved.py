@@ -15,7 +15,7 @@ class TestMetaShinImproved(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = IcdShinImproved
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().detect(
             pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=40.0

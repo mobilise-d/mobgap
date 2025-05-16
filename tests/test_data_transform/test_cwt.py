@@ -11,7 +11,7 @@ class TestMetaCwtFilter(TestAlgorithmMixin):
     __test__ = True
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         # Creating an instance of your CwtFilter class with some initial conditions
         cwt_filter_instance = self.ALGORITHM_CLASS()

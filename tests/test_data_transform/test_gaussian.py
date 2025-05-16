@@ -11,7 +11,7 @@ class TestMetaGaussianFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = GaussianFilter
     __test__ = True
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         # Creating an instance of your GaussianFilter class with some initial conditions
         gaussian_filter = self.ALGORITHM_CLASS()

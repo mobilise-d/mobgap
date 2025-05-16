@@ -13,7 +13,7 @@ def window(start, end, **parameter):
     return dict(s_id=str(uuid.uuid4()), start=start, end=end, **parameter)
 
 
-@pytest.fixture
+@pytest.fixture()
 def naive_stride_list():
     """A window list full of identical strides."""
     x = np.arange(0, 10100, 100)

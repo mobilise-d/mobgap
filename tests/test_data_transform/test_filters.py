@@ -61,7 +61,7 @@ class TestMetaEpflGaitFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = EpflGaitFilter
     _IGNORED_NAMES = ["EXPECTED_SAMPLING_RATE_HZ"]
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
 
@@ -72,7 +72,7 @@ class TestMetaButterworthFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = ButterworthFilter
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(2, 30).filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=100.0)
 
@@ -83,7 +83,7 @@ class TestMetaFirFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = FirFilter
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(2, 30).filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=100.0)
 
@@ -94,7 +94,7 @@ class TestMetaEpflDedriftFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = EpflDedriftFilter
     _IGNORED_NAMES = ["EXPECTED_SAMPLING_RATE_HZ"]
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
 
@@ -104,7 +104,7 @@ class TestMetaEpflDedriftedGaitFilter(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = EpflDedriftedGaitFilter
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().filter(pd.DataFrame(np.zeros((500, 3))), sampling_rate_hz=40.0)
 
@@ -115,7 +115,7 @@ class TestMetaHampelFilter(TestAlgorithmMixin):
     ALGORITHM_CLASS = HampelFilter
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(2, 30).filter(pd.DataFrame(np.zeros((500, 1))), sampling_rate_hz=100.0)
 

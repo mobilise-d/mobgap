@@ -16,7 +16,7 @@ class TestMetaSlZijlstra(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = SlZijlstra
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().calculate(
             data=pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS),

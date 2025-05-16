@@ -11,7 +11,7 @@ class TestMetaResample(TestAlgorithmMixin):
     ALGORITHM_CLASS = Resample
     __test__ = True
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self):
         # Creating an instance of your Resample class with some initial conditions
         resampler = self.ALGORITHM_CLASS(target_sampling_rate_hz=100.0)

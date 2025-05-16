@@ -12,7 +12,7 @@ class TestWBAssemblyMeta(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = WbAssembly
 
-    @pytest.fixture
+    @pytest.fixture()
     def after_action_instance(self, naive_stride_list) -> WbAssembly:
         return self.ALGORITHM_CLASS([("break", MaxBreakCriteria(3))]).assemble(naive_stride_list, sampling_rate_hz=1)
 
