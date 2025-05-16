@@ -38,7 +38,7 @@ def load_weartime_from_daily_mcroberts_report(path: Path, waking_hours: tuple[fl
     """
     if not 0 <= waking_hours[0] < waking_hours[1] <= 24:
         raise ValueError(
-            f"Invalid waking hours: {waking_hours}. " f"Expected: (0 <= waking_hours[0] < waking_hours[1] <= 24)"
+            f"Invalid waking hours: {waking_hours}. Expected: (0 <= waking_hours[0] < waking_hours[1] <= 24)"
         )
 
     waking_hours_as_seconds = (waking_hours[0] * 3600, waking_hours[1] * 3600)
@@ -104,7 +104,7 @@ def load_weartime_from_daily_mcroberts_report_old(
     """
     if not 0 <= waking_hours[0] < waking_hours[1] <= 24:
         raise ValueError(
-            f"Invalid waking hours: {waking_hours}. " f"Expected: (0 <= waking_hours[0] < waking_hours[1] <= 24)"
+            f"Invalid waking hours: {waking_hours}. Expected: (0 <= waking_hours[0] < waking_hours[1] <= 24)"
         )
 
     waking_hours_as_seconds = (waking_hours[0] * 3600, waking_hours[1] * 3600)

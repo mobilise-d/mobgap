@@ -749,7 +749,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     def _unify_stride_df(df: pd.DataFrame) -> pd.DataFrame:
         return df.astype(stride_df_dtypes).set_index(["wb_id", "s_id"])
 
-    expect_none = {k: None for k in not_expected_fields} if not_expected_fields else {}
+    expect_none = dict.fromkeys(not_expected_fields) if not_expected_fields else {}
 
     if len(ref_data) == 0:
         return ReferenceData(
@@ -1177,7 +1177,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             "height_m": meta_data["Height"] / 100,
             "cohort": self._get_cohort(),
             "handedness": cast(
-                Optional[Literal["left", "right"]], {"L": "left", "R": "right"}.get(meta_data.get("Handedness"), None)
+                "Optional[Literal['left', 'right']]", {"L": "left", "R": "right"}.get(meta_data.get("Handedness"), None)
             ),
             "foot_length_cm": meta_data.get("FootSize"),
             "weight_kg": meta_data.get("Weight"),

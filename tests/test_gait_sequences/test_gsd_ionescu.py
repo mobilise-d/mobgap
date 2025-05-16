@@ -16,7 +16,7 @@ class TestMetaGsdParaschivIonescu(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = GsdAdaptiveIonescu
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().detect(
             pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=40.0
@@ -36,9 +36,9 @@ class TestIntersect:
         b = np.array([[4, 7], [8, 12]])
         expected = np.array([[4, 5], [6, 7], [8, 10]])
         result = find_intersections(a, b)
-        assert np.array_equal(
-            result[: len(expected)], expected
-        ), "Should return correct intersections for overlapping intervals"
+        assert np.array_equal(result[: len(expected)], expected), (
+            "Should return correct intersections for overlapping intervals"
+        )
 
 
 class TestGsdIonescu:

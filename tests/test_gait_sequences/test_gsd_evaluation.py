@@ -17,29 +17,29 @@ from mobgap.gait_sequences.evaluation import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def intervals_example():
     return [[1, 3], [5, 7]]
 
 
-@pytest.fixture()
+@pytest.fixture
 def intervals_example_more_samples():
     return [[0, 5], [8, 13]]
 
 
-@pytest.fixture()
+@pytest.fixture
 def intervals_example_with_id():
     return pd.DataFrame([[1, 3, 0], [5, 7, 1]], columns=["start", "end", "id"]).set_index("id")
 
 
-@pytest.fixture()
+@pytest.fixture
 def dmo_df():
     df = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=["metric_a", "metric_b", "metric_c"])
     df.index = pd.MultiIndex.from_tuples([("a", 1), ("a", 2)], names=["group", "wb_id"])
     return df
 
 
-@pytest.fixture()
+@pytest.fixture
 def matches_df():
     return pd.DataFrame(
         {

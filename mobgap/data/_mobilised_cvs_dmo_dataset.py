@@ -396,7 +396,7 @@ class MobilisedCvsDmoDataset(Dataset):
 
         file_path = Path(self.weartime_reports_base_path) / self.WEARTIME_REPORT_CACHE_FILE_NAME
         warnings.warn(
-            "Finished computing the daily weartime. Now saving the results to disk at:" f"{file_path}.", stacklevel=2
+            f"Finished computing the daily weartime. Now saving the results to disk at:{file_path}.", stacklevel=2
         )
         results.to_csv(file_path, index=False)
         return results

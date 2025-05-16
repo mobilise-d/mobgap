@@ -189,4 +189,4 @@ def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
 to_sensor_frame = to_normal_frame
 
 
-__all__ = ["as_samples", "transform_to_global_frame", "to_body_frame", "to_normal_frame", "to_sensor_frame"]
+__all__ = ["as_samples", "to_body_frame", "to_normal_frame", "to_sensor_frame", "transform_to_global_frame"]

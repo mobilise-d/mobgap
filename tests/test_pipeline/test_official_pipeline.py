@@ -16,7 +16,7 @@ class TestMetaBaseMobilisedPipeline(TestAlgorithmMixin):
     ALGORITHM_CLASS = GenericMobilisedPipeline
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(**self.ALGORITHM_CLASS.PredefinedParameters.regular_walking).run(
             LabExampleDataset()[0]
@@ -28,7 +28,7 @@ class TestMetaMobilisedPipelineHealth(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = MobilisedPipelineHealthy
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().run(LabExampleDataset()[0])
 
@@ -38,7 +38,7 @@ class TestMetaMobilisedPipelineImpaired(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = MobilisedPipelineImpaired
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().run(LabExampleDataset()[0])
 
@@ -48,7 +48,7 @@ class TestMetaMobilisedMetaPipeline(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = MobilisedPipelineUniversal
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().run(LabExampleDataset()[0])
 

@@ -176,7 +176,7 @@ laboratory_results_matched_raw = format_loaded_results(
 )
 
 del _laboratory_results, _laboratory_results_raw
-cohort_order  = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
+cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
 # -------------------
@@ -828,19 +828,23 @@ laboratory_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
 
 # For plotting all participants at the end
 free_living_combined = free_living_results_matched_raw.copy()
-free_living_combined ["cohort"] = "Combined"
+free_living_combined["cohort"] = "Combined"
 free_living_combined_ws_level_results = pd.concat(
-    [free_living_results_matched_raw, free_living_combined ]
+    [free_living_results_matched_raw, free_living_combined]
 ).reset_index(drop=True)
 
 algo_names = free_living_combined_ws_level_results["algo_with_version"].unique()
 cohort_names = free_living_combined_ws_level_results["cohort"].unique()
 
 free_living_combined_ws_level_results["cohort"] = pd.Categorical(
-    free_living_combined_ws_level_results["cohort"], categories=cohort_names, ordered=True
+    free_living_combined_ws_level_results["cohort"],
+    categories=cohort_names,
+    ordered=True,
 )
 free_living_combined_ws_level_results["algo_with_version"] = pd.Categorical(
-    free_living_combined_ws_level_results["algo_with_version"], categories=algo_names, ordered=True
+    free_living_combined_ws_level_results["algo_with_version"],
+    categories=algo_names,
+    ordered=True,
 )
 
 # Create the figure with subplots
@@ -857,7 +861,10 @@ min_max_y = calc_min_max_with_margin(
 
 # Plotting each algorithm version
 for subfig, (algo, data) in zip(
-    subfigs, free_living_combined_ws_level_results.groupby("algo_with_version", observed=True)
+    subfigs,
+    free_living_combined_ws_level_results.groupby(
+        "algo_with_version", observed=True
+    ),
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
@@ -919,19 +926,23 @@ for subfig, (algo, data) in zip(
 fig.show()
 # %%
 laboratory_combined = laboratory_results_matched_raw.copy()
-laboratory_combined ["cohort"] = "Combined"
+laboratory_combined["cohort"] = "Combined"
 laboratory_combined_ws_level_results = pd.concat(
-    [laboratory_results_matched_raw, laboratory_combined ]
+    [laboratory_results_matched_raw, laboratory_combined]
 ).reset_index(drop=True)
 
 algo_names = laboratory_combined_ws_level_results["algo_with_version"].unique()
 cohort_names = laboratory_combined_ws_level_results["cohort"].unique()
 
 laboratory_combined_ws_level_results["cohort"] = pd.Categorical(
-    laboratory_combined_ws_level_results["cohort"], categories=cohort_names, ordered=True
+    laboratory_combined_ws_level_results["cohort"],
+    categories=cohort_names,
+    ordered=True,
 )
 laboratory_combined_ws_level_results["algo_with_version"] = pd.Categorical(
-    laboratory_combined_ws_level_results["algo_with_version"], categories=algo_names, ordered=True
+    laboratory_combined_ws_level_results["algo_with_version"],
+    categories=algo_names,
+    ordered=True,
 )
 
 # Create the figure with subplots
@@ -948,7 +959,10 @@ min_max_y = calc_min_max_with_margin(
 
 # Plotting each algorithm version
 for subfig, (algo, data) in zip(
-    subfigs, laboratory_combined_ws_level_results.groupby("algo_with_version", observed=True)
+    subfigs,
+    laboratory_combined_ws_level_results.groupby(
+        "algo_with_version", observed=True
+    ),
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")

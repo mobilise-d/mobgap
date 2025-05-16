@@ -12,7 +12,7 @@ class TestMetaSavgolFilter(TestAlgorithmMixin):
     ONLY_DEFAULT_PARAMS = False
     __test__ = True
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         # Creating an instance of your SavgolFilter class with some initial conditions
         savgol_filter = self.ALGORITHM_CLASS(window_length_s=5, polyorder_rel=0.2)

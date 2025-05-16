@@ -584,12 +584,10 @@ def categorize_intervals(
 
     if overlap_threshold <= 0.5:
         raise ValueError(
-            "overlap_threshold must be greater than 0.5."
-            "Otherwise multiple matches between intervals "
-            "are possible."
+            "overlap_threshold must be greater than 0.5.Otherwise multiple matches between intervals are possible."
         )
     if overlap_threshold > 1:
-        raise ValueError("overlap_threshold must be less than 1." "Otherwise no matches can be returned.")
+        raise ValueError("overlap_threshold must be less than 1.Otherwise no matches can be returned.")
 
     tree = IntervalTree.from_tuples(
         detected.reset_index(drop=True)
@@ -755,13 +753,13 @@ def _check_gs_level_matches_sanity(matches: pd.DataFrame) -> pd.DataFrame:
 
 
 __all__ = [
-    "categorize_intervals_per_sample",
-    "categorize_intervals",
     "calculate_matched_gsd_performance_metrics",
     "calculate_unmatched_gsd_performance_metrics",
-    "plot_categorized_intervals",
+    "categorize_intervals",
+    "categorize_intervals_per_sample",
     "get_matching_intervals",
-    "gsd_per_datapoint_score",
     "gsd_final_agg",
+    "gsd_per_datapoint_score",
     "gsd_score",
+    "plot_categorized_intervals",
 ]

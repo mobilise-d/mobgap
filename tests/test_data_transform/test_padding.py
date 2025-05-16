@@ -11,7 +11,7 @@ class TestMetaPad(TestAlgorithmMixin):
     ONLY_DEFAULT_PARAMS = False
     __test__ = True
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         # Creating an instance of your Pad class with some initial conditions
         pad = self.ALGORITHM_CLASS(pad_len_s=1.0)
@@ -100,7 +100,7 @@ class TestMetaCrop(TestAlgorithmMixin):
     ONLY_DEFAULT_PARAMS = False
     __test__ = True
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         # Creating an instance of your Crop class with some initial conditions
         crop = self.ALGORITHM_CLASS(crop_len_s=1.0)

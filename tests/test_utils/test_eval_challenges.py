@@ -21,7 +21,7 @@ class TestMetaEvaluationCV(TestAlgorithmMixin):
     ALGORITHM_CLASS = EvaluationCV
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(short_example_data, cv_iterator=2, scoring=dummy_scoring).run(
             DummyOptimize(GsdEmulationPipeline(GsdIluz()), ignore_potential_user_error_warning=True)
@@ -34,6 +34,6 @@ class TestMetaEvaluation(TestAlgorithmMixin):
     ALGORITHM_CLASS = Evaluation
     ONLY_DEFAULT_PARAMS = False
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self):
         return self.ALGORITHM_CLASS(short_example_data, scoring=dummy_scoring).run(GsdEmulationPipeline(GsdIluz()))

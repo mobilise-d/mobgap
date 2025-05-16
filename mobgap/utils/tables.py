@@ -222,10 +222,10 @@ def revalidation_table_styles(
 
 __all__ = [
     "FormatTransformer",
+    "RevalidationInfo",
+    "ValueWithRange",
     "best_in_group_styler",
     "border_after_group_styler",
     "compare_to_threshold_styler",
     "revalidation_table_styles",
-    "ValueWithRange",
-    "RevalidationInfo",
 ]

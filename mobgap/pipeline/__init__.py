@@ -15,13 +15,13 @@ from mobgap.pipeline._mobilised_pipeline import (
 )
 
 __all__ = [
-    "iter_gs",
-    "GsIterator",
-    "Region",
     "FullPipelinePerGsResult",
-    "create_aggregate_df",
     "GenericMobilisedPipeline",
+    "GsIterator",
     "MobilisedPipelineHealthy",
     "MobilisedPipelineImpaired",
     "MobilisedPipelineUniversal",
+    "Region",
+    "create_aggregate_df",
+    "iter_gs",
 ]

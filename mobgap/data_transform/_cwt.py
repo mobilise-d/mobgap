@@ -74,8 +74,7 @@ class CwtFilter(BaseFilter):
         """
         if not isinstance(self.center_frequency_hz, (int, float)):
             raise TypeError(
-                "Parameter 'width' must just be a single width for the wavelet, not a list of width as in "
-                "a full CWT."
+                "Parameter 'width' must just be a single width for the wavelet, not a list of width as in a full CWT."
             )
 
         if sampling_rate_hz is None:

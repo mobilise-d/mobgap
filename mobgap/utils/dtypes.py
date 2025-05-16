@@ -155,9 +155,9 @@ def get_frame_definition(
 
 __all__ = [
     "DfLike",
-    "is_dflike",
-    "dflike_as_2d_array",
     "DfLikeT",
     "assert_is_sensor_data",
+    "dflike_as_2d_array",
     "get_frame_definition",
+    "is_dflike",
 ]
