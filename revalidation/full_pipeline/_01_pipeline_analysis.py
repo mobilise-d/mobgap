@@ -333,9 +333,10 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
         .loc[:, list(final_names_matched.values())]
     )
 
+
+# %%
 # Free-living dataset
 # -------------------
-# %%
 # Combined/Aggregated Evaluation
 # ******************************
 # To mimic actual use of wearable device where actual decisions are made on aggregated measures over a longer
@@ -816,7 +817,6 @@ fig.show()
 
 # Laboratory dataset
 # -------------------
-# %%
 # Combined/Aggregated Evaluation
 # ******************************
 # To mimic actual use of wearable device where actual decisions are made on aggregated measures over a longer
@@ -869,6 +869,7 @@ def multi_metric_plot(data, metrics, nrows, ncols):
     plt.tight_layout()
     plt.show()
 
+
 laboratory_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
 laboratory_combined_perf_metrics_all = (
@@ -881,8 +882,6 @@ laboratory_combined_perf_metrics_all.style.pipe(
 )
 # %%
 # Residual plots
-
-from mobgap.plotting import move_legend_outside, residual_plot
 
 
 def combo_residual_plot(data, name=None):
@@ -948,7 +947,7 @@ laboratory_combined_perf_metrics_cohort.style.pipe(
 # within a cohort. Correlation factor, p-value and confidence intervals of the regression line are shown in the plot.
 # Each datapoint represents one participant.
 
-from mobgap.plotting import calc_min_max_with_margin, make_square, plot_regline
+from mobgap.plotting import calc_min_max_with_margin
 
 
 def combo_scatter_plot(data, name=None):
@@ -1116,7 +1115,6 @@ laboratory_matched_perf_metrics_cohort.style.pipe(
 # In the top, WB errors are grouped by various duration bouts.
 # In the bottom the number of bouts within each duration group is visualized.
 import numpy as np
-from mobgap.utils.df_operations import cut_into_overlapping_bins
 
 
 def plot_wb_duration_analysis(df):
