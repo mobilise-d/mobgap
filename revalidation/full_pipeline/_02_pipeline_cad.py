@@ -30,8 +30,8 @@ from typing import Optional
 
 # %%
 # Below the list of pipelines that are compared is shown.
-# Note, that we use the prefix "new" to refer to the reimplemented python algorithms, and the prefix "old" to refer to
-# the original Matlab-based implementation.
+# Note, that we use "MobGap" to refer to the reimplemented python algorithms, and the "Original Implementation" to
+# refer to the original Matlab-based implementation.
 
 algorithms = {
     "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "MobGap"),
@@ -138,6 +138,47 @@ free_living_results_matched_raw = format_loaded_results(
 )
 
 del _free_living_results, _free_living_results_raw
+
+# Loading laboratory data
+laboratory_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+_laboratory_results = {  # Matched and aggregate/combined per-recording results for the laboratory recordings
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+
+_laboratory_results_raw = {  # Matched per-WB results for the laboratory recordings
+    v: loader.load_single_csv_file(k, "laboratory", "raw_matched_errors.csv")
+    for k, v in algorithms.items()
+}
+laboratory_results_combined = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "combined__",
+    convert_rel_error=True,
+)
+laboratory_results_matched = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "matched__",
+    convert_rel_error=True,
+)
+laboratory_results_matched_raw = format_loaded_results(
+    values=_laboratory_results_raw,
+    index_cols=laboratory_index_cols,
+    col_prefix_filter=None,
+    convert_rel_error=True,
+)
+
+del _laboratory_results, _laboratory_results_raw
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
@@ -290,10 +331,12 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
         .loc[:, list(final_names_matched.values())]
     )
 
-
+# %%
+# Free-living dataset
+# -------------------
 # %%
 # Combined/Aggregated Evaluation
-# ------------------------------------------
+# ******************************
 # To mimic actual use of wearable device where actual decisions are made on aggregated measures over a longer
 # measurement period and not WB per WB, our primary comparison is based on the median gait metrics over the entire
 # recording.
@@ -302,10 +345,9 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
 # These combined values were then compared between the systems.
 #
 # .. note:: In the free-living dataset, each datapoint represents one 2.5h recording.
-#           In the laboratory dataset, each datapoint represents one trial.
 #
 # All results across all cohorts
-# ******************************
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 
@@ -348,18 +390,17 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-combined_perf_metrics_all = (
+free_living_combined_perf_metrics_all = (
     free_living_results_combined.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
 )
-combined_perf_metrics_all.style.pipe(
+free_living_combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 
 # %%
 # Residual plots
-# ~~~~~~~~~~~~~~
 from mobgap.plotting import move_legend_outside, residual_plot
 
 
@@ -379,7 +420,7 @@ def combo_residual_plot(data, name=None):
             "cadence_spm__reference",
             "cadence_spm__detected",
             "cohort",
-            "1/m",
+            "1/min",
             ax=ax,
             legend=ax == axs[-1],
         )
@@ -394,7 +435,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 
 # %%
 # Per-cohort analysis
-# *******************
+# ~~~~~~~~
 #
 # The results below represent the average absolute error on cadence estimation
 # across all participants within a cohort.
@@ -412,18 +453,17 @@ ax.set_ylabel("Absolute Error [1/min]")
 ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
-combined_perf_metrics_cohort = (
+free_living_combined_perf_metrics_cohort = (
     free_living_results_combined.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-combined_perf_metrics_cohort.style.pipe(
+free_living_combined_perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 # %%
 # Scatter plot
-# ~~~~~~~~~~~~
 # The results below represent the detected and reference values of cadence scattered across all participants
 # within a cohort. Correlation factor, p-value and confidence intervals of the regression line are shown in the plot.
 # Each datapoint represents one participant.
@@ -474,8 +514,8 @@ def combo_scatter_plot(data, name=None):
         make_square(ax, min_max, draw_diagonal=True)
 
         ax.set_title(version)
-        ax.set_xlabel("Reference [1/m]")
-        ax.set_ylabel("Detected [1/m]")
+        ax.set_xlabel("Reference [1/min]")
+        ax.set_ylabel("Detected [1/min]")
         ax.tick_params(axis="both", labelsize=20)
 
     move_legend_outside(fig, axs[-1])
@@ -488,7 +528,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Matched/True Positive Evaluation
-# ------------------------------------------
+# ******************************
 # The "Matched" Evaluation directly compares the performance of cadence estimation on only the WBs that were
 # detected in both systems (true positives).
 # WBs were included in the true positive analysis, if there was an overlap of more than 80%
@@ -506,7 +546,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 #           additional aggregation.
 #
 # Results across all cohorts
-# **************************
+# ~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
@@ -526,26 +566,24 @@ sns.barplot(
 fig.show()
 
 # %%
-matched_perf_metrics_all = (
+free_living_matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
 )
 
-matched_perf_metrics_all.style.pipe(
+free_living_matched_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 # %%
 # Residual plot
-# ~~~~~~~~~~~~
 free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
     combo_residual_plot, name="Matched WBs - Cadence"
 )
 # %%
 # Per-cohort analysis
-# *******************
+# ~~~~~~~~~~~~~~~~~~~
 # Boxplot
-# ~~~~~~~~~~
 # The results below represent the average absolute error on cadence estimation
 # across all participants within a cohort.
 fig, ax = plt.subplots(figsize=(12, 6))
@@ -578,26 +616,21 @@ ax.set_title("Absolute Error - Matched Analysis")
 fig.show()
 # %%
 # Processing the per-cohort performance table
-matched_perf_metrics_cohort = (
+free_living_matched_perf_metrics_cohort = (
     free_living_results_matched.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
-matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
-)
 
-matched_perf_metrics_all = (
-    free_living_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
-    .pipe(format_tables_matched)
+free_living_matched_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
-# ****************************************************************************
+# ********
 # Effect of WB duration
-# ~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~
 # We investigate the dependency of the absolute cadence error of all true-positive WBs from the real-world
 # recording on the WB duration reported by the reference system.
 # In the top, WB errors are grouped by various duration bouts.
@@ -660,8 +693,8 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
     plot_wb_duration_analysis
 )
 # %%
-# Effect of walking_speed on error
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Effect of walking speed on error
+# ~~~~~~~~
 # One important aspect of the algorithm performance is the dependency on the cadence. Aka, how well do the
 # algorithms perform at different walking speeds. For this we plot the absolute error against the cadence
 # of the reference data. For better granularity, we use the values per WB, instead of the aggregates per participant.
@@ -669,10 +702,10 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
 # of 0.05 m/s.
 
 # For plotting all participants at the end
-combined = free_living_results_matched_raw.copy()
-combined["cohort"] = "Combined"
+free_living_combined = free_living_results_matched_raw.copy()
+free_living_combined["cohort"] = "Combined"
 ws_level_results = pd.concat(
-    [free_living_results_matched_raw, combined]
+    [free_living_results_matched_raw, free_living_combined]
 ).reset_index(drop=True)
 
 algo_names = ws_level_results["algo_with_version"].unique()
@@ -757,3 +790,4 @@ for subfig, (algo, data) in zip(
         ax.set_ylim(*min_max_y)
 
 fig.show()
+
