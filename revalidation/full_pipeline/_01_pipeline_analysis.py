@@ -815,6 +815,7 @@ for subfig, (algo, data) in zip(
 
 fig.show()
 
+# %%
 # Laboratory dataset
 # -------------------
 # Combined/Aggregated Evaluation
