@@ -236,35 +236,37 @@ format_transforms = [
         ),
         column_name=("GS duration", "gs_duration_error_s"),
     ),
-    *(CustomOperation(
-        identifier=None,
-        function=partial(
-            F.stats_result,
-            p_value_col=("T", c),
-            effect_size_col=("p", c),
-        ),
-        column_name=("GSD", c + "__stats"),
-    )
+    *(
+        CustomOperation(
+            identifier=None,
+            function=partial(
+                F.stats_result,
+                p_value_col=("T", c),
+                effect_size_col=("p", c),
+            ),
+            column_name=("GSD", c + "__stats"),
+        )
         for c in [
-        "recall",
-        "precision",
-        "f1_score",
-        "accuracy",
-        "specificity",
-    ]
+            "recall",
+            "precision",
+            "f1_score",
+            "accuracy",
+            "specificity",
+        ]
     ),
-    *(CustomOperation(
-        identifier=None,
-        function=partial(
-            F.stats_result,
-            p_value_col=("T", c),
-            effect_size_col=("p", c),
-        ),
-        column_name=("GS duration", c + "__stats"),
-    )
+    *(
+        CustomOperation(
+            identifier=None,
+            function=partial(
+                F.stats_result,
+                p_value_col=("T", c),
+                effect_size_col=("p", c),
+            ),
+            column_name=("GS duration", c + "__stats"),
+        )
         for c in [
-        "gs_absolute_relative_duration_error",
-    ]
+            "gs_absolute_relative_duration_error",
+        ]
     ),
     CustomOperation(
         identifier=None,
@@ -293,37 +295,60 @@ final_names = {
 }
 stat_cols = [
     "recall",
-        "precision",
-        "f1_score",
-        "accuracy",
-        "specificity",
-        "gs_absolute_relative_duration_error",
+    "precision",
+    "f1_score",
+    "accuracy",
+    "specificity",
+    "gs_absolute_relative_duration_error",
 ]
-final_names.update({key+"__stats": final_names[key]+" Stats." for key in stat_cols})
+final_names.update(
+    {key + "__stats": final_names[key] + " Stats." for key in stat_cols}
+)
 
 validation_thresholds = {
-    ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Recall Stats.')),
-    ("GSD", "Precision"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Precision Stats.'),
+    ("GSD", "Recall"): RevalidationInfo(
+        threshold=0.7, higher_is_better=True, stat_col=("GSD", "Recall Stats.")
     ),
-    ("GSD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=('GSD', 'F1 Score Stats.')),
-    ("GSD", "Accuracy"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Accuracy Stats.')),
+    ("GSD", "Precision"): RevalidationInfo(
+        threshold=0.7,
+        higher_is_better=True,
+        stat_col=("GSD", "Precision Stats."),
+    ),
+    ("GSD", "F1 Score"): RevalidationInfo(
+        threshold=0.7,
+        higher_is_better=True,
+        stat_col=("GSD", "F1 Score Stats."),
+    ),
+    ("GSD", "Accuracy"): RevalidationInfo(
+        threshold=0.7,
+        higher_is_better=True,
+        stat_col=("GSD", "Accuracy Stats."),
+    ),
     ("GSD", "Specificity"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Specificity Stats.')
+        threshold=0.7,
+        higher_is_better=True,
+        stat_col=("GSD", "Specificity Stats."),
     ),
     ("GS duration", "Abs. Error [s]"): RevalidationInfo(
-        threshold=None, higher_is_better=False,
+        threshold=None,
+        higher_is_better=False,
     ),
     ("GS duration", "Abs. Rel. Error [%]"): RevalidationInfo(
-        threshold=20, higher_is_better=False, stat_col=('GS duration', 'Abs. Rel. Error [%] Stats.')
+        threshold=20,
+        higher_is_better=False,
+        stat_col=("GS duration", "Abs. Rel. Error [%] Stats."),
     ),
     ("GS duration", "ICC"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
     ),
 }
 
+
 def pairwise_tests(
-    df: pd.DataFrame, dv: str, between: str, reference: str,
+    df: pd.DataFrame,
+    dv: str,
+    between: str,
+    reference: str,
 ) -> tuple[float, float]:
     result = pg.pairwise_tests(data=df, dv=dv, between=between)
     result = result.query("A == @reference or B == @reference").copy()
@@ -333,20 +358,28 @@ def pairwise_tests(
 
 
 def agg_errors(
-    df: pd.DataFrame, groupby: list[str], stats_between="version", reference="Original Implementation",
+    df: pd.DataFrame,
+    groupby: list[str],
+    stats_between="version",
+    reference="Original Implementation",
 ) -> pd.DataFrame:
     error_agg = df.groupby([*groupby, stats_between]).apply(
         apply_aggregations, custom_aggs, include_groups=False
     )
+
     def group_pairwise_stats(group):
         dfs = []
         for col in stat_cols:
-            res = pairwise_tests(group, dv=col, between=stats_between, reference=reference)
+            res = pairwise_tests(
+                group, dv=col, between=stats_between, reference=reference
+            )
             res.columns = pd.MultiIndex.from_product([res.columns, [col]])
             dfs.append(res)
         return pd.concat(dfs, axis=1)
 
-    stats = df.groupby(groupby).apply(group_pairwise_stats, include_groups=False)
+    stats = df.groupby(groupby).apply(
+        group_pairwise_stats, include_groups=False
+    )
     return error_agg.join(stats, how="left")
 
 
@@ -387,13 +420,14 @@ sns.boxplot(
 fig.show()
 # %%
 
-perf_metrics_all = (
-    results_long.pipe(
+perf_metrics_all = results_long.pipe(
     agg_errors, groupby=["algo"], stats_between="version"
 ).pipe(format_results)
-)
 perf_metrics_all.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -409,12 +443,16 @@ fig.show()
 
 perf_metrics_per_cohort = (
     results_long.pipe(
-    agg_errors, groupby=["cohort", "algo"], stats_between="version"
-).pipe(format_results)
+        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    )
+    .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation"
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -458,7 +496,10 @@ fig.show()
 perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -496,7 +537,10 @@ fig.show()
 perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -525,13 +569,14 @@ sns.boxplot(
 fig.show()
 
 # %%
-perf_metrics_all = (
-    lab_results_long.pipe(
+perf_metrics_all = lab_results_long.pipe(
     agg_errors, groupby=["cohort", "algo"], stats_between="version"
 ).pipe(format_results)
-)
 perf_metrics_all.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -551,12 +596,16 @@ fig.show()
 # %%
 perf_metrics_per_cohort = (
     lab_results_long.pipe(
-    agg_errors, groupby=["cohort", "algo"], stats_between="version"
-).pipe(format_results)
+        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    )
+    .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation"
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -596,7 +645,10 @@ fig.show()
 perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -631,5 +683,8 @@ fig.show()
 perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )

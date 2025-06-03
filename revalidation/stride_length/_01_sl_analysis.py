@@ -175,9 +175,9 @@ custom_aggs = [
 ]
 
 stat_cols = [
-        "wb__abs_error",
-        "wb__abs_rel_error",
-    ]
+    "wb__abs_error",
+    "wb__abs_rel_error",
+]
 
 format_transforms = [
     CustomOperation(
@@ -208,15 +208,16 @@ format_transforms = [
             "wb__abs_rel_error",
         ]
     ),
-    *(CustomOperation(
-        identifier=None,
-        function=partial(
-            F.stats_result,
-            p_value_col=("T", c),
-            effect_size_col=("p", c),
-        ),
-        column_name=c + "__stats",
-    )
+    *(
+        CustomOperation(
+            identifier=None,
+            function=partial(
+                F.stats_result,
+                p_value_col=("T", c),
+                effect_size_col=("p", c),
+            ),
+            column_name=c + "__stats",
+        )
         for c in stat_cols
     ),
     CustomOperation(
@@ -252,12 +253,18 @@ final_names = {
     "icc": "ICC",
     "n_nan_detected": "# Failed WBs",
 }
-final_names.update({key+"__stats": final_names[key]+" Stats." for key in stat_cols})
+final_names.update(
+    {key + "__stats": final_names[key] + " Stats." for key in stat_cols}
+)
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error [m] Stats."),
+    "Abs. Error [m]": RevalidationInfo(
+        threshold=None, higher_is_better=False, stat_col="Abs. Error [m] Stats."
+    ),
     "Abs. Rel. Error [%]": RevalidationInfo(
-        threshold=20, higher_is_better=False, stat_col="Abs. Rel. Error [%] Stats."
+        threshold=20,
+        higher_is_better=False,
+        stat_col="Abs. Rel. Error [%] Stats.",
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
@@ -300,7 +307,10 @@ def agg_errors(
     return error_agg.join(stats, on=groupby, how="left")
 
 def pairwise_tests(
-    df: pd.DataFrame, dv: str, between: str, reference: str,
+    df: pd.DataFrame,
+    dv: str,
+    between: str,
+    reference: str,
 ) -> tuple[float, float]:
     result = pg.pairwise_tests(data=df, dv=dv, between=between)
     result = result.query("A == @reference or B == @reference").copy()
@@ -310,20 +320,28 @@ def pairwise_tests(
 
 
 def agg_errors(
-    df: pd.DataFrame, groupby: list[str], stats_between="version", reference="Original Implementation",
+    df: pd.DataFrame,
+    groupby: list[str],
+    stats_between="version",
+    reference="Original Implementation",
 ) -> pd.DataFrame:
     error_agg = df.groupby([*groupby, stats_between]).apply(
         apply_aggregations, custom_aggs, include_groups=False
     )
+
     def group_pairwise_stats(group):
         dfs = []
         for col in stat_cols:
-            res = pairwise_tests(group, dv=col, between=stats_between, reference=reference)
+            res = pairwise_tests(
+                group, dv=col, between=stats_between, reference=reference
+            )
             res.columns = pd.MultiIndex.from_product([res.columns, [col]])
             dfs.append(res)
         return pd.concat(dfs, axis=1)
 
-    stats = df.groupby(groupby).apply(group_pairwise_stats, include_groups=False)
+    stats = df.groupby(groupby).apply(
+        group_pairwise_stats, include_groups=False
+    )
     return error_agg.join(stats, how="left")
 
 
@@ -359,7 +377,10 @@ perf_metrics_all = (
     .pipe(format_tables)
 )
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -631,7 +652,10 @@ perf_metrics_all = lab_results.pipe(
     agg_errors, groupby=["algo"], stats_between="version"
 ).pipe(format_tables)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
