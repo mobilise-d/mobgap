@@ -174,6 +174,11 @@ custom_aggs = [
     ),
 ]
 
+stat_cols = [
+        "wb__abs_error",
+        "wb__rel_error",
+    ]
+
 format_transforms = [
     CustomOperation(
         identifier=None,
@@ -203,14 +208,16 @@ format_transforms = [
             "wb__abs_rel_error",
         ]
     ),
-    CustomOperation(
+    *(CustomOperation(
         identifier=None,
         function=partial(
             F.stats_result,
-            p_value_col=("T", "wb__abs_error"),
-            effect_size_col=("p", "wb__abs_error"),
+            p_value_col=("T", c),
+            effect_size_col=("p", c),
         ),
-        column_name="wb__abs_error__stats",
+        column_name=c + "__stats",
+    )
+        for c in stat_cols
     ),
     CustomOperation(
         identifier=None,
@@ -239,17 +246,18 @@ final_names = {
     "wb__reference": "INDIP mean and CI [m]",
     "wb__error": "Bias and LoA [m]",
     "wb__abs_error": "Abs. Error [m]",
-    "wb__abs_error__stats": "Abs. Error Stats. [m]",
+    "wb__abs_error__stats": "Abs. Error Stats.",
     "wb__rel_error": "Rel. Error [%]",
+    "wb__rel_error__stats": "Rel. Error Stats.",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
     "n_nan_detected": "# Failed WBs",
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error Stats. [m]"),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error Stats."),
     "Abs. Rel. Error [%]": RevalidationInfo(
-        threshold=20, higher_is_better=False
+        threshold=20, higher_is_better=False, stat_col="Rel. Error Stats."
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
@@ -276,16 +284,17 @@ def agg_errors(
             CustomOperation(
                 identifier=None,
                 function=partial(
-                    pairwise_tests, dv="wb__abs_error", between="version"
+                    pairwise_tests, dv=c, between=stats_between
                 ),
                 column_name=[
                     (
                         "T",
-                        "wb__abs_error",
+                        c,
                     ),
-                    ("p", "wb__abs_error"),
+                    ("p", c),
                 ],
             )
+            for c in stat_cols
         ],
         include_groups=False,
     )
@@ -322,7 +331,7 @@ perf_metrics_all = free_living_results.pipe(
     agg_errors, groupby=["algo"], stats_between="version"
 ).pipe(format_tables)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="old"
+    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
 )
 
 # %%
@@ -350,7 +359,7 @@ perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
-    stats_to="old",
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -594,7 +603,7 @@ perf_metrics_all = lab_results.pipe(
     agg_errors, groupby=["algo"], stats_between="version"
 ).pipe(format_tables)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="old"
+    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
 )
 
 # %%
@@ -622,7 +631,7 @@ perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
-    stats_to="old",
+    stats_to="Original Implementation",
 )
 
 

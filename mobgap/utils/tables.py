@@ -164,7 +164,7 @@ def compare_to_threshold_styler(
     thresholds: dict[Hashable, float],
     higher_is_pass: dict[Hashable, float],
     stats_orig_cols: dict[Hashable, float],
-    stats_to: str = "old",
+    stats_to: str = "Original Implementation",
     pass_style: str = "background-color: lightgreen",
     fail_style: str = "background-color: lightcoral",
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
@@ -178,6 +178,8 @@ def compare_to_threshold_styler(
         A dictionary with the column names as keys and the threshold values as values.
     stats_orig_cols
         A dictionary with the stat results column names as keys and their original column names as values.
+    stats_to
+        Key (column) name to which the comparison is made against, thus, not superscripted.
     pass_style
         The CSS style to apply to the elements that pass the threshold.
     fail_style
@@ -197,9 +199,9 @@ def compare_to_threshold_styler(
             if stats_to in row.name[-1]:  # TODO: Is row.name[-1] always the stats_between column (containing stats_to)?
                 return row_orig_str
             if row[col_stat] < 0.01:
-                return row_orig_str + "<sup>*</sup>"
+                return row_orig_str + "<sup>**</sup>"
             if row[col_stat] < 0.05:
-                return row_orig_str + "<sup>+</sup>"
+                return row_orig_str + "<sup>*</sup>"
             return row_orig_str
 
         for stats_col, orig_col in stats_orig_cols.items():
@@ -265,7 +267,7 @@ def revalidation_table_styles(
         .apply(compare_to_threshold_styler(thresholds, higher_is_better, stats_orig_cols, stats_to), axis=None)
         .apply(border_after_group_styler(groupby), axis=None)
         .set_table_attributes('class="dataframe"')
-        .hide(stats_orig_cols.keys(), axis=1)
+        .hide(list(stats_orig_cols.keys()), axis=1)
     )
 
 
