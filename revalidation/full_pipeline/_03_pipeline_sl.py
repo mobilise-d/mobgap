@@ -999,7 +999,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 # (total WB number > 101 corresponding to ICC > 0.7 and a CI = 0.2).
 #
 # .. note:: compared to the results published in [1]_, the primary analysis on the matched results is performed on the
-#           average performance metrics across all matched WBs **per recording/per participant**.
+#           average performance metrics across all matched WBs **per trial**.
 #           The original publication considered the average performance metrics across all matched WBs without
 #           additional aggregation.
 #
