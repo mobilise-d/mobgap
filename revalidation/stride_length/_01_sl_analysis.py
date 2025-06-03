@@ -176,7 +176,7 @@ custom_aggs = [
 
 stat_cols = [
         "wb__abs_error",
-        "wb__rel_error",
+        "wb__abs_rel_error",
     ]
 
 format_transforms = [
@@ -246,18 +246,17 @@ final_names = {
     "wb__reference": "INDIP mean and CI [m]",
     "wb__error": "Bias and LoA [m]",
     "wb__abs_error": "Abs. Error [m]",
-    "wb__abs_error__stats": "Abs. Error Stats.",
     "wb__rel_error": "Rel. Error [%]",
-    "wb__rel_error__stats": "Rel. Error Stats.",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
     "n_nan_detected": "# Failed WBs",
 }
+final_names.update({key+"__stats": final_names[key]+" Stats." for key in stat_cols})
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error Stats."),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error [m] Stats."),
     "Abs. Rel. Error [%]": RevalidationInfo(
-        threshold=20, higher_is_better=False, stat_col="Rel. Error Stats."
+        threshold=20, higher_is_better=False, stat_col="Abs. Rel. Error [%] Stats."
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
@@ -265,40 +264,31 @@ validation_thresholds = {
 
 
 def pairwise_tests(
-    df: pd.DataFrame, dv: str, between: str
+    df: pd.DataFrame, dv: str, between: str, reference: str,
 ) -> tuple[float, float]:
     result = pg.pairwise_tests(data=df, dv=dv, between=between)
-    assert len(result) == 1
-    return tuple(result.iloc[0][["T", "p-unc"]].to_list())
+    result = result.query("A == @reference or B == @reference").copy()
+    result["version"] = result["B"].where(result["A"] == reference, result["A"])
+    result = result.rename(columns={"p-unc": "p"})
+    return result[["version", "T", "p"]].set_index("version")
 
 
 def agg_errors(
-    df: pd.DataFrame, groupby: list[str], stats_between="version"
+    df: pd.DataFrame, groupby: list[str], stats_between="version", reference="Original Implementation",
 ) -> pd.DataFrame:
     error_agg = df.groupby([*groupby, stats_between]).apply(
         apply_aggregations, custom_aggs, include_groups=False
     )
-    stats = df.groupby(groupby).apply(
-        apply_aggregations,
-        [
-            CustomOperation(
-                identifier=None,
-                function=partial(
-                    pairwise_tests, dv=c, between=stats_between
-                ),
-                column_name=[
-                    (
-                        "T",
-                        c,
-                    ),
-                    ("p", c),
-                ],
-            )
-            for c in stat_cols
-        ],
-        include_groups=False,
-    )
-    return error_agg.join(stats, on=groupby, how="left")
+    def group_pairwise_stats(group):
+        dfs = []
+        for col in stat_cols:
+            res = pairwise_tests(group, dv=col, between=stats_between, reference=reference)
+            res.columns = pd.MultiIndex.from_product([res.columns, [col]])
+            dfs.append(res)
+        return pd.concat(dfs, axis=1)
+
+    stats = df.groupby(groupby).apply(group_pairwise_stats, include_groups=False)
+    return error_agg.join(stats, how="left")
 
 
 def format_tables(df: pd.DataFrame) -> pd.DataFrame:

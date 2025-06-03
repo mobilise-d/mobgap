@@ -58,6 +58,7 @@ algorithms.update(
 from pathlib import Path
 
 import pandas as pd
+import pingouin as pg
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
@@ -235,6 +236,36 @@ format_transforms = [
         ),
         column_name=("GS duration", "gs_duration_error_s"),
     ),
+    *(CustomOperation(
+        identifier=None,
+        function=partial(
+            F.stats_result,
+            p_value_col=("T", c),
+            effect_size_col=("p", c),
+        ),
+        column_name=("GSD", c + "__stats"),
+    )
+        for c in [
+        "recall",
+        "precision",
+        "f1_score",
+        "accuracy",
+        "specificity",
+    ]
+    ),
+    *(CustomOperation(
+        identifier=None,
+        function=partial(
+            F.stats_result,
+            p_value_col=("T", c),
+            effect_size_col=("p", c),
+        ),
+        column_name=("GS duration", c + "__stats"),
+    )
+        for c in [
+        "gs_absolute_relative_duration_error",
+    ]
+    ),
     CustomOperation(
         identifier=None,
         function=partial(
@@ -260,27 +291,63 @@ final_names = {
     "gs_absolute_relative_duration_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
+stat_cols = [
+    "recall",
+        "precision",
+        "f1_score",
+        "accuracy",
+        "specificity",
+        "gs_absolute_relative_duration_error",
+]
+final_names.update({key+"__stats": final_names[key]+" Stats." for key in stat_cols})
 
 validation_thresholds = {
-    ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Recall Stats.')),
     ("GSD", "Precision"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
+        threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Precision Stats.'),
     ),
-    ("GSD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True),
-    ("GSD", "Accuracy"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("GSD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=('GSD', 'F1 Score Stats.')),
+    ("GSD", "Accuracy"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Accuracy Stats.')),
     ("GSD", "Specificity"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
+        threshold=0.7, higher_is_better=True, stat_col=('GSD', 'Specificity Stats.')
     ),
     ("GS duration", "Abs. Error [s]"): RevalidationInfo(
-        threshold=None, higher_is_better=False
+        threshold=None, higher_is_better=False,
     ),
     ("GS duration", "Abs. Rel. Error [%]"): RevalidationInfo(
-        threshold=20, higher_is_better=False
+        threshold=20, higher_is_better=False, stat_col=('GS duration', 'Abs. Rel. Error [%] Stats.')
     ),
     ("GS duration", "ICC"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
     ),
 }
+
+def pairwise_tests(
+    df: pd.DataFrame, dv: str, between: str, reference: str,
+) -> tuple[float, float]:
+    result = pg.pairwise_tests(data=df, dv=dv, between=between)
+    result = result.query("A == @reference or B == @reference").copy()
+    result["version"] = result["B"].where(result["A"] == reference, result["A"])
+    result = result.rename(columns={"p-unc": "p"})
+    return result[["version", "T", "p"]].set_index("version")
+
+
+def agg_errors(
+    df: pd.DataFrame, groupby: list[str], stats_between="version", reference="Original Implementation",
+) -> pd.DataFrame:
+    error_agg = df.groupby([*groupby, stats_between]).apply(
+        apply_aggregations, custom_aggs, include_groups=False
+    )
+    def group_pairwise_stats(group):
+        dfs = []
+        for col in stat_cols:
+            res = pairwise_tests(group, dv=col, between=stats_between, reference=reference)
+            res.columns = pd.MultiIndex.from_product([res.columns, [col]])
+            dfs.append(res)
+        return pd.concat(dfs, axis=1)
+
+    stats = df.groupby(groupby).apply(group_pairwise_stats, include_groups=False)
+    return error_agg.join(stats, how="left")
 
 
 def format_results(df: pd.DataFrame) -> pd.DataFrame:
@@ -321,12 +388,12 @@ fig.show()
 # %%
 
 perf_metrics_all = (
-    results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
+    results_long.pipe(
+    agg_errors, groupby=["algo"], stats_between="version"
+).pipe(format_results)
 )
-perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
 )
 
 # %%
@@ -341,13 +408,13 @@ fig.show()
 # %%
 
 perf_metrics_per_cohort = (
-    results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
+    results_long.pipe(
+    agg_errors, groupby=["cohort", "algo"], stats_between="version"
+).pipe(format_results)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+perf_metrics_per_cohort.copy().style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation"
 )
 
 # %%
@@ -388,10 +455,10 @@ fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
 )
 
 # %%
@@ -426,10 +493,10 @@ fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
 )
 
 # %%
@@ -459,12 +526,12 @@ fig.show()
 
 # %%
 perf_metrics_all = (
-    lab_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
+    lab_results_long.pipe(
+    agg_errors, groupby=["cohort", "algo"], stats_between="version"
+).pipe(format_results)
 )
-perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation"
 )
 
 # %%
@@ -483,13 +550,13 @@ fig.show()
 
 # %%
 perf_metrics_per_cohort = (
-    lab_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
+    lab_results_long.pipe(
+    agg_errors, groupby=["cohort", "algo"], stats_between="version"
+).pipe(format_results)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+perf_metrics_per_cohort.copy().style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation"
 )
 
 # %%
@@ -526,10 +593,10 @@ fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
 )
 
 # %%
@@ -561,8 +628,8 @@ fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
 )
