@@ -734,7 +734,7 @@ for subfig, (algo, data) in zip(
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
-    subfig.supylabel("Absolute Error (steps/minin)")
+    subfig.supylabel("Absolute Error (steps/min)")
 
     # Create subplots for each cohort
     axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)
@@ -1192,7 +1192,7 @@ for subfig, (algo, data) in zip(
 ):
     subfig.suptitle(algo)
     subfig.supxlabel("Walking Speed (m/s)")
-    subfig.supylabel("Absolute Error (steps/minin)")
+    subfig.supylabel("Absolute Error (steps/min)")
 
     # Create subplots for each cohort
     axs = subfig.subplots(1, len(cohort_names), sharex=True, sharey=True)

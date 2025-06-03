@@ -220,10 +220,10 @@ format_transforms = [
 
 final_names = {
     "n_datapoints": "# participants",
-    "wb__detected": "WD mean and CI [1/min]",
-    "wb__reference": "INDIP mean and CI [1/min]",
-    "wb__error": "Bias and LoA [1/min]",
-    "wb__abs_error": "Abs. Error [1/min]",
+    "wb__detected": "WD mean and CI [steps/min]",
+    "wb__reference": "INDIP mean and CI [steps/min]",
+    "wb__error": "Bias and LoA [steps/min]",
+    "wb__abs_error": "Abs. Error [steps/min]",
     "wb__rel_error": "Rel. Error [%]",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
@@ -231,7 +231,7 @@ final_names = {
 }
 
 validation_thresholds = {
-    "Abs. Error [1/min]": RevalidationInfo(
+    "Abs. Error [steps/min]": RevalidationInfo(
         threshold=None, higher_is_better=False
     ),
     "Abs. Rel. Error [%]": RevalidationInfo(
