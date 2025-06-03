@@ -20,15 +20,18 @@ from typing import Optional
 # the original Matlab-based implementation.
 
 algorithms = {
-    "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "new"),
-    "EScience_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "old"),
+    "Official_MobiliseD_Pipeline": ("Mobilise-D Pipeline", "MobGap"),
+    "EScience_MobiliseD_Pipeline": (
+        "Mobilise-D Pipeline",
+        "Original Implementation",
+    ),
     "Official_MobiliseD_Pipeline__old_gs": (
         "Mobilise-D Pipeline",
-        "new with old GS",
+        "MobGap (with old GS)",
     ),
     "Official_MobiliseD_Pipeline__old_lrc": (
         "Mobilise-D Pipeline",
-        "new with old LRC",
+        "MobGap (with old LRC)",
     ),
 }
 # %%
@@ -125,6 +128,47 @@ free_living_results_matched = format_loaded_results(
 )
 
 del _free_living_results, _free_living_results_raw
+
+# Loading laboratory data
+laboratory_index_cols = [
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
+]
+
+_laboratory_results = {  # Matched and aggregate/combined per-recording results for the laboratory recordings
+    v: loader.load_single_results(k, "laboratory")
+    for k, v in algorithms.items()
+}
+
+_laboratory_results_raw = {  # Matched per-WB results for the laboratory recordings
+    v: loader.load_single_csv_file(k, "laboratory", "raw_matched_errors.csv")
+    for k, v in algorithms.items()
+}
+laboratory_results_combined = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "combined__",
+    convert_rel_error=True,
+)
+laboratory_results_matched = format_loaded_results(
+    _laboratory_results,
+    laboratory_index_cols,
+    "matched__",
+    convert_rel_error=True,
+)
+laboratory_results_matched_raw = format_loaded_results(
+    values=_laboratory_results_raw,
+    index_cols=laboratory_index_cols,
+    col_prefix_filter=None,
+    convert_rel_error=True,
+)
+
+del _laboratory_results, _laboratory_results_raw
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # %%
 # Performance metrics
@@ -281,11 +325,15 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # %%
+# Free-living dataset
+# -------------------
 # Combined/Aggregated Evaluation
-# ------------------------------
+# ******************************
 # Below a quick compressed version of the results without further explanation.
 # For information on the metrics, see the main full pipeline analysis example.
-
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -325,18 +373,19 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-combined_perf_metrics_all = (
+free_living_combined_perf_metrics_all = (
     free_living_results_combined.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
 )
-combined_perf_metrics_all.style.pipe(
+free_living_combined_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 
 # %%
 # Per-cohort analysis
-# *******************
+# ~~~~~~~~~~~~
+#
 fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
     data=free_living_results_combined,
@@ -351,29 +400,29 @@ ax.set_ylabel("Absolute Error [m/s]")
 ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
-combined_perf_metrics_cohort = (
+free_living_combined_perf_metrics_cohort = (
     free_living_results_combined.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-combined_perf_metrics_cohort.style.pipe(
+free_living_combined_perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 
 # %%
 # Matched/True Positive Evaluation
-# ------------------------------------------
+# ******************************
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
 
 # %%
-matched_perf_metrics_all = (
+free_living_matched_perf_metrics_all = (
     free_living_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
 )
 
-matched_perf_metrics_all.style.pipe(
+free_living_matched_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
 )
 # %%
@@ -406,18 +455,153 @@ ax.set_ylabel("Absolute Error [m/s]")
 ax.set_title("Absolute Error - Matched Analysis")
 fig.show()
 # %%
-matched_perf_metrics_cohort = (
+free_living_matched_perf_metrics_cohort = (
     free_living_results_matched.groupby(["cohort", "algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
-matched_perf_metrics_cohort.style.pipe(
+free_living_matched_perf_metrics_cohort.style.pipe(
     revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )
 
-matched_perf_metrics_all = (
-    free_living_results_matched.groupby(["algo", "version"])
+# %%
+# Laboratory dataset
+# -------------------
+# Combined/Aggregated Evaluation
+# ******************************
+# Below a quick compressed version of the results without further explanation.
+# For information on the metrics, see the main full pipeline analysis example.
+#
+# All results across all cohorts
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_context("talk")
+metrics = {
+    "abs_rel_error": "Abs. Rel. Error (%)",
+    "error": "Error (m/s)",
+    "rel_error": "Rel. Error (%)",
+    "abs_error": "Abs. Error (m/s)",
+}
+
+
+def multi_metric_plot(data, metrics, nrows, ncols):
+    fig, axs = plt.subplots(
+        nrows, ncols, sharex=True, figsize=(ncols * 6, nrows * 4 + 2)
+    )
+    for ax, (metric, metric_label) in zip(axs.flatten(), metrics.items()):
+        overall_df = data[["version", f"walking_speed_mps__{metric}"]].rename(
+            columns={f"walking_speed_mps__{metric}": metric_label}
+        )
+
+        sns.boxplot(
+            data=overall_df, x="version", hue="version", y=metric_label, ax=ax
+        )
+
+        ax.set_title(metric_label)
+        ax.set_ylabel(metric_label)
+
+        ax.tick_params(axis="both", which="major")
+        ax.tick_params(axis="both", which="minor")
+
+        ax.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+laboratory_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
+# %%
+laboratory_combined_perf_metrics_all = (
+    laboratory_results_combined.groupby(["algo", "version"])
+    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    .pipe(format_tables_combined)
+)
+laboratory_combined_perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
+
+# %%
+# Per-cohort analysis
+# ~~~~~~~~~~~~
+#
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.boxplot(
+    data=laboratory_results_combined,
+    x="cohort",
+    y="walking_speed_mps__abs_error",
+    hue="version",
+    order=cohort_order,
+    showmeans=True,
+    ax=ax,
+).legend().set_title(None)
+ax.set_ylabel("Absolute Error [m/s]")
+ax.set_title("Absolute Error - Combined Analysis")
+fig.show()
+# %%
+laboratory_combined_perf_metrics_cohort = (
+    laboratory_results_combined.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    .pipe(format_tables_combined)
+    .loc[cohort_order]
+)
+laboratory_combined_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+)
+
+# %%
+# Matched/True Positive Evaluation
+# ******************************
+laboratory_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
+
+# %%
+laboratory_matched_perf_metrics_all = (
+    laboratory_results_matched.groupby(["algo", "version"])
     .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
     .pipe(format_tables_matched)
+)
+
+laboratory_matched_perf_metrics_all.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["algo"]
+)
+# %%
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.barplot(
+    data=laboratory_results_matched.groupby(["version", "cohort"])[
+        "n_matched_wbs"
+    ]
+    .sum()
+    .reset_index(),
+    hue="version",
+    y="n_matched_wbs",
+    x="cohort",
+    order=cohort_order,
+    hue_order=["new", "old", "new with old GS", "new with old LRC"],
+    ax=ax,
+)
+fig.show()
+# %%
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.boxplot(
+    data=laboratory_results_matched,
+    x="cohort",
+    y="walking_speed_mps__abs_error",
+    hue="algo_with_version",
+    order=cohort_order,
+    ax=ax,
+).legend().set_title(None)
+ax.set_ylabel("Absolute Error [m/s]")
+ax.set_title("Absolute Error - Matched Analysis")
+fig.show()
+# %%
+laboratory_matched_perf_metrics_cohort = (
+    laboratory_results_matched.groupby(["cohort", "algo", "version"])
+    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    .pipe(format_tables_matched)
+    .loc[cohort_order]
+)
+laboratory_matched_perf_metrics_cohort.style.pipe(
+    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
 )

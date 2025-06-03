@@ -217,8 +217,7 @@ class BaseTVSDataset(BaseGenericMobilisedDataset):
         files = sorted(Path(self.base_path).glob(f"**/{self._MEASUREMENT_CONDITION}/data.mat"))
         if not files:
             raise ValueError(
-                f"No files found in {self.base_path.resolve()}. "
-                "Are you sure you provided the correct path to the data?"
+                f"No files found in {self.base_path.resolve()}. Are you sure you provided the correct path to the data?"
             )
         return files
 

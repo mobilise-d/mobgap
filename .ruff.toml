@@ -107,6 +107,8 @@ ignore = [
     "ANN102",
     # Ignore because of formatting
     "ISC001",
+    # camelcase imported as constant
+    "N814"
 ]
 
 

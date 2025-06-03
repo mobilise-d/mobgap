@@ -436,7 +436,7 @@ class MobilisedAggregator(BaseAggregator):
         """
         count_columns = [col for col in self._COUNT_COLUMNS if col in data.columns]
         data.loc[:, count_columns] = data.loc[:, count_columns].fillna(0)
-        return data.astype({c: "Int64" for c in count_columns})
+        return data.astype(dict.fromkeys(count_columns, "Int64"))
 
     def _convert_units(self, data: pd.DataFrame) -> pd.DataFrame:
         """Convert the units of the aggregated data to the desired output units."""

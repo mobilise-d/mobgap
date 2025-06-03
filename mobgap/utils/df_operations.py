@@ -672,11 +672,11 @@ def cut_into_overlapping_bins(
 
 
 __all__ = [
+    "CustomOperation",
     "MultiGroupBy",
     "MultiGroupByPrimaryDfEmptyError",
-    "create_multi_groupby",
-    "CustomOperation",
-    "apply_transformations",
     "apply_aggregations",
+    "apply_transformations",
+    "create_multi_groupby",
     "cut_into_overlapping_bins",
 ]
