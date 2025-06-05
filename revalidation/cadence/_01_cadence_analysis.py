@@ -43,6 +43,7 @@ algorithms = {
 from pathlib import Path
 
 import pandas as pd
+import pingouin as pg
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
@@ -168,6 +169,11 @@ custom_aggs = [
     ),
 ]
 
+stat_cols = [
+    "wb__abs_error",
+    "wb__abs_rel_error",
+]
+
 format_transforms = [
     CustomOperation(
         identifier=None,
@@ -196,6 +202,18 @@ format_transforms = [
             "wb__rel_error",
             "wb__abs_rel_error",
         ]
+    ),
+    *(
+        CustomOperation(
+            identifier=None,
+            function=partial(
+                F.stats_result,
+                p_value_col=("T", c),
+                effect_size_col=("p", c),
+            ),
+            column_name=c + "__stats",
+        )
+        for c in stat_cols
     ),
     CustomOperation(
         identifier=None,
@@ -229,17 +247,63 @@ final_names = {
     "icc": "ICC",
     "n_nan_detected": "# Failed WBs",
 }
+final_names.update(
+    {key + "__stats": final_names[key] + " Stats." for key in stat_cols}
+)
 
 validation_thresholds = {
     "Abs. Error [steps/min]": RevalidationInfo(
-        threshold=None, higher_is_better=False
+        threshold=None,
+        higher_is_better=False,
+        stat_col="Abs. Error [steps/min] Stats.",
     ),
     "Abs. Rel. Error [%]": RevalidationInfo(
-        threshold=20, higher_is_better=False
+        threshold=20,
+        higher_is_better=False,
+        stat_col="Abs. Rel. Error [%] Stats.",
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
+
+
+def pairwise_tests(
+    df: pd.DataFrame,
+    dv: str,
+    between: str,
+    reference: str,
+) -> tuple[float, float]:
+    result = pg.pairwise_tests(data=df, dv=dv, between=between)
+    result = result.query("A == @reference or B == @reference").copy()
+    result["version"] = result["B"].where(result["A"] == reference, result["A"])
+    result = result.rename(columns={"p-unc": "p"})
+    return result[["version", "T", "p"]].set_index("version")
+
+
+def agg_errors(
+    df: pd.DataFrame,
+    groupby: list[str],
+    stats_between="version",
+    reference="Original Implementation",
+) -> pd.DataFrame:
+    error_agg = df.groupby([*groupby, stats_between]).apply(
+        apply_aggregations, custom_aggs, include_groups=False
+    )
+
+    def group_pairwise_stats(group):
+        dfs = []
+        for col in stat_cols:
+            res = pairwise_tests(
+                group, dv=col, between=stats_between, reference=reference
+            )
+            res.columns = pd.MultiIndex.from_product([res.columns, [col]])
+            dfs.append(res)
+        return pd.concat(dfs, axis=1)
+
+    stats = df.groupby(groupby).apply(
+        group_pairwise_stats, include_groups=False
+    )
+    return error_agg.join(stats, how="left")
 
 
 def format_tables(df: pd.DataFrame) -> pd.DataFrame:
@@ -268,13 +332,14 @@ sns.boxplot(
 )
 fig.show()
 
-perf_metrics_all = (
-    free_living_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-)
-perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+perf_metrics_all = free_living_results.pipe(
+    agg_errors, groupby=["algo"], stats_between="version"
+).pipe(format_tables)
+perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -292,13 +357,17 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    free_living_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    free_living_results.pipe(
+        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    )
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+perf_metrics_cohort.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 
 
@@ -342,10 +411,13 @@ fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_cohort.loc[
+perf_metrics_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+].reset_index("algo", drop=True).copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -378,10 +450,13 @@ fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_cohort.loc[
-    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+perf_metrics_cohort.copy().loc[
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+].reset_index("algo", drop=True).copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 
@@ -474,13 +549,14 @@ fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
 fig.show()
 
-perf_metrics_all = (
-    lab_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-)
-perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+perf_metrics_all = lab_results.pipe(
+    agg_errors, groupby=["algo"], stats_between="version"
+).pipe(format_tables)
+perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -498,13 +574,17 @@ sns.boxplot(
 )
 fig.show()
 perf_metrics_cohort = (
-    lab_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
+    lab_results.pipe(
+        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    )
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+perf_metrics_cohort.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -543,10 +623,13 @@ fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_cohort.loc[
+perf_metrics_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+].reset_index("algo", drop=True).copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -576,8 +659,11 @@ fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_cohort.loc[
+perf_metrics_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+].reset_index("algo", drop=True).copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )

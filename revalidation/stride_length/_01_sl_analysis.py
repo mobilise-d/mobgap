@@ -247,7 +247,6 @@ final_names = {
     "wb__reference": "INDIP mean and CI [m]",
     "wb__error": "Bias and LoA [m]",
     "wb__abs_error": "Abs. Error [m]",
-    "wb__abs_error__stats": "Abs. Error Stats. [m]",
     "wb__rel_error": "Rel. Error [%]",
     "wb__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
@@ -269,42 +268,6 @@ validation_thresholds = {
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
-
-
-def pairwise_tests(
-    df: pd.DataFrame, dv: str, between: str
-) -> tuple[float, float]:
-    result = pg.pairwise_tests(data=df, dv=dv, between=between)
-    assert len(result) == 1
-    return tuple(result.iloc[0][["T", "p-unc"]].to_list())
-
-
-def agg_errors(
-    df: pd.DataFrame, groupby: list[str], stats_between="version"
-) -> pd.DataFrame:
-    error_agg = df.groupby([*groupby, stats_between]).apply(
-        apply_aggregations, custom_aggs, include_groups=False
-    )
-    stats = df.groupby(groupby).apply(
-        apply_aggregations,
-        [
-            CustomOperation(
-                identifier=None,
-                function=partial(
-                    pairwise_tests, dv="wb__abs_error", between="version"
-                ),
-                column_name=[
-                    (
-                        "T",
-                        "wb__abs_error",
-                    ),
-                    ("p", "wb__abs_error"),
-                ],
-            )
-        ],
-        include_groups=False,
-    )
-    return error_agg.join(stats, on=groupby, how="left")
 
 
 def pairwise_tests(
@@ -372,12 +335,10 @@ sns.boxplot(
 )
 fig.show()
 
-perf_metrics_all = (
-    free_living_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs, include_groups=False)
-    .pipe(format_tables)
-)
-perf_metrics_all.style.pipe(
+perf_metrics_all = free_living_results.pipe(
+    agg_errors, groupby=["algo"], stats_between="version"
+).pipe(format_tables)
+perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -405,7 +366,7 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.style.pipe(
+perf_metrics_cohort.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -652,7 +613,7 @@ fig.show()
 perf_metrics_all = lab_results.pipe(
     agg_errors, groupby=["algo"], stats_between="version"
 ).pipe(format_tables)
-perf_metrics_all.style.pipe(
+perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -680,7 +641,7 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.style.pipe(
+perf_metrics_cohort.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
