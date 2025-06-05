@@ -306,6 +306,7 @@ def agg_errors(
     )
     return error_agg.join(stats, on=groupby, how="left")
 
+
 def pairwise_tests(
     df: pd.DataFrame,
     dv: str,

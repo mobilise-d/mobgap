@@ -70,12 +70,6 @@ def value_with_range(df: pd.DataFrame, value_col: str, range_col: str, precision
     )
 
 
-def _format_stats_results(row: pd.Series, p_value_col: str, effect_size_col: str, precision: int) -> str:
-    p_value = row[p_value_col]
-    if p_value < 0.001:
-        p_value = "<0.001"
-
-
 def stats_result(df: pd.DataFrame, p_value_col: str, effect_size_col: str, precision: int = 2) -> pd.Series:
     """Combine a p-value column (float) and an effect size column (float) into one column.
 
