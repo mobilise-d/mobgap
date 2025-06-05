@@ -274,7 +274,7 @@ format_transforms_combined = [
         ),
         column_name="stride_length_m__error",
     ),
-*(
+    *(
         CustomOperation(
             identifier=None,
             function=partial(
@@ -285,7 +285,7 @@ format_transforms_combined = [
             column_name=c + "__stats",
         )
         for c in stat_cols
-),
+    ),
     CustomOperation(
         identifier=None,
         function=partial(
@@ -318,7 +318,10 @@ final_names_combined = {
     "icc": "ICC",
 }
 final_names_combined.update(
-    {key + "__stats": final_names_combined[key] + " Stats." for key in stat_cols}
+    {
+        key + "__stats": final_names_combined[key] + " Stats."
+        for key in stat_cols
+    }
 )
 final_names_matched = {
     **final_names_combined,
@@ -326,9 +329,13 @@ final_names_matched = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False, stat_col="Abs. Error [m] Stats."),
+    "Abs. Error [m]": RevalidationInfo(
+        threshold=None, higher_is_better=False, stat_col="Abs. Error [m] Stats."
+    ),
     "Abs. Rel. Error [%]": RevalidationInfo(
-        threshold=20, higher_is_better=False, stat_col="Abs. Rel. Error [%] Stats."
+        threshold=20,
+        higher_is_better=False,
+        stat_col="Abs. Rel. Error [%] Stats.",
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
 }
@@ -352,7 +359,7 @@ def agg_errors(
     groupby: list[str],
     stats_between="version",
     reference="Original Implementation",
-    custom_aggs=None
+    custom_aggs=None,
 ) -> pd.DataFrame:
     error_agg = df.groupby([*groupby, stats_between]).apply(
         apply_aggregations, custom_aggs, include_groups=False
@@ -451,7 +458,11 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
 free_living_combined_perf_metrics_all = free_living_results_combined.pipe(
-    agg_errors, groupby=["algo"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_combined
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_combined,
 ).pipe(format_tables_combined)
 free_living_combined_perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
@@ -516,12 +527,20 @@ fig.show()
 # %%
 free_living_combined_perf_metrics_cohort = (
     free_living_results_combined.pipe(
-    agg_errors, groupby=["cohort", "algo"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_combined)
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_combined,
+    )
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
 free_living_combined_perf_metrics_cohort.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Scatter plot
@@ -628,14 +647,19 @@ sns.barplot(
 fig.show()
 
 # %%
-free_living_matched_perf_metrics_all = (
-    free_living_results_matched.pipe(
-    agg_errors, groupby=["algo"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_matched
+free_living_matched_perf_metrics_all = free_living_results_matched.pipe(
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_matched,
 ).pipe(format_tables_matched)
-)
 
 free_living_matched_perf_metrics_all.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Residual plot
@@ -679,14 +703,22 @@ fig.show()
 # %%
 # Processing the per-cohort performance table
 free_living_matched_perf_metrics_cohort = (
-    free_living_results_combined.pipe(
-    agg_errors, groupby=["algo", "cohort"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_matched)
+    free_living_results_matched.pipe(
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_matched,
+    )
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
 free_living_matched_perf_metrics_cohort.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
@@ -914,7 +946,11 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 laboratory_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
 laboratory_combined_perf_metrics_all = laboratory_results_combined.pipe(
-    agg_errors, groupby=["algo"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_combined
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_combined,
 ).pipe(format_tables_combined)
 
 laboratory_combined_perf_metrics_all.copy().style.pipe(
@@ -979,12 +1015,20 @@ fig.show()
 # %%
 laboratory_combined_perf_metrics_cohort = (
     laboratory_results_combined.pipe(
-    agg_errors, groupby=["cohort", "algo"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_combined)
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_combined,
+    )
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
 laboratory_combined_perf_metrics_cohort.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Scatter plot
@@ -1090,14 +1134,19 @@ sns.barplot(
 fig.show()
 
 # %%
-laboratory_matched_perf_metrics_all = (
-    laboratory_results_matched.pipe(
-    agg_errors, groupby=["algo"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_matched
+laboratory_matched_perf_metrics_all = laboratory_results_matched.pipe(
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_matched,
 ).pipe(format_tables_matched)
-)
 
 laboratory_matched_perf_metrics_all.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Residual plot
@@ -1142,13 +1191,21 @@ fig.show()
 # Processing the per-cohort performance table
 laboratory_matched_perf_metrics_cohort = (
     laboratory_results_matched.pipe(
-    agg_errors, groupby=["algo", "cohort"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_matched)
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_matched,
+    )
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
 laboratory_matched_perf_metrics_cohort.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?

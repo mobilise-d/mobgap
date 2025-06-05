@@ -149,7 +149,7 @@ stat_cols = [
     "recall",
     "precision",
     "f1_score",
-    ]
+]
 
 format_transforms = [
     CustomOperation(
@@ -173,7 +173,7 @@ format_transforms = [
             "f1_score",
         ]
     ),
-*(
+    *(
         CustomOperation(
             identifier=None,
             function=partial(
@@ -215,11 +215,19 @@ final_names.update(
 )
 
 validation_thresholds = {
-    ("ICD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=("ICD", "Recall Stats.")),
-    ("ICD", "Precision"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True, stat_col=("ICD", "Precision Stats.")
+    ("ICD", "Recall"): RevalidationInfo(
+        threshold=0.7, higher_is_better=True, stat_col=("ICD", "Recall Stats.")
     ),
-    ("ICD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True, stat_col=("ICD", "F1 Score Stats.")),
+    ("ICD", "Precision"): RevalidationInfo(
+        threshold=0.7,
+        higher_is_better=True,
+        stat_col=("ICD", "Precision Stats."),
+    ),
+    ("ICD", "F1 Score"): RevalidationInfo(
+        threshold=0.7,
+        higher_is_better=True,
+        stat_col=("ICD", "F1 Score Stats."),
+    ),
 }
 
 
@@ -348,12 +356,17 @@ sns.boxplot(
 )
 fig.show()
 
-final_perf_metrics = perf_metrics_per_cohort.copy().query(
-    "algo == 'IcdIonescu'"
-).reset_index(level="algo", drop=True)
+final_perf_metrics = (
+    perf_metrics_per_cohort.copy()
+    .query("algo == 'IcdIonescu'")
+    .reset_index(level="algo", drop=True)
+)
 
 final_perf_metrics.copy().style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -433,10 +446,15 @@ sns.boxplot(
 )
 fig.show()
 
-final_perf_metrics = perf_metrics_per_cohort.copy().query(
-    "algo == 'IcdIonescu'"
-).reset_index(level="algo", drop=True)
+final_perf_metrics = (
+    perf_metrics_per_cohort.copy()
+    .query("algo == 'IcdIonescu'")
+    .reset_index(level="algo", drop=True)
+)
 
 final_perf_metrics.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"], stats_to="Original Implementation",
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
+    stats_to="Original Implementation",
 )

@@ -2,7 +2,7 @@
 
 import operator
 from collections.abc import Hashable
-from typing import Any, Callable, NamedTuple, Optional, Union, Tuple
+from typing import Any, Callable, NamedTuple, Optional, Union
 
 import pandas as pd
 from pandas.io.formats.style import Styler
@@ -226,7 +226,7 @@ class RevalidationInfo(NamedTuple):
 
     threshold: Optional[float]
     higher_is_better: Optional[bool]
-    stat_col: Optional[Union[str, Tuple]] = None
+    stat_col: Optional[Union[str, tuple]] = None
 
 
 def revalidation_table_styles(
