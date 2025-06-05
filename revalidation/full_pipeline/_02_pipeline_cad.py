@@ -681,7 +681,7 @@ fig.show()
 # Processing the per-cohort performance table
 free_living_matched_perf_metrics_cohort = (
     free_living_results_combined.pipe(
-    agg_errors, groupby=["algo", "cohort"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_combined)
+    agg_errors, groupby=["algo", "cohort"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_matched)
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
@@ -1142,7 +1142,7 @@ fig.show()
 # Processing the per-cohort performance table
 laboratory_matched_perf_metrics_cohort = (
     laboratory_results_matched.pipe(
-    agg_errors, groupby=["algo", "cohort"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_combined)
+    agg_errors, groupby=["algo", "cohort"], stats_between="version", reference="Original Implementation", custom_aggs=custom_aggs_matched)
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
