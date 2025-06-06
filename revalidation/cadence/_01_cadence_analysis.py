@@ -451,7 +451,7 @@ fig.show()
 
 # %%
 perf_metrics_cohort.copy().loc[
-    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+    pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
