@@ -28,6 +28,8 @@ data. We also compare the actual performance to that obtained by the original Ma
 
 from typing import Optional
 
+from scripts.prepare_csv_example_data import metadata
+
 # %%
 # Below the list of pipelines that are compared is shown.
 # Note, that we use "MobGap" to refer to the reimplemented python algorithms, and the "Original Implementation" to
@@ -51,6 +53,7 @@ algorithms = {
 from pathlib import Path
 
 import pandas as pd
+import pingouin as pg
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
@@ -237,6 +240,47 @@ custom_aggs_matched = [
     *custom_aggs_combined,
 ]
 
+
+def pairwise_tests(
+    df: pd.DataFrame,
+    value_col: str,
+    groupby: str,
+    reference_group_key: str,
+) -> tuple[float, float]:
+    # We need to force a consistent order where the reference group is always the first.
+    groups = set(df[groupby].unique()) - {reference_group_key}
+    order = [reference_group_key, *sorted(groups)]
+    df = df.assign(
+        **{groupby: pd.Categorical(df[groupby], categories=order, ordered=True)}
+    )
+    result = pg.pairwise_tests(data=df, dv=value_col, between=groupby)
+    assert result["Paired"].eq(False).all(), "Expected unpaired tests"
+    assert reference_group_key not in result["B"]
+    result = (
+        result.query("A == @reference_group_key")
+        .copy()
+        .rename(columns={"p-unc": "p", "B": "version"})[["version", "T", "p"]]
+        .set_index("version")
+        .reindex(order)
+        .apply(lambda row: row.to_dict(), axis=1)
+    )
+
+    return result
+
+stats_aggs = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            pairwise_tests,
+            value_col=c,
+            groupby="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[(c, "stats_metadata")],
+    )
+    for c in ["walking_speed_mps__abs_error", "walking_speed_mps__abs_rel_error"]
+]
+
 format_transforms_combined = [
     CustomOperation(
         identifier=None,
@@ -250,6 +294,7 @@ format_transforms_combined = [
                 F.value_with_range,
                 value_col=("mean", c),
                 range_col=("conf_intervals", c),
+                metadata_col=("stats_metadata", c)
             ),
             column_name=c,
         )
@@ -301,7 +346,6 @@ final_names_combined = {
     "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
-
 final_names_matched = {
     **final_names_combined,
     "n_wbs_matched": "# Matched WBs",
@@ -392,13 +436,23 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-free_living_combined_perf_metrics_all = (
-    free_living_results_combined.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
-    .pipe(format_tables_combined)
-)
-free_living_combined_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+from mobgap.utils.df_operations import multilevel_groupby_apply_merge
+
+free_living_combined_perf_metrics_all = free_living_results_combined.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs_combined),
+        ),
+        (["algo"], partial(apply_transformations, transformations=stats_aggs)),
+    ],
+).pipe(format_tables_combined)
+free_living_combined_perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
@@ -436,7 +490,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
@@ -469,13 +523,21 @@ ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
 free_living_combined_perf_metrics_cohort = (
-    free_living_results_combined.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    free_living_results_combined.pipe(
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_combined,
+    )
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-free_living_combined_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+free_living_combined_perf_metrics_cohort.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Scatter plot
@@ -581,14 +643,19 @@ sns.barplot(
 )
 fig.show()
 # %%
-free_living_matched_perf_metrics_all = (
-    free_living_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
-    .pipe(format_tables_matched)
-)
+free_living_matched_perf_metrics_all = free_living_results_matched.pipe(
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_matched,
+).pipe(format_tables_matched)
 
-free_living_matched_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+free_living_matched_perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Residual plot
@@ -632,14 +699,22 @@ fig.show()
 # %%
 # Processing the per-cohort performance table
 free_living_matched_perf_metrics_cohort = (
-    free_living_results_matched.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    free_living_results_matched.pipe(
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_matched,
+    )
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
-free_living_matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+free_living_matched_perf_metrics_cohort.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
@@ -873,13 +948,19 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 laboratory_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-laboratory_combined_perf_metrics_all = (
-    laboratory_results_combined.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
-    .pipe(format_tables_combined)
-)
-laboratory_combined_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+laboratory_combined_perf_metrics_all = laboratory_results_combined.pipe(
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_combined,
+).pipe(format_tables_combined)
+
+laboratory_combined_perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Residual plots
@@ -934,13 +1015,21 @@ ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
 laboratory_combined_perf_metrics_cohort = (
-    laboratory_results_combined.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    laboratory_results_combined.pipe(
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_combined,
+    )
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-laboratory_combined_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+laboratory_combined_perf_metrics_cohort.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Scatter plot
@@ -1045,14 +1134,19 @@ sns.barplot(
 )
 fig.show()
 # %%
-laboratory_matched_perf_metrics_all = (
-    laboratory_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
-    .pipe(format_tables_matched)
-)
+laboratory_matched_perf_metrics_all = laboratory_results_matched.pipe(
+    agg_errors,
+    groupby=["algo"],
+    stats_between="version",
+    reference="Original Implementation",
+    custom_aggs=custom_aggs_matched,
+).pipe(format_tables_matched)
 
-laboratory_matched_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+laboratory_matched_perf_metrics_all.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
+    stats_to="Original Implementation",
 )
 # %%
 # Residual plot
@@ -1096,14 +1190,22 @@ fig.show()
 # %%
 # Processing the per-cohort performance table
 laboratory_matched_perf_metrics_cohort = (
-    laboratory_results_matched.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    laboratory_results_matched.pipe(
+        agg_errors,
+        groupby=["cohort", "algo"],
+        stats_between="version",
+        reference="Original Implementation",
+        custom_aggs=custom_aggs_matched,
+    )
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
-laboratory_matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+laboratory_matched_perf_metrics_cohort.copy().style.pipe(
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
+    stats_to="Original Implementation",
 )
 
 # %%
