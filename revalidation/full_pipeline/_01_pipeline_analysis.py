@@ -28,6 +28,8 @@ data. We also compare the actual performance to that obtained by the original Ma
 
 from typing import Optional
 
+from scripts.prepare_csv_example_data import metadata
+
 # %%
 # Below the list of pipelines that are compared is shown.
 # Note, that we use "MobGap" to refer to the reimplemented python algorithms, and the "Original Implementation" to
@@ -238,9 +240,45 @@ custom_aggs_matched = [
     *custom_aggs_combined,
 ]
 
-stat_cols = [
-    "walking_speed_mps__abs_error",
-    "walking_speed_mps__abs_rel_error",
+
+def pairwise_tests(
+    df: pd.DataFrame,
+    value_col: str,
+    groupby: str,
+    reference_group_key: str,
+) -> tuple[float, float]:
+    # We need to force a consistent order where the reference group is always the first.
+    groups = set(df[groupby].unique()) - {reference_group_key}
+    order = [reference_group_key, *sorted(groups)]
+    df = df.assign(
+        **{groupby: pd.Categorical(df[groupby], categories=order, ordered=True)}
+    )
+    result = pg.pairwise_tests(data=df, dv=value_col, between=groupby)
+    assert result["Paired"].eq(False).all(), "Expected unpaired tests"
+    assert reference_group_key not in result["B"]
+    result = (
+        result.query("A == @reference_group_key")
+        .copy()
+        .rename(columns={"p-unc": "p", "B": "version"})[["version", "T", "p"]]
+        .set_index("version")
+        .reindex(order)
+        .apply(lambda row: row.to_dict(), axis=1)
+    )
+
+    return result
+
+stats_aggs = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            pairwise_tests,
+            value_col=c,
+            groupby="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[(c, "stats_metadata")],
+    )
+    for c in ["walking_speed_mps__abs_error", "walking_speed_mps__abs_rel_error"]
 ]
 
 format_transforms_combined = [
@@ -256,6 +294,7 @@ format_transforms_combined = [
                 F.value_with_range,
                 value_col=("mean", c),
                 range_col=("conf_intervals", c),
+                metadata_col=("stats_metadata", c)
             ),
             column_name=c,
         )
@@ -275,18 +314,6 @@ format_transforms_combined = [
             range_col=("loa", "walking_speed_mps__error"),
         ),
         column_name="walking_speed_mps__error",
-    ),
-    *(
-        CustomOperation(
-            identifier=None,
-            function=partial(
-                F.stats_result,
-                p_value_col=("T", c),
-                effect_size_col=("p", c),
-            ),
-            column_name=c + "__stats",
-        )
-        for c in stat_cols
     ),
     CustomOperation(
         identifier=None,
@@ -319,12 +346,6 @@ final_names_combined = {
     "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
-final_names_combined.update(
-    {
-        key + "__stats": final_names_combined[key] + " Stats."
-        for key in stat_cols
-    }
-)
 final_names_matched = {
     **final_names_combined,
     "n_wbs_matched": "# Matched WBs",
@@ -332,59 +353,13 @@ final_names_matched = {
 
 validation_thresholds = {
     "Abs. Error [m/s]": RevalidationInfo(
-        threshold=None,
-        higher_is_better=False,
-        stat_col="Abs. Error [m/s] Stats.",
+        threshold=None, higher_is_better=False
     ),
     "Abs. Rel. Error [%]": RevalidationInfo(
-        threshold=20,
-        higher_is_better=False,
-        stat_col="Abs. Rel. Error [%] Stats.",
+        threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
 }
-
-
-def pairwise_tests(
-    df: pd.DataFrame,
-    dv: str,
-    between: str,
-    reference: str,
-) -> tuple[float, float]:
-    result = pg.pairwise_tests(data=df, dv=dv, between=between)
-    result = result.query("A == @reference or B == @reference").copy()
-    result["version"] = result["B"].where(result["A"] == reference, result["A"])
-    result = result.rename(columns={"p-unc": "p"})
-    return result[["version", "T", "p"]].set_index("version")
-
-
-def agg_errors(
-    df: pd.DataFrame,
-    groupby: list[str],
-    stats_between="version",
-    reference="Original Implementation",
-    custom_aggs=None,
-) -> pd.DataFrame:
-    error_agg = df.groupby([*groupby, stats_between]).apply(
-        apply_aggregations, custom_aggs, include_groups=False
-    )
-
-    def group_pairwise_stats(group):
-        if len(group[stats_between].unique()) == 1:
-            return None
-        dfs = []
-        for col in stat_cols:
-            res = pairwise_tests(
-                group, dv=col, between=stats_between, reference=reference
-            )
-            res.columns = pd.MultiIndex.from_product([res.columns, [col]])
-            dfs.append(res)
-        return pd.concat(dfs, axis=1)
-
-    stats = df.groupby(groupby).apply(
-        group_pairwise_stats, include_groups=False
-    )
-    return error_agg.join(stats, how="left")
 
 
 def format_tables_combined(df: pd.DataFrame) -> pd.DataFrame:
@@ -461,12 +436,17 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
+from mobgap.utils.df_operations import multilevel_groupby_apply_merge
+
 free_living_combined_perf_metrics_all = free_living_results_combined.pipe(
-    agg_errors,
-    groupby=["algo"],
-    stats_between="version",
-    reference="Original Implementation",
-    custom_aggs=custom_aggs_combined,
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs_combined),
+        ),
+        (["algo"], partial(apply_transformations, transformations=stats_aggs)),
+    ],
 ).pipe(format_tables_combined)
 free_living_combined_perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
@@ -510,7 +490,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
