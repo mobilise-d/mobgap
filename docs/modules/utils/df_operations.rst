@@ -31,6 +31,7 @@ Generalized Aggregations and Transforms
 
     apply_transformations
     apply_aggregations
+    multilevel_groupby_apply_merge
 
 .. autosummary::
    :toctree: ../generated/utils/df_operations

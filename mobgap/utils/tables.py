@@ -5,45 +5,109 @@ from collections.abc import Hashable
 from typing import Any, Callable, NamedTuple, Optional, Union
 
 import pandas as pd
+import pingouin as pg
 from pandas.io.formats.style import Styler
 
 
-class ValueWithRange:
-    """A custom object to represent a value with a range.
+class ValueWithMetadata:
+    def __init__(self, value: float, metadata: Optional[dict[str, Any]] = None, precision: int = 2) -> None:
+        """Initialize the ValueWithMetadata object.
+
+        Parameters
+        ----------
+        value
+            The value to be stored.
+        metadata
+            Optional metadata associated with the value.
+        precision
+            The number of decimal places to use for formatting the value.
+        """
+        self.value = value
+        self.metadata = metadata or {}
+        self.precision = precision
+
+    def _compare(self, other: Any, comparison: Callable[[float, Any], bool]) -> bool:
+        if not isinstance(other, ValueWithMetadata):
+            return comparison(self.value, other)
+        return comparison(self.value, other.value)
+
+    def __str__(self) -> str:
+        raise NotImplementedError
+
+    def _repr_html_(self) -> str:
+        raise NotImplementedError
+
+    def __lt__(self, other: Any) -> bool:
+        return self._compare(other, operator.lt)
+
+    def __le__(self, other: Any) -> bool:
+        return self._compare(other, operator.le)
+
+    def __gt__(self, other: Any) -> bool:
+        return self._compare(other, operator.gt)
+
+    def __ge__(self, other: Any) -> bool:
+        return self._compare(other, operator.ge)
+
+    @classmethod
+    def style_html(cls, value: Any) -> Any:
+        """Return a string representation of the value for styling purposes."""
+        if not isinstance(value, cls):
+            return value
+
+        return value._repr_html_()
+
+    @classmethod
+    def html_styler(cls, st: Styler) -> Styler:
+        """Apply HTML styling to the DataFrame using the custom HTML representation."""
+        return st.format(cls.style_html)
+
+
+class CustomFormattedValueWithMetadata(ValueWithMetadata):
+    """A custom object to represent a value with a range and stats results.
 
     In the context of comparisons, it acts like it's value, but it can also be used to display the value and range.
     """
 
-    def __init__(self, value: float, err_range: tuple[float, float], precision: int) -> None:
-        self.value = value
-        self.err_range = err_range
-        self.precision = precision
+    def _create_p_val_format(self) -> Optional[str]:
+        stats_metadata = self.metadata.get("stats_metadata") or {}
+        if (p_val := stats_metadata.get("p")) is None:
+            return None
+        if p_val < 0.01:
+            return "**"
+        if p_val < 0.05:
+            return "*"
+        return None
 
-    def _compare(self, other: Any, comparison: Callable[[float, Any], bool]) -> bool:
-        if not isinstance(other, ValueWithRange):
-            return comparison(self.value, other)
-        return comparison(self.value, other.value)
-
-    def __lt__(self, other: Any) -> bool:  # noqa: D105
-        return self._compare(other, operator.lt)
-
-    def __le__(self, other: Any) -> bool:  # noqa: D105
-        return self._compare(other, operator.le)
-
-    def __gt__(self, other: Any) -> bool:  # noqa: D105
-        return self._compare(other, operator.gt)
-
-    def __ge__(self, other: Any) -> bool:  # noqa: D105
-        return self._compare(other, operator.ge)
-
-    def __str__(self):  # noqa: ANN204, D105
+    def __str__(self) -> str:
+        postfix = self._create_p_val_format() or ""
+        err_range = self.metadata.get("range")
+        if err_range is None:
+            return f"{self.value:.{self.precision}f}{postfix}"
         return (
-            f"{self.value:.{self.precision}f} [{self.err_range[0]:.{self.precision}f}, "
-            f"{self.err_range[1]:.{self.precision}f}]"
+            f"{self.value:.{self.precision}f} [{err_range[0]:.{self.precision}f}, "
+            f"{err_range[1]:.{self.precision}f}]{postfix}"
+        )
+
+    def _repr_html_(self) -> str:
+        """Return a string representation of the value with metadata for HTML rendering."""
+        postfix = f"<sup>{p}</sup>" if (p := self._create_p_val_format()) else ""
+        err_range = self.metadata.get("range")
+        if err_range is None:
+            return f"<span>{self.value:.{self.precision}f}</span>{postfix}"
+        return (
+            f"<span>{self.value:.{self.precision}f} "
+            f"[{err_range[0]:.{self.precision}f}, {err_range[1]:.{self.precision}f}]</span>{postfix}"
         )
 
 
-def value_with_range(df: pd.DataFrame, value_col: str, range_col: str, precision: int = 2) -> pd.Series:
+def value_with_metadata(
+    df: pd.DataFrame,
+    value_col: Hashable,
+    other_columns: dict[str, Hashable],
+    precision: int = 2,
+    base_class: type[ValueWithMetadata] = CustomFormattedValueWithMetadata,
+) -> pd.Series:
     """Combine a value column (float) and a range column tuple(float, float) into one column.
 
     Note, that the return value is not a string, but a custom object that has the expected string representation.
@@ -58,35 +122,27 @@ def value_with_range(df: pd.DataFrame, value_col: str, range_col: str, precision
         The DataFrame containing the columns.
     value_col
         The name of the column containing the value.
-    range_col
-        The name of the column containing the range.
+        This is important, as the value is used for comparisons/sorting.
+    other_columns
+        A dictionary mapping keys to column names that contain the further metadata.
     precision
-        The precision to use for the value and range.
+        numbers of decimal places to use for all values during formatting.
+    base_class
+        The base class to use for the custom object.
+        This can be used to create custom formatters that make use of the metadata.
 
     """
+
+    def transform_values(row: pd.Series) -> base_class:
+        """Extract values from the row based on the provided columns."""
+        return base_class(
+            value=row[value_col],
+            metadata={key: row.get(value) for key, value in other_columns.items()},
+            precision=precision,
+        )
+
     return df.apply(
-        lambda row: ValueWithRange(row[value_col], row[range_col], precision),
-        axis=1,
-    )
-
-
-def stats_result(df: pd.DataFrame, p_value_col: str, effect_size_col: str, precision: int = 2) -> pd.Series:
-    """Combine a p-value column (float) and an effect size column (float) into one column.
-
-    Parameters
-    ----------
-    df
-        The DataFrame containing the columns.
-    p_value_col
-        The name of the column containing the p-value.
-    effect_size_col
-        The name of the column containing the effect size.
-    precision
-        The precision to use for the value and range.
-
-    """
-    return df.apply(
-        lambda row: ValueWithRange(row[effect_size_col], (row[p_value_col], row[p_value_col]), precision),
+        transform_values,
         axis=1,
     )
 
@@ -100,12 +156,41 @@ class FormatTransformer:
 
     Attributes
     ----------
-    value_with_range
-        Combine a value column (float) and a range column tuple(float, float) into one string.
+    value_with_metadata
+        Combine a value column (float) and other metadata columns into a string. By default this supports ranges and
+        statistics metadata.
     """  # noqa: E501
 
-    value_with_range = value_with_range
-    stats_result = stats_result
+    value_with_metadata = value_with_metadata
+
+
+def pairwise_tests(
+    df: pd.DataFrame,
+    value_col: str,
+    between: str,
+    reference_group_key: str,
+) -> tuple[float, float]:
+    # We need to force a consistent order where the reference group is always the first.
+    groups = set(df[between].unique()) - {reference_group_key}
+    order = [reference_group_key, *sorted(groups)]
+    df = df.assign(**{between: pd.Categorical(df[between], categories=order, ordered=True)})
+    result = pg.pairwise_tests(data=df, dv=value_col, between=between)
+    assert result["Paired"].eq(False).all(), "Expected unpaired tests"
+    assert reference_group_key not in result["B"]
+    result = (
+        result.query("A == @reference_group_key")
+        .copy()
+        .rename(columns={"p-unc": "p", "B": "version"})[["version", "T", "p"]]
+        .set_index("version")
+        .reindex(order)
+        .apply(lambda row: row.to_dict(), axis=1)
+    )
+
+    return result
+
+
+class StatsFunctions:
+    pairwise_tests = pairwise_tests
 
 
 def best_in_group_styler(
@@ -163,8 +248,6 @@ def border_after_group_styler(
 def compare_to_threshold_styler(
     thresholds: dict[Hashable, float],
     higher_is_pass: dict[Hashable, float],
-    stats_orig_cols: dict[Hashable, float],
-    stats_to: str = "Original Implementation",
     pass_style: str = "background-color: lightgreen",
     fail_style: str = "background-color: lightcoral",
 ) -> Callable[[pd.DataFrame], pd.DataFrame]:
@@ -176,10 +259,6 @@ def compare_to_threshold_styler(
         A dictionary with the column names as keys and the threshold values as values.
     higher_is_pass
         A dictionary with the column names as keys and the threshold values as values.
-    stats_orig_cols
-        A dictionary with the stat results column names as keys and their original column names as values.
-    stats_to
-        Key (column) name to which the comparison is made against, thus, not superscripted.
     pass_style
         The CSS style to apply to the elements that pass the threshold.
     fail_style
@@ -192,21 +271,6 @@ def compare_to_threshold_styler(
             mask = data[col] > threshold if higher_is_pass[col] else data[col] < threshold
             styled.loc[mask, col] = pass_style
             styled.loc[~mask, col] = fail_style
-
-        # Highlight significant tests
-        def stat_formatter(row: pd.Series, col_stat: str, col_orig: str) -> str:
-            row_orig_str = str(row[col_orig])
-            if stats_to in row.name[-1]:  # TODO: Is row.name[-1] always the stats_between column (containing stats_to)?
-                return row_orig_str
-            if row[col_stat] < 0.01:
-                return row_orig_str + "<sup>**</sup>"
-            if row[col_stat] < 0.05:
-                return row_orig_str + "<sup>*</sup>"
-            return row_orig_str
-
-        for stats_col, orig_col in stats_orig_cols.items():
-            data.loc[:, orig_col] = data.apply(stat_formatter, args=(stats_col, orig_col), axis=1)
-
         return styled
 
     return style_compare_to_threshold
@@ -226,14 +290,12 @@ class RevalidationInfo(NamedTuple):
 
     threshold: Optional[float]
     higher_is_better: Optional[bool]
-    stat_col: Optional[Union[str, tuple]] = None
 
 
 def revalidation_table_styles(
     st: Styler,
     thresholds: dict[Hashable, RevalidationInfo],
     groupby: Union[Hashable, list[Hashable]],
-    stats_to: str = "",
 ) -> Styler:
     """Apply styles to a DataFrame appropriate for the revalidation.
 
@@ -252,29 +314,25 @@ def revalidation_table_styles(
     groupby
         A valid groupby argument for :func:`~pandas.DataFrame.groupby`.
         This is used by ``best_in_group_styler`` and ``border_after_group_styler``.
-    stats_to
-        The value of the column between which stats are calculated. Other values of the column will be marked if there
-        is any significant difference to `stats_to`. E.g. "old" in `version` is used to calculate stats.
     """
     higher_is_better = {
         col: info.higher_is_better for col, info in thresholds.items() if info.higher_is_better is not None
     }
-    stats_orig_cols = {info.stat_col: col for col, info in thresholds.items() if info.stat_col}
     thresholds = {col: info.threshold for col, info in thresholds.items() if info.threshold is not None}
 
     return (
-        st.apply(best_in_group_styler(groupby=groupby, columns=higher_is_better), axis=None)
-        .apply(compare_to_threshold_styler(thresholds, higher_is_better, stats_orig_cols, stats_to), axis=None)
+        st.pipe(ValueWithMetadata.html_styler)
+        .apply(best_in_group_styler(groupby=groupby, columns=higher_is_better), axis=None)
+        .apply(compare_to_threshold_styler(thresholds, higher_is_better), axis=None)
         .apply(border_after_group_styler(groupby), axis=None)
         .set_table_attributes('class="dataframe"')
-        .hide(list(stats_orig_cols.keys()), axis=1)
+        .hide(st.columns.str.endswith("__stats"), axis=1)
     )
 
 
 __all__ = [
     "FormatTransformer",
     "RevalidationInfo",
-    "ValueWithRange",
     "best_in_group_styler",
     "border_after_group_styler",
     "compare_to_threshold_styler",

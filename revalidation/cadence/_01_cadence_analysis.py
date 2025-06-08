@@ -189,7 +189,7 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
                 range_col=("conf_intervals", c),
             ),

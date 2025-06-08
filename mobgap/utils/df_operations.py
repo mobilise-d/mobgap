@@ -321,6 +321,10 @@ def apply_transformations(  # noqa: C901, PLR0912
             This should either be a string or a tuple of strings, matching the "depth" of the `<identifier>` used in
             the normal transformations (if a combination is provided).
             This allows for more complex transformations that require multiple columns as input.
+            We also support a special case, where the custom function returns a tuple of results (e.g. two Series).
+            In this case, the `column_name` should be a list of strings or tuples of strings, where each string
+            corresponds to one of the results returned by the function.
+            Note, that your custom function MUST return a tuple in this case (not a list or other iterable).
 
     missing_columns
         How to handle missing columns specified in the transformations.
@@ -352,12 +356,9 @@ def apply_transformations(  # noqa: C901, PLR0912
             identifier = transformation.identifier
             functions = [transformation.function]
             if isinstance(transformation.column_name, list):
-                raise ValueError(
-                    "Custom transformations should have a column name that is either a string or a tuple "
-                    "of string. "
-                    "For transformations, we don't support column spreading by supplying a list of names."
-                )
-            col_names = [transformation.column_name]
+                col_names = transformation.column_name
+            else:
+                col_names = [transformation.column_name]
         else:
             identifier, functions = transformation
             col_names = []
@@ -384,8 +385,13 @@ def apply_transformations(  # noqa: C901, PLR0912
                     warnings.warn(str(e), stacklevel=1)
                 continue
             result = fct(data)
-            transformation_results.append(result)
-            column_names.append(col_name)
+            if isinstance(result, tuple):
+                assert len(result) == len(col_name)
+                transformation_results.extend(result)
+                column_names.extend(col_name)
+            else:
+                transformation_results.append(result)
+                column_names.append(col_name)
 
     # combine results
     try:
@@ -671,6 +677,33 @@ def cut_into_overlapping_bins(
     )
 
 
+def multilevel_groupby_apply_merge(
+    df: pd.DataFrame, groupbys: list[tuple[Union[str, list[str]], Callable]], **apply_kwargs: Any
+) -> pd.DataFrame:
+    """Apply multiple groupby operations and merge the results.
+
+    This function allows to apply multiple groupby operations to a DataFrame and merge the results into a
+    single DataFrame.
+    The groupby operations are defined by a dictionary, where the keys are the groupby columns and the values are the
+    aggregation functions to apply.
+    All groupby results must have the same shape to be able to merge them.
+
+    Parameters
+    ----------
+    df
+        The DataFrame to apply the groupby operations on.
+    groupbys
+        A dictionary where keys are the groupby columns and values are the aggregation functions to apply.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the results of the groupby operations.
+    """
+    results = [df.groupby(key).apply(func, **apply_kwargs) for key, func in groupbys]
+    return pd.concat(results, axis=1) if results else pd.DataFrame()
+
+
 __all__ = [
     "CustomOperation",
     "MultiGroupBy",
@@ -679,4 +712,5 @@ __all__ = [
     "apply_transformations",
     "create_multi_groupby",
     "cut_into_overlapping_bins",
+    "multilevel_groupby_apply_merge",
 ]
