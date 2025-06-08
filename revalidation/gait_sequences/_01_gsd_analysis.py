@@ -58,7 +58,6 @@ algorithms.update(
 from pathlib import Path
 
 import pandas as pd
-import pingouin as pg
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
@@ -151,12 +150,14 @@ from mobgap.utils.df_operations import (
     CustomOperation,
     apply_aggregations,
     apply_transformations,
+    multilevel_groupby_apply_merge,
 )
 from mobgap.utils.tables import FormatTransformer as F
 from mobgap.utils.tables import (
     RevalidationInfo,
     revalidation_table_styles,
 )
+from mobgap.utils.tables import StatsFunctions as S
 
 custom_aggs = [
     CustomOperation(
@@ -196,9 +197,12 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=("GSD", c),
         )
@@ -214,9 +218,12 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=("GS duration", c),
         )
@@ -230,50 +237,20 @@ format_transforms = [
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("mean", "gs_duration_error_s"),
-            range_col=("loa", "gs_duration_error_s"),
+            other_columns={"range": ("loa", "gs_duration_error_s")},
         ),
         column_name=("GS duration", "gs_duration_error_s"),
     ),
-    *(
-        CustomOperation(
-            identifier=None,
-            function=partial(
-                F.stats_result,
-                p_value_col=("T", c),
-                effect_size_col=("p", c),
-            ),
-            column_name=("GSD", c + "__stats"),
-        )
-        for c in [
-            "recall",
-            "precision",
-            "f1_score",
-            "accuracy",
-            "specificity",
-        ]
-    ),
-    *(
-        CustomOperation(
-            identifier=None,
-            function=partial(
-                F.stats_result,
-                p_value_col=("T", c),
-                effect_size_col=("p", c),
-            ),
-            column_name=("GS duration", c + "__stats"),
-        )
-        for c in [
-            "gs_absolute_relative_duration_error",
-        ]
-    ),
+
+
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("icc", "gs_duration_s"),
-            range_col=("icc_ci", "gs_duration_s"),
+            other_columns={"range": ("icc_ci", "gs_duration_s")},
         ),
         column_name=("GS duration", "icc"),
     ),
@@ -293,50 +270,49 @@ final_names = {
     "gs_absolute_relative_duration_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
-stat_cols = [
-    "recall",
-    "precision",
-    "f1_score",
-    "accuracy",
-    "specificity",
-    "gs_absolute_relative_duration_error",
+stats_transform = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            S.pairwise_tests,
+            value_col=c,
+            between="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[("stats_metadata", c)],
+    )
+    for c in [
+        "recall",
+        "precision",
+        "f1_score",
+        "accuracy",
+        "specificity",
+        "gs_absolute_relative_duration_error",
+    ]
 ]
-final_names.update(
-    {key + "__stats": final_names[key] + " Stats." for key in stat_cols}
-)
+
 
 validation_thresholds = {
     ("GSD", "Recall"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True, stat_col=("GSD", "Recall Stats.")
+        threshold=0.7, higher_is_better=True
     ),
     ("GSD", "Precision"): RevalidationInfo(
-        threshold=0.7,
-        higher_is_better=True,
-        stat_col=("GSD", "Precision Stats."),
+        threshold=0.7, higher_is_better=True
     ),
     ("GSD", "F1 Score"): RevalidationInfo(
-        threshold=0.7,
-        higher_is_better=True,
-        stat_col=("GSD", "F1 Score Stats."),
+        threshold=0.7, higher_is_better=True
     ),
     ("GSD", "Accuracy"): RevalidationInfo(
-        threshold=0.7,
-        higher_is_better=True,
-        stat_col=("GSD", "Accuracy Stats."),
+        threshold=0.7, higher_is_better=True
     ),
     ("GSD", "Specificity"): RevalidationInfo(
-        threshold=0.7,
-        higher_is_better=True,
-        stat_col=("GSD", "Specificity Stats."),
+        threshold=0.7, higher_is_better=True
     ),
     ("GS duration", "Abs. Error [s]"): RevalidationInfo(
-        threshold=None,
-        higher_is_better=False,
+        threshold=None, higher_is_better=False
     ),
     ("GS duration", "Abs. Rel. Error [%]"): RevalidationInfo(
-        threshold=20,
-        higher_is_better=False,
-        stat_col=("GS duration", "Abs. Rel. Error [%] Stats."),
+        threshold=20, higher_is_better=False
     ),
     ("GS duration", "ICC"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
@@ -344,43 +320,7 @@ validation_thresholds = {
 }
 
 
-def pairwise_tests(
-    df: pd.DataFrame,
-    dv: str,
-    between: str,
-    reference: str,
-) -> tuple[float, float]:
-    result = pg.pairwise_tests(data=df, dv=dv, between=between)
-    result = result.query("A == @reference or B == @reference").copy()
-    result["version"] = result["B"].where(result["A"] == reference, result["A"])
-    result = result.rename(columns={"p-unc": "p"})
-    return result[["version", "T", "p"]].set_index("version")
 
-
-def agg_errors(
-    df: pd.DataFrame,
-    groupby: list[str],
-    stats_between="version",
-    reference="Original Implementation",
-) -> pd.DataFrame:
-    error_agg = df.groupby([*groupby, stats_between]).apply(
-        apply_aggregations, custom_aggs, include_groups=False
-    )
-
-    def group_pairwise_stats(group):
-        dfs = []
-        for col in stat_cols:
-            res = pairwise_tests(
-                group, dv=col, between=stats_between, reference=reference
-            )
-            res.columns = pd.MultiIndex.from_product([res.columns, [col]])
-            dfs.append(res)
-        return pd.concat(dfs, axis=1)
-
-    stats = df.groupby(groupby).apply(
-        group_pairwise_stats, include_groups=False
-    )
-    return error_agg.join(stats, how="left")
 
 
 def format_results(df: pd.DataFrame) -> pd.DataFrame:
@@ -421,13 +361,22 @@ fig.show()
 # %%
 
 perf_metrics_all = results_long.pipe(
-    agg_errors, groupby=["algo"], stats_between="version"
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
 ).pipe(format_results)
 perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -443,7 +392,17 @@ fig.show()
 
 perf_metrics_per_cohort = (
     results_long.pipe(
-        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
     )
     .pipe(format_results)
     .loc[cohort_order]
@@ -452,7 +411,6 @@ perf_metrics_per_cohort.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -499,7 +457,6 @@ perf_metrics_per_cohort.copy().loc[
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -540,7 +497,6 @@ perf_metrics_per_cohort.copy().loc[
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -570,13 +526,22 @@ fig.show()
 
 # %%
 perf_metrics_all = lab_results_long.pipe(
-    agg_errors, groupby=["cohort", "algo"], stats_between="version"
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["cohort", "algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["cohort", "algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
 ).pipe(format_results)
 perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -596,7 +561,17 @@ fig.show()
 # %%
 perf_metrics_per_cohort = (
     lab_results_long.pipe(
-        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
     )
     .pipe(format_results)
     .loc[cohort_order]
@@ -605,7 +580,6 @@ perf_metrics_per_cohort.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -648,7 +622,6 @@ perf_metrics_per_cohort.copy().loc[
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -686,5 +659,4 @@ perf_metrics_per_cohort.copy().loc[
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
-    stats_to="Original Implementation",
 )

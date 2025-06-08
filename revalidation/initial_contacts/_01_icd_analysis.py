@@ -55,7 +55,6 @@ algorithms.update(
 from pathlib import Path
 
 import pandas as pd
-import pingouin as pg
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.utils.misc import get_env_var
 
@@ -128,9 +127,11 @@ from mobgap.utils.df_operations import (
     CustomOperation,
     apply_aggregations,
     apply_transformations,
+    multilevel_groupby_apply_merge,
 )
 from mobgap.utils.tables import FormatTransformer as F
 from mobgap.utils.tables import RevalidationInfo, revalidation_table_styles
+from mobgap.utils.tables import StatsFunctions as S
 
 custom_aggs = [
     CustomOperation(
@@ -145,10 +146,22 @@ custom_aggs = [
     ("tp_relative_timing_error", ["mean", A.loa]),
 ]
 
-stat_cols = [
-    "recall",
-    "precision",
-    "f1_score",
+stats_transform = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            S.pairwise_tests,
+            value_col=c,
+            between="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[("stats_metadata", c)],
+    )
+    for c in [
+        "recall",
+        "precision",
+        "f1_score",
+    ]
 ]
 
 format_transforms = [
@@ -161,9 +174,12 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=("ICD", c),
         )
@@ -173,25 +189,14 @@ format_transforms = [
             "f1_score",
         ]
     ),
+
     *(
         CustomOperation(
             identifier=None,
             function=partial(
-                F.stats_result,
-                p_value_col=("T", c),
-                effect_size_col=("p", c),
-            ),
-            column_name=("ICD", c + "__stats"),
-        )
-        for c in stat_cols
-    ),
-    *(
-        CustomOperation(
-            identifier=None,
-            function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("loa", c),
+                other_columns={"range": ("loa", c)},
             ),
             column_name=("IC Timing", c),
         )
@@ -210,66 +215,22 @@ final_names = {
     "tp_absolute_timing_error_s": "Abs. Error [s]",
     "tp_relative_timing_error": "Bias and LoA",
 }
-final_names.update(
-    {key + "__stats": final_names[key] + " Stats." for key in stat_cols}
-)
+
 
 validation_thresholds = {
     ("ICD", "Recall"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True, stat_col=("ICD", "Recall Stats.")
+        threshold=0.7, higher_is_better=True
     ),
     ("ICD", "Precision"): RevalidationInfo(
-        threshold=0.7,
-        higher_is_better=True,
-        stat_col=("ICD", "Precision Stats."),
+        threshold=0.7, higher_is_better=True
     ),
     ("ICD", "F1 Score"): RevalidationInfo(
-        threshold=0.7,
-        higher_is_better=True,
-        stat_col=("ICD", "F1 Score Stats."),
+        threshold=0.7, higher_is_better=True
     ),
 }
 
 
-def pairwise_tests(
-    df: pd.DataFrame,
-    dv: str,
-    between: str,
-    reference: str,
-) -> tuple[float, float]:
-    result = pg.pairwise_tests(data=df, dv=dv, between=between)
-    result = result.query("A == @reference or B == @reference").copy()
-    result["version"] = result["B"].where(result["A"] == reference, result["A"])
-    result = result.rename(columns={"p-unc": "p"})
-    return result[["version", "T", "p"]].set_index("version")
 
-
-def agg_errors(
-    df: pd.DataFrame,
-    groupby: list[str],
-    stats_between="version",
-    reference="Original Implementation",
-) -> pd.DataFrame:
-    error_agg = df.groupby([*groupby, stats_between]).apply(
-        apply_aggregations, custom_aggs, include_groups=False
-    )
-
-    def group_pairwise_stats(group):
-        if len(group[stats_between].unique()) == 1:
-            return None
-        dfs = []
-        for col in stat_cols:
-            res = pairwise_tests(
-                group, dv=col, between=stats_between, reference=reference
-            )
-            res.columns = pd.MultiIndex.from_product([res.columns, [col]])
-            dfs.append(res)
-        return pd.concat(dfs, axis=1)
-
-    stats = df.groupby(groupby).apply(
-        group_pairwise_stats, include_groups=False
-    )
-    return error_agg.join(stats, how="left")
 
 
 def format_results(df: pd.DataFrame) -> pd.DataFrame:
@@ -306,13 +267,22 @@ sns.boxplot(
 fig.show()
 
 perf_metrics_all = results_long.pipe(
-    agg_errors, groupby=["algo"], stats_between="version"
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
 ).pipe(format_results)
 perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -327,7 +297,17 @@ fig.show()
 
 perf_metrics_per_cohort = (
     results_long.pipe(
-        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
     )
     .pipe(format_results)
     .loc[cohort_order]
@@ -336,7 +316,6 @@ perf_metrics_per_cohort.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
-    stats_to="Original Implementation",
 )
 
 
@@ -366,7 +345,6 @@ final_perf_metrics.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -392,13 +370,22 @@ sns.boxplot(
 fig.show()
 
 perf_metrics_all = lab_results_long.pipe(
-    agg_errors, groupby=["algo"], stats_between="version"
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
 ).pipe(format_results)
 perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
-    stats_to="Original Implementation",
 )
 
 # %%
@@ -417,7 +404,17 @@ fig.show()
 
 perf_metrics_per_cohort = (
     lab_results_long.pipe(
-        agg_errors, groupby=["cohort", "algo"], stats_between="version"
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
     )
     .pipe(format_results)
     .loc[cohort_order]
@@ -426,7 +423,6 @@ perf_metrics_per_cohort.copy().style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
-    stats_to="Original Implementation",
 )
 
 
@@ -456,5 +452,4 @@ final_perf_metrics.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
-    stats_to="Original Implementation",
 )
