@@ -10,6 +10,14 @@ from pandas.io.formats.style import Styler
 
 
 class ValueWithMetadata:
+    """A base class to represent a value with associated metadata.
+
+    This can be used as a value within a pandas DataFrame, allowing for custom formatting.
+    For this create a subclass that implements the `__str__` and `_repr_html_` methods.
+    The main value provided is still used for comparisons, so you can use this class while allowing for sorting and
+    filtering.
+    """
+
     def __init__(self, value: float, metadata: Optional[dict[str, Any]] = None, precision: int = 2) -> None:
         """Initialize the ValueWithMetadata object.
 
@@ -31,22 +39,26 @@ class ValueWithMetadata:
             return comparison(self.value, other)
         return comparison(self.value, other.value)
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: D105
         raise NotImplementedError
 
     def _repr_html_(self) -> str:
+        """HTML representation of the value.
+
+        Note that this will only show up, when applying the `html_styler` method to a DataFrame.
+        """
         raise NotImplementedError
 
-    def __lt__(self, other: Any) -> bool:
+    def __lt__(self, other: Any) -> bool:  # noqa: D105
         return self._compare(other, operator.lt)
 
-    def __le__(self, other: Any) -> bool:
+    def __le__(self, other: Any) -> bool:  # noqa: D105
         return self._compare(other, operator.le)
 
-    def __gt__(self, other: Any) -> bool:
+    def __gt__(self, other: Any) -> bool:  # noqa: D105
         return self._compare(other, operator.gt)
 
-    def __ge__(self, other: Any) -> bool:
+    def __ge__(self, other: Any) -> bool:  # noqa: D105
         return self._compare(other, operator.ge)
 
     @classmethod
@@ -79,7 +91,7 @@ class CustomFormattedValueWithMetadata(ValueWithMetadata):
             return "*"
         return None
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # noqa: D105
         postfix = self._create_p_val_format() or ""
         err_range = self.metadata.get("range")
         if err_range is None:
@@ -192,6 +204,13 @@ def pairwise_tests(
 
 
 class StatsFunctions:
+    """A collection of statistical functions that can be applied to a DataFrame.
+
+    They are very specifically designed to work in the context of the mobgap revalidaition.
+    It is very likely that your data shapes will not work with these functions.
+
+    """
+
     pairwise_tests = pairwise_tests
 
 
