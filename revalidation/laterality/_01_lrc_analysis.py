@@ -160,18 +160,18 @@ format_transforms = [
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("mean", "accuracy"),
-            range_col=("conf_intervals", "accuracy"),
+            other_columns={"range": ("conf_intervals", "accuracy")},
         ),
         column_name="accuracy",
     ),
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("mean", "accuracy_pairwise"),
-            range_col=("conf_intervals", "accuracy_pairwise"),
+            other_columns={"range": ("conf_intervals", "accuracy_pairwise")},
         ),
         column_name="accuracy_pairwise",
     ),

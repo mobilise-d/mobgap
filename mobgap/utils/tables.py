@@ -332,6 +332,7 @@ def revalidation_table_styles(
 
 __all__ = [
     "FormatTransformer",
+    "StatsFunctions",
     "RevalidationInfo",
     "best_in_group_styler",
     "border_after_group_styler",

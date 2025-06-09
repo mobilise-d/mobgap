@@ -237,9 +237,9 @@ format_transforms_combined = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={"range": ("conf_intervals", c)},
             ),
             column_name=c,
         )
@@ -254,18 +254,18 @@ format_transforms_combined = [
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("mean", "walking_speed_mps__error"),
-            range_col=("loa", "walking_speed_mps__error"),
+            other_columns={"range": ("loa", "walking_speed_mps__error")},
         ),
         column_name="walking_speed_mps__error",
     ),
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("icc", "all"),
-            range_col=("icc_ci", "all"),
+            other_columns={"range": ("icc_ci", "all")},
         ),
         column_name="icc",
     ),

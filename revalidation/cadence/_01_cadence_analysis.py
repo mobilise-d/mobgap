@@ -206,11 +206,7 @@ format_transforms = [
                 value_col=("mean", c),
                 other_columns={
                     "range": ("conf_intervals", c),
-                    **(
-                        {"stats_metadata": ("stats_metadata", c)}
-                        if c in ["wb__abs_error", "wb__abs_rel_error"]
-                        else {}
-                    ),
+                    "stats_metadata": ("stats_metadata", c),
                 },
             ),
             column_name=c,

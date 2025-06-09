@@ -620,14 +620,14 @@ free_living_matched_perf_metrics_all = free_living_results_matched.pipe(
     [
         (
             ["algo", "version"],
-            partial(apply_aggregations, aggregations=custom_aggs_combined),
+            partial(apply_aggregations, aggregations=custom_aggs_matched),
         ),
         (
             ["algo"],
             partial(apply_transformations, transformations=stats_transform),
         ),
     ],
-).pipe(format_tables_combined)
+).pipe(format_tables_matched)
 
 free_living_matched_perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
@@ -681,7 +681,7 @@ free_living_matched_perf_metrics_cohort = (
         [
             (
                 ["cohort", "algo", "version"],
-                partial(apply_aggregations, aggregations=custom_aggs_combined),
+                partial(apply_aggregations, aggregations=custom_aggs_matched),
             ),
             (
                 ["cohort", "algo"],
@@ -689,7 +689,7 @@ free_living_matched_perf_metrics_cohort = (
             ),
         ],
     )
-    .pipe(format_tables_combined)
+    .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
@@ -1126,14 +1126,14 @@ laboratory_matched_perf_metrics_all = laboratory_results_matched.pipe(
     [
         (
             ["algo", "version"],
-            partial(apply_aggregations, aggregations=custom_aggs_combined),
+            partial(apply_aggregations, aggregations=custom_aggs_matched),
         ),
         (
             ["algo"],
             partial(apply_transformations, transformations=stats_transform),
         ),
     ],
-).pipe(format_tables_combined)
+).pipe(format_tables_matched)
 
 laboratory_matched_perf_metrics_all.copy().style.pipe(
     revalidation_table_styles,
@@ -1187,7 +1187,7 @@ laboratory_matched_perf_metrics_cohort = (
         [
             (
                 ["cohort", "algo", "version"],
-                partial(apply_aggregations, aggregations=custom_aggs_combined),
+                partial(apply_aggregations, aggregations=custom_aggs_matched),
             ),
             (
                 ["cohort", "algo"],
