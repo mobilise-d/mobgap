@@ -127,9 +127,11 @@ from mobgap.utils.df_operations import (
     CustomOperation,
     apply_aggregations,
     apply_transformations,
+    multilevel_groupby_apply_merge,
 )
 from mobgap.utils.tables import FormatTransformer as F
 from mobgap.utils.tables import RevalidationInfo, revalidation_table_styles
+from mobgap.utils.tables import StatsFunctions as S
 
 custom_aggs = [
     CustomOperation(
@@ -144,6 +146,24 @@ custom_aggs = [
     ("tp_relative_timing_error", ["mean", A.loa]),
 ]
 
+stats_transform = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            S.pairwise_tests,
+            value_col=c,
+            between="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[("stats_metadata", c)],
+    )
+    for c in [
+        "recall",
+        "precision",
+        "f1_score",
+    ]
+]
+
 format_transforms = [
     CustomOperation(
         identifier=None,
@@ -154,9 +174,12 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=("ICD", c),
         )
@@ -170,9 +193,9 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("loa", c),
+                other_columns={"range": ("loa", c)},
             ),
             column_name=("IC Timing", c),
         )
@@ -191,6 +214,7 @@ final_names = {
     "tp_absolute_timing_error_s": "Abs. Error [s]",
     "tp_relative_timing_error": "Bias and LoA",
 }
+
 
 validation_thresholds = {
     ("ICD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
@@ -234,13 +258,23 @@ sns.boxplot(
 )
 fig.show()
 
-perf_metrics_all = (
-    results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
-)
+perf_metrics_all = results_long.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_results)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 
 # %%
@@ -254,13 +288,26 @@ sns.boxplot(
 fig.show()
 
 perf_metrics_per_cohort = (
-    results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
+    results_long.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 
 
@@ -280,17 +327,21 @@ sns.boxplot(
 )
 fig.show()
 
-final_perf_metrics = perf_metrics_per_cohort.query(
-    "algo == 'IcdIonescu'"
-).reset_index(level="algo", drop=True)
+final_perf_metrics = (
+    perf_metrics_per_cohort.copy()
+    .query("algo == 'IcdIonescu'")
+    .reset_index(level="algo", drop=True)
+)
 
 final_perf_metrics.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
 )
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context
@@ -310,13 +361,23 @@ sns.boxplot(
 )
 fig.show()
 
-perf_metrics_all = (
-    lab_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
-)
+perf_metrics_all = lab_results_long.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_results)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 
 # %%
@@ -334,13 +395,26 @@ sns.boxplot(
 fig.show()
 
 perf_metrics_per_cohort = (
-    lab_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
+    lab_results_long.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 
 
@@ -360,10 +434,14 @@ sns.boxplot(
 )
 fig.show()
 
-final_perf_metrics = perf_metrics_per_cohort.query(
-    "algo == 'IcdIonescu'"
-).reset_index(level="algo", drop=True)
+final_perf_metrics = (
+    perf_metrics_per_cohort.copy()
+    .query("algo == 'IcdIonescu'")
+    .reset_index(level="algo", drop=True)
+)
 
 final_perf_metrics.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
 )

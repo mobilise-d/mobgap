@@ -18,7 +18,7 @@ from mobgap.utils.conversions import to_body_frame
 
 # %%
 # Loading some example data
-# --------------------------
+# -------------------------
 # First, we load some example data and apply the LrcUllrich algorithm with its default pre-trained model to it.
 # We use the reference initial contacts as input for the algorithm so that we can focus on the evaluation of the
 # L/R classification independently of the detection of the initial contacts.

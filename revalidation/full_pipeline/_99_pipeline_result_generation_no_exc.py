@@ -2,7 +2,7 @@
 .. _pipeline_val_gen:
 
 Revalidation of the Mobilise-D algorithm pipeline for cadence, stride length and walking speed estimation
-=============================================================================================================
+=========================================================================================================
 
 .. note:: This is the code to create the results! If you are interested in viewing the results, please check the
     :ref:`results report <pipeline_val_results>`.
@@ -36,7 +36,7 @@ import warnings
 
 # %%
 # Loading the "old" results
-# -----------------------------------------------------
+# -------------------------
 # Results obtained with the original Matlab-based implementation of the Mobilise-D algorithm pipeline are loaded.
 # We wrap these results in a dummy pipeline that acts like the real pipeline, but simply returns the pre-calculated
 # results.
@@ -257,7 +257,7 @@ datasets_laboratory = TVSLabDataset(
 
 # %%
 # Running the evaluation
-# ------------- ---------
+# ----------------------
 # We multiprocess the evaluation on the level of algorithms using joblib.
 # Each algorithm pipeline is run using its own instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #

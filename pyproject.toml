@@ -50,6 +50,7 @@ myst-parser = "^2.0.0"
 ipykernel = "^6.25.1"
 numpydoc = "^1.6.0"
 ipympl = "^0.9.4"
+pathspec = "^0.12.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -57,9 +58,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poe.tasks]
 _format = "ruff format ."
+_rst_heading_fix = { cmd = "python ./fix_rst_headings.py ./revalidation ./examples ./docs/guides ./docs/modules", help = "Fix the headlines in the rst files." }
 _auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
 _auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
-format = ["_auto_fix", "_format"]
+format = ["_rst_heading_fix", "_auto_fix", "_format"]
 format_unsafe = ["_auto_fix_unsafe", "_format"]
 lint = { cmd = "ruff check mobgap --fix", help = "Lint all files with ruff." }
 _lint_ci = "ruff check mobgap --output-format=github"

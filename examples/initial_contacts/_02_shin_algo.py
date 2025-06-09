@@ -127,6 +127,6 @@ plt.show()
 
 # %%
 # Evaluation of the algorithm against a reference
-# --------------------------------------------------
+# -----------------------------------------------
 # To quantify how the Python output compares to the reference labels, we are providing a range of evaluation functions.
 # See the :ref:`example on ICD evaluation <icd_evaluation>` for more details.

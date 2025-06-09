@@ -164,7 +164,7 @@ aggregated_paras
 
 
 # Modifying Parameters
-# -------------------
+# --------------------
 # Both pipelines are basically the same, but the algorithms used for certain steps are different.
 # Both just reimplement :class:`~mobgap.pipeline.BaseMobilisedPipeline` with the respective algorithms as default
 # parameters.

@@ -2,7 +2,7 @@
 .. _cad_val_gen:
 
 Revalidation of the cadence algorithms
-============================================
+======================================
 
 .. note:: This is the code to create the results! If you are interested in viewing the results, please check the
     :ref:`results report <cad_val_results>`.

@@ -96,7 +96,7 @@ cadence_result
 
 # %%
 # Comparison with Reference
-# --------------------------
+# -------------------------
 # To evaluate the performance of the cadence calculation algorithm, we can compare the calculated cadence values
 # with the reference cadence values.
 # For this purpose, as there are is only one reference cadence value per gait sequence, we will first average the

@@ -2,7 +2,7 @@
 .. _pipeline_val_results:
 
 Walking speed estimation
-================================================================================================
+========================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
   of its algorithm.
@@ -201,6 +201,7 @@ from mobgap.utils.df_operations import (
 )
 from mobgap.utils.tables import FormatTransformer as F
 from mobgap.utils.tables import RevalidationInfo, revalidation_table_styles
+from mobgap.utils.tables import StatsFunctions as S
 
 custom_aggs_combined = [
     CustomOperation(
@@ -237,6 +238,23 @@ custom_aggs_matched = [
     *custom_aggs_combined,
 ]
 
+stats_transform = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            S.pairwise_tests,
+            value_col=c,
+            between="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[("stats_metadata", c)],
+    )
+    for c in [
+        "walking_speed_mps__abs_error",
+        "walking_speed_mps__abs_rel_error",
+    ]
+]
+
 format_transforms_combined = [
     CustomOperation(
         identifier=None,
@@ -247,9 +265,12 @@ format_transforms_combined = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=c,
         )
@@ -264,18 +285,18 @@ format_transforms_combined = [
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("mean", "walking_speed_mps__error"),
-            range_col=("loa", "walking_speed_mps__error"),
+            other_columns={"range": ("loa", "walking_speed_mps__error")},
         ),
         column_name="walking_speed_mps__error",
     ),
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("icc", "all"),
-            range_col=("icc_ci", "all"),
+            other_columns={"range": ("icc_ci", "all")},
         ),
         column_name="icc",
     ),
@@ -301,7 +322,6 @@ final_names_combined = {
     "walking_speed_mps__abs_rel_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
-
 final_names_matched = {
     **final_names_combined,
     "n_wbs_matched": "# Matched WBs",
@@ -349,7 +369,7 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
 # .. note:: In the free-living dataset, each datapoint represents one 2.5h recording.
 #
 # All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 
@@ -392,13 +412,25 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 free_living_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-free_living_combined_perf_metrics_all = (
-    free_living_results_combined.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
-    .pipe(format_tables_combined)
-)
+from mobgap.utils.df_operations import multilevel_groupby_apply_merge
+
+free_living_combined_perf_metrics_all = free_living_results_combined.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs_combined),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_tables_combined)
 free_living_combined_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 
 # %%
@@ -436,7 +468,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
@@ -469,13 +501,26 @@ ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
 free_living_combined_perf_metrics_cohort = (
-    free_living_results_combined.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    free_living_results_combined.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs_combined),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
 free_living_combined_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 # %%
 # Scatter plot
@@ -544,7 +589,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 
 # %%
 # Matched/True Positive Evaluation
-# ******************************
+# ********************************
 # The "Matched" Evaluation directly compares the performance of walking speed estimation on only the WBs that were
 # detected in both systems (true positives).
 # WBs were included in the true positive analysis, if there was an overlap of more than 80%
@@ -562,7 +607,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 #           additional aggregation.
 #
 # Results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
@@ -581,14 +626,23 @@ sns.barplot(
 )
 fig.show()
 # %%
-free_living_matched_perf_metrics_all = (
-    free_living_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
-    .pipe(format_tables_matched)
-)
-
+free_living_matched_perf_metrics_all = free_living_results_matched.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs_matched),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_tables_matched)
 free_living_matched_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 # %%
 # Residual plot
@@ -632,20 +686,33 @@ fig.show()
 # %%
 # Processing the per-cohort performance table
 free_living_matched_perf_metrics_cohort = (
-    free_living_results_matched.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    free_living_results_matched.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs_matched),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
 free_living_matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
-# ********
+# **************************************************************************
 # Effect of WB duration
-# ~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~
 # We investigate the dependency of the absolute walking speed error of all true-positive WBs from the real-world
 # recording on the WB duration reported by the reference system.
 # In the top, WB errors are grouped by various duration bouts.
@@ -709,7 +776,7 @@ free_living_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
 )
 # %%
 # Effect of walking speed on error
-# ~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # One important aspect of the algorithm performance is the dependency on the walking speed. Aka, how well do the
 # algorithms perform at different walking speeds. For this we plot the absolute error against the walking speed
 # of the reference data. For better granularity, we use the values per WB, instead of the aggregates per participant.
@@ -817,7 +884,7 @@ fig.show()
 
 # %%
 # Laboratory dataset
-# -------------------
+# ------------------
 # Combined/Aggregated Evaluation
 # ******************************
 # To mimic actual use of wearable device where actual decisions are made on aggregated measures over a longer
@@ -830,7 +897,7 @@ fig.show()
 # .. note:: In the laboratory dataset, each datapoint represents one trial.
 #
 # All results across all cohorts
-# ~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 
@@ -873,13 +940,23 @@ def multi_metric_plot(data, metrics, nrows, ncols):
 
 laboratory_results_combined.pipe(multi_metric_plot, metrics, 2, 2)
 # %%
-laboratory_combined_perf_metrics_all = (
-    laboratory_results_combined.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
-    .pipe(format_tables_combined)
-)
+laboratory_combined_perf_metrics_all = laboratory_results_combined.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs_combined),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_tables_combined)
 laboratory_combined_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 # %%
 # Residual plots
@@ -915,7 +992,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
@@ -934,13 +1011,26 @@ ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
 laboratory_combined_perf_metrics_cohort = (
-    laboratory_results_combined.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_combined, include_groups=False)
+    laboratory_results_combined.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs_combined),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
 laboratory_combined_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 # %%
 # Scatter plot
@@ -1008,7 +1098,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Matched/True Positive Evaluation
-# ******************************
+# ********************************
 # The "Matched" Evaluation directly compares the performance of walking speed estimation on only the WBs that were
 # detected in both systems (true positives).
 # WBs were included in the true positive analysis, if there was an overlap of more than 80%
@@ -1026,7 +1116,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 #           additional aggregation.
 #
 # Results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 laboratory_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
@@ -1045,14 +1135,24 @@ sns.barplot(
 )
 fig.show()
 # %%
-laboratory_matched_perf_metrics_all = (
-    laboratory_results_matched.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
-    .pipe(format_tables_matched)
-)
+laboratory_matched_perf_metrics_all = laboratory_results_matched.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs_matched),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_tables_matched)
 
 laboratory_matched_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 # %%
 # Residual plot
@@ -1061,7 +1161,7 @@ laboratory_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 # Barplot
 # The results below represent the average absolute error on walking speed estimation
 # across all participants within a cohort.
@@ -1096,21 +1196,34 @@ fig.show()
 # %%
 # Processing the per-cohort performance table
 laboratory_matched_perf_metrics_cohort = (
-    laboratory_results_matched.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs_matched, include_groups=False)
+    laboratory_results_matched.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs_matched),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_tables_matched)
     .loc[cohort_order]
 )
 
 laboratory_matched_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
-# ********
+# **************************************************************************
 # Effect of WB duration
-# ~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~
 # We investigate the dependency of the absolute walking speed error of all true-positive WBs from the real-world
 # recording on the WB duration reported by the reference system.
 # In the top, WB errors are grouped by various duration bouts.
@@ -1173,7 +1286,7 @@ laboratory_results_matched_raw.query("algo == 'Mobilise-D Pipeline'").pipe(
 )
 # %%
 # Effect of walking speed on error
-# ~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # One important aspect of the algorithm performance is the dependency on the walking speed. Aka, how well do the
 # algorithms perform at different walking speeds. For this we plot the absolute error against the walking speed
 # of the reference data. For better granularity, we use the values per WB, instead of the aggregates per participant.

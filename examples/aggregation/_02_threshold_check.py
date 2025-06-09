@@ -2,7 +2,7 @@
 .. _threshold_check_example:
 
 Threshold Checker
-====================
+=================
 
 This example shows how to use the functions ``apply_thresholds`` to check if a DMO falls within the thresholds for a
 specific cohort and height.

@@ -150,12 +150,14 @@ from mobgap.utils.df_operations import (
     CustomOperation,
     apply_aggregations,
     apply_transformations,
+    multilevel_groupby_apply_merge,
 )
 from mobgap.utils.tables import FormatTransformer as F
 from mobgap.utils.tables import (
     RevalidationInfo,
     revalidation_table_styles,
 )
+from mobgap.utils.tables import StatsFunctions as S
 
 custom_aggs = [
     CustomOperation(
@@ -195,9 +197,12 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=("GSD", c),
         )
@@ -213,9 +218,12 @@ format_transforms = [
         CustomOperation(
             identifier=None,
             function=partial(
-                F.value_with_range,
+                F.value_with_metadata,
                 value_col=("mean", c),
-                range_col=("conf_intervals", c),
+                other_columns={
+                    "range": ("conf_intervals", c),
+                    "stats_metadata": ("stats_metadata", c),
+                },
             ),
             column_name=("GS duration", c),
         )
@@ -229,18 +237,18 @@ format_transforms = [
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("mean", "gs_duration_error_s"),
-            range_col=("loa", "gs_duration_error_s"),
+            other_columns={"range": ("loa", "gs_duration_error_s")},
         ),
         column_name=("GS duration", "gs_duration_error_s"),
     ),
     CustomOperation(
         identifier=None,
         function=partial(
-            F.value_with_range,
+            F.value_with_metadata,
             value_col=("icc", "gs_duration_s"),
-            range_col=("icc_ci", "gs_duration_s"),
+            other_columns={"range": ("icc_ci", "gs_duration_s")},
         ),
         column_name=("GS duration", "icc"),
     ),
@@ -260,6 +268,27 @@ final_names = {
     "gs_absolute_relative_duration_error": "Abs. Rel. Error [%]",
     "icc": "ICC",
 }
+stats_transform = [
+    CustomOperation(
+        identifier=None,
+        function=partial(
+            S.pairwise_tests,
+            value_col=c,
+            between="version",
+            reference_group_key="Original Implementation",
+        ),
+        column_name=[("stats_metadata", c)],
+    )
+    for c in [
+        "recall",
+        "precision",
+        "f1_score",
+        "accuracy",
+        "specificity",
+        "gs_absolute_relative_duration_error",
+    ]
+]
+
 
 validation_thresholds = {
     ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
@@ -320,13 +349,23 @@ sns.boxplot(
 fig.show()
 # %%
 
-perf_metrics_all = (
-    results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
-)
+perf_metrics_all = results_long.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_results)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 
 # %%
@@ -341,13 +380,26 @@ fig.show()
 # %%
 
 perf_metrics_per_cohort = (
-    results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
+    results_long.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 
 # %%
@@ -388,10 +440,12 @@ fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
 )
 
 # %%
@@ -426,15 +480,17 @@ fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
 )
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context
@@ -458,13 +514,23 @@ sns.boxplot(
 fig.show()
 
 # %%
-perf_metrics_all = (
-    lab_results.groupby(["algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
-    .pipe(format_results)
-)
+perf_metrics_all = lab_results_long.pipe(
+    multilevel_groupby_apply_merge,
+    [
+        (
+            ["cohort", "algo", "version"],
+            partial(apply_aggregations, aggregations=custom_aggs),
+        ),
+        (
+            ["cohort", "algo"],
+            partial(apply_transformations, transformations=stats_transform),
+        ),
+    ],
+).pipe(format_results)
 perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["algo"],
 )
 
 # %%
@@ -483,13 +549,26 @@ fig.show()
 
 # %%
 perf_metrics_per_cohort = (
-    lab_results.groupby(["cohort", "algo", "version"])
-    .apply(apply_aggregations, custom_aggs)
+    lab_results_long.pipe(
+        multilevel_groupby_apply_merge,
+        [
+            (
+                ["cohort", "algo", "version"],
+                partial(apply_aggregations, aggregations=custom_aggs),
+            ),
+            (
+                ["cohort", "algo"],
+                partial(apply_transformations, transformations=stats_transform),
+            ),
+        ],
+    )
     .pipe(format_results)
     .loc[cohort_order]
 )
 perf_metrics_per_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort", "algo"],
 )
 
 # %%
@@ -526,10 +605,12 @@ fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
 )
 
 # %%
@@ -561,8 +642,10 @@ fig.suptitle(f"High Impairment Cohorts ({high_impairment_algo})")
 fig.show()
 
 # %%
-perf_metrics_per_cohort.loc[
+perf_metrics_per_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
 ].reset_index("algo", drop=True).style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort"]
+    revalidation_table_styles,
+    validation_thresholds,
+    ["cohort"],
 )
