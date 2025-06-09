@@ -271,7 +271,7 @@ perf_metrics_all = results_long.pipe(
         ),
     ],
 ).pipe(format_results)
-perf_metrics_all.copy().style.pipe(
+perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -304,7 +304,7 @@ perf_metrics_per_cohort = (
     .pipe(format_results)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort.copy().style.pipe(
+perf_metrics_per_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -333,7 +333,7 @@ final_perf_metrics = (
     .reset_index(level="algo", drop=True)
 )
 
-final_perf_metrics.copy().style.pipe(
+final_perf_metrics.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
@@ -411,7 +411,7 @@ perf_metrics_per_cohort = (
     .pipe(format_results)
     .loc[cohort_order]
 )
-perf_metrics_per_cohort.copy().style.pipe(
+perf_metrics_per_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],

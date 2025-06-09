@@ -169,15 +169,19 @@ def pairwise_tests(
     value_col: str,
     between: str,
     reference_group_key: str,
-) -> tuple[float, float]:
+) -> pd.Series:
     # We need to force a consistent order where the reference group is always the first.
-    groups = set(df[between].unique()) - {reference_group_key}
-    order = [reference_group_key, *sorted(groups)]
+    groups = set(df[between].unique())
+    if reference_group_key not in groups:
+        # If we don't have the reference group, we can't perform the tests.
+        # This might happen for algorithms that do not have a reference algorithm.
+        return pd.Series(None, index=groups)
+    order = [reference_group_key, *sorted(groups - {reference_group_key})]
     df = df.assign(**{between: pd.Categorical(df[between], categories=order, ordered=True)})
     result = pg.pairwise_tests(data=df, dv=value_col, between=between)
     assert result["Paired"].eq(False).all(), "Expected unpaired tests"
     assert reference_group_key not in result["B"]
-    result = (
+    return (
         result.query("A == @reference_group_key")
         .copy()
         .rename(columns={"p-unc": "p", "B": "version"})[["version", "T", "p"]]
@@ -185,9 +189,6 @@ def pairwise_tests(
         .reindex(order)
         .apply(lambda row: row.to_dict(), axis=1)
     )
-
-    return result
-
 
 class StatsFunctions:
     pairwise_tests = pairwise_tests
@@ -326,12 +327,13 @@ def revalidation_table_styles(
         .apply(compare_to_threshold_styler(thresholds, higher_is_better), axis=None)
         .apply(border_after_group_styler(groupby), axis=None)
         .set_table_attributes('class="dataframe"')
-        .hide(st.columns.str.endswith("__stats"), axis=1)
     )
 
 
 __all__ = [
     "FormatTransformer",
+    "ValueWithMetadata",
+    "CustomFormattedValueWithMetadata",
     "StatsFunctions",
     "RevalidationInfo",
     "best_in_group_styler",

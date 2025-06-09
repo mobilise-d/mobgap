@@ -425,7 +425,7 @@ free_living_combined_perf_metrics_all = free_living_results_combined.pipe(
         ),
     ],
 ).pipe(format_tables_combined)
-free_living_combined_perf_metrics_all.copy().style.pipe(
+free_living_combined_perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -502,7 +502,7 @@ free_living_combined_perf_metrics_cohort = (
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-free_living_combined_perf_metrics_cohort.copy().style.pipe(
+free_living_combined_perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -625,7 +625,7 @@ free_living_matched_perf_metrics_all = free_living_results_matched.pipe(
     ],
 ).pipe(format_tables_matched)
 
-free_living_matched_perf_metrics_all.copy().style.pipe(
+free_living_matched_perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -689,7 +689,7 @@ free_living_matched_perf_metrics_cohort = (
     .loc[cohort_order]
 )
 
-free_living_matched_perf_metrics_cohort.copy().style.pipe(
+free_living_matched_perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -932,7 +932,7 @@ laboratory_combined_perf_metrics_all = laboratory_results_combined.pipe(
     ],
 ).pipe(format_tables_combined)
 
-laboratory_combined_perf_metrics_all.copy().style.pipe(
+laboratory_combined_perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -1008,7 +1008,7 @@ laboratory_combined_perf_metrics_cohort = (
     .pipe(format_tables_combined)
     .loc[cohort_order]
 )
-laboratory_combined_perf_metrics_cohort.copy().style.pipe(
+laboratory_combined_perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -1131,7 +1131,7 @@ laboratory_matched_perf_metrics_all = laboratory_results_matched.pipe(
     ],
 ).pipe(format_tables_matched)
 
-laboratory_matched_perf_metrics_all.copy().style.pipe(
+laboratory_matched_perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -1195,7 +1195,7 @@ laboratory_matched_perf_metrics_cohort = (
     .loc[cohort_order]
 )
 
-laboratory_matched_perf_metrics_cohort.copy().style.pipe(
+laboratory_matched_perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],

@@ -43,6 +43,7 @@ Types
    :toctree: ../generated/utils/tables
    :template: class.rst
 
-    ValueWithRange
+    ValueWithMetadata
+    CustomFormattedValueWithMetadata
     RevalidationInfo
 

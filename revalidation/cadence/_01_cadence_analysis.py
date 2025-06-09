@@ -304,7 +304,7 @@ perf_metrics_all = free_living_results.pipe(
         ),
     ],
 ).pipe(format_tables)
-perf_metrics_all.copy().style.pipe(
+perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -341,7 +341,7 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.copy().style.pipe(
+perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -390,7 +390,7 @@ fig.show()
 # %%
 perf_metrics_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True).copy().style.pipe(
+].reset_index("algo", drop=True).style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
@@ -428,7 +428,7 @@ fig.show()
 # %%
 perf_metrics_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True).copy().style.pipe(
+].reset_index("algo", drop=True).style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
@@ -537,7 +537,7 @@ perf_metrics_all = lab_results.pipe(
         ),
     ],
 ).pipe(format_tables)
-perf_metrics_all.copy().style.pipe(
+perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -574,7 +574,7 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.copy().style.pipe(
+perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -618,7 +618,7 @@ fig.show()
 # %%
 perf_metrics_cohort.copy().loc[
     pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
-].reset_index("algo", drop=True).copy().style.pipe(
+].reset_index("algo", drop=True).style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],
@@ -653,7 +653,7 @@ fig.show()
 # %%
 perf_metrics_cohort.copy().loc[
     pd.IndexSlice[high_impairment_cohorts, high_impairment_algo], :
-].reset_index("algo", drop=True).copy().style.pipe(
+].reset_index("algo", drop=True).style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort"],

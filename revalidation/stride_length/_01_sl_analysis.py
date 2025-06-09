@@ -311,7 +311,7 @@ perf_metrics_all = free_living_results.pipe(
         ),
     ],
 ).pipe(format_tables)
-perf_metrics_all.copy().style.pipe(
+perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -348,7 +348,7 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.copy().style.pipe(
+perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
@@ -604,7 +604,7 @@ perf_metrics_all = lab_results.pipe(
         ),
     ],
 ).pipe(format_tables)
-perf_metrics_all.copy().style.pipe(
+perf_metrics_all.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["algo"],
@@ -641,7 +641,7 @@ perf_metrics_cohort = (
     .pipe(format_tables)
     .loc[cohort_order]
 )
-perf_metrics_cohort.copy().style.pipe(
+perf_metrics_cohort.style.pipe(
     revalidation_table_styles,
     validation_thresholds,
     ["cohort", "algo"],
