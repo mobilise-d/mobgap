@@ -40,7 +40,7 @@ dev = [
     "poethepoet>=0.22.0,<0.23",
     "pytest>=7.4.0,<8",
     "pytest-cov>=4.1.0,<5",
-    "ruff>=0.5.0,<0.6",
+    "ruff>=0.5.0",
     "sphinx>=7.2.6,<8",
     "sphinx-gallery>=0.18.0,<0.19",
     "memory-profiler>=0.61.0,<0.62",
@@ -51,7 +51,7 @@ dev = [
     "ipykernel>=6.25.1,<7",
     "numpydoc>=1.6.0,<2",
     "ipympl>=0.9.4,<0.10",
-    "pathspec>=0.12.1,<0.13"
+    "pathspec>=0.12.1,<0.13",
 ]
 
 [build-system]
