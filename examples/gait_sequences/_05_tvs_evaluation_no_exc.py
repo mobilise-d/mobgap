@@ -8,7 +8,7 @@ As this is run on the TVS dataset and has a long runtime, this example needs to 
 from pathlib import Path
 
 from joblib import Memory
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset
 from mobgap.utils.misc import get_env_var
 
@@ -18,7 +18,7 @@ n_jobs = get_env_var("MOBGAP_N_JOBS", 1)
 free_living_data = TVSFreeLivingDataset(
     dataset_path,
     reference_system="INDIP",
-    memory=Memory(PACKAGE_ROOT.parent / ".cache"),
+    memory=Memory(PROJECT_ROOT / ".cache"),
     missing_reference_error_type="skip",
 ).get_subset(recording="Recording4")
 

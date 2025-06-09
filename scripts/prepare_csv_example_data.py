@@ -4,7 +4,7 @@ import mobgap
 from mobgap.consts import GRAV_MS2
 from mobgap.data import LabExampleDataset
 
-BASE_PATH = mobgap.PACKAGE_ROOT.parent / "example_data" / "data_csv"
+BASE_PATH = mobgap.PROJECT_ROOT / "example_data" / "data_csv"
 
 all_participant_metadata = {}
 

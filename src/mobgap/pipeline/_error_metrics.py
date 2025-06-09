@@ -363,9 +363,9 @@ class CustomErrorAggregations:
     n_datapoints = n_datapoints
 
 
-def get_default_error_aggregations() -> (
-    list[Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperation]]
-):
+def get_default_error_aggregations() -> list[
+    Union[tuple[tuple[str, ...], Union[list[Union[callable, str]], callable, str]], CustomOperation]
+]:
     """Return a list containing all important error aggregations utilized in Mobilise-D.
 
     This list can directly be passed to ~func:`~mobgap.utils.df_operations.apply_aggregations` as the `aggregations`

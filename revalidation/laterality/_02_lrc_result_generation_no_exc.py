@@ -68,12 +68,10 @@ pipelines = {
 from pathlib import Path
 
 from joblib import Memory
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
 
-cache_dir = Path(
-    get_env_var("MOBGAP_CACHE_DIR_PATH", PACKAGE_ROOT.parent / ".cache")
-)
+cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
 datasets_free_living = TVSFreeLivingDataset(
     get_env_var("MOBGAP_TVS_DATASET_PATH"),

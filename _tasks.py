@@ -29,7 +29,7 @@ def task_no_long_file_names():
 def task_update_example_data(raise_if_changes=False):
     import pooch
 
-    REGISTRY_PATH = HERE / "mobgap/data/_example_data_registry.txt"
+    REGISTRY_PATH = HERE / "src/mobgap/data/_example_data_registry.txt"
 
     # Hash of old registry
     with open(REGISTRY_PATH) as f:
@@ -86,16 +86,16 @@ def update_version_strings(file_path, new_version):
         f.truncate()
 
 
-def update_version(version):
-    subprocess.run(["poetry", "version", version], shell=False, check=True)
+def update_version(*args):
+    subprocess.run(["uv", "version", *args], shell=False, check=True)
     new_version = (
-        subprocess.run(["poetry", "version"], shell=False, check=True, capture_output=True)
+        subprocess.run(["uv", "version"], shell=False, check=True, capture_output=True)
         .stdout.decode()
         .strip()
         .split(" ", 1)[1]
     )
-    update_version_strings(HERE.joinpath("mobgap/__init__.py"), new_version)
+    update_version_strings(HERE.joinpath("src/mobgap/__init__.py"), new_version)
 
 
 def task_update_version():
-    update_version(sys.argv[1])
+    update_version(*sys.argv[1:])

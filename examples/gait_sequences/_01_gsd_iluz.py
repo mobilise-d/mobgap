@@ -62,7 +62,7 @@ def plot_gsd_outputs(data, **kwargs):
 import json
 
 import pandas as pd
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.data import LabExampleDataset
 
 lab_example_data = LabExampleDataset(reference_system="INDIP")
@@ -71,7 +71,7 @@ lab_example_data = LabExampleDataset(reference_system="INDIP")
 def load_matlab_output(datapoint):
     p = datapoint.group_label
     with (
-        PACKAGE_ROOT.parent
+        PROJECT_ROOT
         / f"example_data/original_results/gsd_iluz/lab/{p.cohort}/{p.participant_id}/GSDA_Output.json"
     ).open() as f:
         original_results = json.load(f)["GSDA_Output"][p.time_measure][p.test][

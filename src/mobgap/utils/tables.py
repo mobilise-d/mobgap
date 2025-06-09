@@ -351,11 +351,11 @@ def revalidation_table_styles(
 
 
 __all__ = [
-    "FormatTransformer",
-    "ValueWithMetadata",
     "CustomFormattedValueWithMetadata",
-    "StatsFunctions",
+    "FormatTransformer",
     "RevalidationInfo",
+    "StatsFunctions",
+    "ValueWithMetadata",
     "best_in_group_styler",
     "border_after_group_styler",
     "compare_to_threshold_styler",

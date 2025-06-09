@@ -3,7 +3,7 @@ from sklearn.model_selection import ParameterGrid, StratifiedKFold
 from tpcp.optimize import GridSearchCV
 from tpcp.validate import DatasetSplitter
 
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.data import MsProjectDataset
 from mobgap.laterality import LrcUllrich
 from mobgap.laterality.evaluation import lrc_score
@@ -13,7 +13,7 @@ from mobgap.utils.misc import get_env_var
 ms_project_dataset = MsProjectDataset(
     base_path=get_env_var("MOBGAP_MSPROJECT_DATASET_PATH"),
     reference_system="SU_LowerShanks",
-    memory=Memory(PACKAGE_ROOT / ".cache"),
+    memory=Memory(PROJECT_ROOT / ".cache"),
 )
 
 # %%
@@ -43,5 +43,5 @@ print("Optimized C", optimized_pipeline.algo.clf_pipe.named_steps["clf"].C)
 import joblib
 
 joblib.dump(
-    optimized_pipeline.algo.clf_pipe, PACKAGE_ROOT / "laterality/_ullrich_pretrained_models/msproject_all_model.gz"
+    optimized_pipeline.algo.clf_pipe, PROJECT_ROOT / "laterality/_ullrich_pretrained_models/msproject_all_model.gz"
 )

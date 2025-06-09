@@ -18,12 +18,10 @@ This example shows how to use the :class:`.MobilisedAggregator` class to aggrega
 # The columns contain the DMO parameters estimated for each walking bout, such as duration, stride length, etc.
 
 import pandas as pd
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.aggregation import MobilisedAggregator
 
-DATA_PATH = (
-    PACKAGE_ROOT.parent / "example_data/original_results/mobilised_aggregator"
-)
+DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 
 data = pd.read_csv(
     DATA_PATH / "aggregation_test_input.csv", index_col=0

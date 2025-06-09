@@ -1,18 +1,16 @@
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
+from mobgap import PROJECT_ROOT
 from mobgap.aggregation import MobilisedAggregator
 
-BASE_PATH = Path(__file__).parent.parent.parent
-DATA_PATH = BASE_PATH / "example_data/original_results/mobilised_aggregator"
+DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 
 
-@pytest.fixture()
+@pytest.fixture
 def example_dmo_data():
     return (
         pd.read_csv(DATA_PATH / "aggregation_test_input.csv")
@@ -21,7 +19,7 @@ def example_dmo_data():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def example_dmo_reference():
     return (
         pd.read_csv(DATA_PATH / "aggregation_test_reference.csv")
@@ -30,18 +28,18 @@ def example_dmo_reference():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_dmo_data_mask(example_dmo_data):
     return example_dmo_data.astype(bool)
 
 
-@pytest.fixture()
+@pytest.fixture
 def example_dmo_data_partial(example_dmo_data):
     drop_columns = ["n_steps", "n_turns"]
     return example_dmo_data.drop(columns=drop_columns)
 
 
-@pytest.fixture()
+@pytest.fixture
 def example_dmo_reference_partial(example_dmo_reference):
     drop_columns = ["steps_all_sum", "turns_all_sum"]
     return example_dmo_reference.drop(columns=drop_columns)
@@ -52,7 +50,7 @@ class TestMetaMobilisedAggregator(TestAlgorithmMixin):
 
     ALGORITHM_CLASS = MobilisedAggregator
 
-    @pytest.fixture()
+    @pytest.fixture
     def after_action_instance(self, example_dmo_data):
         return self.ALGORITHM_CLASS().aggregate(
             example_dmo_data.iloc[:10],

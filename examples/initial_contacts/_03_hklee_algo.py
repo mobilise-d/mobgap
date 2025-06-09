@@ -70,13 +70,13 @@ detected_ics
 # To check if the algorithm was implemented correctly, we compare the results to the matlab implementation.
 import json
 
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 
 
 def load_matlab_output(datapoint):
     p = datapoint.group_label
     with (
-        PACKAGE_ROOT.parent
+        PROJECT_ROOT
         / f"example_data/original_results/icd_hklee_improved/lab/{p.cohort}/{p.participant_id}/SD_Output.json"
     ).open() as f:
         original_results = json.load(f)["SD_Output"][p.time_measure][p.test][

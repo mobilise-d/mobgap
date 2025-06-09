@@ -97,14 +97,10 @@ ignore = [
     "PD013",
     # No Any annotations
     "ANN401",
-    # Self annotation
-    "ANN101",
     # To many arguments
     "PLR0913",
     # Class attribute shadows builtin
     "A003",
-    # No typing for `cls`
-    "ANN102",
     # Ignore because of formatting
     "ISC001",
     # camelcase imported as constant

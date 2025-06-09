@@ -1,5 +1,5 @@
+from mobgap import PROJECT_ROOT
 from mobgap.data import LabExampleDataset, get_all_lab_example_data_paths
-from tests import PROJECT_ROOT
 
 
 def test_get_lab_example_data_path():

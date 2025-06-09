@@ -102,13 +102,13 @@ class DummyCadAlgo(BaseCadCalculator):
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """ "Run" the algorithm."""
-        assert (
-            measurement_condition is not None
-        ), "measurement_condition must be provided"
+        assert measurement_condition is not None, (
+            "measurement_condition must be provided"
+        )
         assert dp_group is not None, "dp_group must be provided"
-        assert (
-            current_gs_absolute is not None
-        ), "current_gs_start_absolute must be provided"
+        assert current_gs_absolute is not None, (
+            "current_gs_start_absolute must be provided"
+        )
 
         cached_load_old_cad_results = hybrid_cache(lru_cache_maxsize=1)(
             load_old_cad_results
@@ -244,12 +244,10 @@ pipelines["ShinImproved"] = CadEmulationPipeline(
 # Depending on how you want to interpret the results, you might not want to use the aggregated results, but rather
 # perform custom aggregations over the provided "single_results".
 from joblib import Memory, Parallel, delayed
-from mobgap import PACKAGE_ROOT
+from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
 
-cache_dir = Path(
-    get_env_var("MOBGAP_CACHE_DIR_PATH", PACKAGE_ROOT.parent / ".cache")
-)
+cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
 datasets_free_living = TVSFreeLivingDataset(
     get_env_var("MOBGAP_TVS_DATASET_PATH"),

@@ -3,14 +3,14 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Optional
 
-from mobgap import PACKAGE_ROOT, __version__
+from mobgap import PROJECT_ROOT, __version__
 from mobgap.data._mobilised_matlab_loader import (
     BaseGenericMobilisedDataset,
     GenericMobilisedDataset,
     matlab_dataset_docfiller,
 )
 
-LOCAL_EXAMPLE_PATH = PACKAGE_ROOT.parent / "example_data/"
+LOCAL_EXAMPLE_PATH = PROJECT_ROOT / "example_data/"
 
 BRIAN = None
 

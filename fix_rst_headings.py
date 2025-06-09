@@ -99,8 +99,7 @@ def find_docstrings(content: str) -> List[Tuple[int, int, str]]:
                     docstring_content = "\n".join(docstring_lines)
                     docstrings.append((start_line, end_line, docstring_content))
                     break
-                else:
-                    docstring_lines.append(lines[i])
+                docstring_lines.append(lines[i])
                 i += 1
 
         i += 1
@@ -284,25 +283,24 @@ def process_file(file_path: Path, dry_run: bool = False, check_mode: bool = Fals
 
             return False
 
-        else:
-            # Fix mode
-            fixed_content, fixes_made = fix_rst_headings_in_content(original_content, file_path, verbose=not dry_run)
+        # Fix mode
+        fixed_content, fixes_made = fix_rst_headings_in_content(original_content, file_path, verbose=not dry_run)
 
-            if fixes_made > 0:
-                if not dry_run:
-                    print(f"\n📝 File: {file_path}")
-                    print(f"   Fixed {fixes_made} heading(s)")
+        if fixes_made > 0:
+            if not dry_run:
+                print(f"\n📝 File: {file_path}")
+                print(f"   Fixed {fixes_made} heading(s)")
 
-                if not dry_run:
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(fixed_content)
-                    print("   ✅ Changes saved")
-                else:
-                    print("   🔍 Dry run - no changes saved")
+            if not dry_run:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(fixed_content)
+                print("   ✅ Changes saved")
+            else:
+                print("   🔍 Dry run - no changes saved")
 
-                return True
+            return True
 
-            return False
+        return False
 
     except Exception as e:
         print(f"❌ Error processing {file_path}: {e}")
