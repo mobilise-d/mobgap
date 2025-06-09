@@ -86,17 +86,16 @@ def update_version_strings(file_path, new_version):
         f.truncate()
 
 
-def update_version(version):
-    # TODO: Update for UV
-    subprocess.run(["poetry", "version", version], shell=False, check=True)
+def update_version(*args):
+    subprocess.run(["uv", "version", *args], shell=False, check=True)
     new_version = (
-        subprocess.run(["poetry", "version"], shell=False, check=True, capture_output=True)
+        subprocess.run(["uv", "version"], shell=False, check=True, capture_output=True)
         .stdout.decode()
         .strip()
         .split(" ", 1)[1]
     )
-    update_version_strings(HERE.joinpath("mobgap/__init__.py"), new_version)
+    update_version_strings(HERE.joinpath("src/mobgap/__init__.py"), new_version)
 
 
 def task_update_version():
-    update_version(sys.argv[1])
+    update_version(*sys.argv[1:])
