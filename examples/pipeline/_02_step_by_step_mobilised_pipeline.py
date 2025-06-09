@@ -88,7 +88,7 @@ ic_list = lrc.ic_lr_list_
 
 # %%
 # Gait Sequence Refinement
-# -----------------------------------
+# ------------------------
 # After detecting the ICs within the gait sequence, we can refine the gait sequence using the ICs.
 # Basically, we restrict the area of the gait sequence to the area between the first and the last IC.
 # This should ensure that the subsequent steps are only getting data that contains detectable gait.

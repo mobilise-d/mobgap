@@ -323,7 +323,7 @@ free_living_results.query("algo == 'Ullrich - MS-ALL'").pipe(
 
 # %%
 # Conclusion Free-Living
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~
 # It is good to see that the new version of the algorithm performs slightly better than the old version.
 # However, it is unclear, why the new model is different, as we used almost the same pipeline and the same data.
 # The non-ML algo (McCamly) performs suprisingly well, and much better than in the tests we did as part of Mobilise-D.
@@ -332,7 +332,7 @@ free_living_results.query("algo == 'Ullrich - MS-ALL'").pipe(
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context

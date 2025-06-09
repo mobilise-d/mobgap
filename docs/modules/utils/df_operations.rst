@@ -22,7 +22,7 @@ Multi-Groupby
     MultiGroupBy
 
 Generalized Aggregations and Transforms
-----------------------------------------
+---------------------------------------
 .. currentmodule:: mobgap.utils.df_operations
 
 .. autosummary::

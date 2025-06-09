@@ -48,7 +48,7 @@ our algorithm structure (see :ref:`own_algorithm`), yet, we suggest the followin
 5. Once we are happy with the changes, we will merge your pull request and your algorithm will be part of the library! 🎉🎉
 
 I have an algorithm implemented in a way that is directly compatible with this library
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Awesome! You did the hard work already! Just follow the steps below:
 
 1. Open an issue on the `issue tracker <https://github.com/mobilise-d/mobgap/issues>`_ and describe the algorithm
@@ -69,7 +69,7 @@ in control of your own code.
 In any case, let us know! We are happy to link your project in our documentation!
 
 Developing Code for mobgap
-----------------------------
+--------------------------
 
 After discussing with us, you are ready to start developing code for mobgap.
 First of all, we are happy to have you on board! 🎉🎉

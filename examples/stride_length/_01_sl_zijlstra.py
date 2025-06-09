@@ -1,6 +1,6 @@
 """
 SL Zijlstra
-=============================
+===========
 
 This example shows how to use the Zijlstra algorithm for calculating stride length
 and how its results compare to the original matlab implementation.

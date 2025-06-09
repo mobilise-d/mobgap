@@ -2,7 +2,7 @@
 .. _pipeline_val_results:
 
 Stride length estimation
-================================================================================================
+========================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
   of its algorithm.
@@ -290,7 +290,6 @@ format_transforms_combined = [
         ),
         column_name="stride_length_m__error",
     ),
-
     CustomOperation(
         identifier=None,
         function=partial(
@@ -329,17 +328,12 @@ final_names_matched = {
 }
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(
-        threshold=None, higher_is_better=False
-    ),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
 }
-
-
-
 
 
 def format_tables_combined(df: pd.DataFrame) -> pd.DataFrame:
@@ -373,7 +367,7 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
 # .. note:: In the free-living dataset, each datapoint represents one 2.5h recording.
 #
 # All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 
@@ -471,7 +465,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 # The results below represent the average absolute error on stride length estimation
 # across all participants within a cohort.
@@ -578,7 +572,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Matched/True Positive Evaluation
-# ******************************
+# ********************************
 # The "Matched" Evaluation directly compares the performance of stride length estimation on only the WBs that were
 # detected in both systems (true positives).
 # WBs were included in the true positive analysis, if there was an overlap of more than 80%
@@ -596,7 +590,7 @@ free_living_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 #           additional aggregation.
 #
 # Results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
@@ -642,7 +636,7 @@ free_living_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 # Boxplot
 # The results below represent the average absolute error on stride length estimation
 # across all participants within a cohort.
@@ -701,7 +695,7 @@ free_living_matched_perf_metrics_cohort.copy().style.pipe(
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
-# ****************************************************************************
+# **************************************************************************
 # Effect of WB duration
 # ~~~~~~~~~~~~~~~~~~~~~
 # We investigate the dependency of the absolute stride length error of all true-positive WBs from the real-world
@@ -868,7 +862,7 @@ fig.show()
 
 # %%
 # Laboratory dataset
-# -------------------
+# ------------------
 # Combined/Aggregated Evaluation
 # ******************************
 # To mimic actual use of wearable device where actual decisions are made on aggregated measures over a longer
@@ -881,7 +875,7 @@ fig.show()
 # .. note:: In the laboratory dataset, each datapoint represents one trial.
 #
 # All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 
@@ -979,7 +973,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 # The results below represent the average absolute error on stride length estimation
 # across all participants within a cohort.
@@ -1085,7 +1079,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Matched/True Positive Evaluation
-# ******************************
+# ********************************
 # The "Matched" Evaluation directly compares the performance of stride length estimation on only the WBs that were
 # detected in both systems (true positives).
 # WBs were included in the true positive analysis, if there was an overlap of more than 80%
@@ -1103,7 +1097,7 @@ laboratory_results_combined.query('algo == "Mobilise-D Pipeline"').pipe(
 #           additional aggregation.
 #
 # Results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~
 # The results below represent the average performance across all participants independent of the
 # cohort in terms of error, relative error, absolute error, and absolute relative error.
 laboratory_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
@@ -1149,7 +1143,7 @@ laboratory_results_matched.query('algo == "Mobilise-D Pipeline"').pipe(
 )
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 # Boxplot
 # The results below represent the average absolute error on stride length estimation
 # across all participants within a cohort.
@@ -1208,7 +1202,7 @@ laboratory_matched_perf_metrics_cohort.copy().style.pipe(
 )
 # %%
 # Deep dive investigation: Do errors depend on WB duration or walking speed?
-# ****************************************************************************
+# **************************************************************************
 # Effect of WB duration
 # ~~~~~~~~~~~~~~~~~~~~~
 # We investigate the dependency of the absolute stride length error of all true-positive WBs from the real-world

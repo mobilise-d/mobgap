@@ -28,7 +28,7 @@ from typing import Optional, Union
 
 # %%
 # Step 1: Understanding the data we have
-# ---------------------------------------
+# --------------------------------------
 # As part of the mobgap package, we ship a few example datasets in "csv" format.
 # They should serve as examples for "any common" data you might have.
 #

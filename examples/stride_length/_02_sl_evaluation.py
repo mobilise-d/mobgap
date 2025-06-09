@@ -101,7 +101,7 @@ stride_length_result
 
 # %%
 # Comparison with Reference
-# --------------------------
+# -------------------------
 # To evaluate the performance of the stride length calculation algorithm, we can compare the calculated stride lengths
 # with the reference stride lengths.
 # For this purpose, as there are is only an average reference stride length per gait sequence, we will first average the
@@ -131,7 +131,7 @@ combined_sl
 # the errors between the detected and reference stride lengths are calculated.
 #
 # Estimate Errors in stride length data
-# ++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++
 # We can calculate a variety of error metrics to evaluate the performance of the stride length calculation algorithm,
 # ranging from the simple difference between the estimated and ground truth values (simply referred to as ``error``)
 # to its absolute value (``absolute_error``).

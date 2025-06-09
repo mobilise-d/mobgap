@@ -2,7 +2,7 @@
 .. _pipeline_val_experiments:
 
 Additional Full Pipeline Experiments
-================================================================================================
+====================================
 
 The following analysis tries to awnser the question how much specific components of the pipeline contribute to the
 improvements that we see in the new implementation of the full pipeline.
@@ -333,7 +333,7 @@ def format_tables_matched(df: pd.DataFrame) -> pd.DataFrame:
 # For information on the metrics, see the main full pipeline analysis example.
 #
 # All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -384,7 +384,7 @@ free_living_combined_perf_metrics_all.style.pipe(
 
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
@@ -412,7 +412,7 @@ free_living_combined_perf_metrics_cohort.style.pipe(
 
 # %%
 # Matched/True Positive Evaluation
-# ******************************
+# ********************************
 free_living_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
 
 # %%
@@ -467,14 +467,14 @@ free_living_matched_perf_metrics_cohort.style.pipe(
 
 # %%
 # Laboratory dataset
-# -------------------
+# ------------------
 # Combined/Aggregated Evaluation
 # ******************************
 # Below a quick compressed version of the results without further explanation.
 # For information on the metrics, see the main full pipeline analysis example.
 #
 # All results across all cohorts
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -525,7 +525,7 @@ laboratory_combined_perf_metrics_all.style.pipe(
 
 # %%
 # Per-cohort analysis
-# ~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~
 #
 fig, ax = plt.subplots(figsize=(12, 6))
 sns.boxplot(
@@ -553,7 +553,7 @@ laboratory_combined_perf_metrics_cohort.style.pipe(
 
 # %%
 # Matched/True Positive Evaluation
-# ******************************
+# ********************************
 laboratory_results_matched.pipe(multi_metric_plot, metrics, 2, 2)
 
 # %%

@@ -228,7 +228,6 @@ format_transforms = [
             "wb__abs_rel_error",
         ]
     ),
-
     CustomOperation(
         identifier=None,
         function=partial(
@@ -264,18 +263,13 @@ final_names = {
 
 
 validation_thresholds = {
-    "Abs. Error [m]": RevalidationInfo(
-        threshold=None, higher_is_better=False
-    ),
+    "Abs. Error [m]": RevalidationInfo(threshold=None, higher_is_better=False),
     "Abs. Rel. Error [%]": RevalidationInfo(
         threshold=20, higher_is_better=False
     ),
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
-
-
-
 
 
 def format_tables(df: pd.DataFrame) -> pd.DataFrame:
@@ -586,7 +580,7 @@ fig.show()
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context

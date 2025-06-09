@@ -189,7 +189,6 @@ format_transforms = [
             "f1_score",
         ]
     ),
-
     *(
         CustomOperation(
             identifier=None,
@@ -218,19 +217,12 @@ final_names = {
 
 
 validation_thresholds = {
-    ("ICD", "Recall"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
-    ),
+    ("ICD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
     ("ICD", "Precision"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
     ),
-    ("ICD", "F1 Score"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
-    ),
+    ("ICD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True),
 }
-
-
-
 
 
 def format_results(df: pd.DataFrame) -> pd.DataFrame:
@@ -349,7 +341,7 @@ final_perf_metrics.copy().style.pipe(
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context

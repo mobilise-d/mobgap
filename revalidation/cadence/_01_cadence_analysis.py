@@ -2,7 +2,7 @@
 .. _cad_val_results:
 
 Performance of the cadence algorithms on the TVS dataset
-==============================================================
+========================================================
 
 .. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
   of its algorithm.
@@ -219,7 +219,6 @@ format_transforms = [
             "wb__abs_rel_error",
         ]
     ),
-
     CustomOperation(
         identifier=None,
         function=partial(
@@ -264,9 +263,6 @@ validation_thresholds = {
     "ICC": RevalidationInfo(threshold=0.7, higher_is_better=True),
     "# Failed WBs": RevalidationInfo(threshold=None, higher_is_better=False),
 }
-
-
-
 
 
 def format_tables(df: pd.DataFrame) -> pd.DataFrame:
@@ -512,7 +508,7 @@ fig.show()
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context

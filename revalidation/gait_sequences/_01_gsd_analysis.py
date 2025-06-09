@@ -243,8 +243,6 @@ format_transforms = [
         ),
         column_name=("GS duration", "gs_duration_error_s"),
     ),
-
-
     CustomOperation(
         identifier=None,
         function=partial(
@@ -293,18 +291,12 @@ stats_transform = [
 
 
 validation_thresholds = {
-    ("GSD", "Recall"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
-    ),
+    ("GSD", "Recall"): RevalidationInfo(threshold=0.7, higher_is_better=True),
     ("GSD", "Precision"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
     ),
-    ("GSD", "F1 Score"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
-    ),
-    ("GSD", "Accuracy"): RevalidationInfo(
-        threshold=0.7, higher_is_better=True
-    ),
+    ("GSD", "F1 Score"): RevalidationInfo(threshold=0.7, higher_is_better=True),
+    ("GSD", "Accuracy"): RevalidationInfo(threshold=0.7, higher_is_better=True),
     ("GSD", "Specificity"): RevalidationInfo(
         threshold=0.7, higher_is_better=True
     ),
@@ -318,9 +310,6 @@ validation_thresholds = {
         threshold=0.7, higher_is_better=True
     ),
 }
-
-
-
 
 
 def format_results(df: pd.DataFrame) -> pd.DataFrame:
@@ -501,7 +490,7 @@ perf_metrics_per_cohort.copy().loc[
 
 # %%
 # Laboratory Comparison
-# ----------------------
+# ---------------------
 # Every datapoint below is one trial of a test.
 # Note, that each datapoint is weighted equally in the calculation of the performance metrics.
 # This is a limitation of this simple approach, as the number of strides per trial and the complexity of the context

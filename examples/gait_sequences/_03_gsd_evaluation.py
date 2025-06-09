@@ -145,7 +145,7 @@ unmatched_metrics_dict = calculate_unmatched_gsd_performance_metrics(
 unmatched_metrics_dict
 # %%
 # Direct Gait Sequence Matching
-# ------------------------------
+# -----------------------------
 # Apart from the performance evaluation methods mentioned above, it might be useful in some cases to identify
 # how many and which detected gait sequences reliably match with the ground truth.
 #
