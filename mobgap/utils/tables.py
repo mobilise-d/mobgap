@@ -190,6 +190,7 @@ def pairwise_tests(
         .apply(lambda row: row.to_dict(), axis=1)
     )
 
+
 class StatsFunctions:
     pairwise_tests = pairwise_tests
 

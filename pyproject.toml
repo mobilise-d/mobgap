@@ -58,7 +58,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poe.tasks]
 _format = "ruff format ."
-_rst_heading_fix = { cmd = "python ./fix_rst_headings.py ./revalidation ./examples ./docs/guides ./docs/modules ./mobgap", help = "Fix the headlines in the rst files." }
+_rst_heading_fix = { cmd = "python ./fix_rst_headings.py ./revalidation ./examples ./docs/guides ./docs/modules", help = "Fix the headlines in the rst files." }
 _auto_fix = "ruff check . --fix-only --show-fixes --exit-zero"
 _auto_fix_unsafe = "ruff check . --fix-only --show-fixes --exit-zero --unsafe-fixes"
 format = ["_rst_heading_fix", "_auto_fix", "_format"]
