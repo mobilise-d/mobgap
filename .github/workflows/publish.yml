@@ -1,35 +1,32 @@
-# This workflows will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
-
-name: Upload Python Package
+name: Publish to PyPI
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
-  pypi-publish-mobgap:
-    name: Upload gaitmap release to PyPI
+  release:
+    name: Publish to PyPI
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/mobgap
+    environment: pypi
     permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.9"
-    - name: Install poetry
-      run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-    - name: Build package
-      run: |
-          poetry build
-    - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        packages-dir: dist/
+      - uses: actions/checkout@v4
+
+      - name: Install uv and python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: 3.10
+
+      - name: Install the project
+        run: uv sync --all-groups
+
+      - name: Build wheel
+        run: uv build
+
+      - name: Publish package
+        run: uv publish
