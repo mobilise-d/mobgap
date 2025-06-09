@@ -25,8 +25,20 @@ jobs:
 #      - name: Link Checker
 #        run: |
 #          uv run poe docs_linkcheck
+      - name: Install Playwright browsers
+        run: |
+          uv run --with playwright playwright install chromium
+      - name: Extract Revalidation Assets
+        run: |
+          cd docs
+          uv run extract_with_screenshots.py
       - name: Upload Documentation as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: docs/_build/html/
+      - name: Upload Revalidation Assets as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: revalidation-assets
+          path: docs/revalidation_assets/
