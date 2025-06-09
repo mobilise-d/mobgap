@@ -1,5 +1,6 @@
 modules/**/generated
 auto_examples
 auto_revalidation
+revalidation_assets
 /README.md
 /CHANGELOG.md
