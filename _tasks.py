@@ -103,7 +103,7 @@ def update_revalidation_version_strings(file_path, new_version):
 
 def task_freeze_validation_result_version():
     """In all revalidation result files, this changes `__RESULT_VERSION` to the current package version."""
-    current_version = f"v_get_current_version_via_uv()"
+    current_version = f"v{_get_current_version_via_uv()}"
     revalidation_results_path = HERE / "revalidation"
     for file in revalidation_results_path.rglob("*.py"):
         update_revalidation_version_strings(file, current_version)
