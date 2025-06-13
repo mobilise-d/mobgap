@@ -85,6 +85,7 @@ def update_version_strings(file_path, new_version):
         )
         f.truncate()
 
+
 def update_revalidation_version_strings(file_path, new_version):
     # Update the version string in revalidation result files
     version_regex = re.compile(r"(^_*?__RESULT_VERSION\s*=\s*\")(.*)\"", re.M)
@@ -108,6 +109,7 @@ def task_freeze_validation_result_version():
     for file in revalidation_results_path.rglob("*.py"):
         update_revalidation_version_strings(file, current_version)
 
+
 def task_unfreeze_validation_result_version():
     """In all revalidation result files, this changes `__RESULT_VERSION` to `main`."""
     revalidation_results_path = HERE / "revalidation"
@@ -123,6 +125,7 @@ def _get_current_version_via_uv():
         .strip()
         .split(" ", 1)[1]
     )
+
 
 def update_version(*args):
     subprocess.run(["uv", "version", *args], shell=False, check=True)
