@@ -4,7 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.11.0] - 2025-06-13
+
+This is the last release before 1.0.
+Most things are stable now and the algorithms published in this release have been validated against there old 
+implementations.
+Results of this validation can be in the docs under the new "Revalidation" section.
+Raw results for the revalidation can be found in the companion 
+[revalidation repository](https://github.com/mobilise-d/mobgap_validation).
+
+Beyond that this release contains the last expected set of changes to the main pipelines.
+With the 1.0 release, we will expect the outputs of the main pipelines to be stable (unless actual bugs are found).
+Potential improvements to algorithms will always require manual opt-in.
 
 ### SCIENTIFIC CHANGES
 

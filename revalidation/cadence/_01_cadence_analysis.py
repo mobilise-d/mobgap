@@ -75,8 +75,10 @@ local_data_path = (
     if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
     else None
 )
+__RESULT_VERSION = "v_get_current_version_via_uv()"
+__RESULT_VERSION = "v_get_current_version_via_uv()"
 loader = ValidationResultLoader(
-    "cad", result_path=local_data_path, version="main"
+    "cad", result_path=local_data_path, version=__RESULT_VERSION
 )
 
 

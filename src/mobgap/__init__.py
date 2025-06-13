@@ -5,4 +5,4 @@ from pathlib import Path
 SRC_ROOT = Path(__file__).parent
 PROJECT_ROOT = SRC_ROOT.parent.parent
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"

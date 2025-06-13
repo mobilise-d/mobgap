@@ -85,16 +85,50 @@ def update_version_strings(file_path, new_version):
         )
         f.truncate()
 
+def update_revalidation_version_strings(file_path, new_version):
+    # Update the version string in revalidation result files
+    version_regex = re.compile(r"(^_*?__RESULT_VERSION\s*=\s*\")(.*)\"", re.M)
+    with open(file_path, "r+") as f:
+        content = f.read()
+        f.seek(0)
+        f.write(
+            re.sub(
+                version_regex,
+                lambda match: f'{match.group(1)}{new_version}"',
+                content,
+            )
+        )
+        f.truncate()
 
-def update_version(*args):
-    subprocess.run(["uv", "version", *args], shell=False, check=True)
-    new_version = (
+
+def task_freeze_validation_result_version():
+    """In all revalidation result files, this changes `__RESULT_VERSION` to the current package version."""
+    current_version = f"v_get_current_version_via_uv()"
+    revalidation_results_path = HERE / "revalidation"
+    for file in revalidation_results_path.rglob("*.py"):
+        update_revalidation_version_strings(file, current_version)
+
+def task_unfreeze_validation_result_version():
+    """In all revalidation result files, this changes `__RESULT_VERSION` to `main`."""
+    revalidation_results_path = HERE / "revalidation"
+    for file in revalidation_results_path.rglob("*.py"):
+        update_revalidation_version_strings(file, "main")
+
+
+def _get_current_version_via_uv():
+    """Get the current version of the package using `uv`."""
+    return (
         subprocess.run(["uv", "version"], shell=False, check=True, capture_output=True)
         .stdout.decode()
         .strip()
         .split(" ", 1)[1]
     )
+
+def update_version(*args):
+    subprocess.run(["uv", "version", *args], shell=False, check=True)
+    new_version = _get_current_version_via_uv()
     update_version_strings(HERE.joinpath("src/mobgap/__init__.py"), new_version)
+    task_freeze_validation_result_version()
 
 
 def task_update_version():

@@ -1,6 +1,6 @@
 [project]
 name = "mobgap"
-version = "0.10.0"
+version = "0.11.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = [
     { name = "Arne Küderle", email = "arne.kuederle@fau.de" },
@@ -82,5 +82,7 @@ remove_jupyter = { cmd = "jupyter kernelspec uninstall mobgap", help = "Remove t
 update_example_data = { script="_tasks:task_update_example_data", help = "Update the example data registry."}
 _check_update_example_data = { script="_tasks:task_update_example_data(raise_if_changes=True)", help = "Update the example data registry."}
 update_validation_results = {script = "_tasks:task_update_validation_results()", help = "Update the validation results."}
+freeze_validation_results_version = { script = "_tasks:task_freeze_validation_result_version()", help = "Freeze the validation results version."}
+unfreeze_validation_results_version = { script = "_tasks:task_unfreeze_validation_result_version()", help = "Unfreeze the validation results version."}
 
 
