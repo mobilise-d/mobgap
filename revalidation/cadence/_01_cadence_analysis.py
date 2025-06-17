@@ -4,13 +4,6 @@
 Performance of the cadence algorithms on the TVS dataset
 ========================================================
 
-.. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
-  of its algorithm.
-  The current state, **TECHNICAL EXPERIMENTATION**.
-  Don't use these results or make any assumptions based on them.
-  We will update this page incrementally and provide further information, as soon as the state of any of the validation
-  steps changes.
-
 The following provides an analysis and comparison of the cadence algorithms on the TVS dataset (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data.
 Note, that at the time of writing, comparison with the original Matlab results is not possible, as these algorithms
@@ -291,6 +284,8 @@ fig, ax = plt.subplots()
 sns.boxplot(
     data=free_living_results, x="algo_with_version", y="wb__abs_error", ax=ax
 )
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
 
 perf_metrics_all = free_living_results.pipe(
@@ -524,6 +519,8 @@ fig.show()
 # cohort.
 fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
 
 perf_metrics_all = lab_results.pipe(

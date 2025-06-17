@@ -4,13 +4,6 @@
 Performance of the laterality classification algorithms on the TVS dataset
 ==========================================================================
 
-.. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
-  of its algorithm.
-  The current state, **TECHNICAL EXPERIMENTATION**.
-  Don't use these results or make any assumptions based on them.
-  We will update this page incrementally and provide further information, as soon as the state of any of the validation
-  steps changes.
-
 The following provides an analysis and comparison of the stride length algorithms on the TVS dataset
 (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data.
@@ -214,7 +207,10 @@ fig, ax = plt.subplots()
 sns.boxplot(
     data=free_living_results, x="algo_with_version", y="accuracy", ax=ax
 )
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
+
 fig, ax = plt.subplots()
 sns.boxplot(
     data=free_living_results,
@@ -222,6 +218,8 @@ sns.boxplot(
     y="accuracy_pairwise",
     ax=ax,
 )
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
 
 perf_metrics_all = (
@@ -314,7 +312,6 @@ def compare_scatter_plot(data, name):
     ax.set_title(name)
     ax.set_xlabel("Original Implementation")
     ax.set_ylabel("MobGap")
-    plt.tight_layout()
     plt.show()
 
 
@@ -342,11 +339,16 @@ free_living_results.query("algo == 'Ullrich - MS-ALL'").pipe(
 # The approach below should still provide a good overview to compare the algorithms.
 fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="accuracy", ax=ax)
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
+
 fig, ax = plt.subplots()
 sns.boxplot(
     data=lab_results, x="algo_with_version", y="accuracy_pairwise", ax=ax
 )
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
 
 perf_metrics_all = (

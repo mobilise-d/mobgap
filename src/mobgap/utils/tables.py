@@ -120,7 +120,7 @@ def value_with_metadata(
     precision: int = 2,
     base_class: type[ValueWithMetadata] = CustomFormattedValueWithMetadata,
 ) -> pd.Series:
-    """Combine a value column (float) and a range column tuple(float, float) into one column.
+    """Combine a value column (float) and additional metadata columns into one column.
 
     Note, that the return value is not a string, but a custom object that has the expected string representation.
     This means that if you apply this to a pandas dataframe, you can still perform regular comparisons with the values.
@@ -145,11 +145,18 @@ def value_with_metadata(
 
     """
 
+    def get_value(row: pd.Series, col: Hashable) -> Any:
+        """Get the value from the row, handling NaN values."""
+        value = row.get(col)
+        if pd.isna(value):
+            return None
+        return value
+
     def transform_values(row: pd.Series) -> base_class:
         """Extract values from the row based on the provided columns."""
         return base_class(
             value=row[value_col],
-            metadata={key: row.get(value) for key, value in other_columns.items()},
+            metadata={key: get_value(row, value) for key, value in other_columns.items()},
             precision=precision,
         )
 
@@ -187,7 +194,7 @@ def pairwise_tests(
     if reference_group_key not in groups:
         # If we don't have the reference group, we can't perform the tests.
         # This might happen for algorithms that do not have a reference algorithm.
-        return pd.Series(None, index=groups)
+        return pd.Series(pd.NA, index=groups)
     order = [reference_group_key, *sorted(groups - {reference_group_key})]
     df = df.assign(**{between: pd.Categorical(df[between], categories=order, ordered=True)})
     result = pg.pairwise_tests(data=df, dv=value_col, between=between)

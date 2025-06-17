@@ -4,13 +4,6 @@
 Performance of the stride length algorithms on the TVS dataset
 ==============================================================
 
-.. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
-  of its algorithm.
-  The current state, **TECHNICAL EXPERIMENTATION**.
-  Don't use these results or make any assumptions based on them.
-  We will update this page incrementally and provide further information, as soon as the state of any of the validation
-  steps changes.
-
 The following provides an analysis and comparison of the stride length algorithms on the TVS dataset
 (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data and compare the results to the
@@ -297,6 +290,8 @@ fig, ax = plt.subplots()
 sns.boxplot(
     data=free_living_results, x="algo_with_version", y="wb__abs_error", ax=ax
 )
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
 
 perf_metrics_all = free_living_results.pipe(
@@ -392,7 +387,6 @@ def combo_residual_plot(data):
         )
         ax.set_title(version)
     move_legend_outside(fig, axs[-1])
-    plt.tight_layout()
     plt.show()
 
 
@@ -474,7 +468,6 @@ def compare_scatter_plot(data):
     ax.set_title(data.name)
     ax.set_xlabel("Original Implementation [m]")
     ax.set_ylabel("MobGap [m]")
-    plt.tight_layout()
     plt.show()
 
 
@@ -590,6 +583,8 @@ fig.show()
 # The approach below should still provide a good overview to compare the algorithms.
 fig, ax = plt.subplots()
 sns.boxplot(data=lab_results, x="algo_with_version", y="wb__abs_error", ax=ax)
+plt.xticks(rotation=45, ha="right")
+fig.tight_layout()
 fig.show()
 
 perf_metrics_all = lab_results.pipe(

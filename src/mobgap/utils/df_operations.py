@@ -700,7 +700,7 @@ def multilevel_groupby_apply_merge(
     pd.DataFrame
         A DataFrame containing the results of the groupby operations.
     """
-    results = [df.groupby(key).apply(func, **apply_kwargs) for key, func in groupbys]
+    results = [df.groupby(key).apply(func, include_groups=False, **apply_kwargs) for key, func in groupbys]
     return pd.concat(results, axis=1) if results else pd.DataFrame()
 
 

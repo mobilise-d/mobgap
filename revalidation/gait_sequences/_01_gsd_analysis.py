@@ -4,13 +4,6 @@
 Performance of the gait sequences algorithm on the TVS dataset
 ==============================================================
 
-.. warning:: On this page you will find preliminary results for a standardized revalidation of the pipeline and all
-  of its algorithm.
-  The current state, **TECHNICAL EXPERIMENTATION**.
-  Don't use these results or make any assumptions based on them.
-  We will update this page incrementally and provide further information, as soon as the state of any of the validation
-  steps changes.
-
 The following provides an analysis and comparison of the GSD performance on the TVS dataset (lab and free-living).
 We look into the actual performance of the algorithms compared to the reference data and compare these results with
 the performance of the original matlab algorithm.
