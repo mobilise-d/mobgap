@@ -480,20 +480,6 @@ ax.set_ylabel("Absolute Error [m/s]")
 ax.set_title("Absolute Error - Combined Analysis")
 fig.show()
 # %%
-fig, ax = plt.subplots(figsize=(12, 6))
-sns.boxplot(
-    data=laboratory_results_combined,
-    x="cohort",
-    y="walking_speed_mps__abs_error",
-    hue="version",
-    order=cohort_order,
-    showmeans=True,
-    ax=ax,
-).legend().set_title(None)
-ax.set_ylabel("Absolute Error [m/s]")
-ax.set_title("Absolute Error - Combined Analysis")
-fig.show()
-# %%
 free_living_combined_perf_metrics_cohort = (
     free_living_results_combined.pipe(
         multilevel_groupby_apply_merge,
