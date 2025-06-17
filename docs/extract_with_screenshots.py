@@ -4,6 +4,7 @@
 #     "beautifulsoup4>=4.9.0",
 #     "playwright>=1.40.0",
 #     "lxml>=4.6.0",
+#     "css_inline>=0.10.0",
 # ]
 # ///
 """
@@ -24,6 +25,7 @@ import shutil
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+from css_inline import inline
 from playwright.async_api import async_playwright
 
 
@@ -177,12 +179,15 @@ def extract_tables_from_html(html_file: Path, output_dir: Path):
 </html>
 """
 
+        # Inline all CSS styles
+        inlined_html = inline(table_html)
+
         # Save table HTML
         table_filename = f"{html_file.stem}_table_{i}.html"
         table_path = output_subdir / table_filename
 
         with open(table_path, "w", encoding="utf-8") as f:
-            f.write(table_html)
+            f.write(inlined_html)
 
         extracted_tables.append((table_filename, str(table_path)))
 
@@ -294,6 +299,7 @@ def create_summary_report(output_dir: Path, extracted_data: dict):
 - Navigate to the algorithm group folder (e.g., `cadence/`, `stride_length/`)
 - Open HTML files in the `tables/` subdirectory with any web browser
 - Each table includes context (heading and description) from the original document
+- Tables can be directly copied and pasted into Word documents with formatting preserved
 
 ### Screenshots
 - PNG screenshots of all tables are available in `screenshots/` subdirectories
@@ -310,7 +316,9 @@ You can easily integrate these assets into your reports:
 1. Navigate to the relevant algorithm group folder (cadence, stride_length, etc.)
 2. Use images from the `images/` folder for plots and figures
 3. Use table screenshots from the `screenshots/` folder for table visuals
-4. Use HTML tables from the `tables/` folder if you need to copy table data
+4. Copy and paste HTML tables from the `tables/` folder directly into Word documents
+   - All formatting and colors will be preserved
+   - Tables are self-contained with inlined styles
 
 This organization makes it easy to gather all assets for a specific analysis area.
 """
