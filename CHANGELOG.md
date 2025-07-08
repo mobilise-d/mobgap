@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   updated.
   Namely, we moved the processing of duplicated ICs to a WB level. This means duplicated ICs across WB are not removed
   or deduplicated anymore.
+  Further, we actually drop duplicated ICs also from the IC array.
+  We decided that this is the best behavior given how this data is usually used.
   The reason for that is, that they are cases where, due to the way the INDIP processes the data, WBs exist where one
   WB ends with the same IC the next WB starts, basically creating WBs without break between them.
   While we generally consider this a bug in the INDIP processing, it is something that is out of scope to fix in 

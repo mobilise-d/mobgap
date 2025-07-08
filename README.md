@@ -35,18 +35,6 @@ First install a supported Python version (3.9 or higher) and then install the pa
 pip install mobgap
 ```
 
-For all optional features to work, you might need to additionally install the following packages:
-
-```bash
-pip install openpyxl pingouin
-```
-
-This can also be done in one step by installing the package with the `all` extra:
-```bash
-pip install "mobgap[all]"
-```
-
-
 ### From Source
 
 If you need the latest unreleased version of mobgap, install the package using pip (or poetry) with the git repository URL
