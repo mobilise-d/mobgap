@@ -777,8 +777,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
 
         if "initial_contacts" not in expect_none:
             ic_vals = _ensure_is_list(wb["InitialContact_Event"])
-            ics.append(
-                pd.DataFrame.from_dict(
+            ic_vals = pd.DataFrame.from_dict(
                     {
                         "wb_id": [wb_id] * len(ic_vals),
                         "step_id": np.arange(0, len(ic_vals)),
@@ -786,7 +785,30 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                         "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
                     }
                 )
-            )
+            # We also get the correct LR-label for the stride parameters from the ICs.
+            ic_duplicate_as_nan = ic_vals.copy()
+            # We first drop duplicates. This will get rid of ICs within a single WB that are just duplicated for some
+            # reason.
+            # Note, that we still allow identical WB across different WBs.
+            # This could still be considered a bug in the reference system, but we decided that we can not fix that
+            # easily.
+            ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+            # Then we set the LR label of all ICs that are still duplicated to NaN (i.e. same IC, but different LR
+            # label).
+            ic_duplicate_as_nan.loc[ic_vals["ic"].duplicated(keep=False), "lr_label"] = pd.NA
+            # After setting the LR label to NaN, we drop the duplicates again.
+            # As the LR label is now NaN, the rows are considered duplicated.
+            ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+            if ic_duplicate_as_nan["lr_label"].isna().any():
+                warnings.warn(
+                    "There were multiple ICs with the same index value, but different LR labels in WB "
+                    f"{wb_id}. "
+                    "This is likely an issue with the reference system you should further investigate. "
+                    "For now, we set the `lr_label` of the stride corresponding to this IC to Nan and drop the "
+                    "duplicate.",
+                    stacklevel=1,
+                )
+            ics.append(ic_duplicate_as_nan)
         else:
             ics.append(pd.DataFrame(columns=list(set(ic_df_dtypes.keys()))))
         if "turn_parameters" not in expect_none:
@@ -902,20 +924,9 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 .astype("int64")
             )
 
-    # We also get the correct LR-label for the stride parameters from the ICs.
-    ic_duplicate_as_nan = ics.copy()
-    # We set the values to Nan first and then drop one of the duplicates.
-    ic_duplicate_as_nan.loc[ics["ic"].duplicated(keep=False), "lr_label"] = pd.NA
-    ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
-    if ic_duplicate_as_nan["lr_label"].isna().any():
-        warnings.warn(
-            "There were multiple ICs with the same index value, but different LR labels. "
-            "This is likely an issue with the reference system you should further investigate. "
-            "For now, we set the `lr_label` of the stride corresponding to this IC to Nan. "
-            "However, both values still remain in the IC list.",
-            stacklevel=1,
-        )
-    stride_paras["lr_label"] = ic_duplicate_as_nan.set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
+    # Note that we need to drop duplicates again here, as the ics can contain the same IC multiple times in different
+    # WBs. This is a quirk of the INDIP system.
+    stride_paras["lr_label"] = ics.drop_duplicates().set_index("ic").loc[stride_paras["start"], "lr_label"].to_numpy()
     stride_paras = _unify_stride_df(stride_paras)
 
     # Due to the way, on how the data is used on matlab side, we need to adjust the indices of all time values.

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [unrelased]
+
+### Changed
+
+- When loading reference data using the Mobilise-D Matlab format, the handling of duplicated ICs and LR labels has been
+  updated.
+  Namely, we moved the processing of duplicated ICs to a WB level. This means duplicated ICs across WB are not removed
+  or deduplicated anymore.
+  The reason for that is, that they are cases where, due to the way the INDIP processes the data, WBs exist where one
+  WB ends with the same IC the next WB starts, basically creating WBs without break between them.
+  While we generally consider this a bug in the INDIP processing, it is something that is out of scope to fix in 
+  existing data.
+  Hence, we are excepting this as a plausible case and don't fix it.
+
 ## [0.11.0] - 2025-06-16
 
 This is the last release before 1.0.
