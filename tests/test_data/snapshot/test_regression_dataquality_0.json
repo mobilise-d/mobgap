@@ -625,7 +625,7 @@
             "S_U":3,
             "I_N_D_I_P":3,
             "S_t_e_r_o_p_h_o_t_o":3,
-            "C_o_m_m_e_n_t_s":null
+            "C_o_m_m_e_n_t_s":"INDIP and SU data not available (deleted) for Test10 (Hallway Test) due to unexpected number of turns (Hallway Test should have just one, but 4 were observed)"
         },
         {
             "cohort":"PD",
