@@ -60,13 +60,13 @@
             "wb_id":0,
             "r_gs_id":0,
             "sec_center_samples":1569,
-            "cadence_spm":90.9090909091
+            "cadence_spm":44.4444444444
         },
         {
             "wb_id":0,
             "r_gs_id":0,
             "sec_center_samples":1669,
-            "cadence_spm":109.0909090909
+            "cadence_spm":54.5454545455
         },
         {
             "wb_id":0,
@@ -186,13 +186,13 @@
             "wb_id":2,
             "r_gs_id":0,
             "sec_center_samples":10415,
-            "cadence_spm":71.0059171598
+            "cadence_spm":35.5029585799
         },
         {
             "wb_id":2,
             "r_gs_id":0,
             "sec_center_samples":10515,
-            "cadence_spm":47.3372781065
+            "cadence_spm":35.5029585799
         },
         {
             "wb_id":2,

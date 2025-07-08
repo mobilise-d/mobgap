@@ -43,12 +43,12 @@
         {
             "index":0,
             "wb_id":0,
-            "cadence_spm_detected":98.1299012789,
+            "cadence_spm_detected":85.5036386527,
             "cadence_spm_reference":107.7958504429,
-            "cadence_spm_error":-9.665949164,
-            "cadence_spm_abs_error":9.665949164,
-            "cadence_spm_rel_error":-0.0896690283,
-            "cadence_spm_abs_rel_error":0.0896690283
+            "cadence_spm_error":-22.2922117903,
+            "cadence_spm_abs_error":22.2922117903,
+            "cadence_spm_rel_error":-0.2068002775,
+            "cadence_spm_abs_rel_error":0.2068002775
         },
         {
             "index":1,
@@ -63,12 +63,12 @@
         {
             "index":2,
             "wb_id":2,
-            "cadence_spm_detected":68.0216596633,
+            "cadence_spm_detected":63.2879318527,
             "cadence_spm_reference":75.9811333927,
-            "cadence_spm_error":-7.9594737294,
-            "cadence_spm_abs_error":7.9594737294,
-            "cadence_spm_rel_error":-0.1047559226,
-            "cadence_spm_abs_rel_error":0.1047559226
+            "cadence_spm_error":-12.69320154,
+            "cadence_spm_abs_error":12.69320154,
+            "cadence_spm_rel_error":-0.1670572808,
+            "cadence_spm_abs_rel_error":0.1670572808
         },
         {
             "index":3,

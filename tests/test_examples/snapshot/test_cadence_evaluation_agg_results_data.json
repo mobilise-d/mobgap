@@ -33,7 +33,7 @@
             "metric":"cadence_spm",
             "origin":"abs_error",
             "aggregation":"mean",
-            "values":9.2029781067
+            "values":12.0963098462
         },
         {
             "index":1,
@@ -42,7 +42,7 @@
             "aggregation":"quantiles",
             "values":[
                 1.4782545184,
-                17.3042951965
+                21.1129340187
             ]
         },
         {
@@ -50,7 +50,7 @@
             "metric":"cadence_spm",
             "origin":"abs_rel_error",
             "aggregation":"mean",
-            "values":0.1006996214
+            "values":0.130605056
         },
         {
             "index":3,
@@ -59,7 +59,7 @@
             "aggregation":"quantiles",
             "values":[
                 0.0159376714,
-                0.1867633299
+                0.2019970218
             ]
         },
         {
@@ -68,10 +68,10 @@
             "origin":"all",
             "aggregation":"icc",
             "values":[
-                0.6160904122,
+                0.4204006873,
                 [
-                    -0.32,
-                    0.94
+                    -0.71,
+                    0.9
                 ]
             ]
         },
@@ -80,7 +80,7 @@
             "metric":"cadence_spm",
             "origin":"detected",
             "aggregation":"mean",
-            "values":94.6826689387
+            "values":91.7893371992
         },
         {
             "index":6,
@@ -88,7 +88,7 @@
             "origin":"detected",
             "aggregation":"quantiles",
             "values":[
-                73.7823485338,
+                68.8418585527,
                 110.8075439772
             ]
         },
@@ -98,8 +98,8 @@
             "origin":"error",
             "aggregation":"loa",
             "values":[
-                -20.7309975518,
-                25.8322114921
+                -31.272039217,
+                30.5865896784
             ]
         },
         {
@@ -107,7 +107,7 @@
             "metric":"cadence_spm",
             "origin":"error",
             "aggregation":"mean",
-            "values":2.5506069702
+            "values":-0.3427247693
         },
         {
             "index":9,
@@ -132,8 +132,8 @@
             "origin":"rel_error",
             "aggregation":"loa",
             "values":[
-                -0.227074735,
-                0.2822136055
+                -0.3309906886,
+                0.32631869
             ]
         },
         {
@@ -141,7 +141,7 @@
             "metric":"cadence_spm",
             "origin":"rel_error",
             "aggregation":"mean",
-            "values":0.0275694353
+            "values":-0.0023359993
         }
     ]
 }

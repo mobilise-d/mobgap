@@ -132,7 +132,11 @@ def test_parse_reference_data_has_correct_output(ref_system, example_data_path, 
     for v in data.values():
         raw_ref_paras = v.raw_reference_parameters[reference_para_level]
         parsed_data = parse_reference_parameters(
-            raw_ref_paras, data_sampling_rate_hz=100, ref_sampling_rate_hz=100, relative_to_wb=relative_to_wb
+            raw_ref_paras,
+            data_sampling_rate_hz=100,
+            ref_sampling_rate_hz=100,
+            relative_to_wb=relative_to_wb,
+            debug_info="",
         )
 
         # All outputs are dfs:
@@ -166,11 +170,11 @@ def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
 
     # With 100 Hz
     parsed_data_100 = parse_reference_parameters(
-        raw_ref_paras, data_sampling_rate_hz=100, ref_sampling_rate_hz=100, relative_to_wb=True
+        raw_ref_paras, data_sampling_rate_hz=100, ref_sampling_rate_hz=100, relative_to_wb=True, debug_info="100Hz"
     )
     # With 50 Hz
     parsed_data_50 = parse_reference_parameters(
-        raw_ref_paras, data_sampling_rate_hz=50, ref_sampling_rate_hz=100, relative_to_wb=True
+        raw_ref_paras, data_sampling_rate_hz=50, ref_sampling_rate_hz=100, relative_to_wb=True, debug_info="50Hz"
     )
 
     # We can not test for direct equivalence, because of rounding within the methods.

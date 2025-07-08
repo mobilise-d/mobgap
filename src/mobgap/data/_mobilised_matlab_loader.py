@@ -631,6 +631,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     ref_sampling_rate_hz: float,
     data_sampling_rate_hz: float,
     relative_to_wb: bool = False,
+    debug_info: str,
     not_expected_fields: Optional[Sequence[str]] = None,
 ) -> ReferenceData:
     """Parse the reference data (stored per WB) into the per recording data structures used in mobgap.
@@ -778,13 +779,17 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         if "initial_contacts" not in expect_none:
             ic_vals = _ensure_is_list(wb["InitialContact_Event"])
             ic_vals = pd.DataFrame.from_dict(
-                    {
-                        "wb_id": [wb_id] * len(ic_vals),
-                        "step_id": np.arange(0, len(ic_vals)),
-                        "ic": ic_vals,
-                        "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
-                    }
-                )
+                {
+                    "wb_id": [wb_id] * len(ic_vals),
+                    "step_id": np.arange(0, len(ic_vals)),
+                    "ic": ic_vals,
+                    "lr_label": _ensure_is_list(wb["InitialContact_LeftRight"]),
+                }
+            )
+            ic_vals["ic"] = (ic_vals["ic"] * data_sampling_rate_hz).round()
+            # We dropnas here, as in the TVS version 1.03, ic vals can be NaN, if they come from strides that are not
+            # clearly defined in the signal, but we know they should exist.
+            ic_vals = ic_vals.dropna(how="any")
             # We also get the correct LR-label for the stride parameters from the ICs.
             ic_duplicate_as_nan = ic_vals.copy()
             # We first drop duplicates. This will get rid of ICs within a single WB that are just duplicated for some
@@ -792,23 +797,24 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
             # Note, that we still allow identical WB across different WBs.
             # This could still be considered a bug in the reference system, but we decided that we can not fix that
             # easily.
-            ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+            ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates(subset=["ic", "lr_label"])
             # Then we set the LR label of all ICs that are still duplicated to NaN (i.e. same IC, but different LR
             # label).
-            ic_duplicate_as_nan.loc[ic_vals["ic"].duplicated(keep=False), "lr_label"] = pd.NA
+            ic_duplicate_as_nan.loc[ic_duplicate_as_nan["ic"].duplicated(keep=False), "lr_label"] = pd.NA
             # After setting the LR label to NaN, we drop the duplicates again.
             # As the LR label is now NaN, the rows are considered duplicated.
-            ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates()
+            ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates(subset=["ic", "lr_label"])
             if ic_duplicate_as_nan["lr_label"].isna().any():
                 warnings.warn(
                     "There were multiple ICs with the same index value, but different LR labels in WB "
                     f"{wb_id}. "
                     "This is likely an issue with the reference system you should further investigate. "
                     "For now, we set the `lr_label` of the stride corresponding to this IC to Nan and drop the "
-                    "duplicate.",
+                    "duplicate. "
+                    f"This warning happened at {debug_info}",
                     stacklevel=1,
                 )
-            ics.append(ic_duplicate_as_nan)
+            ics.append(ic_duplicate_as_nan.sort_values("ic"))
         else:
             ics.append(pd.DataFrame(columns=list(set(ic_df_dtypes.keys()))))
         if "turn_parameters" not in expect_none:
@@ -874,7 +880,6 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     ics = ics[~ics_is_na].drop_duplicates()
     # make left-right labels lowercase
     ics["lr_label"] = ics["lr_label"].str.lower()
-    ics["ic"] = (ics["ic"] * data_sampling_rate_hz).round()
     ics = _unify_ic_df(ics)
 
     turn_paras = (
@@ -905,7 +910,9 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         # parameters are also in seconds not in samples.
         if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
             warnings.warn(
-                "Assuming stride start and end values are provided in seconds and not in samples.", stacklevel=1
+                "Assuming stride start and end values are provided in seconds and not in samples. "
+                f"This warining happened at {debug_info}",
+                stacklevel=1,
             )
             stride_paras[["start", "end"]] = (
                 (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
@@ -915,7 +922,8 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
                 raise ValueError(
                     "There seems to be a mismatch between the provided stride parameters and the provided initial "
                     "contacts of the reference system. "
-                    "At least some of the ICs marking the start of a stride are not found in the dedicated IC list."
+                    "At least some of the ICs marking the start of a stride are not found in the dedicated IC list. "
+                    f"This error happened at {debug_info}",
                 )
         else:
             stride_paras[["start", "end"]] = (
@@ -1113,6 +1121,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             data_sampling_rate_hz=self.sampling_rate_hz,
             ref_sampling_rate_hz=self.reference_sampling_rate_hz_,
             relative_to_wb=False,
+            debug_info=str(self.group_label),
             not_expected_fields=self._get_not_expected_for_ref_system(self.reference_system),
         )
 
@@ -1123,6 +1132,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             data_sampling_rate_hz=self.sampling_rate_hz,
             ref_sampling_rate_hz=self.reference_sampling_rate_hz_,
             relative_to_wb=True,
+            debug_info=str(self.group_label),
             not_expected_fields=self._get_not_expected_for_ref_system(self.reference_system),
         )
 

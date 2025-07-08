@@ -1517,18 +1517,6 @@
             "test":"Test11",
             "trial":"Trial1",
             "wb_id":0,
-            "step_id":11,
-            "predicted":"left",
-            "reference":"left"
-        },
-        {
-            "level_0":2,
-            "cohort":"MS",
-            "participant_id":"001",
-            "time_measure":"TimeMeasure1",
-            "test":"Test11",
-            "trial":"Trial1",
-            "wb_id":0,
             "step_id":12,
             "predicted":"left",
             "reference":"left"
@@ -1782,18 +1770,6 @@
             "trial":"Trial1",
             "wb_id":2,
             "step_id":9,
-            "predicted":"right",
-            "reference":"left"
-        },
-        {
-            "level_0":2,
-            "cohort":"MS",
-            "participant_id":"001",
-            "time_measure":"TimeMeasure1",
-            "test":"Test11",
-            "trial":"Trial1",
-            "wb_id":2,
-            "step_id":10,
             "predicted":"right",
             "reference":"left"
         },
