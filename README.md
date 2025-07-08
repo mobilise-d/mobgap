@@ -1,13 +1,8 @@
-> [!CAUTION]
-> mobgap is currently under active development and not ready for production use.
-> Do not use any of the algorithm results for actual research purposes. 
-> Most of them are not in their final state and are not properly validated yet.
+> [!NOTE]
+> We recently released Mobgap 1.0, marking the first release with fully re-validated algorithms!
+> We highly recommend updating to the 1.0 release. We will not actively support versions < 1.0
 > 
-> Learn more about this in our blog post about the [alpha release](https://mobgap.readthedocs.io/en/latest/blog/20240322_alpha_release.html).
-
-> [!CAUTION]
-> v0.7.0 has a critical performance update for the default `Impaired Walking` pipeline! 
-> We highly recommend updating! See more in the Changelog. 
+> To learn more about the revalidation of the algorithms, visit TODO
 
 
 <p align="center">
