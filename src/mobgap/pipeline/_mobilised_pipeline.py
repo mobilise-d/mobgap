@@ -26,7 +26,7 @@ from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
 from mobgap.turning.base import BaseTurnDetector
 from mobgap.utils.conversions import to_body_frame
-from mobgap.utils.df_operations import create_multi_groupby
+from mobgap.utils.df_operations import create_multi_groupby, MultiGroupByPrimaryDfEmptyError
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
@@ -387,12 +387,17 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             stride_list = lr_ic_list.groupby("gs_id", group_keys=False).apply(strides_list_from_ic_lr_list)
         stride_list = stride_list.assign(stride_duration_s=lambda df_: (df_.end - df_.start) / sampling_rate_hz)
 
-        stride_list = create_multi_groupby(
-            stride_list,
-            sec_level_paras,
-            "gs_id",
-            group_keys=False,
-        ).apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
+        try:
+            stride_list = create_multi_groupby(
+                stride_list,
+                sec_level_paras,
+                "gs_id",
+                group_keys=False,
+            ).apply(naive_sec_paras_to_regions, sampling_rate_hz=sampling_rate_hz)
+        except MultiGroupByPrimaryDfEmptyError:
+            # If the stride_list is empty, we cannot create a multi-groupby
+            # We still return an empty dataframe with the correct index
+            stride_list = stride_list.reindex(columns=[*stride_list.columns, *sec_level_paras.columns])
         return stride_list
 
     def _aggregate_per_wb(self, per_stride_parameters: pd.DataFrame, wb_meta_parameters: pd.DataFrame) -> pd.DataFrame:

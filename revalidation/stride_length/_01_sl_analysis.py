@@ -73,7 +73,7 @@ local_data_path = (
     if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
     else None
 )
-__RESULT_VERSION = "v0.11.0"
+__RESULT_VERSION = "final_rerun"
 loader = ValidationResultLoader(
     "sl", result_path=local_data_path, version=__RESULT_VERSION
 )

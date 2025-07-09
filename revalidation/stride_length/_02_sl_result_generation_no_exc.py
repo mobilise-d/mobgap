@@ -374,7 +374,6 @@ for k, v in results_free_living.items():
         raw_results=["wb_level_values_with_errors"],
     )
 
-
 # %%
 # Laboratory
 # ~~~~~~~~~~
