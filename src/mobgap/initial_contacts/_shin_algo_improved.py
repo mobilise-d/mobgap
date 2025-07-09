@@ -168,6 +168,14 @@ class IcdShinImproved(BaseIcDetector):
             polyorder_rel=5 / savgol_2_win_size_samples,
         )
 
+        if len(data) < 0.5 * sampling_rate_hz:
+            # The threshold of 0.5 seconds is arbitrary, but it is a reasonable minimum length for gait data.
+            # If the data is shorter than 0.5 seconds, we cannot apply the filter chain.
+            # We just return the original signal.
+            self.ic_list_internal_ = pd.DataFrame(columns=["ic"]).rename_axis(index="step_id")
+            self.ic_list_ = pd.DataFrame(columns=["ic"]).rename_axis(index="step_id")
+            return self
+
         # Now we build everything together into one filter chain.
         filter_chain = [
             # Resample to 40Hz to process with filters
