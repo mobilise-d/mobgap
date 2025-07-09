@@ -1136,7 +1136,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             relative_to_wb=False,
             debug_info=str(self.group_label),
             not_expected_fields=self._get_not_expected_for_ref_system(self.reference_system),
-            ignore_expected_warnings=True
+            ignore_expected_warnings=True,
         )
 
     @property
@@ -1148,7 +1148,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             relative_to_wb=True,
             debug_info=str(self.group_label),
             not_expected_fields=self._get_not_expected_for_ref_system(self.reference_system),
-            ignore_expected_warnings=True
+            ignore_expected_warnings=True,
         )
 
     @property

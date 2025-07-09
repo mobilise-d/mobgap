@@ -153,7 +153,9 @@ class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
 #    The path to the cache directory `MOBGAP_CACHE_DIR_PATH` is optional, when you don't want to store the memory cache
 #    in the default location.
 from mobgap.pipeline import (
-    MobilisedPipelineUniversal, MobilisedPipelineHealthy, MobilisedPipelineImpaired,
+    MobilisedPipelineHealthy,
+    MobilisedPipelineImpaired,
+    MobilisedPipelineUniversal,
 )
 
 escience_pipeline_result_path = (

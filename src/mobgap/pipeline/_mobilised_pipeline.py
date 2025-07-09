@@ -26,7 +26,7 @@ from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
 from mobgap.turning.base import BaseTurnDetector
 from mobgap.utils.conversions import to_body_frame
-from mobgap.utils.df_operations import create_multi_groupby, MultiGroupByPrimaryDfEmptyError
+from mobgap.utils.df_operations import MultiGroupByPrimaryDfEmptyError, create_multi_groupby
 from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator

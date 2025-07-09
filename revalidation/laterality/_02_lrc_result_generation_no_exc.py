@@ -167,7 +167,7 @@ for k, v in results_free_living.items():
         v,
         condition="free_living",
         base_path=results_base_path,
-        raw_results=["predictions"]
+        raw_results=["predictions"],
     )
 
 
@@ -195,5 +195,5 @@ for k, v in results_laboratory.items():
         v,
         condition="laboratory",
         base_path=results_base_path,
-        raw_results=["predictions"]
+        raw_results=["predictions"],
     )
