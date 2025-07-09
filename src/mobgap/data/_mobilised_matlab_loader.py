@@ -31,6 +31,7 @@ from mobgap.data.base import (
     ReferenceData,
     base_gait_dataset_docfiller_dict,
 )
+from mobgap.utils.conversions import as_samples
 
 T = TypeVar("T")
 
@@ -633,6 +634,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     relative_to_wb: bool = False,
     debug_info: str,
     not_expected_fields: Optional[Sequence[str]] = None,
+    ignore_expected_warnings: bool = False,
 ) -> ReferenceData:
     """Parse the reference data (stored per WB) into the per recording data structures used in mobgap.
 
@@ -672,11 +674,17 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         Whether to convert all values to be relative to the start of each individual WB.
         This will of course not affect the WB start and end values, but all other values (events, strides, ...) will be
         converted.
+    debug_info
+        A string that is shown in all warnings and errors that are raised during the parsing.
     not_expected_fields
         A list of fields that are not expected in the reference data.
         This can be used to skip the parsing of certain fields.
         This is useful, if the reference data is incomplete and certain fields are not available.
         The names of the fields are equivalent to the keys in the ``ReferenceData`` object.
+    ignore_expected_warnings
+        If True, we will ignore warnings that are expected due to issues with the INDIP reference data.
+        This includes occasional duplicate initial contacts, and initial contacts that are placed after the end of the
+        walking bout.
 
 
     Returns
@@ -695,6 +703,11 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
     ics = []
     turn_paras = []
     stride_paras = []
+
+    def warn(message: str) -> None:
+        if ignore_expected_warnings:
+            return
+        warnings.warn(f"{message}\nThis warning happened at {debug_info}", stacklevel=2)
 
     wb_df_dtypes = {
         "wb_id": "int64",
@@ -761,20 +774,19 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         )._replace(**expect_none)
 
     for wb_id, wb in enumerate(ref_data):
-        walking_bouts.append(
-            {
-                "wb_id": wb_id,
-                "start": wb["Start"],
-                "end": wb["End"],
-                "n_strides": wb["NumberStrides"],
-                "duration_s": wb["Duration"],
-                "length_m": wb["Length"],
-                "avg_walking_speed_mps": wb["WalkingSpeed"],
-                "avg_cadence_spm": wb["Cadence"],
-                "avg_stride_length_m": wb["AverageStrideLength"],
-                "termination_reason": wb.get("TerminationReason", "Not Specified"),
-            }
-        )
+        parsed_wb = {
+            "wb_id": wb_id,
+            "start": as_samples(wb["Start"], data_sampling_rate_hz),
+            "end": as_samples(wb["End"], data_sampling_rate_hz),
+            "n_strides": wb["NumberStrides"],
+            "duration_s": wb["Duration"],
+            "length_m": wb["Length"],
+            "avg_walking_speed_mps": wb["WalkingSpeed"],
+            "avg_cadence_spm": wb["Cadence"],
+            "avg_stride_length_m": wb["AverageStrideLength"],
+            "termination_reason": wb.get("TerminationReason", "Not Specified"),
+        }
+        walking_bouts.append(parsed_wb)
 
         if "initial_contacts" not in expect_none:
             ic_vals = _ensure_is_list(wb["InitialContact_Event"])
@@ -805,15 +817,21 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
             # As the LR label is now NaN, the rows are considered duplicated.
             ic_duplicate_as_nan = ic_duplicate_as_nan.drop_duplicates(subset=["ic", "lr_label"])
             if ic_duplicate_as_nan["lr_label"].isna().any():
-                warnings.warn(
+                warn(
                     "There were multiple ICs with the same index value, but different LR labels in WB "
                     f"{wb_id}. "
                     "This is likely an issue with the reference system you should further investigate. "
                     "For now, we set the `lr_label` of the stride corresponding to this IC to Nan and drop the "
                     "duplicate. "
-                    f"This warning happened at {debug_info}",
-                    stacklevel=1,
                 )
+            if ic_duplicate_as_nan["ic"].max() > parsed_wb["end"]:
+                warn(
+                    f"Some initial contacts in WB {wb_id} are after the end of the walking bout. "
+                    "This is a known issue for the TVS data using the INDIP reference system. "
+                    "It is caused by a bug, where sometimes the end of the walking bout is not correctly set when"
+                    "it is not the last stride that has the last IC, but an earlier stride due to missing ICs."
+                )
+                ic_duplicate_as_nan = ic_duplicate_as_nan[ic_duplicate_as_nan["ic"] <= parsed_wb["end"]]
             ics.append(ic_duplicate_as_nan.sort_values("ic"))
         else:
             ics.append(pd.DataFrame(columns=list(set(ic_df_dtypes.keys()))))
@@ -870,7 +888,6 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         "avg_stride_length_m",
     ]:
         walking_bouts[col] = pd.to_numeric(walking_bouts[col])
-    walking_bouts[["start", "end"]] = (walking_bouts[["start", "end"]] * data_sampling_rate_hz).round()
 
     walking_bouts = walking_bouts.replace(np.array([]), np.nan)
     walking_bouts = _unify_wb_df(walking_bouts)
@@ -909,11 +926,7 @@ def parse_reference_parameters(  # noqa: C901, PLR0912, PLR0915
         # ICs are already converted to samples here -> I.e. if they are not all in here, we assume that the stride
         # parameters are also in seconds not in samples.
         if not assume_stride_paras_in_samples.isin(ics["ic"]).all():
-            warnings.warn(
-                "Assuming stride start and end values are provided in seconds and not in samples. "
-                f"This warining happened at {debug_info}",
-                stacklevel=1,
-            )
+            warn("Assuming stride start and end values are provided in seconds and not in samples. ")
             stride_paras[["start", "end"]] = (
                 (stride_paras[["start", "end"]] * data_sampling_rate_hz).round().astype("int64")
             )

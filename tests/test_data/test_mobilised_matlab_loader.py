@@ -177,7 +177,7 @@ def test_parse_reference_paras_uses_correct_sampling_rate(example_data_path):
         raw_ref_paras, data_sampling_rate_hz=50, ref_sampling_rate_hz=100, relative_to_wb=True, debug_info="50Hz"
     )
 
-    # We can not test for direct equivalence, because of rounding within the methods.
+    # We cannot test for direct equivalence, because of rounding within the methods.
     # But we can test that there is rougly a factor of two between the two outputs
     assert (parsed_data_50.ic_list["ic"] - np.ceil(parsed_data_100.ic_list["ic"] / 2).astype("int64") <= 1).all()
     assert (
