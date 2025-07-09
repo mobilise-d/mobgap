@@ -174,6 +174,7 @@ ref_paras_functional = parse_reference_parameters(
     raw_reference_data["wb"],
     data_sampling_rate_hz=data_sampling_rate_hz,
     ref_sampling_rate_hz=ref_sampling_rate_hz,
+    debug_info="Example Recording",
 )
 
 # %%
