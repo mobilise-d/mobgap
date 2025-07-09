@@ -137,6 +137,7 @@ datasets_laboratory = TVSLabDataset(
 # The evaluation object iterates over the entire dataset, runs the algorithm on each recording and calculates the
 # score using the :func:`~mobgap.gait_sequences._evaluation_scorer.gsd_score` function.
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 from joblib import Parallel, delayed
 from mobgap.gait_sequences.evaluation import gsd_score
