@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Hence, we are excepting this as a plausible case and don't fix it.
 - Fixed multiple edgecases where unexpected errors were thrown when data sequences were too short or empty.
   Algorithms now correctly return empty results instead of throwing an error.
+- Introduced a calculation of raw number of initial contacts per WB into the WBA. This parameter is now calculated by
+  default in all pipelines and also aggregated by the MobiliseDAggregator.
+- The aggregated parameters of MobiliseDAggregator are renamed based on new Mobilise-D internal consensus:
+  - `walkdur_all_sum` is now provided in minutes instead of hours. The alternative name is changed to 
+    `total_walking_duration_min`
+  - `*_max` are all renamed to `*_p90` to reflect that they are the 90th percentile of the values and not really the 
+    maximum.
+  - `steps_all_sum` is renamed to `wbsteps_all_sum` to reflect that it is not the sum of all steps, but only considers
+    initial contacts within valid WBs. The new preferred alternative name is renamed to 
+    `wb_all__n_raw_initial_contacts__sum` to signal even further that we are counting raw ICs and not really steps.
+  
 
 ## [0.11.0] - 2025-06-16
 
