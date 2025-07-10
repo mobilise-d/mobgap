@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unrelased]
+## [1.0.0] - 2025-07-10
 
 ### Changed
 
@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   While we generally consider this a bug in the INDIP processing, it is something that is out of scope to fix in 
   existing data.
   Hence, we are excepting this as a plausible case and don't fix it.
+- Fixed multiple edgecases where unexpected errors were thrown when data sequences were too short or empty.
+  Algorithms now correctly return empty results instead of throwing an error.
 
 ## [0.11.0] - 2025-06-16
 

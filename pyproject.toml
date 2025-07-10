@@ -1,6 +1,6 @@
 [project]
 name = "mobgap"
-version = "0.11.0"
+version = "1.0.0"
 description = "A Python implementation of the Mobilise-D algorithm pipeline for gait analysis using IMU worn at the lower back."
 authors = [
     { name = "Arne Küderle", email = "arne.kuederle@fau.de" },
