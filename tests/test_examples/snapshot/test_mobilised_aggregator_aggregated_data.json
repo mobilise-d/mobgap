@@ -19,13 +19,12 @@
                 "extDtype":"Int64"
             },
             {
-                "name":"total_walking_duration_h",
+                "name":"total_walking_duration_min",
                 "type":"number"
             },
             {
-                "name":"wb_all__n_steps__sum",
-                "type":"integer",
-                "extDtype":"Int64"
+                "name":"wb_all__n_raw_initial_contacts__sum",
+                "type":"integer"
             },
             {
                 "name":"wb_all__n_turns__sum",
@@ -37,7 +36,7 @@
                 "type":"number"
             },
             {
-                "name":"wb_all__duration_s__max",
+                "name":"wb_all__duration_s__p90",
                 "type":"number"
             },
             {
@@ -78,7 +77,7 @@
                 "extDtype":"Int64"
             },
             {
-                "name":"wb_10__walking_speed_mps__max",
+                "name":"wb_10__walking_speed_mps__p90",
                 "type":"number"
             },
             {
@@ -103,11 +102,11 @@
                 "type":"number"
             },
             {
-                "name":"wb_30__walking_speed_mps__max",
+                "name":"wb_30__walking_speed_mps__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30__cadence_spm__max",
+                "name":"wb_30__cadence_spm__p90",
                 "type":"number"
             },
             {
@@ -137,11 +136,11 @@
             "participant_id":12345,
             "measurement_date":"2023-01-01",
             "wb_all__count":2378,
-            "total_walking_duration_h":10.5341350861,
-            "wb_all__n_steps__sum":59320,
+            "total_walking_duration_min":632.0481051667,
+            "wb_all__n_raw_initial_contacts__sum":59320,
             "wb_all__n_turns__sum":3012,
             "wb_all__duration_s__avg":8.85868,
-            "wb_all__duration_s__max":26.926738,
+            "wb_all__duration_s__p90":26.926738,
             "wb_all__duration_s__var":2.27455952,
             "wb_all__cadence_spm__avg":94.6734609504,
             "wb_all__stride_duration_s__avg":2.2129423284,
@@ -151,14 +150,14 @@
             "wb_10_30__walking_speed_mps__avg":1.4967154007,
             "wb_10_30__stride_length_m__avg":1.8645800765,
             "wb_10__count":1029,
-            "wb_10__walking_speed_mps__max":2.096355,
+            "wb_10__walking_speed_mps__p90":2.096355,
             "wb_30__count":185,
             "wb_30__walking_speed_mps__avg":1.6193528261,
             "wb_30__stride_length_m__avg":1.9752271895,
             "wb_30__cadence_spm__avg":102.8069371351,
             "wb_30__stride_duration_s__avg":2.1005947541,
-            "wb_30__walking_speed_mps__max":2.12756,
-            "wb_30__cadence_spm__max":115.174986,
+            "wb_30__walking_speed_mps__p90":2.12756,
+            "wb_30__cadence_spm__p90":115.174986,
             "wb_30__walking_speed_mps__var":0.2408672472,
             "wb_30__stride_length_m__var":0.2523485121,
             "wb_60__count":62

@@ -25,7 +25,7 @@
                 "type":"boolean"
             },
             {
-                "name":"n_steps",
+                "name":"n_raw_initial_contacts",
                 "type":"boolean"
             },
             {
@@ -64,7 +64,7 @@
             "measurement_date":"2021-04-13",
             "wb_id":"wb_2021_4_13_0001_1",
             "duration_s":true,
-            "n_steps":true,
+            "n_raw_initial_contacts":true,
             "n_turns":true,
             "cadence_spm":true,
             "walking_speed_mps":true,
@@ -77,7 +77,7 @@
             "measurement_date":"2021-04-13",
             "wb_id":"wb_2021_4_13_0002_1",
             "duration_s":true,
-            "n_steps":true,
+            "n_raw_initial_contacts":true,
             "n_turns":true,
             "cadence_spm":true,
             "walking_speed_mps":true,
@@ -90,7 +90,7 @@
             "measurement_date":"2021-04-13",
             "wb_id":"wb_2021_4_13_0003_1",
             "duration_s":true,
-            "n_steps":true,
+            "n_raw_initial_contacts":true,
             "n_turns":true,
             "cadence_spm":true,
             "walking_speed_mps":true,
@@ -103,7 +103,7 @@
             "measurement_date":"2021-04-13",
             "wb_id":"wb_2021_4_13_0004_1",
             "duration_s":true,
-            "n_steps":true,
+            "n_raw_initial_contacts":true,
             "n_turns":true,
             "cadence_spm":true,
             "walking_speed_mps":true,
@@ -116,7 +116,7 @@
             "measurement_date":"2021-04-13",
             "wb_id":"wb_2021_4_13_0005_1",
             "duration_s":true,
-            "n_steps":true,
+            "n_raw_initial_contacts":true,
             "n_turns":true,
             "cadence_spm":true,
             "walking_speed_mps":true,

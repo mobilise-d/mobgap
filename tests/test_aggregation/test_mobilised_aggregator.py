@@ -41,7 +41,7 @@ def example_dmo_data_partial(example_dmo_data):
 
 @pytest.fixture
 def example_dmo_reference_partial(example_dmo_reference):
-    drop_columns = ["steps_all_sum", "turns_all_sum"]
+    drop_columns = ["wbsteps_all_sum", "turns_all_sum"]
     return example_dmo_reference.drop(columns=drop_columns)
 
 
@@ -61,16 +61,19 @@ class TestMetaMobilisedAggregator(TestAlgorithmMixin):
 class TestMobilisedAggregator:
     """Tests for MobilisedAggregator."""
 
-    # columns that show deviations from reference data because of differences in quantile calculation
-    quantile_columns = ["ws_30_max", "cadence_30_max"]
+    # columns that show deviations from reference data because of differences in quantile calculation.
+    # Walkdur was also rounded differently in the reference data, so we also include it here.
+    uncertain_columns = ["ws_30_p90", "cadence_30_p90", "walkdur_all_sum"]
 
     @pytest.mark.parametrize(
         ("data", "reference"),
         [("example_dmo_data", "example_dmo_reference"), ("example_dmo_data_partial", "example_dmo_reference_partial")],
     )
     def test_reference_data(self, data, reference, request):
-        data = request.getfixturevalue(data)
+        data = request.getfixturevalue(data).rename(columns={"n_steps": "n_raw_initial_contacts"})
         reference = request.getfixturevalue(reference).sort_index(axis=1)
+        reference["walkdur_all_sum"] *= 60  # 10.7.2025: we decided to change the reference data to use minutes instead
+        # of hours
 
         agg = MobilisedAggregator(**MobilisedAggregator.PredefinedParameters.cvs_dmo_data).aggregate(data)
         output = agg.aggregated_data_.sort_index(axis=1)
@@ -83,11 +86,11 @@ class TestMobilisedAggregator:
         output = output.round(3)
 
         assert_frame_equal(
-            output.drop(columns=self.quantile_columns),
-            reference.drop(columns=self.quantile_columns),
+            output.drop(columns=self.uncertain_columns),
+            reference.drop(columns=self.uncertain_columns),
             check_dtype=False,
         )
-        assert_frame_equal(output[self.quantile_columns], reference[self.quantile_columns], atol=0.05)
+        assert_frame_equal(output[self.uncertain_columns], reference[self.uncertain_columns], atol=0.05)
 
     def test_reference_data_with_duration_mask(self, example_dmo_data, dummy_dmo_data_mask, example_dmo_reference):
         dummy_dmo_data_mask = dummy_dmo_data_mask.copy()

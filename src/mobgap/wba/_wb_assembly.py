@@ -59,7 +59,7 @@ class WbAssembly(Algorithm):
         no other rule terminated the WB.
         This dataframe contains all WBs, including the ones that were discarded.
     exclusion_reasons_
-        A dataframe containing the reason why a WB was terminated.
+        A dataframe containing the reason why a WB was excluded.
         The dataframe has two columns: ``rule_name`` and ``rule_obj`` corresponding to the values in the `rules`
         parameter.
         These rules are match to the rule tuples provided in the `rules` parameter.
@@ -75,6 +75,9 @@ class WbAssembly(Algorithm):
     ----------------
     filtered_stride_list
         The stride list provided to the :meth:`assemble` method.
+    raw_initial_contacts
+        The raw output of the initial contact algorithm.
+        This is used to calculate the number of raw initial contacts per WB.
     sampling_rate_hz
         The sampling rate provided to the :meth:`assemble` method.
 
@@ -115,6 +118,9 @@ class WbAssembly(Algorithm):
     termination_reasons_: pd.DataFrame
     exclusion_reasons_: pd.DataFrame
     stride_exclusion_reasons_: pd.DataFrame
+    wb_meta_parameters_: pd.DataFrame
+    wbs_: dict[Hashable, pd.DataFrame]
+    excluded_wbs_: dict[Hashable, pd.DataFrame]
 
     _wb_id_map: dict[str, int]
 
@@ -144,17 +150,29 @@ class WbAssembly(Algorithm):
     @property
     def wb_meta_parameters_(self) -> pd.DataFrame:
         if len(self.annotated_stride_list_) == 0:
-            return pd.DataFrame(columns=["start", "end", "n_strides", "duration_s"], index=pd.Index([], name="wb_id"))
+            columns = ["start", "end", "n_strides", "duration_s"]
+            if self.raw_initial_contacts is not None:
+                columns.append("n_raw_initial_contacts")
+            return pd.DataFrame(columns=columns, index=pd.Index([], name="wb_id"))
 
         n_strides = self.annotated_stride_list_.groupby("wb_id").size().rename("n_strides")
         parameters = self.termination_reasons_.loc[n_strides.index]
         start_end = self.annotated_stride_list_.groupby("wb_id").agg({"start": "min", "end": "max"})
 
-        return (
+        df = (
             pd.concat([start_end, n_strides, parameters], axis=1)
             .assign(duration_s=lambda x: (x["end"] - x["start"]) / self.sampling_rate_hz)
             .astype({"start": int, "end": int, "n_strides": int, "duration_s": float})
         )
+        if self.raw_initial_contacts is not None:
+            n_initial_contacts = pd.Series(index=df.index, dtype="Int64")
+            for wb_id, wb in df.iterrows():
+                n_initial_contacts[wb_id] = self.raw_initial_contacts[
+                    self.raw_initial_contacts["ic"].between(wb["start"], wb["end"])
+                ].shape[0]
+            df["n_raw_initial_contacts"] = n_initial_contacts
+
+        return df
 
     @property
     def excluded_wbs_(self) -> dict[str, pd.DataFrame]:
@@ -172,6 +190,7 @@ class WbAssembly(Algorithm):
         self,
         filtered_stride_list: pd.DataFrame,
         *,
+        raw_initial_contacts: Optional[pd.DataFrame] = None,
         sampling_rate_hz: float,
     ) -> Self:
         """
@@ -186,6 +205,9 @@ class WbAssembly(Algorithm):
             We assume that the `start` and `end` values are in samples and can be converted to seconds using the
             `sampling_rate_hz` parameter.
             Additional required columns depend on the rules that are used for aggregation.
+        raw_initial_contacts
+            Optional list of initial contacts that were detected by the IC algorithm.
+            If provided, the
         sampling_rate_hz
             The sampling rate of the data in Hz.
             This is used to potentially convert the ``start`` and ``end`` values of a stride to seconds, assuming that
@@ -203,6 +225,7 @@ class WbAssembly(Algorithm):
                 raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
         self.filtered_stride_list = filtered_stride_list
+        self.raw_initial_contacts = raw_initial_contacts
         self.sampling_rate_hz = sampling_rate_hz
         stride_list_sorted = self.filtered_stride_list.sort_values(by=["start", "end"])
 

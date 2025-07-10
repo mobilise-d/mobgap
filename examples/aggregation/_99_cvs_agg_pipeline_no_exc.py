@@ -167,7 +167,7 @@ weekly_aggregated = (
 # %%
 # Formatting:
 round_to_int = [
-    "steps_all_sum",
+    "walkdur_all_sum",
     "turns_all_sum",
     "wb_all_sum",
     "wb_10_sum",

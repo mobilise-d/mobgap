@@ -29,7 +29,7 @@
                 "type":"number"
             },
             {
-                "name":"n_steps",
+                "name":"n_raw_initial_contacts",
                 "type":"integer"
             },
             {
@@ -83,7 +83,7 @@
             "wb_id":"wb_2021_4_13_0001_1",
             "wbday":1,
             "duration_s":4.8235375433,
-            "n_steps":8,
+            "n_raw_initial_contacts":8,
             "n_turns":0,
             "cadence_spm":90.8884399344,
             "walking_speed_mps":0.5306268422,
@@ -100,7 +100,7 @@
             "wb_id":"wb_2021_4_13_0002_1",
             "wbday":1,
             "duration_s":8.0392292389,
-            "n_steps":11,
+            "n_raw_initial_contacts":11,
             "n_turns":0,
             "cadence_spm":80.1888569848,
             "walking_speed_mps":0.5291975644,
@@ -117,7 +117,7 @@
             "wb_id":"wb_2021_4_13_0003_1",
             "wbday":1,
             "duration_s":13.8174252543,
-            "n_steps":19,
+            "n_raw_initial_contacts":19,
             "n_turns":1,
             "cadence_spm":91.3529436649,
             "walking_speed_mps":0.7087313121,
@@ -134,7 +134,7 @@
             "wb_id":"wb_2021_4_13_0004_1",
             "wbday":1,
             "duration_s":13.2647282441,
-            "n_steps":21,
+            "n_raw_initial_contacts":21,
             "n_turns":0,
             "cadence_spm":99.7495243399,
             "walking_speed_mps":0.6689838112,
@@ -151,7 +151,7 @@
             "wb_id":"wb_2021_4_13_0005_1",
             "wbday":1,
             "duration_s":32.2071621382,
-            "n_steps":37,
+            "n_raw_initial_contacts":37,
             "n_turns":1,
             "cadence_spm":79.0890747753,
             "walking_speed_mps":0.6098485059,

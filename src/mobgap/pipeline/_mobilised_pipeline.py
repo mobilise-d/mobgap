@@ -293,7 +293,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             raw_per_stride_parameters, sampling_rate_hz=sampling_rate_hz
         )
         self.wba_ = self.wba.clone().assemble(
-            self.stride_selection_.filtered_stride_list_, sampling_rate_hz=sampling_rate_hz
+            self.stride_selection_.filtered_stride_list_,
+            raw_initial_contacts=ic_list,
+            sampling_rate_hz=sampling_rate_hz,
         )
 
         self.per_stride_parameters_ = self.wba_.annotated_stride_list_

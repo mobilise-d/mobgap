@@ -26,6 +26,11 @@
                 "type":"number"
             },
             {
+                "name":"n_raw_initial_contacts",
+                "type":"integer",
+                "extDtype":"Int64"
+            },
+            {
                 "name":"stride_duration_s",
                 "type":"number"
             },
@@ -55,6 +60,7 @@
             "n_strides":12,
             "rule_name":"max_break",
             "duration_s":8.56,
+            "n_raw_initial_contacts":14,
             "stride_duration_s":1.305,
             "cadence_spm":92.9003655441,
             "stride_length_m":0.9236297928,
@@ -67,6 +73,7 @@
             "n_strides":8,
             "rule_name":"max_break",
             "duration_s":7.52,
+            "n_raw_initial_contacts":11,
             "stride_duration_s":1.175,
             "cadence_spm":87.8085531292,
             "stride_length_m":0.9147823853,
@@ -79,6 +86,7 @@
             "n_strides":11,
             "rule_name":"max_break",
             "duration_s":9.15,
+            "n_raw_initial_contacts":14,
             "stride_duration_s":1.0745454545,
             "cadence_spm":100.5759340407,
             "stride_length_m":0.6781291751,
@@ -91,6 +99,7 @@
             "n_strides":27,
             "rule_name":"max_break",
             "duration_s":16.96,
+            "n_raw_initial_contacts":29,
             "stride_duration_s":1.1281481481,
             "cadence_spm":100.8109219782,
             "stride_length_m":0.8792665863,
@@ -103,6 +112,7 @@
             "n_strides":26,
             "rule_name":"max_break",
             "duration_s":21.48,
+            "n_raw_initial_contacts":30,
             "stride_duration_s":1.2576923077,
             "cadence_spm":84.2254055687,
             "stride_length_m":0.9018333789,

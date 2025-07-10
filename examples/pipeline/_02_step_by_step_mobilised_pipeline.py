@@ -333,7 +333,9 @@ ss = StrideSelection().filter(
     stride_list_with_approx_paras, sampling_rate_hz=sampling_rate_hz
 )
 wba = WbAssembly().assemble(
-    ss.filtered_stride_list_, sampling_rate_hz=sampling_rate_hz
+    ss.filtered_stride_list_,
+    raw_initial_contacts=results.ic_list,
+    sampling_rate_hz=sampling_rate_hz,
 )
 
 final_strides = wba.annotated_stride_list_

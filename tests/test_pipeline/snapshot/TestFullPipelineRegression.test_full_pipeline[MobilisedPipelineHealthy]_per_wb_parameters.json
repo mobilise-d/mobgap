@@ -26,6 +26,11 @@
                 "type":"number"
             },
             {
+                "name":"n_raw_initial_contacts",
+                "type":"integer",
+                "extDtype":"Int64"
+            },
+            {
                 "name":"stride_duration_s",
                 "type":"number"
             },
@@ -55,6 +60,7 @@
             "n_strides":15,
             "rule_name":"max_break",
             "duration_s":10.58,
+            "n_raw_initial_contacts":17,
             "stride_duration_s":1.1786666667,
             "cadence_spm":92.1516135183,
             "stride_length_m":0.8437328078,
@@ -67,6 +73,7 @@
             "n_strides":13,
             "rule_name":"max_break",
             "duration_s":13.78,
+            "n_raw_initial_contacts":17,
             "stride_duration_s":1.3392307692,
             "cadence_spm":81.8067305436,
             "stride_length_m":0.8335588712,
@@ -79,6 +86,7 @@
             "n_strides":13,
             "rule_name":"max_break",
             "duration_s":10.3,
+            "n_raw_initial_contacts":16,
             "stride_duration_s":1.1292307692,
             "cadence_spm":92.5767143789,
             "stride_length_m":0.6439690217,
@@ -91,6 +99,7 @@
             "n_strides":47,
             "rule_name":"max_break",
             "duration_s":34.87,
+            "n_raw_initial_contacts":52,
             "stride_duration_s":1.1855319149,
             "cadence_spm":94.6336060982,
             "stride_length_m":0.7170491521,
@@ -103,6 +112,7 @@
             "n_strides":15,
             "rule_name":"max_break",
             "duration_s":9.8,
+            "n_raw_initial_contacts":17,
             "stride_duration_s":1.1446666667,
             "cadence_spm":99.9225416085,
             "stride_length_m":0.7861435878,
@@ -115,6 +125,7 @@
             "n_strides":12,
             "rule_name":"max_break",
             "duration_s":10.63,
+            "n_raw_initial_contacts":15,
             "stride_duration_s":1.1925,
             "cadence_spm":74.7726316171,
             "stride_length_m":0.8438577408,

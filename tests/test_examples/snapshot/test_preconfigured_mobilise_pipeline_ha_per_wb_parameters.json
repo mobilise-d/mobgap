@@ -26,6 +26,11 @@
                 "type":"number"
             },
             {
+                "name":"n_raw_initial_contacts",
+                "type":"integer",
+                "extDtype":"Int64"
+            },
+            {
                 "name":"stride_duration_s",
                 "type":"number"
             },
@@ -55,6 +60,7 @@
             "n_strides":7,
             "rule_name":"max_break",
             "duration_s":4.82,
+            "n_raw_initial_contacts":9,
             "stride_duration_s":1.18,
             "cadence_spm":102.6919893019,
             "stride_length_m":1.0912158985,
@@ -67,6 +73,7 @@
             "n_strides":7,
             "rule_name":"max_break",
             "duration_s":7.1,
+            "n_raw_initial_contacts":9,
             "stride_duration_s":1.6042857143,
             "cadence_spm":91.3612888518,
             "stride_length_m":1.087672142,
@@ -79,6 +86,7 @@
             "n_strides":13,
             "rule_name":"max_break",
             "duration_s":10.87,
+            "n_raw_initial_contacts":15,
             "stride_duration_s":1.4746153846,
             "cadence_spm":78.8684362555,
             "stride_length_m":0.8089419349,
@@ -91,6 +99,7 @@
             "n_strides":10,
             "rule_name":"max_break",
             "duration_s":7.78,
+            "n_raw_initial_contacts":12,
             "stride_duration_s":1.353,
             "cadence_spm":92.8541944987,
             "stride_length_m":0.8866431578,
@@ -103,6 +112,7 @@
             "n_strides":4,
             "rule_name":"max_break",
             "duration_s":3.25,
+            "n_raw_initial_contacts":6,
             "stride_duration_s":0.8125,
             "cadence_spm":87.1099271099,
             "stride_length_m":0.8391663029,
@@ -115,6 +125,7 @@
             "n_strides":6,
             "rule_name":"max_break",
             "duration_s":4.84,
+            "n_raw_initial_contacts":8,
             "stride_duration_s":1.3433333333,
             "cadence_spm":92.2474979307,
             "stride_length_m":1.0421662632,

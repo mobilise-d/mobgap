@@ -37,7 +37,7 @@ class MobilisedAggregator(BaseAggregator):
     - All walking bout [parameters with "all"], available parameters:
 
       - Duration of all walking bouts in h ["walkdur_all_sum"/"total_walking_duration_h]
-      - Number of steps in all walking bouts ["steps_all_sum"/"wb_all__n_steps__sum"]
+      - Number of raw initial contacts in all walking bouts ["wbsteps_all_sum"/"wb_all__n_raw_initial_contacts__sum"]
       - Number of turns in all walking bouts ["turns_all_sum"/"wb_all__n_turns__sum"]
       - Number of walking bouts ["wb_all_sum"/"wb_all__count"]
       - Median duration of walking bouts in s ["wbdur_all_avg"/"wb_all__duration_s__avg"]
@@ -80,7 +80,7 @@ class MobilisedAggregator(BaseAggregator):
     calculated when all the following columns are available:
 
     - ``duration_s``
-    - ``n_steps``
+    - ``n_raw_initial_contacts``
     - ``n_turns``
     - ``walking_speed_mps``
     - ``stride_length_m``
@@ -131,7 +131,6 @@ class MobilisedAggregator(BaseAggregator):
         Note that depending on which DMO measure is flagged as implausible, different elimination steps are applied:
 
         - "duration_s": The whole walking bout is not considered for the aggregation.
-        - "n_steps": The corresponding "n_steps" is not regarded.
         - "n_turns": The corresponding "n_turns" is not regarded.
         - "walking_speed_mps": The corresponding "walking_speed_mps" is not regarded.
         - "stride_length_m": The corresponding "stride_length_m" AND the corresponding "walking_speed_mps" are not
@@ -163,9 +162,9 @@ class MobilisedAggregator(BaseAggregator):
     ALTERNATIVE_NAMES: typing.ClassVar[dict[str, str]] = {
         "wb_all_sum": "wb_all__count",
         # TODO: I don't like that the name here is different. We should unify that.
-        "walkdur_all_sum": "total_walking_duration_h",
+        "walkdur_all_sum": "total_walking_duration_min",
         "wbdur_all_avg": "wb_all__duration_s__avg",
-        "wbdur_all_max": "wb_all__duration_s__max",
+        "wbdur_all_p90": "wb_all__duration_s__p90",
         "wbdur_all_var": "wb_all__duration_s__var",
         "cadence_all_avg": "wb_all__cadence_spm__avg",
         "strdur_all_avg": "wb_all__stride_duration_s__avg",
@@ -175,24 +174,24 @@ class MobilisedAggregator(BaseAggregator):
         "ws_1030_avg": "wb_10_30__walking_speed_mps__avg",
         "strlen_1030_avg": "wb_10_30__stride_length_m__avg",
         "wb_10_sum": "wb_10__count",
-        "ws_10_max": "wb_10__walking_speed_mps__max",
+        "ws_10_p90": "wb_10__walking_speed_mps__p90",
         "wb_30_sum": "wb_30__count",
         "ws_30_avg": "wb_30__walking_speed_mps__avg",
         "strlen_30_avg": "wb_30__stride_length_m__avg",
         "cadence_30_avg": "wb_30__cadence_spm__avg",
         "strdur_30_avg": "wb_30__stride_duration_s__avg",
-        "ws_30_max": "wb_30__walking_speed_mps__max",
-        "cadence_30_max": "wb_30__cadence_spm__max",
+        "ws_30_p90": "wb_30__walking_speed_mps__p90",
+        "cadence_30_p90": "wb_30__cadence_spm__p90",
         "ws_30_var": "wb_30__walking_speed_mps__var",
         "strlen_30_var": "wb_30__stride_length_m__var",
         "wb_60_sum": "wb_60__count",
-        "steps_all_sum": "wb_all__n_steps__sum",
+        "wbsteps_all_sum": "wb_all__n_raw_initial_contacts__sum",
         "turns_all_sum": "wb_all__n_turns__sum",
     }
 
     INPUT_COLUMNS: typing.ClassVar[list[str]] = [
         "stride_duration_s",
-        "n_steps",
+        "n_raw_initial_contacts",
         "n_turns",
         "walking_speed_mps",
         "stride_length_m",
@@ -202,10 +201,10 @@ class MobilisedAggregator(BaseAggregator):
     _ALL_WB_AGGS: typing.ClassVar[dict[str, tuple[str, typing.Union[str, typing.Callable]]]] = {
         "wb_all_sum": ("duration_s", "count"),
         "walkdur_all_sum": ("duration_s", "sum"),
-        "steps_all_sum": ("n_steps", "sum"),
+        "wbsteps_all_sum": ("n_raw_initial_contacts", "sum"),
         "turns_all_sum": ("n_turns", "sum"),
         "wbdur_all_avg": ("duration_s", "median"),
-        "wbdur_all_max": ("duration_s", _custom_quantile),
+        "wbdur_all_p90": ("duration_s", _custom_quantile),
         "wbdur_all_var": ("duration_s", _coefficient_of_variation),
         "cadence_all_avg": ("cadence_spm", "mean"),
         "strdur_all_avg": ("stride_duration_s", "mean"),
@@ -221,7 +220,7 @@ class MobilisedAggregator(BaseAggregator):
 
     _TEN_WB_AGGS: typing.ClassVar = {
         "wb_10_sum": ("duration_s", "count"),
-        "ws_10_max": ("walking_speed_mps", _custom_quantile),
+        "ws_10_p90": ("walking_speed_mps", _custom_quantile),
     }
 
     _THIRTY_WB_AGGS: typing.ClassVar = {
@@ -230,8 +229,8 @@ class MobilisedAggregator(BaseAggregator):
         "strlen_30_avg": ("stride_length_m", "mean"),
         "cadence_30_avg": ("cadence_spm", "mean"),
         "strdur_30_avg": ("stride_duration_s", "mean"),
-        "ws_30_max": ("walking_speed_mps", _custom_quantile),
-        "cadence_30_max": ("cadence_spm", _custom_quantile),
+        "ws_30_p90": ("walking_speed_mps", _custom_quantile),
+        "cadence_30_p90": ("cadence_spm", _custom_quantile),
         "ws_30_var": ("walking_speed_mps", _coefficient_of_variation),
         "strlen_30_var": ("stride_length_m", _coefficient_of_variation),
     }
@@ -247,7 +246,7 @@ class MobilisedAggregator(BaseAggregator):
     ]
 
     _UNIT_CONVERSIONS: typing.ClassVar = {
-        "walkdur_all_sum": 1 / 3600,
+        "walkdur_all_sum": 1 / 60,
     }
 
     _COUNT_COLUMNS: typing.ClassVar = [

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from statsmodels.compat.pandas import assert_series_equal
 
 from mobgap.wba import IntervalParameterCriteria, MaxBreakCriteria, NStridesCriteria, StrideSelection, WbAssembly
 from tests.test_wba.conftest import window
@@ -151,3 +152,27 @@ def test_full_complicated_example(snapshot):
 
     snapshot.assert_match(wb_assembly.annotated_stride_list_, "wba")
     snapshot.assert_match(ss.filtered_stride_list_, "stride_selection")
+
+
+def test_n_initial_contacts():
+    wb_start_time = 5
+    n_strides = 20
+    strides = pd.DataFrame.from_records(
+        [window(wb_start_time + i, wb_start_time + i + 1) for i in range(n_strides)]
+    ).set_index("s_id")
+    strides = strides.drop(strides.index[7:11])
+
+    # WB 1: 5-12, WB 2: 16-25
+    raw_initial_contacts = pd.DataFrame({"ic": [0, 1, 2, 3, 5, 6, 7, 8, 9, 16, 17, 18]})
+    rules = [
+        ("break", MaxBreakCriteria(3, consider_end_as_break=True)),
+        ("n_strides", NStridesCriteria(4)),
+    ]
+
+    wba = WbAssembly(rules)
+    wba.assemble(strides, raw_initial_contacts=raw_initial_contacts, sampling_rate_hz=1)
+    assert len(wba.wbs_) == 2
+    assert_series_equal(
+        wba.wb_meta_parameters_["n_raw_initial_contacts"],
+        pd.Series([5, 3], index=wba.wb_meta_parameters_.index, name="n_raw_initial_contacts", dtype="Int64"),
+    )

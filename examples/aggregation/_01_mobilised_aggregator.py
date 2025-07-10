@@ -23,9 +23,11 @@ from mobgap.aggregation import MobilisedAggregator
 
 DATA_PATH = PROJECT_ROOT / "example_data/original_results/mobilised_aggregator"
 
-data = pd.read_csv(
-    DATA_PATH / "aggregation_test_input.csv", index_col=0
-).set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
+data = (
+    pd.read_csv(DATA_PATH / "aggregation_test_input.csv", index_col=0)
+    .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
+    .rename(columns={"n_steps": "n_raw_initial_contacts"})
+)
 data.head()
 
 # %%
@@ -98,7 +100,7 @@ weekly_agg = (
     .reset_index()
 )
 round_to_int_original_cols = [
-    "steps_all_sum",
+    "wbsteps_all_sum",
     "turns_all_sum",
     "wb_all_sum",
     "wb_10_sum",
@@ -106,7 +108,7 @@ round_to_int_original_cols = [
     "wb_60_sum",
 ]
 round_to_int_new_cols = [
-    "wb_all__n_steps__sum",
+    "wb_all__n_raw_initial_contacts__sum",
     "wb_all__n_turns__sum",
     "wb_all__count",
     "wb_10__count",

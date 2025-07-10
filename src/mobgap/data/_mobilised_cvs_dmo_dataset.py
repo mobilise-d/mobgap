@@ -144,7 +144,7 @@ def _load_dmo_data(
 
     dmo_rename_dict = {
         "duration": "duration_s",
-        "initialcontact_event_number": "n_steps",
+        "initialcontact_event_number": "n_raw_initial_contacts",
         "turn_number_so": "n_turns",
         "averagecadence": "cadence_spm",
         "averagestridespeed": "walking_speed_mps",
