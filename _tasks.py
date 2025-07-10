@@ -110,6 +110,10 @@ def task_freeze_validation_result_version():
     version = sys.argv[1] if len(sys.argv) > 1 else None
     if not version:
         version = f"v{_get_current_version_via_uv()}"
+    _freeze_validation_result_version(version)
+
+
+def _freeze_validation_result_version(version: str):
     revalidation_results_path = HERE / "revalidation"
     for file in revalidation_results_path.rglob("*.py"):
         update_revalidation_version_strings(file, version)
@@ -136,7 +140,7 @@ def update_version(*args):
     subprocess.run(["uv", "version", *args], shell=False, check=True)
     new_version = _get_current_version_via_uv()
     update_version_strings(HERE.joinpath("src/mobgap/__init__.py"), new_version)
-    task_freeze_validation_result_version()
+    _freeze_validation_result_version(new_version)
 
 
 def task_update_version():
