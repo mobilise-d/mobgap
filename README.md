@@ -2,7 +2,7 @@
 > We recently released Mobgap 1.0, marking the first release with fully re-validated algorithms!
 > We highly recommend updating to the 1.0 release. We will not actively support versions < 1.0
 > 
-> To learn more about the revalidation of the algorithms, visit TODO
+> To learn more about the revalidation of the algorithms, visit [the documentation](https://mobgap.readthedocs.io/en/latest/auto_revalidation/index.html).
 
 
 <p align="center">
