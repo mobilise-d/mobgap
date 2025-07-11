@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2025-07-10
 
+This marks the official first stable release of the `mobgap` package.
+This means that all core algorithms are stable and have been validated against the old Matlab implementations.
+To learn more about this release, check out our short blogpost on the release:
+https://mobgap.readthedocs.io/en/latest/blog/20250708_1_0.html
+
 ### Changed
 
 - When loading reference data using the Mobilise-D Matlab format, the handling of duplicated ICs and LR labels has been
