@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-07-10
+## [1.0.0] - 2025-07-11
 
 This marks the official first stable release of the `mobgap` package.
 This means that all core algorithms are stable and have been validated against the old Matlab implementations.

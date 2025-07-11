@@ -15,6 +15,6 @@ They are further written in a way that all relevant code is directly available i
 The code available to generate the results can also be used as a starting point to run the same validation on any other dataset.
 
 These results will be regularly updated when there are major updates to the algorithms and new releases of the TVS dataset.
-The current results are generated using the TVS dataset version 1.0.2 (released at 2025-07-10).
+The current results are generated using the TVS dataset version 1.0.2 (released at 2025-07-11).
 
 To view older versions of this documentation and results, use the version selector in the bottom right of this page.
