@@ -614,6 +614,7 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
     Attributes
     ----------
     %(primary_results)s
+    %(intermediate_results)s
     pipeline_
         The pipeline that was used for the provided data with all its results.
     pipeline_name_
@@ -676,6 +677,26 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
     @property
     def aggregated_parameters_(self) -> Optional[pd.DataFrame]:
         return self.pipeline_.aggregated_parameters_
+
+    @property
+    def gs_list_(self) -> pd.DataFrame:
+        return self.pipeline_.gs_list_
+
+    @property
+    def raw_ic_list_(self) -> pd.DataFrame:
+        return self.pipeline_.raw_ic_list_
+
+    @property
+    def raw_turn_list_(self) -> pd.DataFrame:
+        return self.pipeline_.raw_turn_list_
+
+    @property
+    def raw_per_sec_parameters_(self) -> pd.DataFrame:
+        return self.pipeline_.raw_per_sec_parameters_
+
+    @property
+    def raw_per_stride_parameters_(self) -> pd.DataFrame:
+        return self.pipeline_.raw_per_stride_parameters_
 
     @timed_action_method
     @mobilised_pipeline_docfiller

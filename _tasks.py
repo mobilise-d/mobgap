@@ -140,7 +140,7 @@ def update_version(*args):
     subprocess.run(["uv", "version", *args], shell=False, check=True)
     new_version = _get_current_version_via_uv()
     update_version_strings(HERE.joinpath("src/mobgap/__init__.py"), new_version)
-    _freeze_validation_result_version(new_version)
+    _freeze_validation_result_version(f"v{new_version}")
 
 
 def task_update_version():
