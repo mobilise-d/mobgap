@@ -2,7 +2,8 @@ from typing import Any, Optional
 
 import pandas as pd
 import numpy as np
-from scipy.signal import detrend, correlate, find_peaks
+from scipy.signal import detrend, correlate, find_peaks, welch, medfilt
+from scipy.ndimage import minimum_filter1d
 from typing_extensions import Self, Unpack
 
 from numba import njit
@@ -19,11 +20,11 @@ class SDMO(BaseSDMOCalculator):
 
     Other Parameters
     ----------------
-    %(other_parameters)s
+    (other_parameters)s
 
     Attributes
     ----------
-    %(secondary_outcomes)s
+    (secondary_outcomes)s
 
     """
 
@@ -43,12 +44,12 @@ class SDMO(BaseSDMOCalculator):
         sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
-        """%(calculate_short)s.
+        """(calculate_short)s.
 
         Parameters
         ----------
-        %(calculate_para)s
-        %(calculate_return)s
+        (calculate_para)s
+        (calculate_return)s
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
@@ -56,7 +57,7 @@ class SDMO(BaseSDMOCalculator):
         assert_is_sensor_data(self.data, frame="body")
         # collect all methods implementing SDMO calculation (add new ones to this list)
         # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
-        SDMO_functions = [self._calculate_rms, self._calculate_reg_sym]
+        SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope]
         row = {"start": 0, "end": len(data)}
         for func in SDMO_functions:
             row.update(func(data).to_dict())
@@ -205,9 +206,71 @@ class SDMO(BaseSDMOCalculator):
 
         return pd.Series(reg_sym)
 
-
     def _calculate_freq_amp_width_slope(self, data: pd.DataFrame) -> pd.Series:
-        pass
+        """Analyse the acceleration signal in the frequency domain.
+
+        Calculate the max peak (center of the gait signal) amplitude and frequency, and the width (spread)
+        of the gait frequencies around the main gait peak and the slope.
+
+        More information:
+        Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a
+        Body-Worn Accelerometer
+        Aner Weiss et al.
+        Neurorehabilitation and Neural Repair25(9) 810–818
+        DOI: 10.1177/1545968311424869
+        """
+        acc = data.filter(like="acc")
+        acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
+        acc = acc[["acc_is", "acc_ml", "acc_pa"]].to_numpy()
+        n = len(acc)
+        fft_length = 2 ** (int(np.ceil(np.log2(n))) + 1)
+        if n >= 2 * self.sampling_rate_hz:
+            win_size = int(self.sampling_rate_hz * 2)
+        else:
+            win_size = n
+        # welch PSD (should be close to the matlab's pwelch with the following params)
+        matlab_welch = lambda x: welch(
+            x,
+            fs=self.sampling_rate_hz,
+            window='hamming',
+            nperseg=win_size,
+            nfft=fft_length,
+            detrend=False
+        )
+        f, psd_is = matlab_welch(acc[:, 0])
+        _, psd_ml = matlab_welch(acc[:, 1])
+        _, psd_ap = matlab_welch(acc[:, 2])
+        # frequency ranges
+        fmin, fmax = 0.5, 3.0
+        freq_delta = 0.1
+        vap_freq_range = np.where((f >= fmin - freq_delta) & (f <= fmax + freq_delta))[0]
+        ml_freq_range = np.where((f >= fmin / 2 - freq_delta) & (f <= fmax / 2 + freq_delta))[0]
+        # extract amplitude, frequency, width and slope
+        amp_is, freq_is, width_is, slope_is = _extract_amp_freq_slope(psd_is, f, vap_freq_range)
+        amp_ml, freq_ml, width_ml, slope_ml = _extract_amp_freq_slope(psd_ml, f, ml_freq_range)
+        amp_ap, freq_ap, width_ap, slope_ap = _extract_amp_freq_slope(psd_ap, f, vap_freq_range)
+
+        return (
+            pd.Series(
+                {
+                    "Amplitude_is": amp_is,
+                    "Amplitude_ml": amp_ml,
+                    "Amplitude_pa": amp_ap,
+                    "Freq_is": freq_is,
+                    "Freq_ml": freq_ml,
+                    "Freq_pa": freq_ap,
+                    # the width and slope was calculated but wasn't returned in the original implementation, so
+                    # commented here, and in case they are required, they can be uncommented
+                    # or maybe include a parameter (return_width, return_slope) to include them
+                    # "Width_is": width_is,
+                    # "Width_ml": width_ml,
+                    # "Width_pa": width_ap,
+                    # "Slope_is": slope_is,
+                    # "Slope_ml": slope_ml,
+                    # "Slope_pa": slope_ap
+                }
+            )
+        )
 
     def _calculate_jerk(self, data: pd.DataFrame) -> pd.Series:
         pass
@@ -289,3 +352,51 @@ def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray):
                 corrected_locs = np.delete(corrected_locs, idx)
 
     return corrected_locs, corrected_pks
+
+def _extract_amp_freq_slope(psd, freq, freq_range):
+    """Extract amplitude, frequency, width and slope."""
+    try:
+        peaks, _ = find_peaks(psd[freq_range], distance=5)
+        if len(peaks) == 0:
+            return np.nan, np.nan, np.nan, np.nan
+        if len(peaks) > 1:
+            peak = peaks[np.argmax(psd[freq_range][peaks])]
+        else:
+            peak = peaks[0]
+
+        amp = psd[freq_range][peak]
+        freq_val = freq[freq_range][peak]
+
+        left_candidates = np.where(psd[freq_range][:peak] <= 0.5 * amp)[0]
+        right_candidates = np.where(psd[freq_range][peak:] <= 0.5 * amp)[0]
+
+        if len(left_candidates) == 0 or len(right_candidates) == 0:
+            return amp, freq_val, np.nan, np.nan
+
+        width_start = left_candidates[-1]
+        width_end = peak + right_candidates[0]
+        width = freq[freq_range][width_end] - freq[freq_range][width_start]
+
+        smoothed = medfilt(psd[freq_range], kernel_size=5)
+        minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
+        pre_peak_min = minima[minima < peak]
+        if len(pre_peak_min) == 0:
+            return amp, freq_val, width, np.nan
+        pre_peak = pre_peak_min[-1]
+
+        range_val = amp - psd[freq_range][pre_peak]
+        slope_data = psd[freq_range][pre_peak:peak + 1]
+        slope_freq = freq[freq_range][pre_peak:peak + 1]
+        mask = (slope_data >= slope_data[0] + 0.25 * range_val) & (
+                slope_data <= slope_data[-1] - 0.25 * range_val
+        )
+        slope_data = slope_data[mask]
+        slope_freq = slope_freq[mask]
+        if len(slope_data) < 2:
+            return amp, freq_val, width, np.nan
+        line_fit = np.polyfit(slope_freq, slope_data, 1)
+        slope = line_fit[0]
+
+        return amp, freq_val, width, slope
+    except Exception:
+        return np.nan, np.nan, np.nan, np.nan
