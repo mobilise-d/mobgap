@@ -58,7 +58,7 @@ class SDMO(BaseSDMOCalculator):
         # collect all methods implementing SDMO calculation (add new ones to this list)
         # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
         SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
-                          self._calculate_jerk]
+                          self._calculate_jerk, self._calculate_sd_range]
         row = {"start": 0, "end": len(data)}
         for func in SDMO_functions:
             row.update(func(data).to_dict())
@@ -311,7 +311,11 @@ class SDMO(BaseSDMOCalculator):
         return pd.Series(out)
 
     def _calculate_sd_range(self, data: pd.DataFrame) -> pd.Series:
-        pass
+        out = {}
+        for c in data.columns:
+            out[f"SD_{c}"] = data[c].std()
+            out[f"Range_{c}"] = data[c].max() - data[c].min()
+        return pd.Series(out)
 
 
 def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
