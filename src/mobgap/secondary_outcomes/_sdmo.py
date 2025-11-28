@@ -57,7 +57,8 @@ class SDMO(BaseSDMOCalculator):
         assert_is_sensor_data(self.data, frame="body")
         # collect all methods implementing SDMO calculation (add new ones to this list)
         # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
-        SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope]
+        SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
+                          self._calculate_jerk]
         row = {"start": 0, "end": len(data)}
         for func in SDMO_functions:
             row.update(func(data).to_dict())
@@ -273,7 +274,41 @@ class SDMO(BaseSDMOCalculator):
         )
 
     def _calculate_jerk(self, data: pd.DataFrame) -> pd.Series:
-        pass
+        """Calculate jerk of acceleration and gyroscope signals in each principal direction, and log-normalised ratios.
+
+        Jerk is defined as the third derivative of position with respect to time, so it is the second derivative
+        of velocity and the first derivative of acceleration.
+        In addition to the jerk of signals, log-normalized ratio of the jerk in AP vs jerk in the IS axis and
+        jerk in ML vs jerk in the IS are calculated.
+
+        Jerk ratio formula was taken from the following article:
+        Age associated changes in head jerk while walking reveal altered dynamic stability in older people.
+        Matthew A. et al., Exp Brain Res (2014) 232:51–60. DOI: 10.1007/s00221-013-3719-6
+
+        Different methods of calculating jerk can be found in the following article:
+        Sensitivity of smoothness measures to movement duration, amplitude, and arrests.
+        Hogan N. et al., Journal of motor behavior (2009) 41,6. DOI:10.3200/35-09-004-RC
+        """
+        dt = 1 / self.sampling_rate_hz
+        acc_columns = ["acc_is", "acc_ml", "acc_pa"]
+        acc_dot = np.gradient(data[acc_columns].to_numpy(), dt, axis=0)
+        integral_duration = dt * len(acc_dot)
+        jerk_acc = np.sqrt(np.trapezoid(acc_dot ** 2, axis=0) / integral_duration)
+        out = {
+            **{f"Jerk_{col}": jerk_acc[i] for i, col in enumerate(acc_columns)},
+            "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
+            "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
+        }
+        gyr_columns = ["gyr_is", "gyr_ml", "gyr_pa"]
+        if set(gyr_columns).issubset(data.columns):
+            # TODO: I don't understand why, but the gyro signal was transposed in the original implementation.
+            #  So, the integral isn't taken along the time dimension, but in the channel (axis) dimension.
+            #  I kept the same behaviour here to just replicate the original implementation, but this has to be revised.
+            gyr = data[gyr_columns].to_numpy().T
+            jerk_gyr = np.sqrt(np.trapezoid(gyr ** 2, axis=0) / integral_duration)
+            out.update(**{f"Jerk_{col}": jerk_gyr[i] for i, col in enumerate(gyr_columns)})
+
+        return pd.Series(out)
 
     def _calculate_sd_range(self, data: pd.DataFrame) -> pd.Series:
         pass
