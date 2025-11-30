@@ -156,7 +156,7 @@ The package is designed to be used in two modes:
    <img src="./docs/_static/used_by_logos/actigraph_logo.svg" alt="Actigraph logo" height="25" align="bottom">
    <img src="./docs/_static/used_by_logos/empatica-logo-full-red.png" alt="Empatica logo" height="28" align="bottom">
    <img src="./docs/_static/used_by_logos/mc_roberts.png" alt="McRoberts logo" height="23" align="bottom">
-   <img src="./docs/_static/used_by_logos/clario.png" alt="Clarios logo" height="35" align="bottom">
+   <img src="./docs/_static/used_by_logos/clario.png" alt="Clarios logo" height="33" align="bottom">
 </p>  
 
 While mobgap is a relatively young project, it is used in multiple projects and by multiple companies.
