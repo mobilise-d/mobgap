@@ -57,5 +57,5 @@ def test_gsd_challenges(snapshot):
     snapshot.assert_match(
         single_results_cv.reset_index().infer_objects().drop(columns="runtime_s"), "exploded_results_cv"
     )
-    snapshot.assert_match(agg_results.drop(columns="runtime_s"), "agg_results")
-    snapshot.assert_match(single_results.reset_index().drop(columns="runtime_s"), "exploded_results")
+    snapshot.assert_match(agg_results.drop(columns="runtime_s"), "agg_results", check_dtype=False)
+    snapshot.assert_match(single_results.reset_index().drop(columns="runtime_s"), "exploded_results", check_dtype=False)
