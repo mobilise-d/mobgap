@@ -156,7 +156,7 @@ The package is designed to be used in two modes:
    <img src="./docs/_static/used_by_logos/actigraph_logo.svg" alt="Actigraph logo" height="25" align="bottom">
    <img src="./docs/_static/used_by_logos/empatica-logo-full-red.png" alt="Empatica logo" height="28" align="bottom">
    <img src="./docs/_static/used_by_logos/mc_roberts.png" alt="McRoberts logo" height="23" align="bottom">
-
+   <img src="./docs/_static/used_by_logos/clario.png" alt="Clarios logo" height="35" align="bottom">
 </p>  
 
 While mobgap is a relatively young project, it is used in multiple projects and by multiple companies.
@@ -168,6 +168,7 @@ more](https://blog.theactigraph.com/blog/mobilise-d-algorithms-centrepoint-integ
 - [Empatica](https://www.empatica.com): [Learn
 more](https://www.empatica.com/blog/empatica-announces-integration-of-mobilise-d-mobility-outcomes,-advancing-toward-unified-solution-for-clinical-professionals.html)
 - [McRoberts](https://www.mcroberts.nl): [Learn more](https://www.mcroberts.nl/)
+- [Clario](https://clario.com/solutions/precision-motion/): [Learn more](https://clario.com/about/newsroom/clario-joins-forces-with-mobilise-d-to-advance-digital-mobility-outcomes-in-clinical-trials/)
 
 If you are using mobgap in your project or company and would like to be listed here, please let us know via Github 
 Issues or Email.
