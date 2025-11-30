@@ -49,7 +49,7 @@ def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitD
         This functions will aggregate the results and provide a summary of the performance metrics.
 
     """
-    from mobgap.gait_sequences.evaluation import (
+    from mobgap.gait_sequences.evaluation import (  # noqa: PLC0415
         calculate_matched_gsd_performance_metrics,
         calculate_unmatched_gsd_performance_metrics,
         categorize_intervals_per_sample,
@@ -138,7 +138,7 @@ def gsd_final_agg(
         The per-datapoint results, that are not aggregated.
 
     """
-    from mobgap.gait_sequences.evaluation import (
+    from mobgap.gait_sequences.evaluation import (  # noqa: PLC0415
         calculate_matched_gsd_performance_metrics,
         calculate_unmatched_gsd_performance_metrics,
     )

@@ -91,8 +91,6 @@ ignore = [
     "RET504",
     # Abstract raise into inner function
     "TRY301",
-    # df as varaible name
-    "PD901",
     # melt over stack
     "PD013",
     # No Any annotations

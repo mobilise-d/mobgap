@@ -246,9 +246,8 @@ class TestSubregionIteration:
                 {"start": [1, len_data // 2], "end": [len_data // 2, len_data], "sub_gs_id": ["1", "2"]}
             ).set_index("sub_gs_id")
 
-            with pytest.raises(ValueError):
-                with iterator.subregion(subregions) as ((_, sd), sr):
-                    pass
+            with pytest.raises(ValueError), iterator.subregion(subregions) as ((_, sd), sr):
+                pass
 
     def test_no_nested_subregion_allowed(self):
         dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
@@ -299,10 +298,9 @@ class TestSubregionIteration:
             len_data = len(d)
             subregions = pd.DataFrame({"start": [1], "end": [len_data - 1], "sub_gs_id": ["1"]}).set_index("sub_gs_id")
 
-            with pytest.raises(RuntimeError):
-                with iterator.subregion(subregions) as ((_, sd), sr):
-                    # We use the outer result object here, which should raise an error.
-                    r.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
+            with pytest.raises(RuntimeError), iterator.subregion(subregions) as ((_, sd), sr):
+                # We use the outer result object here, which should raise an error.
+                r.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
 
 
 class TestAggregateDf:

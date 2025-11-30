@@ -46,14 +46,14 @@ def icd_per_datapoint_score(pipeline: IcdEmulationPipeline, datapoint: BaseGaitD
         This functions will aggregate the results and provide a summary of the performance metrics.
 
     """
-    from mobgap.initial_contacts.evaluation import (
+    from mobgap.initial_contacts.evaluation import (  # noqa: PLC0415
         calculate_matched_icd_performance_metrics,
         calculate_true_positive_icd_error,
         categorize_ic_list,
         get_matching_ics,
     )
-    from mobgap.utils.conversions import as_samples
-    from mobgap.utils.df_operations import MultiGroupByPrimaryDfEmptyError, create_multi_groupby
+    from mobgap.utils.conversions import as_samples  # noqa: PLC0415
+    from mobgap.utils.df_operations import MultiGroupByPrimaryDfEmptyError, create_multi_groupby  # noqa: PLC0415
 
     with warnings.catch_warnings():
         # We know that these errors might happen, and they are usually not relevant for the evaluation
@@ -167,7 +167,7 @@ def icd_final_agg(
         The per-datapoint results, that are not aggregated.
 
     """
-    from mobgap.initial_contacts.evaluation import (
+    from mobgap.initial_contacts.evaluation import (  # noqa: PLC0415
         calculate_matched_icd_performance_metrics,
         calculate_true_positive_icd_error,
     )

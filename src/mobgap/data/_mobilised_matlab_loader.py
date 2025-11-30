@@ -1267,9 +1267,9 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
         """
         rel_out_path = self._relpath_to_precomputed_test_list()
 
-        import json
+        import json  # noqa: PLC0415
 
-        from joblib import Parallel, delayed
+        from joblib import Parallel, delayed  # noqa: PLC0415
 
         def process_path(p: str, rel_out_path: str) -> Path:
             _, available_data_per_test = _load_test_data_without_checks(p)
@@ -1298,7 +1298,7 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             pbar.set_postfix_str(f"Processed {path}")
 
     def _get_precomputed_available_tests(self, path: PathLike) -> dict[tuple[str, ...], MobilisedAvailableData]:
-        import json
+        import json  # noqa: PLC0415
 
         test_list_path = Path(path).parent / self._relpath_to_precomputed_test_list()
 

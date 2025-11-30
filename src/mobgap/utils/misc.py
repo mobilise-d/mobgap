@@ -12,7 +12,7 @@ def get_env_var(name: str, default: Any = _NONE) -> str:
     We first check if it exists, if not, we attempt to load a `.env` file, which might be present during development.
     """
     if name not in os.environ:
-        from dotenv import load_dotenv
+        from dotenv import load_dotenv  # noqa: PLC0415
 
         load_dotenv()
 
