@@ -1,4 +1,4 @@
-"""Base class for walking speed calculators."""
+"""Base class for signal-based digital mobility outcome calculations."""
 
 from typing import Any, Optional
 
@@ -10,10 +10,10 @@ from mobgap._docutils import make_filldoc
 
 base_sdmo_docfiller = make_filldoc(
     {
-        "secondary_outcomes": """
-    secondary_outcomes
-        The main output of the secondary outcomes block.
-        It provides a DataFrame with the columns containing the implemented secondary digital mobility outcomes
+        "signal_based_DMO": """
+    signal_based_DMO
+        The main output of the signal-based digital mobility outcomes (SDMO) block.
+        It provides a DataFrame with the columns containing the implemented SDMOs
         per provided data (ideally the walking bout, but can work with any data). Units are defined for each outcome.
     """,
         "other_parameters": """
@@ -23,7 +23,7 @@ base_sdmo_docfiller = make_filldoc(
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
     """,
         "calculate_short": """
-    Calculate secondary outcomes for the passed data.
+    Calculate SDMOs for the passed data.
     """,
         "calculate_para": """
     data
@@ -36,7 +36,7 @@ base_sdmo_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``secondary_outcomes`` attribute set to the estimated secondary outcomes.
+        The instance of the class with the ``signal_based_DMO`` attribute set to the estimated SDMOs.
     """,
     }
 )
@@ -44,13 +44,12 @@ base_sdmo_docfiller = make_filldoc(
 
 @base_sdmo_docfiller
 class BaseSDMOCalculator(Algorithm):
-    """Base class for secondary DMO calculators.
+    """Base class for signal-based digital mobility outcome (SDMO) calculators.
 
-    This base class should be used for all secondary outcome calculation procedures/classes (currently one because all
+    This base class should be used for all SDMO calculation procedures/classes (currently one because all
     outcomes will be calculated together as there is no need for dividing them into groups).
     Algorithms should implement the ``calculate`` method.
-    The method should return the instance of the class with the ``secondary_outcomes`` attribute set to the walking
-    speed values per second.
+    The method should return the instance of the class with the ``signal_based_DMO`` attribute.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
@@ -65,7 +64,7 @@ class BaseSDMOCalculator(Algorithm):
 
     Attributes
     ----------
-    %(secondary_outcomes)s
+    %(signal_based_DMO)s
 
     Notes
     -----
@@ -79,7 +78,7 @@ class BaseSDMOCalculator(Algorithm):
     sampling_rate_hz: float
 
     # results
-    secondary_outcomes: pd.DataFrame
+    signal_based_DMO: pd.DataFrame
 
     @base_sdmo_docfiller
     def calculate(
