@@ -301,11 +301,8 @@ class SDMO(BaseSDMOCalculator):
         }
         gyr_columns = ["gyr_is", "gyr_ml", "gyr_pa"]
         if set(gyr_columns).issubset(data.columns):
-            # TODO: I don't understand why, but the gyro signal was transposed in the original implementation.
-            #  So, the integral isn't taken along the time dimension, but in the channel (axis) dimension.
-            #  I kept the same behaviour here to just replicate the original implementation, but this has to be revised.
             gyr = data[gyr_columns].to_numpy().T
-            jerk_gyr = np.sqrt(np.trapezoid(gyr ** 2, axis=0) / integral_duration)
+            jerk_gyr = np.sqrt(np.trapezoid(gyr ** 2, axis=1) / integral_duration)
             out.update(**{f"Jerk_{col}": jerk_gyr[i] for i, col in enumerate(gyr_columns)})
 
         return pd.Series(out)
