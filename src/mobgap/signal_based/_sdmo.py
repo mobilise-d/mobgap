@@ -6,17 +6,15 @@ from scipy.signal import detrend, correlate, find_peaks, welch, medfilt
 from scipy.ndimage import minimum_filter1d
 from typing_extensions import Self, Unpack
 
-from numba import njit
-
-from mobgap.secondary_outcomes.base import BaseSDMOCalculator, base_sdmo_docfiller
+from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @base_sdmo_docfiller
 class SDMO(BaseSDMOCalculator):
-    r"""Secondary digital mobility outcome calculations on IMU signal (ideally per walking bout).
+    r"""Signal-based digital mobility outcome (SDMO) calculations on IMU signal (ideally per walking bout).
 
-    This "algorithm" calculates secondary outcomes for given signal window.
+    This "algorithm" calculates SDMOs for given signal window.
 
     Other Parameters
     ----------------
@@ -24,7 +22,7 @@ class SDMO(BaseSDMOCalculator):
 
     Attributes
     ----------
-    (secondary_outcomes)s
+    (signal_based)s
 
     """
 
@@ -62,7 +60,7 @@ class SDMO(BaseSDMOCalculator):
         row = {"start": 0, "end": len(data)}
         for func in SDMO_functions:
             row.update(func(data).to_dict())
-        self.secondary_outcomes = pd.DataFrame([row])
+        self.signal_based_DMO = pd.DataFrame([row])
         return self
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
