@@ -121,7 +121,7 @@ The package is designed to be used in two modes:
    
    [3] Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
    A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
-   MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
+   MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
    ```
 
 2. Usage of individual algorithms:
@@ -142,7 +142,7 @@ The package is designed to be used in two modes:
    ```
    [3] Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
    A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
-   MobGap [Computer software]. https://doi.org/10.1177/0894439316660340 URL: https://github.com/mobilise-d/mobgap/ 
+   MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
    ```
 
 [1]: https://doi.org/10.1038/s41598-024-51766-5
