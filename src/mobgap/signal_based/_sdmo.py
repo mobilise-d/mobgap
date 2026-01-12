@@ -1,5 +1,5 @@
 from typing import Any, Optional
-
+import warnings
 import pandas as pd
 import numpy as np
 from scipy.signal import detrend, correlate, find_peaks, welch, medfilt, argrelextrema
@@ -412,9 +412,11 @@ class SDMO(BaseSDMOCalculator):
             if np.isnan(stride_harmonics).all():
                 hr_results[f"HarmonicRatio_{col_name}"] = np.nan
                 continue
-            avg = np.nanmean(stride_harmonics, axis=0)
-            even_sum = np.nansum(avg[1::2])
-            odd_sum = np.nansum(avg[0::2])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                avg = np.nanmean(stride_harmonics, axis=0)
+                even_sum = np.nansum(avg[1::2])
+                odd_sum = np.nansum(avg[0::2])
             hr_results[f"HarmonicRatio_{col_name}"] = even_sum / odd_sum if odd_sum else np.nan
 
         return pd.Series(hr_results)
