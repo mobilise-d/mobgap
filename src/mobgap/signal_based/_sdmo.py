@@ -2,8 +2,9 @@ from typing import Any, Optional
 
 import pandas as pd
 import numpy as np
-from scipy.signal import detrend, correlate, find_peaks, welch, medfilt
+from scipy.signal import detrend, correlate, find_peaks, welch, medfilt, argrelextrema
 from scipy.ndimage import minimum_filter1d
+from scipy.fft import fft
 from typing_extensions import Self, Unpack
 
 from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
@@ -25,6 +26,7 @@ class SDMO(BaseSDMOCalculator):
     (signal_based)s
 
     """
+    replicate_matlab: bool
 
     def __init__(
         self,
@@ -40,6 +42,7 @@ class SDMO(BaseSDMOCalculator):
         data: pd.DataFrame,
         *,
         sampling_rate_hz: float,
+        ic_list: np.ndarray,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """(calculate_short)s.
@@ -51,12 +54,13 @@ class SDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.ic_list = ic_list
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
         # collect all methods implementing SDMO calculation (add new ones to this list)
         # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
         SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
-                          self._calculate_jerk, self._calculate_sd_range]
+                          self._calculate_jerk, self._calculate_sd_range, self._calculate_harmonic_ratio]
         row = {"start": 0, "end": len(data)}
         for func in SDMO_functions:
             row.update(func(data).to_dict())
@@ -311,6 +315,105 @@ class SDMO(BaseSDMOCalculator):
             out[f"SD_{c}"] = data[c].std()
             out[f"Range_{c}"] = data[c].max() - data[c].min()
         return pd.Series(out)
+
+
+    def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series:
+        """Calculate the Harmonic Ratio (HR) for gait smoothness based on accelerometer data.
+
+        HR is a measure of gait smoothness, based on the following article:
+        Dynamic Stability in the Elderly: Identifying a Possible Measure
+        H. John Yack et al., Journal of Gerontology: MEDICAL SCIENCES, 1993, Vol. 48, No. 5, M225-M230.
+
+        The acceleration from the lower back contains repeatable patterns that contains information regarding
+        the smoothness of the walking pattern. For acc_is and acc_ap accelerations a relatively larger ratio
+        represents a smoother gait pattern. Their HR should be always greater than 1. The acc_ml acceleration has
+        a monophasis pattern (one cycle in a stride vs 2 steps that are seen in other axes) which causes the first
+        harmonic to be the dominant one. It has an HR smaller than 1.
+
+        Stride time defines the period of the fundamental frequency component for calculating the smoothness
+        of the signal. We calculate the first 20 harmonic coefficients using the finite fourier transform.
+        Their amplitude is normalized using the fundamental frequency component amplitude. This process is
+        performed for all the strides and then the harmonics are averaged across the strides. The ratio is
+        calculated as the ratio of the even to odd harmonics.
+        """
+        acc_columns = ["acc_is", "acc_ml", "acc_pa"]
+        hr_results = {}
+        if len(self.ic_list) < 5:
+            return pd.Series({f'HarmonicRatio_{k}': np.nan for k in acc_columns})
+
+        stride_pairs = list(zip(self.ic_list[::2], self.ic_list[2::2]))
+
+        for col_name in acc_columns:
+            acc = data[col_name].to_numpy()
+            stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
+            is_ml = (col_name == "acc_ml")
+            gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
+            in_phase = np.arange(2, 19, 2) if is_ml else np.arange(3, 20, 2)
+            out_phase = np.arange(1, 20, 2) if is_ml else np.arange(0, 19, 2)
+
+            for stride_idx, (start, end) in enumerate(stride_pairs):
+                # flexing IC end point to eliminate high freq noise due to first and last sample amplitude mismatch
+                start_points_in_data = np.where(
+                    (acc[:-1] < acc[start]) & (acc[1:] >= acc[start])
+                )[0]
+
+                if start_points_in_data.size:
+                    new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - end))]
+                    stride_len = end - start
+                    if end != new_end:
+                        # deviation 10% threshold
+                        if (end - new_end) <= 0.1 * stride_len:
+                            end = new_end
+                if start >= end:
+                    # skip the stride
+                    continue
+
+                stride_data = acc[start:end + 1] - np.mean(acc[start:end + 1])
+                # FFT
+                n = len(stride_data)
+                nfft = 2 ** (int(np.ceil(np.log2(n))) + 4)
+
+                fft_vals = np.abs(fft(stride_data, nfft))[:nfft // 2 + 1]
+                fft_freqs = np.linspace(0, self.sampling_rate_hz / 2, len(fft_vals))
+
+                max_idx = argrelextrema(fft_vals, np.greater)[0]
+                if not max_idx.size:
+                    continue
+
+                max_freqs = fft_freqs[max_idx]
+                max_amps = fft_vals[max_idx]
+                band_mask = (max_freqs >= gait_band[0]) & (max_freqs <= gait_band[1])
+
+                if not np.any(band_mask):
+                    continue
+
+                fundamental_idx = max_idx[band_mask][np.argmax(max_amps[band_mask])]
+                fundamental_amp = fft_vals[fundamental_idx]
+                fft_vals /= fundamental_amp
+                stride_time = n / self.sampling_rate_hz
+                f1 = (2 if is_ml else 1) / stride_time
+                stride_harmonics[stride_idx, 0 if is_ml else 1] = 1.0
+                harmonics = f1 * np.arange(1, 21)
+                for h in in_phase:
+                    f = harmonics[h]
+                    mask = np.abs(fft_freqs[max_idx] - f) <= f1
+                    if np.any(mask):
+                        stride_harmonics[stride_idx, h] = fft_vals[max_idx[mask]].max()
+                min_idx = argrelextrema(fft_vals, np.less)[0]
+                min_idx = min_idx[fft_freqs[min_idx] >= 0.25]
+                if min_idx.size:
+                    min_freqs = fft_freqs[min_idx]
+                    for h in out_phase:
+                        f = harmonics[h]
+                        mask = np.abs(min_freqs - f) <= f1
+                        if np.any(mask):
+                            stride_harmonics[stride_idx, h] = fft_vals[min_idx[mask]].min()
+            avg = np.nanmean(stride_harmonics, axis=0)
+            even_sum = np.nansum(avg[1::2])
+            odd_sum = np.nansum(avg[0::2])
+            hr_results[f"HarmonicRatio_{col_name}"] = even_sum / odd_sum if odd_sum else np.nan
+
+        return pd.Series(hr_results)
 
 
 def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
