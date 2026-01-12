@@ -60,7 +60,8 @@ class SDMO(BaseSDMOCalculator):
         # collect all methods implementing SDMO calculation (add new ones to this list)
         # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
         SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
-                          self._calculate_jerk, self._calculate_sd_range, self._calculate_harmonic_ratio]
+                          self._calculate_jerk, self._calculate_sd_range, self._calculate_harmonic_ratio,
+                          self._calculate_sample_entropy]
         row = {"start": 0, "end": len(data)}
         for func in SDMO_functions:
             row.update(func(data).to_dict())
@@ -408,12 +409,58 @@ class SDMO(BaseSDMOCalculator):
                         mask = np.abs(min_freqs - f) <= f1
                         if np.any(mask):
                             stride_harmonics[stride_idx, h] = fft_vals[min_idx[mask]].min()
+            if np.isnan(stride_harmonics).all():
+                hr_results[f"HarmonicRatio_{col_name}"] = np.nan
             avg = np.nanmean(stride_harmonics, axis=0)
             even_sum = np.nansum(avg[1::2])
             odd_sum = np.nansum(avg[0::2])
             hr_results[f"HarmonicRatio_{col_name}"] = even_sum / odd_sum if odd_sum else np.nan
 
         return pd.Series(hr_results)
+
+
+    def _calculate_sample_entropy(self, data: pd.DataFrame) -> pd.Series:
+        r"""Calculate Sample Entropy (SE) for accelerometer data.
+
+        The Sample Entropy is defined as the negative natural average logarithm of the conditional probability
+        that two sequences are similar for m points remain similar when the number of points is increased to m+1.
+        Definition is taken from Torres (2013) [1]_. It can be used as a mean to describe the predictability of a signal.
+        Useage for sway is given in Sofiane (2009) [2]_.
+
+        .. [1] B.D.L.C. Torres, et al. "Entropy in the Analysis of Gait Complexity: A State of the Art". British Journal
+        of Applied Science & Technology. 3(4) 1097-1105, 2013.
+        .. [2] R. Sofiane, et al. "On the use of sample entropy to analyze human postural sway data". Medical
+        Engineering & Physics. 31, 1023–1031, 2009.
+
+        """
+        # dim: the sequence length that will be used for calculating the sample entropy. For gait dim=2 often used [1].
+        # r: used for defining similarity between two sequences. Set to 0.15 as default in the original implementation
+        dim = 2
+        r = 0.15
+        se_results = {}
+        acc_columns = ["acc_is", "acc_ml", "acc_pa"]
+        for col_name in acc_columns:
+            # input data is downsampled by half in the original implementation
+            acc = data[col_name].to_numpy()[::2]
+            num_samples = acc.size
+            # N=200 threshold is from [1]
+            if num_samples <= 200:
+                se_results[f"SampleEntropy_{col_name}"] = np.nan
+                continue
+            tol = r * np.std(acc)
+            phi_m = np.mean(_phi(acc, dim, tol) / (num_samples - dim))
+            phi_m1 = np.mean(_phi(acc, dim + 1, tol) / (num_samples - dim - 1))
+            se_results[f"SampleEntropy_{col_name}"] = -np.log(phi_m1 / phi_m)
+        return pd.Series(se_results)
+
+
+def _phi(signal: np.ndarray, dim: float, tol:float) -> float:
+    shape = (signal.size - dim + 1, dim)
+    strides = (signal.strides[0], signal.strides[0])
+    patterns = np.lib.stride_tricks.as_strided(signal, shape, strides)
+    diff = np.abs(patterns[:, None, :] - patterns[None, :, :])
+    dist = np.max(diff, axis=2)
+    return np.sum(dist <= tol, axis=1) - 1
 
 
 def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
