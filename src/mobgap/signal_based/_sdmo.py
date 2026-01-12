@@ -411,6 +411,7 @@ class SDMO(BaseSDMOCalculator):
                             stride_harmonics[stride_idx, h] = fft_vals[min_idx[mask]].min()
             if np.isnan(stride_harmonics).all():
                 hr_results[f"HarmonicRatio_{col_name}"] = np.nan
+                continue
             avg = np.nanmean(stride_harmonics, axis=0)
             even_sum = np.nansum(avg[1::2])
             odd_sum = np.nansum(avg[0::2])
