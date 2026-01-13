@@ -59,13 +59,13 @@ class SDMO(BaseSDMOCalculator):
         assert_is_sensor_data(self.data, frame="body")
         # collect all methods implementing SDMO calculation (add new ones to this list)
         # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
-        SDMO_functions = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
+        algorithms = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
                           self._calculate_jerk, self._calculate_sd_range, self._calculate_harmonic_ratio,
                           self._calculate_sample_entropy]
         row = {"start": 0, "end": len(data)}
-        for func in SDMO_functions:
+        for func in algorithms:
             row.update(func(data).to_dict())
-        self.signal_based_DMO = pd.DataFrame([row])
+        self.signal_based_dmo = pd.DataFrame([row])
         return self
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
