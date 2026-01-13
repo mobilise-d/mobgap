@@ -84,6 +84,12 @@ mobilised_pipeline_docfiller = make_filldoc(
         attribute.
         The aggregated parameters for each WB are available via the ``per_wb_parameters_`` attribute.
     """,
+        "signal_based_calculation": """
+    sdmo_calculation
+        A valid instance of a signal based DMO calculation algorithm.
+        This will run on each assembled walking bout individually.
+        The concatenated DMOs are available via the ``signal_based_dmo_`` attribute.
+    """,
         "aggregation_parameters": """
     dmo_thresholds
         A DataFrame with the thresholds for the individual DMOs.
@@ -118,6 +124,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
         It indicates for each WB which DMOs are valid.
         NaN indicates that the value has not been checked
+    signal_based_dmo_: pd.DataFrame
+        Signal based DMOs for each WB.
     aggregated_parameters_
         The final aggregated parameters.
         They are calculated based on the per WB parameters and the DMO mask.
@@ -154,6 +162,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         The instance of the stride selection algorithm that was run with all of its results.
     wba_
         The instance of the WBA algorithm that was run with all of its results.
+    sdmo_
+        The instance of the signal based DMO algorithm that was run with all of its results.
     dmo_aggregation_
         The instance of the DMO aggregation algorithm that was run with all of its results.
     """,
@@ -206,6 +216,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
     per_stride_parameters_: pd.DataFrame
     per_wb_parameters_: pd.DataFrame
+    signal_based_dmo_: Optional[pd.DataFrame]
     per_wb_parameter_mask_: Optional[pd.DataFrame]
     aggregated_parameters_: Optional[pd.DataFrame]
 
