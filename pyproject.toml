@@ -19,7 +19,7 @@ requires-python = ">=3.9,<3.15"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
-    "tpcp>=2.0.0",
+    "tpcp>=2.1.1",
     "pandas>=2.2.0",
     "scipy>=1.11.2",
     "numpy>=1.25.2",
@@ -86,4 +86,3 @@ _check_update_example_data = { script="_tasks:task_update_example_data(raise_if_
 update_validation_results = {script = "_tasks:task_update_validation_results()", help = "Update the validation results."}
 freeze_validation_results_version = { script = "_tasks:task_freeze_validation_result_version()", help = "Freeze the validation results version."}
 unfreeze_validation_results_version = { script = "_tasks:task_unfreeze_validation_result_version()", help = "Unfreeze the validation results version."}
-

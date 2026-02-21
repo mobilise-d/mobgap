@@ -2059,7 +2059,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.11.2" },
     { name = "seaborn", specifier = ">=0.12.0" },
     { name = "statsmodels", specifier = ">=0.14.3" },
-    { name = "tpcp", specifier = ">=2.0.0" },
+    { name = "tpcp", specifier = ">=2.1.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -4169,7 +4169,7 @@ wheels = [
 
 [[package]]
 name = "tpcp"
-version = "2.1.0"
+version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "joblib" },
@@ -4184,9 +4184,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/1a/1933646b553f5831012b942c9ad8abe12be53f1772b526a2749108272b9d/tpcp-2.1.0.tar.gz", hash = "sha256:3197100279de710c51563e132332c998991dc0b0b9dcbc94af88090a1ea26d40", size = 90199, upload-time = "2025-07-24T12:34:04.126Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/40/5a211737fe533cfecb6c2b1a7fe3ddcd499eba526fe675df59f8f4839b4b/tpcp-2.1.1.tar.gz", hash = "sha256:98af706a7fd24e278c66c33624b8ef9e578701894e764c87bf4c11a1679ccd74", size = 87317, upload-time = "2026-02-21T13:04:56.116Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/a7/7f1577af8e94592e66dc42c9b5e284b60065fdbaa081ffae5d8d07849850/tpcp-2.1.0-py3-none-any.whl", hash = "sha256:cb342531e1fe4fd977fb7a0a970810a4805ed4fa78d447da71d3f93e7a03cda4", size = 101096, upload-time = "2025-07-24T12:34:03.122Z" },
+    { url = "https://files.pythonhosted.org/packages/70/bc/58e79267b9a4ddf62d0f9299d5d2228f0e00cffa0ac8e70dc759dd04cebd/tpcp-2.1.1-py3-none-any.whl", hash = "sha256:273bcfe5560e68afdbd985aa795ed9c6717de58da35eb098d55038aad704243f", size = 100977, upload-time = "2026-02-21T13:04:55.082Z" },
 ]
 
 [[package]]
