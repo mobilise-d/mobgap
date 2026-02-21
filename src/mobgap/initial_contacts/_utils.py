@@ -99,23 +99,42 @@ def refine_gs(ic_list: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     -------
     refined_gs_list
         A gait sequence list with a single entry that corresponds to the start and the end of the new
-        refined gait sequence relative to the original gait sequence
+        refined gait sequence relative to the original gait sequence.
     refined_ic_list
         The IC list with all IC values relative to the new refined gait sequence.
         This means that the first IC should have the value 0.
         The new ic-list also has a multi-index with the ``gs_id`` of the refined GS as first level.
 
+    Notes
+    -----
+    We handle edegecase as follows:
+
+    - A GS with just a single IC: In this case, we will have a GS with a single entry that starts at the first IC and
+      ends at the first IC + 1.
+    - A GS with no ICs: In this case, we will have a GS of length 0 with the start and the end both beeing the start of
+      the original GS.
+
+    As both of these edegecases usually will not result in meaningful downstream analysis, we would recommend to check
+    for these cases and exclude them from the analysis, if they occur.
     """
     ics = ic_list["ic"]
+    is_empty = len(ics) == 0
+    if is_empty:
+        ics = pd.Series([0])
     new_gs_id = 0
     refined_gs_list = _unify_gs_df(
         pd.DataFrame.from_records([{"r_gs_id": new_gs_id, "start": ics.iloc[0], "end": ics.iloc[-1] + 1}]),
         expected_id_name="r_gs_id",
     )
-    new_ics = (
-        ic_list.assign(ic=lambda df_: df_["ic"] - df_["ic"].iloc[0], r_gs_id=new_gs_id)
-        .set_index("r_gs_id", append=True)
-        .reorder_levels(["r_gs_id", "step_id"])
-    )
+    if is_empty:
+        new_ics = (
+            ic_list.assign(r_gs_id=new_gs_id).set_index("r_gs_id", append=True).reorder_levels(["r_gs_id", "step_id"])
+        )
+    else:
+        new_ics = (
+            ic_list.assign(ic=lambda df_: df_["ic"] - df_["ic"].iloc[0], r_gs_id=new_gs_id)
+            .set_index("r_gs_id", append=True)
+            .reorder_levels(["r_gs_id", "step_id"])
+        )
 
     return refined_gs_list, new_ics

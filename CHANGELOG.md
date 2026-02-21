@@ -4,12 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) (+ the Migration Guide),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2025-07-29
+## [Unreleased]
+
+### Fixed
+
+- Fixed an edge case in `refine_gs` where gait sequences with zero detected initial contacts could raise an error.
+  (https://github.com/mobilise-d/mobgap/issues/227)
+- Updated the Mobilise-D pipeline per-GS loop to skip GSs with fewer than two initial contacts, avoiding crashes while
+  still producing consistent empty outputs when no valid GSs remain.
+  (https://github.com/mobilise-d/mobgap/issues/227)
 
 ### Added
 
 - Added proxy values for all intermediary pipeline outputs the to `MobilisedPipelineUniversal` class.
-  This allows for easier access to the intermediary results of undelying pipeline.
+  This allows for easier access to the intermediary results of underlying pipeline.
 
 ## [1.0.0] - 2025-07-11
 
@@ -398,4 +406,3 @@ Potential improvements to algorithms will always require manual opt-in.
 ## [0.1.0] - 2024-03-22 
 
 Initial Release
-

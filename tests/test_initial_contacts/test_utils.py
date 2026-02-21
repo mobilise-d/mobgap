@@ -26,3 +26,15 @@ class TestRefineGs:
                 ["r_gs_id", "step_id"]
             ),
         )
+
+    def test_no_ics(self):
+        input_ic_list = pd.DataFrame({"ic": pd.Series(dtype="int64")}).rename_axis("step_id")
+
+        refined_gs_list, refined_ic_list = refine_gs(input_ic_list)
+
+        assert_frame_equal(
+            refined_gs_list, pd.DataFrame({"start": [0], "end": [1], "r_gs_id": [0]}).set_index("r_gs_id")
+        )
+        assert refined_ic_list.empty
+        assert list(refined_ic_list.columns) == ["ic"]
+        assert list(refined_ic_list.index.names) == ["r_gs_id", "step_id"]

@@ -346,6 +346,11 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 turn = self.turn_detection.clone().detect(gs_data, **action_kwargs)
                 r.turn_list = turn.turn_list_
 
+            if len(r.ic_list) < 2:
+                # We need at least two initial contacts to calculate the per-second parameters, so we skip the rest of
+                # the loop if there are less than 2 initial contacts.
+                # This also fixes #227
+                continue
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
             with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
