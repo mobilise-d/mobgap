@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Added compatibility support for Python 3.14 and pandas 3.0.
+
 ### Fixed
 
 - Fixed an edge case in `refine_gs` where gait sequences with zero detected initial contacts could raise an error.
