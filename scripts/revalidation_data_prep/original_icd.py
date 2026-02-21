@@ -71,11 +71,9 @@ def parse_single_test(data: mat_struct) -> pd.DataFrame:
                 .assign(
                     start=lambda df_: as_samples(df_.start, DATA_SAMPLING_RATE),
                     end=lambda df_: as_samples(df_.end, DATA_SAMPLING_RATE),
-                    ic_list_rel_to_wb=lambda df_: (
-                        df_.apply(
-                            lambda val: _ic_list_to_samples(val.ic_list_rel_to_wb, val.start, DATA_SAMPLING_RATE),
-                            axis=1,
-                        )
+                    ic_list_rel_to_wb=lambda df_: df_.apply(
+                        lambda val: _ic_list_to_samples(val.ic_list_rel_to_wb, val.start, DATA_SAMPLING_RATE),
+                        axis=1,
                     ),
                 )
             )

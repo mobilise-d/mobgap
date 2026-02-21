@@ -58,16 +58,15 @@ def format_loaded_results(
     formatted = (
         pd.concat(values, names=["algo", "version", *index_cols])
         .pipe(
-            lambda df: df.filter(like=col_prefix_filter)
-            if col_prefix_filter
-            else df
+            lambda df: (
+                df.filter(like=col_prefix_filter) if col_prefix_filter else df
+            )
         )
         .reset_index()
         .assign(
-            algo_with_version=lambda df: df["algo"]
-            + " ("
-            + df["version"]
-            + ")",
+            algo_with_version=lambda df: (
+                df["algo"] + " (" + df["version"] + ")"
+            ),
             _combined="combined",
         )
     )

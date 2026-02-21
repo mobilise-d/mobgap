@@ -54,10 +54,9 @@ def format_loaded_results(
         pd.concat(values, names=["algo", "version", *index_cols])
         .reset_index()
         .assign(
-            algo_with_version=lambda df: df["algo"]
-            + " ("
-            + df["version"]
-            + ")",
+            algo_with_version=lambda df: (
+                df["algo"] + " (" + df["version"] + ")"
+            ),
             _combined="combined",
         )
     )

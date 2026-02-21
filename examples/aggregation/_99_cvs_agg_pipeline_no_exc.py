@@ -127,9 +127,9 @@ date_range = (
     .agg(["min", "max", "count"])
     .rename(columns={"count": "n_days", "min": "first", "max": "last"})
     .assign(
-        day_diff=lambda df_: df_[["first", "last"]]
-        .map(pd.to_datetime)
-        .eval("last - first")
+        day_diff=lambda df_: (
+            df_[["first", "last"]].map(pd.to_datetime).eval("last - first")
+        )
     )
 )
 

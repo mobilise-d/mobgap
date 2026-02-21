@@ -85,12 +85,9 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
     # Set better dtypes
 
     clinical_info = clinical_info.rename(
-        columns=lambda c: c.lower()
-        .replace("(", "")
-        .replace(")", "")
-        .replace(" ", "_")
-        .replace("-", "_")
-        .replace("/", "p")
+        columns=lambda c: (
+            c.lower().replace("(", "").replace(")", "").replace(" ", "_").replace("-", "_").replace("/", "p")
+        )
         # Note we rename the height columns here, but the actually conversion to m is done later
     ).rename(
         columns={

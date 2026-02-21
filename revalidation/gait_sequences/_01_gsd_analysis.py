@@ -82,12 +82,12 @@ results = pd.concat(
     results, names=["algo", "version", *free_living_index_cols]
 ).assign(
     # We convert all relative errors to percentages
-    gs_absolute_relative_duration_error=lambda df: df[
-        "gs_absolute_relative_duration_error"
-    ]
-    * 100,
-    gs_relative_duration_error=lambda df: df["gs_relative_duration_error"]
-    * 100,
+    gs_absolute_relative_duration_error=lambda df: (
+        df["gs_absolute_relative_duration_error"] * 100
+    ),
+    gs_relative_duration_error=lambda df: (
+        df["gs_relative_duration_error"] * 100
+    ),
 )
 results_long = results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",
@@ -112,12 +112,12 @@ lab_results = pd.concat(
     lab_results, names=["algo", "version", *lab_index_cols]
 ).assign(
     # We convert all relative errors to percentages
-    gs_absolute_relative_duration_error=lambda df: df[
-        "gs_absolute_relative_duration_error"
-    ]
-    * 100,
-    gs_relative_duration_error=lambda df: df["gs_relative_duration_error"]
-    * 100,
+    gs_absolute_relative_duration_error=lambda df: (
+        df["gs_absolute_relative_duration_error"] * 100
+    ),
+    gs_relative_duration_error=lambda df: (
+        df["gs_relative_duration_error"] * 100
+    ),
 )
 lab_results_long = lab_results.reset_index().assign(
     algo_with_version=lambda df: df["algo"] + " (" + df["version"] + ")",

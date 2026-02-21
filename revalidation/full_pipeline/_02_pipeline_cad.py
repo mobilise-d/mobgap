@@ -57,16 +57,15 @@ def format_loaded_results(
     formatted = (
         pd.concat(values, names=["algo", "version", *index_cols])
         .pipe(
-            lambda df: df.filter(like=col_prefix_filter)
-            if col_prefix_filter
-            else df
+            lambda df: (
+                df.filter(like=col_prefix_filter) if col_prefix_filter else df
+            )
         )
         .reset_index()
         .assign(
-            algo_with_version=lambda df: df["algo"]
-            + " ("
-            + df["version"]
-            + ")",
+            algo_with_version=lambda df: (
+                df["algo"] + " (" + df["version"] + ")"
+            ),
             _combined="combined",
         )
     )
@@ -713,8 +712,9 @@ def plot_wb_duration_analysis(df):
     )
     # Compute WB durations in seconds
     df_with_durations = df.assign(
-        duration_s=lambda df_: (df_["end__reference"] - df_["start__reference"])
-        / 100
+        duration_s=lambda df_: (
+            (df_["end__reference"] - df_["start__reference"]) / 100
+        )
     )
 
     bins = {
@@ -1218,8 +1218,9 @@ def plot_wb_duration_analysis(df):
     )
     # Compute WB durations in seconds
     df_with_durations = df.assign(
-        duration_s=lambda df_: (df_["end__reference"] - df_["start__reference"])
-        / 100
+        duration_s=lambda df_: (
+            (df_["end__reference"] - df_["start__reference"]) / 100
+        )
     )
 
     bins = {
