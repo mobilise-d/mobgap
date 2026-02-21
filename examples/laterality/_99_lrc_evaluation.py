@@ -233,6 +233,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVC
 from tpcp.optimize import GridSearchCV
+import sys
 
 # %%
 # We initialize the pipeline with an untrained model and an untrained scaler as a new pipeline.
@@ -256,6 +257,9 @@ optimizer = GridSearchCV(
     return_optimized="accuracy",
     cv=2,
     scoring=lrc_score,
+    # Python 3.14 currently triggers a tpcp safe-optimize introspection issue for this example setup.
+    # We keep the safety check on older Python versions and only disable it where required.
+    safe_optimize=sys.version_info < (3, 14),
 )
 
 # %%

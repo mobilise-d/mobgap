@@ -179,6 +179,7 @@ def _load_dmo_data(
                 lambda x: x.dt.tz_convert(x.name).dt.strftime("%Y-%m-%d")
             )
         )
+        .assign(visit_date_utc=lambda df_: df_["visit_date_utc"].dt.tz_localize(None).astype("datetime64[ns]"))
         .astype(
             {
                 "measurement_date": "string",

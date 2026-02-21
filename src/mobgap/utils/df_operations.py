@@ -90,6 +90,19 @@ class MultiGroupBy:
             _get_group_with_empty_fallback(g, df, name) for g, df in zip(self.secondary_groupbys, self.secondary_dfs)
         ]
 
+    def _normalize_group_name(self, name: Union[str, tuple[str, ...]]) -> Union[str, tuple[str, ...]]:
+        if isinstance(self.groupby, list) and len(self.groupby) == 1 and isinstance(name, tuple) and len(name) == 1:
+            return name[0]
+        return name
+
+    def _denormalize_group_name(self, name: Union[str, tuple[str, ...]]) -> Union[str, tuple[str, ...]]:
+        if isinstance(self.groupby, list) and len(self.groupby) == 1 and isinstance(name, tuple) and len(name) == 1:
+            return name[0]
+        return name
+
+    def _get_group_raw_name(self, name: Union[str, tuple[str, ...]]) -> tuple[pd.DataFrame, ...]:
+        return self.primary_groupby.get_group(name), *self._get_secondary_vals(name)
+
     def get_group(self, name: Union[str, tuple[str, ...]]) -> tuple[pd.DataFrame, ...]:
         """Get an individual group by name.
 
@@ -97,7 +110,7 @@ class MultiGroupBy:
         -------
         A tuple containing the groups from each dataframe.
         """
-        return self.primary_groupby.get_group(name), *self._get_secondary_vals(name)
+        return self._get_group_raw_name(self._denormalize_group_name(name))
 
     @property
     def groups(
@@ -119,7 +132,7 @@ class MultiGroupBy:
         self,
     ) -> Iterator[tuple[Union[str, tuple[str, ...]], tuple[pd.DataFrame, ...]]]:
         """Iterate over the groups and return a tuple with the group name and the group dataframes."""
-        return ((name, self.get_group(name)) for name, _ in self.primary_groupby)
+        return ((self._normalize_group_name(name), self._get_group_raw_name(name)) for name, _ in self.primary_groupby)
 
     def apply(self, func: Callable, *args: Unpack[list[Any]], **kwargs: Unpack[dict[str, Any]]) -> pd.DataFrame:
         """Apply a function that takes the group values from each df as input.

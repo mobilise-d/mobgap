@@ -11,8 +11,8 @@ def _rotate_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataF
     data = data.copy()
     if rotation is None:
         return data
-    data[SF_GYR_COLS] = rotation.apply(data[SF_GYR_COLS].to_numpy())
-    data[SF_ACC_COLS] = rotation.apply(data[SF_ACC_COLS].to_numpy())
+    data[SF_GYR_COLS] = rotation.apply(data[SF_GYR_COLS].to_numpy(copy=True))
+    data[SF_ACC_COLS] = rotation.apply(data[SF_ACC_COLS].to_numpy(copy=True))
     return data
 
 

@@ -15,7 +15,7 @@ authors = [
     { name = "Cameron Kirk", email = "Cameron.Kirk@newcastle.ac.uk" },
     { name = "Björn Eskofier", email = "bjoern.eskofier@fau.de" },
 ]
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.9,<3.15"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
@@ -86,5 +86,4 @@ _check_update_example_data = { script="_tasks:task_update_example_data(raise_if_
 update_validation_results = {script = "_tasks:task_update_validation_results()", help = "Update the validation results."}
 freeze_validation_results_version = { script = "_tasks:task_freeze_validation_result_version()", help = "Freeze the validation results version."}
 unfreeze_validation_results_version = { script = "_tasks:task_unfreeze_validation_result_version()", help = "Unfreeze the validation results version."}
-
 
