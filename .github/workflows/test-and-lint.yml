@@ -13,6 +13,10 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         os: [ ubuntu-latest, windows-latest]
+        exclude:
+          # PyWavelets 1.8 has no cp314 Windows wheels; source build currently fails in CI.
+          - python-version: "3.14"
+            os: windows-latest
     steps:
     - uses: actions/checkout@v4
     - name: Install uv and python

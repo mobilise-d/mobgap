@@ -31,6 +31,12 @@ analysis.
 
 First install a supported Python version (3.9 or higher) and then install the package using pip.
 
+> [!WARNING]
+> Python 3.14 is supported, but our current `pywavelets<1.9` pin resolves to `pywavelets 1.8.x`, which has no pre-built
+> `cp314` wheels and may require a source build during installation.
+> For the smoothest installation experience, we currently recommend Python 3.13.
+> We are tracking the PyWavelets upgrade/unpin work in https://github.com/mobilise-d/mobgap/issues/228.
+
 ```bash
 pip install mobgap
 ```
