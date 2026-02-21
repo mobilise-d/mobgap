@@ -1213,14 +1213,14 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
             "height_m": meta_data["Height"] / 100,
             "cohort": self._get_cohort(),
             "handedness": cast(
-                "Optional[Literal['left', 'right']]", {"L": "left", "R": "right"}.get(meta_data.get("Handedness"), None)
+                "Optional[Literal['left', 'right']]", {"L": "left", "R": "right"}.get(meta_data.get("Handedness"))
             ),
             "foot_length_cm": meta_data.get("FootSize"),
             "weight_kg": meta_data.get("Weight"),
             "indip_data_used": meta_data.get("INDIP_DataUsed"),
             "sensor_attachment_su": meta_data.get("SensorAttachment_SU"),
             "sensor_type_su": meta_data.get("SensorType_SU"),
-            "walking_aid_used": {0: False, 1: True}.get(int(meta_data.get("WalkingAid_01", -1)), None),
+            "walking_aid_used": {0: False, 1: True}.get(int(meta_data.get("WalkingAid_01", -1))),
         }
 
         # Sort dict by key to ensure consistent order

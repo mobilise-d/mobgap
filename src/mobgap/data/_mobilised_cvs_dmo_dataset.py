@@ -253,7 +253,6 @@ class MobilisedCvsDmoDataset(Dataset):
     site_pid_map_path: Union[str, Path]
     weartime_reports_base_path: Union[str, Path]
     pre_compute_daily_weartime: bool
-    site_pid_map_path: Union[str, Path]
     memory: Memory
 
     TIME_ZONES: ClassVar[dict[SITE_CODES, str]] = TIME_ZONES
