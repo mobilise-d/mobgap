@@ -95,7 +95,7 @@ class GsdIluz(BaseGsDetector):
     - Instead of a custom peak detection algorithm, we use the a simple peak detection algorithm based on the version
       implemented in scipy, by default.
       We reimplemented in `numba` for significant speedup.
-      This method produces similar but different results.
+      This method produces similar but different results from the original implementation.
       Most notably, it does not have a maximal distance parameter and does not "interpolate" peaks, if large gaps
       between peaks are detected.
       This means, that the new method often reduces the number of detected peaks.
@@ -115,11 +115,14 @@ class GsdIluz(BaseGsDetector):
       We assume that this is an error and use the max of the signal instead.
     - The filter order of the pre-filter is reduced to 100 from 200, as we use a filtfilt implementation, instead of
       just forward filtering.
+      We do this, as only filtering one direction would result in a phaseshift delaying the start of the detection
+      window
     - We normalize the convolution by the sampling rate.
       Otherwise, the amplitude of the convolution would scale with the sampling rate and the thresholds would need to be
       adjusted accordingly.
       This was already a problem in the original version, as the same code was used with 128 Hz and published for the
       use with 100 Hz.
+
 
     .. [1] T. Iluz, E. Gazit, T. Herman, E. Sprecher, M. Brozgol, N. Giladi, A. Mirelman, and J. M. Hausdorff,
         “Automated detection of missteps during community ambulation in patients with parkinsons disease: a new

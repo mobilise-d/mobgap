@@ -69,6 +69,7 @@ class IcdShinImproved(BaseIcDetector):
       We skip the upsampling of the filtered signal and perform the 0-crossing detection on the downsampled signal.
       To compensate for the "loss of accuracy" due to the downsampling, we use linear interpolation to determine the
       exact position of the 0-crossing, even when it occurs between two samples.
+      This is more accurate as the detection is independent of the sampling rate.
       We then project the interpolated index back to the original sampling rate.
     - For CWT and gaussian filter, the actual parameter we pass to the respective functions differ from the matlab
       implementation, as the two languages use different implementations of the functions.
