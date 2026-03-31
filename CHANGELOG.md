@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Added
+
+- A new LR classification algorithm called `LrcMansour` based on the sign of the `acc_ml` signal.
+  It outperforms the other algorithms for the isolated free-living evaluation on the TVS dataset. 
+  Mixed results for Lab.
+  While the LR results are better in isolation, the impact on the main outcomes (stride length, ...) in a full pipeline
+  run are non-relevant.
+  (https://github.com/mobilise-d/mobgap/pull/230) Thanks you @alkvi
+
 ## [1.1.0] - 2026-02-21
 
 ### Changed
