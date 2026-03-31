@@ -42,7 +42,7 @@ reference_wbs
 # %%
 # Applying the algorithm using reference ICs
 # ------------------------------------------
-# We use the McCamley algorithm to detect the laterality of the initial contacts.
+# We use the Mansour algorithm to detect the laterality of the initial contacts.
 # For this we need the IMU data and the indices of the initial contacts per GS.
 # To focus this example on the L/R detection, we use the reference ICs from the INDIP system as input.
 # In a real application, we would use the output of the IC-detectors as input.
