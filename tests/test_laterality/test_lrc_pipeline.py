@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from typing import Any, Union
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
@@ -11,7 +12,7 @@ from typing_extensions import Self, Unpack
 from mobgap.data import LabExampleDataset
 from mobgap.laterality import LrcMcCamley
 from mobgap.laterality.base import BaseLRClassifier
-from mobgap.laterality.evaluation import lrc_score
+from mobgap.laterality.evaluation import lrc_per_datapoint_score, lrc_score
 from mobgap.laterality.pipeline import LrcEmulationPipeline
 
 
@@ -121,3 +122,24 @@ class TestLrcEmulationPipeline:
         assert isinstance(raw_results, pd.DataFrame)
         assert set(raw_results.columns) == {"reference", "predicted"}
         assert (raw_results["reference"] == raw_results["predicted"]).all()
+
+    def test_score_with_no_initial_contacts_returns_nan_metrics(self):
+        predicted_labels = pd.DataFrame(columns=["lr_label"])
+        reference_parameters = type(
+            "ReferenceParameters",
+            (),
+            {"ic_list": pd.DataFrame(columns=["lr_label"])},
+        )()
+        datapoint = type("Datapoint", (), {"reference_parameters_": reference_parameters})()
+
+        class DummyPipeline:
+            def safe_run(self, datapoint):  # noqa: ARG002
+                return type("Result", (), {"ic_lr_list_": predicted_labels})()
+
+        scores = lrc_per_datapoint_score(DummyPipeline(), datapoint)
+        predictions = scores["predictions"].get_value()
+
+        assert np.isnan(scores["accuracy"])
+        assert np.isnan(scores["accuracy_pairwise"])
+        assert predictions.empty
+        assert list(predictions.columns) == ["predicted", "reference"]

@@ -40,7 +40,7 @@ def sl_per_datapoint_score(pipeline: SlEmulationPipeline, datapoint: BaseGaitDat
     Parameters
     ----------
     pipeline
-        An instance of :class:`~mobgab.stride_length.pipeline.SlEmulationPipeline`that wraps the algorithm that should
+        An instance of :class:`~mobgap.stride_length.pipeline.SlEmulationPipeline` that wraps the algorithm that should
         be evaluated.
     datapoint
         The datapoint to be evaluated.
@@ -149,7 +149,6 @@ def sl_final_agg(
     return agg_results, {**single_results, **aggregated_single_results}
 
 
-#: :data:: sl_score
 #: Scorer class instance for SL algorithms.
 sl_score = Scorer(sl_per_datapoint_score, final_aggregator=sl_final_agg)
 sl_score.__doc__ = """Scorer for stride length algorithms.
@@ -157,7 +156,8 @@ sl_score.__doc__ = """Scorer for stride length algorithms.
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`sl_per_datapoint_score` function as
 per-datapoint scorer and the :func:`sl_final_agg` function as final aggregator.
 For more information about Scorer, head to the tpcp documentation (:class:`~tpcp.validate.Scorer`).
-For usage information in the context of mobgap, have a look at the :ref:`evaluation example <sl_evaluation>` for GSD.
+For usage information in the context of mobgap, have a look at the :ref:`evaluation example <sl_evaluation>` for
+stride length.
 
 The following metrics are calculated:
 

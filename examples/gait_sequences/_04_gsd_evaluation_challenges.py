@@ -91,7 +91,7 @@ print(getsource(gsd_final_agg))
 # This is a special aggregator that tells the challenge to not try to aggregate the respective values.
 # For all other values, the challenge will try average the values across all datapoints.
 #
-# To learn more about these special aggregators, check out the `tpcp example
+# To learn more about these special aggregators, check out the `tpcp custom scorer example
 # <https://tpcp.readthedocs.io/en/latest/auto_examples/validation/_03_custom_scorer.html>`_.
 #
 # The scoring function takes care of running the pipeline.
@@ -216,7 +216,7 @@ eval_challenge.perf_["runtime_s"]
 # For the CV-based challenge, we need to set up a cross-validation.
 # As we only have 3 datapoints here, we will use a 3-fold cross-validation without grouping or stratification.
 # In a real-world scenario, you would use a more sophisticated cross-validation strategy.
-# You can learn more about cross-validation in the `tpcp example
+# You can learn more about cross-validation in the `tpcp cross-validation example
 # <https://tpcp.readthedocs.io/en/latest/auto_examples/validation/_04_advanced_cross_validation.html>`_.
 #
 # Further, to speed things up, we are going to use multi-processing.

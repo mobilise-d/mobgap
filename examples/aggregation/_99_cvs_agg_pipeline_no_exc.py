@@ -93,9 +93,11 @@ agg_values[
 
 # %%
 # Merge with weartime.
-# .. note:: The initial loading of the weartime data will take some time.
-#           After it is loaded once, a new file `daily_weartime_pre_computed.csv` will be created in the weartime
-#           folder and used as cache for subsequent loads.
+#
+# .. note::
+#    The initial loading of the weartime data will take some time.
+#    After it is loaded once, a new file ``daily_weartime_pre_computed.csv`` will be created in the weartime
+#    folder and used as cache for subsequent loads.
 daily_weartime = ds.weartime_daily
 daily_aggregated = agg_values.merge(
     daily_weartime, left_index=True, right_index=True

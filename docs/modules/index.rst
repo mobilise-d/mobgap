@@ -22,5 +22,5 @@ This is the API Reference for ``mobgap``.
     aggregation
     orientation_estimation
     data_transform
+    plotting
     utils/index.rst
-

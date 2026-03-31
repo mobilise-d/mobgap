@@ -21,13 +21,15 @@ We compare it against the old model and the McCamley algorithm.
 
 # %%
 # Below are the list of algorithms that we will compare.
-# Note, that we use the prefix "MobGap" to refer to the newly trained model and "Original Implementation" refers to the
+# Note, that we use the postfix "MobGap" to refer to the newly trained model and "Original Implementation" refers to the
 # models trained as part of previous work.
 # We compare all the available models.
 # For context, the "MS_ALL" models are used by default in the pipelines.
 # For the McCamley algorithm, only a single version exists.
+# Same for the acceleration based Manseur algorithm.
 
 algorithms = {
+    "Mansour": ("Mansour", "-"),
     "McCamley": ("McCamley", "-"),
     "UllrichOld__ms_all": ("Ullrich - MS-ALL", "Original Implementation"),
     "UllrichOld__ms_ms": ("Ullrich - MS-MS", "Original Implementation"),
@@ -71,7 +73,7 @@ local_data_path = (
     if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
     else None
 )
-__RESULT_VERSION = "v1.0.0"
+__RESULT_VERSION = "main"
 loader = ValidationResultLoader(
     "lrc", result_path=local_data_path, version=__RESULT_VERSION
 )
@@ -118,7 +120,7 @@ cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 # -------------------
 # Below you can find the setup for all performance metrics that we will calculate.
 # For laterality, this is really simple, as we just calculate the accuracy of the binary classification and the
-# "pariwise accuracy" that checks if consecutive ICs have been assigned either the same or different laterality.
+# "pairwise accuracy" that checks if consecutive ICs have been assigned either the same or different laterality.
 # High "pairwise accuracy" provides an better indicator if steps and strides would be correctly defined based on the
 # laterality information.
 # This metrics explicitly ignores the actual label of the laterality, as would not impact the main gait metrics, if
@@ -323,9 +325,12 @@ free_living_results.query("algo == 'Ullrich - MS-ALL'").pipe(
 # ~~~~~~~~~~~~~~~~~~~~~~
 # It is good to see that the new version of the algorithm performs slightly better than the old version.
 # However, it is unclear, why the new model is different, as we used almost the same pipeline and the same data.
-# The non-ML algo (McCamly) performs suprisingly well, and much better than in the tests we did as part of Mobilise-D.
+# The non-ML algo (McCamly) performs surprisingly well, and much better than in the tests we did as part of Mobilise-D.
 # Overall, the performance is not as good as we would like it to be.
 # In particular for a couple of participants, where the performance is as low as 0.1.
+# The Manseur algorithm overall performs the best, even though it is the simplest algorithm in the group.
+# This is very surprising and should be further investigated.
+
 
 # %%
 # Laboratory Comparison

@@ -40,7 +40,7 @@ def cad_per_datapoint_score(pipeline: CadEmulationPipeline, datapoint: BaseGaitD
     Parameters
     ----------
     pipeline
-        An instance of :class:`~mobgab.cadence.pipeline.CadEmulationPipeline` that wraps the algorithm that should
+        An instance of :class:`~mobgap.cadence.pipeline.CadEmulationPipeline` that wraps the algorithm that should
         be evaluated.
     datapoint
         The datapoint to be evaluated.
@@ -152,7 +152,6 @@ def cad_final_agg(
     return agg_results, {**single_results, **aggregated_single_results}
 
 
-#: :data:: cad_score
 #: Scorer class instance for Cadence algorithms.
 cad_score = Scorer(cad_per_datapoint_score, final_aggregator=cad_final_agg)
 cad_score.__doc__ = """Scorer for cadence algorithms.
@@ -160,7 +159,8 @@ cad_score.__doc__ = """Scorer for cadence algorithms.
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using the :func:`cad_per_datapoint_score` function as
 per-datapoint scorer and the :func:`cad_final_agg` function as final aggregator.
 For more information about Scorer, head to the tpcp documentation (:class:`~tpcp.validate.Scorer`).
-For usage information in the context of mobgap, have a look at the :ref:`evaluation example <cad_evaluation>` for GSD.
+For usage information in the context of mobgap, have a look at the :ref:`evaluation example <cad_evaluation>` for
+cadence.
 
 The following metrics are calculated:
 

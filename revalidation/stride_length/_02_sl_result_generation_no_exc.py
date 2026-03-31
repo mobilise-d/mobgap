@@ -13,10 +13,11 @@ Performance metrics are calculated on a per-trial/per-recording basis and aggreg
 over the whole dataset.
 The raw per second stride length and all performance metrics are saved to disk.
 
-.. warning:: Before you modify and re-run this script, read through our guide on :ref:`revalidation`.
-   In case you are planning to update the official results (either after a code change, or because an algorithm was
-   added), contact one of the core maintainers.
-   They can assist with the process.
+.. warning::
+    Before you modify and re-run this script, read through our guide on :ref:`revalidation`.
+    In case you are planning to update the official results (either after a code change, or because an algorithm was
+    added), contact one of the core maintainers.
+    They can assist with the process.
 
 """
 

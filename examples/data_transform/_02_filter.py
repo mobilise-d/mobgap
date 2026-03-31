@@ -65,8 +65,12 @@ epfl_filter.filtered_data_
 # We can plot the filtered data to see the effect of the filter.
 import matplotlib.pyplot as plt
 
-example_data_resampled["gyr_y"].plot(label="Original data")
-epfl_filter.filtered_data_["gyr_y"].plot(label="Filtered data")
+example_data_resampled["gyr_y"].reset_index(drop=True).plot(
+    label="Original data"
+)
+epfl_filter.filtered_data_["gyr_y"].reset_index(drop=True).plot(
+    label="Filtered data"
+)
 plt.legend()
 
 plt.show()
@@ -97,8 +101,10 @@ filtered_data
 
 # %%
 # We can again plot the filtered data to see the effect of the filter.
-example_data_resampled["gyr_y"].plot(label="Original data")
-filtered_data["gyr_y"].plot(label="Filtered data")
+example_data_resampled["gyr_y"].reset_index(drop=True).plot(
+    label="Original data"
+)
+filtered_data["gyr_y"].reset_index(drop=True).plot(label="Filtered data")
 plt.legend()
 
 plt.show()

@@ -86,6 +86,7 @@ MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https:/
 For concrete examples on how to cite the library in your work, see the [Usage Recommendation](#usage-recommendation) 
 section below.
 
+(usage-recommendation)=
 ## Usage Recommendation
 
 The package is designed to be used in two modes:

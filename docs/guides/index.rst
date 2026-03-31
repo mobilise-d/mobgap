@@ -10,6 +10,7 @@ User Guides
     Q&A <q_and_a.md>
     Common Datatypes <common_datatypes.md>
     Coordinate Systems <coordinate_system.md>
-    Contribution Guide <contribution.md>
+    Contribution Guide <contribution.rst>
+    Evaluation Guide <evaluation.rst>
     Scope and Project Structure <project_structure.md>
     Developer Guide <developer_guide.md>

@@ -4,31 +4,35 @@
 Revalidation of the Mobilise-D algorithm pipeline for cadence, stride length and walking speed estimation
 =========================================================================================================
 
-.. note:: This is the code to create the results! If you are interested in viewing the results, please check the
-    :ref:`results report <pipeline_val_results>`.
+.. note::
+    This is the code to create the results!
+    If you are interested in viewing the results, please check the :ref:`results report <pipeline_val_results>`.
 
 This script reproduces the validation results on TVS dataset for the Mobilise-D algorithm pipeline.
 It loads the raw data and calculates three DMOs of interest (cadence, stride length and walking speed) using the full
 pipeline, including the following blocks:
-    1) gait_sequence_detection
-    2) initial_contact_detection
-    3) laterality_classification
-    4) cadence_calculation
-    5) stride_length_calculation
-    6) walking_speed_calculation
-    7) turn_detection
-    8) stride_selection
-    9) wba
-    10) dmo_thresholds
-    11) dmo_aggregation
+
+1. gait_sequence_detection
+2. initial_contact_detection
+3. laterality_classification
+4. cadence_calculation
+5. stride_length_calculation
+6. walking_speed_calculation
+7. turn_detection
+8. stride_selection
+9. wba
+10. dmo_thresholds
+11. dmo_aggregation
+
 Performance metrics are calculated on a per-trial/per-recording basis and aggregated (median for most metrics)
 over the whole dataset.
 The raw per second cadence, stride length, walking speed and all performance metrics are saved to disk.
 
-.. warning:: Before you modify and re-run this script, read through our guide on :ref:`revalidation`.
-   In case you are planning to update the official results (either after a code change, or because an algorithm was
-   added), contact one of the core maintainers.
-   They can assist with the process.
+.. warning::
+    Before you modify and re-run this script, read through our guide on :ref:`revalidation`.
+    In case you are planning to update the official results (either after a code change, or because an algorithm was
+    added), contact one of the core maintainers.
+    They can assist with the process.
 
 """
 
@@ -46,7 +50,7 @@ from typing import Optional, Self
 
 import pandas as pd
 from mobgap.data import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
-from mobgap.laterality import LrcUllrich
+from mobgap.laterality import LrcMansour, LrcUllrich
 from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.misc import get_env_var
 from tpcp.caching import hybrid_cache
@@ -209,6 +213,22 @@ pipelines = {
                     laterality_classification=LrcUllrich(
                         **LrcUllrich.PredefinedParameters.msproject_all_old
                     )
+                ),
+            ),
+        ]
+    ),
+    "Official_MobiliseD_Pipeline__mansour_lrc": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(
+                    laterality_classification=LrcMansour()
+                ),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(
+                    laterality_classification=LrcMansour()
                 ),
             ),
         ]
