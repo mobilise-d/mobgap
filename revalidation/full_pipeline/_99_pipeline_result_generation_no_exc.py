@@ -46,7 +46,7 @@ from typing import Optional, Self
 
 import pandas as pd
 from mobgap.data import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
-from mobgap.laterality import LrcUllrich
+from mobgap.laterality import LrcMansour, LrcUllrich
 from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.misc import get_env_var
 from tpcp.caching import hybrid_cache
@@ -209,6 +209,22 @@ pipelines = {
                     laterality_classification=LrcUllrich(
                         **LrcUllrich.PredefinedParameters.msproject_all_old
                     )
+                ),
+            ),
+        ]
+    ),
+    "Official_MobiliseD_Pipeline__mansour_lrc": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(
+                    laterality_classification=LrcMansour()
+                ),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(
+                    laterality_classification=LrcMansour()
                 ),
             ),
         ]

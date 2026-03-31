@@ -33,7 +33,20 @@ algorithms = {
         "Mobilise-D Pipeline",
         "MobGap (with old LRC)",
     ),
+    "Official_MobiliseD_Pipeline__mansour_lrc": (
+        "Mobilise-D Pipeline",
+        "MobGap (with Manseur LRC)",
+    ),
 }
+version_order = [version for _, version in algorithms.values()]
+
+
+def _rotate_xticklabels_if_needed(ax, *, min_label_len: int = 12) -> None:
+    labels = [tick.get_text() for tick in ax.get_xticklabels()]
+    if len(labels) > 1 and any(len(label) > min_label_len for label in labels):
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+
 # %%
 # The code below loads the data and prepares it for the analysis.
 # By default, the data will be downloaded from an online repository (and cached locally).
@@ -356,11 +369,18 @@ def multi_metric_plot(data, metrics, nrows, ncols):
         )
 
         sns.boxplot(
-            data=overall_df, x="version", hue="version", y=metric_label, ax=ax
+            data=overall_df,
+            x="version",
+            hue="version",
+            y=metric_label,
+            order=version_order,
+            hue_order=version_order,
+            ax=ax,
         )
 
         ax.set_title(metric_label)
         ax.set_ylabel(metric_label)
+        _rotate_xticklabels_if_needed(ax)
 
         ax.tick_params(axis="both", which="major")
         ax.tick_params(axis="both", which="minor")
@@ -437,7 +457,7 @@ sns.barplot(
     y="n_matched_wbs",
     x="cohort",
     order=cohort_order,
-    hue_order=["new", "old", "new with old GS", "new with old LRC"],
+    hue_order=version_order,
     ax=ax,
 )
 fig.show()
@@ -497,11 +517,18 @@ def multi_metric_plot(data, metrics, nrows, ncols):
         )
 
         sns.boxplot(
-            data=overall_df, x="version", hue="version", y=metric_label, ax=ax
+            data=overall_df,
+            x="version",
+            hue="version",
+            y=metric_label,
+            order=version_order,
+            hue_order=version_order,
+            ax=ax,
         )
 
         ax.set_title(metric_label)
         ax.set_ylabel(metric_label)
+        _rotate_xticklabels_if_needed(ax)
 
         ax.tick_params(axis="both", which="major")
         ax.tick_params(axis="both", which="minor")
@@ -578,7 +605,7 @@ sns.barplot(
     y="n_matched_wbs",
     x="cohort",
     order=cohort_order,
-    hue_order=["new", "old", "new with old GS", "new with old LRC"],
+    hue_order=version_order,
     ax=ax,
 )
 fig.show()
