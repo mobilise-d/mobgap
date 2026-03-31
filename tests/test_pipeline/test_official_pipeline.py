@@ -1,5 +1,5 @@
-import pytest
 import pandas as pd
+import pytest
 from tpcp.testing import TestAlgorithmMixin
 from typing_extensions import Self
 
