@@ -121,32 +121,45 @@ fig.show()
 # We can also quantify the agreement between the detected and the reference labels using typical classification metrics.
 from sklearn.metrics import classification_report
 
-pd.DataFrame(
-    classification_report(
-        reference_ic_lr_list["lr_label"],
-        calculated_ic_lr_list["lr_label"],
-        target_names=["left", "right"],
-        output_dict=True,
+if not reference_ic_lr_list.empty:
+    lr_classification_report = pd.DataFrame(
+        classification_report(
+            reference_ic_lr_list["lr_label"],
+            calculated_ic_lr_list["lr_label"],
+            target_names=["left", "right"],
+            output_dict=True,
+        )
+    ).T
+else:
+    lr_classification_report = pd.DataFrame(
+        columns=["precision", "recall", "f1-score", "support"]
     )
-).T
+
+lr_classification_report
 
 # %%
 # In general we focus on the accuracy, as it is a balanced binary classification problem.
 # If you only want to calculate this you can just calculate the ``accuracy_score``
 from sklearn.metrics import accuracy_score
 
-accuracy_score(
-    reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"]
+lr_accuracy = (
+    accuracy_score(
+        reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"]
+    )
+    if not reference_ic_lr_list.empty
+    else float("nan")
 )
+lr_accuracy
 
 # %%
 # Similarly, we could create a confusion matrix to get more insights into the performance of the algorithm.
 from sklearn.metrics import ConfusionMatrixDisplay
 
-disp = ConfusionMatrixDisplay.from_predictions(
-    reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"]
-)
-disp.figure_.show()
+if not reference_ic_lr_list.empty:
+    disp = ConfusionMatrixDisplay.from_predictions(
+        reference_ic_lr_list["lr_label"], calculated_ic_lr_list["lr_label"]
+    )
+    disp.figure_.show()
 
 # %%
 # Running a full evaluation pipeline
@@ -203,10 +216,11 @@ raw_results.head()
 
 # %%
 # The confusion matrix can be calculated using the same functions as before.
-disp = ConfusionMatrixDisplay.from_predictions(
-    raw_results["reference"], raw_results["predicted"]
-)
-disp.figure_.show()
+if not raw_results.empty:
+    disp = ConfusionMatrixDisplay.from_predictions(
+        raw_results["reference"], raw_results["predicted"]
+    )
+    disp.figure_.show()
 
 # %%
 # If you want to calculate additional metrics, you can either create a custom score function.

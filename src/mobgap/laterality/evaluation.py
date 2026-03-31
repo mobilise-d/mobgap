@@ -29,8 +29,8 @@ def lrc_per_datapoint_score(pipeline: LrcEmulationPipeline, datapoint: BaseGaitD
         We then calculate the accuracy of these True False labels.
         This is a better metric to understand, if steps and strides would be correctly defined based on the provided
         L/R labels.
-        Algorithms that completely switch left and right labels, but still get the order of the labels correct, would
-        still get a high accuracy.
+        Algorithms that completely switch left and right labels, but still get the order of the labels correct, still
+        score highly in this metric, but would score poorly in the normal accuracy metric.
 
     Parameters
     ----------
@@ -70,8 +70,12 @@ def lrc_per_datapoint_score(pipeline: LrcEmulationPipeline, datapoint: BaseGaitD
     pairwise_predictions = np.abs(np.diff(combined_for_comparison, axis=0))
 
     return {
-        "accuracy": accuracy_score(combined_for_comparison[:, 1], combined_for_comparison[:, 0]),
-        "accuracy_pairwise": accuracy_score(pairwise_predictions[:, 1], pairwise_predictions[:, 0]),
+        "accuracy": accuracy_score(combined_for_comparison[:, 1], combined_for_comparison[:, 0])
+        if len(combined_for_comparison) > 0
+        else np.nan,
+        "accuracy_pairwise": accuracy_score(pairwise_predictions[:, 1], pairwise_predictions[:, 0])
+        if len(pairwise_predictions) > 0
+        else np.nan,
         "predictions": no_agg(combined),
     }
 
