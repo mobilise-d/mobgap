@@ -33,11 +33,12 @@ The raw detected initial contacts and all performance metrics are saved to disk.
 #    results should be stored `MOBGAP_VALIDATION_DATA_PATH`.
 #    The path to the cache directory `MOBGAP_CACHE_DIR_PATH` is optional, when you don't want to store the memory cache
 #    in the default location.
-from mobgap.laterality import LrcMcCamley, LrcUllrich
+from mobgap.laterality import LrcMansour, LrcMcCamley, LrcUllrich
 from mobgap.laterality.pipeline import LrcEmulationPipeline
 from mobgap.utils.misc import get_env_var
 
 pipelines = {
+    "Mansour": LrcEmulationPipeline(LrcMansour()),
     "McCamley": LrcEmulationPipeline(LrcMcCamley()),
     "UllrichOld__ms_all": LrcEmulationPipeline(
         LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all_old)

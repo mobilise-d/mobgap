@@ -28,6 +28,7 @@ We compare it against the old model and the McCamley algorithm.
 # For the McCamley algorithm, only a single version exists.
 
 algorithms = {
+    "Mansour": ("Mansour", "-"),
     "McCamley": ("McCamley", "-"),
     "UllrichOld__ms_all": ("Ullrich - MS-ALL", "Original Implementation"),
     "UllrichOld__ms_ms": ("Ullrich - MS-MS", "Original Implementation"),
