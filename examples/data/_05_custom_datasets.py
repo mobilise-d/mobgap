@@ -455,7 +455,7 @@ pipe.per_wb_parameters_.drop(columns="rule_obj").T
 # Further, in case you have a dataset with reference data, you could change the base class of the dataset to
 # :class:`~mobgap.data.base.BaseGaitDatasetWithReference` and implement the reference data loading attributes.
 # This allows to use the dataset for DMO validation or optimization pipelines.
-# See for example `lrc_evaluation`_ for more information.
+# See for example :ref:`lrc_evaluation` for more information.
 #
 # If you are interested into more examples in how datasets can be structure in general, have a look at the source of
 # :class:`~mobgap.data.TVSLabDataset` or :class:`~mobgap.data.GenericMobilisedDataset`.

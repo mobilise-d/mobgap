@@ -126,7 +126,6 @@ def lrc_final_agg(
     return agg_results, {**single_results, "raw__predictions": raw_predictions}
 
 
-#: :data:: lrc_score
 #: Scorer class instance for LRC algorithms.
 lrc_score = Scorer(lrc_per_datapoint_score, final_aggregator=lrc_final_agg)
 lrc_score.__doc__ = """Scorer for LRC algorithms.

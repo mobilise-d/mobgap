@@ -29,7 +29,8 @@ Depending on what work you already have done, we suggest the following steps:
 I have an algorithm implemented in a way that is not directly compatible with this library
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 In case, your algorithm is implemented in a different programming language or in a different way, that does not fit
-our algorithm structure (see :ref:`own_algorithm`), yet, we suggest the following steps:
+our algorithm structure (see :ref:`project and algorithm structure <proj_struct>`), yet, we suggest the following
+steps:
 
 1. Open an issue on the `issue tracker <https://github.com/mobilise-d/mobgap/issues>`_ and describe the algorithm
    you want to contribute.
@@ -37,7 +38,7 @@ our algorithm structure (see :ref:`own_algorithm`), yet, we suggest the followin
    can help best.
 2. In case you want to implement the algorithm yourself into a compatible format, we suggest to do that outside of
    the repository first (unless the implementation of the algorithm requires changes to the library itself).
-   Check our guide on this: :ref:`own_algorithm`.
+   Check our guide on this: :ref:`project and algorithm structure <proj_struct>`.
 3. Once you have a working implementation, create a fork of the repository, and copy your algorithm into the appropriate
    folder.
    Then create a pull request to merge your changes into the main repository (see below for more details on this).

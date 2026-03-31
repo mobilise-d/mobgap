@@ -50,9 +50,10 @@ _gsd_ionescu_docfiller = make_filldoc(
         The actual threshold is calculated as the mean of the step times plus this parameter.
 """,
         "coordinate_system_note": """
-    .. note:: Compared to other GSD algorithms, this algorithm only works on the Acc norm and hence, can be used with
-    out knowing the previous alignment of the sensor.
-    The algorithm therefore allows to pass data in either the body or the sensor frame.
+    .. note::
+        Compared to other GSD algorithms, this algorithm only works on the Acc norm and hence, can be used without
+        knowing the previous alignment of the sensor.
+        The algorithm therefore allows to pass data in either the body or the sensor frame.
 """,
     }
 )

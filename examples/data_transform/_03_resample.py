@@ -40,7 +40,7 @@ resampled = resampler.transform(
 )
 
 # %%
-# The results can be accessed via the transformed_data_ attribute.
+# The results can be accessed via the ``transformed_data_`` attribute.
 # Here we only extract the gyro data.
 resampled_gyr = resampled.transformed_data_.filter(like="gyr")
 resampled_gyr.head()

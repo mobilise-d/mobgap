@@ -122,8 +122,8 @@ The core building blocks for building a custom evaluation are:
   algorithmic blocks.
   It takes care of routing the correct information to the correct algorithmic block and structuring the results, so
   that the scoring function can calculate the metrics.
-  You can learn more about the fundamental idea of pipelines in the :ref:`pipeline guide
-  <https://tpcp.readthedocs.io/en/v2.0.0/guides/algorithms_pipelines_datasets.html#pipelines>`.
+  You can learn more about the fundamental idea of pipelines in the `pipeline guide
+  <https://tpcp.readthedocs.io/en/v2.0.0/guides/algorithms_pipelines_datasets.html#pipelines>`_.
 - A scorer: In its simplest form this is a function, that can run your pipeline on a datapoint (one row in your dataset)
   parse the results and calculate all metrics that you are interested in.
   You will see that this can get quite complex when you consider different ways you might want to aggregate the results.
@@ -143,4 +143,3 @@ This presents us with a challenge.
 You will likely need to duplicate the logic of calculating your metrics in two places.
 And you better damn make sure that you are using the same logic in both places.
 Otherwise, your optimized algorithm might not optimizing for what you are evaluating later on.
-
