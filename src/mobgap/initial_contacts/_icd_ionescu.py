@@ -31,6 +31,9 @@ class IcdIonescu(BaseIcDetector):
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
 
+    **Data Requirements:** Uses accelerometer data only. Requires body-frame vertical acceleration `acc_is`.
+    Gyroscope data is not used.
+
     Parameters
     ----------
     pre_filter

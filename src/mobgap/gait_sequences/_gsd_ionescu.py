@@ -179,6 +179,9 @@ class GsdIonescu(_BaseGsdIonescu):
     specified threshold.
     The outputs are further filtered by the number of steps and consecutive gait sequence with short breaks are merged.
 
+    **Data Requirements:** Uses accelerometer data only. Accepts either sensor-frame or body-frame acceleration and
+    computes the acceleration norm internally. Gyroscope data is not used.
+
     %(coordinate_system_note)s
 
     Parameters
@@ -293,7 +296,7 @@ class GsdIonescu(_BaseGsdIonescu):
 
 @_gsd_ionescu_docfiller
 class GsdAdaptiveIonescu(_BaseGsdIonescu):
-    """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2019) [1, 2]_ with adaptive threshold.
+    """Implementation of the GSD algorithm by Paraschiv-Ionescu et al. (2019) [1]_ [2]_ with adaptive threshold.
 
     The algorithm was developed and validated using data recorded in patients with impaired mobility
     (Parkinson's disease, multiple sclerosis, hip fracture, post-stroke and cerebral palsy).
@@ -307,6 +310,9 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
     This is based on the implementation published as part of the mobilised project [3]_.
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section.
+
+    **Data Requirements:** Uses accelerometer data only. Accepts either sensor-frame or body-frame acceleration and
+    computes the acceleration norm internally. Gyroscope data is not used.
 
     %(coordinate_system_note)s
 

@@ -48,6 +48,10 @@ class TdElGohary(BaseTurnDetector):
     Consecutive turns candidates in the same direction that are closer than ``min_gap_between_turns_s`` are merged.
     The final turns are then filtered based on their duration and the turning angle.
 
+    **Data Requirements:** Uses gyroscope data for turn detection. Without orientation estimation, it requires yaw
+    angular velocity in body or global-body frame (`gyr_is` or `gyr_gis`). If `orientation_estimation` is provided,
+    additional sensor requirements depend on that orientation estimator.
+
     Parameters
     ----------
     smoothing_filter

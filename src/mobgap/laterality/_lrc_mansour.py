@@ -24,6 +24,9 @@ class LrcMansour(BaseLRClassifier):
     An initial contact during a positive derivative is taken as a left initial contact, a negative
     derivative as a right initial contact.
 
+    **Data Requirements:** Uses accelerometer data only. Requires body-frame mediolateral acceleration `acc_ml`.
+    Gyroscope data is not used.
+
     Parameters
     ----------
     smoothing_filter

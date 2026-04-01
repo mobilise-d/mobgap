@@ -26,6 +26,9 @@ class LrcMcCamley(BaseLRClassifier):
     Further, instead of simple mean subtraction, Ullrich et al. [2]_ used a Butterworth bandpass filter to smooth the
     signal.
 
+    **Data Requirements:** Uses gyroscope data only. Requires body-frame angular velocity `gyr_is`, `gyr_pa`, or both,
+    depending on the selected `axis`. Accelerometer data is not used.
+
     Parameters
     ----------
     axis

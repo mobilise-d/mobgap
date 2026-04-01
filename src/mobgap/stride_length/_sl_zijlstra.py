@@ -31,6 +31,10 @@ class SlZijlstra(BaseSlCalculator):
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
 
+    **Data Requirements:** Uses accelerometer data for the stride-length estimate. Without orientation estimation, it
+    requires body-frame vertical acceleration `acc_is` or global-body vertical acceleration if already transformed. If
+    `orientation_method` is provided, additional sensor requirements depend on that orientation estimator.
+
     Parameters
     ----------
     step_length_scaling_factor

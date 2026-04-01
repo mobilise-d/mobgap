@@ -31,6 +31,9 @@ class GsdIluz(BaseGsDetector):
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
 
+    **Data Requirements:** Uses accelerometer data only. Requires body-frame acceleration channels `acc_is` and
+    `acc_pa`. Gyroscope data is not used.
+
     Parameters
     ----------
     pre_filter

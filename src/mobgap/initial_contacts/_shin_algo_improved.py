@@ -34,6 +34,10 @@ class IcdShinImproved(BaseIcDetector):
     However, this implementation deviates from the original implementation in some places.
     For details, see the notes section and the examples.
 
+    **Data Requirements:** Uses accelerometer data only. For `axis="is"`, `"ml"`, or `"pa"`, the corresponding
+    body-frame acceleration channel is required. For `axis="norm"`, either sensor-frame or body-frame acceleration can
+    be used. Gyroscope data is not used.
+
     Parameters
     ----------
     axis

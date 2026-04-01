@@ -132,6 +132,9 @@ class CadFromIc(BaseCadCalculator):
        :class:`CadFromIcDetector`, which will internally use the passed IC detector to calculate the initial contacts
        again just for the cadence calculation.
 
+    **Data Requirements:** This class does not use raw IMU channels directly. It requires initial contacts as input;
+    any accelerometer or gyroscope dependency is inherited from the method used to obtain those initial contacts.
+
     %(ic2cad_short)s
 
     Parameters
@@ -233,6 +236,9 @@ class CadFromIcDetector(CadFromIc):
 
     This method will first calculate the initial contacts using the passed IC detector and then calculate the cadence
     per second from them.
+
+    **Data Requirements:** This class has no fixed raw IMU requirements of its own. It inherits its accelerometer or
+    gyroscope dependency from the configured `ic_detector`.
 
     %(ic2cad_short)s
 

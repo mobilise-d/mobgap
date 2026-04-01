@@ -20,6 +20,9 @@ class WsNaive(BaseWsCalculator):
     Then we divide by 60 to get steps per second and by 2 to convert from steps per sec to strides per sec.
     Then we multiply by the stride length, getting the walking speed in meters per second.
 
+    **Data Requirements:** This class does not use raw IMU channels directly. It requires cadence and stride-length
+    inputs; any accelerometer or gyroscope dependency is inherited from the methods used to calculate them.
+
     Other Parameters
     ----------------
     %(other_parameters)s

@@ -58,6 +58,9 @@ class LrcUllrich(BaseLRClassifier):
     The parameters of the SVC depend on the cohort and were tuned as explained in the paper ([1]_).
     See more on the models in the Notes section.
 
+    **Data Requirements:** Uses gyroscope data only. Requires body-frame angular velocity channels `gyr_is` and
+    `gyr_pa`. Accelerometer data is not used.
+
     Parameters
     ----------
     smoothing_filter
