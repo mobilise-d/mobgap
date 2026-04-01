@@ -13,6 +13,7 @@ from functools import partial
 from operator import attrgetter
 
 REVISION_CMD = "git rev-parse --short HEAD"
+GIT_ROOT_CMD = "git rev-parse --show-toplevel"
 
 
 def _get_git_revision():
@@ -22,6 +23,15 @@ def _get_git_revision():
         print("Failed to execute git to get revision")
         return None
     return revision.decode("utf-8")
+
+
+def _get_git_root():
+    try:
+        git_root = subprocess.check_output(GIT_ROOT_CMD.split()).strip()
+    except (subprocess.CalledProcessError, OSError):
+        print("Failed to execute git to get repository root")
+        return None
+    return git_root.decode("utf-8")
 
 
 def _linkcode_resolve(domain, info, package, url_fmt, revision):
@@ -41,6 +51,9 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     'http://hg.python.org/cpython/file/xxxx/Lib/tty/tty.py#L18'
     """
     if revision is None:
+        return None
+    git_root = _get_git_root()
+    if git_root is None:
         return None
     if domain not in ("py", "pyx"):
         return None
@@ -67,7 +80,9 @@ def _linkcode_resolve(domain, info, package, url_fmt, revision):
     if not fn:
         return None
 
-    fn = os.path.relpath(fn, start=os.path.dirname(__import__(package).__file__))
+    fn = os.path.relpath(fn, start=git_root)
+    if fn.startswith(".."):
+        return None
     try:
         lineno = inspect.getsourcelines(obj)[1]
     except Exception:

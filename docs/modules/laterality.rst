@@ -24,7 +24,7 @@ Pipelines
     :no-members:
     :no-inherited-members:
 
-    pipeline.LrcEmulationPipeline
+     pipeline.LrcEmulationPipeline
 
 Evaluation Scores
 +++++++++++++++++
