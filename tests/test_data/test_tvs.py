@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
+from mobgap.data._mobilised_tvs_dataset import _load_participant_information
 from mobgap.utils.misc import get_env_var
 
 TVS_DATA_PATH = get_env_var("MOBGAP_TVS_DATASET_PATH", None)
@@ -39,6 +40,72 @@ def test_regression_dataquality(snapshot):
     quality = dataset.data_quality
     quality.columns = pd.Index("_".join(c) for c in quality.columns.to_flat_index())
     snapshot.assert_match(quality)
+
+
+def test_participant_information_recomputes_bmi_when_excel_formula_values_are_missing(monkeypatch):
+    participant_sheet = pd.DataFrame(
+        [
+            [
+                1,
+                "PD",
+                65,
+                "Female",
+                180.0,
+                80.0,
+                pd.NA,
+                "R",
+                "Yes",
+                100.0,
+            ]
+        ],
+        columns=pd.MultiIndex.from_tuples(
+            [
+                ("Meta", "participant_id"),
+                ("Meta", "cohort"),
+                ("Demographics", "Age"),
+                ("Demographics", "Sex"),
+                ("Demographics", "Height (cm)"),
+                ("Demographics", "Weight (Kg)"),
+                ("Demographics", "BMI (Kg/m2)"),
+                (
+                    "Demographics",
+                    "dominant_hand_l_or_r___wrist_sensor_worn_on_non_dominant_hand",
+                ),
+                ("General Clinical Characteristics", "Fall history"),
+                ("Demographics", "Sensor Height (cm)"),
+            ]
+        ),
+    )
+    quality_sheet = pd.DataFrame(
+        [[3, 3, 3, pd.NA, 3, 3, pd.NA]],
+        index=pd.MultiIndex.from_tuples([(1, "PD")]),
+        columns=pd.MultiIndex.from_tuples(
+            [
+                ("Lab-based Assessment", "Lower back sensor"),
+                ("Lab-based Assessment", "INDIP"),
+                ("Lab-based Assessment", "Stereophotogrammetric"),
+                ("Lab-based Assessment", "Comments"),
+                ("Unstructured 2.5 hour Assessment", "Lower back sensor2"),
+                ("Unstructured 2.5 hour Assessment", "INDIP2"),
+                ("Unstructured 2.5 hour Assessment", "Comments2"),
+            ]
+        ),
+    )
+
+    def fake_read_excel(*_, sheet_name, **__):
+        if sheet_name == "Participant Characteristics":
+            return participant_sheet.copy()
+        if sheet_name == "Data Quality Summary":
+            return quality_sheet.copy()
+        raise AssertionError(f"Unexpected sheet requested: {sheet_name}")
+
+    monkeypatch.setattr(pd, "read_excel", fake_read_excel)
+
+    participant_information, _, _ = _load_participant_information("dummy.xlsx")
+
+    result = participant_information.loc[("PD", "1"), "bmi_kgpm2"]
+    assert result == pytest.approx(80.0 / 1.8**2)
+    assert pd.api.types.is_float_dtype(participant_information["bmi_kgpm2"])
 
 
 # Note we test with the second slice that the unique_center_id really only contain the participants that are in the

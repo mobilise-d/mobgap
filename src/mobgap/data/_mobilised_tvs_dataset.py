@@ -133,6 +133,11 @@ def _load_participant_information(path: Path) -> tuple[pd.DataFrame, dict[str, l
         )
         .set_index(["cohort", "participant_id"])
     )
+    # Formula-backed BMI cells do not always have cached values, so reconstruct them from height and weight.
+    clinical_info["bmi_kgpm2"] = pd.to_numeric(clinical_info["bmi_kgpm2"], errors="coerce").fillna(
+        pd.to_numeric(clinical_info["weight_kg"], errors="coerce")
+        / pd.to_numeric(clinical_info["height_m"], errors="coerce").pow(2)
+    )
 
     data_quality = (
         pd.read_excel(path, sheet_name="Data Quality Summary", engine="openpyxl", header=[0, 1], index_col=[0, 1])
