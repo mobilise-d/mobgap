@@ -20,11 +20,13 @@ Algorithms
 
 Pipelines
 +++++++++
-.. automodule:: mobgap.laterality
-    :no-members:
-    :no-inherited-members:
+.. currentmodule:: mobgap.laterality
 
-     pipeline.LrcEmulationPipeline
+.. autosummary::
+   :toctree: generated/laterality
+   :template: class.rst
+
+    pipeline.LrcEmulationPipeline
 
 Evaluation Scores
 +++++++++++++++++
