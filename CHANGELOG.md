@@ -6,7 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Added
+## [1.2.0] - 2026-04-01
+
+### Added
 
 - A new LR classification algorithm called `LrcMansour` based on the sign of the `acc_ml` signal.
   It outperforms the other algorithms for the isolated free-living evaluation on the TVS dataset. 
