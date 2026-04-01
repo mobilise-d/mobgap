@@ -16,6 +16,7 @@ Algorithms
 
     LrcMcCamley
     LrcUllrich
+    LrcMansour
 
 Pipelines
 +++++++++
