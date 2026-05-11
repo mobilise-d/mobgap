@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-01
+
+### Added
+
+- **Wear-Time Detection Algorithms**: Three novel and validated algorithms for accurate wear-time detection:
+  - `WtdMegaritis_signal`: Novel signal processing algorithm using gyroscope rotational patterns and accelerometer movement variability. Uses multi-level voting (micro, macro, and sample-level) with biomechanical post-processing.
+  - `WtdMegaritis_XGBoost`: Machine learning approach with pre-trained XGBoost models (full: 230 features, lightweight: 79 features). Includes biomechanically-informed post-processing with confidence filtering.
+  - `WtdMegaritis_CNN`: Deep learning approach using 1D Convolutional Neural Network trained on raw windowed IMU data. Available in CNN and CNN-LSTM variants.
+  
+  These algorithms were developed and validated using real-world and simulated wear/non-wear data, achieving wear-time quantification errors of 1(CNN/CNN-LSTM)–15(Signal processing) minutes per day period and outperforming existing literature methods by 8- to 131-fold. The CNN achieved a performance index of 0.934, and XGBoost (reduced features) achieved 0.885.
+
+- **ReorientationMethodDM**: Three-stage deterministic algorithm for correcting persistent IMU misorientation (axis permutations and sign inversions) in lower-back-worn devices:
+  - Stage 1: Identifies which device axis captures gravitational acceleration (vertical, mediolateral, or anteroposterior)
+  - Stage 2: Determines the direction of the gravity-aligned axis (upward or downward)
+  - Stage 3: Establishes phase relationship between anteroposterior and vertical axes using power-weighted cross-spectral phase analysis
+  
+  Two deployment methods available: 'full' (applies all stages to every walking bout, 94.16% accuracy) and 'conservative' (applies Stage 3 selectively, recommended for deployment). Stages 1–2 achieve 100% success rate. Validated on laboratory data with physical device misorientations and TVS free-living dataset with synthetic misorientations.
+  
+These additions enhance MobGap by integrating transparent and validated algorithms that address critical gaps in current Digital Mobility Assessment (DMA) pipelines. The Mobilise-D Clinical Validation Study (CVS) currently relies on proprietary wear-time and orientation methods with undisclosed internal processes, limiting reproducibility and independent validation. By providing open-source, validated alternatives, these algorithms establish complete end-to-end independence for Digital Mobility Outcome (DMO) extraction in clinical trials.
+Together, the wear-time detection and reorientation blocks form essential data quality checks that ensure robustness of mobility outcomes: wear-time detection validates sufficient recording duration (≥12 hours during waking hours for ≥3 days per Mobilise-D criteria) required for reliable DMO calculation, while reorientation ensures pipeline validity even when devices are attached incorrectly. 
+
+### Documentation
+
+- Added comprehensive examples for both wear-time detection and reorientation algorithms
+- Full API documentation with algorithm descriptions, parameters, and usage examples
+- Extensive test suites including unit tests, integration tests, and regression tests
+
 ## [1.2.0] - 2026-04-01
 
 ### Added
