@@ -66,8 +66,8 @@ class ReorientationMethodDM(Algorithm):
     result_ : ReorientationResult
         The detection and correction result containing family, phase, correction flags, and corrected data.
 
-    Example
-    -------
+    Examples
+    --------
     >>> algo = ReorientationMethodDM(method="conservative")
     >>> algo = algo.detect_correct(wb_data)
     >>> corrected = algo.result_.data_corrected

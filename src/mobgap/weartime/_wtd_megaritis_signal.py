@@ -36,53 +36,10 @@ class WtdMegaritis_signal(BaseWeartimeDetector):
     Novel signal processing wear-time detection algorithm based on gyroscope rotational patterns
     and accelerometer movement variability.
 
-    Core principle:
-    - Gyroscopes detect angular (rotational) movement during true wear-time
-    - Natural body movements show characteristic low-frequency rotational patterns (<15-17 Hz)
-    - Movement variability (acc_pa_std) captures continuous micro-movements during wear
-    - Discriminates wear from non-wear independently of activity intensity
-
-    Algorithm workflow:
-    1. Sliding macro windows are defined over the input data
-    2. Each macro window is divided into micro windows (5s) for feature extraction
-    3. Three features are extracted per micro window:
-       - gyr_ml_spectral_centroid: frequency content of mediolateral rotation
-       - gyr_is_spectral_centroid: frequency content of vertical axis rotation
-       - acc_pa_std: variability of anteroposterior acceleration
-    4. Each micro window is classified as wear/non-wear based on thresholds using 2-out-of-3 voting
-    5. Macro-level decision: aggregated from micro-window classifications via probability threshold
-    6. Per-sample votes accumulated from overlapping macro windows
-    7. Final wear/non-wear flag determined by vote majority per sample
-    8. Post-processing (two-stage):
-       a) Remove isolated periods shorter than 15 seconds (sensor noise, voting conflicts)
-       b) Remove short wear bouts (≤20 min) surrounded by disproportionate non-wear (ratio <0.3)
-
-    Features:
-    - gyr_ml_spectral_centroid: Spectral centroid of ML gyroscope (Hz)
-      Measures frequency content of mediolateral (side-to-side) rotational movements.
-      Natural body rotations during wear show low-frequency patterns (<16-18 Hz).
-
-    - gyr_is_spectral_centroid: Spectral centroid of IS gyroscope (Hz)
-      Measures frequency content of inferior-superior (vertical axis) rotational movements.
-      Natural turning/rolling movements during wear show low-frequency patterns (<16-18 Hz).
-
-    - acc_pa_std: Standard deviation of PA acceleration
-      Measures variability of anteroposterior (forward-backward) acceleration.
-      Continuous low-level variability (>0.15-0.20) indicates wear, even during rest/sleep.
-
-    Decision logic:
-    - Micro-level: Voting system (default) - at least 2 out of 3 features must meet wear criteria
-    - Macro-level: If ≥prob_thresh (default 0.4) of micro windows are non-wear, macro is non-wear
-    - Sample-level: Majority vote across overlapping macro windows
-    - Post-processing: Two-stage artifact removal
-
-    Rationale for post-processing:
-    Stage 1 (15-second filter): Device attachment/removal requires minimum physical time.
-    Brief isolated periods are artifacts from sensor noise or voting conflicts.
-
-    Stage 2 (20-minute ratio filter): Short wear bouts surrounded by much longer non-wear
-    (ratio <0.3) are likely device handling or brief disturbances rather than true wear events.
-    Example: 10-min wear surrounded by 40+ min non-wear suggests handling, not wearing.
+    The algorithm uses gyroscopes to detect angular (rotational) movement during true wear-time.
+    Natural body movements show characteristic low-frequency rotational patterns (<15-17 Hz).
+    Movement variability captures continuous micro-movements during wear, discriminating wear
+    from non-wear independently of activity intensity.
 
     Parameters
     ----------
@@ -122,6 +79,27 @@ class WtdMegaritis_signal(BaseWeartimeDetector):
     %(perf_)s
     diagnostics_ : dict
         Diagnostic information with 'macro' and 'sample_votes' keys
+
+    Notes
+    -----
+    Algorithm workflow:
+
+    1. Sliding macro windows are defined over the input data
+    2. Each macro window is divided into micro windows (5s) for feature extraction
+    3. Three features are extracted per micro window:
+       gyr_ml_spectral_centroid (frequency of mediolateral rotation),
+       gyr_is_spectral_centroid (frequency of vertical rotation),
+       acc_pa_std (variability of anteroposterior acceleration)
+    4. Each micro window is classified using 2-out-of-3 voting
+    5. Macro-level decision via probability threshold (default 0.4)
+    6. Per-sample votes accumulated from overlapping macro windows
+    7. Final wear/non-wear determined by vote majority
+    8. Two-stage post-processing removes artifacts
+
+    Post-processing rationale: Stage 1 (15-second filter) removes brief isolated periods
+    from sensor noise or voting conflicts. Stage 2 (20-minute ratio filter) removes short
+    wear bouts surrounded by disproportionate non-wear (ratio <0.3), likely device handling
+    rather than true wear events.
     """
 
     # Type hints
