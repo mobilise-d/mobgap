@@ -1,10 +1,10 @@
 r"""
-.. _wtd_megaritis_signal:
+.. _WtdMegaritis_signal:
 
 WTD Megaritis Signal
 ====================
 
-This example shows how to use the Wtd_Megaritis_signal algorithm for wear-time
+This example shows how to use the WtdMegaritis_signal algorithm for wear-time
 detection using gyroscope rotational patterns and accelerometer variability.
 
 We start by defining some helpers for plotting and loading the data.
@@ -71,7 +71,7 @@ example_data = LabExampleDataset(
 # Below we apply the algorithm to a lab trial containing activities of daily living.
 # Note: This is controlled lab data where the sensor was worn for the entire recording,
 # so we expect the algorithm to detect close to 100% wear-time.
-from mobgap.weartime import Wtd_Megaritis_signal
+from mobgap.weartime import WtdMegaritis_signal
 
 single_test = example_data.get_subset(
     cohort="MS", participant_id="001", test="Test11", trial="Trial1"
@@ -81,7 +81,7 @@ imu_data = to_body_frame(single_test.data_ss)
 sampling_rate_hz = single_test.sampling_rate_hz
 
 # Apply algorithm
-wtd_output = Wtd_Megaritis_signal().detect(
+wtd_output = WtdMegaritis_signal().detect(
     imu_data, sampling_rate_hz=sampling_rate_hz
 )
 
