@@ -13,8 +13,8 @@ misorientation in lower-back-worn devices.
 # Import useful modules and packages
 import matplotlib.pyplot as plt
 from mobgap.data import LabExampleDataset
-from mobgap.utils.conversions import to_body_frame
 from mobgap.re_orientation import ReorientationMethodDM
+from mobgap.utils.conversions import to_body_frame
 
 # %%
 # Loading some example data
@@ -52,7 +52,7 @@ first_WB = imu_data.loc[start:end].copy()
 
 # %%
 # Introducing artificial misorientation
-# --------------------------------------
+# -------------------------------------
 # To demonstrate the algorithm, we artificially introduce a misorientation.
 # Below we flip IS and mediolateral axes (family 2).
 
@@ -66,7 +66,7 @@ print(first_WB)
 
 # %%
 # Visualising the misoriented walking bout
-# -----------------------------------------
+# ----------------------------------------
 # We can visualise the walking bout before correction.
 
 fig, ax = plt.subplots()
@@ -80,11 +80,11 @@ fig.show()
 
 # %%
 # Applying the reorientation algorithm
-# -------------------------------------
+# ------------------------------------
 # Below we apply the ReorientationMethodDM algorithm to the misoriented walking bout.
 # We use the 'full' method which applies all three stages.
 
-reoriented = ReorientationMethodDM(method='full').detect_correct(first_WB)
+reoriented = ReorientationMethodDM(method="full").detect_correct(first_WB)
 
 print(f"\nDetected orientation family: {reoriented.result_.family}")
 print(f"Correction applied: {reoriented.result_.correction_applied}")
@@ -94,7 +94,7 @@ corrected = reoriented.result_.data_corrected
 
 # %%
 # Visualising the corrected walking bout
-# ---------------------------------------
+# --------------------------------------
 # After correction, we can visualise the corrected data.
 
 fig, ax = plt.subplots()

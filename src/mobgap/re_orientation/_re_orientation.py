@@ -17,10 +17,11 @@ Two methods:
                    of wrongly flipping correctly oriented axes.
 """
 
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
-from typing import Literal, Any
 from scipy import signal
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
@@ -33,8 +34,9 @@ FS = 100  # sampling rate Hz
 @dataclass
 class ReorientationResult:
     """Stores detection output and the corrected data."""
-    where_grav: Literal['is', 'ml']  # which device axis captured gravity
-    where_grav_points: Literal['up', 'down']  # direction of that axis
+
+    where_grav: Literal["is", "ml"]  # which device axis captured gravity
+    where_grav_points: Literal["up", "down"]  # direction of that axis
     family: Literal[1, 2, 3, 4]  # orientation family
     phase: float  # IS-AP phase value used for ML/AP correction
     correction_applied: bool  # whether Stage 3 correction was applied
@@ -66,7 +68,7 @@ class ReorientationMethodDM(Algorithm):
 
     Example
     -------
-    >>> algo = ReorientationMethodDM(method='conservative')
+    >>> algo = ReorientationMethodDM(method="conservative")
     >>> algo = algo.detect_correct(wb_data)
     >>> corrected = algo.result_.data_corrected
     """
@@ -74,7 +76,7 @@ class ReorientationMethodDM(Algorithm):
     _action_methods = ("detect_correct",)
 
     # Parameters
-    method: Literal['full', 'conservative']
+    method: Literal["full", "conservative"]
 
     # Other Parameters
     data: pd.DataFrame
@@ -82,7 +84,7 @@ class ReorientationMethodDM(Algorithm):
     # Results
     result_: ReorientationResult
 
-    def __init__(self, method: Literal['full', 'conservative'] = 'conservative'):
+    def __init__(self, method: Literal["full", "conservative"] = "conservative"):
         self.method = method
 
     def detect_correct(self, data: pd.DataFrame, **_: Unpack[dict[str, Any]]) -> Self:
@@ -100,7 +102,7 @@ class ReorientationMethodDM(Algorithm):
             The class instance with ``result_`` attribute set.
         """
         # Validate method parameter
-        if self.method not in ('full', 'conservative'):
+        if self.method not in ("full", "conservative"):
             raise ValueError("method must be 'full' or 'conservative'")
 
         self.data = data
@@ -114,29 +116,35 @@ class ReorientationMethodDM(Algorithm):
         # Cannot correct if gravity not detected — return data unchanged
         if family is None:
             self.result_ = ReorientationResult(
-                where_grav=None, where_grav_points=None, family=None,
-                phase=0.0, correction_applied=False,
-                correction_action='none',
-                data_corrected=data.copy()
+                where_grav=None,
+                where_grav_points=None,
+                family=None,
+                phase=0.0,
+                correction_applied=False,
+                correction_action="none",
+                data_corrected=data.copy(),
             )
             return self
 
         # Stage 1: IS axis identity and direction correction
-        if where_grav == 'ml':
+        if where_grav == "ml":
             corrected = _swap_is_ml(corrected, data)
-            corrections.append('swapped IS-ML')
-        if where_grav_points == 'down':
+            corrections.append("swapped IS-ML")
+        if where_grav_points == "down":
             corrected = _flip_is(corrected)
-            corrections.append('flipped IS')
+            corrections.append("flipped IS")
 
         # Conservative: skip ML/AP correction for Family 1
-        if self.method == 'conservative' and family == 1:
-            correction_action = ' and '.join(corrections) if corrections else 'none'
+        if self.method == "conservative" and family == 1:
+            correction_action = " and ".join(corrections) if corrections else "none"
             self.result_ = ReorientationResult(
-                where_grav=where_grav, where_grav_points=where_grav_points,
-                family=family, phase=0.0, correction_applied=len(corrections) > 0,
+                where_grav=where_grav,
+                where_grav_points=where_grav_points,
+                family=family,
+                phase=0.0,
+                correction_applied=len(corrections) > 0,
                 correction_action=correction_action,
-                data_corrected=corrected
+                data_corrected=corrected,
             )
             return self
 
@@ -147,30 +155,22 @@ class ReorientationMethodDM(Algorithm):
         if family == 1:
             if phase < 0:
                 corrected = _flip_ml_and_ap(corrected)
-                corrections.append('flipped ML and AP')
+                corrections.append("flipped ML and AP")
 
-        elif family == 2:
+        elif family == 2 or family == 3:
             if phase > 0:
                 corrected = _flip_ml(corrected)
-                corrections.append('flipped ML')
+                corrections.append("flipped ML")
             else:
                 corrected = _flip_ap(corrected)
-                corrections.append('flipped AP')
-
-        elif family == 3:
-            if phase > 0:
-                corrected = _flip_ml(corrected)
-                corrections.append('flipped ML')
-            else:
-                corrected = _flip_ap(corrected)
-                corrections.append('flipped AP')
+                corrections.append("flipped AP")
 
         elif family == 4:
             if phase < 0:
                 corrected = _flip_ml_and_ap(corrected)
-                corrections.append('flipped ML and AP')
+                corrections.append("flipped ML and AP")
 
-        correction_action = ' and '.join(corrections) if corrections else 'none'
+        correction_action = " and ".join(corrections) if corrections else "none"
 
         self.result_ = ReorientationResult(
             where_grav=where_grav,
@@ -184,6 +184,7 @@ class ReorientationMethodDM(Algorithm):
 
         return self
 
+
 # Helper functions for each stage of the algorithm
 def _detect_gravity(data: pd.DataFrame):
     """
@@ -193,18 +194,18 @@ def _detect_gravity(data: pd.DataFrame):
     Returns (where_grav, where_grav_points, family).
     family is None if no axis captures gravity.
     """
-    mean_is = data['acc_is'].mean()
-    mean_ml = data['acc_ml'].mean()
+    mean_is = data["acc_is"].mean()
+    mean_ml = data["acc_ml"].mean()
 
     if abs(mean_is) >= GRAVITY_THRESHOLD:
-        where_grav = 'is'
-        where_grav_points = 'up' if mean_is > 0 else 'down'
-        family = 1 if where_grav_points == 'up' else 2
+        where_grav = "is"
+        where_grav_points = "up" if mean_is > 0 else "down"
+        family = 1 if where_grav_points == "up" else 2
 
     elif abs(mean_ml) >= GRAVITY_THRESHOLD:
-        where_grav = 'ml'
-        where_grav_points = 'up' if mean_ml > 0 else 'down'
-        family = 3 if where_grav_points == 'up' else 4
+        where_grav = "ml"
+        where_grav_points = "up" if mean_ml > 0 else "down"
+        family = 3 if where_grav_points == "up" else 4
 
     else:
         where_grav = None
@@ -217,34 +218,34 @@ def _detect_gravity(data: pd.DataFrame):
 def _swap_is_ml(corrected: pd.DataFrame, original: pd.DataFrame) -> pd.DataFrame:
     """Swap IS and ML axes (acc and gyr)."""
     out = corrected.copy()
-    out['acc_is'] = original['acc_ml'].copy()
-    out['acc_ml'] = original['acc_is'].copy()
-    out['gyr_is'] = original['gyr_ml'].copy()
-    out['gyr_ml'] = original['gyr_is'].copy()
+    out["acc_is"] = original["acc_ml"].copy()
+    out["acc_ml"] = original["acc_is"].copy()
+    out["gyr_is"] = original["gyr_ml"].copy()
+    out["gyr_ml"] = original["gyr_is"].copy()
     return out
 
 
 def _flip_is(data: pd.DataFrame) -> pd.DataFrame:
     """Negate IS axis (acc and gyr)."""
     out = data.copy()
-    out['acc_is'] = -out['acc_is']
-    out['gyr_is'] = -out['gyr_is']
+    out["acc_is"] = -out["acc_is"]
+    out["gyr_is"] = -out["gyr_is"]
     return out
 
 
 def _flip_ml(data: pd.DataFrame) -> pd.DataFrame:
     """Negate ML axis (acc and gyr)."""
     out = data.copy()
-    out['acc_ml'] = -out['acc_ml']
-    out['gyr_ml'] = -out['gyr_ml']
+    out["acc_ml"] = -out["acc_ml"]
+    out["gyr_ml"] = -out["gyr_ml"]
     return out
 
 
 def _flip_ap(data: pd.DataFrame) -> pd.DataFrame:
     """Negate AP axis (acc and gyr)."""
     out = data.copy()
-    out['acc_pa'] = -out['acc_pa']
-    out['gyr_pa'] = -out['gyr_pa']
+    out["acc_pa"] = -out["acc_pa"]
+    out["gyr_pa"] = -out["gyr_pa"]
     return out
 
 
@@ -305,8 +306,8 @@ def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> flo
     Negative → AP reversed.
     Returns 0.0 if bout is too short for spectral estimation.
     """
-    acc_is = data['acc_is'].values
-    acc_pa = data['acc_pa'].values
+    acc_is = data["acc_is"].values
+    acc_pa = data["acc_pa"].values
 
     if len(acc_is) < fs * 2:
         return 0.0
