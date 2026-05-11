@@ -94,9 +94,9 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
 
         # Load model based on version
         if self.version == "cnn":
-            model_file = files('imu_weartime.weartime.production_models').joinpath('cnn_lowback_model.keras')
+            model_file = files('mobgap.weartime.production_models').joinpath('cnn_lowback_model.keras')
         else:  # cnn_lstm
-            model_file = files('imu_weartime.weartime.production_models').joinpath('cnn_lstm_lowback_model.keras')
+            model_file = files('mobgap.weartime.production_models').joinpath('cnn_lstm_lowback_model.keras')
 
         self.model = keras.models.load_model(model_file)
 
