@@ -1,4 +1,12 @@
-> [!CAUTION]
+# Deprecated Branch
+
+This branch contains the development work for translating an older reorientation block from MATLAB to Python, including several incremental improvements.
+
+This implementation is now deprecated, as a different approach for the reorientation process has been developed.
+
+Please refer to the `sustain-weartime-reorientation` branch for the current and actively maintained implementation.
+>
+> > [!CAUTION]
 > mobgap is currently under active development and not ready for production use.
 > Do not use any of the algorithm results for actual research purposes. 
 > Most of them are not in their final state and are not properly validated yet.
