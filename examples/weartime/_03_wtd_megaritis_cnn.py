@@ -41,7 +41,10 @@ def plot_wtd_outputs(data, **kwargs):
     for props in plot_props:
         for wt_period in props.pop("data").itertuples(index=False):
             ax.axvspan(
-                wt_period.start, wt_period.end, label=props.pop("label", None), **props
+                wt_period.start,
+                wt_period.end,
+                label=props.pop("label", None),
+                **props,
             )
 
     ax.set_xlabel("Sample")

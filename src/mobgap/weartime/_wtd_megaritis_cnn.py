@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
 from importlib.resources import files
-from typing import Any, Unpack, Literal
-from typing_extensions import Self
+from typing import Any, Literal, Unpack
+
 import numpy as np
+import pandas as pd
 from tensorflow import keras
-from mobgap.weartime.base_weartime_detector import BaseWeartimeDetector, base_weartime_docfiller, _unify_weartime_df
+from typing_extensions import Self
+
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.weartime.base_weartime_detector import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
 from mobgap.weartime.utils.ml_feature_extraction import rolling_window_indices
 from mobgap.weartime.utils.windows_to_weartime import overlapping_windows_to_sample_labels
 
@@ -80,12 +82,12 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
     model: Any  # keras.Model
 
     def __init__(
-            self,
-            *,
-            window_sec: float = 5.0,
-            overlap: float = 0.75,
-            version: Literal["cnn", "cnn_lstm"] = "cnn_lstm",
-            position: Literal['lowback'] = 'lowback'
+        self,
+        *,
+        window_sec: float = 5.0,
+        overlap: float = 0.75,
+        version: Literal["cnn", "cnn_lstm"] = "cnn_lstm",
+        position: Literal["lowback"] = "lowback",
     ) -> None:
         self.window_sec = window_sec
         self.overlap = overlap
@@ -94,20 +96,20 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
 
         # Load model based on version
         if self.version == "cnn":
-            model_file = files('mobgap.weartime.production_models').joinpath('cnn_lowback_model.keras')
+            model_file = files("mobgap.weartime.production_models").joinpath("cnn_lowback_model.keras")
         else:  # cnn_lstm
-            model_file = files('mobgap.weartime.production_models').joinpath('cnn_lstm_lowback_model.keras')
+            model_file = files("mobgap.weartime.production_models").joinpath("cnn_lstm_lowback_model.keras")
 
         self.model = keras.models.load_model(model_file)
 
     @timed_action_method
     @base_weartime_docfiller
     def detect(
-            self,
-            data: pd.DataFrame,
-            *,
-            sampling_rate_hz: float = 100,
-            **_: Unpack[dict[str, Any]],
+        self,
+        data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float = 100,
+        **_: Unpack[dict[str, Any]],
     ) -> Self:
         """%(detect_short)s using 1D CNN with overlapping windows.
 
@@ -135,7 +137,6 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
            (boundary bouts at start/end of data are exempt)
         4. Gap merging: Non-wear gaps <15s between wear periods are merged
         """
-
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.data_length = len(data)
@@ -145,7 +146,7 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
         n_samples = self.data_length
 
         # Required columns for CNN (6 channels: 3 acc + 3 gyr)
-        required_cols = ['acc_is', 'acc_ml', 'acc_pa', 'gyr_is', 'gyr_ml', 'gyr_pa']
+        required_cols = ["acc_is", "acc_ml", "acc_pa", "gyr_is", "gyr_ml", "gyr_pa"]
 
         all_predictions = []
 
@@ -172,12 +173,14 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
             all_predictions.append(y_pred)
 
         # Post-processing: convert window predictions to sample-level weartime
-        (self.weartime_list_,
-         self.total_weartime_samples_,
-         total_weartime_seconds,
-         self.total_weartime_minutes_,
-         self.total_weartime_hours_,
-         coverage) = overlapping_windows_to_sample_labels(
+        (
+            self.weartime_list_,
+            self.total_weartime_samples_,
+            total_weartime_seconds,
+            self.total_weartime_minutes_,
+            self.total_weartime_hours_,
+            coverage,
+        ) = overlapping_windows_to_sample_labels(
             predictions=all_predictions,
             data_len=self.data_length,
             window_size=win_samples,
@@ -185,7 +188,7 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
             sampling_rate_hz=int(sampling_rate_hz),
             min_confidence_short_bouts=0.90,
             short_bout_threshold_minutes=20,
-            min_bout_duration_seconds=15
+            min_bout_duration_seconds=15,
         )
 
         # Ensure end indices don't exceed data length

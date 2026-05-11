@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pandas as pd
-from importlib.resources import files
 import pickle
-from typing import Any, Unpack, Literal
+from importlib.resources import files
+from typing import Any, Literal, Unpack
+
+import pandas as pd
 from typing_extensions import Self
-from mobgap.weartime.base_weartime_detector import BaseWeartimeDetector, base_weartime_docfiller, _unify_weartime_df
+
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.weartime.base_weartime_detector import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
+from mobgap.weartime.utils.feature_extraction import extract_features_90pct, extract_full_features
 from mobgap.weartime.utils.ml_feature_extraction import rolling_window_indices
-from mobgap.weartime.utils.feature_extraction import (
-    extract_full_features, extract_features_90pct
-)
 from mobgap.weartime.utils.windows_to_weartime import overlapping_windows_to_sample_labels
 
 
@@ -85,12 +85,12 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
     feature_names: list[str]
 
     def __init__(
-            self,
-            *,
-            window_sec: float = 5.0,
-            overlap: float = 0.75,
-            version: Literal["full", "lightweight"] = "lightweight",
-            position: Literal['lowback'] = 'lowback'
+        self,
+        *,
+        window_sec: float = 5.0,
+        overlap: float = 0.75,
+        version: Literal["full", "lightweight"] = "lightweight",
+        position: Literal["lowback"] = "lowback",
     ) -> None:
         self.window_sec = window_sec
         self.overlap = overlap
@@ -99,24 +99,25 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
 
         # Load models once during initialization
         if self.version == "full":
-            model_file = files('mobgap.weartime.production_models').joinpath('xgboost_fullfeatures_lowback_model.pkl')
-            feature_order_file = files('mobgap.weartime.production_models').joinpath(
-                'xgboost_fullfeatures_lowback_feature_order.pkl')
+            model_file = files("mobgap.weartime.production_models").joinpath("xgboost_fullfeatures_lowback_model.pkl")
+            feature_order_file = files("mobgap.weartime.production_models").joinpath(
+                "xgboost_fullfeatures_lowback_feature_order.pkl"
+            )
         else:  # lightweight
-            model_file = files('mobgap.weartime.production_models').joinpath('xgboost_90pct_lowback_model.pkl')
-            feature_order_file = files('mobgap.weartime.production_models').joinpath(
-                'xgboost_90pct_lowback_feature_order.pkl')
+            model_file = files("mobgap.weartime.production_models").joinpath("xgboost_90pct_lowback_model.pkl")
+            feature_order_file = files("mobgap.weartime.production_models").joinpath(
+                "xgboost_90pct_lowback_feature_order.pkl"
+            )
 
-        with model_file.open('rb') as f:
+        with model_file.open("rb") as f:
             self.model = pickle.load(f)
 
-        with feature_order_file.open('rb') as f:
+        with feature_order_file.open("rb") as f:
             self.feature_names = pickle.load(f)
 
     @timed_action_method
     @base_weartime_docfiller
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float = 100,
-               **_: Unpack[dict[str, Any]]) -> Self:
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float = 100, **_: Unpack[dict[str, Any]]) -> Self:
         """
         %(detect_short)s using XGBoost classifier with overlapping windows.
 
@@ -141,7 +142,6 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
            (boundary bouts at start/end of data are exempt)
         4. Gap merging: Non-wear gaps <15s between wear periods are merged
         """
-
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.data_length = len(data)
@@ -177,15 +177,15 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
             all_probabilities.append(y_prob)
 
         # Post-processing: convert window predictions to sample-level weartime
-        self.weartime_list_, total_samples, total_seconds, total_minutes, total_hours, coverage = \
+        self.weartime_list_, total_samples, total_seconds, total_minutes, total_hours, coverage = (
             overlapping_windows_to_sample_labels(
                 predictions=all_predictions,
                 data_len=self.data_length,
                 window_size=win_samples,
                 stride=step,
-                sampling_rate_hz=int(sampling_rate_hz)
+                sampling_rate_hz=int(sampling_rate_hz),
             )
-
+        )
 
         # Store statistics
         self.total_weartime_samples_ = total_samples

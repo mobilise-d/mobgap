@@ -3,18 +3,25 @@
 import numpy as np
 import pandas as pd
 
-def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500, stride=125,
-                                        extend_tail=True, sampling_rate_hz=100,
-                                        min_confidence_short_bouts=0.90,
-                                        short_bout_threshold_minutes=20,
-                                        min_bout_duration_seconds=15):
+
+def overlapping_windows_to_sample_labels(
+    predictions,
+    data_len,
+    window_size=500,
+    stride=125,
+    extend_tail=True,
+    sampling_rate_hz=100,
+    min_confidence_short_bouts=0.90,
+    short_bout_threshold_minutes=20,
+    min_bout_duration_seconds=15,
+):
     """
     Convert windowed predictions to per-sample labels using majority voting.
     Applies confidence threshold for short wear bouts not at data boundaries.
     Also removes short non-wear bouts by merging them into adjacent wear periods.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     predictions : list or array
         Binary predictions (0 or 1) for each window
     data_len : int
@@ -34,8 +41,8 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
     min_bout_duration_seconds : int, optional
         Minimum bout duration in seconds for both wear and non-wear (default: 15)
 
-    Returns:
-    --------
+    Returns
+    -------
     pred_wt_df : pandas DataFrame
         Predicted wear time segments with 'start' and 'end' columns, indexed by 'wt_id'.
         Empty DataFrame if no wear time detected (all 0s)
@@ -50,13 +57,13 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
     coverage_info : dict
         Information about sample coverage
 
-    Notes:
+    Notes
+    -----
         -In this function we incorporate a post processing step assessing weartime bouts shorter than 20 minutes.
         These bout are only kept as wear if the confidence (proportion of wear votes) is above the specified threshold (default 85%).
          This helps to reduce false positives from short wear time predictions that may be less reliable, while still allowing short wear bouts at the beginning or end of the data to be retained without filtering.
          Finally, we remove bouts which are shorter than 15 seconds because attaching and removing a device may be bordeline possible within 15 seconds.
     """
-
     # Initialize vote counter for each sample
     vote_counts = np.zeros((data_len, 2), dtype=np.int32)  # [count_0, count_1]
 
@@ -87,17 +94,17 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
     if extend_tail and uncovered_samples > 0 and len(predictions) > 0:
         # Extend the last window's prediction to the tail
         last_prediction = predictions[-1]
-        sample_labels[last_covered_idx + 1:] = last_prediction
+        sample_labels[last_covered_idx + 1 :] = last_prediction
 
     # Calculate coverage statistics
     total_votes = vote_counts[:, 0] + vote_counts[:, 1]
     coverage_info = {
-        'total_samples': data_len,
-        'covered_samples': int(np.sum(total_votes > 0)),
-        'uncovered_samples': uncovered_samples,
-        'last_covered_idx': last_covered_idx,
-        'max_uncovered_tail': uncovered_samples if uncovered_samples > 0 else 0,
-        'extended': extend_tail and uncovered_samples > 0
+        "total_samples": data_len,
+        "covered_samples": int(np.sum(total_votes > 0)),
+        "uncovered_samples": uncovered_samples,
+        "last_covered_idx": last_covered_idx,
+        "max_uncovered_tail": uncovered_samples if uncovered_samples > 0 else 0,
+        "extended": extend_tail and uncovered_samples > 0,
     }
 
     # Remove short WEAR bouts and apply confidence filter
@@ -148,13 +155,15 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
 
                 # Only keep this bout if it meets confidence threshold
                 if wear_vote_proportion >= min_confidence_short_bouts:
-                    wear_segments.append({
-                        'start': start,
-                        'end': end,
-                        'duration_min': bout_duration_minutes,
-                        'confidence': wear_vote_proportion,
-                        'filtered': False
-                    })
+                    wear_segments.append(
+                        {
+                            "start": start,
+                            "end": end,
+                            "duration_min": bout_duration_minutes,
+                            "confidence": wear_vote_proportion,
+                            "filtered": False,
+                        }
+                    )
                 else:
                     # Mark samples as non-wear since bout didn't meet confidence threshold
                     sample_labels[start:end] = 0
@@ -168,13 +177,15 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
                 else:
                     wear_vote_proportion = 1.0
 
-                wear_segments.append({
-                    'start': start,
-                    'end': end,
-                    'duration_min': bout_duration_minutes,
-                    'confidence': wear_vote_proportion,
-                    'filtered': False
-                })
+                wear_segments.append(
+                    {
+                        "start": start,
+                        "end": end,
+                        "duration_min": bout_duration_minutes,
+                        "confidence": wear_vote_proportion,
+                        "filtered": False,
+                    }
+                )
 
     # Remove short NON-WEAR bouts (merge into adjacent wear)
     # Only remove non-wear bouts that are sandwiched between two wear bouts
@@ -204,11 +215,13 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
             ends = np.where(diff == -1)[0]
             for start, end in zip(starts, ends):
                 bout_duration_minutes = (end - start) / (sampling_rate_hz * 60)
-                wear_segments.append({
-                    'start': start,
-                    'end': end,
-                    'duration_min': bout_duration_minutes,
-                })
+                wear_segments.append(
+                    {
+                        "start": start,
+                        "end": end,
+                        "duration_min": bout_duration_minutes,
+                    }
+                )
 
     # Recalculate wear time statistics after all filtering
     wear_samples = np.sum(sample_labels == 1)
@@ -219,18 +232,26 @@ def overlapping_windows_to_sample_labels(predictions, data_len, window_size=500,
 
     # Convert to DataFrame
     if wear_segments:
-        pred_wt_df = pd.DataFrame(wear_segments)[['start', 'end']]
+        pred_wt_df = pd.DataFrame(wear_segments)[["start", "end"]]
     else:
         # Create empty DataFrame with correct columns
-        pred_wt_df = pd.DataFrame(columns=['start', 'end'])
+        pred_wt_df = pd.DataFrame(columns=["start", "end"])
 
-    pred_wt_df.index.name = 'wt_id'
+    pred_wt_df.index.name = "wt_id"
 
-    return pred_wt_df, total_weartime_samples, total_weartime_seconds, total_weartime_minutes, total_weartime_hours, coverage_info
+    return (
+        pred_wt_df,
+        total_weartime_samples,
+        total_weartime_seconds,
+        total_weartime_minutes,
+        total_weartime_hours,
+        coverage_info,
+    )
 
 
-def remove_isolated_short_periods(weartime_flags: np.ndarray, min_period_sec: float = 15.0,
-                                  sampling_rate_hz: float = 100.0) -> np.ndarray:
+def remove_isolated_short_periods(
+    weartime_flags: np.ndarray, min_period_sec: float = 15.0, sampling_rate_hz: float = 100.0
+) -> np.ndarray:
     """
     Remove isolated wear/non-wear periods shorter than minimum duration.
 
@@ -263,7 +284,6 @@ def remove_isolated_short_periods(weartime_flags: np.ndarray, min_period_sec: fl
     np.ndarray
         Flags with brief isolated periods removed
     """
-
     min_samples = int(min_period_sec * sampling_rate_hz)
     smoothed_flags = weartime_flags.copy()
 

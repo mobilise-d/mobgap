@@ -3,6 +3,8 @@ import pandas as pd
 from scipy.signal import welch
 
 """Rolling window function"""
+
+
 def rolling_window_indices(n_samples, win_samples, step):
     for start in range(0, n_samples - win_samples + 1, step):
         yield start, start + win_samples
@@ -33,15 +35,15 @@ def extract_features_from_windows(window: pd.DataFrame, sampling_rate: float = 1
     features = {}
 
     # Feature 1: acc_pa_std (accelerometer PA standard deviation)
-    if 'acc_pa' in window.columns:
-        col = window['acc_pa'].to_numpy()
-        features['acc_pa_std'] = np.std(col, ddof=1)
+    if "acc_pa" in window.columns:
+        col = window["acc_pa"].to_numpy()
+        features["acc_pa_std"] = np.std(col, ddof=1)
     else:
-        features['acc_pa_std'] = np.nan
+        features["acc_pa_std"] = np.nan
 
     # Feature 2 & 3: Gyroscope spectral centroids (ML and IS)
     # Using Welch's method to exactly match original XGBoost training features
-    for axis in ['gyr_ml', 'gyr_is']:
+    for axis in ["gyr_ml", "gyr_is"]:
         if axis in window.columns:
             col = window[axis].to_numpy()
 
@@ -56,18 +58,15 @@ def extract_features_from_windows(window: pd.DataFrame, sampling_rate: float = 1
             else:
                 spectral_centroid = 0.0
 
-            features[f'{axis}_spectral_centroid'] = spectral_centroid
+            features[f"{axis}_spectral_centroid"] = spectral_centroid
         else:
-            features[f'{axis}_spectral_centroid'] = np.nan
+            features[f"{axis}_spectral_centroid"] = np.nan
 
     return features
 
 
 def remove_short_wear_bouts_by_ratio(
-        weartime_flags: np.ndarray,
-        max_bout_minutes: float = 20.0,
-        min_ratio: float = 0.3,
-        sampling_rate_hz: float = 100.0
+    weartime_flags: np.ndarray, max_bout_minutes: float = 20.0, min_ratio: float = 0.3, sampling_rate_hz: float = 100.0
 ) -> np.ndarray:
     """
     Remove short wear bouts surrounded by disproportionately long non-wear periods.

@@ -1,6 +1,6 @@
 """Base class for weartime detectors."""
 
-from collections. abc import Iterable
+from collections.abc import Iterable
 from typing import Any, Union
 
 import pandas as pd
@@ -8,7 +8,7 @@ from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
-from mobgap._utils_internal. misc import MeasureTimeResults, timer_doc_filler
+from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
 
 base_weartime_docfiller = make_filldoc(
     {
@@ -20,7 +20,7 @@ base_weartime_docfiller = make_filldoc(
     data_length
         The length of the input data in samples passed to the ``detect`` method.
     """,
-        "weartime_list_":  """
+        "weartime_list_": """
     weartime_list_
         A dataframe specifying the detected weartime periods.
         The dataframe has an index ``wt_id`` and columns ``start`` and ``end``, specifying the start and end 
@@ -35,7 +35,7 @@ base_weartime_docfiller = make_filldoc(
     total_weartime_minutes_
         The total weartime in minutes across all detected weartime periods.
     """,
-        "total_weartime_hours_":  """
+        "total_weartime_hours_": """
     total_weartime_hours_
         The total weartime in hours across all detected weartime periods.
     """,
@@ -48,7 +48,7 @@ base_weartime_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     """,
-        "detect_return":  """
+        "detect_return": """
     Returns
     -------
     self
@@ -131,10 +131,10 @@ class BaseWeartimeDetector(Algorithm):
     total_weartime_minutes_: float
     total_weartime_hours_: float
 
-    perf_:  MeasureTimeResults
+    perf_: MeasureTimeResults
 
     @base_weartime_docfiller
-    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs:  Unpack[dict[str, Any]]) -> Self:
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(detect_short)s.
 
         Parameters
@@ -148,8 +148,8 @@ class BaseWeartimeDetector(Algorithm):
     @base_weartime_docfiller
     def self_optimize(
         self,
-        data_sequences: Iterable[pd. DataFrame],
-        ref_weartime_list_per_sequence:  Iterable[pd.DataFrame],
+        data_sequences: Iterable[pd.DataFrame],
+        ref_weartime_list_per_sequence: Iterable[pd.DataFrame],
         *,
         sampling_rate_hz: Union[float, Iterable[float]],
         **kwargs: Unpack[dict[str, Any]],
@@ -188,7 +188,7 @@ def get_weartime_df_dtypes(expected_id_name: str = "wt_id") -> dict[str, str]:
     }
 
 
-def _unify_weartime_df(df:  pd.DataFrame, expected_id_name: str = "wt_id") -> pd.DataFrame:
+def _unify_weartime_df(df: pd.DataFrame, expected_id_name: str = "wt_id") -> pd.DataFrame:
     """Unify the format of a weartime dataframe.
 
     This function ensures that the weartime dataframe has the expected format with proper
@@ -206,12 +206,12 @@ def _unify_weartime_df(df:  pd.DataFrame, expected_id_name: str = "wt_id") -> pd
     pd.DataFrame
         The unified weartime dataframe with the ID as index.
     """
-    if expected_id_name not in df.columns and expected_id_name not in df.index. names:
+    if expected_id_name not in df.columns and expected_id_name not in df.index.names:
         df = df.rename_axis(expected_id_name).reset_index()
     elif expected_id_name not in df.columns:
         df = df.reset_index()
     weartime_df_dtypes = get_weartime_df_dtypes(expected_id_name)
-    return df.astype(weartime_df_dtypes)[list(weartime_df_dtypes. keys())].set_index(expected_id_name)
+    return df.astype(weartime_df_dtypes)[list(weartime_df_dtypes.keys())].set_index(expected_id_name)
 
 
-__all__ = ["BaseWeartimeDetector", "base_weartime_docfiller", "get_weartime_df_dtypes", "_unify_weartime_df"]
+__all__ = ["BaseWeartimeDetector", "_unify_weartime_df", "base_weartime_docfiller", "get_weartime_df_dtypes"]

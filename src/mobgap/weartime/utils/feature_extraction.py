@@ -1,15 +1,16 @@
-from scipy.signal import welch, find_peaks, coherence
+import warnings
+
 import numpy as np
 import pandas as pd
-from scipy.stats import skew, kurtosis
 from pyentrp import entropy as ent
-import warnings
+from scipy.signal import coherence, find_peaks, welch
+from scipy.stats import kurtosis, skew
 
 
 # ---------- Helper functions ----------
 def rms(x):
     """Calculate root mean square."""
-    return np.sqrt(np.mean(x ** 2)) if len(x) else 0.0
+    return np.sqrt(np.mean(x**2)) if len(x) else 0.0
 
 
 def zero_crossing_rate(x):
@@ -34,130 +35,424 @@ def _reorder_features(features: dict, expected_order: list) -> dict:
 
 # Full feature order
 FULL_FEATURE_ORDER = [
-    "gyr_is_mean", "gyr_is_std", "gyr_is_rms", "gyr_is_skew", "gyr_is_kurtosis",
-    "gyr_is_range", "gyr_is_iqr", "gyr_is_zcr", "gyr_is_jerk_mean", "gyr_is_jerk_rms",
-    "gyr_is_jerk_peak", "gyr_ml_mean", "gyr_ml_std", "gyr_ml_rms", "gyr_ml_skew",
-    "gyr_ml_kurtosis", "gyr_ml_range", "gyr_ml_iqr", "gyr_ml_zcr", "gyr_ml_jerk_mean",
-    "gyr_ml_jerk_rms", "gyr_ml_jerk_peak", "gyr_pa_mean", "gyr_pa_std", "gyr_pa_rms",
-    "gyr_pa_skew", "gyr_pa_kurtosis", "gyr_pa_range", "gyr_pa_iqr", "gyr_pa_zcr",
-    "gyr_pa_jerk_mean", "gyr_pa_jerk_rms", "gyr_pa_jerk_peak", "gyr_norm_mean",
-    "gyr_norm_std", "gyr_norm_rms", "gyr_norm_range", "gyr_norm_iqr", "gyr_norm_skew",
-    "gyr_norm_kurtosis", "gyr_jerk_rms_norm", "gyr_jerk_peak_norm", "pct_above_noise_norm",
-    "duty_cycle_norm", "median_near_zero_duration_norm", "burst_count_norm",
-    "rolling_var_mean_norm", "moving_range_mean_norm", "corr_is_ml", "corr_is_pa",
-    "corr_ml_pa", "axis_dominance_ratio", "time_gyr_norm_to_dominant_ratio",
-    "gyr_is_gyr_ml_energy_ratio", "gyr_is_gyr_pa_energy_ratio", "gyr_ml_gyr_pa_energy_ratio",
-    "acc_is_mean", "acc_is_std", "acc_is_rms", "acc_is_median", "acc_is_min",
-    "acc_is_max", "acc_is_range", "acc_is_iqr", "acc_is_skew", "acc_is_kurtosis",
-    "acc_is_zcr", "acc_is_jerk_mean", "acc_is_jerk_rms", "acc_is_jerk_peak",
-    "acc_is_jerk_std", "acc_ml_mean", "acc_ml_std", "acc_ml_rms", "acc_ml_median",
-    "acc_ml_min", "acc_ml_max", "acc_ml_range", "acc_ml_iqr", "acc_ml_skew",
-    "acc_ml_kurtosis", "acc_ml_zcr", "acc_ml_jerk_mean", "acc_ml_jerk_rms",
-    "acc_ml_jerk_peak", "acc_ml_jerk_std", "acc_pa_mean", "acc_pa_std", "acc_pa_rms",
-    "acc_pa_median", "acc_pa_min", "acc_pa_max", "acc_pa_range", "acc_pa_iqr",
-    "acc_pa_skew", "acc_pa_kurtosis", "acc_pa_zcr", "acc_pa_jerk_mean",
-    "acc_pa_jerk_rms", "acc_pa_jerk_peak", "acc_pa_jerk_std", "acc_norm_mean",
-    "acc_norm_std", "acc_norm_rms", "acc_norm_median", "acc_norm_min", "acc_norm_max",
-    "acc_norm_range", "acc_norm_iqr", "acc_norm_skew", "acc_norm_kurtosis",
-    "acc_jerk_rms_norm", "acc_jerk_peak_norm", "acc_jerk_std_norm",
-    "max_near_zero_duration_norm", "rolling_var_std_norm", "time_acc_norm_to_dominant_ratio",
-    "acc_is_acc_ml_energy_ratio", "acc_is_acc_pa_energy_ratio", "acc_ml_acc_pa_energy_ratio",
-    "gyr_is_psd_total", "gyr_is_lf_power", "gyr_is_lf_hf_ratio", "gyr_is_dom_freq",
-    "gyr_is_second_peak_freq", "gyr_is_third_peak_freq", "gyr_is_spectral_centroid",
-    "gyr_is_spectral_entropy", "gyr_is_spectral_skewness", "gyr_is_spectral_kurtosis",
-    "gyr_is_spectral_slope", "gyr_is_perm_entropy", "gyr_ml_psd_total", "gyr_ml_lf_power",
-    "gyr_ml_lf_hf_ratio", "gyr_ml_dom_freq", "gyr_ml_second_peak_freq",
-    "gyr_ml_third_peak_freq", "gyr_ml_spectral_centroid", "gyr_ml_spectral_entropy",
-    "gyr_ml_spectral_skewness", "gyr_ml_spectral_kurtosis", "gyr_ml_spectral_slope",
-    "gyr_ml_perm_entropy", "gyr_pa_psd_total", "gyr_pa_lf_power", "gyr_pa_lf_hf_ratio",
-    "gyr_pa_dom_freq", "gyr_pa_second_peak_freq", "gyr_pa_third_peak_freq",
-    "gyr_pa_spectral_centroid", "gyr_pa_spectral_entropy", "gyr_pa_spectral_skewness",
-    "gyr_pa_spectral_kurtosis", "gyr_pa_spectral_slope", "gyr_pa_perm_entropy",
-    "gyr_norm_psd_total", "gyr_norm_lf_power", "gyr_norm_lf_hf_ratio", "gyr_norm_dom_freq",
-    "gyr_norm_second_peak_freq", "gyr_norm_third_peak_freq", "gyr_norm_spectral_centroid",
-    "gyr_norm_spectral_entropy", "gyr_norm_spectral_skewness", "gyr_norm_spectral_kurtosis",
-    "gyr_norm_spectral_slope", "gyr_norm_perm_entropy", "gyr_is_gyr_ml_coherence_mean",
-    "gyr_is_gyr_pa_coherence_mean", "gyr_ml_gyr_pa_coherence_mean",
-    "freq_gyr_norm_to_dominant_ratio", "gyr_is_gyr_ml_psd_ratio", "gyr_is_gyr_pa_psd_ratio",
-    "gyr_ml_gyr_pa_psd_ratio", "acc_is_psd_total", "acc_is_lf_power", "acc_is_lf_hf_ratio",
-    "acc_is_dom_freq", "acc_is_second_peak_freq", "acc_is_third_peak_freq",
-    "acc_is_spectral_centroid", "acc_is_spectral_entropy", "acc_is_spectral_skewness",
-    "acc_is_spectral_kurtosis", "acc_is_spectral_slope", "acc_is_perm_entropy",
-    "acc_ml_psd_total", "acc_ml_lf_power", "acc_ml_lf_hf_ratio", "acc_ml_dom_freq",
-    "acc_ml_second_peak_freq", "acc_ml_third_peak_freq", "acc_ml_spectral_centroid",
-    "acc_ml_spectral_entropy", "acc_ml_spectral_skewness", "acc_ml_spectral_kurtosis",
-    "acc_ml_spectral_slope", "acc_ml_perm_entropy", "acc_pa_psd_total", "acc_pa_lf_power",
-    "acc_pa_lf_hf_ratio", "acc_pa_dom_freq", "acc_pa_second_peak_freq",
-    "acc_pa_third_peak_freq", "acc_pa_spectral_centroid", "acc_pa_spectral_entropy",
-    "acc_pa_spectral_skewness", "acc_pa_spectral_kurtosis", "acc_pa_spectral_slope",
-    "acc_pa_perm_entropy", "acc_norm_psd_total", "acc_norm_lf_power", "acc_norm_lf_hf_ratio",
-    "acc_norm_dom_freq", "acc_norm_second_peak_freq", "acc_norm_third_peak_freq",
-    "acc_norm_spectral_centroid", "acc_norm_spectral_entropy", "acc_norm_spectral_skewness",
-    "acc_norm_spectral_kurtosis", "acc_norm_spectral_slope", "acc_norm_perm_entropy",
-    "acc_is_acc_ml_coherence_mean", "acc_is_acc_pa_coherence_mean",
-    "acc_ml_acc_pa_coherence_mean", "acc_is_acc_ml_psd_ratio", "acc_is_acc_pa_psd_ratio",
-    "acc_ml_acc_pa_psd_ratio", "freq_acc_norm_to_dominant_ratio"
+    "gyr_is_mean",
+    "gyr_is_std",
+    "gyr_is_rms",
+    "gyr_is_skew",
+    "gyr_is_kurtosis",
+    "gyr_is_range",
+    "gyr_is_iqr",
+    "gyr_is_zcr",
+    "gyr_is_jerk_mean",
+    "gyr_is_jerk_rms",
+    "gyr_is_jerk_peak",
+    "gyr_ml_mean",
+    "gyr_ml_std",
+    "gyr_ml_rms",
+    "gyr_ml_skew",
+    "gyr_ml_kurtosis",
+    "gyr_ml_range",
+    "gyr_ml_iqr",
+    "gyr_ml_zcr",
+    "gyr_ml_jerk_mean",
+    "gyr_ml_jerk_rms",
+    "gyr_ml_jerk_peak",
+    "gyr_pa_mean",
+    "gyr_pa_std",
+    "gyr_pa_rms",
+    "gyr_pa_skew",
+    "gyr_pa_kurtosis",
+    "gyr_pa_range",
+    "gyr_pa_iqr",
+    "gyr_pa_zcr",
+    "gyr_pa_jerk_mean",
+    "gyr_pa_jerk_rms",
+    "gyr_pa_jerk_peak",
+    "gyr_norm_mean",
+    "gyr_norm_std",
+    "gyr_norm_rms",
+    "gyr_norm_range",
+    "gyr_norm_iqr",
+    "gyr_norm_skew",
+    "gyr_norm_kurtosis",
+    "gyr_jerk_rms_norm",
+    "gyr_jerk_peak_norm",
+    "pct_above_noise_norm",
+    "duty_cycle_norm",
+    "median_near_zero_duration_norm",
+    "burst_count_norm",
+    "rolling_var_mean_norm",
+    "moving_range_mean_norm",
+    "corr_is_ml",
+    "corr_is_pa",
+    "corr_ml_pa",
+    "axis_dominance_ratio",
+    "time_gyr_norm_to_dominant_ratio",
+    "gyr_is_gyr_ml_energy_ratio",
+    "gyr_is_gyr_pa_energy_ratio",
+    "gyr_ml_gyr_pa_energy_ratio",
+    "acc_is_mean",
+    "acc_is_std",
+    "acc_is_rms",
+    "acc_is_median",
+    "acc_is_min",
+    "acc_is_max",
+    "acc_is_range",
+    "acc_is_iqr",
+    "acc_is_skew",
+    "acc_is_kurtosis",
+    "acc_is_zcr",
+    "acc_is_jerk_mean",
+    "acc_is_jerk_rms",
+    "acc_is_jerk_peak",
+    "acc_is_jerk_std",
+    "acc_ml_mean",
+    "acc_ml_std",
+    "acc_ml_rms",
+    "acc_ml_median",
+    "acc_ml_min",
+    "acc_ml_max",
+    "acc_ml_range",
+    "acc_ml_iqr",
+    "acc_ml_skew",
+    "acc_ml_kurtosis",
+    "acc_ml_zcr",
+    "acc_ml_jerk_mean",
+    "acc_ml_jerk_rms",
+    "acc_ml_jerk_peak",
+    "acc_ml_jerk_std",
+    "acc_pa_mean",
+    "acc_pa_std",
+    "acc_pa_rms",
+    "acc_pa_median",
+    "acc_pa_min",
+    "acc_pa_max",
+    "acc_pa_range",
+    "acc_pa_iqr",
+    "acc_pa_skew",
+    "acc_pa_kurtosis",
+    "acc_pa_zcr",
+    "acc_pa_jerk_mean",
+    "acc_pa_jerk_rms",
+    "acc_pa_jerk_peak",
+    "acc_pa_jerk_std",
+    "acc_norm_mean",
+    "acc_norm_std",
+    "acc_norm_rms",
+    "acc_norm_median",
+    "acc_norm_min",
+    "acc_norm_max",
+    "acc_norm_range",
+    "acc_norm_iqr",
+    "acc_norm_skew",
+    "acc_norm_kurtosis",
+    "acc_jerk_rms_norm",
+    "acc_jerk_peak_norm",
+    "acc_jerk_std_norm",
+    "max_near_zero_duration_norm",
+    "rolling_var_std_norm",
+    "time_acc_norm_to_dominant_ratio",
+    "acc_is_acc_ml_energy_ratio",
+    "acc_is_acc_pa_energy_ratio",
+    "acc_ml_acc_pa_energy_ratio",
+    "gyr_is_psd_total",
+    "gyr_is_lf_power",
+    "gyr_is_lf_hf_ratio",
+    "gyr_is_dom_freq",
+    "gyr_is_second_peak_freq",
+    "gyr_is_third_peak_freq",
+    "gyr_is_spectral_centroid",
+    "gyr_is_spectral_entropy",
+    "gyr_is_spectral_skewness",
+    "gyr_is_spectral_kurtosis",
+    "gyr_is_spectral_slope",
+    "gyr_is_perm_entropy",
+    "gyr_ml_psd_total",
+    "gyr_ml_lf_power",
+    "gyr_ml_lf_hf_ratio",
+    "gyr_ml_dom_freq",
+    "gyr_ml_second_peak_freq",
+    "gyr_ml_third_peak_freq",
+    "gyr_ml_spectral_centroid",
+    "gyr_ml_spectral_entropy",
+    "gyr_ml_spectral_skewness",
+    "gyr_ml_spectral_kurtosis",
+    "gyr_ml_spectral_slope",
+    "gyr_ml_perm_entropy",
+    "gyr_pa_psd_total",
+    "gyr_pa_lf_power",
+    "gyr_pa_lf_hf_ratio",
+    "gyr_pa_dom_freq",
+    "gyr_pa_second_peak_freq",
+    "gyr_pa_third_peak_freq",
+    "gyr_pa_spectral_centroid",
+    "gyr_pa_spectral_entropy",
+    "gyr_pa_spectral_skewness",
+    "gyr_pa_spectral_kurtosis",
+    "gyr_pa_spectral_slope",
+    "gyr_pa_perm_entropy",
+    "gyr_norm_psd_total",
+    "gyr_norm_lf_power",
+    "gyr_norm_lf_hf_ratio",
+    "gyr_norm_dom_freq",
+    "gyr_norm_second_peak_freq",
+    "gyr_norm_third_peak_freq",
+    "gyr_norm_spectral_centroid",
+    "gyr_norm_spectral_entropy",
+    "gyr_norm_spectral_skewness",
+    "gyr_norm_spectral_kurtosis",
+    "gyr_norm_spectral_slope",
+    "gyr_norm_perm_entropy",
+    "gyr_is_gyr_ml_coherence_mean",
+    "gyr_is_gyr_pa_coherence_mean",
+    "gyr_ml_gyr_pa_coherence_mean",
+    "freq_gyr_norm_to_dominant_ratio",
+    "gyr_is_gyr_ml_psd_ratio",
+    "gyr_is_gyr_pa_psd_ratio",
+    "gyr_ml_gyr_pa_psd_ratio",
+    "acc_is_psd_total",
+    "acc_is_lf_power",
+    "acc_is_lf_hf_ratio",
+    "acc_is_dom_freq",
+    "acc_is_second_peak_freq",
+    "acc_is_third_peak_freq",
+    "acc_is_spectral_centroid",
+    "acc_is_spectral_entropy",
+    "acc_is_spectral_skewness",
+    "acc_is_spectral_kurtosis",
+    "acc_is_spectral_slope",
+    "acc_is_perm_entropy",
+    "acc_ml_psd_total",
+    "acc_ml_lf_power",
+    "acc_ml_lf_hf_ratio",
+    "acc_ml_dom_freq",
+    "acc_ml_second_peak_freq",
+    "acc_ml_third_peak_freq",
+    "acc_ml_spectral_centroid",
+    "acc_ml_spectral_entropy",
+    "acc_ml_spectral_skewness",
+    "acc_ml_spectral_kurtosis",
+    "acc_ml_spectral_slope",
+    "acc_ml_perm_entropy",
+    "acc_pa_psd_total",
+    "acc_pa_lf_power",
+    "acc_pa_lf_hf_ratio",
+    "acc_pa_dom_freq",
+    "acc_pa_second_peak_freq",
+    "acc_pa_third_peak_freq",
+    "acc_pa_spectral_centroid",
+    "acc_pa_spectral_entropy",
+    "acc_pa_spectral_skewness",
+    "acc_pa_spectral_kurtosis",
+    "acc_pa_spectral_slope",
+    "acc_pa_perm_entropy",
+    "acc_norm_psd_total",
+    "acc_norm_lf_power",
+    "acc_norm_lf_hf_ratio",
+    "acc_norm_dom_freq",
+    "acc_norm_second_peak_freq",
+    "acc_norm_third_peak_freq",
+    "acc_norm_spectral_centroid",
+    "acc_norm_spectral_entropy",
+    "acc_norm_spectral_skewness",
+    "acc_norm_spectral_kurtosis",
+    "acc_norm_spectral_slope",
+    "acc_norm_perm_entropy",
+    "acc_is_acc_ml_coherence_mean",
+    "acc_is_acc_pa_coherence_mean",
+    "acc_ml_acc_pa_coherence_mean",
+    "acc_is_acc_ml_psd_ratio",
+    "acc_is_acc_pa_psd_ratio",
+    "acc_ml_acc_pa_psd_ratio",
+    "freq_acc_norm_to_dominant_ratio",
 ]
 
 # 95% feature order
 FEATURE_ORDER_95PCT = [
-    "acc_pa_std", "gyr_ml_spectral_centroid", "gyr_is_spectral_centroid",
-    "time_acc_norm_to_dominant_ratio", "gyr_ml_lf_power", "gyr_ml_spectral_slope",
-    "acc_pa_spectral_centroid", "gyr_is_spectral_slope", "gyr_pa_mean",
-    "acc_is_jerk_mean", "gyr_is_std", "gyr_is_gyr_pa_energy_ratio",
-    "gyr_ml_mean", "acc_is_mean", "axis_dominance_ratio", "gyr_pa_rms",
-    "gyr_ml_iqr", "acc_is_min", "acc_pa_rms", "acc_is_acc_pa_psd_ratio",
-    "acc_is_median", "acc_jerk_std_norm", "gyr_is_mean", "gyr_ml_lf_hf_ratio",
-    "acc_is_max", "acc_norm_spectral_centroid", "gyr_ml_gyr_pa_energy_ratio",
-    "acc_pa_median", "acc_pa_second_peak_freq", "acc_is_spectral_slope",
-    "acc_is_acc_ml_psd_ratio", "gyr_is_perm_entropy", "gyr_is_gyr_pa_psd_ratio",
-    "moving_range_mean_norm", "acc_norm_dom_freq", "gyr_pa_jerk_mean",
-    "acc_is_perm_entropy", "acc_ml_mean", "gyr_is_jerk_mean", "acc_jerk_rms_norm",
-    "acc_pa_dom_freq", "acc_norm_median", "gyr_is_kurtosis", "acc_ml_median",
-    "gyr_pa_iqr", "acc_ml_perm_entropy", "acc_pa_mean", "acc_jerk_peak_norm",
-    "acc_ml_acc_pa_energy_ratio", "gyr_norm_spectral_slope", "gyr_is_gyr_ml_energy_ratio",
-    "acc_pa_max", "gyr_is_zcr", "acc_pa_perm_entropy", "acc_is_acc_ml_energy_ratio",
-    "gyr_is_jerk_rms", "acc_norm_second_peak_freq", "acc_is_jerk_std",
-    "gyr_norm_skew", "acc_ml_spectral_slope", "acc_pa_min", "acc_norm_mean",
-    "acc_pa_psd_total", "acc_pa_third_peak_freq", "burst_count_norm",
-    "acc_is_zcr", "acc_norm_rms", "gyr_pa_zcr", "acc_ml_rms",
-    "acc_pa_spectral_slope", "acc_norm_spectral_slope", "gyr_ml_jerk_rms",
-    "gyr_ml_gyr_pa_psd_ratio", "gyr_pa_spectral_entropy", "time_gyr_norm_to_dominant_ratio",
-    "acc_ml_acc_pa_psd_ratio", "gyr_ml_dom_freq", "gyr_is_rms", "gyr_norm_perm_entropy",
-    "gyr_norm_kurtosis", "acc_norm_third_peak_freq", "corr_ml_pa", "acc_is_jerk_peak",
-    "acc_ml_max", "gyr_ml_std", "acc_pa_jerk_mean", "gyr_ml_kurtosis",
-    "acc_ml_min", "acc_norm_perm_entropy", "acc_ml_spectral_centroid",
-    "acc_norm_spectral_skewness", "acc_is_acc_pa_energy_ratio", "acc_norm_iqr",
-    "acc_is_rms", "gyr_ml_rms", "gyr_ml_perm_entropy", "acc_is_jerk_rms",
-    "acc_norm_min", "gyr_is_iqr"
+    "acc_pa_std",
+    "gyr_ml_spectral_centroid",
+    "gyr_is_spectral_centroid",
+    "time_acc_norm_to_dominant_ratio",
+    "gyr_ml_lf_power",
+    "gyr_ml_spectral_slope",
+    "acc_pa_spectral_centroid",
+    "gyr_is_spectral_slope",
+    "gyr_pa_mean",
+    "acc_is_jerk_mean",
+    "gyr_is_std",
+    "gyr_is_gyr_pa_energy_ratio",
+    "gyr_ml_mean",
+    "acc_is_mean",
+    "axis_dominance_ratio",
+    "gyr_pa_rms",
+    "gyr_ml_iqr",
+    "acc_is_min",
+    "acc_pa_rms",
+    "acc_is_acc_pa_psd_ratio",
+    "acc_is_median",
+    "acc_jerk_std_norm",
+    "gyr_is_mean",
+    "gyr_ml_lf_hf_ratio",
+    "acc_is_max",
+    "acc_norm_spectral_centroid",
+    "gyr_ml_gyr_pa_energy_ratio",
+    "acc_pa_median",
+    "acc_pa_second_peak_freq",
+    "acc_is_spectral_slope",
+    "acc_is_acc_ml_psd_ratio",
+    "gyr_is_perm_entropy",
+    "gyr_is_gyr_pa_psd_ratio",
+    "moving_range_mean_norm",
+    "acc_norm_dom_freq",
+    "gyr_pa_jerk_mean",
+    "acc_is_perm_entropy",
+    "acc_ml_mean",
+    "gyr_is_jerk_mean",
+    "acc_jerk_rms_norm",
+    "acc_pa_dom_freq",
+    "acc_norm_median",
+    "gyr_is_kurtosis",
+    "acc_ml_median",
+    "gyr_pa_iqr",
+    "acc_ml_perm_entropy",
+    "acc_pa_mean",
+    "acc_jerk_peak_norm",
+    "acc_ml_acc_pa_energy_ratio",
+    "gyr_norm_spectral_slope",
+    "gyr_is_gyr_ml_energy_ratio",
+    "acc_pa_max",
+    "gyr_is_zcr",
+    "acc_pa_perm_entropy",
+    "acc_is_acc_ml_energy_ratio",
+    "gyr_is_jerk_rms",
+    "acc_norm_second_peak_freq",
+    "acc_is_jerk_std",
+    "gyr_norm_skew",
+    "acc_ml_spectral_slope",
+    "acc_pa_min",
+    "acc_norm_mean",
+    "acc_pa_psd_total",
+    "acc_pa_third_peak_freq",
+    "burst_count_norm",
+    "acc_is_zcr",
+    "acc_norm_rms",
+    "gyr_pa_zcr",
+    "acc_ml_rms",
+    "acc_pa_spectral_slope",
+    "acc_norm_spectral_slope",
+    "gyr_ml_jerk_rms",
+    "gyr_ml_gyr_pa_psd_ratio",
+    "gyr_pa_spectral_entropy",
+    "time_gyr_norm_to_dominant_ratio",
+    "acc_ml_acc_pa_psd_ratio",
+    "gyr_ml_dom_freq",
+    "gyr_is_rms",
+    "gyr_norm_perm_entropy",
+    "gyr_norm_kurtosis",
+    "acc_norm_third_peak_freq",
+    "corr_ml_pa",
+    "acc_is_jerk_peak",
+    "acc_ml_max",
+    "gyr_ml_std",
+    "acc_pa_jerk_mean",
+    "gyr_ml_kurtosis",
+    "acc_ml_min",
+    "acc_norm_perm_entropy",
+    "acc_ml_spectral_centroid",
+    "acc_norm_spectral_skewness",
+    "acc_is_acc_pa_energy_ratio",
+    "acc_norm_iqr",
+    "acc_is_rms",
+    "gyr_ml_rms",
+    "gyr_ml_perm_entropy",
+    "acc_is_jerk_rms",
+    "acc_norm_min",
+    "gyr_is_iqr",
 ]
 
 # 90% feature order
 FEATURE_ORDER_90PCT = [
-    "acc_pa_std", "gyr_ml_spectral_centroid", "gyr_is_spectral_centroid",
-    "time_acc_norm_to_dominant_ratio", "gyr_ml_lf_power", "gyr_ml_spectral_slope",
-    "acc_pa_spectral_centroid", "gyr_is_spectral_slope", "gyr_pa_mean",
-    "acc_is_jerk_mean", "gyr_is_std", "gyr_is_gyr_pa_energy_ratio",
-    "gyr_ml_mean", "acc_is_mean", "axis_dominance_ratio", "gyr_pa_rms",
-    "gyr_ml_iqr", "acc_is_min", "acc_pa_rms", "acc_is_acc_pa_psd_ratio",
-    "acc_is_median", "acc_jerk_std_norm", "gyr_is_mean", "gyr_ml_lf_hf_ratio",
-    "acc_is_max", "acc_norm_spectral_centroid", "gyr_ml_gyr_pa_energy_ratio",
-    "acc_pa_median", "acc_pa_second_peak_freq", "acc_is_spectral_slope",
-    "acc_is_acc_ml_psd_ratio", "gyr_is_perm_entropy", "gyr_is_gyr_pa_psd_ratio",
-    "moving_range_mean_norm", "acc_norm_dom_freq", "gyr_pa_jerk_mean",
-    "acc_is_perm_entropy", "acc_ml_mean", "gyr_is_jerk_mean", "acc_jerk_rms_norm",
-    "acc_pa_dom_freq", "acc_norm_median", "gyr_is_kurtosis", "acc_ml_median",
-    "gyr_pa_iqr", "acc_ml_perm_entropy", "acc_pa_mean", "acc_jerk_peak_norm",
-    "acc_ml_acc_pa_energy_ratio", "gyr_norm_spectral_slope", "gyr_is_gyr_ml_energy_ratio",
-    "acc_pa_max", "gyr_is_zcr", "acc_pa_perm_entropy", "acc_is_acc_ml_energy_ratio",
-    "gyr_is_jerk_rms", "acc_norm_second_peak_freq", "acc_is_jerk_std",
-    "gyr_norm_skew", "acc_ml_spectral_slope", "acc_pa_min", "acc_norm_mean",
-    "acc_pa_psd_total", "acc_pa_third_peak_freq", "burst_count_norm",
-    "acc_is_zcr", "acc_norm_rms", "gyr_pa_zcr", "acc_ml_rms",
-    "acc_pa_spectral_slope", "acc_norm_spectral_slope", "gyr_ml_jerk_rms",
-    "gyr_ml_gyr_pa_psd_ratio", "gyr_pa_spectral_entropy", "time_gyr_norm_to_dominant_ratio",
-    "acc_ml_acc_pa_psd_ratio", "gyr_ml_dom_freq", "gyr_is_rms", "gyr_norm_perm_entropy"
+    "acc_pa_std",
+    "gyr_ml_spectral_centroid",
+    "gyr_is_spectral_centroid",
+    "time_acc_norm_to_dominant_ratio",
+    "gyr_ml_lf_power",
+    "gyr_ml_spectral_slope",
+    "acc_pa_spectral_centroid",
+    "gyr_is_spectral_slope",
+    "gyr_pa_mean",
+    "acc_is_jerk_mean",
+    "gyr_is_std",
+    "gyr_is_gyr_pa_energy_ratio",
+    "gyr_ml_mean",
+    "acc_is_mean",
+    "axis_dominance_ratio",
+    "gyr_pa_rms",
+    "gyr_ml_iqr",
+    "acc_is_min",
+    "acc_pa_rms",
+    "acc_is_acc_pa_psd_ratio",
+    "acc_is_median",
+    "acc_jerk_std_norm",
+    "gyr_is_mean",
+    "gyr_ml_lf_hf_ratio",
+    "acc_is_max",
+    "acc_norm_spectral_centroid",
+    "gyr_ml_gyr_pa_energy_ratio",
+    "acc_pa_median",
+    "acc_pa_second_peak_freq",
+    "acc_is_spectral_slope",
+    "acc_is_acc_ml_psd_ratio",
+    "gyr_is_perm_entropy",
+    "gyr_is_gyr_pa_psd_ratio",
+    "moving_range_mean_norm",
+    "acc_norm_dom_freq",
+    "gyr_pa_jerk_mean",
+    "acc_is_perm_entropy",
+    "acc_ml_mean",
+    "gyr_is_jerk_mean",
+    "acc_jerk_rms_norm",
+    "acc_pa_dom_freq",
+    "acc_norm_median",
+    "gyr_is_kurtosis",
+    "acc_ml_median",
+    "gyr_pa_iqr",
+    "acc_ml_perm_entropy",
+    "acc_pa_mean",
+    "acc_jerk_peak_norm",
+    "acc_ml_acc_pa_energy_ratio",
+    "gyr_norm_spectral_slope",
+    "gyr_is_gyr_ml_energy_ratio",
+    "acc_pa_max",
+    "gyr_is_zcr",
+    "acc_pa_perm_entropy",
+    "acc_is_acc_ml_energy_ratio",
+    "gyr_is_jerk_rms",
+    "acc_norm_second_peak_freq",
+    "acc_is_jerk_std",
+    "gyr_norm_skew",
+    "acc_ml_spectral_slope",
+    "acc_pa_min",
+    "acc_norm_mean",
+    "acc_pa_psd_total",
+    "acc_pa_third_peak_freq",
+    "burst_count_norm",
+    "acc_is_zcr",
+    "acc_norm_rms",
+    "gyr_pa_zcr",
+    "acc_ml_rms",
+    "acc_pa_spectral_slope",
+    "acc_norm_spectral_slope",
+    "gyr_ml_jerk_rms",
+    "gyr_ml_gyr_pa_psd_ratio",
+    "gyr_pa_spectral_entropy",
+    "time_gyr_norm_to_dominant_ratio",
+    "acc_ml_acc_pa_psd_ratio",
+    "gyr_ml_dom_freq",
+    "gyr_is_rms",
+    "gyr_norm_perm_entropy",
 ]
+
 
 def extract_full_features(
     df: pd.DataFrame,
@@ -188,10 +483,12 @@ def extract_full_features(
         near_zero_thr: Threshold for stillness detection (default: 0.02)
         rolling_win: Window size for rolling statistics (default: 10)
 
-    Returns:
+    Returns
+    -------
         Dictionary mapping feature names to scalar values (230 features total)
 
-    Notes:
+    Notes
+    -----
         Model expects 5-second windows at 100 Hz (500 samples). A warning is
         issued if input duration differs from expected window size.
     """
@@ -204,7 +501,7 @@ def extract_full_features(
             f"Input window duration is {actual_duration:.2f}s ({n_samples} samples at {fs}Hz). "
             f"Model was trained and evaluated on 5.0s windows ({expected_samples} samples). "
             f"Performance may be affected.",
-            UserWarning
+            UserWarning,
         )
 
     features = {}
@@ -219,6 +516,7 @@ def extract_full_features(
 
     # Returing re order
     return _reorder_features(features, FULL_FEATURE_ORDER)
+
 
 def extract_features_90pct(
     df: pd.DataFrame,
@@ -244,10 +542,12 @@ def extract_features_90pct(
         lf_band: Low-frequency band range in Hz (default: 0.0-0.5)
         rolling_win: Window size for rolling statistics (default: 10)
 
-    Returns:
+    Returns
+    -------
         Dictionary mapping feature names to scalar values (79 features total)
 
-    Notes:
+    Notes
+    -----
         Features selected based on SHAP analysis to maximize predictive power
         while minimizing computational cost. Model expects 5-second windows at 100 Hz.
     """
@@ -257,7 +557,7 @@ def extract_features_90pct(
         warnings.warn(
             f"Input window duration is {n_samples / fs:.2f}s. "
             f"Model was trained on 5.0s windows. Performance may be affected.",
-            UserWarning
+            UserWarning,
         )
 
     features = {}
@@ -277,7 +577,9 @@ def extract_features_90pct(
     features["acc_is_jerk_std"] = np.std(jerk_is, ddof=1)
     f_is, Pxx_is = welch(acc_data[:, 0], fs=fs, nperseg=len(acc_data[:, 0]))
     valid_is = (f_is > 0) & (Pxx_is > 0)
-    features["acc_is_spectral_slope"] = np.polyfit(np.log(f_is[valid_is]), np.log(Pxx_is[valid_is]), 1)[0] if np.sum(valid_is) > 2 else 0.0
+    features["acc_is_spectral_slope"] = (
+        np.polyfit(np.log(f_is[valid_is]), np.log(Pxx_is[valid_is]), 1)[0] if np.sum(valid_is) > 2 else 0.0
+    )
     features["acc_is_perm_entropy"] = ent.permutation_entropy(acc_data[:, 0], order=3, normalize=True)
 
     # Accelerometer ML axis
@@ -286,7 +588,9 @@ def extract_features_90pct(
     features["acc_ml_rms"] = rms(acc_data[:, 1])
     f_ml, Pxx_ml = welch(acc_data[:, 1], fs=fs, nperseg=len(acc_data[:, 1]))
     valid_ml = (f_ml > 0) & (Pxx_ml > 0)
-    features["acc_ml_spectral_slope"] = np.polyfit(np.log(f_ml[valid_ml]), np.log(Pxx_ml[valid_ml]), 1)[0] if np.sum(valid_ml) > 2 else 0.0
+    features["acc_ml_spectral_slope"] = (
+        np.polyfit(np.log(f_ml[valid_ml]), np.log(Pxx_ml[valid_ml]), 1)[0] if np.sum(valid_ml) > 2 else 0.0
+    )
     features["acc_ml_perm_entropy"] = ent.permutation_entropy(acc_data[:, 1], order=3, normalize=True)
 
     # Accelerometer PA axis
@@ -315,7 +619,9 @@ def extract_features_90pct(
         features["acc_pa_second_peak_freq"] = 0.0
         features["acc_pa_third_peak_freq"] = 0.0
     valid_pa = (f_pa > 0) & (Pxx_pa > 0)
-    features["acc_pa_spectral_slope"] = np.polyfit(np.log(f_pa[valid_pa]), np.log(Pxx_pa[valid_pa]), 1)[0] if np.sum(valid_pa) > 2 else 0.0
+    features["acc_pa_spectral_slope"] = (
+        np.polyfit(np.log(f_pa[valid_pa]), np.log(Pxx_pa[valid_pa]), 1)[0] if np.sum(valid_pa) > 2 else 0.0
+    )
     features["acc_pa_perm_entropy"] = ent.permutation_entropy(acc_data[:, 2], order=3, normalize=True)
 
     # Accelerometer norm
@@ -338,7 +644,9 @@ def extract_features_90pct(
         features["acc_norm_dom_freq"] = 0.0
         features["acc_norm_second_peak_freq"] = 0.0
     valid_norm = (f_norm > 0) & (Pxx_norm > 0)
-    features["acc_norm_spectral_slope"] = np.polyfit(np.log(f_norm[valid_norm]), np.log(Pxx_norm[valid_norm]), 1)[0] if np.sum(valid_norm) > 2 else 0.0
+    features["acc_norm_spectral_slope"] = (
+        np.polyfit(np.log(f_norm[valid_norm]), np.log(Pxx_norm[valid_norm]), 1)[0] if np.sum(valid_norm) > 2 else 0.0
+    )
 
     # Accelerometer jerk norm
     jerk_acc_norm = np.diff(acc_norm) / dt
@@ -352,13 +660,19 @@ def extract_features_90pct(
     features["moving_range_mean_norm"] = s_gyr.diff().abs().rolling(rolling_win, min_periods=rolling_win).mean().mean()
 
     # Accelerometer cross-axis features
-    dominant_idx_acc = np.argmax(np.mean(acc_data ** 2, axis=0))
+    dominant_idx_acc = np.argmax(np.mean(acc_data**2, axis=0))
     features["time_acc_norm_to_dominant_ratio"] = np.mean(acc_norm) / (np.mean(acc_data[:, dominant_idx_acc]) + 1e-12)
     features["acc_is_acc_ml_energy_ratio"] = np.sum(np.abs(acc_data[:, 0])) / (np.sum(np.abs(acc_data[:, 1])) + 1e-12)
     features["acc_ml_acc_pa_energy_ratio"] = np.sum(np.abs(acc_data[:, 1])) / (np.sum(np.abs(acc_data[:, 2])) + 1e-12)
-    features["acc_is_acc_ml_psd_ratio"] = np.sum(np.abs(np.fft.rfft(acc_data[:, 0]))) / (np.sum(np.abs(np.fft.rfft(acc_data[:, 1]))) + 1e-12)
-    features["acc_is_acc_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(acc_data[:, 0]))) / (np.sum(np.abs(np.fft.rfft(acc_data[:, 2]))) + 1e-12)
-    features["acc_ml_acc_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(acc_data[:, 1]))) / (np.sum(np.abs(np.fft.rfft(acc_data[:, 2]))) + 1e-12)
+    features["acc_is_acc_ml_psd_ratio"] = np.sum(np.abs(np.fft.rfft(acc_data[:, 0]))) / (
+        np.sum(np.abs(np.fft.rfft(acc_data[:, 1]))) + 1e-12
+    )
+    features["acc_is_acc_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(acc_data[:, 0]))) / (
+        np.sum(np.abs(np.fft.rfft(acc_data[:, 2]))) + 1e-12
+    )
+    features["acc_ml_acc_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(acc_data[:, 1]))) / (
+        np.sum(np.abs(np.fft.rfft(acc_data[:, 2]))) + 1e-12
+    )
 
     # Gyroscope IS axis
     features["gyr_is_mean"] = np.mean(gyr_data[:, 0])
@@ -377,7 +691,11 @@ def extract_features_90pct(
     else:
         features["gyr_is_spectral_centroid"] = 0.0
     valid_gyr_is = (f_gyr_is > 0) & (Pxx_gyr_is > 0)
-    features["gyr_is_spectral_slope"] = np.polyfit(np.log(f_gyr_is[valid_gyr_is]), np.log(Pxx_gyr_is[valid_gyr_is]), 1)[0] if np.sum(valid_gyr_is) > 2 else 0.0
+    features["gyr_is_spectral_slope"] = (
+        np.polyfit(np.log(f_gyr_is[valid_gyr_is]), np.log(Pxx_gyr_is[valid_gyr_is]), 1)[0]
+        if np.sum(valid_gyr_is) > 2
+        else 0.0
+    )
     features["gyr_is_perm_entropy"] = ent.permutation_entropy(gyr_data[:, 0], order=3, normalize=True)
 
     # Gyroscope ML axis
@@ -399,7 +717,11 @@ def extract_features_90pct(
     else:
         features["gyr_ml_spectral_centroid"] = 0.0
     valid_gyr_ml = (f_gyr_ml > 0) & (Pxx_gyr_ml > 0)
-    features["gyr_ml_spectral_slope"] = np.polyfit(np.log(f_gyr_ml[valid_gyr_ml]), np.log(Pxx_gyr_ml[valid_gyr_ml]), 1)[0] if np.sum(valid_gyr_ml) > 2 else 0.0
+    features["gyr_ml_spectral_slope"] = (
+        np.polyfit(np.log(f_gyr_ml[valid_gyr_ml]), np.log(Pxx_gyr_ml[valid_gyr_ml]), 1)[0]
+        if np.sum(valid_gyr_ml) > 2
+        else 0.0
+    )
     peaks_gyr_ml, _ = find_peaks(Pxx_gyr_ml)
     if len(peaks_gyr_ml) > 0:
         peak_freqs_gyr_ml = f_gyr_ml[peaks_gyr_ml][np.argsort(Pxx_gyr_ml[peaks_gyr_ml])[::-1]]
@@ -426,19 +748,29 @@ def extract_features_90pct(
     features["gyr_norm_skew"] = skew(gyr_norm, bias=False)
     f_gyr_norm, Pxx_gyr_norm = welch(gyr_norm, fs=fs, nperseg=len(gyr_norm))
     valid_gyr_norm = (f_gyr_norm > 0) & (Pxx_gyr_norm > 0)
-    features["gyr_norm_spectral_slope"] = np.polyfit(np.log(f_gyr_norm[valid_gyr_norm]), np.log(Pxx_gyr_norm[valid_gyr_norm]), 1)[0] if np.sum(valid_gyr_norm) > 2 else 0.0
+    features["gyr_norm_spectral_slope"] = (
+        np.polyfit(np.log(f_gyr_norm[valid_gyr_norm]), np.log(Pxx_gyr_norm[valid_gyr_norm]), 1)[0]
+        if np.sum(valid_gyr_norm) > 2
+        else 0.0
+    )
     features["gyr_norm_perm_entropy"] = ent.permutation_entropy(gyr_norm, order=3, normalize=True)
 
     # Cross-axis coupling
-    axis_energy_gyr = np.mean(gyr_data ** 2, axis=0)
-    features["axis_dominance_ratio"] = np.max(axis_energy_gyr) / np.sum(axis_energy_gyr) if np.sum(axis_energy_gyr) > 0 else 0.0
+    axis_energy_gyr = np.mean(gyr_data**2, axis=0)
+    features["axis_dominance_ratio"] = (
+        np.max(axis_energy_gyr) / np.sum(axis_energy_gyr) if np.sum(axis_energy_gyr) > 0 else 0.0
+    )
     dominant_idx_gyr = np.argmax(axis_energy_gyr)
     features["time_gyr_norm_to_dominant_ratio"] = np.mean(gyr_norm) / (np.mean(gyr_data[:, dominant_idx_gyr]) + 1e-12)
     features["gyr_is_gyr_ml_energy_ratio"] = np.sum(np.abs(gyr_data[:, 0])) / (np.sum(np.abs(gyr_data[:, 1])) + 1e-12)
     features["gyr_is_gyr_pa_energy_ratio"] = np.sum(np.abs(gyr_data[:, 0])) / (np.sum(np.abs(gyr_data[:, 2])) + 1e-12)
     features["gyr_ml_gyr_pa_energy_ratio"] = np.sum(np.abs(gyr_data[:, 1])) / (np.sum(np.abs(gyr_data[:, 2])) + 1e-12)
-    features["gyr_is_gyr_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(gyr_data[:, 0]))) / (np.sum(np.abs(np.fft.rfft(gyr_data[:, 2]))) + 1e-12)
-    features["gyr_ml_gyr_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(gyr_data[:, 1]))) / (np.sum(np.abs(np.fft.rfft(gyr_data[:, 2]))) + 1e-12)
+    features["gyr_is_gyr_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(gyr_data[:, 0]))) / (
+        np.sum(np.abs(np.fft.rfft(gyr_data[:, 2]))) + 1e-12
+    )
+    features["gyr_ml_gyr_pa_psd_ratio"] = np.sum(np.abs(np.fft.rfft(gyr_data[:, 1]))) / (
+        np.sum(np.abs(np.fft.rfft(gyr_data[:, 2]))) + 1e-12
+    )
 
     # Return re ordered
     return _reorder_features(features, FEATURE_ORDER_90PCT)
@@ -468,10 +800,12 @@ def extract_features_95pct(
         lf_band: Low-frequency band range in Hz (default: 0.0-0.5)
         rolling_win: Window size for rolling statistics (default: 10)
 
-    Returns:
+    Returns
+    -------
         Dictionary mapping feature names to scalar values (99 features total)
 
-    Notes:
+    Notes
+    -----
         Includes all 90% features plus additional features for improved accuracy.
         Model expects 5-second windows at 100 Hz.
     """
@@ -481,7 +815,7 @@ def extract_features_95pct(
         warnings.warn(
             f"Input window duration is {n_samples / fs:.2f}s. "
             f"Model was trained on 5.0s windows. Performance may be affected.",
-            UserWarning
+            UserWarning,
         )
 
     features = extract_features_90pct(df, acc_axes, gyr_axes, fs, dt, lf_band, rolling_win)
@@ -614,14 +948,16 @@ def _extract_acc_time_domain(df, axes, dt, noise_floor, near_zero_thr, rolling_w
     features["corr_is_pa"] = np.corrcoef(data[:, 0], data[:, 2])[0, 1]
     features["corr_ml_pa"] = np.corrcoef(data[:, 1], data[:, 2])[0, 1]
 
-    axis_energy = np.mean(data ** 2, axis=0)
+    axis_energy = np.mean(data**2, axis=0)
     features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
     dominant_idx = np.argmax(axis_energy)
     features["time_acc_norm_to_dominant_ratio"] = np.mean(norm) / (np.mean(data[:, dominant_idx]) + 1e-12)
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
-            features[f"{axes[i]}_{axes[j]}_energy_ratio"] = np.sum(np.abs(data[:, i])) / (np.sum(np.abs(data[:, j])) + 1e-12)
+            features[f"{axes[i]}_{axes[j]}_energy_ratio"] = np.sum(np.abs(data[:, i])) / (
+                np.sum(np.abs(data[:, j])) + 1e-12
+            )
 
     return features
 
@@ -685,14 +1021,16 @@ def _extract_acc_frequency_domain(df, axes, fs, lf_band):
             _, Cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
             features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(Cxy)
 
-    axis_energy = np.mean(data ** 2, axis=0)
+    axis_energy = np.mean(data**2, axis=0)
     features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
     dominant_idx = np.argmax(axis_energy)
     features["freq_acc_norm_to_dominant_ratio"] = np.mean(norm) / (np.mean(data[:, dominant_idx]) + 1e-12)
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
-            features[f"{axes[i]}_{axes[j]}_psd_ratio"] = np.sum(np.abs(np.fft.rfft(data[:, i]))) / (np.sum(np.abs(np.fft.rfft(data[:, j]))) + 1e-12)
+            features[f"{axes[i]}_{axes[j]}_psd_ratio"] = np.sum(np.abs(np.fft.rfft(data[:, i]))) / (
+                np.sum(np.abs(np.fft.rfft(data[:, j]))) + 1e-12
+            )
 
     return features
 
@@ -756,14 +1094,16 @@ def _extract_gyr_time_domain(df, axes, dt, noise_floor, near_zero_thr, rolling_w
     features["corr_is_pa"] = np.corrcoef(data[:, 0], data[:, 2])[0, 1]
     features["corr_ml_pa"] = np.corrcoef(data[:, 1], data[:, 2])[0, 1]
 
-    axis_energy = np.mean(data ** 2, axis=0)
+    axis_energy = np.mean(data**2, axis=0)
     features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
     dominant_idx = np.argmax(axis_energy)
     features["time_gyr_norm_to_dominant_ratio"] = np.mean(norm) / (np.mean(data[:, dominant_idx]) + 1e-12)
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
-            features[f"{axes[i]}_{axes[j]}_energy_ratio"] = np.sum(np.abs(data[:, i])) / (np.sum(np.abs(data[:, j])) + 1e-12)
+            features[f"{axes[i]}_{axes[j]}_energy_ratio"] = np.sum(np.abs(data[:, i])) / (
+                np.sum(np.abs(data[:, j])) + 1e-12
+            )
 
     return features
 
@@ -827,13 +1167,15 @@ def _extract_gyr_frequency_domain(df, axes, fs, lf_band):
             _, Cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
             features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(Cxy)
 
-    axis_energy = np.mean(data ** 2, axis=0)
+    axis_energy = np.mean(data**2, axis=0)
     features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
     dominant_idx = np.argmax(axis_energy)
     features["freq_gyr_norm_to_dominant_ratio"] = np.mean(norm) / (np.mean(data[:, dominant_idx]) + 1e-12)
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
-            features[f"{axes[i]}_{axes[j]}_psd_ratio"] = np.sum(np.abs(np.fft.rfft(data[:, i]))) / (np.sum(np.abs(np.fft.rfft(data[:, j]))) + 1e-12)
+            features[f"{axes[i]}_{axes[j]}_psd_ratio"] = np.sum(np.abs(np.fft.rfft(data[:, i]))) / (
+                np.sum(np.abs(np.fft.rfft(data[:, j]))) + 1e-12
+            )
 
     return features
