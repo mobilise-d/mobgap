@@ -12,10 +12,10 @@ from mobgap.utils.dtypes import assert_is_sensor_data
 
 
 @base_lrc_docfiller
-class LrcMansour(BaseLRClassifier):
-    """LrcMansour algorithm for laterality detection of initial contacts.
+class LrcBenMansour(BaseLRClassifier):
+    """LrcBenMansour algorithm for laterality detection of initial contacts.
 
-    The Mansour algorithm [1]_ uses the derivative of the mediolateral acceleration in order to classify left/right
+    The BenMansour algorithm [1]_ uses the derivative of the mediolateral acceleration in order to classify left/right
     initial contacts.
 
     The first step is to filter the signal using a low-pass fourth-order zero-lag Butterworth filter at 1 Hz.
@@ -49,8 +49,8 @@ class LrcMansour(BaseLRClassifier):
     In the edge case of data == 0, the right side is assumed.
 
 
-    .. [1] Mansour, Khaireddine Ben, Nasser Rezzoug, and Philippe Gorce. "Foot side detection from lower lumbar spine
-        acceleration." Gait & Posture 42.3 (2015): 386-389., available at:
+    .. [1] Ben Mansour, K., Rezzoug, N., & Gorce, P. (2015). Foot side detection from lower lumbar spine acceleration.
+        Gait & Posture, 42(3), 386-389, available at:
         https://doi.org/10.1016/j.gaitpost.2015.05.021
 
     """

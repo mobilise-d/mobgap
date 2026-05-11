@@ -33,9 +33,9 @@ algorithms = {
         "Mobilise-D Pipeline",
         "MobGap (with old LRC)",
     ),
-    "Official_MobiliseD_Pipeline__mansour_lrc": (
+    "Official_MobiliseD_Pipeline__benmansour_lrc": (
         "Mobilise-D Pipeline",
-        "MobGap (with Manseur LRC)",
+        "MobGap (with BenMansour LRC)",
     ),
 }
 version_order = [version for _, version in algorithms.values()]
