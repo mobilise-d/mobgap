@@ -97,12 +97,12 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
 
         # Load models once during initialization
         if self.version == "full":
-            model_file = files('imu_weartime.weartime.production_models').joinpath('xgboost_fullfeatures_lowback_model.pkl')
-            feature_order_file = files('imu_weartime.weartime.production_models').joinpath(
+            model_file = files('mobgap.weartime.production_models').joinpath('xgboost_fullfeatures_lowback_model.pkl')
+            feature_order_file = files('mobgap.weartime.production_models').joinpath(
                 'xgboost_fullfeatures_lowback_feature_order.pkl')
         else:  # lightweight
-            model_file = files('imu_weartime.weartime.production_models').joinpath('xgboost_90pct_lowback_model.pkl')
-            feature_order_file = files('imu_weartime.weartime.production_models').joinpath(
+            model_file = files('mobgap.weartime.production_models').joinpath('xgboost_90pct_lowback_model.pkl')
+            feature_order_file = files('mobgap.weartime.production_models').joinpath(
                 'xgboost_90pct_lowback_feature_order.pkl')
 
         with model_file.open('rb') as f:
