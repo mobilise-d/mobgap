@@ -61,6 +61,8 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
     %(other_parameters)s
     model : xgboost.XGBClassifier
         Pre-trained XGBoost model loaded during initialization
+    feature_names : list
+        List of feature names used by the model
 
     Attributes
     ----------
