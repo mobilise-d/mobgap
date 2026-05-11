@@ -23,4 +23,6 @@ This is the API Reference for ``mobgap``.
     orientation_estimation
     data_transform
     plotting
+    re_orientation
+    weartime
     utils/index.rst
