@@ -9,8 +9,8 @@ Corrects sensor axis orientation to the anatomical frame:
 Coordinate system: left-handed (IS up, ML right, AP forward).
 
 Two methods:
-    full         — applies all three stages to every walking bout
-    conservative — only applies ML/AP correction (Stage 3) when gravity
+    full - applies all three stages to every walking bout
+    conservative - only applies ML/AP correction (Stage 3) when gravity
                    was already wrong (Family 2, 3, or 4). If gravity is
                    already pointing up in the vertical axis (Family 1),
                    ML and AP are left unchanged to avoid a ~6.67% risk
@@ -26,7 +26,7 @@ from scipy import signal
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
-GRAVITY_THRESHOLD = 6.37  # m/s² — axis with |mean| >= this captures gravity
+GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= this captures gravity
 FS = 100  # sampling rate Hz
 
 
@@ -51,10 +51,10 @@ class ReorientationMethodDM(Algorithm):
     Parameters
     ----------
     method : {'full', 'conservative'}
-        full         — applies ML/AP correction to every walking bout.
-        conservative — skips ML/AP correction for Family 1 (gravity already
-                       pointing up in the vertical axis) to avoid wrongly
-                       flipping correctly oriented axes.
+        full - applies ML/AP correction to every walking bout.
+        conservative - skips ML/AP correction for Family 1 (gravity already
+        pointing up in the vertical axis) to avoid wrongly flipping
+        correctly oriented axes.
 
     Other Parameters
     ----------------
@@ -113,7 +113,7 @@ class ReorientationMethodDM(Algorithm):
         # Stage 1+2: identify gravity axis, direction, and family
         where_grav, where_grav_points, family = _detect_gravity(data)
 
-        # Cannot correct if gravity not detected — return data unchanged
+        # Cannot correct if gravity not detected - return data unchanged
         if family is None:
             self.result_ = ReorientationResult(
                 where_grav=None,
