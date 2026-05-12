@@ -4,7 +4,7 @@ r"""
 WTD Megaritis CNN
 =================
 
-This example shows how to use the WtdMegaritis_CNN algorithm for wear-time
+This example shows how to use the WtdMegaritisCNN algorithm for wear-time
 detection using pre-trained 1D CNN and CNN-LSTM models operating on raw windowed
 IMU data.
 
@@ -72,7 +72,7 @@ example_data = LabExampleDataset(
 # Below we apply both CNN variants to a trial containing activities of daily living.
 # Note: This is controlled lab data where the sensor was worn for the entire recording,
 # so we expect the algorithm to detect close to 100%% wear-time.
-from mobgap.weartime import WtdMegaritis_CNN
+from mobgap.weartime import WtdMegaritisCNN
 
 single_test = example_data.get_subset(
     cohort="HA", participant_id="001", test="Test11", trial="Trial1"
@@ -94,7 +94,7 @@ for version in ["cnn", "cnn_lstm"]:
     print(f"{'=' * 60}\n")
 
     # Apply algorithm
-    wtd_output = WtdMegaritis_CNN(version=version).detect(
+    wtd_output = WtdMegaritisCNN(version=version).detect(
         imu_data, sampling_rate_hz=sampling_rate_hz
     )
 

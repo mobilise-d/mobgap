@@ -12,8 +12,8 @@ Algorithms
    :template: class.rst
 
     WtdMegaritisSignal
-    WtdMegaritis_XGBoost
-    WtdMegaritis_CNN
+    WtdMegaritisXGBoost
+    WtdMegaritisCNN
 
 Base Classes
 ++++++++++++

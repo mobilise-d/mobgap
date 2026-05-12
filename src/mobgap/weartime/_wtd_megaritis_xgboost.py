@@ -27,7 +27,7 @@ from mobgap.weartime.utils.windows_to_weartime import overlapping_windows_to_sam
 
 
 @base_weartime_docfiller
-class WtdMegaritis_XGBoost(BaseWeartimeDetector):
+class WtdMegaritisXGBoost(BaseWeartimeDetector):
     """
     XGBoost-based weartime detection for lower-back worn IMU sensors.
 

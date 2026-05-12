@@ -27,7 +27,7 @@ from mobgap.weartime.utils.windows_to_weartime import overlapping_windows_to_sam
 
 
 @base_weartime_docfiller
-class WtdMegaritis_CNN(BaseWeartimeDetector):
+class WtdMegaritisCNN(BaseWeartimeDetector):
     """
     1D CNN-based wear-time detection for lower-back worn IMU sensors.
 
