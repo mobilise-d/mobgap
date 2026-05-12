@@ -4,19 +4,20 @@ import numpy as np
 import pandas as pd
 
 
-def overlapping_windows_to_sample_labels(
-    predictions,
-    data_len,
-    window_size=500,
-    stride=125,
-    extend_tail=True,
-    sampling_rate_hz=100,
-    min_confidence_short_bouts=0.90,
-    short_bout_threshold_minutes=20,
-    min_bout_duration_seconds=15,
-):
+def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
+    predictions: list[int],
+    data_len: int,
+    window_size: int = 500,
+    stride: int = 125,
+    extend_tail: bool = True,
+    sampling_rate_hz: int = 100,
+    min_confidence_short_bouts: float = 0.90,
+    short_bout_threshold_minutes: float = 20,
+    min_bout_duration_seconds: float = 15,
+) -> tuple[pd.DataFrame, int, float, float, float, dict]:
     """
     Convert windowed predictions to per-sample labels using majority voting.
+
     Applies confidence threshold for short wear bouts not at data boundaries.
     Also removes short non-wear bouts by merging them into adjacent wear periods.
 
@@ -45,7 +46,6 @@ def overlapping_windows_to_sample_labels(
     -------
     pred_wt_df : pandas DataFrame
         Predicted wear time segments with 'start' and 'end' columns, indexed by 'wt_id'.
-        Empty DataFrame if no wear time detected (all 0s)
     total_weartime_samples : int
         Total wear time in samples
     total_weartime_seconds : float
@@ -59,10 +59,14 @@ def overlapping_windows_to_sample_labels(
 
     Notes
     -----
-        -In this function we incorporate a post processing step assessing weartime bouts shorter than 20 minutes.
-        These bout are only kept as wear if the confidence (proportion of wear votes) is above the specified threshold (default 85%).
-         This helps to reduce false positives from short wear time predictions that may be less reliable, while still allowing short wear bouts at the beginning or end of the data to be retained without filtering.
-         Finally, we remove bouts which are shorter than 15 seconds because attaching and removing a device may be bordeline possible within 15 seconds.
+    In this function we incorporate a post processing step assessing weartime bouts
+    shorter than 20 minutes. These bout are only kept as wear if the confidence
+    (proportion of wear votes) is above the specified threshold (default 85%).
+    This helps to reduce false positives from short wear time predictions that may be
+    less reliable, while still allowing short wear bouts at the beginning or end of
+    the data to be retained without filtering. Finally, we remove bouts which are
+    shorter than 15 seconds because attaching and removing a device may be borderline
+    possible within 15 seconds.
     """
     # Initialize vote counter for each sample
     vote_counts = np.zeros((data_len, 2), dtype=np.int32)  # [count_0, count_1]
