@@ -176,10 +176,10 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
         (
             self.weartime_list_,
             self.total_weartime_samples_,
-            total_weartime_seconds,
+            _total_weartime_seconds,
             self.total_weartime_minutes_,
             self.total_weartime_hours_,
-            coverage,
+            _coverage,
         ) = overlapping_windows_to_sample_labels(
             predictions=all_predictions,
             data_len=self.data_length,

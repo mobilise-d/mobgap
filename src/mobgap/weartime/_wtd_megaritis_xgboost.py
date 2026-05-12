@@ -159,10 +159,7 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
             win = self.data.iloc[start:end]
 
             # Extract features
-            if self.version == "full":
-                features_dict = extract_full_features(win)
-            else:  # lightweight
-                features_dict = extract_features_90pct(win)
+            features_dict = extract_full_features(win) if self.version == "full" else extract_features_90pct(win)
 
             # Predict
             features_df = pd.DataFrame([features_dict])
@@ -177,7 +174,7 @@ class WtdMegaritis_XGBoost(BaseWeartimeDetector):
             all_probabilities.append(y_prob)
 
         # Post-processing: convert window predictions to sample-level weartime
-        self.weartime_list_, total_samples, total_seconds, total_minutes, total_hours, coverage = (
+        self.weartime_list_, total_samples, _total_seconds, total_minutes, total_hours, _coverage = (
             overlapping_windows_to_sample_labels(
                 predictions=all_predictions,
                 data_len=self.data_length,
