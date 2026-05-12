@@ -157,7 +157,7 @@ class ReorientationMethodDM(Algorithm):
                 corrected = _flip_ml_and_ap(corrected)
                 corrections.append("flipped ML and AP")
 
-        elif family == 2 or family == 3:
+        elif family in {2, 3}:
             if phase > 0:
                 corrected = _flip_ml(corrected)
                 corrections.append("flipped ML")
@@ -165,10 +165,9 @@ class ReorientationMethodDM(Algorithm):
                 corrected = _flip_ap(corrected)
                 corrections.append("flipped AP")
 
-        elif family == 4:
-            if phase < 0:
-                corrected = _flip_ml_and_ap(corrected)
-                corrections.append("flipped ML and AP")
+        elif family == 4 and phase < 0:
+            corrected = _flip_ml_and_ap(corrected)
+            corrections.append("flipped ML and AP")
 
         correction_action = " and ".join(corrections) if corrections else "none"
 
@@ -189,6 +188,7 @@ class ReorientationMethodDM(Algorithm):
 def _detect_gravity(data: pd.DataFrame):
     """
     Stage 1: identify which axis captures gravity.
+
     Stage 2: determine direction (up / down) and orientation family.
 
     Returns (where_grav, where_grav_points, family).
@@ -306,8 +306,8 @@ def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> flo
     Negative → AP reversed.
     Returns 0.0 if bout is too short for spectral estimation.
     """
-    acc_is = data["acc_is"].values
-    acc_pa = data["acc_pa"].values
+    acc_is = data["acc_is"].to_numpy()
+    acc_pa = data["acc_pa"].to_numpy()
 
     if len(acc_is) < fs * 2:
         return 0.0
