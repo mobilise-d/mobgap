@@ -4,10 +4,11 @@ import numpy as np
 import pandas as pd
 
 
-def per_minute_counts(counts_per_sec):
+def per_minute_counts(counts_per_sec: np.ndarray) -> np.ndarray:
     """
-    Convert per-second counts to per-minute counts, including leftover seconds
-    as a final partial minute.
+    Convert per-second counts to per-minute counts.
+
+    Includes leftover seconds as a final partial minute.
 
     Parameters
     ----------
@@ -33,8 +34,9 @@ def per_minute_counts(counts_per_sec):
 
 def generate_weartime_list_from_minutes(weartime_flags: np.ndarray, sampling_rate: int = 100) -> pd.DataFrame:
     """
-    Generate a list of wear time bouts (start and end indices) from a binary array of wear time flags per minute,
-    scaling to sample indices.
+    Generate a list of wear time bouts from binary flags per minute.
+
+    Scales to sample indices.
 
     Parameters
     ----------
@@ -56,7 +58,7 @@ def generate_weartime_list_from_minutes(weartime_flags: np.ndarray, sampling_rat
     bouts = np.split(weartime_flags, cuts)
 
     # Start indices for each segment
-    starts = [0] + cuts.tolist()
+    starts = [0, *cuts.tolist()]
 
     # Keep only wear time segments and scale to samples
     wt_list = [
@@ -74,8 +76,9 @@ def generate_weartime_list_from_minutes(weartime_flags: np.ndarray, sampling_rat
 
 def generate_weartime_list_from_seconds(weartime_flags: np.ndarray, sampling_rate: int = 100) -> pd.DataFrame:
     """
-    Generate a list of wear-time bouts (start and end indices) from a binary
-    array of wear-time flags at per-second resolution, scaled to samples.
+    Generate a list of wear-time bouts from binary flags at per-second resolution.
+
+    Scaled to samples.
 
     Parameters
     ----------
@@ -95,7 +98,7 @@ def generate_weartime_list_from_seconds(weartime_flags: np.ndarray, sampling_rat
     # Change points
     cuts = np.where(np.diff(weartime_flags) != 0)[0] + 1
     bouts = np.split(weartime_flags, cuts)
-    starts = [0] + cuts.tolist()
+    starts = [0, *cuts.tolist()]
 
     wt_list = [
         (start * sampling_rate, (start + len(bout)) * sampling_rate)
@@ -110,7 +113,7 @@ def generate_weartime_list_from_seconds(weartime_flags: np.ndarray, sampling_rat
 
 def generate_weartime_list_from_samples(weartime_flags: np.ndarray) -> pd.DataFrame:
     """
-    Generate wear-time bouts (start/end sample indices) from a binary array at sample resolution.
+    Generate wear-time bouts from binary array at sample resolution.
 
     Parameters
     ----------
@@ -124,7 +127,7 @@ def generate_weartime_list_from_samples(weartime_flags: np.ndarray) -> pd.DataFr
     """
     weartime_flags = np.asarray(weartime_flags).ravel()
     cuts = np.where(np.diff(weartime_flags) != 0)[0] + 1
-    starts = [0] + cuts.tolist()
+    starts = [0, *cuts.tolist()]
     bouts = np.split(weartime_flags, cuts)
 
     wt_list = [(start, start + len(bout)) for start, bout in zip(starts, bouts) if bout[0] == 1]
