@@ -33,8 +33,7 @@ from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_peri
 @base_weartime_docfiller
 class WtdMegaritis_signal(BaseWeartimeDetector):
     """
-    Novel signal processing wear-time detection algorithm based on gyroscope rotational patterns
-    and accelerometer movement variability.
+    Novel signal processing wear-time detection algorithm.
 
     The algorithm uses gyroscopes to detect angular (rotational) movement during true wear-time.
     Natural body movements show characteristic low-frequency rotational patterns (<15-17 Hz).

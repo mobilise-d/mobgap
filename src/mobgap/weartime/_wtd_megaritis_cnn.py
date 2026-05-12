@@ -155,19 +155,19 @@ class WtdMegaritis_CNN(BaseWeartimeDetector):
             win = self.data.iloc[start:end]
 
             # Extract raw IMU window and standardize per-window
-            X_window = win[required_cols].to_numpy().astype(np.float32)
+            x_window = win[required_cols].to_numpy().astype(np.float32)
 
             # Per-window standardization (matching training preprocessing)
-            X_mean = X_window.mean(axis=0)  # shape: (6,)
-            X_std = X_window.std(axis=0)  # shape: (6,)
-            X_std[X_std < 1e-8] = 1e-8
-            X_window = (X_window - X_mean) / X_std
+            x_mean = x_window.mean(axis=0)  # shape: (6,)
+            x_std = x_window.std(axis=0)  # shape: (6,)
+            x_std[x_std < 1e-8] = 1e-8
+            x_window = (x_window - x_mean) / x_std
 
             # Reshape for CNN: (1, timesteps, features)
-            X_window = X_window.reshape(1, win_samples, len(required_cols))
+            x_window = x_window.reshape(1, win_samples, len(required_cols))
 
             # Predict
-            y_prob = self.model.predict(X_window, verbose=0)[0, 0]
+            y_prob = self.model.predict(x_window, verbose=0)[0, 0]
             y_pred = int(y_prob > 0.5)
 
             all_predictions.append(y_pred)
