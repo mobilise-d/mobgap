@@ -84,7 +84,7 @@ class ReorientationMethodDM(Algorithm):
     # Results
     result_: ReorientationResult
 
-    def __init__(self, method: Literal["full", "conservative"] = "conservative"):
+    def __init__(self, method: Literal["full", "conservative"] = "conservative") -> None:
         self.method = method
 
     def detect_correct(self, data: pd.DataFrame, **_: Unpack[dict[str, Any]]) -> Self:
@@ -152,22 +152,12 @@ class ReorientationMethodDM(Algorithm):
         phase = _cross_spec_pa_phase_power_weighted(corrected)
 
         # ML/AP correction based on family and phase sign
-        if family == 1:
-            if phase < 0:
-                corrected = _flip_ml_and_ap(corrected)
-                corrections.append("flipped ML and AP")
-
-        elif family in {2, 3}:
-            if phase > 0:
-                corrected = _flip_ml(corrected)
-                corrections.append("flipped ML")
-            else:
-                corrected = _flip_ap(corrected)
-                corrections.append("flipped AP")
-
-        elif family == 4 and phase < 0:
-            corrected = _flip_ml_and_ap(corrected)
-            corrections.append("flipped ML and AP")
+        corrected, corrections = _apply_ml_ap_correction(
+            corrected,
+            family,
+            phase,
+            corrections,
+        )
 
         correction_action = " and ".join(corrections) if corrections else "none"
 
@@ -185,7 +175,7 @@ class ReorientationMethodDM(Algorithm):
 
 
 # Helper functions for each stage of the algorithm
-def _detect_gravity(data: pd.DataFrame):
+def _detect_gravity(data: pd.DataFrame) -> tuple[str | None, str | None, int | None]:
     """
     Stage 1: identify which axis captures gravity.
 
@@ -297,8 +287,9 @@ def _bandpass_filter(signal_data: np.ndarray, lowcut: float, highcut: float, fs:
 
 def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> float:
     """
-    Power-weighted mean cross-spectral phase between acc_is and acc_pa
-    across 0.5-3.0 Hz (gait stride frequency band).
+    Compute power-weighted mean cross-spectral phase between acc_is and acc_pa.
+
+    Computed across 0.5-3.0 Hz (gait stride frequency band).
 
     Signals are bandpass filtered (0.5-3.0 Hz) before feature extraction.
 
@@ -318,16 +309,43 @@ def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> flo
         acc_pa_filt = _bandpass_filter(acc_pa, FILTER_LOWCUT, FILTER_HIGHCUT, fs, FILTER_ORDER)
 
         nperseg = min(256, len(acc_is_filt) // 2)
-        f, Cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=fs, nperseg=nperseg)
-        f, Pxx_is = signal.welch(acc_is_filt, fs=fs, nperseg=nperseg)
+        f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=fs, nperseg=nperseg)
+        f, pxx_is = signal.welch(acc_is_filt, fs=fs, nperseg=nperseg)
         stride_mask = (f >= 0.5) & (f <= 2.5)
         if not np.any(stride_mask):
             return 0.0
-        is_power = Pxx_is[stride_mask]
-        phase = np.angle(Cxy[stride_mask])
+        is_power = pxx_is[stride_mask]
+        phase = np.angle(cxy[stride_mask])
         if is_power.sum() > 0:
             return float(np.average(phase, weights=is_power))
-    except Exception:
+    except ValueError:
         pass
 
     return 0.0
+
+
+def _apply_ml_ap_correction(
+    corrected: pd.DataFrame,
+    family: int,
+    phase: float,
+    corrections: list[str],
+) -> tuple[pd.DataFrame, list[str]]:
+    """Apply ML/AP correction based on family and phase."""
+    if family == 1:
+        if phase < 0:
+            corrected = _flip_ml_and_ap(corrected)
+            corrections.append("flipped ML and AP")
+
+    elif family in {2, 3}:
+        if phase > 0:
+            corrected = _flip_ml(corrected)
+            corrections.append("flipped ML")
+        else:
+            corrected = _flip_ap(corrected)
+            corrections.append("flipped AP")
+
+    elif family == 4 and phase < 0:
+        corrected = _flip_ml_and_ap(corrected)
+        corrections.append("flipped ML and AP")
+
+    return corrected, corrections
