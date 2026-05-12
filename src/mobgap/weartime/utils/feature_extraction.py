@@ -1,26 +1,28 @@
 """Utility functions for IMU feature extraction from windowed data."""
 
 import warnings
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 from pyentrp import entropy as ent
 from scipy.signal import coherence, find_peaks, welch
 from scipy.stats import kurtosis, skew
 
 
 # ---------- Helper functions ----------
-def rms(x):
+def rms(x: NDArray[np.float64] | Sequence[float]) -> float:
     """Calculate root mean square."""
     return np.sqrt(np.mean(x**2)) if len(x) else 0.0
 
 
-def zero_crossing_rate(x):
+def zero_crossing_rate(x: NDArray[np.float64] | Sequence[float]) -> float:
     """Calculate zero-crossing rate."""
     return np.mean(np.diff(np.signbit(x)) != 0) if len(x) > 1 else 0.0
 
 
-def consecutive_true_lengths(mask):
+def consecutive_true_lengths(mask: NDArray[np.bool_]) -> NDArray[np.int_]:
     """Find lengths of consecutive True values in boolean mask."""
     if len(mask) == 0:
         return np.array([])
@@ -30,7 +32,10 @@ def consecutive_true_lengths(mask):
     return ends - starts
 
 
-def _reorder_features(features: dict, expected_order: list) -> dict:
+def _reorder_features(
+    features: dict[str, float],
+    expected_order: list[str],
+) -> dict[str, float]:
     """Reorder features dict to match expected order from training."""
     return {k: features[k] for k in expected_order if k in features}
 
@@ -456,17 +461,18 @@ FEATURE_ORDER_90PCT = [
 ]
 
 
+# Feature extraction pipeline intentionally explicit for traceability/readability.
 def extract_full_features(
     df: pd.DataFrame,
-    acc_axes=("acc_is", "acc_ml", "acc_pa"),
-    gyr_axes=("gyr_is", "gyr_ml", "gyr_pa"),
-    fs=100.0,
-    dt=0.01,
-    lf_band=(0.0, 0.5),
-    noise_floor=0.05,
-    near_zero_thr=0.02,
-    rolling_win=10,
-) -> dict:
+    acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
+    gyr_axes: tuple[str, str, str] = ("gyr_is", "gyr_ml", "gyr_pa"),
+    fs: float = 100.0,
+    dt: float = 0.01,
+    lf_band: tuple[float, float] = (0.0, 0.5),
+    noise_floor: float = 0.05,
+    near_zero_thr: float = 0.02,
+    rolling_win: int = 10,
+) -> dict[str, float]:
     """
     Extract complete set of time-domain and frequency-domain features from 6-axis IMU data.
 
@@ -496,14 +502,13 @@ def extract_full_features(
     """
     n_samples = len(df)
     expected_samples = int(5.0 * fs)
-    actual_duration = n_samples / fs
 
     if n_samples != expected_samples:
         warnings.warn(
-            f"Input window duration is {actual_duration:.2f}s ({n_samples} samples at {fs}Hz). "
-            f"Model was trained and evaluated on 5.0s windows ({expected_samples} samples). "
-            f"Performance may be affected.",
+            f"Input window duration is {n_samples / fs:.2f}s. "
+            f"Model was trained on 5.0s windows. Performance may be affected.",
             UserWarning,
+            stacklevel=2,
         )
 
     features = {}
@@ -520,15 +525,16 @@ def extract_full_features(
     return _reorder_features(features, FULL_FEATURE_ORDER)
 
 
-def extract_features_90pct(
+# Feature extraction pipeline intentionally explicit for traceability/readability.
+def extract_features_90pct(  # noqa: PLR0912, PLR0915
     df: pd.DataFrame,
-    acc_axes=("acc_is", "acc_ml", "acc_pa"),
-    gyr_axes=("gyr_is", "gyr_ml", "gyr_pa"),
-    fs=100.0,
-    dt=0.01,
-    lf_band=(0.0, 0.5),
-    rolling_win=10,
-) -> dict:
+    acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
+    gyr_axes: tuple[str, str, str] = ("gyr_is", "gyr_ml", "gyr_pa"),
+    fs: float = 100.0,
+    dt: float = 0.01,
+    lf_band: tuple[float, float] = (0.0, 0.5),
+    rolling_win: int = 10,
+) -> dict[str, float]:
     """
     Extract reduced feature set explaining 90% of SHAP importance (79 features).
 
@@ -560,6 +566,7 @@ def extract_features_90pct(
             f"Input window duration is {n_samples / fs:.2f}s. "
             f"Model was trained on 5.0s windows. Performance may be affected.",
             UserWarning,
+            stacklevel=2,
         )
 
     features = {}
@@ -577,10 +584,10 @@ def extract_features_90pct(
     jerk_is = np.diff(acc_data[:, 0]) / dt
     features["acc_is_jerk_mean"] = np.mean(np.abs(jerk_is))
     features["acc_is_jerk_std"] = np.std(jerk_is, ddof=1)
-    f_is, Pxx_is = welch(acc_data[:, 0], fs=fs, nperseg=len(acc_data[:, 0]))
-    valid_is = (f_is > 0) & (Pxx_is > 0)
+    f_is, pxx_is = welch(acc_data[:, 0], fs=fs, nperseg=len(acc_data[:, 0]))
+    valid_is = (f_is > 0) & (pxx_is > 0)
     features["acc_is_spectral_slope"] = (
-        np.polyfit(np.log(f_is[valid_is]), np.log(Pxx_is[valid_is]), 1)[0] if np.sum(valid_is) > 2 else 0.0
+        np.polyfit(np.log(f_is[valid_is]), np.log(pxx_is[valid_is]), 1)[0] if np.sum(valid_is) > 2 else 0.0
     )
     features["acc_is_perm_entropy"] = ent.permutation_entropy(acc_data[:, 0], order=3, normalize=True)
 
@@ -588,10 +595,10 @@ def extract_features_90pct(
     features["acc_ml_mean"] = np.mean(acc_data[:, 1])
     features["acc_ml_median"] = np.median(acc_data[:, 1])
     features["acc_ml_rms"] = rms(acc_data[:, 1])
-    f_ml, Pxx_ml = welch(acc_data[:, 1], fs=fs, nperseg=len(acc_data[:, 1]))
-    valid_ml = (f_ml > 0) & (Pxx_ml > 0)
+    f_ml, pxx_ml = welch(acc_data[:, 1], fs=fs, nperseg=len(acc_data[:, 1]))
+    valid_ml = (f_ml > 0) & (pxx_ml > 0)
     features["acc_ml_spectral_slope"] = (
-        np.polyfit(np.log(f_ml[valid_ml]), np.log(Pxx_ml[valid_ml]), 1)[0] if np.sum(valid_ml) > 2 else 0.0
+        np.polyfit(np.log(f_ml[valid_ml]), np.log(pxx_ml[valid_ml]), 1)[0] if np.sum(valid_ml) > 2 else 0.0
     )
     features["acc_ml_perm_entropy"] = ent.permutation_entropy(acc_data[:, 1], order=3, normalize=True)
 
@@ -602,17 +609,17 @@ def extract_features_90pct(
     features["acc_pa_max"] = np.max(acc_data[:, 2])
     features["acc_pa_std"] = np.std(acc_data[:, 2], ddof=1)
     features["acc_pa_rms"] = rms(acc_data[:, 2])
-    f_pa, Pxx_pa = welch(acc_data[:, 2], fs=fs, nperseg=len(acc_data[:, 2]))
-    total_pa = np.sum(Pxx_pa)
+    f_pa, pxx_pa = welch(acc_data[:, 2], fs=fs, nperseg=len(acc_data[:, 2]))
+    total_pa = np.sum(pxx_pa)
     features["acc_pa_psd_total"] = total_pa
     if total_pa > 0:
-        psd_pa_norm = Pxx_pa / total_pa
+        psd_pa_norm = pxx_pa / total_pa
         features["acc_pa_spectral_centroid"] = np.sum(f_pa * psd_pa_norm)
     else:
         features["acc_pa_spectral_centroid"] = 0.0
-    peaks_pa, _ = find_peaks(Pxx_pa)
+    peaks_pa, _ = find_peaks(pxx_pa)
     if len(peaks_pa) > 0:
-        peak_freqs_pa = f_pa[peaks_pa][np.argsort(Pxx_pa[peaks_pa])[::-1]]
+        peak_freqs_pa = f_pa[peaks_pa][np.argsort(pxx_pa[peaks_pa])[::-1]]
         features["acc_pa_dom_freq"] = peak_freqs_pa[0] if len(peak_freqs_pa) > 0 else 0.0
         features["acc_pa_second_peak_freq"] = peak_freqs_pa[1] if len(peak_freqs_pa) > 1 else 0.0
         features["acc_pa_third_peak_freq"] = peak_freqs_pa[2] if len(peak_freqs_pa) > 2 else 0.0
@@ -620,9 +627,9 @@ def extract_features_90pct(
         features["acc_pa_dom_freq"] = 0.0
         features["acc_pa_second_peak_freq"] = 0.0
         features["acc_pa_third_peak_freq"] = 0.0
-    valid_pa = (f_pa > 0) & (Pxx_pa > 0)
+    valid_pa = (f_pa > 0) & (pxx_pa > 0)
     features["acc_pa_spectral_slope"] = (
-        np.polyfit(np.log(f_pa[valid_pa]), np.log(Pxx_pa[valid_pa]), 1)[0] if np.sum(valid_pa) > 2 else 0.0
+        np.polyfit(np.log(f_pa[valid_pa]), np.log(pxx_pa[valid_pa]), 1)[0] if np.sum(valid_pa) > 2 else 0.0
     )
     features["acc_pa_perm_entropy"] = ent.permutation_entropy(acc_data[:, 2], order=3, normalize=True)
 
@@ -630,24 +637,24 @@ def extract_features_90pct(
     features["acc_norm_mean"] = np.mean(acc_norm)
     features["acc_norm_median"] = np.median(acc_norm)
     features["acc_norm_rms"] = rms(acc_norm)
-    f_norm, Pxx_norm = welch(acc_norm, fs=fs, nperseg=len(acc_norm))
-    total_norm = np.sum(Pxx_norm)
+    f_norm, pxx_norm = welch(acc_norm, fs=fs, nperseg=len(acc_norm))
+    total_norm = np.sum(pxx_norm)
     if total_norm > 0:
-        psd_norm_acc = Pxx_norm / total_norm
+        psd_norm_acc = pxx_norm / total_norm
         features["acc_norm_spectral_centroid"] = np.sum(f_norm * psd_norm_acc)
     else:
         features["acc_norm_spectral_centroid"] = 0.0
-    peaks_norm, _ = find_peaks(Pxx_norm)
+    peaks_norm, _ = find_peaks(pxx_norm)
     if len(peaks_norm) > 0:
-        peak_freqs_norm = f_norm[peaks_norm][np.argsort(Pxx_norm[peaks_norm])[::-1]]
+        peak_freqs_norm = f_norm[peaks_norm][np.argsort(pxx_norm[peaks_norm])[::-1]]
         features["acc_norm_dom_freq"] = peak_freqs_norm[0] if len(peak_freqs_norm) > 0 else 0.0
         features["acc_norm_second_peak_freq"] = peak_freqs_norm[1] if len(peak_freqs_norm) > 1 else 0.0
     else:
         features["acc_norm_dom_freq"] = 0.0
         features["acc_norm_second_peak_freq"] = 0.0
-    valid_norm = (f_norm > 0) & (Pxx_norm > 0)
+    valid_norm = (f_norm > 0) & (pxx_norm > 0)
     features["acc_norm_spectral_slope"] = (
-        np.polyfit(np.log(f_norm[valid_norm]), np.log(Pxx_norm[valid_norm]), 1)[0] if np.sum(valid_norm) > 2 else 0.0
+        np.polyfit(np.log(f_norm[valid_norm]), np.log(pxx_norm[valid_norm]), 1)[0] if np.sum(valid_norm) > 2 else 0.0
     )
 
     # Accelerometer jerk norm
@@ -685,16 +692,16 @@ def extract_features_90pct(
     jerk_gyr_is = np.diff(gyr_data[:, 0]) / dt
     features["gyr_is_jerk_mean"] = np.mean(np.abs(jerk_gyr_is))
     features["gyr_is_jerk_rms"] = rms(jerk_gyr_is)
-    f_gyr_is, Pxx_gyr_is = welch(gyr_data[:, 0], fs=fs, nperseg=len(gyr_data[:, 0]))
-    total_gyr_is = np.sum(Pxx_gyr_is)
+    f_gyr_is, pxx_gyr_is = welch(gyr_data[:, 0], fs=fs, nperseg=len(gyr_data[:, 0]))
+    total_gyr_is = np.sum(pxx_gyr_is)
     if total_gyr_is > 0:
-        psd_gyr_is_norm = Pxx_gyr_is / total_gyr_is
+        psd_gyr_is_norm = pxx_gyr_is / total_gyr_is
         features["gyr_is_spectral_centroid"] = np.sum(f_gyr_is * psd_gyr_is_norm)
     else:
         features["gyr_is_spectral_centroid"] = 0.0
-    valid_gyr_is = (f_gyr_is > 0) & (Pxx_gyr_is > 0)
+    valid_gyr_is = (f_gyr_is > 0) & (pxx_gyr_is > 0)
     features["gyr_is_spectral_slope"] = (
-        np.polyfit(np.log(f_gyr_is[valid_gyr_is]), np.log(Pxx_gyr_is[valid_gyr_is]), 1)[0]
+        np.polyfit(np.log(f_gyr_is[valid_gyr_is]), np.log(pxx_gyr_is[valid_gyr_is]), 1)[0]
         if np.sum(valid_gyr_is) > 2
         else 0.0
     )
@@ -705,28 +712,28 @@ def extract_features_90pct(
     features["gyr_ml_iqr"] = np.subtract(*np.percentile(gyr_data[:, 1], [75, 25]))
     jerk_gyr_ml = np.diff(gyr_data[:, 1]) / dt
     features["gyr_ml_jerk_rms"] = rms(jerk_gyr_ml)
-    f_gyr_ml, Pxx_gyr_ml = welch(gyr_data[:, 1], fs=fs, nperseg=len(gyr_data[:, 1]))
+    f_gyr_ml, pxx_gyr_ml = welch(gyr_data[:, 1], fs=fs, nperseg=len(gyr_data[:, 1]))
     lf_mask = (f_gyr_ml >= lf_band[0]) & (f_gyr_ml <= lf_band[1])
     hf_mask = f_gyr_ml > lf_band[1]
-    lf_power = np.sum(Pxx_gyr_ml[lf_mask])
-    hf_power = np.sum(Pxx_gyr_ml[hf_mask])
+    lf_power = np.sum(pxx_gyr_ml[lf_mask])
+    hf_power = np.sum(pxx_gyr_ml[hf_mask])
     features["gyr_ml_lf_power"] = lf_power
     features["gyr_ml_lf_hf_ratio"] = lf_power / hf_power if hf_power > 0 else 0.0
-    total_gyr_ml = np.sum(Pxx_gyr_ml)
+    total_gyr_ml = np.sum(pxx_gyr_ml)
     if total_gyr_ml > 0:
-        psd_gyr_ml_norm = Pxx_gyr_ml / total_gyr_ml
+        psd_gyr_ml_norm = pxx_gyr_ml / total_gyr_ml
         features["gyr_ml_spectral_centroid"] = np.sum(f_gyr_ml * psd_gyr_ml_norm)
     else:
         features["gyr_ml_spectral_centroid"] = 0.0
-    valid_gyr_ml = (f_gyr_ml > 0) & (Pxx_gyr_ml > 0)
+    valid_gyr_ml = (f_gyr_ml > 0) & (pxx_gyr_ml > 0)
     features["gyr_ml_spectral_slope"] = (
-        np.polyfit(np.log(f_gyr_ml[valid_gyr_ml]), np.log(Pxx_gyr_ml[valid_gyr_ml]), 1)[0]
+        np.polyfit(np.log(f_gyr_ml[valid_gyr_ml]), np.log(pxx_gyr_ml[valid_gyr_ml]), 1)[0]
         if np.sum(valid_gyr_ml) > 2
         else 0.0
     )
-    peaks_gyr_ml, _ = find_peaks(Pxx_gyr_ml)
+    peaks_gyr_ml, _ = find_peaks(pxx_gyr_ml)
     if len(peaks_gyr_ml) > 0:
-        peak_freqs_gyr_ml = f_gyr_ml[peaks_gyr_ml][np.argsort(Pxx_gyr_ml[peaks_gyr_ml])[::-1]]
+        peak_freqs_gyr_ml = f_gyr_ml[peaks_gyr_ml][np.argsort(pxx_gyr_ml[peaks_gyr_ml])[::-1]]
         features["gyr_ml_dom_freq"] = peak_freqs_gyr_ml[0]
     else:
         features["gyr_ml_dom_freq"] = 0.0
@@ -738,20 +745,20 @@ def extract_features_90pct(
     features["gyr_pa_zcr"] = zero_crossing_rate(gyr_data[:, 2])
     jerk_gyr_pa = np.diff(gyr_data[:, 2]) / dt
     features["gyr_pa_jerk_mean"] = np.mean(np.abs(jerk_gyr_pa))
-    f_gyr_pa, Pxx_gyr_pa = welch(gyr_data[:, 2], fs=fs, nperseg=len(gyr_data[:, 2]))
-    total_gyr_pa = np.sum(Pxx_gyr_pa)
+    _, pxx_gyr_pa = welch(gyr_data[:, 2], fs=fs, nperseg=len(gyr_data[:, 2]))
+    total_gyr_pa = np.sum(pxx_gyr_pa)
     if total_gyr_pa > 0:
-        psd_gyr_pa_norm = Pxx_gyr_pa / total_gyr_pa
+        psd_gyr_pa_norm = pxx_gyr_pa / total_gyr_pa
         features["gyr_pa_spectral_entropy"] = -np.sum(psd_gyr_pa_norm * np.log(psd_gyr_pa_norm + 1e-12))
     else:
         features["gyr_pa_spectral_entropy"] = 0.0
 
     # Gyroscope norm
     features["gyr_norm_skew"] = skew(gyr_norm, bias=False)
-    f_gyr_norm, Pxx_gyr_norm = welch(gyr_norm, fs=fs, nperseg=len(gyr_norm))
-    valid_gyr_norm = (f_gyr_norm > 0) & (Pxx_gyr_norm > 0)
+    f_gyr_norm, pxx_gyr_norm = welch(gyr_norm, fs=fs, nperseg=len(gyr_norm))
+    valid_gyr_norm = (f_gyr_norm > 0) & (pxx_gyr_norm > 0)
     features["gyr_norm_spectral_slope"] = (
-        np.polyfit(np.log(f_gyr_norm[valid_gyr_norm]), np.log(Pxx_gyr_norm[valid_gyr_norm]), 1)[0]
+        np.polyfit(np.log(f_gyr_norm[valid_gyr_norm]), np.log(pxx_gyr_norm[valid_gyr_norm]), 1)[0]
         if np.sum(valid_gyr_norm) > 2
         else 0.0
     )
@@ -778,15 +785,16 @@ def extract_features_90pct(
     return _reorder_features(features, FEATURE_ORDER_90PCT)
 
 
+# Feature extraction pipeline intentionally explicit for traceability/readability.
 def extract_features_95pct(
     df: pd.DataFrame,
-    acc_axes=("acc_is", "acc_ml", "acc_pa"),
-    gyr_axes=("gyr_is", "gyr_ml", "gyr_pa"),
-    fs=100.0,
-    dt=0.01,
-    lf_band=(0.0, 0.5),
-    rolling_win=10,
-) -> dict:
+    acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
+    gyr_axes: tuple[str, str, str] = ("gyr_is", "gyr_ml", "gyr_pa"),
+    fs: float = 100.0,
+    dt: float = 0.01,
+    lf_band: tuple[float, float] = (0.0, 0.5),
+    rolling_win: int = 10,
+) -> dict[str, float]:
     """
     Extract reduced feature set explaining 95% of SHAP importance (99 features).
 
@@ -818,6 +826,7 @@ def extract_features_95pct(
             f"Input window duration is {n_samples / fs:.2f}s. "
             f"Model was trained on 5.0s windows. Performance may be affected.",
             UserWarning,
+            stacklevel=2,
         )
 
     features = extract_features_90pct(df, acc_axes, gyr_axes, fs, dt, lf_band, rolling_win)
@@ -836,10 +845,10 @@ def extract_features_95pct(
     # Additional accelerometer ML features
     features["acc_ml_min"] = np.min(acc_data[:, 1])
     features["acc_ml_max"] = np.max(acc_data[:, 1])
-    f_ml, Pxx_ml = welch(acc_data[:, 1], fs=fs, nperseg=len(acc_data[:, 1]))
-    total_ml = np.sum(Pxx_ml)
+    f_ml, pxx_ml = welch(acc_data[:, 1], fs=fs, nperseg=len(acc_data[:, 1]))
+    total_ml = np.sum(pxx_ml)
     if total_ml > 0:
-        psd_ml_norm = Pxx_ml / total_ml
+        psd_ml_norm = pxx_ml / total_ml
         features["acc_ml_spectral_centroid"] = np.sum(f_ml * psd_ml_norm)
     else:
         features["acc_ml_spectral_centroid"] = 0.0
@@ -851,14 +860,14 @@ def extract_features_95pct(
     # Additional accelerometer norm features
     features["acc_norm_min"] = np.min(acc_norm)
     features["acc_norm_iqr"] = np.subtract(*np.percentile(acc_norm, [75, 25]))
-    f_norm, Pxx_norm = welch(acc_norm, fs=fs, nperseg=len(acc_norm))
-    peaks_norm, _ = find_peaks(Pxx_norm)
+    f_norm, pxx_norm = welch(acc_norm, fs=fs, nperseg=len(acc_norm))
+    peaks_norm, _ = find_peaks(pxx_norm)
     if len(peaks_norm) > 0:
-        peak_freqs_norm = f_norm[peaks_norm][np.argsort(Pxx_norm[peaks_norm])[::-1]]
+        peak_freqs_norm = f_norm[peaks_norm][np.argsort(pxx_norm[peaks_norm])[::-1]]
         features["acc_norm_third_peak_freq"] = peak_freqs_norm[2] if len(peak_freqs_norm) > 2 else 0.0
     else:
         features["acc_norm_third_peak_freq"] = 0.0
-    features["acc_norm_spectral_skewness"] = skew(Pxx_norm, bias=False)
+    features["acc_norm_spectral_skewness"] = skew(pxx_norm, bias=False)
     features["acc_norm_perm_entropy"] = ent.permutation_entropy(acc_norm, order=3, normalize=True)
 
     # Additional gyroscope IS features
@@ -881,7 +890,14 @@ def extract_features_95pct(
     return _reorder_features(features, FEATURE_ORDER_95PCT)
 
 
-def _extract_acc_time_domain(df, axes, dt, noise_floor, near_zero_thr, rolling_win):
+def _extract_acc_time_domain(
+    df,  # noqa: ANN001
+    axes,  # noqa: ANN001
+    dt,  # noqa: ANN001
+    noise_floor,  # noqa: ANN001
+    near_zero_thr,  # noqa: ANN001
+    rolling_win,  # noqa: ANN001
+)-> dict[str, float]:
     """Extract time-domain features from accelerometer data."""
     features = {}
     if df.empty or any(ax not in df.columns for ax in axes):
@@ -963,8 +979,12 @@ def _extract_acc_time_domain(df, axes, dt, noise_floor, near_zero_thr, rolling_w
 
     return features
 
-
-def _extract_acc_frequency_domain(df, axes, fs, lf_band):
+def _extract_acc_frequency_domain(
+    df: pd.DataFrame,
+    axes: tuple[str, str, str],
+    fs: float,
+    lf_band: tuple[float, float],
+) -> dict[str, float]:  # noqa: C901
     """Extract frequency-domain features from accelerometer data."""
     features = {}
     if df.empty or any(ax not in df.columns for ax in axes):
@@ -977,40 +997,44 @@ def _extract_acc_frequency_domain(df, axes, fs, lf_band):
 
     norm = np.linalg.norm(data, axis=1)
 
-    def psd_features(x, prefix):
-        f, Pxx = welch(x, fs=fs, nperseg=len(x))
-        total_power = np.sum(Pxx)
+    def psd_features(
+            x: np.ndarray,
+            prefix: str,
+    ) -> dict[str, float]:
+        f, pxx = welch(x, fs=fs, nperseg=len(x))
+        total_power = np.sum(pxx)
         features[f"{prefix}_psd_total"] = total_power
 
         lf_mask = (f >= lf_band[0]) & (f <= lf_band[1])
         hf_mask = f > lf_band[1]
-        lf_power = np.sum(Pxx[lf_mask])
-        hf_power = np.sum(Pxx[hf_mask])
+        lf_power = np.sum(pxx[lf_mask])
+        hf_power = np.sum(pxx[hf_mask])
         features[f"{prefix}_lf_power"] = lf_power
         features[f"{prefix}_lf_hf_ratio"] = lf_power / hf_power if hf_power > 0 else 0.0
 
-        peaks, _ = find_peaks(Pxx)
-        if len(peaks) > 0:
-            peak_freqs = f[peaks][np.argsort(Pxx[peaks])[::-1]]
-        else:
-            peak_freqs = np.array([])
+        peaks, _ = find_peaks(pxx)
+        peak_freqs = (
+            f[peaks][np.argsort(pxx[peaks])[::-1]]
+            if len(peaks) > 0
+            else np.array([])
+        )
 
         for k, name in enumerate(["dom_freq", "second_peak_freq", "third_peak_freq"]):
             features[f"{prefix}_{name}"] = peak_freqs[k] if len(peak_freqs) > k else 0.0
 
         if total_power > 0:
-            psd_norm = Pxx / total_power
+            psd_norm = pxx / total_power
             features[f"{prefix}_spectral_centroid"] = np.sum(f * psd_norm)
             features[f"{prefix}_spectral_entropy"] = -np.sum(psd_norm * np.log(psd_norm + 1e-12))
         else:
             features[f"{prefix}_spectral_centroid"] = 0.0
             features[f"{prefix}_spectral_entropy"] = 0.0
 
-        features[f"{prefix}_spectral_skewness"] = skew(Pxx, bias=False)
-        features[f"{prefix}_spectral_kurtosis"] = kurtosis(Pxx, fisher=False, bias=False)
+        features[f"{prefix}_spectral_skewness"] = skew(pxx, bias=False)
+        features[f"{prefix}_spectral_kurtosis"] = kurtosis(pxx, fisher=False, bias=False)
 
-        valid = (f > 0) & (Pxx > 0)
-        slope = np.polyfit(np.log(f[valid]), np.log(Pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
+        valid = (f > 0) & (pxx > 0)
+        slope = np.polyfit(np.log(f[valid]), np.log(pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
         features[f"{prefix}_spectral_slope"] = slope
         features[f"{prefix}_perm_entropy"] = ent.permutation_entropy(x, order=3, normalize=True)
 
@@ -1020,8 +1044,8 @@ def _extract_acc_frequency_domain(df, axes, fs, lf_band):
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
-            _, Cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
-            features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(Cxy)
+            _, cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
+            features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(cxy)
 
     axis_energy = np.mean(data**2, axis=0)
     features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
@@ -1124,20 +1148,20 @@ def _extract_gyr_frequency_domain(df, axes, fs, lf_band):
     norm = np.linalg.norm(data, axis=1)
 
     def psd_features(x, prefix):
-        f, Pxx = welch(x, fs=fs, nperseg=len(x))
-        total_power = np.sum(Pxx)
+        f, pxx = welch(x, fs=fs, nperseg=len(x))
+        total_power = np.sum(pxx)
         features[f"{prefix}_psd_total"] = total_power
 
         lf_mask = (f >= lf_band[0]) & (f <= lf_band[1])
         hf_mask = f > lf_band[1]
-        lf_power = np.sum(Pxx[lf_mask])
-        hf_power = np.sum(Pxx[hf_mask])
+        lf_power = np.sum(pxx[lf_mask])
+        hf_power = np.sum(pxx[hf_mask])
         features[f"{prefix}_lf_power"] = lf_power
         features[f"{prefix}_lf_hf_ratio"] = lf_power / hf_power if hf_power > 0 else 0.0
 
-        peaks, _ = find_peaks(Pxx)
+        peaks, _ = find_peaks(pxx)
         if len(peaks) > 0:
-            peak_freqs = f[peaks][np.argsort(Pxx[peaks])[::-1]]
+            peak_freqs = f[peaks][np.argsort(pxx[peaks])[::-1]]
         else:
             peak_freqs = np.array([])
 
@@ -1145,18 +1169,18 @@ def _extract_gyr_frequency_domain(df, axes, fs, lf_band):
             features[f"{prefix}_{name}"] = peak_freqs[k] if len(peak_freqs) > k else 0.0
 
         if total_power > 0:
-            psd_norm = Pxx / total_power
+            psd_norm = pxx / total_power
             features[f"{prefix}_spectral_centroid"] = np.sum(f * psd_norm)
             features[f"{prefix}_spectral_entropy"] = -np.sum(psd_norm * np.log(psd_norm + 1e-12))
         else:
             features[f"{prefix}_spectral_centroid"] = 0.0
             features[f"{prefix}_spectral_entropy"] = 0.0
 
-        features[f"{prefix}_spectral_skewness"] = skew(Pxx, bias=False)
-        features[f"{prefix}_spectral_kurtosis"] = kurtosis(Pxx, fisher=False, bias=False)
+        features[f"{prefix}_spectral_skewness"] = skew(pxx, bias=False)
+        features[f"{prefix}_spectral_kurtosis"] = kurtosis(pxx, fisher=False, bias=False)
 
-        valid = (f > 0) & (Pxx > 0)
-        slope = np.polyfit(np.log(f[valid]), np.log(Pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
+        valid = (f > 0) & (pxx > 0)
+        slope = np.polyfit(np.log(f[valid]), np.log(pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
         features[f"{prefix}_spectral_slope"] = slope
         features[f"{prefix}_perm_entropy"] = ent.permutation_entropy(x, order=3, normalize=True)
 
@@ -1166,8 +1190,8 @@ def _extract_gyr_frequency_domain(df, axes, fs, lf_band):
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
-            _, Cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
-            features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(Cxy)
+            _, cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
+            features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(cxy)
 
     axis_energy = np.mean(data**2, axis=0)
     features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
