@@ -1,5 +1,6 @@
 """Utility functions for IMU feature extraction from windowed data."""
 
+import types
 import warnings
 from collections.abc import Sequence
 
@@ -38,6 +39,122 @@ def _reorder_features(
 ) -> dict[str, float]:
     """Reorder features dict to match expected order from training."""
     return {k: features[k] for k in expected_order if k in features}
+
+
+def psd_features(
+    x: np.ndarray,
+    prefix: str,
+    fs: float,
+    lf_band: tuple[float, float],
+    ent: types.ModuleType,
+) -> dict[str, float]:
+    """
+    Compute spectral features from a 1D signal using power spectral density.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input signal.
+    prefix : str
+        Feature name prefix.
+    fs : float
+        Sampling frequency.
+    lf_band : tuple[float, float]
+        Low-frequency band definition.
+    ent : module
+        Entropy computation module.
+
+    Returns
+    -------
+    dict[str, float]
+        Extracted spectral features.
+    """
+    features: dict[str, float] = {}
+
+    f, pxx = welch(x, fs=fs, nperseg=len(x))
+    total_power = np.sum(pxx)
+    features[f"{prefix}_psd_total"] = total_power
+
+    lf_mask = (f >= lf_band[0]) & (f <= lf_band[1])
+    hf_mask = f > lf_band[1]
+
+    lf_power = np.sum(pxx[lf_mask])
+    hf_power = np.sum(pxx[hf_mask])
+
+    features[f"{prefix}_lf_power"] = lf_power
+    features[f"{prefix}_lf_hf_ratio"] = lf_power / hf_power if hf_power > 0 else 0.0
+
+    peaks, _ = find_peaks(pxx)
+    peak_freqs = f[peaks][np.argsort(pxx[peaks])[::-1]] if len(peaks) > 0 else np.array([])
+
+    for k, name in enumerate(["dom_freq", "second_peak_freq", "third_peak_freq"]):
+        features[f"{prefix}_{name}"] = peak_freqs[k] if len(peak_freqs) > k else 0.0
+
+    if total_power > 0:
+        psd_norm = pxx / total_power
+        features[f"{prefix}_spectral_centroid"] = np.sum(f * psd_norm)
+        features[f"{prefix}_spectral_entropy"] = -np.sum(psd_norm * np.log(psd_norm + 1e-12))
+    else:
+        features[f"{prefix}_spectral_centroid"] = 0.0
+        features[f"{prefix}_spectral_entropy"] = 0.0
+
+    features[f"{prefix}_spectral_skewness"] = skew(pxx, bias=False)
+    features[f"{prefix}_spectral_kurtosis"] = kurtosis(pxx, fisher=False, bias=False)
+
+    valid = (f > 0) & (pxx > 0)
+    features[f"{prefix}_spectral_slope"] = (
+        np.polyfit(np.log(f[valid]), np.log(pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
+    )
+
+    features[f"{prefix}_perm_entropy"] = ent.permutation_entropy(x, order=3, normalize=True)
+
+    return features
+
+
+def _add_coherence_features(
+    features: dict[str, float],
+    data: np.ndarray,
+    axes: Sequence[str],
+    fs: float,
+    n: int,
+) -> None:
+    for i in range(len(axes)):
+        for j in range(i + 1, len(axes)):
+            _, cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
+            features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(cxy)
+
+
+def _add_axis_relation_features(
+    features: dict[str, float],
+    data: np.ndarray,
+    norm: np.ndarray,
+    axes: Sequence[str],
+) -> None:
+    axis_energy = np.mean(data**2, axis=0)
+    features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
+
+    dominant_idx = np.argmax(axis_energy)
+    features["freq_gyr_norm_to_dominant_ratio"] = np.mean(norm) / (np.mean(data[:, dominant_idx]) + 1e-12)
+
+    for i in range(len(axes)):
+        for j in range(i + 1, len(axes)):
+            features[f"{axes[i]}_{axes[j]}_psd_ratio"] = np.sum(np.abs(np.fft.rfft(data[:, i]))) / (
+                np.sum(np.abs(np.fft.rfft(data[:, j]))) + 1e-12
+            )
+
+
+def _add_gyr_psd_features(
+    features: dict[str, float],
+    data: np.ndarray,
+    norm: np.ndarray,
+    axes: Sequence[str],
+    fs: float,
+    lf_band: tuple[float, float],
+) -> None:
+    for i, ax in enumerate(axes):
+        features.update(psd_features(data[:, i], ax, fs, lf_band, ent))
+
+    features.update(psd_features(norm, "gyr_norm", fs, lf_band, ent))
 
 
 # Full feature order
@@ -890,14 +1007,14 @@ def extract_features_95pct(
     return _reorder_features(features, FEATURE_ORDER_95PCT)
 
 
-def _extract_acc_time_domain(
+def _extract_acc_time_domain(  # noqa: PLR0915
     df,  # noqa: ANN001
     axes,  # noqa: ANN001
     dt,  # noqa: ANN001
     noise_floor,  # noqa: ANN001
     near_zero_thr,  # noqa: ANN001
     rolling_win,  # noqa: ANN001
-)-> dict[str, float]:
+) -> dict[str, float]:
     """Extract time-domain features from accelerometer data."""
     features = {}
     if df.empty or any(ax not in df.columns for ax in axes):
@@ -979,12 +1096,13 @@ def _extract_acc_time_domain(
 
     return features
 
+
 def _extract_acc_frequency_domain(
     df: pd.DataFrame,
     axes: tuple[str, str, str],
     fs: float,
     lf_band: tuple[float, float],
-) -> dict[str, float]:  # noqa: C901
+) -> dict[str, float]:
     """Extract frequency-domain features from accelerometer data."""
     features = {}
     if df.empty or any(ax not in df.columns for ax in axes):
@@ -997,50 +1115,10 @@ def _extract_acc_frequency_domain(
 
     norm = np.linalg.norm(data, axis=1)
 
-    def psd_features(
-            x: np.ndarray,
-            prefix: str,
-    ) -> dict[str, float]:
-        f, pxx = welch(x, fs=fs, nperseg=len(x))
-        total_power = np.sum(pxx)
-        features[f"{prefix}_psd_total"] = total_power
-
-        lf_mask = (f >= lf_band[0]) & (f <= lf_band[1])
-        hf_mask = f > lf_band[1]
-        lf_power = np.sum(pxx[lf_mask])
-        hf_power = np.sum(pxx[hf_mask])
-        features[f"{prefix}_lf_power"] = lf_power
-        features[f"{prefix}_lf_hf_ratio"] = lf_power / hf_power if hf_power > 0 else 0.0
-
-        peaks, _ = find_peaks(pxx)
-        peak_freqs = (
-            f[peaks][np.argsort(pxx[peaks])[::-1]]
-            if len(peaks) > 0
-            else np.array([])
-        )
-
-        for k, name in enumerate(["dom_freq", "second_peak_freq", "third_peak_freq"]):
-            features[f"{prefix}_{name}"] = peak_freqs[k] if len(peak_freqs) > k else 0.0
-
-        if total_power > 0:
-            psd_norm = pxx / total_power
-            features[f"{prefix}_spectral_centroid"] = np.sum(f * psd_norm)
-            features[f"{prefix}_spectral_entropy"] = -np.sum(psd_norm * np.log(psd_norm + 1e-12))
-        else:
-            features[f"{prefix}_spectral_centroid"] = 0.0
-            features[f"{prefix}_spectral_entropy"] = 0.0
-
-        features[f"{prefix}_spectral_skewness"] = skew(pxx, bias=False)
-        features[f"{prefix}_spectral_kurtosis"] = kurtosis(pxx, fisher=False, bias=False)
-
-        valid = (f > 0) & (pxx > 0)
-        slope = np.polyfit(np.log(f[valid]), np.log(pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
-        features[f"{prefix}_spectral_slope"] = slope
-        features[f"{prefix}_perm_entropy"] = ent.permutation_entropy(x, order=3, normalize=True)
-
     for i, ax in enumerate(axes):
-        psd_features(data[:, i], ax)
-    psd_features(norm, "acc_norm")
+        features.update(psd_features(data[:, i], ax, fs, lf_band, ent))
+
+    features.update(psd_features(norm, "acc_norm", fs, lf_band, ent))
 
     for i in range(len(axes)):
         for j in range(i + 1, len(axes)):
@@ -1061,7 +1139,14 @@ def _extract_acc_frequency_domain(
     return features
 
 
-def _extract_gyr_time_domain(df, axes, dt, noise_floor, near_zero_thr, rolling_win):
+def _extract_gyr_time_domain(
+    df: pd.DataFrame,
+    axes: Sequence[str],
+    dt: float,
+    noise_floor: float,
+    near_zero_thr: float,
+    rolling_win: int,
+) -> dict[str, float]:
     """Extract time-domain features from gyroscope data."""
     features = {}
     if df.empty or any(ax not in df.columns for ax in axes):
@@ -1134,7 +1219,12 @@ def _extract_gyr_time_domain(df, axes, dt, noise_floor, near_zero_thr, rolling_w
     return features
 
 
-def _extract_gyr_frequency_domain(df, axes, fs, lf_band):
+def _extract_gyr_frequency_domain(
+    df: pd.DataFrame,
+    axes: Sequence[str],
+    fs: float,
+    lf_band: tuple[float, float],
+) -> dict[str, float]:
     """Extract frequency-domain features from gyroscope data."""
     features = {}
     if df.empty or any(ax not in df.columns for ax in axes):
@@ -1147,61 +1237,13 @@ def _extract_gyr_frequency_domain(df, axes, fs, lf_band):
 
     norm = np.linalg.norm(data, axis=1)
 
-    def psd_features(x, prefix):
-        f, pxx = welch(x, fs=fs, nperseg=len(x))
-        total_power = np.sum(pxx)
-        features[f"{prefix}_psd_total"] = total_power
+    # 1. PSD features
+    _add_gyr_psd_features(features, data, norm, axes, fs, lf_band)
 
-        lf_mask = (f >= lf_band[0]) & (f <= lf_band[1])
-        hf_mask = f > lf_band[1]
-        lf_power = np.sum(pxx[lf_mask])
-        hf_power = np.sum(pxx[hf_mask])
-        features[f"{prefix}_lf_power"] = lf_power
-        features[f"{prefix}_lf_hf_ratio"] = lf_power / hf_power if hf_power > 0 else 0.0
+    # 2. coherence features
+    _add_coherence_features(features, data, axes, fs, n)
 
-        peaks, _ = find_peaks(pxx)
-        if len(peaks) > 0:
-            peak_freqs = f[peaks][np.argsort(pxx[peaks])[::-1]]
-        else:
-            peak_freqs = np.array([])
-
-        for k, name in enumerate(["dom_freq", "second_peak_freq", "third_peak_freq"]):
-            features[f"{prefix}_{name}"] = peak_freqs[k] if len(peak_freqs) > k else 0.0
-
-        if total_power > 0:
-            psd_norm = pxx / total_power
-            features[f"{prefix}_spectral_centroid"] = np.sum(f * psd_norm)
-            features[f"{prefix}_spectral_entropy"] = -np.sum(psd_norm * np.log(psd_norm + 1e-12))
-        else:
-            features[f"{prefix}_spectral_centroid"] = 0.0
-            features[f"{prefix}_spectral_entropy"] = 0.0
-
-        features[f"{prefix}_spectral_skewness"] = skew(pxx, bias=False)
-        features[f"{prefix}_spectral_kurtosis"] = kurtosis(pxx, fisher=False, bias=False)
-
-        valid = (f > 0) & (pxx > 0)
-        slope = np.polyfit(np.log(f[valid]), np.log(pxx[valid]), 1)[0] if np.sum(valid) > 2 else 0.0
-        features[f"{prefix}_spectral_slope"] = slope
-        features[f"{prefix}_perm_entropy"] = ent.permutation_entropy(x, order=3, normalize=True)
-
-    for i, ax in enumerate(axes):
-        psd_features(data[:, i], ax)
-    psd_features(norm, "gyr_norm")
-
-    for i in range(len(axes)):
-        for j in range(i + 1, len(axes)):
-            _, cxy = coherence(data[:, i], data[:, j], fs=fs, nperseg=n)
-            features[f"{axes[i]}_{axes[j]}_coherence_mean"] = np.mean(cxy)
-
-    axis_energy = np.mean(data**2, axis=0)
-    features["axis_dominance_ratio"] = np.max(axis_energy) / np.sum(axis_energy) if np.sum(axis_energy) > 0 else 0.0
-    dominant_idx = np.argmax(axis_energy)
-    features["freq_gyr_norm_to_dominant_ratio"] = np.mean(norm) / (np.mean(data[:, dominant_idx]) + 1e-12)
-
-    for i in range(len(axes)):
-        for j in range(i + 1, len(axes)):
-            features[f"{axes[i]}_{axes[j]}_psd_ratio"] = np.sum(np.abs(np.fft.rfft(data[:, i]))) / (
-                np.sum(np.abs(np.fft.rfft(data[:, j]))) + 1e-12
-            )
+    # 3. axis relationships
+    _add_axis_relation_features(features, data, norm, axes)
 
     return features
