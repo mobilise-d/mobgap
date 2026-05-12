@@ -1,8 +1,8 @@
+"""Helper functions for machine learning-based wear-time detection."""
+
 import numpy as np
 import pandas as pd
 from scipy.signal import welch
-
-"""Rolling window function"""
 
 
 def rolling_window_indices(n_samples, win_samples, step):

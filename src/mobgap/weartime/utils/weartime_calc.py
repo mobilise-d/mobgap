@@ -1,3 +1,5 @@
+"""Functions for calculating wear-time statistics and conversions."""
+
 import numpy as np
 import pandas as pd
 

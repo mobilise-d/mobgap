@@ -1,3 +1,5 @@
+"""Utility functions for IMU feature extraction from windowed data."""
+
 import warnings
 
 import numpy as np
