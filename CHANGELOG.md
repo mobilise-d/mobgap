@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Wear-Time Detection Algorithms**: Three novel and validated algorithms for accurate wear-time detection:
-  - `WtdMegaritis_signal`: Novel signal processing algorithm using gyroscope rotational patterns and accelerometer movement variability. Uses multi-level voting (micro, macro, and sample-level) with biomechanical post-processing.
+  - `WtdMegaritisSignal`: Novel signal processing algorithm using gyroscope rotational patterns and accelerometer movement variability. Uses multi-level voting (micro, macro, and sample-level) with biomechanical post-processing.
   - `WtdMegaritis_XGBoost`: Machine learning approach with pre-trained XGBoost models (full: 230 features, lightweight: 79 features). Includes biomechanically-informed post-processing with confidence filtering.
   - `WtdMegaritis_CNN`: Deep learning approach using 1D Convolutional Neural Network trained on raw windowed IMU data. Available in CNN and CNN-LSTM variants.
   

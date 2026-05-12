@@ -11,7 +11,7 @@ Algorithms
    :toctree: generated/weartime
    :template: class.rst
 
-    WtdMegaritis_signal
+    WtdMegaritisSignal
     WtdMegaritis_XGBoost
     WtdMegaritis_CNN
 

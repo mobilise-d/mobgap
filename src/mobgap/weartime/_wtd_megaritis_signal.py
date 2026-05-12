@@ -31,7 +31,7 @@ from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_peri
 
 
 @base_weartime_docfiller
-class WtdMegaritis_signal(BaseWeartimeDetector):
+class WtdMegaritisSignal(BaseWeartimeDetector):
     """
     Novel signal processing wear-time detection algorithm.
 
