@@ -23,7 +23,7 @@ base_weartime_docfiller = make_filldoc(
         "weartime_list_": """
     weartime_list_
         A dataframe specifying the detected weartime periods.
-        The dataframe has an index ``wt_id`` and columns ``start`` and ``end``, specifying the start and end 
+        The dataframe has an index ``wt_id`` and columns ``start`` and ``end``, specifying the start and end
         index of each weartime period.
         The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
     """,
@@ -44,7 +44,7 @@ base_weartime_docfiller = make_filldoc(
     """,
         "detect_para": """
     data
-        The raw IMU data in the body frame.  
+        The raw IMU data in the body frame.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
     """,
@@ -52,15 +52,15 @@ base_weartime_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``weartime_list_``, ``total_weartime_samples_``, 
+        The instance of the class with the ``weartime_list_``, ``total_weartime_samples_``,
         ``total_weartime_minutes_``, and ``total_weartime_hours_`` attributes set to the detected weartime periods
-        and total weartime values. 
+        and total weartime values.
     """,
         "self_optimize_paras": """
     data_sequences
         A sequence/iterable/list of dataframes, each containing the raw IMU data of a single sensor.
         This could be individual trials or data from different participants.
-        The optimization will be performed over all sequences combined.  
+        The optimization will be performed over all sequences combined.
     ref_weartime_list_per_sequence
         A sequence/iterable/list of weartime-lists, each containing the reference weartime periods for the respective
         data sequence.
@@ -74,7 +74,7 @@ base_weartime_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the internal parameters optimized.  
+        The instance of the class with the internal parameters optimized.
         """,
     }
     | timer_doc_filler._dict,
