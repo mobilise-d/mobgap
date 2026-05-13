@@ -33,7 +33,7 @@ algorithms = {
         "Mobilise-D Pipeline",
         "MobGap (with old LRC)",
     ),
-    "Official_MobiliseD_Pipeline__benmansour_lrc": (
+    "Official_MobiliseD_Pipeline__mansour_lrc": (
         "Mobilise-D Pipeline",
         "MobGap (with BenMansour LRC)",
     ),

@@ -217,7 +217,7 @@ pipelines = {
             ),
         ]
     ),
-    "Official_MobiliseD_Pipeline__benmansour_lrc": MobilisedPipelineUniversal(
+    "Official_MobiliseD_Pipeline__mansour_lrc": MobilisedPipelineUniversal(
         pipelines=[
             (
                 "healthy",

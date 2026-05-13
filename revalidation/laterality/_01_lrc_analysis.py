@@ -29,7 +29,7 @@ We compare it against the old model and the McCamley algorithm.
 # Same for the acceleration based Manseur algorithm.
 
 algorithms = {
-    "BenMansour": ("BenMansour", "-"),
+    "Mansour": ("BenMansour", "-"),
     "McCamley": ("McCamley", "-"),
     "UllrichOld__ms_all": ("Ullrich - MS-ALL", "Original Implementation"),
     "UllrichOld__ms_ms": ("Ullrich - MS-MS", "Original Implementation"),

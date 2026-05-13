@@ -39,7 +39,7 @@ from mobgap.laterality.pipeline import LrcEmulationPipeline
 from mobgap.utils.misc import get_env_var
 
 pipelines = {
-    "BenMansour": LrcEmulationPipeline(LrcBenMansour()),
+    "Mansour": LrcEmulationPipeline(LrcBenMansour()),
     "McCamley": LrcEmulationPipeline(LrcMcCamley()),
     "UllrichOld__ms_all": LrcEmulationPipeline(
         LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all_old)
