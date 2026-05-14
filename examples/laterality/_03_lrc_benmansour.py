@@ -1,8 +1,8 @@
 """
-Mansour L/R Classifier
-======================
+BenMansour L/R Classifier
+=========================
 
-The Mansour L/R classifier is a simple algorithm to detect the laterality of initial contacts based on the sign
+The BenMansour L/R classifier is a simple algorithm to detect the laterality of initial contacts based on the sign
 of the derivative of the mediolateral acceleration signal.
 
 This example shows how to use the algorithm and compares the output to the reference labels on some example data.
@@ -42,7 +42,7 @@ reference_wbs
 # %%
 # Applying the algorithm using reference ICs
 # ------------------------------------------
-# We use the Mansour algorithm to detect the laterality of the initial contacts.
+# We use the BenMansour algorithm to detect the laterality of the initial contacts.
 # For this we need the IMU data and the indices of the initial contacts per GS.
 # To focus this example on the L/R detection, we use the reference ICs from the INDIP system as input.
 # In a real application, we would use the output of the IC-detectors as input.
@@ -50,11 +50,11 @@ reference_wbs
 # We will use the `GsIterator` to iterate over the gait sequences and apply the algorithm to each wb.
 # Note, that we use the ``ic_list`` result key, as the output of all L/R detectors is identical to the output of the
 # IC-detectors, but with an additional ``lr_label`` column.
-from mobgap.laterality import LrcMansour
+from mobgap.laterality import LrcBenMansour
 from mobgap.pipeline import GsIterator
 
 iterator = GsIterator()
-algo = LrcMansour()
+algo = LrcBenMansour()
 
 for (gs, data), result in iterator.iterate(imu_data, reference_wbs):
     result.ic_list = algo.predict(
