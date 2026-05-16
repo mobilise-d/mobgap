@@ -5,13 +5,13 @@ from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
-from mobgap.laterality import LrcMansour
+from mobgap.laterality import LrcBenMansour
 
 
-class TestMetaLrcMansour(TestAlgorithmMixin):
+class TestMetaLrcBenMansour(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = LrcMansour
+    ALGORITHM_CLASS = LrcBenMansour
 
     @pytest.fixture
     def after_action_instance(self):
@@ -22,11 +22,11 @@ class TestMetaLrcMansour(TestAlgorithmMixin):
         )
 
 
-class TestLrcMansour:
+class TestLrcBenMansour:
     def test_empty_ic(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": []})
-        output = LrcMansour().predict(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
+        output = LrcBenMansour().predict(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
         assert len(output) == 0
         assert list(output.columns) == ["ic", "lr_label"]
 
@@ -34,7 +34,7 @@ class TestLrcMansour:
         # In the edge case of "zero" at a IC the respective label should be "right"
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        output = LrcMansour().predict(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
+        output = LrcBenMansour().predict(data, ic_list=ic_list, sampling_rate_hz=100.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == "right").all()
@@ -47,7 +47,7 @@ class TestLrcMansour:
         data["acc_ml"] = np.sin(np.linspace(0, 4 * np.pi, 100))
 
         ic_list = pd.DataFrame({"ic": [20, 50, 70]})
-        output = LrcMansour().predict(data, ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
+        output = LrcBenMansour().predict(data, ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
         assert len(output) == 3
         assert list(output.columns) == ["ic", "lr_label"]
         assert (output["lr_label"] == ["right", "left", "right"]).all()
@@ -55,7 +55,7 @@ class TestLrcMansour:
     def test_correct_ouput_format(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": [5, 10, 15]})
-        output = LrcMansour().predict(data, ic_list=ic_list, sampling_rate_hz=100.0)
+        output = LrcBenMansour().predict(data, ic_list=ic_list, sampling_rate_hz=100.0)
 
         assert_frame_equal(output.ic_lr_list_[["ic"]], ic_list)
 

@@ -7,8 +7,8 @@ def test_mccamley(snapshot):
     snapshot.assert_match(detected_ics)
 
 
-def test_mansour(snapshot):
-    from examples.laterality._03_lrc_mansour import detected_ics
+def test_benmansour(snapshot):
+    from examples.laterality._03_lrc_benmansour import detected_ics
 
     snapshot.assert_match(detected_ics)
 

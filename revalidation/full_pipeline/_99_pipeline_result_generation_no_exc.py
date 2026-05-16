@@ -50,7 +50,7 @@ from typing import Optional, Self
 
 import pandas as pd
 from mobgap.data import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
-from mobgap.laterality import LrcMansour, LrcUllrich
+from mobgap.laterality import LrcBenMansour, LrcUllrich
 from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.misc import get_env_var
 from tpcp.caching import hybrid_cache
@@ -222,13 +222,13 @@ pipelines = {
             (
                 "healthy",
                 MobilisedPipelineHealthy(
-                    laterality_classification=LrcMansour()
+                    laterality_classification=LrcBenMansour()
                 ),
             ),
             (
                 "impaired",
                 MobilisedPipelineImpaired(
-                    laterality_classification=LrcMansour()
+                    laterality_classification=LrcBenMansour()
                 ),
             ),
         ]
