@@ -118,7 +118,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         acc_pa_std_thresh: float = 0.17,
         voting_mode: bool = True,
         min_features_required: int = 2,
-        position: Literal["wrist", "lowback"] = "lowback",
+        position: Literal["lowback"] = "lowback",
     ) -> None:
         self.window_min = window_min
         self.step_min = step_min
