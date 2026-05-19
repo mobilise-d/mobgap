@@ -72,9 +72,10 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     CNN operates on raw windowed IMU data with per-window standardization
     (features scaled to zero mean, unit variance per window).
 
-    Model architecture: 3-layer 1D CNN with filters [32, 64, 128], kernel size 9,
-    max pooling, batch normalization, and dropout (0.3). Trained on all 26 subjects
-    for production deployment.
+    Model architecture: 3-layer 1D CNN with progressively increasing filters [32, 64, 128],
+    kernel size 9, max pooling (size 2), batch normalization, and dropout (0.3). Fully
+    connected layer with 64 units. Trained with Adam optimizer (learning rate 0.001,
+    batch size 1024). CNN-LSTM variant includes 64-unit LSTM layer before dense layer.
     """
 
     # Type hints
