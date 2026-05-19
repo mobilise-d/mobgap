@@ -409,7 +409,7 @@ agg_results = agg.aggregate(
 ).aggregated_data_
 
 # Manually adding the detected wear-time of the recording
-agg_results['weartime_hours'] = weartime_hours
+agg_results["weartime_hours"] = weartime_hours
 
 agg_results.T
 
