@@ -17,11 +17,11 @@ Algorithms
 
 Base Classes
 ++++++++++++
-.. automodule:: mobgap.weartime.base_weartime_detector
+.. automodule:: mobgap.weartime.base
     :no-members:
     :no-inherited-members:
 
-.. currentmodule:: mobgap.weartime.base_weartime_detector
+.. currentmodule:: mobgap.weartime.base
 .. autosummary::
    :toctree: generated/weartime
    :template: class.rst

@@ -20,7 +20,7 @@ import pandas as pd
 from typing_extensions import Self
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.weartime.base_weartime_detector import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
+from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
 from mobgap.weartime.utils.feature_extraction import extract_features_90pct, extract_full_features
 from mobgap.weartime.utils.ml_feature_extraction import rolling_window_indices
 from mobgap.weartime.utils.windows_to_weartime import overlapping_windows_to_sample_labels

@@ -31,6 +31,8 @@ from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
+from mobgap.weartime import WtdMegaritisSignal
+from mobgap.weartime.base import BaseWeartimeDetector
 
 
 @mobilised_pipeline_docfiller
@@ -158,6 +160,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         stride_length_calculation: Optional[BaseSlCalculator],
         walking_speed_calculation: Optional[BaseWsCalculator],
         turn_detection: Optional[BaseTurnDetector],
+        weartime_detection: Optional[BaseWeartimeDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
         dmo_thresholds: Optional[pd.DataFrame],
@@ -171,6 +174,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self.stride_length_calculation = stride_length_calculation
         self.walking_speed_calculation = walking_speed_calculation
         self.turn_detection = turn_detection
+        self.weartime_detection = weartime_detection
         self.stride_selection = stride_selection
         self.wba = wba
         self.dmo_thresholds = dmo_thresholds
@@ -234,6 +238,17 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         imu_data = to_body_frame(datapoint.data_ss)
         sampling_rate_hz = datapoint.sampling_rate_hz
+
+        # Calling wear-time detection
+        if self.weartime_detection is not None:
+            self.weartime_detection_ = self.weartime_detection.clone().detect(
+                imu_data,
+                sampling_rate_hz=sampling_rate_hz,
+                **self._all_action_kwargs
+            )
+            self.weartime_hours_ = self.weartime_detection_.total_weartime_hours_
+        else:
+            self.weartime_hours_ = None
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
         self.gs_list_ = self.gait_sequence_detection_.gs_list_
@@ -325,6 +340,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
         )
         self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
+
+        # Adding the Wear-time to the aggregated params
+        if self.weartime_hours_ is not None:
+            self.aggregated_parameters_['weartime_hours'] = self.weartime_hours_
 
         del self._all_action_kwargs
         return self
