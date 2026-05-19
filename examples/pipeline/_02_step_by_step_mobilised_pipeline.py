@@ -187,7 +187,9 @@ from mobgap.laterality import LrcUllrich
 from mobgap.stride_length import SlZijlstra
 from mobgap.turning import TdElGohary
 from mobgap.walking_speed import WsNaive
+from mobgap.weartime import WtdMegaritisCNN
 
+wtd = WtdMegaritisCNN()
 gsd = GsdIluz()
 icd = IcdShinImproved()
 lrc = LrcUllrich()
@@ -195,6 +197,11 @@ cad = CadFromIc()
 sl = SlZijlstra()
 speed = WsNaive()
 turn = TdElGohary()
+
+# %%
+# Then we calculate the wear-time on the full recording
+wtd.detect(imu_data, sampling_rate_hz=sampling_rate_hz, **participant_metadata)
+weartime_hours = wtd.total_weartime_hours_
 
 # %%
 # Then we calculate the gait sequences as before.
@@ -400,6 +407,10 @@ agg = MobilisedAggregator(
 agg_results = agg.aggregate(
     per_wb_params, wb_dmos_mask=per_wb_params_mask
 ).aggregated_data_
+
+# Manually adding the detected wear-time of the recording
+agg_results['weartime_hours'] = weartime_hours
+
 agg_results.T
 
 
@@ -412,6 +423,7 @@ agg_results.T
 from mobgap.pipeline import GenericMobilisedPipeline
 
 pipeline = GenericMobilisedPipeline(
+    weartime_detection=wtd,
     gait_sequence_detection=gsd,
     initial_contact_detection=icd,
     laterality_classification=lrc,

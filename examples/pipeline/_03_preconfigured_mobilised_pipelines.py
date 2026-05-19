@@ -71,6 +71,40 @@ pipeline_ha.per_stride_parameters_
 # For other results, see the documentation of the pipeline class itself.
 
 # %%
+# Using a Different Wear-Time Detection Algorithm
+# -----------------------------------------------
+# By default, the pipeline uses the signal processing-based wear-time detection algorithm
+# (WtdMegaritisSignal). You can override this with a different algorithm, such as the
+# CNN-based detector, which significantly outperformes the signal processing method.
+from mobgap.weartime import WtdMegaritisCNN
+
+pipeline_ha_cnn = MobilisedPipelineHealthy(
+    weartime_detection=WtdMegaritisCNN()
+)
+
+# %%
+# Run the pipeline with CNN-based wear-time detection
+pipeline_ha_cnn = pipeline_ha_cnn.safe_run(long_test_ha)
+
+# %%
+# The results now use CNN-based wear-time detection in the aggregated parameters
+pipeline_ha_cnn.aggregated_parameters_
+
+# %%
+# You can also disable wear-time detection entirely by setting it to None
+pipeline_ha_no_wt = MobilisedPipelineHealthy(
+    weartime_detection=None
+)
+
+# %%
+# Run without wear-time detection
+pipeline_ha_no_wt = pipeline_ha_no_wt.safe_run(long_test_ha)
+
+# %%
+# The aggregated parameters will not include the weartime_hours column
+pipeline_ha_no_wt.aggregated_parameters_
+
+# %%
 # Mobilised Pipeline Impaired
 # ---------------------------
 from mobgap.pipeline import MobilisedPipelineImpaired
