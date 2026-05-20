@@ -201,7 +201,7 @@ turn = TdElGohary()
 # %%
 # Then we calculate the wear-time on the full recording
 wtd.detect(imu_data, sampling_rate_hz=sampling_rate_hz, **participant_metadata)
-weartime_hours = wtd.total_weartime_hours_
+weartime_hours_during_waking_ = wtd.total_weartime_hours_during_waking_
 
 # %%
 # Then we calculate the gait sequences as before.
@@ -409,7 +409,7 @@ agg_results = agg.aggregate(
 ).aggregated_data_
 
 # Manually adding the detected wear-time of the recording
-agg_results["weartime_hours"] = weartime_hours
+agg_results["weartime_hours_during_waking"] = weartime_hours_during_waking_
 
 agg_results.T
 
