@@ -58,7 +58,7 @@ base_weartime_docfiller = make_filldoc(
     -------
     self
         The instance of the class with the ``weartime_list_``, ``total_weartime_samples_``,
-        ``total_weartime_minutes_``, ``total_weartime_hours_``, and 
+        ``total_weartime_minutes_``, ``total_weartime_hours_``, and
         ``total_weartime_hours_during_waking_`` attributes set to the detected weartime periods
         and total weartime values.
     """,
