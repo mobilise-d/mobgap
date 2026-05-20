@@ -78,7 +78,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     For recordings shorter than 22 hours or longer than 25 hours, the algorithm issues a warning
     and uses ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``,
     as the waking hours window cannot be reliably identified in non-standard recording durations.
-    Waking hours are identified using sample indices (07:00 = 7×3600×sampling_rate_hz) rather than
+    Waking hours are identified using sample indices (07:00 = 7x3600xsampling_rate_hz) rather than
     timestamps, ensuring compatibility with devices that may not provide timestamp metadata.
 
     **Model Architecture**
