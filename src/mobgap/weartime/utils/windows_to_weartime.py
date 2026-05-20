@@ -1,8 +1,9 @@
 """From windows (overlapping or not) to sample predictions using majority voting."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
-import warnings
 
 
 def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
@@ -246,7 +247,7 @@ def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
         warnings.warn(
             f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "
             f"Using total_weartime_hours for weartime_during_waking_hours.",
-            stacklevel=2
+            stacklevel=2,
         )
         total_weartime_hours_during_waking_ = total_weartime_hours
     elif recording_hours > 25:
@@ -255,7 +256,7 @@ def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
             f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
             f"Waking hours calculation assumes the recording is segmented per day. "
             f"Using total_weartime_hours for weartime_during_waking_hours.",
-            stacklevel=2
+            stacklevel=2,
         )
         total_weartime_hours_during_waking_ = total_weartime_hours
     else:

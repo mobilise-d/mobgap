@@ -205,7 +205,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             window_size=win_samples,
             stride=step,
             sampling_rate_hz=int(sampling_rate_hz),
-            )
+        )
 
         # Clip end to actual data length
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=self.data_length)

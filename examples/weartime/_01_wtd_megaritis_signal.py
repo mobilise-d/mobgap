@@ -87,7 +87,9 @@ wtd_output = WtdMegaritisSignal().detect(
 
 print("Detected Wear-Time Periods:\n")
 print(wtd_output.weartime_list_)
-print(f"\nTotal wear-time (h) during waking hours: {wtd_output.total_weartime_hours_during_waking_}")
+print(
+    f"\nTotal wear-time (h) during waking hours: {wtd_output.total_weartime_hours_during_waking_}"
+)
 print(f"Performance: {wtd_output.perf_}")
 
 # %%

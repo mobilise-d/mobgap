@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Any, Literal, Unpack
 
 import numpy as np
 import pandas as pd
 from typing_extensions import Self
-import warnings
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
@@ -295,7 +295,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             warnings.warn(
                 f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "
                 f"Using total_weartime_hours_ for weartime_during_waking_hours.",
-                stacklevel=2
+                stacklevel=2,
             )
             self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
         elif recording_hours > 25:
@@ -304,7 +304,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                 f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
                 f"Waking hours calculation assumes the recording is segmented per day. "
                 f"Using total_weartime_hours_ for weartime_during_waking_hours.",
-                stacklevel=2
+                stacklevel=2,
             )
             self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
         else:

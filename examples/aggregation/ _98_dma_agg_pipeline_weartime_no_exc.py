@@ -35,21 +35,25 @@ import pandas as pd
 
 daily_aggregated = pd.read_csv(
     path_config["daily_dmo"],
-    index_col=["visit_type", "participant_id", "measurement_date"]
+    index_col=["visit_type", "participant_id", "measurement_date"],
 )
 
 # %%
 # QA: Check data structure
 # ------------------------
 print(f"Total daily recordings: {len(daily_aggregated)}")
-print(f"Unique participants: {daily_aggregated.index.get_level_values('participant_id').nunique()}")
+print(
+    f"Unique participants: {daily_aggregated.index.get_level_values('participant_id').nunique()}"
+)
 print(f"\nColumns available:\n{daily_aggregated.columns.tolist()}")
 
 # %%
 # Weartime Filtering
 # ------------------
 # Filter out days with insufficient weartime (using pipeline-detected values)
-daily_aggregated_filtered = daily_aggregated.query("weartime_hours_during_waking >= 12")
+daily_aggregated_filtered = daily_aggregated.query(
+    "weartime_hours_during_waking >= 12"
+)
 
 
 # %%
@@ -91,10 +95,14 @@ weekly_aggregated = (
     .groupby(["visit_type", "participant_id"])
     .mean(numeric_only=True)
     .assign(
-        n_days=daily_aggregated_filtered.groupby(["visit_type", "participant_id"]).size(),
-        total_weartime_hours=daily_aggregated_filtered["weartime_hours_during_waking"]
+        n_days=daily_aggregated_filtered.groupby(
+            ["visit_type", "participant_id"]
+        ).size(),
+        total_weartime_hours=daily_aggregated_filtered[
+            "weartime_hours_during_waking"
+        ]
         .groupby(["visit_type", "participant_id"])
-        .sum()  # Sum weartime across all valid days
+        .sum(),  # Sum weartime across all valid days
     )
 )
 
@@ -140,7 +148,9 @@ weekly_aggregated_filtered.add_suffix("_w").to_csv(
     outdir / "weekly_agg_filtered.csv"
 )
 # Save weartime summary
-daily_aggregated[["weartime_hours_during_waking"]].to_csv(outdir / "daily_weartime.csv")
+daily_aggregated[["weartime_hours_during_waking"]].to_csv(
+    outdir / "daily_weartime.csv"
+)
 daily_aggregated[daily_aggregated["weartime_hours_during_waking"] < 12].to_csv(
     outdir / "insufficient_weartime_days.csv"
 )

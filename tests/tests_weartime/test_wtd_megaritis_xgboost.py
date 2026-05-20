@@ -65,8 +65,9 @@ class TestWtdMegaritisXGBoost:
 
         output = WtdMegaritisXGBoost().detect(to_body_frame(data), sampling_rate_hz=100.0)
 
-        assert hasattr(output, 'total_weartime_hours_during_waking_')
+        assert hasattr(output, "total_weartime_hours_during_waking_")
         assert output.total_weartime_hours_during_waking_ >= 0
+
 
 class TestWtdMegaritisXGBoostRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
