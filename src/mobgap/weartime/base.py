@@ -95,9 +95,10 @@ class BaseWeartimeDetector(Algorithm):
     This base class should be used for all weartime detection algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
     The method should then return the instance of the class, with the ``weartime_list_``, ``total_weartime_samples_``,
-    ``total_weartime_minutes_``, and ``total_weartime_hours_`` attributes set to the detected weartime periods
-    and summary statistics.
-    Further, the detect method should set ``self. data`` and ``self.sampling_rate_hz`` to the parameters passed to the
+    ``total_weartime_minutes_``, ``total_weartime_hours_``, and ``total_weartime_hours_during_waking_``
+    attributes set to the detected weartime periods and summary statistics.
+
+    Further, the detect method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
 
     We allow that subclasses specify further parameters for the detect methods (hence, this baseclass supports
@@ -121,6 +122,18 @@ class BaseWeartimeDetector(Algorithm):
 
     Notes
     -----
+    **Waking Hours Calculation**
+
+    All algorithms calculate wear-time during waking hours (07:00-22:00) in addition to
+    total wear-time. This is required for Mobilise-D Digital Mobility Assessment (DMA)
+    validation, which requires ≥12 hours of wear-time during waking hours per valid day.
+
+    The waking hours calculation assumes recordings are segmented per day (midnight-to-midnight).
+    For recordings shorter than 22:00 or longer than 25 hours, algorithms issue a warning
+    and use ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``.
+
+    **Implementation Notes**
+
     You can use the :func:`~base_weartime_docfiller` decorator to fill common parts of the docstring for your subclass.
     See the source of this class for an example.
 
