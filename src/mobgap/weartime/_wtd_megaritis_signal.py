@@ -82,8 +82,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     Notes
     -----
-    Algorithm workflow:
-
+    **Algorithm Workflow**
     1. Sliding macro windows are defined over the input data
     2. Each macro window is divided into micro windows (5s) for feature extraction
     3. Three features are extracted per micro window:
@@ -100,6 +99,20 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     from sensor noise or voting conflicts. Stage 2 (20-minute ratio filter) removes short
     wear bouts surrounded by disproportionate non-wear (ratio <0.3), likely device handling
     rather than true wear events.
+
+    **Waking Hours Calculation**
+
+    In addition to total wear-time, this algorithm calculates wear-time during waking hours
+    (07:00-22:00), required for Mobilise-D DMO weekly aggregation. The waking hours value is
+    extracted from the post-processed sample-level predictions by filtering wear-time to the
+    07:00-22:00 window.
+
+    The pipeline is designed for daily recordings (midnight-to-midnight, ~24 hours).
+    For recordings shorter than 22 hours or longer than 25 hours, the algorithm issues a warning
+    and uses ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``,
+    as the waking hours window cannot be reliably identified in non-standard recording durations.
+    Waking hours are identified using sample indices (07:00 = 7×3600×sampling_rate_hz) rather than
+    timestamps, ensuring compatibility with devices that may not provide timestamp metadata.
     """
 
     # Type hints

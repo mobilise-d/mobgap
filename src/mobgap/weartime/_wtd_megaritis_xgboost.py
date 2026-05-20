@@ -75,10 +75,25 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
     Notes
     -----
+    **Model and Performance**
     Pre-trained models are loaded from the package's production_models folder.
     XGBoost models do not require feature scaling.
     Feature extraction dominates computation time. For large datasets,
     consider using version="lightweight" for ~3x faster inference.
+
+    **Waking Hours Calculation**
+
+    In addition to total wear-time, this algorithm calculates wear-time during waking hours
+    (07:00-22:00), required for Mobilise-D DMO weekly aggregation. The waking hours value is
+    extracted from the post-processed sample-level predictions by filtering wear-time to the
+    07:00-22:00 window.
+
+    The pipeline is designed for daily recordings (midnight-to-midnight, ~24 hours).
+    For recordings shorter than 22 hours or longer than 25 hours, the algorithm issues a warning
+    and uses ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``,
+    as the waking hours window cannot be reliably identified in non-standard recording durations.
+    Waking hours are identified using sample indices (07:00 = 7×3600×sampling_rate_hz) rather than
+    timestamps, ensuring compatibility with devices that may not provide timestamp metadata.
     """
 
     # Type hints
