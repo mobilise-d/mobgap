@@ -18,7 +18,7 @@ According to Mobilise-D standards [1], a valid DMA requires:
 
 Participants with fewer than 3 valid days are excluded from weekly-level DMAs.
 
-The pipeline's daily `aggregated_parameters_` output includes `weartime_hours_during_waking` per recording, enabling users to extract end-to-end Mobilise-D DMOs without external dependencies or proprietary algorithms.
+The pipeline's daily `aggregated_parameters_` output includes `total_weartime_hours_during_waking_` per recording, enabling users to extract end-to-end Mobilise-D DMOs without external dependencies or proprietary algorithms.
 
 ## Weekly Aggregation Example
 
