@@ -43,6 +43,14 @@ class TestWtdMegaritisSignal:
         assert len(output) >= 1
         assert set(output.columns) == {"start", "end"}
 
+    def test_waking_hours_attribute_exists(self):
+        """Verify total_weartime_hours_during_waking_ is calculated."""
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+
+        output = WtdMegaritisSignal().detect(to_body_frame(data), sampling_rate_hz=100.0)
+
+        assert hasattr(output, 'total_weartime_hours_during_waking_')
+        assert output.total_weartime_hours_during_waking_ >= 0
 
 class TestWtdMegaritisSignalRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
