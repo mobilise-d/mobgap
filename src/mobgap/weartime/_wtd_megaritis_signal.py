@@ -1,5 +1,4 @@
 # Copyright 2026 Dr Dimitrios Megaritis
-# Novel wear-time detection algorithm using gyroscope patterns
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +17,7 @@ from typing import Any, Literal, Unpack
 import numpy as np
 import pandas as pd
 from typing_extensions import Self
+import warnings
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
@@ -75,6 +75,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     %(total_weartime_samples_)s
     %(total_weartime_minutes_)s
     %(total_weartime_hours_)s
+    %(total_weartime_hours_during_waking_)s
     %(perf_)s
     diagnostics_ : dict
         Diagnostic information with 'macro' and 'sample_votes' keys
@@ -104,6 +105,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     # Type hints
     data_length: int
     diagnostics_: dict[str, pd.DataFrame | list]
+    total_weartime_hours_during_waking_: float
 
     def __init__(
         self,
@@ -268,6 +270,38 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.total_weartime_samples_ = (self.weartime_list_["end"] - self.weartime_list_["start"]).sum()
         self.total_weartime_minutes_ = self.total_weartime_samples_ / (60 * self.sampling_rate_hz)
         self.total_weartime_hours_ = self.total_weartime_samples_ / (3600 * self.sampling_rate_hz)
+
+        # Weartime during waking hours (07:00-22:00)
+        waking_start_sample = int(7 * 3600 * self.sampling_rate_hz)
+        waking_end_sample = int(22 * 3600 * self.sampling_rate_hz)
+        recording_hours = self.data_length / (3600 * self.sampling_rate_hz)
+
+        # Check if recording is according to mobgap use case (single day)
+        if self.data_length < waking_end_sample:
+            # Recording shorter than 22:00 - use full weartime
+            warnings.warn(
+                f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "
+                f"Using total_weartime_hours_ for weartime_during_waking_hours.",
+                stacklevel=2
+            )
+            self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
+        elif recording_hours > 25:
+            # Recording longer than 25 hours - use full weartime
+            warnings.warn(
+                f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
+                f"Waking hours calculation assumes the recording is segmented per day. "
+                f"Using total_weartime_hours_ for weartime_during_waking_hours.",
+                stacklevel=2
+            )
+            self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
+        else:
+            # Normal day (22-25h): crop to waking hours
+            weartime_flags_waking = weartime_flags.copy()
+            weartime_flags_waking[:waking_start_sample] = 0
+            weartime_flags_waking[waking_end_sample:] = 0
+
+            total_weartime_samples_waking = weartime_flags_waking.sum()
+            self.total_weartime_hours_during_waking_ = total_weartime_samples_waking / (3600 * self.sampling_rate_hz)
 
         return self
 

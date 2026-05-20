@@ -70,6 +70,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     %(total_weartime_samples_)s
     %(total_weartime_minutes_)s
     %(total_weartime_hours_)s
+    %(total_weartime_hours_during_waking_)s
     %(perf_)s
 
     Notes
@@ -83,6 +84,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     # Type hints
     data_length: int
     feature_names: list[str]
+    total_weartime_hours_during_waking_: float
 
     def __init__(
         self,
@@ -174,20 +176,21 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             all_probabilities.append(y_prob)
 
         # Post-processing: convert window predictions to sample-level weartime
-        self.weartime_list_, total_samples, _total_seconds, total_minutes, total_hours, _coverage = (
-            overlapping_windows_to_sample_labels(
-                predictions=all_predictions,
-                data_len=self.data_length,
-                window_size=win_samples,
-                stride=step,
-                sampling_rate_hz=int(sampling_rate_hz),
+        (
+            self.weartime_list_,
+            self.total_weartime_samples_,
+            _total_seconds,
+            self.total_weartime_minutes_,
+            self.total_weartime_hours_,
+            self.total_weartime_hours_during_waking_,
+            _coverage,
+        ) = overlapping_windows_to_sample_labels(
+            predictions=all_predictions,
+            data_len=self.data_length,
+            window_size=win_samples,
+            stride=step,
+            sampling_rate_hz=int(sampling_rate_hz),
             )
-        )
-
-        # Store statistics
-        self.total_weartime_samples_ = total_samples
-        self.total_weartime_minutes_ = total_minutes
-        self.total_weartime_hours_ = total_hours
 
         # Clip end to actual data length
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=self.data_length)

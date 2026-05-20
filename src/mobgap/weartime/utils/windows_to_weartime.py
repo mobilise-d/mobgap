@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import warnings
 
 
 def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
@@ -60,8 +61,8 @@ def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
     Notes
     -----
     In this function we incorporate a post processing step assessing weartime bouts
-    shorter than 20 minutes. These bout are only kept as wear if the confidence
-    (proportion of wear votes) is above the specified threshold (default 85%).
+    shorter than 20 minutes. These bouts are only kept as wear if the confidence
+    (proportion of wear votes) is above the specified threshold (default 90%).
     This helps to reduce false positives from short wear time predictions that may be
     less reliable, while still allowing short wear bouts at the beginning or end of
     the data to be retained without filtering. Finally, we remove bouts which are
@@ -234,6 +235,37 @@ def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
     total_weartime_minutes = total_weartime_seconds / 60.0
     total_weartime_hours = total_weartime_seconds / 3600.0
 
+    # Calculate waking hours weartime (07:00-22:00) from post-processed sample_labels
+    waking_start = int(7 * 3600 * sampling_rate_hz)
+    waking_end = int(22 * 3600 * sampling_rate_hz)
+    recording_hours = data_len / (3600 * sampling_rate_hz)
+
+    # Check if recording is according to mobgap use case (single day)
+    if data_len < waking_end:
+        # Recording shorter than 22:00 - use full weartime
+        warnings.warn(
+            f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "
+            f"Using total_weartime_hours for weartime_during_waking_hours.",
+            stacklevel=2
+        )
+        total_weartime_hours_during_waking_ = total_weartime_hours
+    elif recording_hours > 25:
+        # Recording longer than 25 hours - use full weartime
+        warnings.warn(
+            f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
+            f"Waking hours calculation assumes the recording is segmented per day. "
+            f"Using total_weartime_hours for weartime_during_waking_hours.",
+            stacklevel=2
+        )
+        total_weartime_hours_during_waking_ = total_weartime_hours
+    else:
+        # Normal day (22-25h): crop to waking hours
+        sample_labels_waking = sample_labels.copy()
+        sample_labels_waking[:waking_start] = 0
+        sample_labels_waking[waking_end:] = 0
+
+        total_weartime_hours_during_waking_ = np.sum(sample_labels_waking) / (3600 * sampling_rate_hz)
+
     # Convert to DataFrame
     if wear_segments:
         pred_wt_df = pd.DataFrame(wear_segments)[["start", "end"]]
@@ -249,6 +281,7 @@ def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
         total_weartime_seconds,
         total_weartime_minutes,
         total_weartime_hours,
+        total_weartime_hours_during_waking_,
         coverage_info,
     )
 

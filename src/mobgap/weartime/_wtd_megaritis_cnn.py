@@ -64,6 +64,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     %(total_weartime_samples_)s
     %(total_weartime_minutes_)s
     %(total_weartime_hours_)s
+    %(total_weartime_hours_during_waking_)s
     %(perf_)s
 
     Notes
@@ -80,7 +81,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
 
     # Type hints
     data_length: int
-    model: Any  # keras.Model
+    model: Any
+    total_weartime_hours_during_waking_: float
 
     def __init__(
         self,
@@ -195,6 +197,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
             _total_weartime_seconds,
             self.total_weartime_minutes_,
             self.total_weartime_hours_,
+            self.total_weartime_hours_during_waking_,
             _coverage,
         ) = overlapping_windows_to_sample_labels(
             predictions=all_predictions,

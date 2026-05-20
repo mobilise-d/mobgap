@@ -39,6 +39,11 @@ base_weartime_docfiller = make_filldoc(
     total_weartime_hours_
         The total weartime in hours across all detected weartime periods.
     """,
+        "total_weartime_hours_during_waking_": """
+    total_weartime_hours_during_waking_
+        Total wear-time during waking hours (07:00-22:00) in hours.
+        For recordings shorter than 22:00, this equals total_weartime_hours_.
+    """,
         "detect_short": """
     Detect weartime periods in the passed data
     """,
@@ -53,7 +58,8 @@ base_weartime_docfiller = make_filldoc(
     -------
     self
         The instance of the class with the ``weartime_list_``, ``total_weartime_samples_``,
-        ``total_weartime_minutes_``, and ``total_weartime_hours_`` attributes set to the detected weartime periods
+        ``total_weartime_minutes_``, ``total_weartime_hours_``, and 
+        ``total_weartime_hours_during_waking_`` attributes set to the detected weartime periods
         and total weartime values.
     """,
         "self_optimize_paras": """
@@ -110,6 +116,7 @@ class BaseWeartimeDetector(Algorithm):
     %(total_weartime_samples_)s
     %(total_weartime_minutes_)s
     %(total_weartime_hours_)s
+    %(total_weartime_hours_during_waking_)s
     %(perf_)s
 
     Notes
@@ -130,6 +137,7 @@ class BaseWeartimeDetector(Algorithm):
     total_weartime_samples_: int
     total_weartime_minutes_: float
     total_weartime_hours_: float
+    total_weartime_hours_during_waking_: float
 
     perf_: MeasureTimeResults
 
