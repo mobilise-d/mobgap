@@ -247,9 +247,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         # Calling wear-time detection
         if self.weartime_detection is not None:
             self.weartime_detection_ = self.weartime_detection.clone().detect(imu_data, **self._all_action_kwargs)
-            self.weartime_hours_ = self.weartime_detection_.total_weartime_hours_
+            self.weartime_hours_during_waking_ = self.weartime_detection_.total_weartime_hours_during_waking_
         else:
-            self.weartime_hours_ = None
+            self.weartime_hours_during_waking_ = None
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
         self.gs_list_ = self.gait_sequence_detection_.gs_list_
@@ -343,8 +343,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
 
         # Adding the Wear-time to the aggregated params
-        if self.weartime_hours_ is not None:
-            self.aggregated_parameters_["weartime_hours"] = self.weartime_hours_
+        if self.weartime_hours_during_waking_ is not None:
+            self.aggregated_parameters_["weartime_hours_during_waking"] = self.weartime_hours_during_waking_
 
         del self._all_action_kwargs
         return self
@@ -710,8 +710,8 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
         return self.pipeline_.aggregated_parameters_
 
     @property
-    def weartime_hours_(self) -> Optional[float]:
-        return self.pipeline_.weartime_hours_
+    def weartime_hours_during_waking_(self) -> Optional[float]:
+        return self.pipeline_.weartime_hours_during_waking_
 
     @property
     def gs_list_(self) -> pd.DataFrame:
