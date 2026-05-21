@@ -326,11 +326,11 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 measurement_condition=datapoint.recording_metadata["measurement_condition"],
             )
 
-        if self.sdmo_calculation is not None:
+        if self.sdmo_calculation:
             wb_iterator = GsIterator(aggregations=[("signal_based_dmo", create_aggregate_df("signal_based_dmo"))])
             for (wb_region, wb_data), r in wb_iterator.iterate(imu_data, self.per_wb_parameters_):
-                ic_list = self.per_stride_parameters_.loc[wb_region.id]["start"] - wb_region.start
-                self.sdmo_ = self.sdmo_calculation.clone().calculate(wb_data, sampling_rate_hz=sampling_rate_hz, ic_list=ic_list)
+                initial_contacts = pd.DataFrame(self.per_stride_parameters_.loc[wb_region.id]["start"] - wb_region.start).rename(columns={"start": "ic"})
+                self.sdmo_ = self.sdmo_calculation.clone().calculate(wb_data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
                 r.signal_based_dmo = self.sdmo_.signal_based_dmo
 
             self.signal_based_dmo_ = wb_iterator.additional_results_["signal_based_dmo"].droplevel(1)

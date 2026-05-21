@@ -40,9 +40,9 @@ class SDMO(BaseSDMOCalculator):
     def calculate(
         self,
         data: pd.DataFrame,
+        initial_contacts: pd.DataFrame,
         *,
         sampling_rate_hz: float,
-        ic_list: np.ndarray,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """(calculate_short)s.
@@ -54,7 +54,6 @@ class SDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.ic_list = ic_list
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
         # collect all methods implementing SDMO calculation (add new ones to this list)
@@ -339,10 +338,11 @@ class SDMO(BaseSDMOCalculator):
         """
         acc_columns = ["acc_is", "acc_ml", "acc_pa"]
         hr_results = {}
-        if len(self.ic_list) < 5:
+        ic_list = self.initial_contacts["ic"].to_numpy()
+        if len(ic_list) < 5:
             return pd.Series({f'HarmonicRatio_{k}': np.nan for k in acc_columns})
 
-        stride_pairs = list(zip(self.ic_list[::2], self.ic_list[2::2]))
+        stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
 
         for col_name in acc_columns:
             acc = data[col_name].to_numpy()
