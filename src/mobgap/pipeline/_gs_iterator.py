@@ -378,7 +378,17 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                             "walking_speed_per_sec",
                             create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True),
                         ),
-                        ("reorientation_result", lambda results: pd.DataFrame()),
+                        (
+                            "reorientation_result",
+                            lambda results: [
+                                r.result.reorientation_result
+                                for r in results
+                                if hasattr(r.result, "reorientation_result")
+                                and r.result.reorientation_result is not None
+                            ]
+                            if any(hasattr(r.result, "reorientation_result") for r in results)
+                            else pd.DataFrame(),
+                        ),
                     ]
                 ),
             }
