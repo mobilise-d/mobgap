@@ -30,6 +30,14 @@ mobilised_pipeline_docfiller = make_filldoc(
         Optional reorientation correction algorithm to align sensor axes to anatomical frame.
         Runs at the start of each gait sequence before initial contact detection.
         Set to None to disable (default).
+
+        .. note:: Reorientation is performed after gait sequence detection for two reasons:
+                  (1) Mobilise-D DMOs are calculated within walking bouts, so only gait sequence
+                  data requires correction; and (2) the reorientation method requires a known
+                  posture - upright walking provides this reference when device mounting is unknown.
+                  GsdIonescu is orientation-independent and detects gait sequences reliably regardless
+                  of device orientation. However, GsdIluz is orientation-dependent and may miss gait sequences
+                  in non-standard orientations before correction can be applied.
     """,
         "core_parameters": """
     gait_sequence_detection
