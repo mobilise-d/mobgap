@@ -62,6 +62,23 @@ first_gait_sequence_data = imu_data.iloc[
     first_gait_sequence.start : first_gait_sequence.end
 ]
 
+# %%
+# Step 1.5: Reorientation Correction (Optional)
+# ---------------------------------------------
+# Optionally, we can apply reorientation correction to align the sensor axes to the
+# anatomical frame before any gait parameter extraction.
+#
+# .. note:: Reorientation occurs after gait sequence detection because it requires
+#           a reference posture (upright walking). GsdIonescu is orientation-independent,
+#           but GsdIluz may fail to detect gait sequences in non-standard orientations.
+from mobgap.re_orientation import ReorientationMethodDM
+
+reorient = ReorientationMethodDM(method="conservative")
+reorient.detect_correct(first_gait_sequence_data)
+
+# Use corrected data for all downstream processing
+first_gait_sequence_data = reorient.corrected_data_
+
 
 # %%
 # Step 2: Initial Contact Detection
