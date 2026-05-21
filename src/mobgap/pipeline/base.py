@@ -25,6 +25,12 @@ mobilised_pipeline_docfiller = make_filldoc(
     self
         The pipeline object itself with all the results stored in the attributes.
     """,
+        "reorientation_correction": """
+    reorientation_correction
+        Optional reorientation correction algorithm to align sensor axes to anatomical frame.
+        Runs at the start of each gait sequence before initial contact detection.
+        Set to None to disable (default).
+    """,
         "core_parameters": """
     gait_sequence_detection
         A valid instance of a gait sequence detection algorithm.
