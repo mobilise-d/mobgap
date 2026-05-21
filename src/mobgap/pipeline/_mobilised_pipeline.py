@@ -369,7 +369,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
             if self.reorientation_correction:
                 reorient = self.reorientation_correction.clone().detect_correct(gs_data)
-                gs_data = reorient.corrected_data_
+                gs_data = reorient.corrected_data_  # noqa: PLW2901
                 r.reorientation_result = reorient.result_
 
             icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
