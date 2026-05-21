@@ -30,12 +30,18 @@ mobilised_pipeline_docfiller = make_filldoc(
         A valid instance of a wear-time detection algorithm, or None to disable wear-time calculation.
         This runs on the entire raw IMU data before gait sequence detection.
         The output is a recording-level metric representing the total time the device was worn.
-        The total wear-time in hours is available via the ``weartime_hours_`` attribute and is also
+        The total wear-time in hours is available via the ``weartime_hours_during_waking_`` attribute and is also
         included in ``aggregated_parameters_`` as the ``weartime_hours`` column.
 
         .. note:: Unlike other parameters which summarize walking bouts, ``weartime_hours`` represents
                   the total duration the sensor was worn during the entire recording, independent of
                   walking activity.
+    """,
+        "reorientation_correction": """
+    reorientation_correction
+        Optional reorientation correction algorithm to align sensor axes to anatomical frame.
+        Runs at the start of each gait sequence before initial contact detection.
+        Set to None to disable (default).
     """,
         "core_parameters": """
     gait_sequence_detection
@@ -136,7 +142,7 @@ mobilised_pipeline_docfiller = make_filldoc(
         Invalid parameters are (depending on the implementation in the provided Aggregation algorithm) excluded.
         This output can either be a dataframe with a single row (all WBs were aggregated to a single value, default),
         or a dataframe with multiple rows, if the aggregation algorithm uses a different aggregation approach.
-    weartime_hours_
+    weartime_hours_during_waking_
         Total recording wear-time in hours. None if wear-time detection was disabled.
         This represents recording-level sensor wear, unlike other parameters which summarize walking bouts.
     """,
