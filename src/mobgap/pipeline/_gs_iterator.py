@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import (
     Any,
@@ -18,7 +18,7 @@ from tpcp import cf
 from tpcp.misc import BaseTypedIterator, TypedIteratorResultTuple, custom_hash, set_defaults
 from tpcp.misc._typed_iterator import _NotSet
 from typing_extensions import TypeAlias
-from dataclasses import dataclass, field
+
 
 class Region(NamedTuple):
     """A simple tuple representing a Gait Sequence."""
