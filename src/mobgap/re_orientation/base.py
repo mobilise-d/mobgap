@@ -62,9 +62,17 @@ class BaseReorientationCorrector(Algorithm):
 
     Notes
     -----
-    You can use the :func:`~base_reorientation_docfiller` decorator to fill common parts
-    of the docstring for your subclass. See the source of this class for an example.
+    Reorientation is performed after gait sequence detection rather than on the full recording.
+    This design choice is optimal because: (1) Mobilise-D DMOs are calculated
+    within walking bouts, making correction outside them unnecessary; and (2) the
+    reorientation method requires a known reference posture - upright walking during detected gait
+    sequences provides this reference when device mounting orientation is unknown.
 
+    GsdIonescu is orientation-independent and reliably detects gait sequences regardless of sensor
+    orientation. However, GsdIluz is orientation-dependent and may fail to detect gait sequences in
+    non-standard orientations, which is a known limitation of combining these algorithms.
+
+    You can use the :func:`~base_reorientation_docfiller` decorator...
     """
 
     _action_methods = ("detect_correct",)
