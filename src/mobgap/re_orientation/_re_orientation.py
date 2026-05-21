@@ -25,6 +25,7 @@ import pandas as pd
 from scipy import signal
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
+from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
 
 GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= this captures gravity
 FS = 100  # sampling rate Hz
@@ -32,7 +33,7 @@ FS = 100  # sampling rate Hz
 
 # Results container
 @dataclass
-class ReorientationResult:
+class ReorientationResult(BaseReorientationCorrector):
     """Stores detection output and the corrected data."""
 
     where_grav: Literal["is", "ml"]  # which device axis captured gravity
@@ -43,7 +44,7 @@ class ReorientationResult:
     correction_action: str  # description of correction applied, or 'none'
     data_corrected: pd.DataFrame = field(repr=False)  # corrected data
 
-
+@base_reorientation_docfiller
 class ReorientationMethodDM(Algorithm):
     """
     Detects and corrects IMU sensor orientation for lower-back-worn devices.
@@ -58,13 +59,13 @@ class ReorientationMethodDM(Algorithm):
 
     Other Parameters
     ----------------
-    data : pd.DataFrame
-        The IMU data passed to the ``detect_correct`` method.
+    %(other_parameters)s
 
     Attributes
     ----------
+    %(corrected_data_)s
     result_ : ReorientationResult
-        The detection and correction result containing family, phase, correction flags, and corrected data.
+        Full detection and correction diagnostics including family, phase, correction flags.
 
     Examples
     --------
@@ -82,24 +83,21 @@ class ReorientationMethodDM(Algorithm):
     data: pd.DataFrame
 
     # Results
+    corrected_data_: pd.DataFrame
     result_: ReorientationResult
 
     def __init__(self, method: Literal["full", "conservative"] = "conservative") -> None:
         self.method = method
 
+    @base_reorientation_docfiller
     def detect_correct(self, data: pd.DataFrame, **_: Unpack[dict[str, Any]]) -> Self:
-        """
-        Detect orientation family and apply all corrections to a single walking bout.
+        """%(detect_correct_short)s.
 
         Parameters
         ----------
-        data : pd.DataFrame
-            Walking bout with columns: acc_is, acc_ml, acc_pa, gyr_is, gyr_ml, gyr_pa
+        %(detect_correct_para)s
 
-        Returns
-        -------
-        self
-            The class instance with ``result_`` attribute set.
+        %(detect_correct_return)s
         """
         # Validate method parameter
         if self.method not in ("full", "conservative"):
@@ -124,6 +122,7 @@ class ReorientationMethodDM(Algorithm):
                 correction_action="none",
                 data_corrected=data.copy(),
             )
+            self.corrected_data_ = data.copy()
             return self
 
         # Stage 1: IS axis identity and direction correction
@@ -146,6 +145,7 @@ class ReorientationMethodDM(Algorithm):
                 correction_action=correction_action,
                 data_corrected=corrected,
             )
+            self.corrected_data_ = corrected
             return self
 
         # Stage 3: compute IS-AP phase on IS-corrected data
@@ -171,6 +171,7 @@ class ReorientationMethodDM(Algorithm):
             data_corrected=corrected,
         )
 
+        self.corrected_data_ = self.result_.data_corrected
         return self
 
 
