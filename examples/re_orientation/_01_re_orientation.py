@@ -90,12 +90,12 @@ print(f"\nDetected orientation family: {reoriented.result_.family}")
 print(f"Correction applied: {reoriented.result_.correction_applied}")
 print(f"Correction action: {reoriented.result_.correction_action}")
 
-corrected = reoriented.result_.data_corrected
+corrected = reoriented.corrected_data_
 
 # %%
 # Visualising the corrected walking bout
 # --------------------------------------
-# After correction, we can visualise the corrected data.
+# After correction, we can access the corrected data via the corrected_data_ attribute.
 
 fig, ax = plt.subplots()
 
