@@ -18,7 +18,7 @@ from tpcp import cf
 from tpcp.misc import BaseTypedIterator, TypedIteratorResultTuple, custom_hash, set_defaults
 from tpcp.misc._typed_iterator import _NotSet
 from typing_extensions import TypeAlias
-
+from dataclasses import dataclass, field
 
 class Region(NamedTuple):
     """A simple tuple representing a Gait Sequence."""
@@ -168,6 +168,7 @@ class FullPipelinePerGsResult:
     cadence_per_sec: pd.DataFrame
     stride_length_per_sec: pd.DataFrame
     walking_speed_per_sec: pd.DataFrame
+    reorientation_result: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
@@ -377,6 +378,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                             "walking_speed_per_sec",
                             create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True),
                         ),
+                        ("reorientation_result", lambda results: pd.DataFrame()),
                     ]
                 ),
             }
