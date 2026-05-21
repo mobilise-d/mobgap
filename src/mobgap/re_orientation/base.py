@@ -34,7 +34,8 @@ base_reorientation_docfiller = make_filldoc(
         The instance of the class with the ``corrected_data_`` attribute set to the reoriented data.
     """,
     },
-    doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseReorientationCorrector`.",
+    doc_summary="Decorator to fill common parts of the docstring for subclasses of "
+    ":class:`BaseReorientationCorrector`.",
 )
 
 
