@@ -3,6 +3,7 @@
 from typing import Any, Optional
 
 import pandas as pd
+import numpy as np
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
@@ -75,6 +76,7 @@ class BaseSDMOCalculator(Algorithm):
     _action_methods = ("calculate",)
 
     data: pd.DataFrame
+    initial_contacts: pd.DataFrame
     sampling_rate_hz: float
 
     # results
@@ -84,6 +86,7 @@ class BaseSDMOCalculator(Algorithm):
     def calculate(
         self,
         data: pd.DataFrame,
+        initial_contacts: pd.DataFrame,
         *,
         sampling_rate_hz: float,
         **kwargs: Unpack[dict[str, Any]],
