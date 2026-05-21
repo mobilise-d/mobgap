@@ -25,6 +25,7 @@ import pandas as pd
 from scipy import signal
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
+
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
 
 GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= this captures gravity
@@ -43,6 +44,7 @@ class ReorientationResult(BaseReorientationCorrector):
     correction_applied: bool  # whether Stage 3 correction was applied
     correction_action: str  # description of correction applied, or 'none'
     data_corrected: pd.DataFrame = field(repr=False)  # corrected data
+
 
 @base_reorientation_docfiller
 class ReorientationMethodDM(Algorithm):

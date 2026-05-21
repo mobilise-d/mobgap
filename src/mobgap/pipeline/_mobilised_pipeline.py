@@ -21,6 +21,8 @@ from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
+from mobgap.re_orientation import ReorientationMethodDM  # noqa: F401
+from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -33,8 +35,6 @@ from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
 from mobgap.weartime import WtdMegaritisCNN, WtdMegaritisSignal, WtdMegaritisXGBoost  # noqa: F401
 from mobgap.weartime.base import BaseWeartimeDetector
-from mobgap.re_orientation import ReorientationMethodDM # noqa: F401
-from mobgap.re_orientation.base import BaseReorientationCorrector
 
 
 @mobilised_pipeline_docfiller
