@@ -61,15 +61,27 @@ Have a look at the sections 3 and 4 in this
 [guide in gaitmap](https://gaitmap.readthedocs.io/en/latest/source/user_guide/prepare_data.html#converting-into-the-correct-units) 
 for more information on how to do this.
 
-If you don't have any information about the mounting orientation of your sensor, you can try to estimate it based on the
-sensor data.
-The upwards axis could for example be identified using gravity and forward/backward axis can be identified using PCA
-with some additional assumptions.
-You can try to use the automatic alignment function
-([TODO: Under development in #112](https://github.com/mobilise-d/mobgap/pull/112)) to align the sensor data to the body 
-frame on a gait sequence level.
-Depending on the measurement setup, other constrains might be available to further refine the alignment.
-In all cases, manual inspection of the data is recommended to ensure that the alignment is correct.
+If you don't have any information about the mounting orientation of your sensor (i.e., unsupervised free-living setting), 
+you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer patterns 
+during walking. The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
+(2) determines the gravity direction (up/down) and classifies the orientation into one of four families, and (3) uses 
+cross-spectral phase analysis between vertical and anteroposterior axes to determine correct mediolateral and anteroposterior 
+orientations. Two correction methods are available: "conservative" (skips ML/AP correction for already-correct Family 1 
+orientations) and "full" (applies all corrections to every walking bout).
+
+<p align="center">
+  <img src="docs/_static/images/orientation_families.png" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
+</p>
+
+**Figure.** All possible device orientation families for a lower-back-worn IMU (belt worn (Families 1, 2) and patch attached (all Families)). 
+Each panel shows a distinct orientation defined by which device axis captures gravity and its direction. 
+Family 1A represents the correct orientation (IS up, ML right, AP forward). 
+The algorithm detects these families and applies appropriate corrections to align axes to the body frame. 
+Within each family, two orientations differ only in ML and AP axis directions, 
+determined through cross-spectral phase analysis. The green circle indicates AP direction: dot (•) = backward, cross (×) = forward.
+
+You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
+the sensor data to the body frame on a gait sequence level.
 
 Data that is in the sensor frame is simply named by the axis postfix `_x`, `_y`, and `_z`.
 So the imu-data pandas Dataframe has the axes `["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]`.
