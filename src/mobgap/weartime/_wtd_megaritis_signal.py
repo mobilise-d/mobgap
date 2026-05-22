@@ -83,6 +83,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     Notes
     -----
     **Algorithm Workflow**
+
     1. Sliding macro windows are defined over the input data
     2. Each macro window is divided into micro windows (5s) for feature extraction
     3. Three features are extracted per micro window:
