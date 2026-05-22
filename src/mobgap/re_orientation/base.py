@@ -46,9 +46,10 @@ class BaseReorientationCorrector(Algorithm):
     This base class should be used for all reorientation correction algorithms.
     Algorithms should implement the ``detect_correct`` method, which detects the sensor
     orientation and applies corrections to align data to the anatomical frame:
-        IS → vertical (infero-superior), pointing up
-        ML → mediolateral, pointing right
-        AP → anteroposterior, pointing forward
+
+    - IS → vertical (infero-superior), pointing up
+    - ML → mediolateral, pointing right
+    - AP → anteroposterior, pointing forward
 
     The method should return the instance with the ``corrected_data_`` attribute set.
 
@@ -64,6 +65,7 @@ class BaseReorientationCorrector(Algorithm):
     -----
     Reorientation is performed after gait sequence detection rather than on the full recording.
     This design choice is optimal because:
+
     1. Mobilise-D DMOs are calculated within walking bouts, making correction outside them
        unnecessary
     2. The reorientation method requires a known reference posture - upright walking during
