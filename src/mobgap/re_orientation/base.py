@@ -11,28 +11,28 @@ from mobgap._docutils import make_filldoc
 base_reorientation_docfiller = make_filldoc(
     {
         "other_parameters": """
-    data
-        The raw IMU data in the body frame passed to the ``detect_correct`` method.
-    """,
+data
+    The raw IMU data in the body frame passed to the ``detect_correct`` method.
+""",
         "corrected_data_": """
-    corrected_data_
-        The reoriented IMU data in the anatomical frame.
-        The dataframe has the same structure as the input data.
-    """,
+corrected_data_
+    The reoriented IMU data in the anatomical frame.
+    The dataframe has the same structure as the input data.
+""",
         "detect_correct_short": """
-    Detect sensor orientation and apply correction to anatomical frame
-    """,
+Detect sensor orientation and apply correction to anatomical frame
+""",
         "detect_correct_para": """
-    data
-        The raw IMU data in the body frame (or arbitrary sensor frame).
-        Expected columns: acc_is, acc_ml, acc_pa, gyr_is, gyr_ml, gyr_pa.
-    """,
+data
+    The raw IMU data in the body frame (or arbitrary sensor frame).
+    Expected columns: acc_is, acc_ml, acc_pa, gyr_is, gyr_ml, gyr_pa.
+""",
         "detect_correct_return": """
-    Returns
-    -------
-    self
-        The instance of the class with the ``corrected_data_`` attribute set to the reoriented data.
-    """,
+Returns
+-------
+self
+    The instance of the class with the ``corrected_data_`` attribute set to the reoriented data.
+""",
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of "
     ":class:`BaseReorientationCorrector`.",
