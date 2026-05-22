@@ -42,7 +42,7 @@ base_weartime_docfiller = make_filldoc(
         "total_weartime_hours_during_waking_": """
     total_weartime_hours_during_waking_
         Total wear-time during waking hours (07:00-22:00) in hours.
-        For recordings shorter than 22:00, this equals total_weartime_hours_.
+        For recordings shorter than 22:00, this equals ``total_weartime_hours_``.
     """,
         "detect_short": """
     Detect weartime periods in the passed data
