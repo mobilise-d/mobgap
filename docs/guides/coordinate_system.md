@@ -9,7 +9,7 @@ expectations.
 
 In general, we differentiate between 4 different coordinate systems:
 
-1. The IMU sensor frame, defined by the axis x, y, z of the sensor. This coordinate system moves with the sensor.
+1. The IMU sensor frame, which represents the correctly aligned physical orientation where sensor axes (x, y, z) truly correspond to anatomical body directions.
 2. The body frame, defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and moves
    with the body/sensor.
 3. The "normal" global frame, defined by the axis gx, gy, gz that is defined globally* and does not move with the sensor.
@@ -46,14 +46,40 @@ frame will lead to output in the body-aligned global frame.
 More details below.
 ```
 
+## Body Frame
+
+The body frame is defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and is 
+simply a renaming of the sensor axes.
+The figure above shows the expected direction of the body frame axis.
+The naming of the axis/conversion of the sensor frame is as follows:
+    - x -> IS (inferior-superior)
+    - y -> ML (medial-lateral)
+    - z -> PA (posterior-anterior)
+
+In code, this transformation can be done by the {py:func}`~mobgap.utils.to_body_frame` function.
+This will return a dataframe with renamed axis and the same index as the input data.
+
+**Note:** This assumes your raw data already uses mobgap's x, y, z axis naming convention. 
+Different IMU devices may use different axis labels or column orders, so you will need to 
+pre-process such data to match mobgap's expected format before calling `to_body_frame()`.
+
+Most algorithms in mobgap expect the data to be in the body frame, so that they can easily work on the "upwards" or 
+"forward" axis.
+Algorithms that would work in both the sensor and body frame, will usually accept both.
+
 ## Sensor Frame
 
-The sensor frame is defined by the axis x, y, z of the sensor.
+The sensor frame represents the correctly aligned physical orientation where the sensor axes (x, y, z) truly correspond 
+to the anatomical body axes (IS, ML, PA).
 We expect these axis directions to follow the directions of the MM+ sensor of McRoberts (when worn correctly), which is 
 the primary sensor used in the mobilise-d project.
-This assumes that the sensor (if attached correctly) has the x-axis pointing upwards, the y-axis pointing to the right
-and the z-axis pointing forward.
+In this correct orientation, the sensor (when attached correctly) has:
 
+- the x-axis pointing upwards (IS direction)
+- the y-axis pointing to the right (ML direction)
+- the z-axis pointing forward (PA direction)
+
+### When sensor mounting is known and controlled
 To use all functions and algorithms in mobgap, you need to make sure that your data follows the same conventions.
 This means, you likely need to define a rotation matrix that transforms your data into the expected coordinate system.
 This transformation is usually derived based on the known mounting orientation of your sensor.
@@ -61,6 +87,7 @@ Have a look at the sections 3 and 4 in this
 [guide in gaitmap](https://gaitmap.readthedocs.io/en/latest/source/user_guide/prepare_data.html#converting-into-the-correct-units) 
 for more information on how to do this.
 
+### When sensor mounting is unknown or may change during a recording
 If you don't have any information about the mounting orientation of your sensor (i.e., unsupervised free-living setting), 
 you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer patterns 
 during walking. The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
@@ -83,32 +110,12 @@ determined through cross-spectral phase analysis. The green circle indicates AP 
 You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
 the sensor data to the body frame on a gait sequence level.
 
-Data that is in the sensor frame is simply named by the axis postfix `_x`, `_y`, and `_z`.
-So the imu-data pandas Dataframe has the axes `["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]`.
+The sensor frame is used whenever we cannot assume that the orientation of the sensor is aligned with the body frame.
+However, whenever possible we work in the body frame to avoid confusion about which axis points in which direction.
 
-The sensor frame is used whenever, we need to perform rotational mathc (i.e. rotations) or when we can not assume that
-the orientation of the sensor is probably aligned with the body frame.
-However, when ever possible we work in the body frame to avoid confusion about which axis points in which direction.
-
-## Body Frame
-
-The body frame is defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and is 
-simply a renaming of the sensor frame axis.
-The figure above shows the expected direction of the body frame axis.
-The naming of the axis/conversion of the sensor frame is as follows:
-    - x -> IS (inferior-superior)
-    - y -> ML (medial-lateral)
-    - z -> PA (posterior-anterior)
-
-In code, this transformation can be done by the {py:func}`~mobgap.utils.to_body_frame` function.
-This will return a dataframe with renamed axis and the same index as the input data.
-Note, that this will only work, if your data is already correctly aligned with the sensor frame!
-If you don't have this yet, go back to the previous section to understand how to transform your data into the expected
-sensor frame.
-
-Most algorithms in mobgap expect the data to be in the body frame, so that they can easily work on the "upwards" or 
-"forward" axis.
-Algorithms that would work in both the sensor and body frame, will usually accept both.
+After reorientation correction, your data in the body-frame nomenclature (IS, ML, PA) truly 
+represents the correct anatomical directions during Walking Bouts. We maintain the body frame nomenclature (IS, ML, PA) 
+throughout the pipeline for consistency.
 
 ## Global coordinate system
 
