@@ -442,6 +442,7 @@ from mobgap.pipeline import GenericMobilisedPipeline
 pipeline = GenericMobilisedPipeline(
     weartime_detection=wtd,
     gait_sequence_detection=gsd,
+    reorientation_correction=None,
     initial_contact_detection=icd,
     laterality_classification=lrc,
     cadence_calculation=cad,
