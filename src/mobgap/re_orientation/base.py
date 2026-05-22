@@ -63,10 +63,11 @@ class BaseReorientationCorrector(Algorithm):
     Notes
     -----
     Reorientation is performed after gait sequence detection rather than on the full recording.
-    This design choice is optimal because: (1) Mobilise-D DMOs are calculated
-    within walking bouts, making correction outside them unnecessary; and (2) the
-    reorientation method requires a known reference posture - upright walking during detected gait
-    sequences provides this reference when device mounting orientation is unknown.
+    This design choice is optimal because:
+    1. Mobilise-D DMOs are calculated within walking bouts, making correction outside them
+       unnecessary
+    2. The reorientation method requires a known reference posture - upright walking during
+       detected gait sequences provides this reference when device mounting orientation is unknown
 
     GsdIonescu is orientation-independent and reliably detects gait sequences regardless of sensor
     orientation. However, GsdIluz is orientation-dependent and may fail to detect gait sequences in
