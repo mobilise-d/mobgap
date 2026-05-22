@@ -95,7 +95,7 @@ corrected = reoriented.corrected_data_
 # %%
 # Visualising the corrected walking bout
 # --------------------------------------
-# After correction, we can access the corrected data via the corrected_data_ attribute.
+# After correction, we can access the corrected data via the ``corrected_data_`` attribute.
 
 fig, ax = plt.subplots()
 
