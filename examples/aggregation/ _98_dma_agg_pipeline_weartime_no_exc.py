@@ -13,14 +13,16 @@ This example shows how to:
 
 Before you start you need:
 
-- Daily DMO results: CSV file containing aggregated_parameters_ outputs from pipeline runs
-  across multiple days/participants. Must include 'weartime_hours_during_waking' column.
+- Daily DMO results: CSV file containing :attr:`~mobgap.pipeline.GenericMobilisedPipeline.aggregated_parameters_`
+  outputs from pipeline runs across multiple days/participants. Must include 'weartime_hours_during_waking' column.
 - Data should have index/columns: visit_type, participant_id, measurement_date
 
 Use the full path in the `path_config` dictionary below.
 """
 
 from pathlib import Path
+
+# sphinx_gallery_thumbnail_number = -1
 
 path_config = {
     "daily_dmo": ...,
