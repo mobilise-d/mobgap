@@ -18,7 +18,7 @@ Two methods:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -178,7 +178,7 @@ class ReorientationMethodDM(Algorithm):
 
 
 # Helper functions for each stage of the algorithm
-def _detect_gravity(data: pd.DataFrame) -> tuple[str | None, str | None, int | None]:
+def _detect_gravity(data: pd.DataFrame) -> tuple[Optional[str], Optional[str], Optional[int]]:
     """
     Stage 1: identify which axis captures gravity.
 

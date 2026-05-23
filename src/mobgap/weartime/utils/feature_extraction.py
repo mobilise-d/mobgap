@@ -3,6 +3,7 @@
 import types
 import warnings
 from collections.abc import Sequence
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -13,12 +14,12 @@ from scipy.stats import kurtosis, skew
 
 
 # ---------- Helper functions ----------
-def rms(x: NDArray[np.float64] | Sequence[float]) -> float:
+def rms(x: Union[NDArray[np.float64], Sequence[float]]) -> float:
     """Calculate root mean square."""
     return np.sqrt(np.mean(x**2)) if len(x) else 0.0
 
 
-def zero_crossing_rate(x: NDArray[np.float64] | Sequence[float]) -> float:
+def zero_crossing_rate(x: Union[NDArray[np.float64], Sequence[float]]) -> float:
     """Calculate zero-crossing rate."""
     return np.mean(np.diff(np.signbit(x)) != 0) if len(x) > 1 else 0.0
 
