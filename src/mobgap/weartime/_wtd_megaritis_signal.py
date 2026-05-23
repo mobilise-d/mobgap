@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Literal
+from typing import Any, Literal, Union
 
 import numpy as np
 import pandas as pd
@@ -118,7 +118,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     # Type hints
     data_length: int
-    diagnostics_: dict[str, pd.DataFrame | list]
+    diagnostics_: dict[str, Union[pd.DataFrame, list]]
     total_weartime_hours_during_waking_: float
 
     def __init__(
@@ -184,7 +184,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.data_length = len(data)
-        self.diagnostics_: dict[str, pd.DataFrame | list] = {
+        self.diagnostics_: dict[str, Union[pd.DataFrame, list]] = {
             "macro": [],
             "sample_votes": pd.DataFrame(),
         }
