@@ -30,6 +30,7 @@ interpretable feature-based detection is required.
 """
 
 from mobgap.weartime._wtd_megaritis_signal import WtdMegaritisSignal
+
 try:
     from mobgap.weartime._wtd_megaritis_cnn import WtdMegaritisCNN
 except ModuleNotFoundError:
