@@ -263,6 +263,18 @@ def create_aggregate_df(
     return aggregate_df
 
 
+def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> pd.DataFrame | list:
+    """Aggregate reorientation results from iterator results."""
+    if not any(hasattr(r.result, "reorientation_result") for r in results):
+        return pd.DataFrame()
+
+    return [
+        r.result.reorientation_result
+        for r in results
+        if hasattr(r.result, "reorientation_result") and r.result.reorientation_result is not None
+    ]
+
+
 class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[DataclassT]):
     """Iterator to split data into gait-sequences and iterate over them individually.
 
@@ -380,14 +392,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                         ),
                         (
                             "reorientation_result",
-                            lambda results: [
-                                r.result.reorientation_result
-                                for r in results
-                                if hasattr(r.result, "reorientation_result")
-                                and r.result.reorientation_result is not None
-                            ]
-                            if any(hasattr(r.result, "reorientation_result") for r in results)
-                            else pd.DataFrame(),
+                            _aggregate_reorientation_results,
                         ),
                     ]
                 ),
