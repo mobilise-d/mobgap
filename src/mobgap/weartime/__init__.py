@@ -5,11 +5,6 @@ Algorithm Selection
 Three wear-time detection algorithms are available:
 
 **WtdMegaritisCNN** (Recommended)
-    Deep learning approach using convolutional neural networks trained on raw IMU data.
-    Best overall accuracy with reasonable computational cost. Requires TensorFlow/Keras.
-    Processes ~2 minutes per day of data (runs on CPU or GPU).
-
-**WtdMegaritisCNN** (Recommended)
     Deep learning approach using convolutional neural networks (pure CNN or CNN-LSTM variant)
     trained on raw IMU data. Best overall accuracy with reasonable computational cost. Requires
     TensorFlow/Keras. Processes ~2 minutes per day of data (runs on CPU or GPU).
@@ -34,8 +29,15 @@ interpretable feature-based detection is required.
 .. note:: Processing times are approximate benchmarks from a local development machine.
 """
 
-from mobgap.weartime._wtd_megaritis_cnn import WtdMegaritisCNN
 from mobgap.weartime._wtd_megaritis_signal import WtdMegaritisSignal
-from mobgap.weartime._wtd_megaritis_xgboost import WtdMegaritisXGBoost
+try:
+    from mobgap.weartime._wtd_megaritis_cnn import WtdMegaritisCNN
+except ModuleNotFoundError:
+    WtdMegaritisCNN = None
+
+try:
+    from mobgap.weartime._wtd_megaritis_xgboost import WtdMegaritisXGBoost
+except ModuleNotFoundError:
+    WtdMegaritisXGBoost = None
 
 __all__ = ["WtdMegaritisCNN", "WtdMegaritisSignal", "WtdMegaritisXGBoost"]
