@@ -13,11 +13,11 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Literal, Unpack
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
