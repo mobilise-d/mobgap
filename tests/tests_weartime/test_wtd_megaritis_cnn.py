@@ -1,7 +1,5 @@
 """Tests for WtdMegaritisCNN algorithm."""
 
-import sys
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,7 +11,9 @@ from mobgap.data import LabExampleDataset
 from mobgap.utils.conversions import to_body_frame
 from mobgap.weartime import WtdMegaritisCNN
 
-pytestmark = pytest.mark.skipif(sys.version_info >= (3, 14), reason="TensorFlow not available on Python 3.14+")
+pytestmark = pytest.mark.skipif(
+    WtdMegaritisCNN is None, reason="WtdMegaritisCNN not available (TensorFlow not installed)"
+)
 
 
 class TestMetaWtdMegaritisCNN(TestAlgorithmMixin):
