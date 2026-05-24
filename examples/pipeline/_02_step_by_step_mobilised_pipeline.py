@@ -204,9 +204,9 @@ from mobgap.laterality import LrcUllrich
 from mobgap.stride_length import SlZijlstra
 from mobgap.turning import TdElGohary
 from mobgap.walking_speed import WsNaive
-from mobgap.weartime import WtdMegaritisCNN
+from mobgap.weartime import WtdMegaritisSignal
 
-wtd = WtdMegaritisCNN()
+wtd = WtdMegaritisSignal()
 gsd = GsdIluz()
 icd = IcdShinImproved()
 lrc = LrcUllrich()
