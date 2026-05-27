@@ -26,10 +26,12 @@ from scipy import signal
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
+from mobgap.data_transform import FirFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
 
-GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= this captures gravity
-FS = 100  # sampling rate Hz
+GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= captures gravity
+FS = 100
+_REORIENTATION_BANDPASS = FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
 
 
 # Results container
@@ -247,82 +249,54 @@ def _flip_ml_and_ap(data: pd.DataFrame) -> pd.DataFrame:
     return _flip_ap(_flip_ml(data))
 
 
-# Filter parameters
-FILTER_LOWCUT = 0.5  # Hz
-FILTER_HIGHCUT = 2.5  # Hz
-FILTER_ORDER = 100
-
-
-def _bandpass_filter(signal_data: np.ndarray, lowcut: float, highcut: float, fs: int, order: int) -> np.ndarray:
-    """
-    Apply bandpass FIR filter to signal.
-
-    Parameters
-    ----------
-    signal_data : np.ndarray
-        Input signal
-    lowcut : float
-        Low cutoff frequency (Hz)
-    highcut : float
-        High cutoff frequency (Hz)
-    fs : int
-        Sampling frequency (Hz)
-    order : int
-        Filter order
-
-    Returns
-    -------
-    np.ndarray
-        Filtered signal
-    """
-    nyquist = fs / 2
-    low = lowcut / nyquist
-    high = highcut / nyquist
-
-    # Design FIR bandpass filter
-    fir_coeff = signal.firwin(order + 1, [low, high], pass_zero=False)
-
-    # Apply filter
-    filtered = signal.filtfilt(fir_coeff, 1.0, signal_data)
-
-    return filtered
-
-
 def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> float:
     """
     Compute power-weighted mean cross-spectral phase between acc_is and acc_pa.
 
     Computed across 0.5-3.0 Hz (gait stride frequency band).
 
-    Signals are bandpass filtered (0.5-3.0 Hz) before feature extraction.
+    Signals are bandpass filtered (0.5-2.5 Hz) before feature extraction.
 
     Positive → AP correctly oriented.
     Negative → AP reversed.
-    Returns 0.0 if bout is too short for spectral estimation.
+    Returns 0.0 if bout is too short for spectral estimation or filtering.
     """
     acc_is = data["acc_is"].to_numpy()
     acc_pa = data["acc_pa"].to_numpy()
 
-    if len(acc_is) < fs * 2:
+    # Check minimum length for filter (padlen = 3 * (order + 1) for filtfilt)
+    min_length_for_filter = 3 * 101  # 303 samples for order=100
+    if len(acc_is) < min_length_for_filter:
         return 0.0
 
-    try:
-        # Apply bandpass filter before feature extraction
-        acc_is_filt = _bandpass_filter(acc_is, FILTER_LOWCUT, FILTER_HIGHCUT, fs, FILTER_ORDER)
-        acc_pa_filt = _bandpass_filter(acc_pa, FILTER_LOWCUT, FILTER_HIGHCUT, fs, FILTER_ORDER)
+    # Apply bandpass filter before feature extraction
+    acc_is_filt = (
+        _REORIENTATION_BANDPASS.clone()
+        .filter(pd.DataFrame({"acc_is": acc_is}), sampling_rate_hz=fs)
+        .transformed_data_["acc_is"]
+        .to_numpy()
+    )
 
-        nperseg = min(256, len(acc_is_filt) // 2)
-        f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=fs, nperseg=nperseg)
-        f, pxx_is = signal.welch(acc_is_filt, fs=fs, nperseg=nperseg)
-        stride_mask = (f >= 0.5) & (f <= 2.5)
-        if not np.any(stride_mask):
-            return 0.0
-        is_power = pxx_is[stride_mask]
-        phase = np.angle(cxy[stride_mask])
-        if is_power.sum() > 0:
-            return float(np.average(phase, weights=is_power))
-    except ValueError:
-        pass
+    acc_pa_filt = (
+        _REORIENTATION_BANDPASS.clone()
+        .filter(pd.DataFrame({"acc_pa": acc_pa}), sampling_rate_hz=fs)
+        .transformed_data_["acc_pa"]
+        .to_numpy()
+    )
+
+    nperseg = min(256, len(acc_is_filt) // 2)
+    f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=fs, nperseg=nperseg)
+    f, pxx_is = signal.welch(acc_is_filt, fs=fs, nperseg=nperseg)
+
+    stride_mask = (f >= 0.5) & (f <= 2.5)
+    if not np.any(stride_mask):
+        return 0.0
+
+    is_power = pxx_is[stride_mask]
+    phase = np.angle(cxy[stride_mask])
+
+    if is_power.sum() > 0:
+        return float(np.average(phase, weights=is_power))
 
     return 0.0
 
