@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation
 
-from mobgap.consts import SF_ACC_COLS, SF_GYR_COLS
+from mobgap.consts import SF_ACC_COLS, SF_GYR_COLS, BF_ACC_COLS, BF_GYR_COLS
 
 
 def _rotate_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
@@ -113,7 +113,7 @@ def _flip_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFra
 
     orig_col_order = data.columns
     sensors = ["acc", "gyr"]
-    rots = {"acc": SF_ACC_COLS, "gyr": SF_GYR_COLS}
+    rots = {"acc": BF_ACC_COLS, "gyr": BF_GYR_COLS}
     for sensor in sensors:
         cols = np.array(rots[sensor])
         rename = {}
