@@ -17,8 +17,6 @@ data
     The raw IMU data in the body frame passed to the ``detect`` method.
 sampling_rate_hz
     The sampling rate of the IMU data in Hz passed to the ``detect`` method.
-data_length
-    The length of the input data in samples passed to the ``detect`` method.
 """,
         "weartime_list_": """
 weartime_list_

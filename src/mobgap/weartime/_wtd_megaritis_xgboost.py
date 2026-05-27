@@ -97,7 +97,6 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     """
 
     # Type hints
-    data_length: int
     feature_names: list[str]
     total_weartime_hours_during_waking_: float
 
@@ -161,11 +160,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.data_length = len(data)
+        data_length = len(data)
 
         win_samples = int(self.window_sec * self.sampling_rate_hz)
         step = int(win_samples * (1 - self.overlap))
-        n_samples = self.data_length
+        n_samples = data_length
 
         # Store predictions for all windows
         all_predictions = []
@@ -201,14 +200,14 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             _coverage,
         ) = overlapping_windows_to_sample_labels(
             predictions=all_predictions,
-            data_len=self.data_length,
+            data_len=data_length,
             window_size=win_samples,
             stride=step,
             sampling_rate_hz=int(sampling_rate_hz),
         )
 
         # Clip end to actual data length
-        self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=self.data_length)
+        self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
 
         # Unify format (adds wt_id index, ensures correct dtypes)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)

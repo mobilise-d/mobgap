@@ -121,7 +121,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     class PredefinedParameters:
         regular_walking: Final = MappingProxyType(
             {
-                "weartime_detection": WtdMegaritisSignal(),
+                "weartime_detection": None,
                 "gait_sequence_detection": GsdIluz(),
                 "reorientation_correction": None,
                 "initial_contact_detection": IcdIonescu(),
@@ -142,7 +142,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         impaired_walking: Final = MappingProxyType(
             {
-                "weartime_detection": WtdMegaritisSignal(),
+                "weartime_detection": None,
                 "gait_sequence_detection": GsdIonescu(),
                 "reorientation_correction": None,
                 "initial_contact_detection": IcdIonescu(),

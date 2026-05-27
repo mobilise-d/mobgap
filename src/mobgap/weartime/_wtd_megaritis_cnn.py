@@ -1,17 +1,4 @@
-# Copyright 2026 Dr Dimitrios Megaritis
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+from functools import cache
 from importlib.resources import files
 from typing import Any, Literal
 
@@ -21,9 +8,20 @@ from tensorflow import keras
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.utils.array_handling import sliding_window_view
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
-from mobgap.weartime.utils.ml_feature_extraction import rolling_window_indices
 from mobgap.weartime.utils.windows_to_weartime import overlapping_windows_to_sample_labels
+
+
+@cache
+def _load_cnn_model(version: Literal["cnn", "cnn_lstm"]) -> Any:
+    """Load pre-trained CNN model from package resources."""
+    if version == "cnn":
+        model_file = files("mobgap.weartime.production_models").joinpath("cnn_lowback_model.keras")
+    else:  # cnn_lstm
+        model_file = files("mobgap.weartime.production_models").joinpath("cnn_lstm_lowback_model.keras")
+
+    return keras.models.load_model(model_file)
 
 
 @base_weartime_docfiller
@@ -55,8 +53,6 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     Other Parameters
     ----------------
     %(other_parameters)s
-    model : tensorflow.keras.Model
-        Pre-trained 1D CNN model loaded during initialization
 
     Attributes
     ----------
@@ -90,11 +86,11 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     kernel size 9, max pooling (size 2), batch normalization, and dropout (0.3). Fully
     connected layer with 64 units. Trained with Adam optimizer (learning rate 0.001,
     batch size 1024). CNN-LSTM variant includes 64-unit LSTM layer before dense layer.
+
+    Pre-trained model is loaded from the package's production_models folder.
     """
 
     # Type hints
-    data_length: int
-    model: Any
     total_weartime_hours_during_waking_: float
 
     def __init__(
@@ -110,28 +106,19 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self.version = version
         self.position = position
 
-        # Load model based on version
-        if self.version == "cnn":
-            model_file = files("mobgap.weartime.production_models").joinpath("cnn_lowback_model.keras")
-        else:  # cnn_lstm
-            model_file = files("mobgap.weartime.production_models").joinpath("cnn_lstm_lowback_model.keras")
-
-        self.model = keras.models.load_model(model_file)
+    @property
+    def model(self) -> Any:
+        """Lazy-load the model when first accessed."""
+        return _load_cnn_model(self.version)
 
     def __getstate__(self) -> dict:
         """Exclude model from pickling/hashing."""
         state = self.__dict__.copy()
-        state.pop("model", None)
         return state
 
     def __setstate__(self, state: dict) -> None:
         """Restore model after unpickling."""
         self.__dict__.update(state)
-        if self.version == "cnn":
-            model_file = files("mobgap.weartime.production_models").joinpath("cnn_lowback_model.keras")
-        else:
-            model_file = files("mobgap.weartime.production_models").joinpath("cnn_lstm_lowback_model.keras")
-        self.model = keras.models.load_model(model_file)
 
     @timed_action_method
     @base_weartime_docfiller
@@ -159,51 +146,45 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         -----
         Each window is independently standardized (zero mean, unit variance) before
         being fed to the CNN, matching the training preprocessing.
-
-        Post-processing pipeline:
-
-        1. Majority voting: Each sample receives votes from overlapping windows
-        2. Short bout removal: Wear bouts <15s are removed (too short to don/doff)
-        3. Confidence filter: Wear bouts <20min require ≥90%% vote agreement
-           (boundary bouts at start/end of data are exempt)
-        4. Gap merging: Non-wear gaps <15s between wear periods are merged
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.data_length = len(data)
+        data_length = len(data)
 
         win_samples = int(self.window_sec * self.sampling_rate_hz)
-        step = int(win_samples * (1 - self.overlap))
-        n_samples = self.data_length
+        overlap_samples = int(win_samples * self.overlap)
 
-        # Required columns for CNN (6 channels: 3 acc + 3 gyr)
+        # Required columns for CNN
         required_cols = ["acc_is", "acc_ml", "acc_pa", "gyr_is", "gyr_ml", "gyr_pa"]
 
-        all_predictions = []
+        # Extract sensor data as numpy array
+        sensor_data = self.data[required_cols].to_numpy().astype(np.float32)
 
-        # Extract windows and predict
-        for start, end in rolling_window_indices(n_samples, win_samples, step):
-            win = self.data.iloc[start:end]
+        # Create sliding windows
+        # Output shape: (n_windows, window_size, 6)
+        windowed_data = sliding_window_view(sensor_data, win_samples, overlap_samples)
 
-            # Extract raw IMU window and standardize per-window
-            x_window = win[required_cols].to_numpy().astype(np.float32)
-
-            # Per-window standardization (matching training preprocessing)
-            x_mean = x_window.mean(axis=0)  # shape: (6,)
-            x_std = x_window.std(axis=0)  # shape: (6,)
+        # Batch standardize all windows
+        all_windows = []
+        for window in windowed_data:
+            # Per-window standardization
+            x_mean = window.mean(axis=0)
+            x_std = window.std(axis=0)
             x_std[x_std < 1e-8] = 1e-8
-            x_window = (x_window - x_mean) / x_std
+            normalized = (window - x_mean) / x_std
+            all_windows.append(normalized)
 
-            # Reshape for CNN: (1, timesteps, features)
-            x_window = x_window.reshape(1, win_samples, len(required_cols))
-
-            # Predict
-            y_prob = self.model.predict(x_window, verbose=0)[0, 0]
-            y_pred = int(y_prob > 0.5)
-
-            all_predictions.append(y_pred)
+        # Batch predict
+        if len(all_windows) > 0:
+            x_batch = np.array(all_windows, dtype=np.float32)
+            y_probs = self.model.predict(x_batch, verbose=0, batch_size=256)
+            all_predictions = (y_probs[:, 0] > 0.5).astype(int).tolist()
+        else:
+            all_predictions = []
 
         # Post-processing: convert window predictions to sample-level weartime
+        step = win_samples - overlap_samples
+
         (
             self.weartime_list_,
             self.total_weartime_samples_,
@@ -214,7 +195,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
             _coverage,
         ) = overlapping_windows_to_sample_labels(
             predictions=all_predictions,
-            data_len=self.data_length,
+            data_len=data_length,
             window_size=win_samples,
             stride=step,
             sampling_rate_hz=int(sampling_rate_hz),
@@ -224,7 +205,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         )
 
         # Ensure end indices don't exceed data length
-        self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=self.data_length)
+        self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
 
         # Unify format (adds wt_id index, ensures correct dtypes)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)

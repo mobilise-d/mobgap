@@ -117,7 +117,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     """
 
     # Type hints
-    data_length: int
     diagnostics_: dict[str, Union[pd.DataFrame, list]]
     total_weartime_hours_during_waking_: float
 
@@ -183,7 +182,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.data_length = len(data)
+        data_length = len(data)
         self.diagnostics_: dict[str, Union[pd.DataFrame, list]] = {
             "macro": [],
             "sample_votes": pd.DataFrame(),
@@ -276,7 +275,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.weartime_list_ = generate_weartime_list_from_samples(weartime_flags)
 
         # Clip end to actual data length
-        self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=self.data_length)
+        self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
 
         # Unify format (adds wt_id index, ensures correct dtypes)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
@@ -288,10 +287,10 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         # Weartime during waking hours (07:00-22:00)
         waking_start_sample = int(7 * 3600 * self.sampling_rate_hz)
         waking_end_sample = int(22 * 3600 * self.sampling_rate_hz)
-        recording_hours = self.data_length / (3600 * self.sampling_rate_hz)
+        recording_hours = data_length / (3600 * self.sampling_rate_hz)
 
         # Check if recording is according to mobgap use case (single day)
-        if self.data_length < waking_end_sample:
+        if data_length < waking_end_sample:
             # Recording shorter than 22:00 - use full weartime
             warnings.warn(
                 f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "

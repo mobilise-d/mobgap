@@ -22,7 +22,7 @@ class TestMetaWtdMegaritisCNN(TestAlgorithmMixin):
 
     @pytest.fixture
     def after_action_instance(self):
-        # Use random data to avoid edge cases
+        np.random.seed(42)
         return self.ALGORITHM_CLASS().detect(
             pd.DataFrame(np.random.randn(1000, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
         )

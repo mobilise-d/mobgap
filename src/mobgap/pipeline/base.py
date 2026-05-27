@@ -27,14 +27,14 @@ mobilised_pipeline_docfiller = make_filldoc(
     """,
         "weartime_detection": """
     weartime_detection
-        A valid instance of a wear-time detection algorithm, or None to disable wear-time calculation.
+        A valid instance of a wear-time detection algorithm, or None (default) to disable wear-time calculation.
         This runs on the entire raw IMU data before gait sequence detection.
         The output is a recording-level metric representing the total time the device was worn.
         The total wear-time in hours is available via the ``weartime_hours_during_waking_`` attribute and is also
-        included in ``aggregated_parameters_`` as the ``weartime_hours`` column.
+        included in ``aggregated_parameters_`` as the ``weartime_hours_during_waking_`` column.
 
-        .. note:: Unlike other parameters which summarize walking bouts, ``weartime_hours`` represents
-                  the total duration the sensor was worn during the entire recording, independent of
+        .. note:: Unlike other parameters which summarise walking bouts, ``weartime_hours_during_waking_`` represents
+                  the total duration the sensor was worn during the entire recording (waking hours), independent of
                   walking activity.
     """,
         "reorientation_correction": """

@@ -194,6 +194,44 @@ pipe_no_agg.aggregated_parameters_
 pipe_no_agg.per_wb_parameters_
 
 # %%
+# Enabling Wear-Time Detection
+# ----------------------------
+# By default, wear-time detection is disabled in both pipelines. To enable it,
+# pass a wear-time detection algorithm to the ``weartime_detection`` parameter.
+#
+# MobGap provides three wear-time algorithms. Here we demonstrate the signal
+# processing method (WtdMegaritisSignal), which is cross-platform compatible
+# and has no ML dependencies.
+from mobgap.weartime import WtdMegaritisSignal
+
+pipe_with_weartime = MobilisedPipelineHealthy(
+    weartime_detection=WtdMegaritisSignal()
+)
+pipe_with_weartime.safe_run(long_test_ha)
+
+# %%
+# Now the aggregated parameters include wear-time during waking hours (07:00-22:00),
+# which is required for Mobilise-D DMA weekly aggregation protocols.
+pipe_with_weartime.aggregated_parameters_
+
+# %%
+# Alternative Wear-Time Algorithms
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# For better accuracy (12× more accurate, 3× faster in full pipeline) where
+# TensorFlow is available, use WtdMegaritisCNN:
+#
+# .. code-block:: python
+#
+#     from mobgap.weartime import WtdMegaritisCNN
+#     pipe_cnn = MobilisedPipelineHealthy(
+#         weartime_detection=WtdMegaritisCNN(version="cnn_lstm")
+#     )
+#
+# Note: WtdMegaritisCNN requires TensorFlow (problematic on some Windows envs and Python ≥3.14).
+# See the wear-time detection examples for detailed algorithm comparisons and
+# selection guidance.
+
+# %%
 # If you want to change the algorithm used for a certain step, you can simply pass a different algorithm to the
 # constructor.
 # For example, let's say you want to use the Adaptive Ionescu GSD algorithm instead of the GSDIluz (which is the
