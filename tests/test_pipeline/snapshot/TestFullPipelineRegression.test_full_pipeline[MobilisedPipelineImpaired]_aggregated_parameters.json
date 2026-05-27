@@ -109,10 +109,6 @@
                 "name":"wb_60__count",
                 "type":"integer",
                 "extDtype":"Int64"
-            },
-            {
-                "name":"weartime_hours_during_waking",
-                "type":"number"
             }
         ],
         "primaryKey":[
@@ -147,8 +143,7 @@
             "wb_30__cadence_spm__p90":null,
             "wb_30__walking_speed_mps__var":null,
             "wb_30__stride_length_m__var":null,
-            "wb_60__count":0,
-            "weartime_hours_during_waking":0.0631333333
+            "wb_60__count":0
         }
     ]
 }

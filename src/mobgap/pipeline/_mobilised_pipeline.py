@@ -257,6 +257,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.weartime_detection_ = self.weartime_detection.clone().detect(imu_data, **self._all_action_kwargs)
             self.weartime_hours_during_waking_ = self.weartime_detection_.total_weartime_hours_during_waking_
         else:
+            self.weartime_detection_ = None
             self.weartime_hours_during_waking_ = None
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
