@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation
 
-from mobgap.consts import SF_ACC_COLS, SF_GYR_COLS, BF_ACC_COLS, BF_GYR_COLS
+from mobgap.consts import BF_ACC_COLS, BF_GYR_COLS, SF_ACC_COLS, SF_GYR_COLS
 
 
 def _rotate_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
