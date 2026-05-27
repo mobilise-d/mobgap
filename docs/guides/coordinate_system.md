@@ -100,12 +100,15 @@ orientations) and "full" (applies all corrections to every walking bout).
   <img src="docs/_static/images/orientation_families.png" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
 </p>
 
-**Figure.** All possible device orientation families for a lower-back-worn IMU (belt worn (Families 1, 2) and patch attached (all Families)). 
-Each panel shows a distinct orientation defined by which device axis captures gravity and its direction. 
-Family 1A represents the correct orientation (IS up, ML right, AP forward). 
-The algorithm detects these families and applies appropriate corrections to align axes to the body frame. 
-Within each family, two orientations differ only in ML and AP axis directions, 
-determined through cross-spectral phase analysis. The green circle indicates AP direction: dot (•) = backward, cross (×) = forward.
+**Figure.** All possible device orientation families for a lower-back-worn IMU (belt-worn (Families 1, 2) 
+and patch-attached (all Families)). Each panel shows a distinct orientation defined by which device axis captures gravity and its direction. 
+Family 1A (top-left) represents the correct reference orientation (IS up, ML right, AP forward). 
+Boxes adjacent to each orientation indicate the rotation(s) of that device orientation from the reference frame: 
+rot(x) = rotation around x/IS axis, rot(y) = rotation around y/ML axis, rot(z) = rotation around z/PA axis. 
+Composite rotations (e.g., "180° rot(x) + 90° rot(z)") indicate sequential transformations. 
+The algorithm detects these families and applies the inverse rotations to restore the reference frame alignment. 
+Within each family, two orientations differ only in ML and AP axis directions, determined through cross-spectral phase analysis. 
+The green circle indicates AP direction: dot (•) = backward, cross (×) = forward. IS = infero-superior, ML = mediolateral, AP = anteroposterior.
 
 You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
 the sensor data to the body frame on a gait sequence level.
