@@ -54,6 +54,7 @@ class SDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.initial_contacts = initial_contacts
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
         # collect all methods implementing SDMO calculation (add new ones to this list)
