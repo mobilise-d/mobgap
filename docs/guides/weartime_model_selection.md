@@ -54,3 +54,17 @@ Signal processing approach using gyroscope spectral centroids and accelerometer 
 > **Note:** Processing times are approximate benchmarks from development hardware (Apple M-series, 16GB RAM). Actual performance varies by system configuration and hardware acceleration availability.
 
 > **Note:** All algorithms represent novel methodologies validated on ground-truth labeled datasets, using both accelerometer and gyroscope data to detect wear-like movement patterns. Full validation results will be published in an upcoming paper.
+
+> ## Model Reproducibility
+
+The CNN and CNN-LSTM production models are provided pre-trained in MobGap. To ensure long-term reproducibility as TensorFlow and dependencies evolve, complete training scripts and data preparation code are available in a separate repository:
+
+**🔗 [Wear-Time Model Training Repository](https://github.com/DMegaritis/imu-weartime/weartime-training)**
+
+The repository includes:
+- Training scripts for CNN and CNN-LSTM variants
+- Data preparation code with per-window standardisation
+- Synthetic data demo for testing the training pipeline
+- Model architecture specifications and hyperparameters
+
+This enables retraining the models with updated library versions while maintaining performance equivalence to the validated implementations.
