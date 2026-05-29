@@ -124,8 +124,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
         It indicates for each WB which DMOs are valid.
         NaN indicates that the value has not been checked
-    signal_based_dmo_: pd.DataFrame
-        Signal based DMOs for each WB.
+    per_wb_signal_based_parameters_: pd.DataFrame
+        Signal-based parameters for each WB.
     aggregated_parameters_
         The final aggregated parameters.
         They are calculated based on the per WB parameters and the DMO mask.
@@ -216,7 +216,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
     per_stride_parameters_: pd.DataFrame
     per_wb_parameters_: pd.DataFrame
-    signal_based_dmo_: Optional[pd.DataFrame]
+    per_wb_signal_based_parameters_: Optional[pd.DataFrame]
     per_wb_parameter_mask_: Optional[pd.DataFrame]
     aggregated_parameters_: Optional[pd.DataFrame]
 

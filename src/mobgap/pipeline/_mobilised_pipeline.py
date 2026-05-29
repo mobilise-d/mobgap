@@ -333,7 +333,13 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(wb_data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
                 r.signal_based_dmo = self.sdmo_calculation_.signal_based_dmo
 
-            self.signal_based_dmo_ = wb_iterator.additional_results_["signal_based_dmo"].droplevel(1)
+            self.per_wb_signal_based_parameters_ = (
+                wb_iterator
+                .additional_results_["signal_based_dmo"]
+                .droplevel(1)
+                .drop(columns=["start", "end"])
+            )
+            self.per_wb_signal_based_parameters_["duration_s"] = self.per_wb_parameters_["duration_s"].copy()
 
         if self.dmo_aggregation is None:
             self.aggregated_parameters_ = None
