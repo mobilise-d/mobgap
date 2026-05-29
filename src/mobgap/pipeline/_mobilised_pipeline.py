@@ -8,7 +8,7 @@ from tpcp import cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
+from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds, SDMOAggregator
 from mobgap.aggregation.base import BaseAggregator
 from mobgap.cadence import CadFromIcDetector
 from mobgap.cadence.base import BaseCadCalculator
@@ -97,6 +97,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     sdmo_calculation: Optional[BaseSDMOCalculator]
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
+    sdmo_aggregation: BaseAggregator
 
     retain_intermediate_results: bool
 
@@ -109,6 +110,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     wba_: WbAssembly
     signal_based_dmo_: pd.DataFrame
     dmo_aggregation_: Optional[BaseAggregator]
+    sdmo_aggregation_: Optional[BaseAggregator]
 
     # Intermediate results
     gs_list_: pd.DataFrame
@@ -137,6 +139,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "sdmo_calculation": SDMO(replicate_matlab=True),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
+                "sdmo_aggregation": SDMOAggregator(None),
                 "recommended_cohorts": ("HA", "COPD", "CHF"),
             }
         )
@@ -158,6 +161,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "sdmo_calculation": SDMO(replicate_matlab=True),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
+                "sdmo_aggregation": SDMOAggregator(None),
                 "recommended_cohorts": ("PD", "MS", "PFF"),
             }
         )
@@ -178,6 +182,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         sdmo_calculation: Optional[BaseSDMOCalculator],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: Optional[BaseAggregator],
+        sdmo_aggregation: Optional[BaseAggregator],
         recommended_cohorts: Optional[tuple[str, ...]] = None,
         retain_intermediate_results: bool = True,
     ) -> None:
@@ -194,6 +199,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self.sdmo_calculation = sdmo_calculation
         self.dmo_thresholds = dmo_thresholds
         self.dmo_aggregation = dmo_aggregation
+        self.sdmo_aggregation = sdmo_aggregation
         self.recommended_cohorts = recommended_cohorts
         self.retain_intermediate_results = retain_intermediate_results
 
@@ -384,6 +390,14 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
         )
         self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
+
+        # aggregations for the signal based parameters
+        if self.sdmo_calculation:
+            self.sdmo_aggregation_ = self.sdmo_aggregation.clone().aggregate(
+                self.per_wb_signal_based_parameters_, wb_dmos_mask=None
+            )
+            self.aggregated_parameters_ = pd.concat([self.aggregated_parameters_, self.sdmo_aggregation_.aggregated_data_],
+                                                    axis=1)
 
         del self._all_action_kwargs
         return self
@@ -581,6 +595,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
         sdmo_calculation: Optional[BaseSDMOCalculator],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
+        sdmo_aggregation: BaseAggregator,
         recommended_cohorts: Optional[tuple[str, ...]],
         retain_intermediate_results: bool = True,
     ) -> None:
@@ -598,6 +613,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
             sdmo_calculation=sdmo_calculation,
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
+            sdmo_aggregation=sdmo_aggregation,
             recommended_cohorts=recommended_cohorts,
             retain_intermediate_results=retain_intermediate_results,
         )
@@ -673,6 +689,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
         sdmo_calculation: Optional[BaseSDMOCalculator],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
+        sdmo_aggregation: BaseAggregator,
         recommended_cohorts: Optional[tuple[str, ...]],
         retain_intermediate_results: bool = True,
     ) -> None:
@@ -690,6 +707,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
             sdmo_calculation=sdmo_calculation,
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
+            sdmo_aggregation=sdmo_aggregation,
             recommended_cohorts=recommended_cohorts,
             retain_intermediate_results=retain_intermediate_results,
         )
