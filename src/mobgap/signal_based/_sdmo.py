@@ -11,11 +11,25 @@ from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 from mobgap.utils.dtypes import assert_is_sensor_data
 
 
+def collect_calc_methods(cls):
+    cls._calculate_methods = [
+        getattr(cls, name) for name in dir(cls)
+        if name.startswith('_calculate') and callable(getattr(cls, name))
+    ]
+    return cls
+
+@collect_calc_methods
 @base_sdmo_docfiller
 class SDMO(BaseSDMOCalculator):
     r"""Signal-based digital mobility outcome (SDMO) calculations on IMU signal (ideally per walking bout).
 
     This "algorithm" calculates SDMOs for given signal window.
+
+    A new calculation routine has to be implemented with the expected `_calculate_*` signature for it to be included
+    in the meta calculate.
+    To add a new calculation routine, implement a method named `_calculate_<name>` with the following signature:
+    `def _calculate_my_method(self, data: pd.DataFrame) -> pd.Series:`
+    The method will be automatically discovered and called by `calculate()`.
 
     Other Parameters
     ----------------
@@ -26,6 +40,7 @@ class SDMO(BaseSDMOCalculator):
     (signal_based)s
 
     """
+    _calculate_methods: list = []
     replicate_matlab: bool
 
     def __init__(
@@ -57,14 +72,10 @@ class SDMO(BaseSDMOCalculator):
         self.initial_contacts = initial_contacts
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
-        # collect all methods implementing SDMO calculation (add new ones to this list)
-        # alternatively, inspect.getmembers can be used to get all methods (such as those starting with "_calculate")
-        algorithms = [self._calculate_rms, self._calculate_reg_sym, self._calculate_freq_amp_width_slope,
-                          self._calculate_jerk, self._calculate_sd_range, self._calculate_harmonic_ratio,
-                          self._calculate_sample_entropy]
         row = {"start": 0, "end": len(data)}
-        for func in algorithms:
-            row.update(func(data).to_dict())
+        # all subroutines are collected by the decorator
+        for func in self._calculate_methods:
+            row.update(func(self, data))
         self.signal_based_dmo = pd.DataFrame([row])
         return self
 
