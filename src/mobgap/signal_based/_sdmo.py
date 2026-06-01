@@ -9,6 +9,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 from mobgap.utils.dtypes import assert_is_sensor_data
+from mobgap.utils.array_handling import  sliding_window_view
 
 
 def collect_calc_methods(cls):
@@ -471,12 +472,18 @@ class SDMO(BaseSDMOCalculator):
 
 
 def _phi(signal: np.ndarray, dim: float, tol:float) -> float:
-    shape = (signal.size - dim + 1, dim)
-    strides = (signal.strides[0], signal.strides[0])
-    patterns = np.lib.stride_tricks.as_strided(signal, shape, strides)
-    diff = np.abs(patterns[:, None, :] - patterns[None, :, :])
-    dist = np.max(diff, axis=2)
-    return np.sum(dist <= tol, axis=1) - 1
+    num_samples = signal.size
+    L = int(num_samples - dim + 1)
+    n_ref = L - 1
+    patterns = sliding_window_view(signal, L, n_ref)
+    counts = np.empty(n_ref, dtype=float)
+    for i in range(n_ref):
+        ref = patterns[:, i]
+        dist = np.max(np.abs(patterns - ref[:, np.newaxis]), axis=0)
+        matches = np.sum(dist <= tol) - 1
+        counts[i] = matches
+    counts = counts / n_ref
+    return np.mean(counts)
 
 
 def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
@@ -486,44 +493,35 @@ def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     """
     if span % 2 == 0:
         span -= 1
-    y = np.asarray(y)
     n = len(y)
-    yy = np.zeros(n)
-    # half-width
     half_span = (span - 1) // 2
-    for i in range(n):
-        if i < half_span:
-            # yy(k) = mean(y(1 : 2*k-1)) logic in MATLAB
-            current_span = 2 * i + 1
-            yy[i] = np.mean(y[0: current_span])
-        elif i >= (n - half_span):
-            j = (n - 1) - i
-            current_span = 2 * j + 1
-            yy[i] = np.mean(y[n - current_span: n])
-        else:
-            # standard
-            yy[i] = np.mean(y[i - half_span: i + half_span + 1])
-    return yy
+    cum = np.zeros(n + 1, dtype=np.float64)
+    np.cumsum(y, out=cum[1:])
+    i = np.arange(n)
+    e = np.minimum(i + half_span + 1, n)
+    mask_early = i < half_span
+    e[mask_early] = 2 * i[mask_early] + 1
+    s = np.maximum(0, i - half_span)
+    mask_late = i >= (n - half_span)
+    s[mask_late] = np.maximum(0, 2 * i[mask_late] - n + 1)
+    sums = cum[e] - cum[s]
+    window_sizes = e - s
+    return sums / window_sizes
 
 def _pd_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     return pd.Series(y).rolling(span, center=True, min_periods=1).mean().to_numpy()
 
 def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray):
     """Correct peaks found in a filtered signal to match original data."""
-    data = np.asarray(data)
-    pks = np.asarray(pks)
-    locs = np.asarray(locs)
-
     if len(locs) < 2:
         return pks, locs
 
-    median_diff = np.median(np.diff(locs)) if len(locs) > 1 else 1
+    median_diff = np.median(np.diff(locs))
     locale_win = int(np.ceil(0.2 * median_diff))
 
     # remove peaks too close to start/end
     mask = (locs > locale_win) & (locs < len(data) - locale_win)
     locs = locs[mask]
-    pks = data[locs]
 
     # correct each peak to local maximum
     corrected_locs = []
@@ -531,72 +529,78 @@ def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray):
     for loc in locs:
         start = max(loc - locale_win, 0)
         end = min(loc + locale_win // 2, len(data))
-        local_slice = data[start:end]
-        Y = local_slice.max()
-        I = local_slice.argmax()
-        corrected_locs.append(start + I)
-        corrected_pks.append(Y)
+        window = data[start:end]
+        max_idx = np.argmax(window)
+        corrected_locs.append(start + max_idx)
+        corrected_pks.append(window[max_idx])
 
-    corrected_locs = np.array(corrected_locs)
-    corrected_pks = np.array(corrected_pks)
-
-    # remove peaks that are too close
     if len(corrected_locs) > 1:
-        close_peaks_idx = np.where(np.diff(corrected_locs) < locale_win)[0][::-1]
-        for idx in close_peaks_idx:
-            if corrected_pks[idx] > corrected_pks[idx + 1]:
-                corrected_pks = np.delete(corrected_pks, idx + 1)
-                corrected_locs = np.delete(corrected_locs, idx + 1)
-            else:
-                corrected_pks = np.delete(corrected_pks, idx)
-                corrected_locs = np.delete(corrected_locs, idx)
+        peaks = sorted(zip(corrected_locs, corrected_pks), key=lambda x: x[0])
+        kept = []
+        i = 0
+        while i < len(peaks):
+            j = i + 1
+            while j < len(peaks) and peaks[j][0] - peaks[i][0] < locale_win:
+                j += 1
+            cluster = peaks[i:j]
+            best = max(cluster, key=lambda x: x[1])
+            kept.append(best)
+            i = j
+        corrected_locs = np.array([p[0] for p in kept])
+        corrected_pks = np.array([p[1] for p in kept])
+    else:
+        corrected_locs = np.array(corrected_locs)
+        corrected_pks = np.array(corrected_pks)
 
     return corrected_locs, corrected_pks
 
 def _extract_amp_freq_slope(psd, freq, freq_range):
     """Extract amplitude, frequency, width and slope."""
-    try:
-        peaks, _ = find_peaks(psd[freq_range], distance=5)
-        if len(peaks) == 0:
-            return np.nan, np.nan, np.nan, np.nan
-        if len(peaks) > 1:
-            peak = peaks[np.argmax(psd[freq_range][peaks])]
-        else:
-            peak = peaks[0]
-
-        amp = psd[freq_range][peak]
-        freq_val = freq[freq_range][peak]
-
-        left_candidates = np.where(psd[freq_range][:peak] <= 0.5 * amp)[0]
-        right_candidates = np.where(psd[freq_range][peak:] <= 0.5 * amp)[0]
-
-        if len(left_candidates) == 0 or len(right_candidates) == 0:
-            return amp, freq_val, np.nan, np.nan
-
-        width_start = left_candidates[-1]
-        width_end = peak + right_candidates[0]
-        width = freq[freq_range][width_end] - freq[freq_range][width_start]
-
-        smoothed = medfilt(psd[freq_range], kernel_size=5)
-        minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
-        pre_peak_min = minima[minima < peak]
-        if len(pre_peak_min) == 0:
-            return amp, freq_val, width, np.nan
-        pre_peak = pre_peak_min[-1]
-
-        range_val = amp - psd[freq_range][pre_peak]
-        slope_data = psd[freq_range][pre_peak:peak + 1]
-        slope_freq = freq[freq_range][pre_peak:peak + 1]
-        mask = (slope_data >= slope_data[0] + 0.25 * range_val) & (
-                slope_data <= slope_data[-1] - 0.25 * range_val
-        )
-        slope_data = slope_data[mask]
-        slope_freq = slope_freq[mask]
-        if len(slope_data) < 2:
-            return amp, freq_val, width, np.nan
-        line_fit = np.polyfit(slope_freq, slope_data, 1)
-        slope = line_fit[0]
-
-        return amp, freq_val, width, slope
-    except Exception:
+    psd_sub = psd[freq_range]
+    freq_sub = freq[freq_range]
+    peaks, _ = find_peaks(psd_sub, distance=5)
+    if len(peaks) == 0:
         return np.nan, np.nan, np.nan, np.nan
+
+    if len(peaks) > 1:
+        peak = peaks[np.argmax(psd_sub[peaks])]
+    else:
+        peak = peaks[0]
+
+    amp = psd_sub[peak]
+    freq_val = freq_sub[peak]
+    half_amp = 0.5 * amp
+    left_side = psd_sub[:peak]
+    right_side = psd_sub[peak:]
+
+    left_cross = np.where(left_side <= half_amp)[0]
+    right_cross = np.where(right_side <= half_amp)[0]
+
+    if len(left_cross) == 0 or len(right_cross) == 0:
+        return amp, freq_val, np.nan, np.nan
+
+    width_start = left_cross[-1]
+    width_end = peak + right_cross[0]
+    width = freq_sub[width_end] - freq_sub[width_start]
+    smoothed = medfilt(psd_sub, kernel_size=5)
+    minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
+    pre_peak_min = minima[minima < peak]
+    if len(pre_peak_min) == 0:
+        return amp, freq_val, width, np.nan
+
+    pre_peak = pre_peak_min[-1]
+    rise_psd = psd_sub[pre_peak:peak + 1]
+    rise_freq = freq_sub[pre_peak:peak + 1]
+    range_val = amp - psd_sub[pre_peak]
+    lower = psd_sub[pre_peak] + 0.25 * range_val
+    upper = amp - 0.25 * range_val
+    mask = (rise_psd >= lower) & (rise_psd <= upper)
+    fit_psd = rise_psd[mask]
+    fit_freq = rise_freq[mask]
+
+    if len(fit_psd) < 2:
+        return amp, freq_val, width, np.nan
+    line_fit = np.polyfit(fit_freq, fit_psd, 1)
+    slope = line_fit[0]
+
+    return amp, freq_val, width, slope
