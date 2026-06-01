@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 import warnings
 import pandas as pd
 import numpy as np
@@ -34,7 +34,7 @@ class SDMO(BaseSDMOCalculator):
         replicate_matlab: bool,
     ) -> None:
         self.replicate_matlab = replicate_matlab
-        self.smooth_moving_ave = _matlab_smooth_moving_ave if self.replicate_matlab else _pd_smooth_moving_ave
+        self.smooth_moving_func = _matlab_smooth_moving_ave if self.replicate_matlab else _pd_smooth_moving_ave
 
     @base_sdmo_docfiller
     def calculate(
@@ -155,7 +155,7 @@ class SDMO(BaseSDMOCalculator):
 
                 # in order to remove wrong detections of the irrelevant peaks the signal is smoothened.
                 win_size = max(1, int((0.1 if axis == 'acc_ml' else 0.2) * self.sampling_rate_hz))
-                smoothed_c = self.smooth_moving_ave(c, win_size)
+                smoothed_c = self.smooth_moving_func(c, win_size)
 
                 # detect peaks
                 if axis == 'acc_ml':
@@ -441,16 +441,17 @@ class SDMO(BaseSDMOCalculator):
         # r: used for defining similarity between two sequences. Set to 0.15 as default in the original implementation
         dim = 2
         r = 0.15
-        se_results = {}
         acc_columns = ["acc_is", "acc_ml", "acc_pa"]
-        for col_name in acc_columns:
-            # input data is downsampled by half in the original implementation
-            acc = data[col_name].to_numpy()[::2]
-            num_samples = acc.size
-            # N=200 threshold is from [1]
-            if num_samples <= 200:
-                se_results[f"SampleEntropy_{col_name}"] = np.nan
-                continue
+        # input data is downsampled by half in the original implementation
+        accs = data[acc_columns].to_numpy()[::2]
+        num_samples = accs.size
+
+        # N=200 threshold is from [1]
+        if num_samples <= 200:
+            return pd.Series({f"SampleEntropy_{col_name}": np.nan for col_name in acc_columns})
+
+        se_results = {}
+        for acc, col_name in zip(accs.T, acc_columns):
             tol = r * np.std(acc)
             phi_m = np.mean(_phi(acc, dim, tol) / (num_samples - dim))
             phi_m1 = np.mean(_phi(acc, dim + 1, tol) / (num_samples - dim - 1))
