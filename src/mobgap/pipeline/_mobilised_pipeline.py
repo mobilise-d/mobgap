@@ -103,7 +103,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
     stride_selection_: StrideSelection
     wba_: WbAssembly
-    signal_based_dmo_: pd.DataFrame
+    sdmo_calculation_: Optional[BaseSDMOCalculator]
     dmo_aggregation_: Optional[BaseAggregator]
     sdmo_aggregation_: Optional[BaseAggregator]
 
@@ -750,8 +750,8 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
         return self.pipeline_.raw_per_stride_parameters_
 
     @property
-    def signal_based_dmo_(self) -> pd.DataFrame:
-        return self.pipeline_.signal_based_dmo_
+    def per_wb_signal_based_parameters_(self) -> pd.DataFrame:
+        return self.pipeline_.per_wb_signal_based_parameters_
 
     @timed_action_method
     @mobilised_pipeline_docfiller
