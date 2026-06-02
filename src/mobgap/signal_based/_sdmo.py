@@ -6,10 +6,10 @@ from scipy.signal import detrend, correlate, find_peaks, welch, medfilt, argrele
 from scipy.ndimage import minimum_filter1d
 from scipy.fft import fft
 from typing_extensions import Self, Unpack
+from numba import njit
 
 from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 from mobgap.utils.dtypes import assert_is_sensor_data
-from mobgap.utils.array_handling import  sliding_window_view
 
 
 def collect_calc_methods(cls):
@@ -471,19 +471,28 @@ class SDMO(BaseSDMOCalculator):
         return pd.Series(se_results)
 
 
-def _phi(signal: np.ndarray, dim: float, tol:float) -> float:
-    num_samples = signal.size
-    L = int(num_samples - dim + 1)
-    n_ref = L - 1
-    patterns = sliding_window_view(signal, L, n_ref)
-    counts = np.empty(n_ref, dtype=float)
-    for i in range(n_ref):
-        ref = patterns[:, i]
-        dist = np.max(np.abs(patterns - ref[:, np.newaxis]), axis=0)
-        matches = np.sum(dist <= tol) - 1
-        counts[i] = matches
-    counts = counts / n_ref
-    return np.mean(counts)
+@njit
+def _phi(signal: np.ndarray, m: int, tol: float) -> np.ndarray:
+    N = len(signal)
+    N_dim = N - m + 1
+    matches = np.zeros(N_dim, dtype=np.int32)
+    for i in range(N_dim):
+        count = 0
+        for j in range(N_dim):
+            if i == j:
+                continue
+            # Chebyshev distance (max absolute difference)
+            d = 0.0
+            for k in range(m):
+                diff = abs(signal[i + k] - signal[j + k])
+                if diff > d:
+                    d = diff
+                    if d > tol:  # early exit
+                        break
+            if d <= tol:
+                count += 1
+        matches[i] = count
+    return matches
 
 
 def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
