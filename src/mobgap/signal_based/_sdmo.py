@@ -275,12 +275,11 @@ class SDMO(BaseSDMOCalculator):
                     "Freq_is": freq_is,
                     "Freq_ml": freq_ml,
                     "Freq_pa": freq_ap,
-                    # the width and slope was calculated but wasn't returned in the original implementation, so
-                    # commented here, and in case they are required, they can be uncommented
-                    # or maybe include a parameter (return_width, return_slope) to include them
-                    # "Width_is": width_is,
-                    # "Width_ml": width_ml,
-                    # "Width_pa": width_ap,
+                    # the width and slope was commented out in the original implementation, but the sustain project
+                    # report lists width in the variability domain signal-based parameters, so return width default
+                    "Width_is": width_is,
+                    "Width_ml": width_ml,
+                    "Width_pa": width_ap,
                     # "Slope_is": slope_is,
                     # "Slope_ml": slope_ml,
                     # "Slope_pa": slope_ap
@@ -311,8 +310,9 @@ class SDMO(BaseSDMOCalculator):
         jerk_acc = np.sqrt(np.trapezoid(acc_dot ** 2, axis=0) / integral_duration)
         out = {
             **{f"Jerk_{col}": jerk_acc[i] for i, col in enumerate(acc_columns)},
-            "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
-            "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
+            # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
+            #"JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
+            #"JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
         }
         gyr_columns = ["gyr_is", "gyr_ml", "gyr_pa"]
         if set(gyr_columns).issubset(data.columns):
@@ -326,7 +326,8 @@ class SDMO(BaseSDMOCalculator):
         out = {}
         for c in data.columns:
             out[f"SD_{c}"] = data[c].std()
-            out[f"Range_{c}"] = data[c].max() - data[c].min()
+            if "acc" in c: # range only for the acc columns
+                out[f"Range_{c}"] = data[c].max() - data[c].min()
         return pd.Series(out)
 
 
@@ -349,7 +350,7 @@ class SDMO(BaseSDMOCalculator):
         performed for all the strides and then the harmonics are averaged across the strides. The ratio is
         calculated as the ratio of the even to odd harmonics.
         """
-        acc_columns = ["acc_is", "acc_ml", "acc_pa"]
+        acc_columns = ["acc_is", "acc_pa"]
         hr_results = {}
         ic_list = self.initial_contacts["ic"].to_numpy()
         if len(ic_list) < 5:
@@ -453,7 +454,7 @@ class SDMO(BaseSDMOCalculator):
         # r: used for defining similarity between two sequences. Set to 0.15 as default in the original implementation
         dim = 2
         r = 0.15
-        acc_columns = ["acc_is", "acc_ml", "acc_pa"]
+        acc_columns = ["acc_is"]
         # input data is downsampled by half in the original implementation
         accs = data[acc_columns].to_numpy()[::2]
         num_samples = accs.size

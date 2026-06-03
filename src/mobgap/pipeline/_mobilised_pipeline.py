@@ -345,7 +345,15 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 .droplevel(1)
                 .drop(columns=["start", "end"])
             )
-            self.per_wb_signal_based_parameters_["duration_s"] = self.per_wb_parameters_["duration_s"].copy()
+            self.per_wb_signal_based_parameters_ = (
+                pd.concat(
+                    [
+                        self.per_wb_parameters_[["start", "end", "n_strides", "duration_s"]],
+                        self.per_wb_signal_based_parameters_
+                    ],
+                    axis=1
+                )
+            )
 
         if self.dmo_aggregation is None:
             self.aggregated_parameters_ = None
