@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import warnings
 import pandas as pd
 import numpy as np
@@ -56,9 +56,9 @@ class SDMO(BaseSDMOCalculator):
     def calculate(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.DataFrame,
         *,
         sampling_rate_hz: float,
+        initial_contacts: Optional[pd.DataFrame] = None,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """(calculate_short)s.
@@ -77,7 +77,7 @@ class SDMO(BaseSDMOCalculator):
         # all subroutines are collected by the decorator
         for func in self._calculate_methods:
             row.update(func(self, data))
-        self.signal_based_dmo = pd.DataFrame([row])
+        self.signal_based_parameters = pd.DataFrame([row])
         return self
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
@@ -350,6 +350,8 @@ class SDMO(BaseSDMOCalculator):
         performed for all the strides and then the harmonics are averaged across the strides. The ratio is
         calculated as the ratio of the even to odd harmonics.
         """
+        if self.initial_contacts is None:
+            return pd.Series()
         acc_columns = ["acc_is", "acc_pa"]
         hr_results = {}
         ic_list = self.initial_contacts["ic"].to_numpy()
