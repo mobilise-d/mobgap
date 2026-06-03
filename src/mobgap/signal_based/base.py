@@ -3,7 +3,6 @@
 from typing import Any, Optional
 
 import pandas as pd
-import numpy as np
 from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
@@ -11,8 +10,8 @@ from mobgap._docutils import make_filldoc
 
 base_sdmo_docfiller = make_filldoc(
     {
-        "signal_based_dmo": """
-    signal_based_dmo
+        "signal_based_parameters": """
+    signal_based_parameters
         The main output of the signal-based digital mobility outcomes (SDMO) block.
         It provides a DataFrame with the columns containing the implemented SDMOs
         per provided data (ideally the walking bout, but can work with any data). Units are defined for each outcome.
@@ -37,7 +36,7 @@ base_sdmo_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``signal_based_dmo`` attribute set to the estimated SDMOs.
+        The instance of the class with the ``signal_based_parameters`` attribute set to the estimated SDMOs.
     """,
     }
 )
@@ -50,7 +49,7 @@ class BaseSDMOCalculator(Algorithm):
     This base class should be used for all SDMO calculation procedures/classes (currently one because all
     outcomes will be calculated together as there is no need for dividing them into groups).
     Algorithms should implement the ``calculate`` method.
-    The method should return the instance of the class with the ``signal_based_dmo`` attribute.
+    The method should return the instance of the class with the ``signal_based_parameters`` attribute.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
@@ -65,7 +64,7 @@ class BaseSDMOCalculator(Algorithm):
 
     Attributes
     ----------
-    %(signal_based_dmo)s
+    %(signal_based_parameters)s
 
     Notes
     -----
@@ -76,19 +75,19 @@ class BaseSDMOCalculator(Algorithm):
     _action_methods = ("calculate",)
 
     data: pd.DataFrame
-    initial_contacts: pd.DataFrame
     sampling_rate_hz: float
+    initial_contacts: pd.DataFrame
 
     # results
-    signal_based_dmo: pd.DataFrame
+    signal_based_parameters: pd.DataFrame
 
     @base_sdmo_docfiller
     def calculate(
         self,
         data: pd.DataFrame,
-        initial_contacts: pd.DataFrame,
         *,
         sampling_rate_hz: float,
+        initial_contacts: Optional[pd.DataFrame] = None,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(calculate_short)s.

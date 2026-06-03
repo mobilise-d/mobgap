@@ -333,23 +333,22 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             )
 
         if self.sdmo_calculation:
-            wb_iterator = GsIterator(aggregations=[("signal_based_dmo", create_aggregate_df("signal_based_dmo"))])
+            wb_iterator = GsIterator(aggregations=[("signal_based_parameters", create_aggregate_df("signal_based_parameters"))])
             for (wb_region, wb_data), r in wb_iterator.iterate(imu_data, self.per_wb_parameters_):
-                initial_contacts = pd.DataFrame(self.per_stride_parameters_.loc[wb_region.id]["start"] - wb_region.start).rename(columns={"start": "ic"})
-                self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(wb_data, initial_contacts, sampling_rate_hz=sampling_rate_hz)
-                r.signal_based_dmo = self.sdmo_calculation_.signal_based_dmo
-
-            self.per_wb_signal_based_parameters_ = (
-                wb_iterator
-                .additional_results_["signal_based_dmo"]
-                .droplevel(1)
-                .drop(columns=["start", "end"])
-            )
+                initial_contacts = pd.concat(
+                    [self.per_stride_parameters_.loc[wb_region.id]["start"] - wb_region.start,
+                     self.per_stride_parameters_.loc[wb_region.id]["lr_label"]
+                    ],
+                    axis=1
+                ).rename(columns={"start": "ic"})
+                self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(
+                    wb_data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
+                r.signal_based_parameters = self.sdmo_calculation_.signal_based_parameters
             self.per_wb_signal_based_parameters_ = (
                 pd.concat(
                     [
-                        self.per_wb_parameters_[["start", "end", "n_strides", "duration_s"]],
-                        self.per_wb_signal_based_parameters_
+                        self.per_wb_parameters_["duration_s"],
+                        wb_iterator.additional_results_["signal_based_parameters"].droplevel(1).drop(columns=["start", "end"])
                     ],
                     axis=1
                 )
