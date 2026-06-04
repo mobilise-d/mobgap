@@ -76,7 +76,7 @@ class BaseSDMOCalculator(Algorithm):
 
     data: pd.DataFrame
     sampling_rate_hz: float
-    initial_contacts: pd.DataFrame
+    stride_list: pd.DataFrame
 
     # results
     signal_based_parameters: pd.DataFrame
@@ -87,7 +87,7 @@ class BaseSDMOCalculator(Algorithm):
         data: pd.DataFrame,
         *,
         sampling_rate_hz: float,
-        initial_contacts: Optional[pd.DataFrame] = None,
+        stride_list: Optional[pd.DataFrame] = None,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(calculate_short)s.

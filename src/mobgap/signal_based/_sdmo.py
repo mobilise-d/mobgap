@@ -58,7 +58,7 @@ class SDMO(BaseSDMOCalculator):
         data: pd.DataFrame,
         *,
         sampling_rate_hz: float,
-        initial_contacts: Optional[pd.DataFrame] = None,
+        stride_list: Optional[pd.DataFrame] = None,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """(calculate_short)s.
@@ -70,15 +70,24 @@ class SDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.initial_contacts = initial_contacts
+        self.stride_list = stride_list
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
-        row = {"start": 0, "end": len(data)}
+        row = {}
         # all subroutines are collected by the decorator
         for func in self._calculate_methods:
             row.update(func(self, data))
         self.signal_based_parameters = pd.DataFrame([row])
         return self
+
+    def _calculate_stride_level_params(self, data: pd.DataFrame) -> pd.Series:
+        if self.stride_list is None:
+            return pd.Series()
+        return (
+            self.stride_list[["stride_length_m", "cadence_spm", "stride_duration_s"]]
+            .apply(lambda x: x.std() / x.mean())
+            .add_prefix("CV_")
+            )
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
         """Compute acceleration, gyroscope, total acceleration signal root-mean-square (RMS), and ratio metrics.
@@ -350,11 +359,12 @@ class SDMO(BaseSDMOCalculator):
         performed for all the strides and then the harmonics are averaged across the strides. The ratio is
         calculated as the ratio of the even to odd harmonics.
         """
-        if self.initial_contacts is None:
+        if self.stride_list is None:
             return pd.Series()
+        # need the ic list
+        ic_list = (self.stride_list["start"] - self.stride_list["start"].iloc[0]).to_numpy()
         acc_columns = ["acc_is", "acc_pa"]
         hr_results = {}
-        ic_list = self.initial_contacts["ic"].to_numpy()
         if len(ic_list) < 5:
             return pd.Series({f'HarmonicRatio_{k}': np.nan for k in acc_columns})
 
