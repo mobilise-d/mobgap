@@ -336,8 +336,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             wb_iterator = GsIterator(aggregations=[("signal_based_parameters", create_aggregate_df("signal_based_parameters"))])
             for (wb_region, wb_data), r in wb_iterator.iterate(imu_data, self.per_wb_parameters_):
                 stride_list = self.per_stride_parameters_.loc[wb_region.id]
+                # get the turn list within this wb
+                turn_list = self.raw_turn_list_.query("start >= @wb_region.start and end <= @wb_region.end")
                 self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(
-                    wb_data, stride_list=stride_list, sampling_rate_hz=sampling_rate_hz)
+                    wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz)
                 r.signal_based_parameters = self.sdmo_calculation_.signal_based_parameters
             self.per_wb_signal_based_parameters_ = (
                 pd.concat(

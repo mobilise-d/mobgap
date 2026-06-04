@@ -59,6 +59,7 @@ class SDMO(BaseSDMOCalculator):
         *,
         sampling_rate_hz: float,
         stride_list: Optional[pd.DataFrame] = None,
+        turn_list: Optional[pd.DataFrame] = None,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """(calculate_short)s.
@@ -71,6 +72,7 @@ class SDMO(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.stride_list = stride_list
+        self.turn_list = turn_list
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
         row = {}
@@ -79,6 +81,43 @@ class SDMO(BaseSDMOCalculator):
             row.update(func(self, data))
         self.signal_based_parameters = pd.DataFrame([row])
         return self
+
+    def _calculate_turning_percentage(self, data: pd.DataFrame):
+        if self.turn_list is None:
+            return pd.Series()
+        turn_list = self.turn_list.copy()
+        if self.turn_list.empty:
+            return pd.Series(
+                index=["Turn_Dur_Percentage_From_WBDur", "Turn_Mean_Ang_Vel", "Turn_Peak_Ang_Vel", "Turn_Smoothness"],
+                dtype=float
+            )
+
+        # reindex start and end wrt the wb data
+        reidx = turn_list["start"].iloc[0]
+        gyr = data['gyr_is'].to_numpy()
+        means = []
+        maxs = []
+        # smoothness == jerk of yaw
+        jerk_gyr = []
+        for row in turn_list.itertuples(index=False):
+            seg = gyr[row.start-reidx:row.end-reidx]
+            means.append(seg.mean())
+            maxs.append(seg.max())
+            jerk_gyr.append(np.sqrt(np.trapezoid(seg ** 2) / row.duration_s))
+
+        turn_params = {
+            "Turn_Mean_Ang_Vel": np.mean(means),
+            "Turn_Peak_Ang_Vel": np.mean(maxs),
+            "Turn_Smoothness": np.mean(jerk_gyr),
+        }
+
+        if self.stride_list is None:
+            return pd.Series(turn_params)
+
+        wb_dur = (self.stride_list["end"].max() - self.stride_list["start"].min()) / self.sampling_rate_hz
+        turn_dur = turn_list["duration_s"].sum()
+        turn_params.update({"Turn_Dur_Percentage_From_WBDur": 100 * (turn_dur / wb_dur)})
+        return pd.Series(turn_params)
 
     def _calculate_stride_level_params(self, data: pd.DataFrame) -> pd.Series:
         if self.stride_list is None:
