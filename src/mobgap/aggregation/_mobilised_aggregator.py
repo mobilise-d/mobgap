@@ -91,7 +91,7 @@ class SDMOAggregator(BaseAggregator):
     filtered_wb_sdmos_: pd.DataFrame
 
     class PredefinedParameters:
-        cvs_dmo_data: Final = MappingProxyType(
+        cvs_sdmo_data: Final = MappingProxyType(
             {
                 "groupby": ["visit_type", "participant_id", "measurement_date"],
                 "unique_wb_id_column": "wb_id",
@@ -100,12 +100,12 @@ class SDMOAggregator(BaseAggregator):
                     "wb_10_30": (10, 30),
                     "wb_10": (10, np.inf),
                     "wb_30": (30, np.inf),
+                    "wb_30_60": (30, 60),
                     "wb_60": (60, np.inf),
                 },
                 "metrics": {
-                    "avg": "mean",
                     "median": "median",
-                    "var": _coefficient_of_variation,
+                    "std": "std",
                     "p10": _custom_quantile_10,
                     "p90": _custom_quantile,
                 }
@@ -116,20 +116,8 @@ class SDMOAggregator(BaseAggregator):
             {
                 "groupby": None,
                 "unique_wb_id_column": "wb_id",
-                "duration_filters": {
-                    "wb_all": (0, np.inf),
-                    "wb_10_30": (10, 30),
-                    "wb_10": (10, np.inf),
-                    "wb_30": (30, np.inf),
-                    "wb_60": (60, np.inf),
-                },
-                "metrics": {
-                    "avg": "mean",
-                    "median": "median",
-                    "var": _coefficient_of_variation,
-                    "p10": _custom_quantile_10,
-                    "p90": _custom_quantile,
-                }
+                "duration_filters": cvs_sdmo_data["duration_filters"],
+                "metrics": cvs_sdmo_data["metrics"],
             }
         )
 
