@@ -47,7 +47,7 @@ class SDMO(BaseSDMOCalculator):
     def __init__(
         self,
         *,
-        replicate_matlab: bool,
+        replicate_matlab: bool = True,
     ) -> None:
         self.replicate_matlab = replicate_matlab
         self.smooth_moving_func = _matlab_smooth_moving_ave if self.replicate_matlab else _pd_smooth_moving_ave
