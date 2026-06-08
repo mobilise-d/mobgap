@@ -1,6 +1,6 @@
 """
 Signal-based parameters
-===========
+=======================
 
 This example shows how to use the :class:`.SDMO` for calculating signal-based parameters.
 
@@ -25,10 +25,12 @@ short_trial = lab_example_data.get_subset(
 
 # %%
 # SDMO
-# ----------
+# ----
 # To demonstrate the usage of :class:`.SDMO` we use the detected walking bout from the
 # reference system as input.
-reference_strides = short_trial.reference_parameters_relative_to_wb_.stride_parameters
+reference_strides = (
+    short_trial.reference_parameters_relative_to_wb_.stride_parameters
+)
 reference_strides
 
 # %%
@@ -73,8 +75,12 @@ sdmo.signal_based_parameters
 # We miss three more parameters because the expected stride list parameters
 # (['stride_length_m', 'cadence_spm', 'stride_duration_s']) are given with a different name or not available in
 # the reference list. We can rename and calculate the missing one.
-reference_strides = reference_strides.rename(columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"})
-reference_strides["cadence_spm"] = 60*reference_strides["speed_mps"]/reference_strides["stride_length_m"]
+reference_strides = reference_strides.rename(
+    columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
+)
+reference_strides["cadence_spm"] = (
+    60 * reference_strides["speed_mps"] / reference_strides["stride_length_m"]
+)
 
 sdmo.calculate(
     data=data_in_wb_bf,

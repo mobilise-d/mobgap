@@ -9,7 +9,7 @@ from tpcp.misc import set_defaults
 from typing_extensions import Self
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds, SDMOAggregator
+from mobgap.aggregation import MobilisedAggregator, SDMOAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
 from mobgap.cadence import CadFromIcDetector
 from mobgap.cadence.base import BaseCadCalculator
@@ -19,8 +19,11 @@ from mobgap.initial_contacts import IcdIonescu, refine_gs
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
+from mobgap.pipeline import create_aggregate_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
+from mobgap.signal_based import SDMO
+from mobgap.signal_based.base import BaseSDMOCalculator
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -31,9 +34,6 @@ from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
-from mobgap.signal_based.base import BaseSDMOCalculator
-from mobgap.signal_based import SDMO
-from mobgap.pipeline import create_aggregate_df
 
 
 @mobilised_pipeline_docfiller
@@ -204,7 +204,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     @timed_action_method
     @mobilised_pipeline_docfiller
-    def run(self, datapoint: BaseGaitDatasetT) -> Self:
+    def run(self, datapoint: BaseGaitDatasetT) -> Self:  # noqa: C901
         """%(run_short)s.
 
         Parameters
@@ -333,22 +333,23 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             )
 
         if self.sdmo_calculation:
-            wb_iterator = GsIterator(aggregations=[("signal_based_parameters", create_aggregate_df("signal_based_parameters"))])
+            wb_iterator = GsIterator(
+                aggregations=[("signal_based_parameters", create_aggregate_df("signal_based_parameters"))]
+            )
             for (wb_region, wb_data), r in wb_iterator.iterate(imu_data, self.per_wb_parameters_):
                 stride_list = self.per_stride_parameters_.loc[wb_region.id]
                 # get the turn list within this wb
                 turn_list = self.raw_turn_list_.query("start >= @wb_region.start and end <= @wb_region.end")
                 self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(
-                    wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz)
-                r.signal_based_parameters = self.sdmo_calculation_.signal_based_parameters
-            self.per_wb_signal_based_parameters_ = (
-                pd.concat(
-                    [
-                        self.per_wb_parameters_["duration_s"],
-                        wb_iterator.additional_results_["signal_based_parameters"].droplevel(1)
-                    ],
-                    axis=1
+                    wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz
                 )
+                r.signal_based_parameters = self.sdmo_calculation_.signal_based_parameters
+            self.per_wb_signal_based_parameters_ = pd.concat(
+                [
+                    self.per_wb_parameters_["duration_s"],
+                    wb_iterator.additional_results_["signal_based_parameters"].droplevel(1),
+                ],
+                axis=1,
             )
 
         if self.dmo_aggregation is None:
@@ -365,8 +366,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.sdmo_aggregation_ = self.sdmo_aggregation.clone().aggregate(
                 self.per_wb_signal_based_parameters_, wb_dmos_mask=None
             )
-            self.aggregated_parameters_ = pd.concat([self.aggregated_parameters_, self.sdmo_aggregation_.aggregated_data_],
-                                                    axis=1)
+            self.aggregated_parameters_ = pd.concat(
+                [self.aggregated_parameters_, self.sdmo_aggregation_.aggregated_data_], axis=1
+            )
 
         del self._all_action_kwargs
         return self

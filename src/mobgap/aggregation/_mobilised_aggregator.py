@@ -19,6 +19,7 @@ def _custom_quantile(x: pd.Series) -> float:
         return np.nan
     return np.nanpercentile(x, 90)
 
+
 def _custom_quantile_10(x: pd.Series) -> float:
     """Calculate the 10th percentile of the passed data (required for the SDMOs)."""
     if x.isna().all():
@@ -36,7 +37,7 @@ class SDMOAggregator(BaseAggregator):
 
     This aggregator automatically detects all columns in the input DataFrame (except `duration_s` and `groupby` columns)
     and computes a predefined set of statistics (mean, 90th/10th percentile, coefficient of variation) for each of the
-    default filter groups (all WBs and WBs 10‑30s, >10s, >30s, >60s).
+    default filter groups (all WBs, WBs between 10s and 30s and WBs greater than 10s, 30s, 60s).
 
     Depending on available columns in the input data, calculated parameters will be added to a distinct column
     in the aggregated data.
@@ -86,6 +87,7 @@ class SDMOAggregator(BaseAggregator):
         An updated version of ``wb_sdmos`` with the implausible entries removed based on ``wb_sdmos_mask``.
         ``filtered_wb_sdmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
     """
+
     groupby: typing.Optional[typing.Sequence[str]]
     wb_sdmos_mask: pd.DataFrame
     filtered_wb_sdmos_: pd.DataFrame
@@ -108,7 +110,7 @@ class SDMOAggregator(BaseAggregator):
                     "std": "std",
                     "p10": _custom_quantile_10,
                     "p90": _custom_quantile,
-                }
+                },
             }
         )
 
@@ -136,7 +138,7 @@ class SDMOAggregator(BaseAggregator):
         self.unique_wb_id_column = unique_wb_id_column
 
     @base_aggregator_docfiller
-    def aggregate(
+    def aggregate(  # noqa: C901
         self,
         wb_sdmos: pd.DataFrame,
         *,
@@ -178,11 +180,7 @@ class SDMOAggregator(BaseAggregator):
         if groupby and not all(col in wb_sdmos.reset_index().columns for col in groupby):
             raise ValueError(f"Not all groupby columns {groupby} found in the passed dataframe.")
 
-        data_correct_index = (
-            wb_sdmos.reset_index()
-            .set_index([*(groupby or []), self.unique_wb_id_column])
-            .sort_index()
-        )
+        data_correct_index = wb_sdmos.reset_index().set_index([*(groupby or []), self.unique_wb_id_column]).sort_index()
 
         if not data_correct_index.index.is_unique:
             raise ValueError(

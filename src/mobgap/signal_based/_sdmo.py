@@ -1,23 +1,26 @@
-from typing import Any, Optional
 import warnings
-import pandas as pd
+from typing import Any, Callable, ClassVar, Optional, TypeVar
+
 import numpy as np
-from scipy.signal import detrend, correlate, find_peaks, welch, medfilt, argrelextrema
-from scipy.ndimage import minimum_filter1d
-from scipy.fft import fft
-from typing_extensions import Self, Unpack
+import pandas as pd
 from numba import njit
+from scipy.fft import fft
+from scipy.ndimage import minimum_filter1d
+from scipy.signal import argrelextrema, correlate, detrend, find_peaks, medfilt, welch
+from typing_extensions import Self, Unpack
 
 from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 from mobgap.utils.dtypes import assert_is_sensor_data
 
+T = TypeVar("T", bound=type)
 
-def collect_calc_methods(cls):
+
+def collect_calc_methods(cls: T) -> T:
     cls._calculate_methods = [
-        getattr(cls, name) for name in dir(cls)
-        if name.startswith('_calculate') and callable(getattr(cls, name))
+        getattr(cls, name) for name in dir(cls) if name.startswith("_calculate") and callable(getattr(cls, name))
     ]
     return cls
+
 
 @collect_calc_methods
 @base_sdmo_docfiller
@@ -41,7 +44,8 @@ class SDMO(BaseSDMOCalculator):
     (signal_based)s
 
     """
-    _calculate_methods: list = []
+
+    _calculate_methods: ClassVar[list[Callable[[Self, pd.DataFrame], pd.Series]]]
     replicate_matlab: bool
 
     def __init__(
@@ -82,28 +86,28 @@ class SDMO(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([row])
         return self
 
-    def _calculate_turning_percentage(self, data: pd.DataFrame):
+    def _calculate_turning_percentage(self, data: pd.DataFrame) -> pd.Series:
         if self.turn_list is None:
             return pd.Series()
         turn_list = self.turn_list.copy()
         if self.turn_list.empty:
             return pd.Series(
                 index=["Turn_Dur_Percentage_From_WBDur", "Turn_Mean_Ang_Vel", "Turn_Peak_Ang_Vel", "Turn_Smoothness"],
-                dtype=float
+                dtype=float,
             )
 
         # reindex start and end wrt the wb data
         reidx = turn_list["start"].iloc[0]
-        gyr = data['gyr_is'].to_numpy()
+        gyr = data["gyr_is"].to_numpy()
         means = []
         maxs = []
         # smoothness == jerk of yaw
         jerk_gyr = []
         for row in turn_list.itertuples(index=False):
-            seg = gyr[row.start-reidx:row.end-reidx]
+            seg = gyr[row.start - reidx : row.end - reidx]
             means.append(seg.mean())
             maxs.append(seg.max())
-            jerk_gyr.append(np.sqrt(np.trapezoid(seg ** 2) / row.duration_s))
+            jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / row.duration_s))
 
         turn_params = {
             "Turn_Mean_Ang_Vel": np.mean(means),
@@ -119,7 +123,7 @@ class SDMO(BaseSDMOCalculator):
         turn_params.update({"Turn_Dur_Percentage_From_WBDur": 100 * (turn_dur / wb_dur)})
         return pd.Series(turn_params)
 
-    def _calculate_stride_level_params(self, data: pd.DataFrame) -> pd.Series:
+    def _calculate_stride_level_params(self, data: pd.DataFrame) -> pd.Series:  # noqa: ARG002
         if self.stride_list is None:
             return pd.Series()
         # in case the required columns are not available in the `stride_list`, then raise warning
@@ -132,11 +136,7 @@ class SDMO(BaseSDMOCalculator):
                 stacklevel=1,
             )
             return pd.Series()
-        return (
-            self.stride_list[available_cols]
-            .apply(lambda x: x.std() / x.mean())
-            .add_prefix("CV_")
-            )
+        return self.stride_list[available_cols].apply(lambda x: x.std() / x.mean()).add_prefix("CV_")
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
         """Compute acceleration, gyroscope, total acceleration signal root-mean-square (RMS), and ratio metrics.
@@ -155,9 +155,8 @@ class SDMO(BaseSDMOCalculator):
         rms_total_acc = ((rms[rms.index.str.contains("acc")]).pow(2).sum()) ** 0.5
         rms["RMSTotal_acc"] = rms_total_acc
         # ratio rms
-        for key in [k for k in rms.keys() if k.startswith("RMS_acc") and k != "RMSTotal_acc"]:
-            axis = key.replace("RMS_", "")
-            rms[f"RMSRatio_{axis}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
+        for key in rms.filter(like="RMS_acc").index:
+            rms[f"RMSRatio_{key.replace('RMS_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
         return rms
 
     def _calculate_reg_sym(self, data: pd.DataFrame) -> pd.Series:
@@ -202,13 +201,11 @@ class SDMO(BaseSDMOCalculator):
         The article describing the Asymmetry_G measure can be found at:
         Van Gelder et al.A Proposal for a Linear Calculation of
         Gait Asymmetry. Symmetry 2021, 13,1560. https://doi.org/10.3390/sym13091560
-
-        Units: all are unitless except for Symmetry_K which is provided as []
         """
         reg_sym = {}
         step_reg_is = np.nan
         distance = int(self.sampling_rate_hz / 4)
-        for axis in ['acc_is', 'acc_pa', 'acc_ml']:
+        for axis in ["acc_is", "acc_pa", "acc_ml"]:
             signal = data[axis].to_numpy()
             step_reg = stride_reg = asym_mn = sym_k = asym_g = np.nan
             try:
@@ -216,7 +213,7 @@ class SDMO(BaseSDMOCalculator):
                 x = signal - signal.mean()
                 # normalized cross-covariance
                 norm = n - np.abs(np.arange(-n + 1, n))
-                c = correlate(x, x, mode='full') / norm
+                c = correlate(x, x, mode="full") / norm
                 lags = np.arange(-n + 1, n)
                 # normalize c to zero-lag
                 c = c / c[lags == 0][0]
@@ -224,11 +221,11 @@ class SDMO(BaseSDMOCalculator):
                 c = c[lags >= 0]
 
                 # in order to remove wrong detections of the irrelevant peaks the signal is smoothened.
-                win_size = max(1, int((0.1 if axis == 'acc_ml' else 0.2) * self.sampling_rate_hz))
+                win_size = max(1, int((0.1 if axis == "acc_ml" else 0.2) * self.sampling_rate_hz))
                 smoothed_c = self.smooth_moving_func(c, win_size)
 
                 # detect peaks
-                if axis == 'acc_ml':
+                if axis == "acc_ml":
                     # step regularity: negative peaks
                     locs, _ = find_peaks(-smoothed_c, distance=distance)
                     if not np.isnan(step_reg_is):
@@ -267,7 +264,7 @@ class SDMO(BaseSDMOCalculator):
                 asym_g = (stride_reg - step_reg) / 2
 
             except Exception:
-                if axis == 'acc_is':
+                if axis == "acc_is":
                     step_reg_is = np.nan
 
             ax_direction = axis.split("_")[1]
@@ -290,7 +287,7 @@ class SDMO(BaseSDMOCalculator):
         Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a
         Body-Worn Accelerometer
         Aner Weiss et al.
-        Neurorehabilitation and Neural Repair25(9) 810–818
+        Neurorehabilitation and Neural Repair25(9) 810-818
         DOI: 10.1177/1545968311424869
         """
         acc = data.filter(like="acc")
@@ -298,19 +295,14 @@ class SDMO(BaseSDMOCalculator):
         acc = acc[["acc_is", "acc_ml", "acc_pa"]].to_numpy()
         n = len(acc)
         fft_length = 2 ** (int(np.ceil(np.log2(n))) + 1)
-        if n >= 2 * self.sampling_rate_hz:
-            win_size = int(self.sampling_rate_hz * 2)
-        else:
-            win_size = n
+        win_size = int(self.sampling_rate_hz * 2) if n >= 2 * self.sampling_rate_hz else n
+
         # welch PSD (should be close to the matlab's pwelch with the following params)
-        matlab_welch = lambda x: welch(
-            x,
-            fs=self.sampling_rate_hz,
-            window='hamming',
-            nperseg=win_size,
-            nfft=fft_length,
-            detrend=False
-        )
+        def matlab_welch(x):
+            return welch(
+                x, fs=self.sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False
+            )
+
         f, psd_is = matlab_welch(acc[:, 0])
         _, psd_ml = matlab_welch(acc[:, 1])
         _, psd_ap = matlab_welch(acc[:, 2])
@@ -320,29 +312,27 @@ class SDMO(BaseSDMOCalculator):
         vap_freq_range = np.where((f >= fmin - freq_delta) & (f <= fmax + freq_delta))[0]
         ml_freq_range = np.where((f >= fmin / 2 - freq_delta) & (f <= fmax / 2 + freq_delta))[0]
         # extract amplitude, frequency, width and slope
-        amp_is, freq_is, width_is, slope_is = _extract_amp_freq_slope(psd_is, f, vap_freq_range)
-        amp_ml, freq_ml, width_ml, slope_ml = _extract_amp_freq_slope(psd_ml, f, ml_freq_range)
-        amp_ap, freq_ap, width_ap, slope_ap = _extract_amp_freq_slope(psd_ap, f, vap_freq_range)
+        amp_is, freq_is, width_is, _slope_is = _extract_amp_freq_slope(psd_is, f, vap_freq_range)
+        amp_ml, freq_ml, width_ml, _slope_ml = _extract_amp_freq_slope(psd_ml, f, ml_freq_range)
+        amp_ap, freq_ap, width_ap, _slope_ap = _extract_amp_freq_slope(psd_ap, f, vap_freq_range)
 
-        return (
-            pd.Series(
-                {
-                    "Amplitude_is": amp_is,
-                    "Amplitude_ml": amp_ml,
-                    "Amplitude_pa": amp_ap,
-                    "Freq_is": freq_is,
-                    "Freq_ml": freq_ml,
-                    "Freq_pa": freq_ap,
-                    # the width and slope was commented out in the original implementation, but the sustain project
-                    # report lists width in the variability domain signal-based parameters, so return width default
-                    "Width_is": width_is,
-                    "Width_ml": width_ml,
-                    "Width_pa": width_ap,
-                    # "Slope_is": slope_is,
-                    # "Slope_ml": slope_ml,
-                    # "Slope_pa": slope_ap
-                }
-            )
+        return pd.Series(
+            {
+                "Amplitude_is": amp_is,
+                "Amplitude_ml": amp_ml,
+                "Amplitude_pa": amp_ap,
+                "Freq_is": freq_is,
+                "Freq_ml": freq_ml,
+                "Freq_pa": freq_ap,
+                # the width and slope was commented out in the original implementation, but the sustain project
+                # report lists width in the variability domain signal-based parameters, so return width default
+                "Width_is": width_is,
+                "Width_ml": width_ml,
+                "Width_pa": width_ap,
+                # "Slope_is": slope_is,
+                # "Slope_ml": slope_ml,
+                # "Slope_pa": slope_ap
+            }
         )
 
     def _calculate_jerk(self, data: pd.DataFrame) -> pd.Series:
@@ -355,7 +345,7 @@ class SDMO(BaseSDMOCalculator):
 
         Jerk ratio formula was taken from the following article:
         Age associated changes in head jerk while walking reveal altered dynamic stability in older people.
-        Matthew A. et al., Exp Brain Res (2014) 232:51–60. DOI: 10.1007/s00221-013-3719-6
+        Matthew A. et al., Exp Brain Res (2014) 232:51-60. DOI: 10.1007/s00221-013-3719-6
 
         Different methods of calculating jerk can be found in the following article:
         Sensitivity of smoothness measures to movement duration, amplitude, and arrests.
@@ -365,17 +355,17 @@ class SDMO(BaseSDMOCalculator):
         acc_columns = ["acc_is", "acc_ml", "acc_pa"]
         acc_dot = np.gradient(data[acc_columns].to_numpy(), dt, axis=0)
         integral_duration = dt * len(acc_dot)
-        jerk_acc = np.sqrt(np.trapezoid(acc_dot ** 2, axis=0) / integral_duration)
+        jerk_acc = np.sqrt(np.trapezoid(acc_dot**2, axis=0) / integral_duration)
         out = {
             **{f"Jerk_{col}": jerk_acc[i] for i, col in enumerate(acc_columns)},
             # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
-            #"JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
-            #"JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
+            # "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
+            # "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
         }
         gyr_columns = ["gyr_is", "gyr_ml", "gyr_pa"]
         if set(gyr_columns).issubset(data.columns):
             gyr = data[gyr_columns].to_numpy().T
-            jerk_gyr = np.sqrt(np.trapezoid(gyr ** 2, axis=1) / integral_duration)
+            jerk_gyr = np.sqrt(np.trapezoid(gyr**2, axis=1) / integral_duration)
             out.update(**{f"Jerk_{col}": jerk_gyr[i] for i, col in enumerate(gyr_columns)})
 
         return pd.Series(out)
@@ -384,10 +374,9 @@ class SDMO(BaseSDMOCalculator):
         out = {}
         for c in data.columns:
             out[f"SD_{c}"] = data[c].std()
-            if "acc" in c: # range only for the acc columns
+            if "acc" in c:  # range only for the acc columns
                 out[f"Range_{c}"] = data[c].max() - data[c].min()
         return pd.Series(out)
-
 
     def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series:
         """Calculate the Harmonic Ratio (HR) for gait smoothness based on accelerometer data.
@@ -415,41 +404,37 @@ class SDMO(BaseSDMOCalculator):
         acc_columns = ["acc_is", "acc_pa"]
         hr_results = {}
         if len(ic_list) < 5:
-            return pd.Series({f'HarmonicRatio_{k}': np.nan for k in acc_columns})
+            return pd.Series({f"HarmonicRatio_{k}": np.nan for k in acc_columns})
 
         stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
 
         for col_name in acc_columns:
             acc = data[col_name].to_numpy()
             stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
-            is_ml = (col_name == "acc_ml")
+            is_ml = col_name == "acc_ml"
             gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
             in_phase = np.arange(2, 19, 2) if is_ml else np.arange(3, 20, 2)
             out_phase = np.arange(1, 20, 2) if is_ml else np.arange(0, 19, 2)
 
             for stride_idx, (start, end) in enumerate(stride_pairs):
                 # flexing IC end point to eliminate high freq noise due to first and last sample amplitude mismatch
-                start_points_in_data = np.where(
-                    (acc[:-1] < acc[start]) & (acc[1:] >= acc[start])
-                )[0]
+                start_points_in_data = np.where((acc[:-1] < acc[start]) & (acc[1:] >= acc[start]))[0]
 
                 if start_points_in_data.size:
                     new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - end))]
                     stride_len = end - start
-                    if end != new_end:
-                        # deviation 10% threshold
-                        if (end - new_end) <= 0.1 * stride_len:
-                            end = new_end
+                    if end != new_end and (end - new_end) <= 0.1 * stride_len:
+                        end = new_end
                 if start >= end:
                     # skip the stride
                     continue
 
-                stride_data = acc[start:end + 1] - np.mean(acc[start:end + 1])
+                stride_data = acc[start : end + 1] - np.mean(acc[start : end + 1])
                 # FFT
                 n = len(stride_data)
                 nfft = 2 ** (int(np.ceil(np.log2(n))) + 4)
 
-                fft_vals = np.abs(fft(stride_data, nfft))[:nfft // 2 + 1]
+                fft_vals = np.abs(fft(stride_data, nfft))[: nfft // 2 + 1]
                 fft_freqs = np.linspace(0, self.sampling_rate_hz / 2, len(fft_vals))
 
                 max_idx = argrelextrema(fft_vals, np.greater)[0]
@@ -496,19 +481,19 @@ class SDMO(BaseSDMOCalculator):
 
         return pd.Series(hr_results)
 
-
     def _calculate_sample_entropy(self, data: pd.DataFrame) -> pd.Series:
-        r"""Calculate Sample Entropy (SE) for accelerometer data.
+        """Calculate Sample Entropy (SE) for accelerometer data.
 
         The Sample Entropy is defined as the negative natural average logarithm of the conditional probability
         that two sequences are similar for m points remain similar when the number of points is increased to m+1.
-        Definition is taken from Torres (2013) [1]_. It can be used as a mean to describe the predictability of a signal.
+        Definition is taken from Torres (2013) [1]_. It can be used as a mean to describe the predictability of a
+        signal.
         Useage for sway is given in Sofiane (2009) [2]_.
 
         .. [1] B.D.L.C. Torres, et al. "Entropy in the Analysis of Gait Complexity: A State of the Art". British Journal
         of Applied Science & Technology. 3(4) 1097-1105, 2013.
         .. [2] R. Sofiane, et al. "On the use of sample entropy to analyze human postural sway data". Medical
-        Engineering & Physics. 31, 1023–1031, 2009.
+        Engineering & Physics. 31, 1023-1031, 2009.
 
         """
         # dim: the sequence length that will be used for calculating the sample entropy. For gait dim=2 often used [1].
@@ -535,12 +520,12 @@ class SDMO(BaseSDMOCalculator):
 
 @njit
 def _phi(signal: np.ndarray, m: int, tol: float) -> np.ndarray:
-    N = len(signal)
-    N_dim = N - m + 1
-    matches = np.zeros(N_dim, dtype=np.int32)
-    for i in range(N_dim):
+    n = len(signal)
+    n_dim = n - m + 1
+    matches = np.zeros(n_dim, dtype=np.int32)
+    for i in range(n_dim):
         count = 0
-        for j in range(N_dim):
+        for j in range(n_dim):
             if i == j:
                 continue
             # Chebyshev distance (max absolute difference)
@@ -579,10 +564,12 @@ def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     window_sizes = e - s
     return sums / window_sizes
 
+
 def _pd_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     return pd.Series(y).rolling(span, center=True, min_periods=1).mean().to_numpy()
 
-def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray):
+
+def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Correct peaks found in a filtered signal to match original data."""
     if len(locs) < 2:
         return pks, locs
@@ -625,7 +612,10 @@ def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray):
 
     return corrected_locs, corrected_pks
 
-def _extract_amp_freq_slope(psd, freq, freq_range):
+
+def _extract_amp_freq_slope(
+    psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray
+) -> tuple[float, float, float, float]:
     """Extract amplitude, frequency, width and slope."""
     psd_sub = psd[freq_range]
     freq_sub = freq[freq_range]
@@ -633,10 +623,7 @@ def _extract_amp_freq_slope(psd, freq, freq_range):
     if len(peaks) == 0:
         return np.nan, np.nan, np.nan, np.nan
 
-    if len(peaks) > 1:
-        peak = peaks[np.argmax(psd_sub[peaks])]
-    else:
-        peak = peaks[0]
+    peak = peaks[np.argmax(psd_sub[peaks])] if len(peaks) > 1 else peaks[0]
 
     amp = psd_sub[peak]
     freq_val = freq_sub[peak]
@@ -660,8 +647,8 @@ def _extract_amp_freq_slope(psd, freq, freq_range):
         return amp, freq_val, width, np.nan
 
     pre_peak = pre_peak_min[-1]
-    rise_psd = psd_sub[pre_peak:peak + 1]
-    rise_freq = freq_sub[pre_peak:peak + 1]
+    rise_psd = psd_sub[pre_peak : peak + 1]
+    rise_freq = freq_sub[pre_peak : peak + 1]
     range_val = amp - psd_sub[pre_peak]
     lower = psd_sub[pre_peak] + 0.25 * range_val
     upper = amp - 0.25 * range_val
