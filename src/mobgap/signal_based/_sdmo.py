@@ -122,8 +122,18 @@ class SDMO(BaseSDMOCalculator):
     def _calculate_stride_level_params(self, data: pd.DataFrame) -> pd.Series:
         if self.stride_list is None:
             return pd.Series()
+        # in case the required columns are not available in the `stride_list`, then raise warning
+        cols = ["stride_length_m", "cadence_spm", "stride_duration_s"]
+        available_cols = [c for c in cols if c in self.stride_list.columns]
+        if len(available_cols) == 0:
+            warnings.warn(
+                f"Per-stride signal-based parameters are not calculated. None of {cols} is available in the"
+                "stride list.",
+                stacklevel=1,
+            )
+            return pd.Series()
         return (
-            self.stride_list[["stride_length_m", "cadence_spm", "stride_duration_s"]]
+            self.stride_list[available_cols]
             .apply(lambda x: x.std() / x.mean())
             .add_prefix("CV_")
             )
