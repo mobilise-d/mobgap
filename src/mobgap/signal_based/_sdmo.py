@@ -102,7 +102,7 @@ class SDMO(BaseSDMOCalculator):
         # smoothness == jerk of yaw
         jerk_gyr = []
         for start, end, dur in turn_list[["start", "end", "duration_s"]].values:
-            seg = gyr[start : end]
+            seg = gyr[start:end]
             means.append(seg.mean())
             maxs.append(seg.max())
             jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / dur))
@@ -225,7 +225,7 @@ class SDMO(BaseSDMOCalculator):
                 # detect peaks
                 if axis == "acc_ml":
                     # step regularity: negative peaks
-                    locs, _ = find_peaks(-smoothed_c, distance=distance+1)
+                    locs, _ = find_peaks(-smoothed_c, distance=distance + 1)
                     if not np.isnan(step_reg_is):
                         locs = locs[locs >= step_reg_is / 2]
                     peaks = -smoothed_c[locs]
@@ -235,7 +235,7 @@ class SDMO(BaseSDMOCalculator):
                     step_reg = peaks[0]
 
                     # stride regularity: positive peaks
-                    locs, _ = find_peaks(smoothed_c, distance=distance+1)
+                    locs, _ = find_peaks(smoothed_c, distance=distance + 1)
                     if not np.isnan(step_reg_is):
                         locs = locs[locs >= 1.5 * step_reg_is]
                     peaks = smoothed_c[locs]
@@ -246,7 +246,7 @@ class SDMO(BaseSDMOCalculator):
 
                 else:
                     # VT & AP axes
-                    locs, _ = find_peaks(smoothed_c, distance=distance+1)
+                    locs, _ = find_peaks(smoothed_c, distance=distance + 1)
                     peaks = smoothed_c[locs]
                     locs = locs[peaks >= 0]
                     peaks = peaks[peaks >= 0]
@@ -376,7 +376,7 @@ class SDMO(BaseSDMOCalculator):
                 out[f"Range_{c}"] = data[c].max() - data[c].min()
         return pd.Series(out)
 
-    def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series:
+    def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series: #noqa: C901, PLR0912, PLR0915
         """Calculate the Harmonic Ratio (HR) for gait smoothness based on accelerometer data.
 
         HR is a measure of gait smoothness, based on the following article:
@@ -395,14 +395,12 @@ class SDMO(BaseSDMOCalculator):
         performed for all the strides and then the harmonics are averaged across the strides. The ratio is
         calculated as the ratio of the even to odd harmonics.
         """
-        if self.stride_list is None:
-            return pd.Series()
         # need the ic list
         ic_list = (self.stride_list["start"] - self.stride_list["start"].iloc[0]).to_numpy()
         acc_columns = ["acc_is", "acc_pa"]
         hr_results = {}
-        if len(ic_list) < 5:
-            return pd.Series({f"HarmonicRatio_{k}": np.nan for k in acc_columns})
+        if self.stride_list is None or len(ic_list) < 3:
+            return pd.Series()
 
         stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
 
@@ -415,19 +413,20 @@ class SDMO(BaseSDMOCalculator):
             out_phase = np.arange(1, 20, 2) if is_ml else np.arange(0, 19, 2)
 
             for stride_idx, (start, end) in enumerate(stride_pairs):
+                current_end = end
                 # flexing IC end point to eliminate high freq noise due to first and last sample amplitude mismatch
                 start_points_in_data = np.where((acc[:-1] < acc[start]) & (acc[1:] >= acc[start]))[0]
 
                 if start_points_in_data.size:
-                    new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - end))]
-                    stride_len = end - start
-                    if end != new_end and (end - new_end) <= 0.1 * stride_len:
-                        end = new_end
-                if start >= end:
+                    new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - current_end))]
+                    stride_len = end - start + 1
+                    if (current_end - new_end) <= 0.1 * stride_len:
+                        current_end = new_end
+                if start >= current_end:
                     # skip the stride
                     continue
 
-                stride_data = acc[start : end + 1] - np.mean(acc[start : end + 1])
+                stride_data = acc[start : current_end + 1] - np.mean(acc[start : current_end + 1])
                 # FFT
                 n = len(stride_data)
                 nfft = 2 ** (int(np.ceil(np.log2(n))) + 4)
@@ -542,6 +541,7 @@ def _phi(signal: np.ndarray, m: int, tol: float) -> np.ndarray:
 
 def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     """Replicate MATLAB's `smooth(y, span, 'moving')` function as closely as possible.
+
     1. It forces the span to be odd (e.g., span=20 becomes 19).
     2. It uses a non-standard "growing" window at the edges.
     """
