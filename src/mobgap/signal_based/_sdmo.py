@@ -157,7 +157,7 @@ class SDMO(BaseSDMOCalculator):
             rms[f"RMSRatio_{key.replace('RMS_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
         return rms
 
-    def _calculate_reg_sym(self, data: pd.DataFrame) -> pd.Series: # noqa: PLR0915
+    def _calculate_reg_sym(self, data: pd.DataFrame) -> pd.Series:  # noqa: PLR0915
         """Compute step/stride regularity and symmetry metrics from accelerations.
 
         Step/stride regularity and Assymetry_MN were developed according to:
@@ -261,7 +261,7 @@ class SDMO(BaseSDMOCalculator):
                 sym_k = abs(step_reg - stride_reg) / np.mean([step_reg, stride_reg])
                 asym_g = (stride_reg - step_reg) / 2
 
-            except Exception: # noqa: BLE001
+            except Exception:  # noqa: BLE001
                 if axis == "acc_is":
                     step_reg_is = np.nan
 
