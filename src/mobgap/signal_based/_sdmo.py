@@ -101,7 +101,7 @@ class SDMO(BaseSDMOCalculator):
         maxs = []
         # smoothness == jerk of yaw
         jerk_gyr = []
-        for start, end, dur in turn_list[["start", "end", "duration_s"]].values:
+        for start, end, dur in turn_list[["start", "end", "duration_s"]].to_numpy():
             seg = gyr[start:end]
             means.append(seg.mean())
             maxs.append(seg.max())
@@ -296,7 +296,7 @@ class SDMO(BaseSDMOCalculator):
         win_size = int(self.sampling_rate_hz * 2) if n >= 2 * self.sampling_rate_hz else n
 
         # welch PSD (should be close to the matlab's pwelch with the following params)
-        def matlab_welch(x):
+        def matlab_welch(x: np.ndarray) -> np.ndarray:
             return welch(
                 x, fs=self.sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False
             )
@@ -376,7 +376,7 @@ class SDMO(BaseSDMOCalculator):
                 out[f"Range_{c}"] = data[c].max() - data[c].min()
         return pd.Series(out)
 
-    def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series: #noqa: C901, PLR0912, PLR0915
+    def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series:  # noqa: C901, PLR0912, PLR0915
         """Calculate the Harmonic Ratio (HR) for gait smoothness based on accelerometer data.
 
         HR is a measure of gait smoothness, based on the following article:
