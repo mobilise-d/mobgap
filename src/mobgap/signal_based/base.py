@@ -28,9 +28,19 @@ base_sdmo_docfiller = make_filldoc(
         "calculate_para": """
     data
         The raw IMU data of a single sensor.
-        We usually assume that this is one final walking bout after running the main blocks.
+        We usually assume that this is one final walking bout after running the main blocks within the Mobilise-D
+        pipelines.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz.
+    stride_list
+        Final stride list associated with the walking bout data. This data is expected to have `start`, `end`,
+        `stride_length_m`, `cadence_spm`, `stride_duration_s`. Depending on their availability some parameters will be
+        computed or not. The `start` and `end` indices have to be provided with respect to the walking bout start index.
+        This is important in case this data is passed within a gait sequence iterator where `data` is cropped to the
+        walking bout but the start and end times might be in relation to the whole data.
+    turn_list
+        Turn list within the walking bout. It has `start`, `end`, `duration_s` fields. Similarly, the `start` and `end`
+        indices have to be with respect to the `data`.
     """,
         "calculate_return": """
     Returns
