@@ -204,7 +204,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     @timed_action_method
     @mobilised_pipeline_docfiller
-    def run(self, datapoint: BaseGaitDatasetT) -> Self:  # noqa: C901
+    def run(self, datapoint: BaseGaitDatasetT) -> Self:  # noqa: C901, PLR0912, PLR0915
         """%(run_short)s.
 
         Parameters
