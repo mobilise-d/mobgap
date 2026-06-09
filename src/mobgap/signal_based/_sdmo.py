@@ -86,7 +86,7 @@ class SDMO(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([row])
         return self
 
-    def _calculate_turning_percentage(self, data: pd.DataFrame) -> pd.Series:
+    def _calculate_turn_parameters(self, data: pd.DataFrame) -> pd.Series:
         if self.turn_list is None:
             return pd.Series()
         turn_list = self.turn_list.copy()
@@ -96,18 +96,16 @@ class SDMO(BaseSDMOCalculator):
                 dtype=float,
             )
 
-        # reindex start and end wrt the wb data
-        reidx = turn_list["start"].iloc[0]
         gyr = data["gyr_is"].to_numpy()
         means = []
         maxs = []
         # smoothness == jerk of yaw
         jerk_gyr = []
-        for row in turn_list.itertuples(index=False):
-            seg = gyr[row.start - reidx : row.end - reidx]
+        for start, end, dur in turn_list[["start", "end", "duration_s"]].values:
+            seg = gyr[start : end]
             means.append(seg.mean())
             maxs.append(seg.max())
-            jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / row.duration_s))
+            jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / dur))
 
         turn_params = {
             "Turn_Mean_Ang_Vel": np.mean(means),
@@ -136,7 +134,7 @@ class SDMO(BaseSDMOCalculator):
                 stacklevel=1,
             )
             return pd.Series()
-        return self.stride_list[available_cols].apply(lambda x: x.std() / x.mean()).add_prefix("CV_")
+        return self.stride_list[available_cols].apply(lambda x: 100 * x.std() / x.mean()).add_prefix("CV_")
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
         """Compute acceleration, gyroscope, total acceleration signal root-mean-square (RMS), and ratio metrics.
