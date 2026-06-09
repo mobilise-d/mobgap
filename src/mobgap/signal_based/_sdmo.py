@@ -227,7 +227,7 @@ class SDMO(BaseSDMOCalculator):
                 # detect peaks
                 if axis == "acc_ml":
                     # step regularity: negative peaks
-                    locs, _ = find_peaks(-smoothed_c, distance=distance)
+                    locs, _ = find_peaks(-smoothed_c, distance=distance+1)
                     if not np.isnan(step_reg_is):
                         locs = locs[locs >= step_reg_is / 2]
                     peaks = -smoothed_c[locs]
@@ -237,7 +237,7 @@ class SDMO(BaseSDMOCalculator):
                     step_reg = peaks[0]
 
                     # stride regularity: positive peaks
-                    locs, _ = find_peaks(smoothed_c, distance=distance)
+                    locs, _ = find_peaks(smoothed_c, distance=distance+1)
                     if not np.isnan(step_reg_is):
                         locs = locs[locs >= 1.5 * step_reg_is]
                     peaks = smoothed_c[locs]
@@ -248,7 +248,7 @@ class SDMO(BaseSDMOCalculator):
 
                 else:
                     # VT & AP axes
-                    locs, _ = find_peaks(smoothed_c, distance=distance)
+                    locs, _ = find_peaks(smoothed_c, distance=distance+1)
                     peaks = smoothed_c[locs]
                     locs = locs[peaks >= 0]
                     peaks = peaks[peaks >= 0]
@@ -586,7 +586,7 @@ def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray) -> tuple
     corrected_pks = []
     for loc in locs:
         start = max(loc - locale_win, 0)
-        end = min(loc + locale_win // 2, len(data))
+        end = min(loc + locale_win // 2 + 1, len(data))
         window = data[start:end]
         max_idx = np.argmax(window)
         corrected_locs.append(start + max_idx)
@@ -619,7 +619,7 @@ def _extract_amp_freq_slope(
     """Extract amplitude, frequency, width and slope."""
     psd_sub = psd[freq_range]
     freq_sub = freq[freq_range]
-    peaks, _ = find_peaks(psd_sub, distance=5)
+    peaks, _ = find_peaks(psd_sub, distance=6)
     if len(peaks) == 0:
         return np.nan, np.nan, np.nan, np.nan
 
