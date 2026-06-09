@@ -138,7 +138,7 @@ class SDMOAggregator(BaseAggregator):
         self.unique_wb_id_column = unique_wb_id_column
 
     @base_aggregator_docfiller
-    def aggregate(  # noqa: C901
+    def aggregate(  # noqa: C901, PLR0912
         self,
         wb_sdmos: pd.DataFrame,
         *,

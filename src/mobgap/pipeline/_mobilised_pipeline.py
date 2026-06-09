@@ -338,9 +338,11 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             )
             for (wb_region, wb_data), r in wb_iterator.iterate(imu_data, self.per_wb_parameters_):
                 stride_list = self.per_stride_parameters_.loc[wb_region.id]
-                if not stride_list.empty: stride_list.loc[:, ["start", "end"]] -= wb_region.start
+                if not stride_list.empty:
+                    stride_list.loc[:, ["start", "end"]] -= wb_region.start
                 turn_list = self.raw_turn_list_.query("start >= @wb_region.start and end <= @wb_region.end").copy()
-                if not turn_list.empty: turn_list.loc[:, ["start", "end"]] -= wb_region.start
+                if not turn_list.empty:
+                    turn_list.loc[:, ["start", "end"]] -= wb_region.start
                 self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(
                     wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz
                 )
