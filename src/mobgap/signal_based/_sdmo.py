@@ -92,7 +92,7 @@ class SDMO(BaseSDMOCalculator):
         turn_list = self.turn_list.copy()
         if self.turn_list.empty:
             return pd.Series(
-                index=["Turn_Dur_Percentage_From_WBDur", "Turn_Mean_Ang_Vel", "Turn_Peak_Ang_Vel", "Turn_Smoothness"],
+                index=["turn_dur_percentage_from_wb_dur", "turn_mean_ang_vel", "turn_peak_ang_vel", "turn_smoothness"],
                 dtype=float,
             )
 
@@ -102,15 +102,15 @@ class SDMO(BaseSDMOCalculator):
         # smoothness == jerk of yaw
         jerk_gyr = []
         for start, end, dur in turn_list[["start", "end", "duration_s"]].to_numpy():
-            seg = gyr[start:end]
+            seg = gyr[int(start):int(end)]
             means.append(seg.mean())
             maxs.append(seg.max())
             jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / dur))
 
         turn_params = {
-            "Turn_Mean_Ang_Vel": np.mean(means),
-            "Turn_Peak_Ang_Vel": np.mean(maxs),
-            "Turn_Smoothness": np.mean(jerk_gyr),
+            "turn_mean_ang_vel": np.mean(means),
+            "turn_peak_ang_vel": np.mean(maxs),
+            "turn_smoothness": np.mean(jerk_gyr),
         }
 
         if self.stride_list is None:
@@ -118,7 +118,7 @@ class SDMO(BaseSDMOCalculator):
 
         wb_dur = (self.stride_list["end"].max() - self.stride_list["start"].min()) / self.sampling_rate_hz
         turn_dur = turn_list["duration_s"].sum()
-        turn_params.update({"Turn_Dur_Percentage_From_WBDur": 100 * (turn_dur / wb_dur)})
+        turn_params.update({"turn_dur_percentage_from_wb_dur": 100 * (turn_dur / wb_dur)})
         return pd.Series(turn_params)
 
     def _calculate_stride_level_params(self, data: pd.DataFrame) -> pd.Series:  # noqa: ARG002
@@ -134,7 +134,7 @@ class SDMO(BaseSDMOCalculator):
                 stacklevel=1,
             )
             return pd.Series()
-        return self.stride_list[available_cols].apply(lambda x: 100 * x.std() / x.mean()).add_prefix("CV_")
+        return self.stride_list[available_cols].apply(lambda x: 100 * x.std() / x.mean()).add_prefix("cv_")
 
     def _calculate_rms(self, data: pd.DataFrame) -> pd.Series:
         """Compute acceleration, gyroscope, total acceleration signal root-mean-square (RMS), and ratio metrics.
@@ -148,13 +148,13 @@ class SDMO(BaseSDMOCalculator):
         # first remove DC of acc signals
         data = data.copy()
         data.loc[:, data.columns.str.contains("acc")] = detrend(data.filter(like="acc").to_numpy(), axis=0)
-        rms = (data.pow(2).mean() ** 0.5).add_prefix("RMS_")
+        rms = (data.pow(2).mean() ** 0.5).add_prefix("rms_")
         # total RMS
         rms_total_acc = ((rms[rms.index.str.contains("acc")]).pow(2).sum()) ** 0.5
-        rms["RMSTotal_acc"] = rms_total_acc
+        rms["rms_total_acc"] = rms_total_acc
         # ratio rms
-        for key in rms.filter(like="RMS_acc").index:
-            rms[f"RMSRatio_{key.replace('RMS_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
+        for key in rms.filter(like="rms_acc").index:
+            rms[f"rms_ratio_{key.replace('rms_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
         return rms
 
     def _calculate_reg_sym(self, data: pd.DataFrame) -> pd.Series:  # noqa: PLR0915
@@ -266,12 +266,12 @@ class SDMO(BaseSDMOCalculator):
                     step_reg_is = np.nan
 
             ax_direction = axis.split("_")[1]
-            reg_sym[f"StepRegularity_{ax_direction}"] = step_reg
-            reg_sym[f"StrideRegularity_{ax_direction}"] = stride_reg
+            reg_sym[f"step_regularity_{ax_direction}"] = step_reg
+            reg_sym[f"stride_regularity_{ax_direction}"] = stride_reg
             if ax_direction == "is":
-                reg_sym[f"Asymmetry_MN_{ax_direction}"] = asym_mn
-                reg_sym[f"Symmetry_K_{ax_direction}"] = sym_k
-                reg_sym[f"Asymmetry_G_{ax_direction}"] = asym_g
+                reg_sym[f"asymmetry_mn_{ax_direction}"] = asym_mn
+                reg_sym[f"symmetry_k_{ax_direction}"] = sym_k
+                reg_sym[f"asymmetry_g_{ax_direction}"] = asym_g
 
         return pd.Series(reg_sym)
 
@@ -316,20 +316,20 @@ class SDMO(BaseSDMOCalculator):
 
         return pd.Series(
             {
-                "Amplitude_is": amp_is,
-                "Amplitude_ml": amp_ml,
-                "Amplitude_pa": amp_ap,
-                "Freq_is": freq_is,
-                "Freq_ml": freq_ml,
-                "Freq_pa": freq_ap,
+                "amplitude_is": amp_is,
+                "amplitude_ml": amp_ml,
+                "amplitude_pa": amp_ap,
+                "freq_is": freq_is,
+                "freq_ml": freq_ml,
+                "freq_pa": freq_ap,
                 # the width and slope was commented out in the original implementation, but the sustain project
                 # report lists width in the variability domain signal-based parameters, so return width default
-                "Width_is": width_is,
-                "Width_ml": width_ml,
-                "Width_pa": width_ap,
-                # "Slope_is": slope_is,
-                # "Slope_ml": slope_ml,
-                # "Slope_pa": slope_ap
+                "width_is": width_is,
+                "width_ml": width_ml,
+                "width_pa": width_ap,
+                # "slope_is": slope_is,
+                # "slope_ml": slope_ml,
+                # "slope_pa": slope_ap
             }
         )
 
@@ -355,7 +355,7 @@ class SDMO(BaseSDMOCalculator):
         integral_duration = dt * len(acc_dot)
         jerk_acc = np.sqrt(np.trapezoid(acc_dot**2, axis=0) / integral_duration)
         out = {
-            **{f"Jerk_{col}": jerk_acc[i] for i, col in enumerate(acc_columns)},
+            **{f"jerk_{col}": jerk_acc[i] for i, col in enumerate(acc_columns)},
             # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
             # "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
             # "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
@@ -364,16 +364,16 @@ class SDMO(BaseSDMOCalculator):
         if set(gyr_columns).issubset(data.columns):
             gyr = data[gyr_columns].to_numpy().T
             jerk_gyr = np.sqrt(np.trapezoid(gyr**2, axis=1) / integral_duration)
-            out.update(**{f"Jerk_{col}": jerk_gyr[i] for i, col in enumerate(gyr_columns)})
+            out.update(**{f"jerk_{col}": jerk_gyr[i] for i, col in enumerate(gyr_columns)})
 
         return pd.Series(out)
 
     def _calculate_sd_range(self, data: pd.DataFrame) -> pd.Series:
         out = {}
         for c in data.columns:
-            out[f"SD_{c}"] = data[c].std()
+            out[f"sd_{c}"] = data[c].std()
             if "acc" in c:  # range only for the acc columns
-                out[f"Range_{c}"] = data[c].max() - data[c].min()
+                out[f"range_{c}"] = data[c].max() - data[c].min()
         return pd.Series(out)
 
     def _calculate_harmonic_ratio(self, data: pd.DataFrame) -> pd.Series:  # noqa: C901, PLR0912, PLR0915
@@ -467,14 +467,14 @@ class SDMO(BaseSDMOCalculator):
                         if np.any(mask):
                             stride_harmonics[stride_idx, h] = fft_vals[min_idx[mask]].min()
             if np.isnan(stride_harmonics).all():
-                hr_results[f"HarmonicRatio_{col_name}"] = np.nan
+                hr_results[f"harmonic_ratio_{col_name}"] = np.nan
                 continue
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
                 avg = np.nanmean(stride_harmonics, axis=0)
                 even_sum = np.nansum(avg[1::2])
                 odd_sum = np.nansum(avg[0::2])
-            hr_results[f"HarmonicRatio_{col_name}"] = even_sum / odd_sum if odd_sum else np.nan
+            hr_results[f"harmonic_ratio_{col_name}"] = even_sum / odd_sum if odd_sum else np.nan
 
         return pd.Series(hr_results)
 
@@ -504,14 +504,14 @@ class SDMO(BaseSDMOCalculator):
 
         # N=200 threshold is from [1]
         if num_samples <= 200:
-            return pd.Series({f"SampleEntropy_{col_name}": np.nan for col_name in acc_columns})
+            return pd.Series({f"sample_entropy_{col_name}": np.nan for col_name in acc_columns})
 
         se_results = {}
         for acc, col_name in zip(accs.T, acc_columns):
             tol = r * np.std(acc)
             phi_m = np.mean(_phi(acc, dim, tol) / (num_samples - dim))
             phi_m1 = np.mean(_phi(acc, dim + 1, tol) / (num_samples - dim - 1))
-            se_results[f"SampleEntropy_{col_name}"] = -np.log(phi_m1 / phi_m)
+            se_results[f"sample_entropy_{col_name}"] = -np.log(phi_m1 / phi_m)
         return pd.Series(se_results)
 
 
