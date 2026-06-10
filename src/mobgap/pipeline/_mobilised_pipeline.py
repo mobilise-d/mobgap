@@ -57,6 +57,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
+    %(signal_based_calculation)s
     %(aggregation_parameters)s
     %(additional_parameters)s
 
