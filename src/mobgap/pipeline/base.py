@@ -130,7 +130,7 @@ mobilised_pipeline_docfiller = make_filldoc(
         A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
         It indicates for each WB which DMOs are valid.
         NaN indicates that the value has not been checked
-    per_wb_signal_based_parameters_: pd.DataFrame
+    per_wb_signal_based_parameters_
         Signal-based parameters for each WB.
         This contains the duration of the walking bout and all signal-based parameters that can be calculated depending
         on the availability of the data.
