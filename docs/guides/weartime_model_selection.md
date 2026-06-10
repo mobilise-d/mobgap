@@ -57,9 +57,10 @@ Signal processing approach using gyroscope spectral centroids and accelerometer 
 
 > ## Model Reproducibility
 
-The CNN and CNN-LSTM production models are provided pre-trained in MobGap. To ensure long-term reproducibility as TensorFlow and dependencies evolve, complete training scripts and data preparation code are available in a separate repository:
+The CNN and CNN-LSTM production models are provided pre-trained in MobGap. 
+To ensure long-term reproducibility as TensorFlow and dependencies evolve, complete training scripts, evaluation scripts, and data preparation code are available in:
 
-**🔗 [Wear-Time Model Training Repository](https://github.com/DMegaritis/imu-weartime/weartime-training)**
+**scripts/weartime_ml_training_evaluation/**
 
 The repository includes:
 - Training scripts for CNN and CNN-LSTM variants
