@@ -157,7 +157,7 @@ def create_cnn_model(input_shape, params):
 
 print("Creating model...")
 model = create_cnn_model(X_all.shape[1:], HYPERPARAMETERS)
-print("✓ Model created")
+print("Model created")
 print("\nModel summary:")
 model.summary()
 print()
@@ -176,7 +176,7 @@ history = model.fit(
 )
 
 training_time = time.time() - training_start
-print(f"\n✓ Training complete ({timedelta(seconds=int(training_time))})")
+print(f"\nTraining complete ({timedelta(seconds=int(training_time))})")
 
 # SAVE MODEL AND METADATA
 
