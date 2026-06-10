@@ -1,4 +1,5 @@
 """Base class for signal-based digital mobility outcome calculations."""
+
 from collections.abc import Callable
 from typing import Any, Optional
 

@@ -5,7 +5,6 @@ from typing import Final
 
 import numpy as np
 import pandas as pd
-from pandas import option_context
 from tpcp import cf
 from tpcp.misc import set_defaults
 from typing_extensions import Self, Unpack
@@ -18,6 +17,7 @@ def _custom_quantile_90(x: pd.Series) -> float:
     if x.isna().all():
         return np.nan
     return np.nanpercentile(x, 90)
+
 
 def _custom_quantile_10(x: pd.Series) -> float:
     """Calculate the 90th percentile of the passed data."""

@@ -102,7 +102,7 @@ class SDMO(BaseSDMOCalculator):
         # smoothness == jerk of yaw
         jerk_gyr = []
         for start, end, dur in turn_list[["start", "end", "duration_s"]].to_numpy():
-            seg = gyr[int(start):int(end)]
+            seg = gyr[int(start) : int(end)]
             means.append(seg.mean())
             maxs.append(seg.max())
             jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / dur))
