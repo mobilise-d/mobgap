@@ -54,7 +54,6 @@ class SDMO(BaseSDMOCalculator):
         replicate_matlab: bool = True,
     ) -> None:
         self.replicate_matlab = replicate_matlab
-        self.smooth_moving_func = _matlab_smooth_moving_ave if self.replicate_matlab else _pd_smooth_moving_ave
 
     @base_sdmo_docfiller
     def calculate(
@@ -77,6 +76,7 @@ class SDMO(BaseSDMOCalculator):
         self.sampling_rate_hz = sampling_rate_hz
         self.stride_list = stride_list
         self.turn_list = turn_list
+        self.smooth_moving_func = _matlab_smooth_moving_ave if self.replicate_matlab else _pd_smooth_moving_ave
         # expected the input data in body frame
         assert_is_sensor_data(self.data, frame="body")
         row = {}
