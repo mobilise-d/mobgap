@@ -13,18 +13,22 @@ base_sdmo_docfiller = make_filldoc(
     {
         "signal_based_parameters": """
     signal_based_parameters
-        The main output of the signal-based digital mobility outcomes (SDMO) block.
-        It provides a DataFrame with the columns containing the implemented SDMOs
-        per provided data (ideally the walking bout, but can work with any data). Units are defined for each outcome.
+        The main output of the signal-based digital mobility outcomes (SDMO) block as a DataFrame with a single row
+        and multiple columns containing the implemented signal-based parameters.
+        This is a single value per metric per data. 
     """,
         "other_parameters": """
     data
         The raw IMU data of ideally the walking bout passed to the ``calculate`` method.
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
+    stride_list
+        The stride list associated with the ``data`` passed to the ``calculate`` method.
+    turn_list
+        The turn list associated with the ``data`` passed to the ``calculate`` method.
     """,
         "calculate_short": """
-    Calculate SDMOs for the passed data.
+    Calculate signal-based parameters for the passed data.
     """,
         "calculate_para": """
     data
@@ -47,7 +51,7 @@ base_sdmo_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``signal_based_parameters`` attribute set to the estimated SDMOs.
+        The instance of the class with the ``signal_based_parameters`` attribute set to the estimated parameters.
     """,
     }
 )

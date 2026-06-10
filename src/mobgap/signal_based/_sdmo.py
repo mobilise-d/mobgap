@@ -35,13 +35,20 @@ class SDMO(BaseSDMOCalculator):
     `def _calculate_my_method(self, data: pd.DataFrame) -> pd.Series:`
     The method will be automatically discovered and called by `calculate()`.
 
+    Parameters
+    ----------
+    replicate_matlab
+        If True, we replicate the Matlab's `smooth(y, span, 'moving')` function for moving average filter. Otherwise,
+        Pandas is used to smooth the signal. The key difference comes from how each method handles the very first
+        data point. The matlab function doesn't smooth the ends as much as the python version does.
+
     Other Parameters
     ----------------
     (other_parameters)s
 
     Attributes
     ----------
-    (signal_based)s
+    (signal_based_parameters)s
 
     """
 
