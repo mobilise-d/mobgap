@@ -1,5 +1,5 @@
 """Base class for signal-based digital mobility outcome calculations."""
-
+from collections.abc import Callable
 from typing import Any, Optional
 
 import pandas as pd
@@ -88,6 +88,7 @@ class BaseSDMOCalculator(Algorithm):
     sampling_rate_hz: float
     stride_list: pd.DataFrame
     turn_list: pd.DataFrame
+    smooth_moving_func: Callable
 
     # results
     signal_based_parameters: pd.DataFrame
