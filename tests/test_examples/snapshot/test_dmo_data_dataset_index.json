@@ -7,17 +7,17 @@
             },
             {
                 "name":"visit_type",
-                "type":"any",
+                "type":"string",
                 "extDtype":"string"
             },
             {
                 "name":"participant_id",
-                "type":"any",
+                "type":"string",
                 "extDtype":"string"
             },
             {
                 "name":"measurement_date",
-                "type":"any",
+                "type":"string",
                 "extDtype":"string"
             }
         ],
