@@ -210,6 +210,7 @@ sphinx_gallery_conf = {
             "../examples/turning",
             "../examples/wba",
             "../examples/aggregation",
+            "../examples/weartime",
             "../examples/data_transform",
             "../examples/dev_guides",
             "../revalidation/full_pipeline",

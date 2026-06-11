@@ -25,6 +25,18 @@ mobilised_pipeline_docfiller = make_filldoc(
     self
         The pipeline object itself with all the results stored in the attributes.
     """,
+        "weartime_detection": """
+    weartime_detection
+        A valid instance of a wear-time detection algorithm, or None (default) to disable wear-time calculation.
+        This runs on the entire raw IMU data before gait sequence detection.
+        The output is a recording-level metric representing the total time the device was worn.
+        The total wear-time in hours is available via the ``weartime_hours_during_waking_`` attribute and is also
+        included in ``aggregated_parameters_`` as the ``weartime_hours_during_waking_`` column.
+
+        .. note:: Unlike other parameters which summarise walking bouts, ``weartime_hours_during_waking_`` represents
+                  the total duration the sensor was worn during the entire recording (waking hours), independent of
+                  walking activity.
+    """,
         "core_parameters": """
     gait_sequence_detection
         A valid instance of a gait sequence detection algorithm.
@@ -124,6 +136,9 @@ mobilised_pipeline_docfiller = make_filldoc(
         Invalid parameters are (depending on the implementation in the provided Aggregation algorithm) excluded.
         This output can either be a dataframe with a single row (all WBs were aggregated to a single value, default),
         or a dataframe with multiple rows, if the aggregation algorithm uses a different aggregation approach.
+    weartime_hours_during_waking_
+        Total recording wear-time in hours. None if wear-time detection was disabled.
+        This represents recording-level sensor wear, unlike other parameters which summarize walking bouts.
     """,
         "intermediate_results": """
     gs_list_
@@ -143,6 +158,9 @@ mobilised_pipeline_docfiller = make_filldoc(
         end, laterality).
     """,
         "debug_results": """
+    weartime_detection_
+        The instance of the wear-time detection algorithm that was run with all of its results.
+        None if wear-time detection was disabled.
     gait_sequence_detection_
         The instance of the gait sequence detection algorithm that was run with all of its results.
     gs_iterator_
@@ -160,6 +178,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         "step_by_step": """
     The Mobilise-D pipeline consists of the following steps:
 
+    0. (Optional) Wear-time is detected using the provided wear-time detection algorithm on the entire raw IMU data.
+        This determines the total duration the device was worn during the recording.
     1. Gait sequences are detected using the provided gait sequence detection algorithm.
     2. Within each gait sequence, initial contacts are detected using the provided IC detection algorithm.
        A "refined" version of the gait sequence is created, starting and ending at the first and last detected IC.

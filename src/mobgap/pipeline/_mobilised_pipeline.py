@@ -21,6 +21,7 @@ from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
+from mobgap.re_orientation import ReorientationMethodDM  # noqa: F401
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -31,6 +32,8 @@ from mobgap.utils.interpolation import naive_sec_paras_to_regions
 from mobgap.walking_speed import WsNaive
 from mobgap.walking_speed.base import BaseWsCalculator
 from mobgap.wba import StrideSelection, WbAssembly
+from mobgap.weartime import WtdMegaritisCNN, WtdMegaritisSignal, WtdMegaritisXGBoost  # noqa: F401
+from mobgap.weartime.base import BaseWeartimeDetector
 
 
 @mobilised_pipeline_docfiller
@@ -51,6 +54,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     Parameters
     ----------
+    %(weartime_detection)s
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
@@ -79,6 +83,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     """
 
+    weartime_detection: Optional[BaseWeartimeDetector]
     gait_sequence_detection: BaseGsDetector
     initial_contact_detection: BaseIcDetector
     laterality_classification: BaseLRClassifier
@@ -94,6 +99,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     datapoint: BaseGaitDatasetT
 
     # Algos with results
+    weartime_detection_: Optional[BaseWeartimeDetector]
     gait_sequence_detection_: BaseGsDetector
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
     stride_selection_: StrideSelection
@@ -112,6 +118,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     class PredefinedParameters:
         regular_walking: Final = MappingProxyType(
             {
+                "weartime_detection": None,
                 "gait_sequence_detection": GsdIluz(),
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
@@ -131,6 +138,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         impaired_walking: Final = MappingProxyType(
             {
+                "weartime_detection": None,
                 "gait_sequence_detection": GsdIonescu(),
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
@@ -151,6 +159,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     def __init__(
         self,
         *,
+        weartime_detection: Optional[BaseWeartimeDetector],
         gait_sequence_detection: BaseGsDetector,
         initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
@@ -164,6 +173,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         dmo_aggregation: Optional[BaseAggregator],
         recommended_cohorts: Optional[tuple[str, ...]] = None,
     ) -> None:
+        self.weartime_detection = weartime_detection
         self.gait_sequence_detection = gait_sequence_detection
         self.initial_contact_detection = initial_contact_detection
         self.laterality_classification = laterality_classification
@@ -189,7 +199,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     @timed_action_method
     @mobilised_pipeline_docfiller
-    def run(self, datapoint: BaseGaitDatasetT) -> Self:
+    def run(self, datapoint: BaseGaitDatasetT) -> Self:  # noqa: PLR0915
         """%(run_short)s.
 
         Parameters
@@ -234,6 +244,14 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         imu_data = to_body_frame(datapoint.data_ss)
         sampling_rate_hz = datapoint.sampling_rate_hz
+
+        # Calling wear-time detection
+        if self.weartime_detection is not None:
+            self.weartime_detection_ = self.weartime_detection.clone().detect(imu_data, **self._all_action_kwargs)
+            self.weartime_hours_during_waking_ = self.weartime_detection_.total_weartime_hours_during_waking_
+        else:
+            self.weartime_detection_ = None
+            self.weartime_hours_during_waking_ = None
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
         self.gs_list_ = self.gait_sequence_detection_.gs_list_
@@ -325,6 +343,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
         )
         self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
+
+        # Adding the Wear-time to the aggregated params
+        if self.weartime_hours_during_waking_ is not None:
+            self.aggregated_parameters_["weartime_hours_during_waking"] = self.weartime_hours_during_waking_
 
         del self._all_action_kwargs
         return self
@@ -444,6 +466,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
 
     Parameters
     ----------
+    %(weartime_detection)s
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
@@ -483,6 +506,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     def __init__(
         self,
         *,
+        weartime_detection: Optional[BaseWeartimeDetector],
         gait_sequence_detection: BaseGsDetector,
         initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
@@ -497,6 +521,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
         recommended_cohorts: Optional[tuple[str, ...]],
     ) -> None:
         super().__init__(
+            weartime_detection=weartime_detection,
             gait_sequence_detection=gait_sequence_detection,
             initial_contact_detection=initial_contact_detection,
             laterality_classification=laterality_classification,
@@ -529,6 +554,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
 
     Parameters
     ----------
+    %(weartime_detection)s
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
@@ -568,6 +594,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
     def __init__(
         self,
         *,
+        weartime_detection: Optional[BaseWeartimeDetector],
         gait_sequence_detection: BaseGsDetector,
         initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
@@ -582,6 +609,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
         recommended_cohorts: Optional[tuple[str, ...]],
     ) -> None:
         super().__init__(
+            weartime_detection=weartime_detection,
             gait_sequence_detection=gait_sequence_detection,
             initial_contact_detection=initial_contact_detection,
             laterality_classification=laterality_classification,
@@ -682,6 +710,10 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
     @property
     def aggregated_parameters_(self) -> Optional[pd.DataFrame]:
         return self.pipeline_.aggregated_parameters_
+
+    @property
+    def weartime_hours_during_waking_(self) -> Optional[float]:
+        return self.pipeline_.weartime_hours_during_waking_
 
     @property
     def gs_list_(self) -> pd.DataFrame:
