@@ -1,5 +1,6 @@
-"""Algorithms to detect gait sequences within raw IMU data."""
+"""Algorithms to detect and correct IMU sensor orientation."""
 
 from mobgap.re_orientation._re_orientation import ReorientationMethodDM
+from mobgap.re_orientation.pipeline import ReorientationEmulationPipeline
 
-__all__ = ["ReorientationMethodDM"]
+__all__ = ["ReorientationEmulationPipeline", "ReorientationMethodDM"]

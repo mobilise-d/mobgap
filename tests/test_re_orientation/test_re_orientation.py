@@ -8,7 +8,13 @@ from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.pipeline import GsIterator
 from mobgap.re_orientation import ReorientationMethodDM
+from mobgap.re_orientation.evaluation import reorientation_score
+from mobgap.re_orientation.pipeline import (
+    REORIENTATION_LABELS,
+    ReorientationEmulationPipeline,
+)
 from mobgap.utils.conversions import to_body_frame
+from mobgap.utils.evaluation import Evaluation
 
 
 class TestMetaReorientationMethodDM(TestAlgorithmMixin):
@@ -262,3 +268,54 @@ class TestReorientationMethodDMRegression:
         )
 
         snapshot.assert_match(results_df, str(tuple(datapoint.group_label)))
+
+
+class TestReorientationEmulationPipeline:
+    def test_example_lab_data_creates_prediction_per_orientation_and_wb(self):
+        single_test = LabExampleDataset(
+            reference_system="INDIP", reference_para_level="wb"
+        ).get_subset(
+            cohort="HA",
+            participant_id="001",
+            test="Test11",
+            trial="Trial1",
+        )
+
+        result = ReorientationEmulationPipeline(
+            ReorientationMethodDM(method="full")
+        ).run(single_test)
+
+        assert result.predictions_.index.names == ["wb_id"]
+        assert result.predictions_.columns.to_list() == ["label", "prediction"]
+        assert len(result.predictions_) == len(
+            single_test.reference_parameters_.wb_list
+        ) * len(REORIENTATION_LABELS)
+
+        first_wb_id = result.predictions_.index.get_level_values("wb_id")[0]
+        first_wb_predictions = result.predictions_per_wb_[first_wb_id]
+        assert first_wb_predictions.columns.to_list() == ["label", "prediction"]
+        assert first_wb_predictions["label"].to_list() == list(REORIENTATION_LABELS)
+
+    def test_reorientation_score_returns_combined_accuracy_and_confusion_matrix(self):
+        single_test = LabExampleDataset(
+            reference_system="INDIP", reference_para_level="wb"
+        ).get_subset(
+            cohort="HA",
+            participant_id="001",
+            test="Test11",
+            trial="Trial1",
+        )
+
+        result = Evaluation(single_test, scoring=reorientation_score).run(
+            ReorientationEmulationPipeline(ReorientationMethodDM(method="full"))
+        )
+
+        agg_results = result.get_aggregated_results_as_df()
+        raw_results = result.get_raw_results()
+
+        assert "combined__accuracy" in agg_results.columns
+        assert 0 <= agg_results.loc[0, "combined__accuracy"] <= 1
+        assert set(raw_results) == {"predictions", "confusion_matrix"}
+        assert int(raw_results["confusion_matrix"].to_numpy().sum()) == len(
+            raw_results["predictions"]
+        )

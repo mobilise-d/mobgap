@@ -220,6 +220,7 @@ sphinx_gallery_conf = {
             "../revalidation/laterality",
             "../revalidation/cadence",
             "../revalidation/stride_length",
+            "../revalidation/re_orientation",
         ]
     ),
     "within_subsection_order": FileNameSortKey,
