@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_series_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.consts import BF_SENSOR_COLS, SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
-from mobgap.gait_sequences import GsdIluz
+from mobgap.gait_sequences import GsdIluz, GsdIluzAdaptiveGravity
 from mobgap.utils.conversions import to_body_frame
 
 
@@ -19,6 +19,18 @@ class TestMetaGsdIluz(TestAlgorithmMixin):
     def after_action_instance(self):
         return self.ALGORITHM_CLASS().detect(
             pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=40.0
+        )
+
+
+class TestMetaGsdIluzAdaptiveGravity(TestAlgorithmMixin):
+    __test__ = True
+
+    ALGORITHM_CLASS = GsdIluzAdaptiveGravity
+
+    @pytest.fixture
+    def after_action_instance(self):
+        return self.ALGORITHM_CLASS().detect(
+            pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS), sampling_rate_hz=40.0
         )
 
 
@@ -53,6 +65,47 @@ class TestGsdIluz:
         assert set(output.columns) == {"start", "end"}
 
 
+class TestGsdIluzAdaptiveGravity:
+    def test_invalid_pa_axis_parameter(self):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
+
+        with pytest.raises(ValueError):
+            GsdIluzAdaptiveGravity(expected_pa_axis="invalid").detect(data, sampling_rate_hz=40.0)
+
+    def test_no_gsds(self):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
+
+        output = GsdIluzAdaptiveGravity().detect(data, sampling_rate_hz=40.0).gs_list_
+
+        assert_frame_equal(output, pd.DataFrame(columns=["start", "end", "gs_id"]).astype("int64").set_index("gs_id"))
+
+    def test_single_gsd_matches_body_frame_iluz(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+
+        expected = GsdIluz().detect(to_body_frame(data), sampling_rate_hz=100.0).gs_list_
+        output = GsdIluzAdaptiveGravity().detect(data, sampling_rate_hz=100.0).gs_list_
+
+        assert_frame_equal(output, expected)
+
+    def test_detects_with_gravity_on_different_sensor_axis(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+        rotated_data = _rotate_sensor_axes_around_z(data)
+
+        expected = GsdIluzAdaptiveGravity().detect(data, sampling_rate_hz=100.0).gs_list_
+        output = GsdIluzAdaptiveGravity().detect(rotated_data, sampling_rate_hz=100.0).gs_list_
+
+        assert_frame_equal(output, expected)
+
+    def test_expected_pa_axis_uses_raw_sensor_axis(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+        rotated_data = _rotate_sensor_axes_around_x(data)
+
+        output = GsdIluzAdaptiveGravity(expected_pa_axis="y").detect(rotated_data, sampling_rate_hz=100.0)
+
+        assert len(output.gs_list_) == 1
+        assert_series_equal(output.iluz_data_["acc_pa"], rotated_data["acc_y"], check_names=False)
+
+
 class TestGsdIluzRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     @pytest.mark.parametrize("use_original", [True, False])
@@ -63,3 +116,23 @@ class TestGsdIluzRegression:
 
         gs_list = GsdIluz(**parameters).detect(to_body_frame(data), sampling_rate_hz=sampling_rate_hz).gs_list_
         snapshot.assert_match(gs_list, str(tuple(datapoint.group_label)))
+
+
+def _rotate_sensor_axes_around_z(data: pd.DataFrame) -> pd.DataFrame:
+    rotated_data = data.copy()
+    for sensor in ("acc", "gyr"):
+        old_x = rotated_data[f"{sensor}_x"].copy()
+        old_y = rotated_data[f"{sensor}_y"].copy()
+        rotated_data[f"{sensor}_x"] = -old_y
+        rotated_data[f"{sensor}_y"] = old_x
+    return rotated_data
+
+
+def _rotate_sensor_axes_around_x(data: pd.DataFrame) -> pd.DataFrame:
+    rotated_data = data.copy()
+    for sensor in ("acc", "gyr"):
+        old_y = rotated_data[f"{sensor}_y"].copy()
+        old_z = rotated_data[f"{sensor}_z"].copy()
+        rotated_data[f"{sensor}_y"] = old_z
+        rotated_data[f"{sensor}_z"] = -old_y
+    return rotated_data

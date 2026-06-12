@@ -1,25 +1,28 @@
 import warnings
 from types import MappingProxyType
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import numpy as np
 import pandas as pd
 from numba import float32, float64, guvectorize, int32
+from scipy.spatial.transform import Rotation
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.consts import GRAV_MS2
+from mobgap.consts import GRAV_MS2, SF_ACC_COLS
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
+from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.utils.array_handling import merge_intervals, sliding_window_view
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.dtypes import assert_is_sensor_data
 
-
 _ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
+_SENSOR_AXES = ("x", "y", "z")
+_GLOBAL_VERTICAL = np.array([0.0, 0.0, 1.0])
 
 
 @base_gsd_docfiller
@@ -235,7 +238,7 @@ class GsdIluz(BaseGsDetector):
 
     @timed_action_method
     @base_gsd_docfiller
-    def detect(  # noqa: PLR0915
+    def detect(
         self,
         data: pd.DataFrame,
         *,
@@ -420,6 +423,160 @@ class GsdIluz(BaseGsDetector):
         )
 
 
+@base_gsd_docfiller
+class GsdIluzAdaptiveGravity(GsdIluz):
+    """Sensor-frame variant of :class:`GsdIluz` with adaptive gravity tracking.
+
+    This variant uses Madgwick orientation tracking to estimate the vertical acceleration channel that the ILUZ core
+    expects as ``acc_is``. The PA channel is not rotated. It is selected directly from the raw sensor-frame
+    accelerometer column specified by ``expected_pa_axis``.
+
+    **Data Requirements:** Requires sensor-frame accelerometer and gyroscope data. The selected PA axis must already be
+    aligned with the anatomical PA axis, while gravity may point along any sensor-frame direction.
+
+    Parameters
+    ----------
+    expected_pa_axis
+        Sensor-frame axis expected to contain the PA acceleration signal. One of ``"x"``, ``"y"``, or ``"z"``.
+        Defaults to ``"z"``.
+    pre_filter
+        A pre-processing filter to apply to the prepared ILUZ data before the GSD algorithm is applied.
+    window_length_s
+        The length of the window in seconds that is used to detect gait sequences.
+    window_overlap
+        The overlap between two consecutive windows in percent.
+    std_activity_threshold
+        The lower threshold for the standard deviation of the filtered vertical acceleration to be considered as
+        activity.
+    mean_activity_threshold
+        A lower threshold applied to the mean of the mean-shifted raw gravity corrected vertical acceleration to be
+        considered as activity.
+    acc_v_standing_threshold
+        A lower threshold applied to the mean of the vertical acceleration in each window to detect standing/upright
+        positions.
+    step_detection_thresholds
+        The minimal peak height for the step detection. This expects a tuple with one value for the vertical axis and
+        one for the PA axis.
+    sin_template_freq_hz
+        The frequency of the sin template used for the convolution.
+    allowed_steps_per_s
+        A tuple with two values, specifying the lower and upper bound for the number of steps per second.
+    allowed_acc_v_change_per_window
+        The maximum change in the mean vertical acceleration between the first and last second of a selected window.
+    min_gsd_duration_s
+        The minimum duration of a gait sequence in seconds.
+    use_original_peak_detection
+        If True, the original peak detection algorithm is used.
+
+    Other Parameters
+    ----------------
+    %(other_parameters)s
+
+    Attributes
+    ----------
+    %(gs_list_)s
+    orientation_object_
+        The Madgwick orientation estimates used to project acceleration onto the vertical axis.
+    iluz_data_
+        The prepared two-column data passed into the shared ILUZ core. ``acc_is`` is the Madgwick-derived vertical
+        acceleration and ``acc_pa`` is the selected raw PA acceleration.
+    %(perf_)s
+    """
+
+    expected_pa_axis: Literal["x", "y", "z"]
+    orientation_object_: Rotation
+    iluz_data_: pd.DataFrame
+
+    @set_defaults(**{k: cf(v) for k, v in GsdIluz.PredefinedParameters.updated.items()})
+    def __init__(
+        self,
+        *,
+        expected_pa_axis: Literal["x", "y", "z"] = "z",
+        pre_filter: BaseFilter,
+        window_length_s: float,
+        window_overlap: float,
+        std_activity_threshold: float,
+        mean_activity_threshold: float,
+        acc_v_standing_threshold: float,
+        step_detection_thresholds: tuple[float, float],
+        sin_template_freq_hz: float,
+        allowed_steps_per_s: tuple[float, float],
+        allowed_acc_v_change_per_window: float,
+        min_gsd_duration_s: float,
+        use_original_peak_detection: bool,
+    ) -> None:
+        super().__init__(
+            pre_filter=pre_filter,
+            window_length_s=window_length_s,
+            window_overlap=window_overlap,
+            std_activity_threshold=std_activity_threshold,
+            mean_activity_threshold=mean_activity_threshold,
+            acc_v_standing_threshold=acc_v_standing_threshold,
+            step_detection_thresholds=step_detection_thresholds,
+            sin_template_freq_hz=sin_template_freq_hz,
+            allowed_steps_per_s=allowed_steps_per_s,
+            allowed_acc_v_change_per_window=allowed_acc_v_change_per_window,
+            min_gsd_duration_s=min_gsd_duration_s,
+            use_original_peak_detection=use_original_peak_detection,
+        )
+        self.expected_pa_axis = expected_pa_axis
+
+    @timed_action_method
+    def detect(
+        self,
+        data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
+        **_: Unpack[dict[str, Any]],
+    ) -> Self:
+        """Detect gait sequences in sensor-frame data.
+
+        Parameters
+        ----------
+        data
+            The raw IMU data in the sensor frame.
+        sampling_rate_hz
+            The sampling rate of the IMU data in Hz.
+
+        Returns
+        -------
+        self
+            The instance of the class with the ``gs_list_`` attribute set to the detected gait sequences.
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
+        assert_is_sensor_data(data, frame="sensor")
+
+        if self.expected_pa_axis not in _SENSOR_AXES:
+            raise ValueError(f'Invalid expected_pa_axis: {self.expected_pa_axis}. Allowed values are ["x", "y", "z"].')
+
+        if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
+            self.gs_list_ = _empty_gs_list()
+            return self
+
+        initial_orientation_window_samples = min(len(data), max(1, as_samples(1, sampling_rate_hz)))
+        initial_orientation = _initial_orientation_from_gravity(
+            data[SF_ACC_COLS].iloc[:initial_orientation_window_samples].to_numpy()
+        )
+        orientation_method = MadgwickAHRS(initial_orientation=initial_orientation)
+        orientation_method = orientation_method.estimate(data, sampling_rate_hz=sampling_rate_hz)
+        self.orientation_object_ = orientation_method.orientation_object_
+
+        vertical_acc = self.orientation_object_[:-1].apply(data[SF_ACC_COLS].to_numpy())[:, 2]
+        prepared_data = pd.DataFrame(
+            {
+                "acc_is": vertical_acc,
+                "acc_pa": data[f"acc_{self.expected_pa_axis}"].to_numpy(),
+            },
+            index=data.index,
+        )
+        self.iluz_data_ = prepared_data
+
+        self.gs_list_ = self._detect_from_prepared_data(prepared_data, sampling_rate_hz=sampling_rate_hz)
+        return self
+
+
 # Note: I HATE THIS! Implementing a peak detection algorithm by hand feels like a huge stupid antipattern.
 #       It makes everything harder to maintain, and is exactly the thing we wanted to avoid with the reimplementation...
 #       However, doing it this way results in an up to 2x speedup on long recordings, so I guess it is worth it.
@@ -592,3 +749,13 @@ def vec_find_n_peaks_original(signal: np.ndarray, threshold: float, distance: fl
 
 def _empty_gs_list() -> pd.DataFrame:
     return _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
+
+
+def _initial_orientation_from_gravity(acc_data: np.ndarray) -> Rotation:
+    gravity_direction = np.median(acc_data, axis=0)
+    gravity_norm = np.linalg.norm(gravity_direction)
+    if gravity_norm == 0 or not np.isfinite(gravity_norm):
+        return Rotation.identity()
+    gravity_direction = gravity_direction / gravity_norm
+    rotation, _ = Rotation.align_vectors(_GLOBAL_VERTICAL[None, :], gravity_direction[None, :])
+    return rotation
