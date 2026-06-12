@@ -82,22 +82,13 @@ class TestGsdIluzAdaptiveGravity:
 
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end", "gs_id"]).astype("int64").set_index("gs_id"))
 
-    def test_single_gsd_matches_body_frame_iluz(self):
+    def test_correctly_oriented_sensor_frame_matches_body_frame_iluz(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
 
         expected = GsdIluz().detect(to_body_frame(data), sampling_rate_hz=100.0).gs_list_
         output = GsdIluzAdaptiveGravity().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert_frame_equal(output, expected)
-
-    def test_correctly_oriented_sensor_frame_nearly_matches_body_frame_iluz(self):
-        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
-
-        expected = GsdIluz().detect(to_body_frame(data), sampling_rate_hz=100.0).gs_list_
-        output = GsdIluzAdaptiveGravity().detect(data, sampling_rate_hz=100.0).gs_list_
-
-        assert len(output) == len(expected)
-        np.testing.assert_allclose(output[["start", "end"]], expected[["start", "end"]], atol=1)
 
     def test_body_frame_input_matches_body_frame_iluz(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
