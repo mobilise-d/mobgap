@@ -10,7 +10,7 @@ Coordinate system: right-handed (IS up, ML right, PA forward).
 
 Two correction modes:
     full - applies all three stages to every walking bout
-    trust_gravity - skips ML/AP correction when gravity is already pointing
+    trust_gravity - skips ML/PA correction when gravity is already pointing
                     up in the vertical axis (Family 1). Potential front/back
                     flips are ignored in this case.
 """
@@ -303,14 +303,14 @@ def _apply_ml_ap_correction(
     """Apply ML/PA correction based on family and phase."""
     if family == 1:
         if phase < 0:
-            return _flip_axes(corrected, ("ml", "pa")), "flipped ML and AP"
+            return _flip_axes(corrected, ("ml", "pa")), "flipped ML and PA"
 
     elif family in {2, 3}:
         if phase > 0:
             return _flip_axes(corrected, ("ml",)), "flipped ML"
-        return _flip_axes(corrected, ("pa",)), "flipped AP"
+        return _flip_axes(corrected, ("pa",)), "flipped PA"
 
     elif family == 4 and phase < 0:
-        return _flip_axes(corrected, ("ml", "pa")), "flipped ML and AP"
+        return _flip_axes(corrected, ("ml", "pa")), "flipped ML and PA"
 
     return corrected, None
