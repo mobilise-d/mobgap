@@ -4,9 +4,9 @@ Reorientation algorithm for lower-back-worn IMU devices.
 Corrects sensor axis orientation to the anatomical frame:
     IS  → vertical (infero-superior), pointing up
     ML  → mediolateral, pointing right
-    AP  → anteroposterior, pointing forward
+    PA  → posterior-anterior, pointing forward
 
-Coordinate system: left-handed (IS up, ML right, AP forward).
+Coordinate system: right-handed (IS up, ML right, PA forward).
 
 Two correction modes:
     full - applies all three stages to every walking bout
@@ -42,7 +42,7 @@ class ReorientationResult(BaseReorientationCorrector):
     where_grav: Optional[GravityAxis]  # which device axis captured gravity
     where_grav_points: Optional[GravityDirection]  # direction of that axis
     family: Optional[OrientationFamily]  # orientation family
-    phase: float  # IS-AP phase value used for ML/AP correction
+    phase: float  # IS-PA phase value used for ML/PA correction
     correction_applied: bool  # whether Stage 3 correction was applied
     correction_action: str  # description of correction applied, or 'none'
     data_corrected: pd.DataFrame = field(repr=False)  # corrected data
@@ -56,9 +56,9 @@ class ReorientationMethodDM(Algorithm):
     Parameters
     ----------
     correction_mode : {'full', 'trust_gravity'}
-        full - applies ML/AP correction to every walking bout.
+        full - applies ML/PA correction to every walking bout.
         trust_gravity - assumes mounting orientation is correct if gravity
-        already points up along IS and skips AP/ML sign correction. This
+        already points up along IS and skips PA/ML sign correction. This
         intentionally ignores possible 180 deg front/back flips in this case.
     grav_threshold_ms2
         Minimum absolute mean acceleration in m/s² for an axis to be treated as
@@ -154,7 +154,7 @@ class ReorientationMethodDM(Algorithm):
             corrected = _flip_axes(corrected, ("is",))
             corrections.append("flipped IS")
 
-        # trust_gravity: skip ML/AP correction for Family 1
+        # trust_gravity: skip ML/PA correction for Family 1
         if self.correction_mode == "trust_gravity" and family == 1:
             correction_action = " and ".join(corrections) if corrections else "none"
             self.result_ = ReorientationResult(
@@ -168,10 +168,10 @@ class ReorientationMethodDM(Algorithm):
             )
             return self
 
-        # Stage 3: compute IS-AP phase on IS-corrected data
+        # Stage 3: compute IS-PA phase on IS-corrected data
         phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz, self.gait_frequency_band_filter)
 
-        # ML/AP correction based on family and phase sign
+        # ML/PA correction based on family and phase sign
         corrected, correction = _apply_ml_ap_correction(
             corrected,
             family,
@@ -256,8 +256,8 @@ def _cross_spec_pa_phase_power_weighted(
 
     Signals are bandpass filtered before feature extraction.
 
-    Positive → AP correctly oriented.
-    Negative → AP reversed.
+    Positive → PA correctly oriented.
+    Negative → PA reversed.
     Returns 0.0 if bout is too short for spectral estimation or filtering.
     """
     # Apply bandpass filter before feature extraction
@@ -300,7 +300,7 @@ def _apply_ml_ap_correction(
     family: OrientationFamily,
     phase: float,
 ) -> tuple[pd.DataFrame, Optional[str]]:
-    """Apply ML/AP correction based on family and phase."""
+    """Apply ML/PA correction based on family and phase."""
     if family == 1:
         if phase < 0:
             return _flip_axes(corrected, ("ml", "pa")), "flipped ML and AP"

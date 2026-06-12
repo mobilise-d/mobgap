@@ -10,11 +10,11 @@ expectations.
 In general, we differentiate between 4 different coordinate systems:
 
 1. The IMU sensor frame, which represents the correctly aligned physical orientation where sensor axes (x, y, z) truly correspond to anatomical body directions.
-2. The body frame, defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and moves
+2. The body frame, defined by the axis IS (inferior-superior), ML (medial-lateral), PA (posterior-anterior) and moves
    with the body/sensor.
 3. The "normal" global frame, defined by the axis gx, gy, gz that is defined globally* and does not move with the sensor.
    (* the initial orientation is defined by the first sample of the data)
-4. The body-aligned global frame, defined by the axis GIS, GPA, GML and that is fixed like the global frame but 
+4. The body-aligned global frame, defined by the axis GIS, GML, GPA and that is fixed like the global frame but
    expressed in terms of body axis in the initial position.
 
 **All** of these coordinate systems follow the [right-hand rule](https://en.wikipedia.org/wiki/Right-hand_rule) and the direction of rotation defined by the 
@@ -48,7 +48,7 @@ More details below.
 
 ## Body Frame
 
-The body frame is defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and is 
+The body frame is defined by the axis IS (inferior-superior), ML (medial-lateral), PA (posterior-anterior) and is
 simply a renaming of the sensor axes.
 The figure above shows the expected direction of the body frame axis.
 The naming of the axis/conversion of the sensor frame is as follows:
@@ -92,7 +92,7 @@ If you don't have any information about the mounting orientation of your sensor 
 you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer patterns 
 during walking. The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
 (2) determines the gravity direction (up/down) and classifies the orientation into one of four families, and (3) uses 
-cross-spectral phase analysis between vertical and anteroposterior axes to determine correct mediolateral and anteroposterior 
+cross-spectral phase analysis between vertical and posterior-anterior axes to determine correct mediolateral and posterior-anterior
 orientations. Two correction modes are available: "trust_gravity" (assumes mounting orientation is correct when gravity
 already points up along IS, so potential 180° front/back flips are intentionally ignored) and "full" (applies all
 corrections to every walking bout).
@@ -103,13 +103,13 @@ corrections to every walking bout).
 
 **Figure.** All possible device orientation families for a lower-back-worn IMU (belt-worn (Families 1, 2) 
 and patch-attached (all Families)). Each panel shows a distinct orientation defined by which device axis captures gravity and its direction. 
-Family 1A (top-left) represents the correct reference orientation (IS up, ML right, AP forward). 
+Family 1A (top-left) represents the correct reference orientation (IS up, ML right, PA forward).
 Boxes adjacent to each orientation indicate the rotation(s) of that device orientation from the reference frame: 
 rot(x) = rotation around x/IS axis, rot(y) = rotation around y/ML axis, rot(z) = rotation around z/PA axis. 
 Composite rotations (e.g., "180° rot(x) + 90° rot(z)") indicate sequential transformations. 
 The algorithm detects these families and applies the inverse rotations to restore the reference frame alignment. 
-Within each family, two orientations differ only in ML and AP axis directions, determined through cross-spectral phase analysis. 
-The green circle indicates AP direction: dot (•) = backward, cross (×) = forward. IS = infero-superior, ML = mediolateral, AP = anteroposterior.
+Within each family, two orientations differ only in ML and PA axis directions, determined through cross-spectral phase analysis.
+The green circle indicates PA direction: dot (•) = backward, cross (×) = forward. IS = infero-superior, ML = mediolateral, PA = posterior-anterior.
 
 You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
 the sensor data to the body frame on a gait sequence level.
@@ -172,8 +172,8 @@ Therefore, we introduce the body-aligned global frame.
 
 ## Body-aligned global frame
 
-The body-aligned global frame is defined by the axis GIS (global inferior-superior), GPA (global posterior-anterior),
-GML (global medial-lateral) and is fixed in space like the global frame.
+The body-aligned global frame is defined by the axis GIS (global inferior-superior), GML (global medial-lateral),
+GPA (global posterior-anterior) and is fixed in space like the global frame.
 However, the axis are defined in terms of the body frame axis.
 This allows to easily pick, for example, the axis that points "upwards" without remembering the global frame convention.
 
@@ -187,5 +187,4 @@ global frame, when body-frame input is detected.
 Under the hood, this uses {py:func}`~mobgap.utils.conversions.transform_to_global_frame` that takes the orientation 
 estimation from sensor to normal global frame as input and correctly applies it to either sensor frame or body frame 
 data (see graphic above for more details).
-
 

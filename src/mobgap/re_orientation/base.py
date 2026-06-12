@@ -53,7 +53,7 @@ class BaseReorientationCorrector(Algorithm):
 
     - IS → vertical (infero-superior), pointing up
     - ML → mediolateral, pointing right
-    - AP → anteroposterior, pointing forward
+    - PA → posterior-anterior, pointing forward
 
     The method should return the instance with the ``corrected_data_`` attribute set.
 
