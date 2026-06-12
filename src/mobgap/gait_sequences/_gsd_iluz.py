@@ -5,7 +5,6 @@ from typing import Any, Final, Literal
 import numpy as np
 import pandas as pd
 from numba import float32, float64, guvectorize, int32
-from scipy.spatial.transform import Rotation
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self, Unpack
@@ -19,7 +18,7 @@ from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_do
 from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.utils.array_handling import merge_intervals, sliding_window_view
-from mobgap.utils.conversions import as_samples, transform_to_global_frame
+from mobgap.utils.conversions import as_samples
 from mobgap.utils.dtypes import assert_is_sensor_data, get_frame_definition
 
 _ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
@@ -556,11 +555,10 @@ class GsdIluzAdaptiveGravity(GsdIluz):
             return self
 
         orientation_estimation = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz)
-        orientation_object = _sample_aligned_orientations(orientation_estimation.orientation_object_, len(data))
-        rotated_data = transform_to_global_frame(data, orientation_object)
+        rotated_data = orientation_estimation.rotated_data_
         vertical_column = "acc_gz" if frame == "sensor" else "acc_gis"
         vertical_acc = rotated_data[vertical_column].to_numpy().copy()
-        del orientation_estimation, orientation_object, rotated_data
+        del orientation_estimation, rotated_data
 
         pa_column = f"acc_{self.expected_pa_axis}"
 
@@ -749,14 +747,3 @@ def vec_find_n_peaks_original(signal: np.ndarray, threshold: float, distance: fl
 
 def _empty_gs_list() -> pd.DataFrame:
     return _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-
-
-def _sample_aligned_orientations(orientation_object: Rotation, data_length: int) -> Rotation:
-    if len(orientation_object) == data_length:
-        return orientation_object
-    if len(orientation_object) == data_length + 1:
-        return orientation_object[:-1]
-    raise ValueError(
-        "The orientation estimation algorithm must provide either one orientation per sample or one additional initial "
-        "orientation."
-    )

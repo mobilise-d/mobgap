@@ -165,15 +165,6 @@ class TestGsdIluzAdaptiveGravity:
         assert_series_equal(output.iluz_data_["acc_is"], data["acc_z"], check_names=False)
         assert not hasattr(output, "orientation_object_")
 
-    def test_orientation_estimation_parameter_accepts_sample_aligned_orientations(self):
-        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
-
-        output = GsdIluzAdaptiveGravity(orientation_estimation=_SampleAlignedIdentityOrientationEstimation()).detect(
-            data, sampling_rate_hz=100.0
-        )
-
-        assert_series_equal(output.iluz_data_["acc_is"], data["acc_z"], check_names=False)
-
 
 class TestGsdIluzRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
@@ -212,12 +203,4 @@ class _IdentityOrientationEstimation(BaseOrientationEstimation):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.orientation_object_ = Rotation.from_quat(np.repeat([[0.0, 0.0, 0.0, 1.0]], len(data) + 1, axis=0))
-        return self
-
-
-class _SampleAlignedIdentityOrientationEstimation(BaseOrientationEstimation):
-    def estimate(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_) -> Self:
-        self.data = data
-        self.sampling_rate_hz = sampling_rate_hz
-        self.orientation_object_ = Rotation.from_quat(np.repeat([[0.0, 0.0, 0.0, 1.0]], len(data), axis=0))
         return self
