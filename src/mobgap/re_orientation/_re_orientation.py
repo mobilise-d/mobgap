@@ -16,7 +16,7 @@ Two correction modes:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -28,15 +28,20 @@ from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
 
+GravityAxis = Literal["is", "ml"]
+GravityDirection = Literal["up", "down"]
+OrientationFamily = Literal[1, 2, 3, 4]
+GravityDetectionResult = tuple[GravityAxis | None, GravityDirection | None, OrientationFamily | None]
+
 
 # Results container
 @dataclass
 class ReorientationResult(BaseReorientationCorrector):
     """Stores detection output and the corrected data."""
 
-    where_grav: Literal["is", "ml"]  # which device axis captured gravity
-    where_grav_points: Literal["up", "down"]  # direction of that axis
-    family: Literal[1, 2, 3, 4]  # orientation family
+    where_grav: GravityAxis | None  # which device axis captured gravity
+    where_grav_points: GravityDirection | None  # direction of that axis
+    family: OrientationFamily | None  # orientation family
     phase: float  # IS-AP phase value used for ML/AP correction
     correction_applied: bool  # whether Stage 3 correction was applied
     correction_action: str  # description of correction applied, or 'none'
@@ -91,7 +96,6 @@ class ReorientationMethodDM(Algorithm):
     sampling_rate_hz: float
 
     # Results
-    corrected_data_: pd.DataFrame
     result_: ReorientationResult
 
     def __init__(
@@ -140,7 +144,6 @@ class ReorientationMethodDM(Algorithm):
                 correction_action="none",
                 data_corrected=data.copy(),
             )
-            self.corrected_data_ = data.copy()
             return self
 
         # Stage 1: IS axis identity and direction correction
@@ -163,7 +166,6 @@ class ReorientationMethodDM(Algorithm):
                 correction_action=correction_action,
                 data_corrected=corrected,
             )
-            self.corrected_data_ = corrected
             return self
 
         # Stage 3: compute IS-AP phase on IS-corrected data
@@ -190,14 +192,18 @@ class ReorientationMethodDM(Algorithm):
             data_corrected=corrected,
         )
 
-        self.corrected_data_ = self.result_.data_corrected
         return self
+
+    @property
+    def corrected_data_(self) -> pd.DataFrame:
+        """The reoriented IMU data in the anatomical frame."""
+        return self.result_.data_corrected
 
 
 # Helper functions for each stage of the algorithm
 def _detect_gravity(
     data: pd.DataFrame, grav_threshold_ms2: float
-) -> tuple[Optional[str], Optional[str], Optional[int]]:
+) -> GravityDetectionResult:
     """
     Stage 1: identify which axis captures gravity.
 
@@ -293,9 +299,9 @@ def _cross_spec_pa_phase_power_weighted(
 
 def _apply_ml_ap_correction(
     corrected: pd.DataFrame,
-    family: int,
+    family: OrientationFamily,
     phase: float,
-) -> tuple[pd.DataFrame, Optional[str]]:
+) -> tuple[pd.DataFrame, str | None]:
     """Apply ML/AP correction based on family and phase."""
     if family == 1:
         if phase < 0:
