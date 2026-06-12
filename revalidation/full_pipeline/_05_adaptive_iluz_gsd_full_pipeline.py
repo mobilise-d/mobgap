@@ -11,9 +11,18 @@ healthy/mildly impaired and impaired sub-pipelines:
 * :class:`~mobgap.gait_sequences.GsdIonescu`
 * :class:`~mobgap.gait_sequences.GsdIluzAdaptiveGravity`
 
-The main question is whether an orientation-independent GSD option would be feasible for the regular-walking cohorts.
-Therefore, the analysis first shows all free-living cohorts and then focuses on ``HA``, ``COPD``, and ``CHF``, where
-the default Mobilise-D pipeline uses ILUZ GSD.
+``GsdIluz`` is currently the default algorithm for the regular-walking sub-pipeline, while ``GsdIonescu`` is the
+default for the more impaired sub-pipeline.
+While ``GsdIonescu`` is orientation-independent, ``GsdIluz`` is not, making it impossible to use the healthy
+sub-pipeline without known fixed sensor orientation.
+``GsdIluzAdaptiveGravity`` is a variant of ``GsdIluz`` that is specifically developed to be orientation-independent.
+
+The goal of this analysis is to see, if it would be feasible to swap out ``GsdIluz`` for one of the
+orientation-independent options in the regular-walking sub-pipeline.
+
+The results show comparisons accross all cohorts (not just the healthy/mildly impaired cohorts), but the main results/
+takeaways should be from the regular-walking cohorts (HA, COPD, CHF), which are analysed in detail in the second half
+of the notebook.
 
 .. note:: If you are interested in how these results are calculated, head over to the
     :ref:`processing page <pipeline_val_gen>`.
@@ -188,6 +197,12 @@ def _sort_metric_rows(
     return data
 
 
+def _with_index(data: pd.DataFrame, index_cols: list[str]) -> pd.DataFrame:
+    data = data.set_index(index_cols)
+    data.columns.name = None
+    return data
+
+
 def mean_metric_table(
     data: pd.DataFrame,
     *,
@@ -230,7 +245,10 @@ def mean_metric_table(
         .reset_index()
     )
     formatted = formatted[[*index_cols, "statistic", *version_order]]
-    return _sort_metric_rows(formatted, group_cols)
+    return _with_index(
+        _sort_metric_rows(formatted, group_cols),
+        [*group_cols, "analysis", "dmo", "metric", "statistic"],
+    )
 
 
 def paired_metric_table(
@@ -270,7 +288,10 @@ def paired_metric_table(
                 rows.append(row)
     index_cols = [*(group_cols or ["cohort"]), "analysis", "dmo", "metric"]
     result = pd.DataFrame(rows)[[*index_cols, *version_order, "n_recordings"]]
-    return _sort_metric_rows(result, group_cols or ["cohort"])
+    return _with_index(
+        _sort_metric_rows(result, group_cols or ["cohort"]),
+        index_cols,
+    )
 
 
 def paired_count_table(
@@ -301,7 +322,10 @@ def paired_count_table(
         }
         rows.append(row)
     index_cols = [*(group_cols or ["cohort"]), "analysis"]
-    return pd.DataFrame(rows)[[*index_cols, *version_order, "n_recordings"]]
+    return _with_index(
+        pd.DataFrame(rows)[[*index_cols, *version_order, "n_recordings"]],
+        index_cols,
+    )
 
 
 def paired_delta_long(
@@ -362,15 +386,15 @@ matched_count_comparison_all = paired_count_table(
 )
 
 print("\nMean combined performance across all cohorts")
-print(combined_means_all.round(4).to_string(index=False))
+print(combined_means_all.round(4).to_string())
 print("\nPaired combined comparison across all cohorts")
-print(combined_comparison_all.round(4).to_string(index=False))
+print(combined_comparison_all.round(4).to_string())
 print("\nMean matched performance across all cohorts")
-print(matched_means_all.round(4).to_string(index=False))
+print(matched_means_all.round(4).to_string())
 print("\nPaired matched comparison across all cohorts")
-print(matched_comparison_all.round(4).to_string(index=False))
+print(matched_comparison_all.round(4).to_string())
 print("\nMatched WB count comparison across all cohorts")
-print(matched_count_comparison_all.round(4).to_string(index=False))
+print(matched_count_comparison_all.round(4).to_string())
 
 combined_means_all.round(4)
 
@@ -406,21 +430,11 @@ matched_count_comparison_cohort = paired_count_table(
     analysis="Matched",
 )
 
-combined_comparison_cohort = (
-    combined_comparison_cohort.set_index("cohort")
-    .loc[cohort_order]
-    .reset_index()
-)
-matched_comparison_cohort = (
-    matched_comparison_cohort.set_index("cohort")
-    .loc[cohort_order]
-    .reset_index()
-)
-matched_count_comparison_cohort = (
-    matched_count_comparison_cohort.set_index("cohort")
-    .loc[cohort_order]
-    .reset_index()
-)
+combined_comparison_cohort = combined_comparison_cohort.loc[cohort_order]
+matched_comparison_cohort = matched_comparison_cohort.loc[cohort_order]
+matched_count_comparison_cohort = matched_count_comparison_cohort.loc[
+    cohort_order
+]
 
 combined_comparison_cohort.round(4)
 
@@ -507,11 +521,11 @@ matched_count_comparison_regular_all = paired_count_table(
 )
 
 print("\nPaired combined comparison for HA/COPD/CHF")
-print(combined_comparison_regular_all.round(4).to_string(index=False))
+print(combined_comparison_regular_all.round(4).to_string())
 print("\nPaired matched comparison for HA/COPD/CHF")
-print(matched_comparison_regular_all.round(4).to_string(index=False))
+print(matched_comparison_regular_all.round(4).to_string())
 print("\nMatched WB count comparison for HA/COPD/CHF")
-print(matched_count_comparison_regular_all.round(4).to_string(index=False))
+print(matched_count_comparison_regular_all.round(4).to_string())
 
 combined_comparison_regular_all.round(4)
 
@@ -526,13 +540,19 @@ matched_count_comparison_regular_all.round(4)
 # ---------------------------------
 
 combined_comparison_regular_cohort = combined_comparison_cohort[
-    combined_comparison_cohort["cohort"].isin(regular_walking_cohorts)
+    combined_comparison_cohort.index.get_level_values("cohort").isin(
+        regular_walking_cohorts
+    )
 ].copy()
 matched_comparison_regular_cohort = matched_comparison_cohort[
-    matched_comparison_cohort["cohort"].isin(regular_walking_cohorts)
+    matched_comparison_cohort.index.get_level_values("cohort").isin(
+        regular_walking_cohorts
+    )
 ].copy()
 matched_count_comparison_regular_cohort = matched_count_comparison_cohort[
-    matched_count_comparison_cohort["cohort"].isin(regular_walking_cohorts)
+    matched_count_comparison_cohort.index.get_level_values("cohort").isin(
+        regular_walking_cohorts
+    )
 ].copy()
 
 combined_comparison_regular_cohort.round(4)
