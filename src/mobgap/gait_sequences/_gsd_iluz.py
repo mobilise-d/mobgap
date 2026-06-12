@@ -19,11 +19,13 @@ from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_do
 from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.utils.array_handling import merge_intervals, sliding_window_view
-from mobgap.utils.conversions import as_samples
-from mobgap.utils.dtypes import assert_is_sensor_data
+from mobgap.utils.conversions import as_samples, to_sensor_frame
+from mobgap.utils.dtypes import assert_is_sensor_data, get_frame_definition
 
 _ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
 _SENSOR_AXES = ("x", "y", "z")
+_BODY_FRAME_AXES = ("is", "ml", "pa")
+_EXPECTED_PA_AXES = (*_SENSOR_AXES, *_BODY_FRAME_AXES)
 
 _gsd_iluz_docfiller = make_filldoc(
     base_gsd_docfiller._dict
@@ -448,14 +450,16 @@ class GsdIluzAdaptiveGravity(GsdIluz):
     expects as ``acc_is``. The PA channel is not rotated. It is selected directly from the raw sensor-frame
     accelerometer column specified by ``expected_pa_axis``.
 
-    **Data Requirements:** Requires sensor-frame accelerometer and gyroscope data. The selected PA axis must already be
-    aligned with the anatomical PA axis, while gravity may point along any sensor-frame direction.
+    **Data Requirements:** Requires accelerometer and gyroscope data in either the sensor or body frame. For
+    sensor-frame data, the selected PA axis must already be aligned with the anatomical PA axis, while gravity may point
+    along any sensor-frame direction. For body-frame data, ``expected_pa_axis="pa"`` should usually be provided, but
+    any raw body-frame acceleration axis can be selected explicitly.
 
     Parameters
     ----------
     expected_pa_axis
-        Sensor-frame axis expected to contain the PA acceleration signal. One of ``"x"``, ``"y"``, or ``"z"``.
-        Defaults to ``"z"``.
+        Axis expected to contain the PA acceleration signal. For sensor-frame data, one of ``"x"``, ``"y"``, or
+        ``"z"``. For body-frame data, one of ``"is"``, ``"ml"``, or ``"pa"``. Defaults to ``"z"``.
     orientation_estimation
         Orientation estimation algorithm used to track gravity and derive the vertical acceleration channel. The
         default is ``MadgwickAHRS(initial_orientation=None)``, which estimates the initial orientation from the first
@@ -475,7 +479,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
     %(perf_)s
     """
 
-    expected_pa_axis: Literal["x", "y", "z"]
+    expected_pa_axis: Literal["x", "y", "z", "is", "ml", "pa"]
     orientation_estimation: BaseOrientationEstimation
     iluz_data_: pd.DataFrame
 
@@ -483,7 +487,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
     def __init__(
         self,
         *,
-        expected_pa_axis: Literal["x", "y", "z"] = "z",
+        expected_pa_axis: Literal["x", "y", "z", "is", "ml", "pa"] = "z",
         orientation_estimation: BaseOrientationEstimation = cf(MadgwickAHRS(initial_orientation=None)),
         pre_filter: BaseFilter,
         window_length_s: float,
@@ -528,7 +532,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
         Parameters
         ----------
         data
-            The raw IMU data in the sensor frame.
+            The raw IMU data in either the sensor or body frame.
         sampling_rate_hz
             The sampling rate of the IMU data in Hz.
 
@@ -540,26 +544,38 @@ class GsdIluzAdaptiveGravity(GsdIluz):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        assert_is_sensor_data(data, frame="sensor")
+        if self.expected_pa_axis not in _EXPECTED_PA_AXES:
+            raise ValueError(
+                f'Invalid expected_pa_axis: {self.expected_pa_axis}. '
+                'Allowed values are ["x", "y", "z", "is", "ml", "pa"].'
+            )
 
-        if self.expected_pa_axis not in _SENSOR_AXES:
-            raise ValueError(f'Invalid expected_pa_axis: {self.expected_pa_axis}. Allowed values are ["x", "y", "z"].')
+        frame = get_frame_definition(data, ["sensor", "body"])
+        if frame == "sensor" and self.expected_pa_axis not in _SENSOR_AXES:
+            raise ValueError('Sensor-frame data requires expected_pa_axis to be one of ["x", "y", "z"].')
+        if frame == "body" and self.expected_pa_axis not in _BODY_FRAME_AXES:
+            raise ValueError('Body-frame data requires expected_pa_axis to be one of ["is", "ml", "pa"].')
 
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
             self.gs_list_ = _empty_gs_list()
             return self
 
-        orientation_estimation = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz)
+        orientation_data = data if frame == "sensor" else to_sensor_frame(data)
+        orientation_estimation = self.orientation_estimation.clone().estimate(
+            orientation_data, sampling_rate_hz=sampling_rate_hz
+        )
         orientation_object = _sample_aligned_orientations(orientation_estimation.orientation_object_, len(data))
-        acc_data = data[SF_ACC_COLS].to_numpy()
+        acc_data = orientation_data[SF_ACC_COLS].to_numpy()
         rotated_acc = orientation_object.apply(acc_data)
         vertical_acc = rotated_acc[:, 2].copy()
-        del orientation_estimation, orientation_object, rotated_acc, acc_data
+        del orientation_estimation, orientation_object, orientation_data, rotated_acc, acc_data
+
+        pa_column = f"acc_{self.expected_pa_axis}"
 
         prepared_data = pd.DataFrame(
             {
                 "acc_is": vertical_acc,
-                "acc_pa": data[f"acc_{self.expected_pa_axis}"].to_numpy(),
+                "acc_pa": data[pa_column].to_numpy(),
             },
             index=data.index,
         )

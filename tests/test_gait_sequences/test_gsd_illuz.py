@@ -72,7 +72,7 @@ class TestGsdIluzAdaptiveGravity:
     def test_invalid_pa_axis_parameter(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Allowed values"):
             GsdIluzAdaptiveGravity(expected_pa_axis="invalid").detect(data, sampling_rate_hz=40.0)
 
     def test_no_gsds(self):
@@ -89,6 +89,22 @@ class TestGsdIluzAdaptiveGravity:
         output = GsdIluzAdaptiveGravity().detect(data, sampling_rate_hz=100.0).gs_list_
 
         assert_frame_equal(output, expected)
+
+    def test_body_frame_input_matches_body_frame_iluz(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+        body_data = to_body_frame(data)
+
+        expected = GsdIluz().detect(body_data, sampling_rate_hz=100.0).gs_list_
+        output = GsdIluzAdaptiveGravity(expected_pa_axis="pa").detect(body_data, sampling_rate_hz=100.0).gs_list_
+
+        assert_frame_equal(output, expected)
+
+    def test_body_frame_input_requires_pa_axis(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+        body_data = to_body_frame(data)
+
+        with pytest.raises(ValueError, match="Body-frame data requires"):
+            GsdIluzAdaptiveGravity().detect(body_data, sampling_rate_hz=100.0)
 
     def test_detects_with_gravity_on_different_sensor_axis(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
@@ -107,6 +123,28 @@ class TestGsdIluzAdaptiveGravity:
 
         assert len(output.gs_list_) == 1
         assert_series_equal(output.iluz_data_["acc_pa"], rotated_data["acc_y"], check_names=False)
+
+    def test_sensor_frame_input_rejects_pa_axis(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+
+        with pytest.raises(ValueError, match="Sensor-frame data requires"):
+            GsdIluzAdaptiveGravity(expected_pa_axis="pa").detect(data, sampling_rate_hz=100.0)
+
+    def test_body_frame_input_uses_raw_pa_axis(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+        body_data = to_body_frame(data)
+
+        output = GsdIluzAdaptiveGravity(expected_pa_axis="pa").detect(body_data, sampling_rate_hz=100.0)
+
+        assert_series_equal(output.iluz_data_["acc_pa"], body_data["acc_pa"], check_names=False)
+
+    def test_body_frame_input_can_use_other_raw_body_axis(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+        body_data = to_body_frame(data)
+
+        output = GsdIluzAdaptiveGravity(expected_pa_axis="ml").detect(body_data, sampling_rate_hz=100.0)
+
+        assert_series_equal(output.iluz_data_["acc_pa"], body_data["acc_ml"], check_names=False)
 
     def test_orientation_estimation_parameter_is_used(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
