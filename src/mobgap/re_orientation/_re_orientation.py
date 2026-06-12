@@ -8,13 +8,11 @@ Corrects sensor axis orientation to the anatomical frame:
 
 Coordinate system: left-handed (IS up, ML right, AP forward).
 
-Two methods:
+Two correction modes:
     full - applies all three stages to every walking bout
-    conservative - only applies ML/AP correction (Stage 3) when gravity
-                   was already wrong (Family 2, 3, or 4). If gravity is
-                   already pointing up in the vertical axis (Family 1),
-                   ML and AP are left unchanged to avoid a ~6.67% risk
-                   of wrongly flipping correctly oriented axes.
+    trust_gravity - skips ML/AP correction when gravity is already pointing
+                    up in the vertical axis (Family 1). Potential front/back
+                    flips are ignored in this case.
 """
 
 from dataclasses import dataclass, field
@@ -54,11 +52,11 @@ class ReorientationMethodDM(Algorithm):
 
     Parameters
     ----------
-    method : {'full', 'conservative'}
+    correction_mode : {'full', 'trust_gravity'}
         full - applies ML/AP correction to every walking bout.
-        conservative - skips ML/AP correction for Family 1 (gravity already
-        pointing up in the vertical axis) to avoid wrongly flipping
-        correctly oriented axes.
+        trust_gravity - assumes mounting orientation is correct if gravity
+        already points up along IS and skips AP/ML sign correction. This
+        intentionally ignores possible 180 deg front/back flips in this case.
 
     Other Parameters
     ----------------
@@ -72,7 +70,7 @@ class ReorientationMethodDM(Algorithm):
 
     Examples
     --------
-    >>> algo = ReorientationMethodDM(method="conservative")
+    >>> algo = ReorientationMethodDM(correction_mode="trust_gravity")
     >>> algo = algo.detect_correct(wb_data, sampling_rate_hz=100.0)
     >>> corrected = algo.result_.data_corrected
     """
@@ -80,7 +78,7 @@ class ReorientationMethodDM(Algorithm):
     _action_methods = ("detect_correct",)
 
     # Parameters
-    method: Literal["full", "conservative"]
+    correction_mode: Literal["full", "trust_gravity"]
 
     # Other Parameters
     data: pd.DataFrame
@@ -90,8 +88,8 @@ class ReorientationMethodDM(Algorithm):
     corrected_data_: pd.DataFrame
     result_: ReorientationResult
 
-    def __init__(self, method: Literal["full", "conservative"] = "conservative") -> None:
-        self.method = method
+    def __init__(self, correction_mode: Literal["full", "trust_gravity"] = "trust_gravity") -> None:
+        self.correction_mode = correction_mode
 
     @base_reorientation_docfiller
     def detect_correct(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
@@ -103,9 +101,9 @@ class ReorientationMethodDM(Algorithm):
 
         %(detect_correct_return)s
         """
-        # Validate method parameter
-        if self.method not in ("full", "conservative"):
-            raise ValueError("method must be 'full' or 'conservative'")
+        # Validate correction_mode parameter
+        if self.correction_mode not in ("full", "trust_gravity"):
+            raise ValueError("correction_mode must be 'full' or 'trust_gravity'")
 
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
@@ -138,8 +136,8 @@ class ReorientationMethodDM(Algorithm):
             corrected = _flip_axes(corrected, ("is",))
             corrections.append("flipped IS")
 
-        # Conservative: skip ML/AP correction for Family 1
-        if self.method == "conservative" and family == 1:
+        # trust_gravity: skip ML/AP correction for Family 1
+        if self.correction_mode == "trust_gravity" and family == 1:
             correction_action = " and ".join(corrections) if corrections else "none"
             self.result_ = ReorientationResult(
                 where_grav=where_grav,

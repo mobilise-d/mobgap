@@ -73,7 +73,7 @@ first_gait_sequence_data = imu_data.iloc[
 #           but GsdIluz may fail to detect gait sequences in non-standard orientations.
 from mobgap.re_orientation import ReorientationMethodDM
 
-reorient = ReorientationMethodDM(method="conservative")
+reorient = ReorientationMethodDM(correction_mode="trust_gravity")
 reorient.detect_correct(
     first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz
 )

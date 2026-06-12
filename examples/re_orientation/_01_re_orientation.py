@@ -83,9 +83,9 @@ fig.show()
 # Applying the reorientation algorithm
 # ------------------------------------
 # Below we apply the ReorientationMethodDM algorithm to the misoriented walking bout.
-# We use the 'full' method which applies all three stages.
+# We use the 'full' correction mode which applies all three stages.
 
-reoriented = ReorientationMethodDM(method="full").detect_correct(
+reoriented = ReorientationMethodDM(correction_mode="full").detect_correct(
     first_WB, sampling_rate_hz=sampling_rate_hz
 )
 

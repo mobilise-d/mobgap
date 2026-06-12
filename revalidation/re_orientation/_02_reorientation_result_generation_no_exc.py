@@ -47,10 +47,10 @@ from mobgap.utils.misc import get_env_var
 
 pipelines = {
     "MethodDM__full": ReorientationEmulationPipeline(
-        ReorientationMethodDM(method="full")
+        ReorientationMethodDM(correction_mode="full")
     ),
-    "MethodDM__conservative": ReorientationEmulationPipeline(
-        ReorientationMethodDM(method="conservative")
+    "MethodDM__trust_gravity": ReorientationEmulationPipeline(
+        ReorientationMethodDM(correction_mode="trust_gravity")
     ),
 }
 

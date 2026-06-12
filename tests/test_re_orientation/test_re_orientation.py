@@ -49,12 +49,14 @@ class TestReorientationMethodDM:
         data = base.copy()
         data[["acc_is", "gyr_is", "acc_ml", "gyr_ml"]] *= -1
 
-        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=sampling_rate_hz)
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
 
         assert_frame_equal(result.corrected_data_, base)
 
     def test_correctly_oriented_data_family_1(self):
-        """Test that correctly oriented data (Family 1) is left unchanged by conservative method."""
+        """Test that Family 1 data is left unchanged in trust-gravity mode."""
         data = pd.DataFrame(
             {
                 "acc_is": np.ones(1000) * 9.8,
@@ -66,7 +68,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="conservative").detect_correct(data, sampling_rate_hz=100.0)
+        result = ReorientationMethodDM(correction_mode="trust_gravity").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 1
         assert result.result_.where_grav == "is"
@@ -85,7 +87,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 2
         assert result.result_.where_grav == "is"
@@ -106,7 +108,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 3
         assert result.result_.where_grav == "ml"
@@ -127,7 +129,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 4
         assert result.result_.where_grav == "ml"
@@ -149,7 +151,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family is None
         assert result.result_.where_grav is None
@@ -158,8 +160,8 @@ class TestReorientationMethodDM:
         # Verify data unchanged
         assert_frame_equal(result.result_.data_corrected, data)
 
-    def test_full_vs_conservative_method_family_1(self):
-        """Test that full and conservative methods differ for Family 1."""
+    def test_full_vs_trust_gravity_correction_mode_family_1(self):
+        """Test that full and trust-gravity modes differ for Family 1."""
         single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(
             cohort="HA", participant_id="001", test="Test11", trial="Trial1"
         )
@@ -172,24 +174,24 @@ class TestReorientationMethodDM:
         imu_data = imu_data.reset_index(drop=True)
         wb_data = imu_data.loc[start:end]
 
-        result_full = ReorientationMethodDM(method="full").detect_correct(
+        result_full = ReorientationMethodDM(correction_mode="full").detect_correct(
             wb_data, sampling_rate_hz=single_test.sampling_rate_hz
         )
-        result_conservative = ReorientationMethodDM(method="conservative").detect_correct(
+        result_trust_gravity = ReorientationMethodDM(correction_mode="trust_gravity").detect_correct(
             wb_data, sampling_rate_hz=single_test.sampling_rate_hz
         )
 
         # Both should detect same family
-        assert result_full.result_.family == result_conservative.result_.family
+        assert result_full.result_.family == result_trust_gravity.result_.family
 
-        # If Family 1, conservative might skip Stage 3
+        # If Family 1, trust-gravity mode skips Stage 3
         if result_full.result_.family == 1:
-            assert len(result_conservative.result_.correction_action) <= len(result_full.result_.correction_action)
+            assert len(result_trust_gravity.result_.correction_action) <= len(result_full.result_.correction_action)
 
-    def test_invalid_method_parameter(self):
-        """Test that invalid method parameter raises ValueError."""
-        with pytest.raises(ValueError, match="method must be 'full' or 'conservative'"):
-            ReorientationMethodDM(method="invalid").detect_correct(
+    def test_invalid_correction_mode_parameter(self):
+        """Test that invalid correction mode parameter raises ValueError."""
+        with pytest.raises(ValueError, match="correction_mode must be 'full' or 'trust_gravity'"):
+            ReorientationMethodDM(correction_mode="invalid").detect_correct(
                 pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
             )
 
@@ -210,7 +212,7 @@ class TestReorientationMethodDM:
         imu_data = imu_data.reset_index(drop=True)
         wb_data = imu_data.loc[start:end]
 
-        result = ReorientationMethodDM(method="full").detect_correct(
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(
             wb_data, sampling_rate_hz=single_test.sampling_rate_hz
         )
 
@@ -231,8 +233,8 @@ class TestReorientationMethodDMRegression:
     """Regression tests to ensure algorithm outputs remain stable."""
 
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
-    def test_example_lab_data_full_method(self, datapoint, snapshot):
-        """Test full method on all lab data walking bouts."""
+    def test_example_lab_data_full_correction_mode(self, datapoint, snapshot):
+        """Test full correction mode on all lab data walking bouts."""
         data = to_body_frame(datapoint.data_ss)
         ref_walk_bouts = datapoint.reference_parameters_.wb_list
 
@@ -240,7 +242,7 @@ class TestReorientationMethodDMRegression:
             pytest.skip("No reference parameters available.")
 
         iterator = GsIterator()
-        reorientation = ReorientationMethodDM(method="full")
+        reorientation = ReorientationMethodDM(correction_mode="full")
 
         families = []
         corrections_applied = []
@@ -264,8 +266,8 @@ class TestReorientationMethodDMRegression:
         snapshot.assert_match(results_df, str(tuple(datapoint.group_label)))
 
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
-    def test_example_lab_data_conservative_method(self, datapoint, snapshot):
-        """Test conservative method on all lab data walking bouts."""
+    def test_example_lab_data_trust_gravity_correction_mode(self, datapoint, snapshot):
+        """Test trust-gravity mode on all lab data walking bouts."""
         data = to_body_frame(datapoint.data_ss)
         ref_walk_bouts = datapoint.reference_parameters_.wb_list
 
@@ -273,7 +275,7 @@ class TestReorientationMethodDMRegression:
             pytest.skip("No reference parameters available.")
 
         iterator = GsIterator()
-        reorientation = ReorientationMethodDM(method="conservative")
+        reorientation = ReorientationMethodDM(correction_mode="trust_gravity")
 
         families = []
         corrections_applied = []
@@ -306,7 +308,7 @@ class TestReorientationEmulationPipeline:
             trial="Trial1",
         )
 
-        result = ReorientationEmulationPipeline(ReorientationMethodDM(method="full")).run(single_test)
+        result = ReorientationEmulationPipeline(ReorientationMethodDM(correction_mode="full")).run(single_test)
 
         assert result.predictions_.index.names == ["wb_id"]
         assert result.predictions_.columns.to_list() == ["label", "prediction"]
@@ -326,7 +328,7 @@ class TestReorientationEmulationPipeline:
         )
 
         result = Evaluation(single_test, scoring=reorientation_score).run(
-            ReorientationEmulationPipeline(ReorientationMethodDM(method="full"))
+            ReorientationEmulationPipeline(ReorientationMethodDM(correction_mode="full"))
         )
 
         agg_results = result.get_aggregated_results_as_df()

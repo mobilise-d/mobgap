@@ -9,7 +9,7 @@ misorientations. For this revalidation, we therefore use the INDIP reference
 walking bouts, simulate all supported rough mounting orientations, and treat the
 algorithm response as a multiclass classification problem.
 
-We compare the full and conservative variants of the
+We compare the full and trust-gravity variants of the
 :class:`~mobgap.re_orientation.ReorientationMethodDM` algorithm.
 
 .. note:: If you are interested in how these results are calculated, head over to
@@ -24,7 +24,7 @@ We compare the full and conservative variants of the
 # Here, we map these folder names to display labels used in plots and tables.
 algorithms = {
     "MethodDM__full": ("ReorientationMethodDM", "Full"),
-    "MethodDM__conservative": ("ReorientationMethodDM", "Conservative"),
+    "MethodDM__trust_gravity": ("ReorientationMethodDM", "Trust gravity"),
 }
 
 # %%

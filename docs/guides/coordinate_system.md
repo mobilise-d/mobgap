@@ -93,8 +93,9 @@ you can use the reorientation correction algorithm to detect and correct sensor 
 during walking. The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
 (2) determines the gravity direction (up/down) and classifies the orientation into one of four families, and (3) uses 
 cross-spectral phase analysis between vertical and anteroposterior axes to determine correct mediolateral and anteroposterior 
-orientations. Two correction methods are available: "conservative" (skips ML/AP correction for already-correct Family 1 
-orientations) and "full" (applies all corrections to every walking bout).
+orientations. Two correction modes are available: "trust_gravity" (assumes mounting orientation is correct when gravity
+already points up along IS, so potential 180° front/back flips are intentionally ignored) and "full" (applies all
+corrections to every walking bout).
 
 <p align="center">
   <img src="docs/_static/images/orientation_families.png" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
@@ -186,6 +187,5 @@ global frame, when body-frame input is detected.
 Under the hood, this uses {py:func}`~mobgap.utils.conversions.transform_to_global_frame` that takes the orientation 
 estimation from sensor to normal global frame as input and correctly applies it to either sensor frame or body frame 
 data (see graphic above for more details).
-
 
 
