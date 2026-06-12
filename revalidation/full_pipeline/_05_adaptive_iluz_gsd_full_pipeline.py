@@ -20,9 +20,8 @@ sub-pipeline without known fixed sensor orientation.
 The goal of this analysis is to see, if it would be feasible to swap out ``GsdIluz`` for one of the
 orientation-independent options in the regular-walking sub-pipeline.
 
-The results show comparisons accross all cohorts (not just the healthy/mildly impaired cohorts), but the main results/
-takeaways should be from the regular-walking cohorts (HA, COPD, CHF), which are analysed in detail in the second half
-of the notebook.
+The report starts with the regular-walking cohorts (HA, COPD, CHF), because these are the cohorts where replacing
+``GsdIluz`` is most relevant. Results across all cohorts are shown afterwards for completeness.
 
 .. note:: If you are interested in how these results are calculated, head over to the
     :ref:`processing page <pipeline_val_gen>`.
@@ -131,10 +130,6 @@ _free_living_results = {
     v: loader.load_single_results(k, "free_living")
     for k, v in algorithms.items()
 }
-_free_living_results_raw = {
-    v: loader.load_single_csv_file(k, "free_living", "raw_matched_errors.csv")
-    for k, v in algorithms.items()
-}
 
 free_living_results_combined = format_loaded_results(
     _free_living_results,
@@ -148,14 +143,8 @@ free_living_results_matched = format_loaded_results(
     "matched__",
     convert_rel_error=True,
 )
-free_living_results_matched_raw = format_loaded_results(
-    values=_free_living_results_raw,
-    index_cols=free_living_index_cols,
-    col_prefix_filter=None,
-    convert_rel_error=True,
-)
 
-del _free_living_results, _free_living_results_raw
+del _free_living_results
 
 # %%
 # Comparison helpers
@@ -327,182 +316,72 @@ def paired_delta_long(
     return pd.concat(rows, ignore_index=True)
 
 
-# %%
-# All cohorts
-# -----------
-
-combined_means_all = mean_metric_table(
-    free_living_results_combined,
-    group_cols=[],
-    analysis="Combined",
-)
-matched_means_all = mean_metric_table(
-    free_living_results_matched,
-    group_cols=[],
-    analysis="Matched",
-)
-combined_comparison_all = paired_metric_table(
-    free_living_results_combined,
-    group_cols=[],
-    analysis="Combined",
-)
-matched_comparison_all = paired_metric_table(
-    free_living_results_matched,
-    group_cols=[],
-    analysis="Matched",
-)
-
-print("\nMean combined performance across all cohorts")
-print(combined_means_all.round(4).to_string())
-print("\nPaired combined comparison across all cohorts")
-print(combined_comparison_all.round(4).to_string())
-print("\nMean matched performance across all cohorts")
-print(matched_means_all.round(4).to_string())
-print("\nPaired matched comparison across all cohorts")
-print(matched_comparison_all.round(4).to_string())
-
-combined_means_all.round(4)
-
-# %%
-combined_comparison_all.round(4)
-
-# %%
-matched_means_all.round(4)
-
-# %%
-matched_comparison_all.round(4)
-
-# %%
-# Per-cohort overview
-# -------------------
-
-combined_comparison_cohort = paired_metric_table(
-    free_living_results_combined,
-    group_cols=["cohort"],
-    analysis="Combined",
-)
-matched_comparison_cohort = paired_metric_table(
-    free_living_results_matched,
-    group_cols=["cohort"],
-    analysis="Matched",
-)
-
-combined_comparison_cohort = combined_comparison_cohort.loc[cohort_order]
-matched_comparison_cohort = matched_comparison_cohort.loc[cohort_order]
-
-combined_comparison_cohort.round(4)
-
-# %%
-matched_comparison_cohort.round(4)
-
-# %%
-# Absolute relative error deltas across all cohorts
-# -------------------------------------------------
-
 sns.set_context("talk")
 
-abs_rel_delta = pd.concat(
-    [
-        paired_delta_long(
-            free_living_results_combined,
-            "abs_rel_error",
-            analysis="Combined",
-        ),
-        paired_delta_long(
-            free_living_results_matched,
-            "abs_rel_error",
-            analysis="Matched",
-        ),
-    ],
-    ignore_index=True,
-)
 
-fig, axes = plt.subplots(
-    2, 1, figsize=(15, 11), sharex=True, constrained_layout=True
-)
-for ax, (analysis_name, analysis_df) in zip(
-    axes, abs_rel_delta.groupby("analysis", sort=False)
-):
-    ax.axhline(0, color="0.3", linewidth=1)
-    sns.boxplot(
-        data=analysis_df,
+def plot_abs_rel_errors_by_cohort(
+    data: pd.DataFrame,
+    *,
+    cohorts: list[str],
+    ylabel: str,
+    showfliers: bool = True,
+) -> None:
+    fig, axes = plt.subplots(
+        1, 3, figsize=(16, 5), sharey=False, constrained_layout=True
+    )
+    for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
+        sns.boxplot(
+            data=data,
+            x="cohort",
+            y=f"{dmo}__abs_rel_error",
+            hue="version",
+            hue_order=version_order,
+            order=cohorts,
+            showmeans=True,
+            showfliers=showfliers,
+            ax=ax,
+        )
+        ax.set_title(dmo_label)
+        ax.set_xlabel("Cohort")
+        ax.set_ylabel(ylabel)
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.legend(title=None)
+    move_legend_outside(fig, axes[-1])
+    plt.show()
+
+
+def matched_wb_count_table(
+    data: pd.DataFrame, *, cohorts: list[str]
+) -> pd.DataFrame:
+    table = (
+        data.groupby(["cohort", "version"], sort=False)["n_matched_wbs"]
+        .sum()
+        .unstack("version")
+        .reindex(cohorts)
+    )
+    return table[version_order].astype(int).rename_axis(columns=None)
+
+
+def plot_matched_wb_counts(data: pd.DataFrame, *, cohorts: list[str]) -> None:
+    fig, ax = plt.subplots(figsize=(12, 6), constrained_layout=True)
+    sns.barplot(
+        data=data.groupby(["version", "cohort"])["n_matched_wbs"]
+        .sum()
+        .reset_index(),
+        hue="version",
+        y="n_matched_wbs",
         x="cohort",
-        y="delta",
-        hue="candidate",
-        order=cohort_order,
-        hue_order=candidate_versions,
-        showmeans=True,
+        order=cohorts,
+        hue_order=version_order,
         ax=ax,
     )
-    ax.set_title(
-        f"{analysis_name}: candidate - GsdIluz absolute relative error"
-    )
-    ax.set_ylabel("Delta abs. rel. error [%]")
+    ax.set_ylabel("# Matched WBs")
+    ax.set_xlabel("Cohort")
+    ax.set_title("Matched WBs per cohort")
     ax.grid(True, axis="y", alpha=0.3)
     ax.legend(title=None)
-axes[-1].set_xlabel("Cohort")
-move_legend_outside(fig, axes[-1])
-plt.show()
-
-# %%
-# Regular-walking cohorts
-# -----------------------
-# These are the cohorts where the default Mobilise-D pipeline uses ILUZ GSD. This is the key comparison for deciding
-# whether an orientation-independent GSD can be used for the regular-walking pipeline.
-
-combined_regular = free_living_results_combined[
-    free_living_results_combined["cohort"].isin(regular_walking_cohorts)
-].copy()
-matched_regular = free_living_results_matched[
-    free_living_results_matched["cohort"].isin(regular_walking_cohorts)
-].copy()
-
-combined_comparison_regular_all = paired_metric_table(
-    combined_regular,
-    group_cols=[],
-    analysis="Combined",
-    group_label="HA/COPD/CHF",
-)
-matched_comparison_regular_all = paired_metric_table(
-    matched_regular,
-    group_cols=[],
-    analysis="Matched",
-    group_label="HA/COPD/CHF",
-)
-
-print("\nPaired combined comparison for HA/COPD/CHF")
-print(combined_comparison_regular_all.round(4).to_string())
-print("\nPaired matched comparison for HA/COPD/CHF")
-print(matched_comparison_regular_all.round(4).to_string())
-
-combined_comparison_regular_all.round(4)
-
-# %%
-matched_comparison_regular_all.round(4)
-
-# %%
-# Regular-walking cohorts by cohort
-# ---------------------------------
-
-combined_comparison_regular_cohort = combined_comparison_cohort[
-    combined_comparison_cohort.index.get_level_values("cohort").isin(
-        regular_walking_cohorts
-    )
-].copy()
-matched_comparison_regular_cohort = matched_comparison_cohort[
-    matched_comparison_cohort.index.get_level_values("cohort").isin(
-        regular_walking_cohorts
-    )
-].copy()
-
-combined_comparison_regular_cohort.round(4)
-
-# %%
-matched_comparison_regular_cohort.round(4)
-
-# %%
-# Regular-walking combined walking-speed correlations
-# ---------------------------------------------------
+    move_legend_outside(fig, ax)
+    plt.show()
 
 
 def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
@@ -549,78 +428,161 @@ def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
     plt.show()
 
 
+combined_regular = free_living_results_combined[
+    free_living_results_combined["cohort"].isin(regular_walking_cohorts)
+].copy()
+matched_regular = free_living_results_matched[
+    free_living_results_matched["cohort"].isin(regular_walking_cohorts)
+].copy()
+combined_comparison_all = paired_metric_table(
+    free_living_results_combined,
+    group_cols=[],
+    analysis="Combined",
+)
+combined_comparison_cohort = (
+    paired_metric_table(
+        free_living_results_combined,
+        group_cols=["cohort"],
+        analysis="Combined",
+    )
+    .loc[cohort_order]
+    .copy()
+)
+
+combined_comparison_regular_all = paired_metric_table(
+    combined_regular,
+    group_cols=[],
+    analysis="Combined",
+    group_label="HA/COPD/CHF",
+)
+combined_comparison_regular_cohort = (
+    paired_metric_table(
+        combined_regular,
+        group_cols=["cohort"],
+        analysis="Combined",
+    )
+    .loc[regular_walking_cohorts]
+    .copy()
+)
+
+matched_comparison_regular_all = paired_metric_table(
+    matched_regular,
+    group_cols=[],
+    analysis="Matched",
+    group_label="HA/COPD/CHF",
+)
+matched_comparison_regular_cohort = (
+    paired_metric_table(
+        matched_regular,
+        group_cols=["cohort"],
+        analysis="Matched",
+    )
+    .loc[regular_walking_cohorts]
+    .copy()
+)
+
+matched_wb_counts_regular = matched_wb_count_table(
+    matched_regular, cohorts=regular_walking_cohorts
+)
+
+# %%
+# Regular-walking cohorts: combined recording-level results
+# ---------------------------------------------------------
+# These are the cohorts where the default Mobilise-D pipeline uses ILUZ GSD. This is the key comparison for deciding
+# whether an orientation-independent GSD can be used for the regular-walking pipeline.
+#
+# The combined analysis compares the median DMO values across each full recording between the wearable-derived
+# pipeline output and the INDIP reference. This is the most relevant view for real-world performance, where downstream
+# users typically consume recording-level aggregates rather than individual walking-bout estimates.
+
+print("\nPaired combined comparison for HA/COPD/CHF")
+print(combined_comparison_regular_all.round(4).to_string())
+
+combined_comparison_regular_all.round(4)
+
+# %%
+combined_comparison_regular_cohort.round(4)
+
+# %%
+plot_abs_rel_errors_by_cohort(
+    combined_regular,
+    cohorts=regular_walking_cohorts,
+    ylabel="Recording-level abs. rel. error [%]",
+)
+
+# %%
+plot_abs_rel_errors_by_cohort(
+    combined_regular,
+    cohorts=regular_walking_cohorts,
+    ylabel="Recording-level abs. rel. error [%]",
+    showfliers=False,
+)
+
+# %%
+# Regular-walking cohorts: direct walking-speed comparison
+# --------------------------------------------------------
+# These plots directly compare the combined detected walking-speed values between ``GsdIluz`` and each
+# orientation-independent candidate. Each point is one participant/recording, colored by cohort.
+
 plot_combined_walking_speed_correlation(combined_regular)
 
 # %%
-# Regular-walking combined recording-level error distributions
-# ------------------------------------------------------------
-
-
-def plot_regular_abs_rel_errors(
-    data: pd.DataFrame,
-    *,
-    ylabel: str,
-    showfliers: bool = True,
-) -> None:
-    fig, axes = plt.subplots(
-        1, 3, figsize=(16, 5), sharey=False, constrained_layout=True
-    )
-    for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
-        sns.boxplot(
-            data=data,
-            x="cohort",
-            y=f"{dmo}__abs_rel_error",
-            hue="version",
-            hue_order=version_order,
-            order=regular_walking_cohorts,
-            showmeans=True,
-            showfliers=showfliers,
-            ax=ax,
-        )
-        ax.set_title(dmo_label)
-        ax.set_xlabel("Cohort")
-        ax.set_ylabel(ylabel)
-        ax.grid(True, axis="y", alpha=0.3)
-        ax.legend(title=None)
-    move_legend_outside(fig, axes[-1])
-    plt.show()
-
-
-plot_regular_abs_rel_errors(
-    combined_regular,
-    ylabel="Recording-level abs. rel. error [%]",
-)
-
-# %%
-plot_regular_abs_rel_errors(
-    combined_regular,
-    ylabel="Recording-level abs. rel. error [%]",
-    showfliers=False,
-)
-
-# %%
-# Regular-walking matched WB-level error distributions
-# ----------------------------------------------------
-# This shows the distribution of errors across all walking bouts that are matched between each pipeline and the
-# reference. Matching is done per pipeline, so the number of data points behind each boxplot can differ.
-# For matched WBs, GsdIonescu performs well compared to the combined analysis above. It appears to match more WBs more
-# accurately, but also has more false positives, resulting in worse performance in the combined analysis.
+# Regular-walking cohorts: matched recording-level results
+# --------------------------------------------------------
+# The matched analysis compares only walking bouts that overlap sufficiently between the wearable-derived output and
+# the INDIP reference. This makes the DMO error comparison more like-for-like on the selected walking bouts, but it also
+# depends on how many and which WBs each pipeline matched. It is therefore less representative for real-world
+# performance, where recording-level aggregates over the entire recording are used.
 #
-# For real-world performance, the matched results are less interesting than the combined results.
+# The first table and plot show the total number of matched WBs per cohort and pipeline. These counts should be used as
+# context for interpreting the matched DMO error tables and plots below.
 
-regular_raw = free_living_results_matched_raw[
-    free_living_results_matched_raw["cohort"].isin(regular_walking_cohorts)
-].copy()
+matched_wb_counts_regular
 
-plot_regular_abs_rel_errors(
-    regular_raw,
-    ylabel="WB-level abs. rel. error [%]",
+# %%
+plot_matched_wb_counts(matched_regular, cohorts=regular_walking_cohorts)
+
+# %%
+print("\nPaired matched comparison for HA/COPD/CHF")
+print(matched_comparison_regular_all.round(4).to_string())
+
+matched_comparison_regular_all.round(4)
+
+# %%
+matched_comparison_regular_cohort.round(4)
+
+# %%
+plot_abs_rel_errors_by_cohort(
+    matched_regular,
+    cohorts=regular_walking_cohorts,
+    ylabel="Recording-level matched-WB abs. rel. error [%]",
 )
 
 # %%
-# With outliers removed for clarity.
-plot_regular_abs_rel_errors(
-    regular_raw,
-    ylabel="WB-level abs. rel. error [%]",
+plot_abs_rel_errors_by_cohort(
+    matched_regular,
+    cohorts=regular_walking_cohorts,
+    ylabel="Recording-level matched-WB abs. rel. error [%]",
     showfliers=False,
+)
+
+# %%
+# All cohorts: combined recording-level results
+# ---------------------------------------------
+# For completeness, the combined analysis is also shown across all available cohorts. Matched results are intentionally
+# omitted here, because the regular-walking cohorts above are the target use case for replacing ``GsdIluz``.
+
+print("\nPaired combined comparison across all cohorts")
+print(combined_comparison_all.round(4).to_string())
+
+combined_comparison_all.round(4)
+
+# %%
+combined_comparison_cohort.round(4)
+
+# %%
+plot_abs_rel_errors_by_cohort(
+    free_living_results_combined,
+    cohorts=cohort_order,
+    ylabel="Recording-level abs. rel. error [%]",
 )
