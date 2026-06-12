@@ -13,22 +13,23 @@ from mobgap.pipeline import iter_gs
 from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.utils.conversions import to_body_frame
 
+# Labels describe simulated mounting states: identity, rotations around PA, and PA-flipped variants.
 REORIENTATION_ROTATIONS = {
     "identity": Rotation.identity(),
-    "rot_x_180": Rotation.from_euler("x", 180, degrees=True),
-    "rot_y_180": Rotation.from_euler("y", 180, degrees=True),
-    "rot_z_180": Rotation.from_euler("z", 180, degrees=True),
-    "rot_z_90": Rotation.from_euler("z", 90, degrees=True),
-    "rot_z_-90": Rotation.from_euler("z", -90, degrees=True),
-    "rot_x_180_z_90": Rotation.from_euler("xz", [180, 90], degrees=True),
-    "rot_x_180_z_-90": Rotation.from_euler("xz", [180, -90], degrees=True),
+    "pa_normal__rot_pa_pos90": Rotation.from_euler("z", 90, degrees=True),
+    "pa_normal__rot_pa_180": Rotation.from_euler("z", 180, degrees=True),
+    "pa_normal__rot_pa_neg90": Rotation.from_euler("z", -90, degrees=True),
+    "pa_flipped__rot_pa_0": Rotation.from_euler("x", 180, degrees=True),
+    "pa_flipped__rot_pa_pos90": Rotation.from_euler("xz", [180, 90], degrees=True),
+    "pa_flipped__rot_pa_180": Rotation.from_euler("y", 180, degrees=True),
+    "pa_flipped__rot_pa_neg90": Rotation.from_euler("xz", [180, -90], degrees=True),
 }
 REORIENTATION_LABELS = tuple(REORIENTATION_ROTATIONS.keys())
 UNKNOWN_ORIENTATION_LABEL = "unknown"
 
 
 def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
-    """Map a reorientation algorithm response to one of the simulated rotation classes."""
+    """Map a reorientation algorithm response to one of the simulated orientation classes."""
     if not hasattr(algo, "result_"):
         raise ValueError(
             "ReorientationEmulationPipeline requires algorithms to expose a `result_` "
@@ -42,13 +43,13 @@ def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
     if family is None:
         return UNKNOWN_ORIENTATION_LABEL
     if family == 1:
-        return "rot_x_180" if phase < 0 else "identity"
+        return "pa_flipped__rot_pa_0" if phase < 0 else "identity"
     if family == 2:
-        return "rot_z_180" if phase > 0 else "rot_y_180"
+        return "pa_normal__rot_pa_180" if phase > 0 else "pa_flipped__rot_pa_180"
     if family == 3:
-        return "rot_z_90" if phase > 0 else "rot_x_180_z_90"
+        return "pa_normal__rot_pa_pos90" if phase > 0 else "pa_flipped__rot_pa_pos90"
     if family == 4:
-        return "rot_x_180_z_-90" if phase < 0 else "rot_z_-90"
+        return "pa_flipped__rot_pa_neg90" if phase < 0 else "pa_normal__rot_pa_neg90"
 
     return UNKNOWN_ORIENTATION_LABEL
 
