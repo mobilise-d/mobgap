@@ -85,7 +85,10 @@ class GsdIluz(BaseGsDetector):
 
     Other Parameters
     ----------------
-    %(other_parameters)s
+    data
+        The raw IMU data in the sensor frame passed to the ``detect`` method.
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz passed to the ``detect`` method.
 
     Attributes
     ----------
