@@ -173,7 +173,7 @@ def matched_wb_count_table(data: pd.DataFrame) -> pd.DataFrame:
     return table.rename_axis(index="Algorithm", columns="Orientation")
 
 
-def plot_matched_wb_counts(data: pd.DataFrame) -> None:
+def plot_matched_wb_counts(data: pd.DataFrame, *, title: str) -> None:
     plot_data = (
         data.assign(
             n_matched_wbs=data["matched__n_matched_wbs"].fillna(0).astype(int)
@@ -192,7 +192,7 @@ def plot_matched_wb_counts(data: pd.DataFrame) -> None:
         hue_order=algorithm_order,
         ax=ax,
     )
-    ax.set_title("Matched WBs summed over all recordings")
+    ax.set_title(title)
     ax.set_xlabel("Orientation")
     ax.set_ylabel("# matched WBs")
     ax.tick_params(axis="x", rotation=25)
@@ -282,16 +282,29 @@ def plot_identity_walking_speed_error_correlation(data: pd.DataFrame) -> None:
 # %%
 # Matched Walking Bout Counts
 # ---------------------------
-# This table and plot show the total number of matched walking bouts per
-# pipeline variant and simulated orientation, summed over all free-living
-# recordings. These counts provide context for interpreting orientation-specific
-# DMO errors, because matched analyses depend on how many WBs are matched.
+# This table shows the total number of matched walking bouts per pipeline
+# variant and simulated orientation, summed over all free-living recordings.
+# The plots split the same count by the two cohort groups used in the
+# performance analysis.
 
 matched_wb_counts = matched_wb_count_table(free_living_results)
 matched_wb_counts  # noqa: B018
 
 # %%
-plot_matched_wb_counts(free_living_results)
+plot_matched_wb_counts(
+    free_living_results[
+        free_living_results["cohort"].isin(regular_walking_cohorts)
+    ],
+    title="Matched WBs in regular-walking cohorts",
+)
+
+# %%
+plot_matched_wb_counts(
+    free_living_results[
+        free_living_results["cohort"].isin(impaired_walking_cohorts)
+    ],
+    title="Matched WBs in impaired-walking cohorts",
+)
 
 
 # %%
