@@ -21,14 +21,12 @@ from typing import Any, Literal, Optional
 import numpy as np
 import pandas as pd
 from scipy import signal
-from tpcp import Algorithm
+from tpcp import Algorithm, cf
 from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import FirFilter
+from mobgap.data_transform.base import BaseFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
-
-GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= captures gravity
-_REORIENTATION_BANDPASS = FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
 
 
 # Results container
@@ -57,6 +55,12 @@ class ReorientationMethodDM(Algorithm):
         trust_gravity - assumes mounting orientation is correct if gravity
         already points up along IS and skips AP/ML sign correction. This
         intentionally ignores possible 180 deg front/back flips in this case.
+    grav_threshold_ms2
+        Minimum absolute mean acceleration in m/s² for an axis to be treated as
+        capturing gravity.
+    gait_frequency_band_filter
+        The filter applied to ``acc_is`` and ``acc_pa`` before the cross-spectral
+        phase is calculated.
 
     Other Parameters
     ----------------
@@ -79,6 +83,8 @@ class ReorientationMethodDM(Algorithm):
 
     # Parameters
     correction_mode: Literal["full", "trust_gravity"]
+    grav_threshold_ms2: float
+    gait_frequency_band_filter: BaseFilter
 
     # Other Parameters
     data: pd.DataFrame
@@ -88,8 +94,17 @@ class ReorientationMethodDM(Algorithm):
     corrected_data_: pd.DataFrame
     result_: ReorientationResult
 
-    def __init__(self, correction_mode: Literal["full", "trust_gravity"] = "trust_gravity") -> None:
+    def __init__(
+        self,
+        correction_mode: Literal["full", "trust_gravity"] = "trust_gravity",
+        grav_threshold_ms2: float = 6.37,
+        gait_frequency_band_filter: BaseFilter = cf(
+            FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
+        ),
+    ) -> None:
         self.correction_mode = correction_mode
+        self.grav_threshold_ms2 = grav_threshold_ms2
+        self.gait_frequency_band_filter = gait_frequency_band_filter
 
     @base_reorientation_docfiller
     def detect_correct(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
@@ -112,7 +127,7 @@ class ReorientationMethodDM(Algorithm):
         corrections = []  # Track all corrections applied
 
         # Stage 1+2: identify gravity axis, direction, and family
-        where_grav, where_grav_points, family = _detect_gravity(data)
+        where_grav, where_grav_points, family = _detect_gravity(data, self.grav_threshold_ms2)
 
         # Cannot correct if gravity not detected - return data unchanged
         if family is None:
@@ -152,7 +167,7 @@ class ReorientationMethodDM(Algorithm):
             return self
 
         # Stage 3: compute IS-AP phase on IS-corrected data
-        phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz)
+        phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz, self.gait_frequency_band_filter)
 
         # ML/AP correction based on family and phase sign
         corrected, correction = _apply_ml_ap_correction(
@@ -180,7 +195,9 @@ class ReorientationMethodDM(Algorithm):
 
 
 # Helper functions for each stage of the algorithm
-def _detect_gravity(data: pd.DataFrame) -> tuple[Optional[str], Optional[str], Optional[int]]:
+def _detect_gravity(
+    data: pd.DataFrame, grav_threshold_ms2: float
+) -> tuple[Optional[str], Optional[str], Optional[int]]:
     """
     Stage 1: identify which axis captures gravity.
 
@@ -192,12 +209,12 @@ def _detect_gravity(data: pd.DataFrame) -> tuple[Optional[str], Optional[str], O
     mean_is = data["acc_is"].mean()
     mean_ml = data["acc_ml"].mean()
 
-    if abs(mean_is) >= GRAVITY_THRESHOLD:
+    if abs(mean_is) >= grav_threshold_ms2:
         where_grav = "is"
         where_grav_points = "up" if mean_is > 0 else "down"
         family = 1 if where_grav_points == "up" else 2
 
-    elif abs(mean_ml) >= GRAVITY_THRESHOLD:
+    elif abs(mean_ml) >= grav_threshold_ms2:
         where_grav = "ml"
         where_grav_points = "up" if mean_ml > 0 else "down"
         family = 3 if where_grav_points == "up" else 4
@@ -225,29 +242,35 @@ def _flip_axes(data: pd.DataFrame, axes: tuple[str, ...]) -> pd.DataFrame:
     return out
 
 
-def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, sampling_rate_hz: float) -> float:
+def _cross_spec_pa_phase_power_weighted(
+    data: pd.DataFrame, sampling_rate_hz: float, gait_frequency_band_filter: BaseFilter
+) -> float:
     """
     Compute power-weighted mean cross-spectral phase between acc_is and acc_pa.
 
     Computed across 0.5-3.0 Hz (gait stride frequency band).
 
-    Signals are bandpass filtered (0.5-2.5 Hz) before feature extraction.
+    Signals are bandpass filtered before feature extraction.
 
     Positive → AP correctly oriented.
     Negative → AP reversed.
     Returns 0.0 if bout is too short for spectral estimation or filtering.
     """
-    # Check minimum length for filter (padlen = 3 * (order + 1) for filtfilt)
-    min_length_for_filter = 3 * (_REORIENTATION_BANDPASS.order + 1)
-    if len(data) < min_length_for_filter:
+    # Apply bandpass filter before feature extraction
+    try:
+        filtered = (
+            gait_frequency_band_filter.clone()
+            .filter(data[["acc_is", "acc_pa"]], sampling_rate_hz=sampling_rate_hz)
+            .transformed_data_
+        )
+    except ValueError as e:
+        if "padlen" in str(e):
+            return 0.0
+        raise e from None
+
+    if len(filtered) < 4:
         return 0.0
 
-    # Apply bandpass filter before feature extraction
-    filtered = (
-        _REORIENTATION_BANDPASS.clone()
-        .filter(data[["acc_is", "acc_pa"]], sampling_rate_hz=sampling_rate_hz)
-        .transformed_data_
-    )
     acc_is_filt = filtered["acc_is"].to_numpy()
     acc_pa_filt = filtered["acc_pa"].to_numpy()
 
