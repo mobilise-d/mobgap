@@ -65,6 +65,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from mobgap.data.validation_results import ValidationResultLoader
+from mobgap.plotting import move_legend_outside
 from mobgap.utils.misc import get_env_var
 
 
@@ -295,41 +296,6 @@ def paired_metric_table(
     )
 
 
-def paired_count_table(
-    data: pd.DataFrame,
-    *,
-    group_cols: list[str],
-    analysis: str,
-    group_label: str = "All cohorts",
-) -> pd.DataFrame:
-    rows = []
-    grouping = (
-        data.groupby(group_cols, sort=False)
-        if group_cols
-        else [(group_label, data)]
-    )
-    for group_key, group_df in grouping:
-        group_values = dict(zip(group_cols or ["cohort"], _as_tuple(group_key)))
-        pivot = group_df.pivot(
-            index=free_living_index_cols,
-            columns="version",
-            values="n_matched_wbs",
-        )
-        paired = pivot[version_order].dropna()
-        row = {
-            **group_values,
-            "analysis": analysis,
-            **{version: paired[version].mean() for version in version_order},
-            "n_recordings": len(paired),
-        }
-        rows.append(row)
-    index_cols = [*(group_cols or ["cohort"]), "analysis"]
-    return _with_index(
-        pd.DataFrame(rows)[[*index_cols, *version_order, "n_recordings"]],
-        index_cols,
-    )
-
-
 def paired_delta_long(
     data: pd.DataFrame, metric: str, *, analysis: str
 ) -> pd.DataFrame:
@@ -381,11 +347,6 @@ matched_comparison_all = paired_metric_table(
     group_cols=[],
     analysis="Matched",
 )
-matched_count_comparison_all = paired_count_table(
-    free_living_results_matched,
-    group_cols=[],
-    analysis="Matched",
-)
 
 print("\nMean combined performance across all cohorts")
 print(combined_means_all.round(4).to_string())
@@ -395,8 +356,6 @@ print("\nMean matched performance across all cohorts")
 print(matched_means_all.round(4).to_string())
 print("\nPaired matched comparison across all cohorts")
 print(matched_comparison_all.round(4).to_string())
-print("\nMatched WB count comparison across all cohorts")
-print(matched_count_comparison_all.round(4).to_string())
 
 combined_means_all.round(4)
 
@@ -408,9 +367,6 @@ matched_means_all.round(4)
 
 # %%
 matched_comparison_all.round(4)
-
-# %%
-matched_count_comparison_all.round(4)
 
 # %%
 # Per-cohort overview
@@ -426,25 +382,14 @@ matched_comparison_cohort = paired_metric_table(
     group_cols=["cohort"],
     analysis="Matched",
 )
-matched_count_comparison_cohort = paired_count_table(
-    free_living_results_matched,
-    group_cols=["cohort"],
-    analysis="Matched",
-)
 
 combined_comparison_cohort = combined_comparison_cohort.loc[cohort_order]
 matched_comparison_cohort = matched_comparison_cohort.loc[cohort_order]
-matched_count_comparison_cohort = matched_count_comparison_cohort.loc[
-    cohort_order
-]
 
 combined_comparison_cohort.round(4)
 
 # %%
 matched_comparison_cohort.round(4)
-
-# %%
-matched_count_comparison_cohort.round(4)
 
 # %%
 # Absolute relative error deltas across all cohorts
@@ -468,7 +413,9 @@ abs_rel_delta = pd.concat(
     ignore_index=True,
 )
 
-fig, axes = plt.subplots(2, 1, figsize=(15, 11), sharex=True)
+fig, axes = plt.subplots(
+    2, 1, figsize=(15, 11), sharex=True, constrained_layout=True
+)
 for ax, (analysis_name, analysis_df) in zip(
     axes, abs_rel_delta.groupby("analysis", sort=False)
 ):
@@ -488,9 +435,9 @@ for ax, (analysis_name, analysis_df) in zip(
     )
     ax.set_ylabel("Delta abs. rel. error [%]")
     ax.grid(True, axis="y", alpha=0.3)
-    ax.legend(title=None, loc="upper left")
+    ax.legend(title=None)
 axes[-1].set_xlabel("Cohort")
-fig.tight_layout()
+move_legend_outside(fig, axes[-1])
 plt.show()
 
 # %%
@@ -518,27 +465,16 @@ matched_comparison_regular_all = paired_metric_table(
     analysis="Matched",
     group_label="HA/COPD/CHF",
 )
-matched_count_comparison_regular_all = paired_count_table(
-    matched_regular,
-    group_cols=[],
-    analysis="Matched",
-    group_label="HA/COPD/CHF",
-)
 
 print("\nPaired combined comparison for HA/COPD/CHF")
 print(combined_comparison_regular_all.round(4).to_string())
 print("\nPaired matched comparison for HA/COPD/CHF")
 print(matched_comparison_regular_all.round(4).to_string())
-print("\nMatched WB count comparison for HA/COPD/CHF")
-print(matched_count_comparison_regular_all.round(4).to_string())
 
 combined_comparison_regular_all.round(4)
 
 # %%
 matched_comparison_regular_all.round(4)
-
-# %%
-matched_count_comparison_regular_all.round(4)
 
 # %%
 # Regular-walking cohorts by cohort
@@ -554,19 +490,11 @@ matched_comparison_regular_cohort = matched_comparison_cohort[
         regular_walking_cohorts
     )
 ].copy()
-matched_count_comparison_regular_cohort = matched_count_comparison_cohort[
-    matched_count_comparison_cohort.index.get_level_values("cohort").isin(
-        regular_walking_cohorts
-    )
-].copy()
 
 combined_comparison_regular_cohort.round(4)
 
 # %%
 matched_comparison_regular_cohort.round(4)
-
-# %%
-matched_count_comparison_regular_cohort.round(4)
 
 # %%
 # Regular-walking WB-level error distributions
@@ -576,22 +504,33 @@ regular_raw = free_living_results_matched_raw[
     free_living_results_matched_raw["cohort"].isin(regular_walking_cohorts)
 ].copy()
 
-fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharey=False)
-for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
-    sns.boxplot(
-        data=regular_raw,
-        x="cohort",
-        y=f"{dmo}__abs_rel_error",
-        hue="version",
-        hue_order=version_order,
-        order=regular_walking_cohorts,
-        showmeans=True,
-        ax=ax,
+
+def plot_regular_raw_abs_rel_errors(*, showfliers: bool = True) -> None:
+    fig, axes = plt.subplots(
+        1, 3, figsize=(16, 5), sharey=False, constrained_layout=True
     )
-    ax.set_title(dmo_label)
-    ax.set_xlabel("Cohort")
-    ax.set_ylabel("WB-level abs. rel. error [%]")
-    ax.grid(True, axis="y", alpha=0.3)
-    ax.legend().set_title(None)
-fig.tight_layout()
-plt.show()
+    for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
+        sns.boxplot(
+            data=regular_raw,
+            x="cohort",
+            y=f"{dmo}__abs_rel_error",
+            hue="version",
+            hue_order=version_order,
+            order=regular_walking_cohorts,
+            showmeans=True,
+            showfliers=showfliers,
+            ax=ax,
+        )
+        ax.set_title(dmo_label)
+        ax.set_xlabel("Cohort")
+        ax.set_ylabel("WB-level abs. rel. error [%]")
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.legend(title=None)
+    move_legend_outside(fig, axes[-1])
+    plt.show()
+
+
+plot_regular_raw_abs_rel_errors()
+
+# %%
+plot_regular_raw_abs_rel_errors(showfliers=False)
