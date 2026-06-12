@@ -22,7 +22,7 @@ from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline import create_aggregate_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
-from mobgap.signal_based import SDMO
+from mobgap.signal_based import MobilisedSDMO
 from mobgap.signal_based.base import BaseSDMOCalculator
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
@@ -92,7 +92,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     turn_detection: Optional[BaseTurnDetector]
     stride_selection: StrideSelection
     wba: WbAssembly
-    sdmo_calculation: Optional[BaseSDMOCalculator]
+    sdmo_calculation: Optional[MobilisedSDMO]
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
     sdmo_aggregation: BaseAggregator
@@ -104,7 +104,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
     stride_selection_: StrideSelection
     wba_: WbAssembly
-    sdmo_calculation_: Optional[BaseSDMOCalculator]
+    sdmo_calculation_: Optional[MobilisedSDMO]
     dmo_aggregation_: Optional[BaseAggregator]
     sdmo_aggregation_: Optional[BaseAggregator]
 
@@ -131,7 +131,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "turn_detection": TdElGohary(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
-                "sdmo_calculation": SDMO(),
+                "sdmo_calculation": MobilisedSDMO(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
                 "sdmo_aggregation": SDMOAggregator(None),
@@ -152,7 +152,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "turn_detection": TdElGohary(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
-                "sdmo_calculation": SDMO(),
+                "sdmo_calculation": MobilisedSDMO(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
                 "sdmo_aggregation": SDMOAggregator(None),
@@ -172,7 +172,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
-        sdmo_calculation: Optional[BaseSDMOCalculator],
+        sdmo_calculation: Optional[MobilisedSDMO],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: Optional[BaseAggregator],
         sdmo_aggregation: Optional[BaseAggregator],
@@ -345,7 +345,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 if not turn_list.empty:
                     turn_list.loc[:, ["start", "end"]] -= wb_region.start
                 self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(
-                    wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz
+                    wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz, replicate_matlab=True
                 )
                 r.signal_based_parameters = self.sdmo_calculation_.signal_based_parameters
             self.per_wb_signal_based_parameters_ = pd.concat(

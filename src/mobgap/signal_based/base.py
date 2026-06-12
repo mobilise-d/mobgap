@@ -17,35 +17,28 @@ base_sdmo_docfiller = make_filldoc(
         and multiple columns containing the implemented signal-based parameters.
         This is a single value per metric per data. 
     """,
-        "other_parameters": """
+        "data_param": """
     data
-        The raw IMU data of ideally the walking bout passed to the ``calculate`` method.
+        The raw IMU data passed to the ``calculate`` method.
+    """,
+        "sampling_rate_param": """
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``calculate`` method.
+    """,
+        "stride_list_param": """
     stride_list
         The stride list associated with the ``data`` passed to the ``calculate`` method.
+    """,
+        "turn_list_param": """
     turn_list
         The turn list associated with the ``data`` passed to the ``calculate`` method.
     """,
-        "calculate_short": """
-    Calculate signal-based parameters for the passed data.
+        "replicate_matlab_param": """
+    replicate_matlab
+        If True, use MATLAB‑compatible smoothing, otherwise the direct pandas-based moving average smoothing.
     """,
-        "calculate_para": """
-    data
-        The raw IMU data of a single sensor.
-        We usually assume that this is one final walking bout after running the main blocks within the Mobilise-D
-        pipelines.
-    sampling_rate_hz
-        The sampling rate of the IMU data in Hz.
-    stride_list
-        Final stride list associated with the walking bout data. This data is expected to have `start`, `end`,
-        `stride_length_m`, `cadence_spm`, `stride_duration_s`. Depending on their availability some parameters will be
-        computed or not. The `start` and `end` indices have to be provided with respect to the walking bout start index.
-        This is important in case this data is passed within a gait sequence iterator where `data` is cropped to the
-        walking bout but the start and end times might be in relation to the whole data.
-    turn_list
-        Turn list within the walking bout. It has `start`, `end`, `duration_s` fields. Similarly, the `start` and `end`
-        indices have to be with respect to the `data`.
+        "calculate_short": """
+    Calculate parameters for the passed data.
     """,
         "calculate_return": """
     Returns
@@ -68,14 +61,16 @@ class BaseSDMOCalculator(Algorithm):
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
-    ``**kwargs``).
-    However, you should only use them, if you really need them and apply active checks, that they are passed correctly.
-    In 99%% of the time, you should add a new parameter to the algorithm itself, instead of adding a new parameter to
-    the calculate method.
+    ``**kwargs``) because the signal-based parameters covers a range of different metrics, calculate methods can
+    be overriding the base.
 
-    Other Parameters
+    Calculate Parameters
     ----------------
-    %(other_parameters)s
+    %(data_param)s
+    %(sampling_rate_param)s
+    %(stride_list_param)s
+    %(turn_list_param)s
+    %(replicate_matlab_param)s
 
     Attributes
     ----------
@@ -89,30 +84,20 @@ class BaseSDMOCalculator(Algorithm):
 
     _action_methods = ("calculate",)
 
-    data: pd.DataFrame
-    sampling_rate_hz: float
-    stride_list: pd.DataFrame
-    turn_list: pd.DataFrame
-    smooth_moving_func: Callable
-
     # results
     signal_based_parameters: pd.DataFrame
 
     @base_sdmo_docfiller
     def calculate(
         self,
-        data: pd.DataFrame,
         *,
-        sampling_rate_hz: float,
-        stride_list: Optional[pd.DataFrame] = None,
-        turn_list: Optional[pd.DataFrame] = None,
+        data: pd.DataFrame,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
-        %(calculate_para)s
         %(calculate_return)s
         """
         raise NotImplementedError
