@@ -124,7 +124,6 @@ class ReorientationEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithRefe
                 wb_predictions.append(
                     {
                         "wb_id": wb.id,
-                        "orientation": label,
                         "label": label,
                         "prediction": _orientation_class_from_result(algo),
                     }
