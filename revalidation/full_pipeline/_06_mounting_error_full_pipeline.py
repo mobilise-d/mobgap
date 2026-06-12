@@ -74,7 +74,11 @@ def load_mounting_error_results() -> pd.DataFrame:
     return pd.concat(results, ignore_index=True)
 
 
-def combined_error_long(data: pd.DataFrame) -> pd.DataFrame:
+def combined_error_long(
+    data: pd.DataFrame,
+    *,
+    value_suffix: str,
+) -> pd.DataFrame:
     results = []
     id_vars = [
         "algorithm",
@@ -87,7 +91,7 @@ def combined_error_long(data: pd.DataFrame) -> pd.DataFrame:
         "recording_name_pretty",
     ]
     for dmo, (dmo_label, unit) in dmos.items():
-        column = f"combined__{dmo}__error"
+        column = f"combined__{dmo}__{value_suffix}"
         results.append(
             data[[*id_vars, column]]
             .rename(columns={column: "error"})
@@ -97,7 +101,10 @@ def combined_error_long(data: pd.DataFrame) -> pd.DataFrame:
 
 
 free_living_results = load_mounting_error_results()
-combined_errors = combined_error_long(free_living_results)
+combined_errors = combined_error_long(free_living_results, value_suffix="error")
+combined_abs_errors = combined_error_long(
+    free_living_results, value_suffix="abs_error"
+)
 
 # %%
 # Plot Helpers
@@ -109,6 +116,7 @@ def plot_combined_error_boxplots(
     data: pd.DataFrame,
     *,
     title: str,
+    ylabel_prefix: str,
 ) -> None:
     fig, axes = plt.subplots(
         1,
@@ -132,14 +140,76 @@ def plot_combined_error_boxplots(
         ax.axhline(0, color="0.4", linewidth=1, linestyle=":", zorder=-50)
         ax.set_title(dmo_label)
         ax.set_xlabel("")
-        ax.set_ylabel(f"Combined error [{unit}]")
+        ax.set_ylabel(f"{ylabel_prefix} [{unit}]")
         ax.tick_params(axis="x", rotation=20)
         ax.grid(True, axis="y", alpha=0.3)
         ax.legend(title="Orientation")
 
     fig.suptitle(title)
-    move_legend_outside(fig, axes[-1])
+    move_legend_outside(fig, axes[-1], ncol=4)
     plt.show()
+
+
+def matched_wb_count_table(data: pd.DataFrame) -> pd.DataFrame:
+    matched_wb_counts = data.assign(
+        n_matched_wbs=data["matched__n_matched_wbs"].fillna(0).astype(int)
+    )
+    table = (
+        matched_wb_counts.pivot_table(
+            index="algorithm",
+            columns="orientation",
+            values="n_matched_wbs",
+            aggfunc="sum",
+            sort=False,
+        )
+        .reindex(index=algorithm_order, columns=orientation_order)
+        .fillna(0)
+        .astype(int)
+    )
+    return table.rename_axis(index="Algorithm", columns="Orientation")
+
+
+def plot_matched_wb_counts(data: pd.DataFrame) -> None:
+    plot_data = (
+        data.assign(
+            n_matched_wbs=data["matched__n_matched_wbs"].fillna(0).astype(int)
+        )
+        .groupby(["algorithm", "orientation"], sort=False)["n_matched_wbs"]
+        .sum()
+        .reset_index()
+    )
+    fig, ax = plt.subplots(figsize=(16, 7), constrained_layout=True)
+    sns.barplot(
+        data=plot_data,
+        x="orientation",
+        y="n_matched_wbs",
+        hue="algorithm",
+        order=orientation_order,
+        hue_order=algorithm_order,
+        ax=ax,
+    )
+    ax.set_title("Matched WBs summed over all recordings")
+    ax.set_xlabel("Orientation")
+    ax.set_ylabel("# matched WBs")
+    ax.tick_params(axis="x", rotation=25)
+    ax.grid(True, axis="y", alpha=0.3)
+    move_legend_outside(fig, ax, ncol=2)
+    plt.show()
+
+
+# %%
+# Matched Walking Bout Counts
+# ---------------------------
+# This table and plot show the total number of matched walking bouts per
+# pipeline variant and simulated orientation, summed over all free-living
+# recordings. These counts provide context for interpreting orientation-specific
+# DMO errors, because matched analyses depend on how many WBs are matched.
+
+matched_wb_counts = matched_wb_count_table(free_living_results)
+matched_wb_counts  # noqa: B018
+
+# %%
+plot_matched_wb_counts(free_living_results)
 
 
 # %%
@@ -151,6 +221,7 @@ def plot_combined_error_boxplots(
 plot_combined_error_boxplots(
     combined_errors,
     title="Combined DMO errors across all cohorts",
+    ylabel_prefix="Combined error",
 )
 
 # %%
@@ -162,6 +233,7 @@ plot_combined_error_boxplots(
 plot_combined_error_boxplots(
     combined_errors[combined_errors["cohort"].isin(regular_walking_cohorts)],
     title="Combined DMO errors in regular-walking cohorts",
+    ylabel_prefix="Combined error",
 )
 
 # %%
@@ -173,4 +245,35 @@ plot_combined_error_boxplots(
 plot_combined_error_boxplots(
     combined_errors[combined_errors["cohort"].isin(impaired_walking_cohorts)],
     title="Combined DMO errors in impaired-walking cohorts",
+    ylabel_prefix="Combined error",
+)
+
+# %%
+# Absolute Combined Errors
+# ------------------------
+# These plots mirror the signed-error views above, but show absolute combined
+# DMO errors.
+
+plot_combined_error_boxplots(
+    combined_abs_errors,
+    title="Combined absolute DMO errors across all cohorts",
+    ylabel_prefix="Combined absolute error",
+)
+
+# %%
+plot_combined_error_boxplots(
+    combined_abs_errors[
+        combined_abs_errors["cohort"].isin(regular_walking_cohorts)
+    ],
+    title="Combined absolute DMO errors in regular-walking cohorts",
+    ylabel_prefix="Combined absolute error",
+)
+
+# %%
+plot_combined_error_boxplots(
+    combined_abs_errors[
+        combined_abs_errors["cohort"].isin(impaired_walking_cohorts)
+    ],
+    title="Combined absolute DMO errors in impaired-walking cohorts",
+    ylabel_prefix="Combined absolute error",
 )
