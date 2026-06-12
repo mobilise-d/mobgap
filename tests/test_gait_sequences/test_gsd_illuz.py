@@ -2,11 +2,14 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
+from scipy.spatial.transform import Rotation
 from tpcp.testing import TestAlgorithmMixin
+from typing_extensions import Self
 
 from mobgap.consts import BF_SENSOR_COLS, SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdIluz, GsdIluzAdaptiveGravity
+from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.utils.conversions import to_body_frame
 
 
@@ -105,6 +108,16 @@ class TestGsdIluzAdaptiveGravity:
         assert len(output.gs_list_) == 1
         assert_series_equal(output.iluz_data_["acc_pa"], rotated_data["acc_y"], check_names=False)
 
+    def test_orientation_estimation_parameter_is_used(self):
+        data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
+
+        output = GsdIluzAdaptiveGravity(orientation_estimation=_IdentityOrientationEstimation()).detect(
+            data, sampling_rate_hz=100.0
+        )
+
+        assert_series_equal(output.iluz_data_["acc_is"], data["acc_z"], check_names=False)
+        assert not hasattr(output, "orientation_object_")
+
 
 class TestGsdIluzRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
@@ -136,3 +149,11 @@ def _rotate_sensor_axes_around_x(data: pd.DataFrame) -> pd.DataFrame:
         rotated_data[f"{sensor}_y"] = old_z
         rotated_data[f"{sensor}_z"] = -old_y
     return rotated_data
+
+
+class _IdentityOrientationEstimation(BaseOrientationEstimation):
+    def estimate(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_) -> Self:
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.orientation_object_ = Rotation.from_quat(np.repeat([[0.0, 0.0, 0.0, 1.0]], len(data), axis=0))
+        return self
