@@ -18,7 +18,7 @@ from mobgap.utils.conversions import to_body_frame, to_sensor_frame
 from mobgap.utils.dtypes import get_frame_definition
 from scipy.spatial.transform import Rotation
 
-OrientationSpec = Union[Mapping[str, Rotation], Sequence[str]]
+OrientationSpec = Optional[Union[Mapping[str, Rotation], Sequence[str]]]
 
 
 class MisorientedDataset(BaseGaitDatasetWithReference):
@@ -59,20 +59,22 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
     def __init__(
         self,
         base_dataset: BaseGaitDatasetWithReference,
-        orientations: Optional[OrientationSpec] = None,
+        orientations: OrientationSpec = None,
         *,
         orientation_col: str = "orientation",
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
         self.base_dataset = base_dataset
-        self.orientations = orientations or REORIENTATION_ROTATIONS
+        self.orientations = orientations
         self.orientation_col = orientation_col
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     @property
     def orientation_map(self) -> dict[str, Rotation]:
         """Return the configured orientation labels and rotations."""
+        if self.orientations is None:
+            return dict(REORIENTATION_ROTATIONS)
         if isinstance(self.orientations, Mapping):
             return dict(self.orientations)
         return {
