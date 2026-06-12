@@ -93,8 +93,13 @@ from mobgap.gait_sequences import (
 )
 
 pipelines["GsdIluz"] = GsdEmulationPipeline(GsdIluz())
-pipelines["GsdIluzAdaptiveGravity"] = GsdEmulationPipeline(
-    GsdIluzAdaptiveGravity(), convert_to_body_frame=False
+pipelines["GsdIluzAdaptiveGravity_mean"] = GsdEmulationPipeline(
+    GsdIluzAdaptiveGravity(pa_peak_aggregation="mean"),
+    convert_to_body_frame=False,
+)
+pipelines["GsdIluzAdaptiveGravity_max"] = GsdEmulationPipeline(
+    GsdIluzAdaptiveGravity(pa_peak_aggregation="max"),
+    convert_to_body_frame=False,
 )
 pipelines["GsdIluz_orig_peak"] = GsdEmulationPipeline(
     GsdIluz(**GsdIluz.PredefinedParameters.original)

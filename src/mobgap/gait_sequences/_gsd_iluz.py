@@ -77,6 +77,13 @@ _gsd_iluz_docfiller = make_filldoc(
     sampling_rate_hz
         The sampling rate of the IMU data in Hz passed to the ``detect`` method.
 """,
+        "pa_peak_aggregation": """
+    pa_peak_aggregation
+        How positive and negative PA-axis peak counts are aggregated before applying the ILUZ step-count thresholds.
+        ``"positive"`` keeps the original ILUZ behavior and only counts positive peaks in the convolved PA signal.
+        ``"mean"`` counts positive and negative peaks separately and uses their mean. ``"max"`` uses the larger of the
+        two counts.
+""",
     }
 )
 
@@ -340,7 +347,7 @@ class GsdIluz(BaseGsDetector):
 
         # We split this explicitly by the two axis here, as both axis have slightly different configurations and
         # thresholds
-        n_peaks = np.zeros((activity_windows.shape[0], 2), dtype=np.int32)
+        n_peaks = np.zeros((activity_windows.shape[0], 2), dtype=float)
         # IS:
         # NOTE: THE -GRAV_MS2! I missed that for the longest time in the original implementation.
         # TODO: Explore if using the filtered data here would be better. Note, that substracting GRAV_MS2 does not
@@ -361,12 +368,9 @@ class GsdIluz(BaseGsDetector):
         data_channel = data["acc_pa"].to_numpy()
         convolved_data = np.convolve(data_channel, sin_template, mode="same")
         convolved_data_windowed = sliding_window_view(convolved_data, window_length_samples, window_overlap_samples)
-        n_peaks[activity_windows, 1] = self._find_peaks(
+        n_peaks[activity_windows, 1] = self._count_pa_peaks(
             convolved_data_windowed[activity_windows],
             sampling_rate_hz=sampling_rate_hz,
-            step_detection_threshold=self.step_detection_thresholds[1],
-            max_allowed_steps_per_s=self.allowed_steps_per_s[1],
-            use_original_peak_detection=self.use_original_peak_detection,
         )
 
         del data_channel, convolved_data, convolved_data_windowed
@@ -411,6 +415,20 @@ class GsdIluz(BaseGsDetector):
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
 
         return _unify_gs_df(gs_list.reset_index(drop=True).copy())
+
+    def _count_pa_peaks(
+        self,
+        data_windows: np.ndarray,
+        *,
+        sampling_rate_hz: float,
+    ) -> np.ndarray:
+        return self._find_peaks(
+            data_windows,
+            sampling_rate_hz=sampling_rate_hz,
+            step_detection_threshold=self.step_detection_thresholds[1],
+            max_allowed_steps_per_s=self.allowed_steps_per_s[1],
+            use_original_peak_detection=self.use_original_peak_detection,
+        )
 
     def _find_peaks(
         self,
@@ -462,6 +480,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
         Orientation estimation algorithm used to track gravity and derive the vertical acceleration channel. The
         default is ``MadgwickAHRS(initial_orientation=None)``, which estimates the initial orientation from the first
         accelerometer sample.
+    %(pa_peak_aggregation)s
     %(common_parameters)s
 
     Other Parameters
@@ -478,6 +497,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
     """
 
     expected_pa_axis: Literal["x", "y", "z", "is", "ml", "pa"]
+    pa_peak_aggregation: Literal["positive", "mean", "max"]
     orientation_estimation: BaseOrientationEstimation
     iluz_data_: pd.DataFrame
 
@@ -486,6 +506,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
         self,
         *,
         expected_pa_axis: Literal["x", "y", "z", "is", "ml", "pa"] = "z",
+        pa_peak_aggregation: Literal["positive", "mean", "max"] = "positive",
         orientation_estimation: BaseOrientationEstimation = cf(MadgwickAHRS(initial_orientation=None)),
         pre_filter: BaseFilter,
         window_length_s: float,
@@ -515,6 +536,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
             use_original_peak_detection=use_original_peak_detection,
         )
         self.expected_pa_axis = expected_pa_axis
+        self.pa_peak_aggregation = pa_peak_aggregation
         self.orientation_estimation = orientation_estimation
 
     @timed_action_method
@@ -549,6 +571,10 @@ class GsdIluzAdaptiveGravity(GsdIluz):
                 f"{frame.capitalize()}-frame data requires expected_pa_axis to be one of {list(allowed_axes)}. "
                 f'Got "{self.expected_pa_axis}".'
             )
+        if self.pa_peak_aggregation not in ("positive", "mean", "max"):
+            raise ValueError(
+                f"pa_peak_aggregation must be one of ['positive', 'mean', 'max']. Got \"{self.pa_peak_aggregation}\"."
+            )
 
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
             self.gs_list_ = _empty_gs_list()
@@ -573,6 +599,26 @@ class GsdIluzAdaptiveGravity(GsdIluz):
 
         self.gs_list_ = self._detect_from_prepared_data(prepared_data, sampling_rate_hz=sampling_rate_hz)
         return self
+
+    def _count_pa_peaks(
+        self,
+        data_windows: np.ndarray,
+        *,
+        sampling_rate_hz: float,
+    ) -> np.ndarray:
+        positive_peak_count = super()._count_pa_peaks(data_windows, sampling_rate_hz=sampling_rate_hz)
+        if self.pa_peak_aggregation == "positive":
+            return positive_peak_count
+
+        negative_peak_count = super()._count_pa_peaks(-data_windows, sampling_rate_hz=sampling_rate_hz)
+        if self.pa_peak_aggregation == "mean":
+            return (positive_peak_count + negative_peak_count) / 2
+        if self.pa_peak_aggregation == "max":
+            return np.maximum(positive_peak_count, negative_peak_count)
+
+        raise ValueError(
+            f"pa_peak_aggregation must be one of ['positive', 'mean', 'max']. Got \"{self.pa_peak_aggregation}\"."
+        )
 
 
 # Note: I HATE THIS! Implementing a peak detection algorithm by hand feels like a huge stupid antipattern.

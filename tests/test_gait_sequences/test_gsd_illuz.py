@@ -156,6 +156,27 @@ class TestGsdIluzAdaptiveGravity:
         assert_series_equal(output.iluz_data_["acc_is"], data["acc_z"], check_names=False)
         assert not hasattr(output, "orientation_object_")
 
+    def test_invalid_pa_peak_aggregation_raises(self):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
+
+        with pytest.raises(ValueError, match="pa_peak_aggregation"):
+            GsdIluzAdaptiveGravity(pa_peak_aggregation="invalid").detect(data, sampling_rate_hz=40.0)
+
+    @pytest.mark.parametrize(
+        ("aggregation", "expected"),
+        [("positive", 1), ("mean", 2), ("max", 3)],
+    )
+    def test_pa_peak_aggregation(self, aggregation, expected):
+        convolved_pa_windows = np.zeros((1, 20))
+        convolved_pa_windows[0, 2] = 1.0
+        convolved_pa_windows[0, [6, 10, 14]] = -1.0
+
+        output = GsdIluzAdaptiveGravity(pa_peak_aggregation=aggregation)._count_pa_peaks(
+            convolved_pa_windows, sampling_rate_hz=10.0
+        )
+
+        assert output[0] == expected
+
 
 class TestGsdIluzRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))

@@ -19,14 +19,22 @@ We focus on the `single_results` (aka the performance per trail) and will aggreg
 # Below are the list of algorithms that we will compare.
 # Note, that we use the prefix "MobGap" to refer to the reimplemented python algorithms and "Original Implementation"
 # to refer to the original matlab algorithms.
-# In case of the GsdIluz algorithm, we also have two reimplemented versions.
+# In case of the GsdIluz algorithm, we also have multiple reimplemented versions.
 # The version `MobGap` uses a slightly modified peak detection algorithm, while the version `MobGap (original peak)`
-# tries to emulate the original peak detection algorithm as closely as possible.
+# tries to emulate the original peak detection algorithm as closely as possible. The adaptive-gravity variants use
+# sign-invariant PA peak-count aggregation.
 algorithms = {
     "GsdIonescu": ("GsdIonescu", "MobGap"),
     "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "MobGap"),
     "GsdIluz": ("GsdIluz", "MobGap"),
-    "GsdIluzAdaptiveGravity": ("GsdIluzAdaptiveGravity", "MobGap"),
+    "GsdIluzAdaptiveGravity_mean": (
+        "GsdIluzAdaptiveGravity",
+        "MobGap (PA peaks mean)",
+    ),
+    "GsdIluzAdaptiveGravity_max": (
+        "GsdIluzAdaptiveGravity",
+        "MobGap (PA peaks max)",
+    ),
     "GsdIluz_orig_peak": ("GsdIluz", "MobGap (original peak)"),
 }
 # We only load the matlab algorithms that were also reimplemented
