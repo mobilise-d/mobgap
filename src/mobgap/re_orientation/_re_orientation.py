@@ -16,7 +16,7 @@ Two correction modes:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorient
 GravityAxis = Literal["is", "ml"]
 GravityDirection = Literal["up", "down"]
 OrientationFamily = Literal[1, 2, 3, 4]
-GravityDetectionResult = tuple[GravityAxis | None, GravityDirection | None, OrientationFamily | None]
+GravityDetectionResult = tuple[Optional[GravityAxis], Optional[GravityDirection], Optional[OrientationFamily]]
 
 
 # Results container
@@ -39,9 +39,9 @@ GravityDetectionResult = tuple[GravityAxis | None, GravityDirection | None, Orie
 class ReorientationResult(BaseReorientationCorrector):
     """Stores detection output and the corrected data."""
 
-    where_grav: GravityAxis | None  # which device axis captured gravity
-    where_grav_points: GravityDirection | None  # direction of that axis
-    family: OrientationFamily | None  # orientation family
+    where_grav: Optional[GravityAxis]  # which device axis captured gravity
+    where_grav_points: Optional[GravityDirection]  # direction of that axis
+    family: Optional[OrientationFamily]  # orientation family
     phase: float  # IS-AP phase value used for ML/AP correction
     correction_applied: bool  # whether Stage 3 correction was applied
     correction_action: str  # description of correction applied, or 'none'
@@ -299,7 +299,7 @@ def _apply_ml_ap_correction(
     corrected: pd.DataFrame,
     family: OrientationFamily,
     phase: float,
-) -> tuple[pd.DataFrame, str | None]:
+) -> tuple[pd.DataFrame, Optional[str]]:
     """Apply ML/AP correction based on family and phase."""
     if family == 1:
         if phase < 0:

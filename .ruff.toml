@@ -68,7 +68,9 @@ select = [
     # f-strings over string concatenation
     "FLY",
     # Annotations
-    "ANN"
+    "ANN",
+    # Python-version-compatible annotations
+    "FA102",
 
 
 ]

@@ -10,6 +10,7 @@ from typing import (
     NamedTuple,
     Optional,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -263,7 +264,7 @@ def create_aggregate_df(
     return aggregate_df
 
 
-def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> pd.DataFrame | list:
+def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> Union[pd.DataFrame, list]:
     """Aggregate reorientation results from iterator results."""
     if not any(hasattr(r.result, "reorientation_result") for r in results):
         return pd.DataFrame()
