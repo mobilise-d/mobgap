@@ -190,16 +190,11 @@ format_transforms = [
     ),
 ]
 
-final_names = {
-    "n_datapoints": "# recordings",
-    "accuracy": "Accuracy per recording",
-    "combined_accuracy": "Combined accuracy",
-}
-
 validation_thresholds = {
     "Accuracy per recording": RevalidationInfo(
         threshold=0.8, higher_is_better=True
     ),
+    "Accuracy per trial": RevalidationInfo(threshold=0.8, higher_is_better=True),
     "Combined accuracy": RevalidationInfo(threshold=0.8, higher_is_better=True),
 }
 
@@ -217,13 +212,19 @@ def format_tables(
     single_results: pd.DataFrame,
     raw_predictions: pd.DataFrame,
     groupby: list[str],
+    datapoint_label: str,
 ) -> pd.DataFrame:
+    final_names = {
+        "n_datapoints": f"# {datapoint_label}s",
+        "accuracy": f"Accuracy per {datapoint_label}",
+        "combined_accuracy": "Combined accuracy",
+    }
     formatted_single_results = (
         single_results.groupby(groupby)
         .apply(apply_aggregations, custom_aggs, include_groups=False)
         .pipe(apply_transformations, format_transforms)
         .rename(columns=final_names)
-        .loc[:, ["# recordings", "Accuracy per recording"]]
+        .loc[:, [final_names["n_datapoints"], final_names["accuracy"]]]
     )
     combined_accuracy = calculate_combined_accuracy(raw_predictions, groupby)
     formatted_single_results["Combined accuracy"] = combined_accuracy
@@ -261,7 +262,10 @@ fig.tight_layout()
 fig.show()
 
 free_living_perf_metrics_all = format_tables(
-    free_living_results, free_living_predictions, ["algo", "version"]
+    free_living_results,
+    free_living_predictions,
+    ["algo", "version"],
+    "recording",
 )
 free_living_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
@@ -287,6 +291,7 @@ free_living_perf_metrics_cohort = (
         free_living_results,
         free_living_predictions,
         ["cohort", "algo", "version"],
+        "recording",
     )
     .loc[cohort_order]
 )
@@ -334,7 +339,7 @@ fig.tight_layout()
 fig.show()
 
 lab_perf_metrics_all = format_tables(
-    lab_results, lab_predictions, ["algo", "version"]
+    lab_results, lab_predictions, ["algo", "version"], "trial"
 )
 lab_perf_metrics_all.style.pipe(
     revalidation_table_styles, validation_thresholds, ["algo"]
@@ -360,6 +365,7 @@ lab_perf_metrics_cohort = (
         lab_results,
         lab_predictions,
         ["cohort", "algo", "version"],
+        "trial",
     )
     .loc[cohort_order]
 )
