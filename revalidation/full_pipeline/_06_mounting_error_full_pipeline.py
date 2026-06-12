@@ -138,7 +138,7 @@ def plot_combined_error_boxplots(
         ax.legend(title="Orientation")
 
     fig.suptitle(title)
-    move_legend_outside(fig, axes[-1], ncol=4)
+    move_legend_outside(fig, axes[-1])
     plt.show()
 
 
