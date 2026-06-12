@@ -495,9 +495,6 @@ matched_wb_counts_regular = matched_wb_count_table(
 # pipeline output and the INDIP reference. This is the most relevant view for real-world performance, where downstream
 # users typically consume recording-level aggregates rather than individual walking-bout estimates.
 
-print("\nPaired combined comparison for HA/COPD/CHF")
-print(combined_comparison_regular_all.round(4).to_string())
-
 combined_comparison_regular_all.round(4)
 
 # %%
@@ -543,9 +540,6 @@ matched_wb_counts_regular
 plot_matched_wb_counts(matched_regular, cohorts=regular_walking_cohorts)
 
 # %%
-print("\nPaired matched comparison for HA/COPD/CHF")
-print(matched_comparison_regular_all.round(4).to_string())
-
 matched_comparison_regular_all.round(4)
 
 # %%
@@ -571,9 +565,6 @@ plot_abs_rel_errors_by_cohort(
 # ---------------------------------------------
 # For completeness, the combined analysis is also shown across all available cohorts. Matched results are intentionally
 # omitted here, because the regular-walking cohorts above are the target use case for replacing ``GsdIluz``.
-
-print("\nPaired combined comparison across all cohorts")
-print(combined_comparison_all.round(4).to_string())
 
 combined_comparison_all.round(4)
 
