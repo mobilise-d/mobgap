@@ -259,7 +259,7 @@ pipelines = {
             ),
         ]
     ),
-    "Official_MobiliseD_Pipeline__adaptive_iluz_gs_all": MobilisedPipelineUniversal(
+    "Official_MobiliseD_Pipeline__gsd_iluz_adaptive_all": MobilisedPipelineUniversal(
         pipelines=[
             (
                 "healthy",

@@ -35,7 +35,7 @@ algorithms = {
         "Mobilise-D Pipeline",
         "GsdIonescu",
     ),
-    "Official_MobiliseD_Pipeline__adaptive_iluz_gs_all": (
+    "Official_MobiliseD_Pipeline__gsd_iluz_adaptive_all": (
         "Mobilise-D Pipeline",
         "GsdIluzAdaptiveGravity",
     ),
