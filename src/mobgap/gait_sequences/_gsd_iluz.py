@@ -5,27 +5,25 @@ from typing import Any, Final, Literal
 import numpy as np
 import pandas as pd
 from numba import float32, float64, guvectorize, int32
-from scipy.spatial.transform import Rotation
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.consts import GRAV_MS2, SF_ACC_COLS
+from mobgap.consts import GRAV_MS2
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.utils.array_handling import merge_intervals, sliding_window_view
-from mobgap.utils.conversions import as_samples, to_sensor_frame
+from mobgap.utils.conversions import as_samples
 from mobgap.utils.dtypes import assert_is_sensor_data, get_frame_definition
 
 _ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
 _SENSOR_AXES = ("x", "y", "z")
 _BODY_FRAME_AXES = ("is", "ml", "pa")
-_EXPECTED_PA_AXES = (*_SENSOR_AXES, *_BODY_FRAME_AXES)
 
 _gsd_iluz_docfiller = make_filldoc(
     base_gsd_docfiller._dict
@@ -544,31 +542,23 @@ class GsdIluzAdaptiveGravity(GsdIluz):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        if self.expected_pa_axis not in _EXPECTED_PA_AXES:
-            raise ValueError(
-                f'Invalid expected_pa_axis: {self.expected_pa_axis}. '
-                'Allowed values are ["x", "y", "z", "is", "ml", "pa"].'
-            )
-
         frame = get_frame_definition(data, ["sensor", "body"])
-        if frame == "sensor" and self.expected_pa_axis not in _SENSOR_AXES:
-            raise ValueError('Sensor-frame data requires expected_pa_axis to be one of ["x", "y", "z"].')
-        if frame == "body" and self.expected_pa_axis not in _BODY_FRAME_AXES:
-            raise ValueError('Body-frame data requires expected_pa_axis to be one of ["is", "ml", "pa"].')
+        allowed_axes = _SENSOR_AXES if frame == "sensor" else _BODY_FRAME_AXES
+        if self.expected_pa_axis not in allowed_axes:
+            raise ValueError(
+                f'{frame.capitalize()}-frame data requires expected_pa_axis to be one of {list(allowed_axes)}. '
+                f'Got "{self.expected_pa_axis}".'
+            )
 
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
             self.gs_list_ = _empty_gs_list()
             return self
 
-        orientation_data = data if frame == "sensor" else to_sensor_frame(data)
-        orientation_estimation = self.orientation_estimation.clone().estimate(
-            orientation_data, sampling_rate_hz=sampling_rate_hz
-        )
-        orientation_object = _sample_aligned_orientations(orientation_estimation.orientation_object_, len(data))
-        acc_data = orientation_data[SF_ACC_COLS].to_numpy()
-        rotated_acc = orientation_object.apply(acc_data)
-        vertical_acc = rotated_acc[:, 2].copy()
-        del orientation_estimation, orientation_object, orientation_data, rotated_acc, acc_data
+        orientation_estimation = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz)
+        rotated_data = orientation_estimation.rotated_data_
+        vertical_column = "acc_gz" if frame == "sensor" else "acc_gis"
+        vertical_acc = rotated_data[vertical_column].to_numpy().copy()
+        del orientation_estimation, rotated_data
 
         pa_column = f"acc_{self.expected_pa_axis}"
 
@@ -757,16 +747,3 @@ def vec_find_n_peaks_original(signal: np.ndarray, threshold: float, distance: fl
 
 def _empty_gs_list() -> pd.DataFrame:
     return _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-
-
-def _sample_aligned_orientations(orientation_object: Rotation, data_length: int) -> Rotation:
-    if len(orientation_object) == data_length:
-        return orientation_object
-    if len(orientation_object) == data_length + 1:
-        # Madgwick returns the initial orientation plus one updated orientation per sample. For sample-aligned
-        # transformed data, use the initial orientation through the penultimate update, matching rotated_data_.
-        return orientation_object[:-1]
-    raise ValueError(
-        "The orientation estimation algorithm must provide either one orientation per sample or one additional initial "
-        "orientation."
-    )

@@ -69,11 +69,11 @@ class TestGsdIluz:
 
 
 class TestGsdIluzAdaptiveGravity:
-    def test_invalid_pa_axis_parameter(self):
+    def test_sensor_frame_input_rejects_body_frame_axis(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
 
-        with pytest.raises(ValueError, match="Allowed values"):
-            GsdIluzAdaptiveGravity(expected_pa_axis="invalid").detect(data, sampling_rate_hz=40.0)
+        with pytest.raises(ValueError, match="Sensor-frame data requires"):
+            GsdIluzAdaptiveGravity(expected_pa_axis="pa").detect(data, sampling_rate_hz=40.0)
 
     def test_no_gsds(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
@@ -124,7 +124,7 @@ class TestGsdIluzAdaptiveGravity:
         assert len(output.gs_list_) == 1
         assert_series_equal(output.iluz_data_["acc_pa"], rotated_data["acc_y"], check_names=False)
 
-    def test_sensor_frame_input_rejects_pa_axis(self):
+    def test_sensor_frame_input_rejects_body_frame_axis_on_real_data(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
 
         with pytest.raises(ValueError, match="Sensor-frame data requires"):
@@ -193,5 +193,5 @@ class _IdentityOrientationEstimation(BaseOrientationEstimation):
     def estimate(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_) -> Self:
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.orientation_object_ = Rotation.from_quat(np.repeat([[0.0, 0.0, 0.0, 1.0]], len(data), axis=0))
+        self.orientation_object_ = Rotation.from_quat(np.repeat([[0.0, 0.0, 0.0, 1.0]], len(data) + 1, axis=0))
         return self
