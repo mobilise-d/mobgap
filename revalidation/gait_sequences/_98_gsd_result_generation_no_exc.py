@@ -85,7 +85,12 @@ for matlab_algo_name in [
 
 # %%
 # For the reimplemented algorithm, we set up version with different default presets.
-from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIluz, GsdIluzAdaptiveGravity, GsdIonescu
+from mobgap.gait_sequences import (
+    GsdAdaptiveIonescu,
+    GsdIluz,
+    GsdIluzAdaptiveGravity,
+    GsdIonescu,
+)
 
 pipelines["GsdIluz"] = GsdEmulationPipeline(GsdIluz())
 pipelines["GsdIluzAdaptiveGravity"] = GsdEmulationPipeline(

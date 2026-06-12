@@ -264,13 +264,17 @@ pipelines = {
             (
                 "healthy",
                 MobilisedPipelineHealthy(
-                    gait_sequence_detection=GsdIluzAdaptiveGravity(expected_pa_axis="pa")
+                    gait_sequence_detection=GsdIluzAdaptiveGravity(
+                        expected_pa_axis="pa"
+                    )
                 ),
             ),
             (
                 "impaired",
                 MobilisedPipelineImpaired(
-                    gait_sequence_detection=GsdIluzAdaptiveGravity(expected_pa_axis="pa")
+                    gait_sequence_detection=GsdIluzAdaptiveGravity(
+                        expected_pa_axis="pa"
+                    )
                 ),
             ),
         ]

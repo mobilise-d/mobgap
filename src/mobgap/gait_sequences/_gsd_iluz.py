@@ -546,7 +546,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
         allowed_axes = _SENSOR_AXES if frame == "sensor" else _BODY_FRAME_AXES
         if self.expected_pa_axis not in allowed_axes:
             raise ValueError(
-                f'{frame.capitalize()}-frame data requires expected_pa_axis to be one of {list(allowed_axes)}. '
+                f"{frame.capitalize()}-frame data requires expected_pa_axis to be one of {list(allowed_axes)}. "
                 f'Got "{self.expected_pa_axis}".'
             )
 

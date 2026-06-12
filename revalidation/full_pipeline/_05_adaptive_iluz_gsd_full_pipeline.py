@@ -599,8 +599,14 @@ plot_regular_abs_rel_errors(
 )
 
 # %%
-# Regular-walking WB-level error distributions
-# --------------------------------------------
+# Regular-walking matched WB-level error distributions
+# ----------------------------------------------------
+# This shows the distribution of errors across all walking bouts that are matched between each pipeline and the
+# reference. Matching is done per pipeline, so the number of data points behind each boxplot can differ.
+# For matched WBs, GsdIonescu performs well compared to the combined analysis above. It appears to match more WBs more
+# accurately, but also has more false positives, resulting in worse performance in the combined analysis.
+#
+# For real-world performance, the matched results are less interesting than the combined results.
 
 regular_raw = free_living_results_matched_raw[
     free_living_results_matched_raw["cohort"].isin(regular_walking_cohorts)
@@ -612,6 +618,7 @@ plot_regular_abs_rel_errors(
 )
 
 # %%
+# With outliers removed for clarity.
 plot_regular_abs_rel_errors(
     regular_raw,
     ylabel="WB-level abs. rel. error [%]",
