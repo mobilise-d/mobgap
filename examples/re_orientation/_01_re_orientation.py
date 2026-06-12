@@ -40,6 +40,7 @@ single_test = example_data.get_subset(
 )
 
 reference_wbs = single_test.reference_parameters_.wb_list
+sampling_rate_hz = single_test.sampling_rate_hz
 
 # Including only 1 WB as the example
 start = reference_wbs.iloc[2]["start"]
@@ -84,7 +85,9 @@ fig.show()
 # Below we apply the ReorientationMethodDM algorithm to the misoriented walking bout.
 # We use the 'full' method which applies all three stages.
 
-reoriented = ReorientationMethodDM(method="full").detect_correct(first_WB)
+reoriented = ReorientationMethodDM(method="full").detect_correct(
+    first_WB, sampling_rate_hz=sampling_rate_hz
+)
 
 print(f"\nDetected orientation family: {reoriented.result_.family}")
 print(f"Correction applied: {reoriented.result_.correction_applied}")

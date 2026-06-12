@@ -347,8 +347,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         # TODO: How to expose the individual algo instances of the algos that run in the loop?
 
         for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
-            if self.reorientation_correction:
-                reorient = self.reorientation_correction.clone().detect_correct(gs_data)
+            if self.reorientation_correction is not None:
+                reorient = self.reorientation_correction.clone().detect_correct(
+                    gs_data, sampling_rate_hz=action_kwargs["sampling_rate_hz"]
+                )
                 gs_data = reorient.corrected_data_  # noqa: PLW2901
                 r.reorientation_result = reorient.result_
 

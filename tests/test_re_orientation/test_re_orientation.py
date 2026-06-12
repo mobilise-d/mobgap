@@ -25,12 +25,33 @@ class TestMetaReorientationMethodDM(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self):
         algo = self.ALGORITHM_CLASS()
-        algo.detect_correct(pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS))
+        algo.detect_correct(pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0)
         return algo
 
 
 class TestReorientationMethodDM:
     """Tests for ReorientationMethodDM."""
+
+    def test_uses_sampling_rate_for_phase_detection(self):
+        sampling_rate_hz = 50.0
+        gait_frequency_hz = 1.8
+        time_s = np.arange(int(20 * sampling_rate_hz)) / sampling_rate_hz
+        base = pd.DataFrame(
+            {
+                "acc_is": 9.81 + np.sin(2 * np.pi * gait_frequency_hz * time_s),
+                "acc_ml": 0.2 * np.sin(2 * np.pi * gait_frequency_hz * time_s + 0.4),
+                "acc_pa": np.cos(2 * np.pi * gait_frequency_hz * time_s),
+                "gyr_is": 0.01 * np.sin(2 * np.pi * gait_frequency_hz * time_s),
+                "gyr_ml": 0.02 * np.cos(2 * np.pi * gait_frequency_hz * time_s),
+                "gyr_pa": 0.03 * np.sin(2 * np.pi * gait_frequency_hz * time_s + 0.1),
+            }
+        )
+        data = base.copy()
+        data[["acc_is", "gyr_is", "acc_ml", "gyr_ml"]] *= -1
+
+        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=sampling_rate_hz)
+
+        assert_frame_equal(result.corrected_data_, base)
 
     def test_correctly_oriented_data_family_1(self):
         """Test that correctly oriented data (Family 1) is left unchanged by conservative method."""
@@ -45,7 +66,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="conservative").detect_correct(data)
+        result = ReorientationMethodDM(method="conservative").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 1
         assert result.result_.where_grav == "is"
@@ -64,7 +85,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data)
+        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 2
         assert result.result_.where_grav == "is"
@@ -85,7 +106,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data)
+        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 3
         assert result.result_.where_grav == "ml"
@@ -106,7 +127,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data)
+        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == 4
         assert result.result_.where_grav == "ml"
@@ -128,7 +149,7 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(method="full").detect_correct(data)
+        result = ReorientationMethodDM(method="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family is None
         assert result.result_.where_grav is None
@@ -151,8 +172,12 @@ class TestReorientationMethodDM:
         imu_data = imu_data.reset_index(drop=True)
         wb_data = imu_data.loc[start:end]
 
-        result_full = ReorientationMethodDM(method="full").detect_correct(wb_data)
-        result_conservative = ReorientationMethodDM(method="conservative").detect_correct(wb_data)
+        result_full = ReorientationMethodDM(method="full").detect_correct(
+            wb_data, sampling_rate_hz=single_test.sampling_rate_hz
+        )
+        result_conservative = ReorientationMethodDM(method="conservative").detect_correct(
+            wb_data, sampling_rate_hz=single_test.sampling_rate_hz
+        )
 
         # Both should detect same family
         assert result_full.result_.family == result_conservative.result_.family
@@ -165,7 +190,7 @@ class TestReorientationMethodDM:
         """Test that invalid method parameter raises ValueError."""
         with pytest.raises(ValueError, match="method must be 'full' or 'conservative'"):
             ReorientationMethodDM(method="invalid").detect_correct(
-                pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+                pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
             )
 
     def test_single_walking_bout(self):
@@ -185,7 +210,9 @@ class TestReorientationMethodDM:
         imu_data = imu_data.reset_index(drop=True)
         wb_data = imu_data.loc[start:end]
 
-        result = ReorientationMethodDM(method="full").detect_correct(wb_data)
+        result = ReorientationMethodDM(method="full").detect_correct(
+            wb_data, sampling_rate_hz=single_test.sampling_rate_hz
+        )
 
         # Check that result_ has all required attributes
         assert hasattr(result.result_, "family")
@@ -220,7 +247,7 @@ class TestReorientationMethodDMRegression:
         correction_actions = []
 
         for (gs, wb_data), result in iterator.iterate(data, ref_walk_bouts):
-            reorientation_result = reorientation.detect_correct(wb_data)
+            reorientation_result = reorientation.detect_correct(wb_data, sampling_rate_hz=datapoint.sampling_rate_hz)
             families.append(reorientation_result.result_.family)
             corrections_applied.append(reorientation_result.result_.correction_applied)
             correction_actions.append(reorientation_result.result_.correction_action)
@@ -253,7 +280,7 @@ class TestReorientationMethodDMRegression:
         correction_actions = []
 
         for (gs, wb_data), result in iterator.iterate(data, ref_walk_bouts):
-            reorientation_result = reorientation.detect_correct(wb_data)
+            reorientation_result = reorientation.detect_correct(wb_data, sampling_rate_hz=datapoint.sampling_rate_hz)
             families.append(reorientation_result.result_.family)
             corrections_applied.append(reorientation_result.result_.correction_applied)
             correction_actions.append(reorientation_result.result_.correction_action)
@@ -272,24 +299,18 @@ class TestReorientationMethodDMRegression:
 
 class TestReorientationEmulationPipeline:
     def test_example_lab_data_creates_prediction_per_orientation_and_wb(self):
-        single_test = LabExampleDataset(
-            reference_system="INDIP", reference_para_level="wb"
-        ).get_subset(
+        single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(
             cohort="HA",
             participant_id="001",
             test="Test11",
             trial="Trial1",
         )
 
-        result = ReorientationEmulationPipeline(
-            ReorientationMethodDM(method="full")
-        ).run(single_test)
+        result = ReorientationEmulationPipeline(ReorientationMethodDM(method="full")).run(single_test)
 
         assert result.predictions_.index.names == ["wb_id"]
         assert result.predictions_.columns.to_list() == ["label", "prediction"]
-        assert len(result.predictions_) == len(
-            single_test.reference_parameters_.wb_list
-        ) * len(REORIENTATION_LABELS)
+        assert len(result.predictions_) == len(single_test.reference_parameters_.wb_list) * len(REORIENTATION_LABELS)
 
         first_wb_id = result.predictions_.index.get_level_values("wb_id")[0]
         first_wb_predictions = result.predictions_per_wb_[first_wb_id]
@@ -297,9 +318,7 @@ class TestReorientationEmulationPipeline:
         assert first_wb_predictions["label"].to_list() == list(REORIENTATION_LABELS)
 
     def test_reorientation_score_returns_combined_accuracy_and_confusion_matrix(self):
-        single_test = LabExampleDataset(
-            reference_system="INDIP", reference_para_level="wb"
-        ).get_subset(
+        single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(
             cohort="HA",
             participant_id="001",
             test="Test11",
@@ -316,6 +335,4 @@ class TestReorientationEmulationPipeline:
         assert "combined__accuracy" in agg_results.columns
         assert 0 <= agg_results.loc[0, "combined__accuracy"] <= 1
         assert set(raw_results) == {"predictions", "confusion_matrix"}
-        assert int(raw_results["confusion_matrix"].to_numpy().sum()) == len(
-            raw_results["predictions"]
-        )
+        assert int(raw_results["confusion_matrix"].to_numpy().sum()) == len(raw_results["predictions"])

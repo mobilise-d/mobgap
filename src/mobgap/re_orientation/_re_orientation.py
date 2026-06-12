@@ -30,7 +30,6 @@ from mobgap.data_transform import FirFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
 
 GRAVITY_THRESHOLD = 6.37  # m/s² - axis with |mean| >= captures gravity
-FS = 100
 _REORIENTATION_BANDPASS = FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
 
 
@@ -74,7 +73,7 @@ class ReorientationMethodDM(Algorithm):
     Examples
     --------
     >>> algo = ReorientationMethodDM(method="conservative")
-    >>> algo = algo.detect_correct(wb_data)
+    >>> algo = algo.detect_correct(wb_data, sampling_rate_hz=100.0)
     >>> corrected = algo.result_.data_corrected
     """
 
@@ -85,6 +84,7 @@ class ReorientationMethodDM(Algorithm):
 
     # Other Parameters
     data: pd.DataFrame
+    sampling_rate_hz: float
 
     # Results
     corrected_data_: pd.DataFrame
@@ -94,7 +94,7 @@ class ReorientationMethodDM(Algorithm):
         self.method = method
 
     @base_reorientation_docfiller
-    def detect_correct(self, data: pd.DataFrame, **_: Unpack[dict[str, Any]]) -> Self:
+    def detect_correct(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
         """%(detect_correct_short)s.
 
         Parameters
@@ -108,6 +108,7 @@ class ReorientationMethodDM(Algorithm):
             raise ValueError("method must be 'full' or 'conservative'")
 
         self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
 
         corrected = data.copy()
         corrections = []  # Track all corrections applied
@@ -153,7 +154,7 @@ class ReorientationMethodDM(Algorithm):
             return self
 
         # Stage 3: compute IS-AP phase on IS-corrected data
-        phase = _cross_spec_pa_phase_power_weighted(corrected)
+        phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz)
 
         # ML/AP correction based on family and phase sign
         corrected, corrections = _apply_ml_ap_correction(
@@ -249,7 +250,7 @@ def _flip_ml_and_ap(data: pd.DataFrame) -> pd.DataFrame:
     return _flip_ap(_flip_ml(data))
 
 
-def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> float:
+def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, sampling_rate_hz: float) -> float:
     """
     Compute power-weighted mean cross-spectral phase between acc_is and acc_pa.
 
@@ -272,21 +273,21 @@ def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, fs: int = FS) -> flo
     # Apply bandpass filter before feature extraction
     acc_is_filt = (
         _REORIENTATION_BANDPASS.clone()
-        .filter(pd.DataFrame({"acc_is": acc_is}), sampling_rate_hz=fs)
+        .filter(pd.DataFrame({"acc_is": acc_is}), sampling_rate_hz=sampling_rate_hz)
         .transformed_data_["acc_is"]
         .to_numpy()
     )
 
     acc_pa_filt = (
         _REORIENTATION_BANDPASS.clone()
-        .filter(pd.DataFrame({"acc_pa": acc_pa}), sampling_rate_hz=fs)
+        .filter(pd.DataFrame({"acc_pa": acc_pa}), sampling_rate_hz=sampling_rate_hz)
         .transformed_data_["acc_pa"]
         .to_numpy()
     )
 
     nperseg = min(256, len(acc_is_filt) // 2)
-    f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=fs, nperseg=nperseg)
-    f, pxx_is = signal.welch(acc_is_filt, fs=fs, nperseg=nperseg)
+    f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=sampling_rate_hz, nperseg=nperseg)
+    f, pxx_is = signal.welch(acc_is_filt, fs=sampling_rate_hz, nperseg=nperseg)
 
     stride_mask = (f >= 0.5) & (f <= 2.5)
     if not np.any(stride_mask):
