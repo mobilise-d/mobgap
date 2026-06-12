@@ -26,6 +26,7 @@ algorithms = {
     "GsdIonescu": ("GsdIonescu", "MobGap"),
     "GsdAdaptiveIonescu": ("GsdAdaptiveIonescu", "MobGap"),
     "GsdIluz": ("GsdIluz", "MobGap"),
+    "GsdIluzAdaptiveGravity": ("GsdIluzAdaptiveGravity", "MobGap"),
     "GsdIluz_orig_peak": ("GsdIluz", "MobGap (original peak)"),
 }
 # We only load the matlab algorithms that were also reimplemented

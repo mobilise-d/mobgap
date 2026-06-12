@@ -67,32 +67,39 @@ matlab_algo_result_path = (
 )
 
 pipelines = {}
-for matlab_algo_name in [
-    "EPFL_V1-improved_th",
-    "EPFL_V1-original",
-    "EPFL_V2-original",
-    # "Gaitpy",
-    # "Hickey-original",
-    # "Rai",
-    "TA_Iluz-original",
-    # "TA_Wavelets_v2",
-]:
-    pipelines[f"matlab_{matlab_algo_name}"] = GsdEmulationPipeline(
-        DummyGsdAlgo(
-            matlab_algo_name, base_result_folder=matlab_algo_result_path
-        )
-    )
+# Temporarily disabled while regenerating only GsdIluzAdaptiveGravity results.
+# for matlab_algo_name in [
+#     "EPFL_V1-improved_th",
+#     "EPFL_V1-original",
+#     "EPFL_V2-original",
+#     # "Gaitpy",
+#     # "Hickey-original",
+#     # "Rai",
+#     "TA_Iluz-original",
+#     # "TA_Wavelets_v2",
+# ]:
+#     pipelines[f"matlab_{matlab_algo_name}"] = GsdEmulationPipeline(
+#         DummyGsdAlgo(
+#             matlab_algo_name, base_result_folder=matlab_algo_result_path
+#         )
+#     )
 
 # %%
 # For the reimplemented algorithm, we set up version with different default presets.
-from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
+from mobgap.gait_sequences import GsdIluzAdaptiveGravity
 
-pipelines["GsdIluz"] = GsdEmulationPipeline(GsdIluz())
-pipelines["GsdIluz_orig_peak"] = GsdEmulationPipeline(
-    GsdIluz(**GsdIluz.PredefinedParameters.original)
+pipelines["GsdIluzAdaptiveGravity"] = GsdEmulationPipeline(
+    GsdIluzAdaptiveGravity(), convert_to_body_frame=False
 )
-pipelines["GsdIonescu"] = GsdEmulationPipeline(GsdIonescu())
-pipelines["GsdAdaptiveIonescu"] = GsdEmulationPipeline(GsdAdaptiveIonescu())
+# Temporarily disabled while regenerating only GsdIluzAdaptiveGravity results.
+# from mobgap.gait_sequences import GsdAdaptiveIonescu, GsdIluz, GsdIonescu
+#
+# pipelines["GsdIluz"] = GsdEmulationPipeline(GsdIluz())
+# pipelines["GsdIluz_orig_peak"] = GsdEmulationPipeline(
+#     GsdIluz(**GsdIluz.PredefinedParameters.original)
+# )
+# pipelines["GsdIonescu"] = GsdEmulationPipeline(GsdIonescu())
+# pipelines["GsdAdaptiveIonescu"] = GsdEmulationPipeline(GsdAdaptiveIonescu())
 
 # %%
 # Setting up the dataset
