@@ -19,6 +19,9 @@ from mobgap.utils.conversions import as_samples
 from mobgap.utils.dtypes import assert_is_sensor_data
 
 
+_ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
+
+
 @base_gsd_docfiller
 class GsdIluz(BaseGsDetector):
     """Implementation of the GSD algorithm by Iluz et al. (2014) [1]_.
@@ -253,12 +256,19 @@ class GsdIluz(BaseGsDetector):
 
         assert_is_sensor_data(data, frame="body")
 
-        relevant_columns = ["acc_is", "acc_pa"]
-        data = data[relevant_columns]
+        data = data[_ILUZ_CORE_COLUMNS]
 
+        self.gs_list_ = self._detect_from_prepared_data(data, sampling_rate_hz=sampling_rate_hz)
+        return self
+
+    def _detect_from_prepared_data(
+        self,
+        data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
+    ) -> pd.DataFrame:
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-            return self
+            return _empty_gs_list()
 
         # Filter the data
         try:
@@ -266,8 +276,7 @@ class GsdIluz(BaseGsDetector):
         except ValueError as e:
             if "padlen" in str(e):
                 warnings.warn("Data is too short for the filter. Returning empty gait sequence list.", stacklevel=1)
-                self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-                return self
+                return _empty_gs_list()
             raise e from None
 
         # Window data and define activity windows
@@ -300,8 +309,7 @@ class GsdIluz(BaseGsDetector):
 
         # We shortcut here, if there are no activity windows
         if not activity_windows.any():
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-            return self
+            return _empty_gs_list()
 
         # Convolve the data with sin signal
         # The template is equivalent to cycle of a sin wave with a frequency of `sin_template_freq_hz`
@@ -382,9 +390,7 @@ class GsdIluz(BaseGsDetector):
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
 
-        self.gs_list_ = _unify_gs_df(gs_list.reset_index(drop=True).copy())
-
-        return self
+        return _unify_gs_df(gs_list.reset_index(drop=True).copy())
 
     def _find_peaks(
         self,
@@ -582,3 +588,7 @@ def vec_find_n_peaks_original(signal: np.ndarray, threshold: float, distance: fl
     output = np.zeros(signal.shape[0], dtype=np.int32)
     _find_n_peaks_exact_matlab_replication(signal, threshold, distance, output)
     return output
+
+
+def _empty_gs_list() -> pd.DataFrame:
+    return _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
