@@ -497,8 +497,8 @@ combined_comparison_regular_cohort.round(4)
 matched_comparison_regular_cohort.round(4)
 
 # %%
-# Regular-walking recording-level error distributions
-# ---------------------------------------------------
+# Regular-walking combined recording-level error distributions
+# -----------------------------------------------------------
 
 
 def plot_regular_abs_rel_errors(
@@ -532,13 +532,13 @@ def plot_regular_abs_rel_errors(
 
 
 plot_regular_abs_rel_errors(
-    matched_regular,
+    combined_regular,
     ylabel="Recording-level abs. rel. error [%]",
 )
 
 # %%
 plot_regular_abs_rel_errors(
-    matched_regular,
+    combined_regular,
     ylabel="Recording-level abs. rel. error [%]",
     showfliers=False,
 )
