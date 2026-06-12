@@ -256,12 +256,13 @@ def paired_metric_table(
     *,
     group_cols: list[str],
     analysis: str,
+    group_label: str = "All cohorts",
 ) -> pd.DataFrame:
     rows = []
     grouping = (
         data.groupby(group_cols, sort=False)
         if group_cols
-        else [("All cohorts", data)]
+        else [(group_label, data)]
     )
     for group_key, group_df in grouping:
         group_values = dict(zip(group_cols or ["cohort"], _as_tuple(group_key)))
@@ -299,12 +300,13 @@ def paired_count_table(
     *,
     group_cols: list[str],
     analysis: str,
+    group_label: str = "All cohorts",
 ) -> pd.DataFrame:
     rows = []
     grouping = (
         data.groupby(group_cols, sort=False)
         if group_cols
-        else [("All cohorts", data)]
+        else [(group_label, data)]
     )
     for group_key, group_df in grouping:
         group_values = dict(zip(group_cols or ["cohort"], _as_tuple(group_key)))
@@ -508,16 +510,19 @@ combined_comparison_regular_all = paired_metric_table(
     combined_regular,
     group_cols=[],
     analysis="Combined",
+    group_label="HA/COPD/CHF",
 )
 matched_comparison_regular_all = paired_metric_table(
     matched_regular,
     group_cols=[],
     analysis="Matched",
+    group_label="HA/COPD/CHF",
 )
 matched_count_comparison_regular_all = paired_count_table(
     matched_regular,
     group_cols=[],
     analysis="Matched",
+    group_label="HA/COPD/CHF",
 )
 
 print("\nPaired combined comparison for HA/COPD/CHF")
