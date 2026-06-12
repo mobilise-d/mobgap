@@ -65,7 +65,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from mobgap.data.validation_results import ValidationResultLoader
-from mobgap.plotting import move_legend_outside
+from mobgap.plotting import (
+    calc_min_max_with_margin,
+    make_square,
+    move_legend_outside,
+)
 from mobgap.utils.misc import get_env_var
 
 
@@ -161,6 +165,11 @@ dmos = {
     "walking_speed_mps": "Walking speed",
     "stride_length_m": "Stride length",
     "cadence_spm": "Cadence",
+}
+dmo_units = {
+    "walking_speed_mps": "m/s",
+    "stride_length_m": "m",
+    "cadence_spm": "steps/min",
 }
 error_metrics = {
     "error": "Error",
@@ -495,6 +504,65 @@ combined_comparison_regular_cohort.round(4)
 
 # %%
 matched_comparison_regular_cohort.round(4)
+
+# %%
+# Regular-walking combined DMO correlations
+# -----------------------------------------
+
+
+def plot_combined_dmo_correlation(
+    data: pd.DataFrame,
+    *,
+    candidate: str,
+) -> None:
+    fig, axes = plt.subplots(
+        1, 3, figsize=(16, 5), sharey=False, constrained_layout=True
+    )
+    for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
+        column = f"{dmo}__detected"
+        plot_data = (
+            data.pivot(
+                index=free_living_index_cols,
+                columns="version",
+                values=column,
+            )
+            .reset_index()[[baseline_version, candidate, "cohort"]]
+            .dropna()
+        )
+        sns.scatterplot(
+            data=plot_data,
+            x=baseline_version,
+            y=candidate,
+            hue="cohort",
+            hue_order=regular_walking_cohorts,
+            ax=ax,
+        )
+        min_max = calc_min_max_with_margin(
+            plot_data[baseline_version], plot_data[candidate]
+        )
+        make_square(ax, min_max, draw_diagonal=True)
+        corr = plot_data[baseline_version].corr(plot_data[candidate])
+        unit = dmo_units[dmo]
+        ax.set_title(f"{dmo_label} (r = {corr:.3f})")
+        ax.set_xlabel(f"{baseline_version} [{unit}]")
+        ax.set_ylabel(f"{candidate} [{unit}]")
+        ax.grid(True, alpha=0.3)
+        ax.legend(title=None)
+    fig.suptitle(f"Combined DMO agreement: {candidate} vs {baseline_version}")
+    move_legend_outside(fig, axes[-1])
+    plt.show()
+
+
+plot_combined_dmo_correlation(
+    combined_regular,
+    candidate="GsdIluzAdaptiveGravity",
+)
+
+# %%
+plot_combined_dmo_correlation(
+    combined_regular,
+    candidate="GsdIonescu",
+)
 
 # %%
 # Regular-walking combined recording-level error distributions
