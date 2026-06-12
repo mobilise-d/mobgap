@@ -515,20 +515,20 @@ def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
         constrained_layout=True,
     )
     column = "walking_speed_mps__detected"
-    plot_data = (
-        data.pivot(
-            index=free_living_index_cols,
-            columns="version",
-            values=column,
-        )
-        .reset_index()[[baseline_version, *candidate_versions, "cohort"]]
-        .dropna()
-    )
+    pivoted_data = data.pivot(
+        index=free_living_index_cols,
+        columns="version",
+        values=column,
+    ).reset_index()[[baseline_version, *candidate_versions, "cohort"]]
     min_max = calc_min_max_with_margin(
-        plot_data[baseline_version], *[plot_data[v] for v in candidate_versions]
+        pivoted_data[baseline_version],
+        *[pivoted_data[v] for v in candidate_versions],
     )
 
     for ax, candidate in zip(axes, candidate_versions):
+        plot_data = pivoted_data[
+            [baseline_version, candidate, "cohort"]
+        ].dropna()
         sns.scatterplot(
             data=plot_data,
             x=baseline_version,
