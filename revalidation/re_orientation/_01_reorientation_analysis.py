@@ -190,13 +190,13 @@ format_transforms = [
     ),
 ]
 
-validation_thresholds = {
-    "Accuracy per recording": RevalidationInfo(
-        threshold=0.8, higher_is_better=True
-    ),
-    "Accuracy per trial": RevalidationInfo(threshold=0.8, higher_is_better=True),
-    "Combined accuracy": RevalidationInfo(threshold=0.8, higher_is_better=True),
-}
+def validation_thresholds(datapoint_label: str) -> dict[str, RevalidationInfo]:
+    return {
+        f"Accuracy per {datapoint_label}": RevalidationInfo(
+            threshold=0.8, higher_is_better=True
+        ),
+        "Combined accuracy": RevalidationInfo(threshold=0.8, higher_is_better=True),
+    }
 
 
 def calculate_combined_accuracy(
@@ -268,7 +268,7 @@ free_living_perf_metrics_all = format_tables(
     "recording",
 )
 free_living_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles, validation_thresholds("recording"), ["algo"]
 )
 
 # %%
@@ -296,7 +296,7 @@ free_living_perf_metrics_cohort = (
     .loc[cohort_order]
 )
 free_living_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles, validation_thresholds("recording"), ["cohort", "algo"]
 )
 
 # %%
@@ -342,7 +342,7 @@ lab_perf_metrics_all = format_tables(
     lab_results, lab_predictions, ["algo", "version"], "trial"
 )
 lab_perf_metrics_all.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["algo"]
+    revalidation_table_styles, validation_thresholds("trial"), ["algo"]
 )
 
 # %%
@@ -370,7 +370,7 @@ lab_perf_metrics_cohort = (
     .loc[cohort_order]
 )
 lab_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds, ["cohort", "algo"]
+    revalidation_table_styles, validation_thresholds("trial"), ["cohort", "algo"]
 )
 
 # %%
