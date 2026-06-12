@@ -157,6 +157,7 @@ class DummyFullPipeline(BaseMobilisedPipeline[BaseTVSDataset]):
 #    results should be stored `MOBGAP_VALIDATION_DATA_PATH`.
 #    The path to the cache directory `MOBGAP_CACHE_DIR_PATH` is optional, when you don't want to store the memory cache
 #    in the default location.
+from mobgap.gait_sequences import GsdIluz, GsdIluzAdaptiveGravity, GsdIonescu
 from mobgap.pipeline import (
     MobilisedPipelineHealthy,
     MobilisedPipelineImpaired,
@@ -230,6 +231,46 @@ pipelines = {
                 "impaired",
                 MobilisedPipelineImpaired(
                     laterality_classification=LrcBenMansour()
+                ),
+            ),
+        ]
+    ),
+    "Official_MobiliseD_Pipeline__gsd_iluz_all": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(gait_sequence_detection=GsdIluz()),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(gait_sequence_detection=GsdIluz()),
+            ),
+        ]
+    ),
+    "Official_MobiliseD_Pipeline__gsd_ionescu_all": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(gait_sequence_detection=GsdIonescu()),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(gait_sequence_detection=GsdIonescu()),
+            ),
+        ]
+    ),
+    "Official_MobiliseD_Pipeline__adaptive_iluz_gs_all": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(
+                    gait_sequence_detection=GsdIluzAdaptiveGravity(expected_pa_axis="pa")
+                ),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(
+                    gait_sequence_detection=GsdIluzAdaptiveGravity(expected_pa_axis="pa")
                 ),
             ),
         ]
