@@ -28,7 +28,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from mobgap.plotting import move_legend_outside
+from mobgap.plotting import (
+    calc_min_max_with_margin,
+    make_square,
+    move_legend_outside,
+)
 from mobgap.re_orientation.pipeline import REORIENTATION_LABELS
 from mobgap.utils.misc import get_env_var
 
@@ -197,6 +201,84 @@ def plot_matched_wb_counts(data: pd.DataFrame) -> None:
     plt.show()
 
 
+def identity_walking_speed_error_comparison(data: pd.DataFrame) -> pd.DataFrame:
+    id_vars = [
+        "cohort",
+        "participant_id",
+        "time_measure",
+        "recording",
+        "recording_name",
+        "recording_name_pretty",
+    ]
+    error_col = "combined__walking_speed_mps__error"
+    identity_data = data[data["orientation"] == "identity"]
+    default_errors = (
+        identity_data[identity_data["algorithm"] == "Default"][
+            [*id_vars, error_col]
+        ]
+        .rename(columns={error_col: "default_error"})
+        .copy()
+    )
+    adaptive_errors = (
+        identity_data[
+            identity_data["algorithm"] == "Adaptive GSD + Reorientation"
+        ][[*id_vars, error_col]]
+        .rename(columns={error_col: "adaptive_error"})
+        .copy()
+    )
+    return default_errors.merge(adaptive_errors, on=id_vars, how="inner")
+
+
+def plot_identity_walking_speed_error_correlation(data: pd.DataFrame) -> None:
+    comparison = identity_walking_speed_error_comparison(data)
+    cohort_groups = [
+        ("Regular-walking cohorts", regular_walking_cohorts),
+        ("Impaired-walking cohorts", impaired_walking_cohorts),
+    ]
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(14, 7),
+        constrained_layout=True,
+    )
+    legend_handles = {}
+    for ax, (title, cohorts) in zip(axes, cohort_groups):
+        plot_data = comparison[comparison["cohort"].isin(cohorts)].dropna(
+            subset=["default_error", "adaptive_error"]
+        )
+        sns.scatterplot(
+            data=plot_data,
+            x="default_error",
+            y="adaptive_error",
+            hue="cohort",
+            hue_order=cohorts,
+            ax=ax,
+            s=80,
+        )
+        min_max = calc_min_max_with_margin(
+            plot_data["default_error"], plot_data["adaptive_error"]
+        )
+        make_square(ax, min_max)
+        ax.set_title(title)
+        ax.set_xlabel("Default identity WS error [m/s]")
+        ax.set_ylabel("Adaptive GSD + reorientation identity WS error [m/s]")
+        ax.grid(True, alpha=0.3)
+        handles, labels = ax.get_legend_handles_labels()
+        legend_handles.update(dict(zip(labels, handles)))
+        ax.get_legend().remove()
+
+    fig.suptitle("Identity-orientation combined walking-speed errors")
+    fig.legend(
+        legend_handles.values(),
+        legend_handles.keys(),
+        loc="outside lower center",
+        ncol=3,
+        frameon=False,
+        borderpad=1.5,
+    )
+    plt.show()
+
+
 # %%
 # Matched Walking Bout Counts
 # ---------------------------
@@ -210,6 +292,18 @@ matched_wb_counts  # noqa: B018
 
 # %%
 plot_matched_wb_counts(free_living_results)
+
+
+# %%
+# Identity-Orientation Walking-Speed Error Correlation
+# ----------------------------------------------------
+# This plot compares the combined walking-speed error per recording between
+# the default pipeline with correctly mounted data and the adaptive-GSD
+# reorientation variant with correctly mounted data. It checks whether enabling
+# the orientation-robust pipeline changes walking-speed performance when the
+# sensor is already mounted in the expected orientation.
+
+plot_identity_walking_speed_error_correlation(free_living_results)
 
 
 # %%
