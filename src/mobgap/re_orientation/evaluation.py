@@ -16,9 +16,7 @@ from mobgap.re_orientation.pipeline import (
 
 def _confusion_matrix_as_df(predictions: pd.DataFrame) -> pd.DataFrame:
     known_labels = list(REORIENTATION_LABELS)
-    extra_labels = sorted(
-        set(predictions["label"]).union(predictions["prediction"]) - set(known_labels)
-    )
+    extra_labels = sorted(set(predictions["label"]).union(predictions["prediction"]) - set(known_labels))
     labels = [*known_labels, *extra_labels]
 
     return pd.DataFrame(
@@ -48,9 +46,7 @@ def reorientation_per_datapoint_score(
     predictions = pipeline.safe_run(datapoint).predictions_
 
     return {
-        "accuracy": accuracy_score(predictions["label"], predictions["prediction"])
-        if len(predictions) > 0
-        else np.nan,
+        "accuracy": accuracy_score(predictions["label"], predictions["prediction"]) if len(predictions) > 0 else np.nan,
         "predictions": no_agg(predictions),
     }
 
@@ -78,9 +74,7 @@ def reorientation_final_agg(
     )
 
     if len(raw_predictions) > 0:
-        combined_accuracy = accuracy_score(
-            raw_predictions["label"], raw_predictions["prediction"]
-        )
+        combined_accuracy = accuracy_score(raw_predictions["label"], raw_predictions["prediction"])
         confusion_matrix_df = _confusion_matrix_as_df(raw_predictions)
     else:
         combined_accuracy = np.nan

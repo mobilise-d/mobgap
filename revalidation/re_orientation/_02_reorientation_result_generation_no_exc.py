@@ -39,7 +39,10 @@ are saved to disk.
 #    the TVS dataset `MOBGAP_TVS_DATASET_PATH` and the path where revalidation results
 #    should be stored `MOBGAP_VALIDATION_DATA_PATH`. The path to the cache directory
 #    `MOBGAP_CACHE_DIR_PATH` is optional.
-from mobgap.re_orientation import ReorientationEmulationPipeline, ReorientationMethodDM
+from mobgap.re_orientation import (
+    ReorientationEmulationPipeline,
+    ReorientationMethodDM,
+)
 from mobgap.utils.misc import get_env_var
 
 pipelines = {
@@ -134,7 +137,9 @@ def eval_debug_plot(
 # ~~~~~~~~~~~
 # Let's start with the Free-Living part of the dataset.
 with Parallel(n_jobs=n_jobs) as parallel:
-    results_free_living: dict[str, Evaluation[ReorientationEmulationPipeline]] = dict(
+    results_free_living: dict[
+        str, Evaluation[ReorientationEmulationPipeline]
+    ] = dict(
         parallel(
             delayed(run_evaluation)(name, pipeline, datasets_free_living)
             for name, pipeline in pipelines.items()
@@ -164,7 +169,9 @@ for k, v in results_free_living.items():
 # ~~~~~~~~~~
 # Now, we repeat the evaluation for the Laboratory part of the dataset.
 with Parallel(n_jobs=n_jobs) as parallel:
-    results_laboratory: dict[str, Evaluation[ReorientationEmulationPipeline]] = dict(
+    results_laboratory: dict[
+        str, Evaluation[ReorientationEmulationPipeline]
+    ] = dict(
         parallel(
             delayed(run_evaluation)(name, pipeline, datasets_laboratory)
             for name, pipeline in pipelines.items()

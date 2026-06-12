@@ -190,12 +190,15 @@ format_transforms = [
     ),
 ]
 
+
 def validation_thresholds(datapoint_label: str) -> dict[str, RevalidationInfo]:
     return {
         f"Accuracy per {datapoint_label}": RevalidationInfo(
             threshold=0.8, higher_is_better=True
         ),
-        "Combined accuracy": RevalidationInfo(threshold=0.8, higher_is_better=True),
+        "Combined accuracy": RevalidationInfo(
+            threshold=0.8, higher_is_better=True
+        ),
     }
 
 
@@ -203,8 +206,10 @@ def calculate_combined_accuracy(
     predictions: pd.DataFrame,
     groupby: list[str],
 ) -> pd.Series:
-    return predictions.groupby(groupby)["is_correct"].mean().rename(
-        "combined_accuracy"
+    return (
+        predictions.groupby(groupby)["is_correct"]
+        .mean()
+        .rename("combined_accuracy")
     )
 
 
@@ -286,17 +291,16 @@ sns.boxplot(
 ax.set_title("Free-living accuracy per recording")
 fig.show()
 
-free_living_perf_metrics_cohort = (
-    format_tables(
-        free_living_results,
-        free_living_predictions,
-        ["cohort", "algo", "version"],
-        "recording",
-    )
-    .loc[cohort_order]
-)
+free_living_perf_metrics_cohort = format_tables(
+    free_living_results,
+    free_living_predictions,
+    ["cohort", "algo", "version"],
+    "recording",
+).loc[cohort_order]
 free_living_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds("recording"), ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds("recording"),
+    ["cohort", "algo"],
 )
 
 # %%
@@ -360,17 +364,16 @@ sns.boxplot(
 ax.set_title("Laboratory accuracy per trial")
 fig.show()
 
-lab_perf_metrics_cohort = (
-    format_tables(
-        lab_results,
-        lab_predictions,
-        ["cohort", "algo", "version"],
-        "trial",
-    )
-    .loc[cohort_order]
-)
+lab_perf_metrics_cohort = format_tables(
+    lab_results,
+    lab_predictions,
+    ["cohort", "algo", "version"],
+    "trial",
+).loc[cohort_order]
 lab_perf_metrics_cohort.style.pipe(
-    revalidation_table_styles, validation_thresholds("trial"), ["cohort", "algo"]
+    revalidation_table_styles,
+    validation_thresholds("trial"),
+    ["cohort", "algo"],
 )
 
 # %%

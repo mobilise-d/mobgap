@@ -1,12 +1,11 @@
 """Helpful pipelines to evaluate reorientation algorithms."""
 
 from collections.abc import Hashable
-from typing import Any
 
 import pandas as pd
 from scipy.spatial.transform import Rotation
-from tpcp import OptimizableParameter, OptimizablePipeline
-from typing_extensions import Self, Unpack
+from tpcp import OptimizableParameter, Pipeline
+from typing_extensions import Self
 
 from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data.base import BaseGaitDatasetWithReference
@@ -54,7 +53,7 @@ def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
     return UNKNOWN_ORIENTATION_LABEL
 
 
-class ReorientationEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
+class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
     """Run a reorientation algorithm on simulated sensor misorientations.
 
     This pipeline uses the reference walking bouts of a datapoint. For every walking bout,
@@ -108,6 +107,8 @@ class ReorientationEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithRefe
             self.per_wb_algo_ = {}
             return self
 
+        # TODO: This needs to be changed, once the Reorientation algorithm is properly implemented as "converting
+        #  from sensor to body frame".
         data = to_body_frame(datapoint.data_ss)
         result_algo_list = {}
         predictions_per_wb = {}
@@ -117,9 +118,7 @@ class ReorientationEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithRefe
             wb_predictions = []
             for label, rotation in REORIENTATION_ROTATIONS.items():
                 rotated_data = flip_dataset(wb_data, rotation)
-                algo = self.algo.clone().detect_correct(
-                    rotated_data, sampling_rate_hz=datapoint.sampling_rate_hz
-                )
+                algo = self.algo.clone().detect_correct(rotated_data, sampling_rate_hz=datapoint.sampling_rate_hz)
                 result_algo_list[(wb.id, label)] = algo
                 wb_predictions.append(
                     {
@@ -128,22 +127,13 @@ class ReorientationEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithRefe
                         "prediction": _orientation_class_from_result(algo),
                     }
                 )
-            predictions_per_wb[wb.id] = pd.DataFrame(wb_predictions)[
-                ["label", "prediction"]
-            ]
+            predictions_per_wb[wb.id] = pd.DataFrame(wb_predictions)[["label", "prediction"]]
             predictions.extend(wb_predictions)
 
         self.per_wb_algo_ = result_algo_list
         self.predictions_per_wb_ = predictions_per_wb
-        self.predictions_ = pd.DataFrame(predictions).set_index("wb_id")[
-            ["label", "prediction"]
-        ]
+        self.predictions_ = pd.DataFrame(predictions).set_index("wb_id")[["label", "prediction"]]
 
-        return self
-
-    def self_optimize(self, dataset: BaseGaitDatasetWithReference, **kwargs: Unpack[dict[str, Any]]) -> Self:
-        """Run a self-optimization of the wrapped algorithm if available."""
-        self.algo.self_optimize(dataset, **kwargs)
         return self
 
 

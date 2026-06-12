@@ -132,10 +132,10 @@ class ReorientationMethodDM(Algorithm):
 
         # Stage 1: IS axis identity and direction correction
         if where_grav == "ml":
-            corrected = _swap_is_ml(corrected, data)
+            corrected = _swap_is_ml(corrected)
             corrections.append("swapped IS-ML")
         if where_grav_points == "down":
-            corrected = _flip_is(corrected)
+            corrected = _flip_axes(corrected, ("is",))
             corrections.append("flipped IS")
 
         # Conservative: skip ML/AP correction for Family 1
@@ -157,12 +157,13 @@ class ReorientationMethodDM(Algorithm):
         phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz)
 
         # ML/AP correction based on family and phase sign
-        corrected, corrections = _apply_ml_ap_correction(
+        corrected, correction = _apply_ml_ap_correction(
             corrected,
             family,
             phase,
-            corrections,
         )
+        if correction is not None:
+            corrections.append(correction)
 
         correction_action = " and ".join(corrections) if corrections else "none"
 
@@ -211,43 +212,19 @@ def _detect_gravity(data: pd.DataFrame) -> tuple[Optional[str], Optional[str], O
     return where_grav, where_grav_points, family
 
 
-def _swap_is_ml(corrected: pd.DataFrame, original: pd.DataFrame) -> pd.DataFrame:
+def _swap_is_ml(data: pd.DataFrame) -> pd.DataFrame:
     """Swap IS and ML axes (acc and gyr)."""
-    out = corrected.copy()
-    out["acc_is"] = original["acc_ml"].copy()
-    out["acc_ml"] = original["acc_is"].copy()
-    out["gyr_is"] = original["gyr_ml"].copy()
-    out["gyr_ml"] = original["gyr_is"].copy()
-    return out
-
-
-def _flip_is(data: pd.DataFrame) -> pd.DataFrame:
-    """Negate IS axis (acc and gyr)."""
     out = data.copy()
-    out["acc_is"] = -out["acc_is"]
-    out["gyr_is"] = -out["gyr_is"]
+    out[["acc_is", "acc_ml", "gyr_is", "gyr_ml"]] = data[["acc_ml", "acc_is", "gyr_ml", "gyr_is"]].to_numpy()
     return out
 
 
-def _flip_ml(data: pd.DataFrame) -> pd.DataFrame:
-    """Negate ML axis (acc and gyr)."""
+def _flip_axes(data: pd.DataFrame, axes: tuple[str, ...]) -> pd.DataFrame:
+    """Negate one or more body axes (acc and gyr)."""
     out = data.copy()
-    out["acc_ml"] = -out["acc_ml"]
-    out["gyr_ml"] = -out["gyr_ml"]
+    cols = [f"{sensor}_{axis}" for axis in axes for sensor in ("acc", "gyr")]
+    out[cols] = -out[cols]
     return out
-
-
-def _flip_ap(data: pd.DataFrame) -> pd.DataFrame:
-    """Negate AP axis (acc and gyr)."""
-    out = data.copy()
-    out["acc_pa"] = -out["acc_pa"]
-    out["gyr_pa"] = -out["gyr_pa"]
-    return out
-
-
-def _flip_ml_and_ap(data: pd.DataFrame) -> pd.DataFrame:
-    """Negate both ML and AP axes (acc and gyr)."""
-    return _flip_ap(_flip_ml(data))
 
 
 def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, sampling_rate_hz: float) -> float:
@@ -262,28 +239,19 @@ def _cross_spec_pa_phase_power_weighted(data: pd.DataFrame, sampling_rate_hz: fl
     Negative → AP reversed.
     Returns 0.0 if bout is too short for spectral estimation or filtering.
     """
-    acc_is = data["acc_is"].to_numpy()
-    acc_pa = data["acc_pa"].to_numpy()
-
     # Check minimum length for filter (padlen = 3 * (order + 1) for filtfilt)
-    min_length_for_filter = 3 * 101  # 303 samples for order=100
-    if len(acc_is) < min_length_for_filter:
+    min_length_for_filter = 3 * (_REORIENTATION_BANDPASS.order + 1)
+    if len(data) < min_length_for_filter:
         return 0.0
 
     # Apply bandpass filter before feature extraction
-    acc_is_filt = (
+    filtered = (
         _REORIENTATION_BANDPASS.clone()
-        .filter(pd.DataFrame({"acc_is": acc_is}), sampling_rate_hz=sampling_rate_hz)
-        .transformed_data_["acc_is"]
-        .to_numpy()
+        .filter(data[["acc_is", "acc_pa"]], sampling_rate_hz=sampling_rate_hz)
+        .transformed_data_
     )
-
-    acc_pa_filt = (
-        _REORIENTATION_BANDPASS.clone()
-        .filter(pd.DataFrame({"acc_pa": acc_pa}), sampling_rate_hz=sampling_rate_hz)
-        .transformed_data_["acc_pa"]
-        .to_numpy()
-    )
+    acc_is_filt = filtered["acc_is"].to_numpy()
+    acc_pa_filt = filtered["acc_pa"].to_numpy()
 
     nperseg = min(256, len(acc_is_filt) // 2)
     f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=sampling_rate_hz, nperseg=nperseg)
@@ -306,24 +274,18 @@ def _apply_ml_ap_correction(
     corrected: pd.DataFrame,
     family: int,
     phase: float,
-    corrections: list[str],
-) -> tuple[pd.DataFrame, list[str]]:
+) -> tuple[pd.DataFrame, Optional[str]]:
     """Apply ML/AP correction based on family and phase."""
     if family == 1:
         if phase < 0:
-            corrected = _flip_ml_and_ap(corrected)
-            corrections.append("flipped ML and AP")
+            return _flip_axes(corrected, ("ml", "pa")), "flipped ML and AP"
 
     elif family in {2, 3}:
         if phase > 0:
-            corrected = _flip_ml(corrected)
-            corrections.append("flipped ML")
-        else:
-            corrected = _flip_ap(corrected)
-            corrections.append("flipped AP")
+            return _flip_axes(corrected, ("ml",)), "flipped ML"
+        return _flip_axes(corrected, ("pa",)), "flipped AP"
 
     elif family == 4 and phase < 0:
-        corrected = _flip_ml_and_ap(corrected)
-        corrections.append("flipped ML and AP")
+        return _flip_axes(corrected, ("ml", "pa")), "flipped ML and AP"
 
-    return corrected, corrections
+    return corrected, None
