@@ -497,21 +497,22 @@ combined_comparison_regular_cohort.round(4)
 matched_comparison_regular_cohort.round(4)
 
 # %%
-# Regular-walking WB-level error distributions
-# --------------------------------------------
-
-regular_raw = free_living_results_matched_raw[
-    free_living_results_matched_raw["cohort"].isin(regular_walking_cohorts)
-].copy()
+# Regular-walking recording-level error distributions
+# ---------------------------------------------------
 
 
-def plot_regular_raw_abs_rel_errors(*, showfliers: bool = True) -> None:
+def plot_regular_abs_rel_errors(
+    data: pd.DataFrame,
+    *,
+    ylabel: str,
+    showfliers: bool = True,
+) -> None:
     fig, axes = plt.subplots(
         1, 3, figsize=(16, 5), sharey=False, constrained_layout=True
     )
     for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
         sns.boxplot(
-            data=regular_raw,
+            data=data,
             x="cohort",
             y=f"{dmo}__abs_rel_error",
             hue="version",
@@ -523,14 +524,41 @@ def plot_regular_raw_abs_rel_errors(*, showfliers: bool = True) -> None:
         )
         ax.set_title(dmo_label)
         ax.set_xlabel("Cohort")
-        ax.set_ylabel("WB-level abs. rel. error [%]")
+        ax.set_ylabel(ylabel)
         ax.grid(True, axis="y", alpha=0.3)
         ax.legend(title=None)
     move_legend_outside(fig, axes[-1])
     plt.show()
 
 
-plot_regular_raw_abs_rel_errors()
+plot_regular_abs_rel_errors(
+    matched_regular,
+    ylabel="Recording-level abs. rel. error [%]",
+)
 
 # %%
-plot_regular_raw_abs_rel_errors(showfliers=False)
+plot_regular_abs_rel_errors(
+    matched_regular,
+    ylabel="Recording-level abs. rel. error [%]",
+    showfliers=False,
+)
+
+# %%
+# Regular-walking WB-level error distributions
+# --------------------------------------------
+
+regular_raw = free_living_results_matched_raw[
+    free_living_results_matched_raw["cohort"].isin(regular_walking_cohorts)
+].copy()
+
+plot_regular_abs_rel_errors(
+    regular_raw,
+    ylabel="WB-level abs. rel. error [%]",
+)
+
+# %%
+plot_regular_abs_rel_errors(
+    regular_raw,
+    ylabel="WB-level abs. rel. error [%]",
+    showfliers=False,
+)
