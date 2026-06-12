@@ -46,7 +46,7 @@ case for unknown mounting orientations.
 # the current ``GsdIonescu`` setup.
 from pathlib import Path
 
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset
 from mobgap.gait_sequences import GsdIluzAdaptiveGravity
@@ -133,9 +133,9 @@ datasets_free_living = MisorientedDataset(
 # %%
 # Running The Evaluation
 # ----------------------
-# We multiprocess on the pipeline-variant level. Each variant runs over the
-# full orientation-expanded free-living dataset and is saved to its own result
-# folder.
+# We run the pipeline variants one after another and use multiprocessing within
+# each evaluation. This parallelizes over datapoints, which gives better CPU
+# utilization than splitting only across the three pipeline variants.
 
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
@@ -151,7 +151,7 @@ def run_evaluation(
 ) -> tuple[str, Evaluation[BaseMobilisedPipeline]]:
     eval_pipe = Evaluation(
         ds,
-        scoring=pipeline_score,
+        scoring=pipeline_score.clone().set_params(n_jobs=n_jobs),
     ).run(pipeline)
     return name, eval_pipe
 
@@ -159,21 +159,13 @@ def run_evaluation(
 # %%
 # Free-Living
 # ~~~~~~~~~~~
-with Parallel(n_jobs=n_jobs) as parallel:
-    results_free_living: dict[str, Evaluation[BaseMobilisedPipeline]] = dict(
-        parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
-        )
-    )
-
-# %%
-# Save Results
-# ~~~~~~~~~~~~
-for k, v in results_free_living.items():
+# Results are written after each pipeline variant finishes so that completed
+# variants remain available if a later, slower variant is interrupted.
+for name, pipeline in pipelines.items():
+    _, result = run_evaluation(name, pipeline, datasets_free_living)
     save_evaluation_results(
-        k,
-        v,
+        name,
+        result,
         condition="free_living",
         base_path=results_base_path,
         raw_results=["matched_errors"],
