@@ -46,7 +46,7 @@ case for unknown mounting orientations.
 # the current ``GsdIonescu`` setup.
 from pathlib import Path
 
-from joblib import Memory
+from joblib import Memory, parallel_backend
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset
 from mobgap.gait_sequences import GsdIluzAdaptiveGravity
@@ -149,10 +149,15 @@ def run_evaluation(
     pipeline: BaseMobilisedPipeline,
     ds: MisorientedDataset,
 ) -> tuple[str, Evaluation[BaseMobilisedPipeline]]:
-    eval_pipe = Evaluation(
-        ds,
-        scoring=pipeline_score.clone().set_params(n_jobs=n_jobs),
-    ).run(pipeline)
+    scoring = pipeline_score.clone().set_params(n_jobs=n_jobs, verbose=10)
+    # tpcp.validate resets explicit Scorer multiprocessing params to its own
+    # defaults. The backend context keeps the scorer's internal Parallel call
+    # on the intended process pool.
+    with parallel_backend("loky", n_jobs=n_jobs):
+        eval_pipe = Evaluation(
+            ds,
+            scoring=scoring,
+        ).run(pipeline)
     return name, eval_pipe
 
 
