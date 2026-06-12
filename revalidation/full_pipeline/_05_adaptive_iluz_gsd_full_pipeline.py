@@ -42,7 +42,7 @@ algorithms = {
 }
 
 baseline_version = "GsdIluz"
-candidate_versions = ["GsdIonescu", "GsdIluzAdaptiveGravity"]
+candidate_versions = ["GsdIluzAdaptiveGravity", "GsdIonescu"]
 version_order = [baseline_version, *candidate_versions]
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 regular_walking_cohorts = ["HA", "COPD", "CHF"]
@@ -158,6 +158,34 @@ error_metrics = {
     "rel_error": "Rel. error [%]",
     "abs_rel_error": "Abs. rel. error [%]",
 }
+summary_statistics = ["mean", "median", "std", "n_recordings"]
+
+
+def _as_tuple(value) -> tuple:
+    return value if isinstance(value, tuple) else (value,)
+
+
+def _sort_metric_rows(
+    data: pd.DataFrame, index_cols: list[str]
+) -> pd.DataFrame:
+    data = data.copy()
+    data["dmo"] = pd.Categorical(
+        data["dmo"], categories=list(dmos.values()), ordered=True
+    )
+    data["metric"] = pd.Categorical(
+        data["metric"], categories=list(error_metrics.values()), ordered=True
+    )
+    sort_cols = [*index_cols, "analysis", "dmo", "metric"]
+    if "statistic" in data.columns:
+        data["statistic"] = pd.Categorical(
+            data["statistic"], categories=summary_statistics, ordered=True
+        )
+        sort_cols.append("statistic")
+    data = data.sort_values(sort_cols).reset_index(drop=True)
+    for col in ["dmo", "metric", "statistic"]:
+        if col in data.columns:
+            data[col] = data[col].astype(str)
+    return data
 
 
 def mean_metric_table(
@@ -169,8 +197,7 @@ def mean_metric_table(
     rows = []
     grouping = [*group_cols, "version"] if group_cols else ["version"]
     for group_key, group_df in data.groupby(grouping, sort=False):
-        group_key = (group_key,) if isinstance(group_key, str) else group_key
-        group_values = dict(zip(grouping, group_key))
+        group_values = dict(zip(grouping, _as_tuple(group_key)))
         for dmo, dmo_label in dmos.items():
             for metric, metric_label in error_metrics.items():
                 column = f"{dmo}__{metric}"
@@ -186,10 +213,27 @@ def mean_metric_table(
                         "n_recordings": len(group_df[column].dropna()),
                     }
                 )
-    return pd.DataFrame(rows)
+    summary = pd.DataFrame(rows)
+    index_cols = [*group_cols, "analysis", "dmo", "metric"]
+    formatted = (
+        summary.melt(
+            id_vars=[*index_cols, "version"],
+            value_vars=summary_statistics,
+            var_name="statistic",
+            value_name="value",
+        )
+        .pivot(
+            index=[*index_cols, "statistic"],
+            columns="version",
+            values="value",
+        )
+        .reset_index()
+    )
+    formatted = formatted[[*index_cols, "statistic", *version_order]]
+    return _sort_metric_rows(formatted, group_cols)
 
 
-def paired_delta_table(
+def paired_metric_table(
     data: pd.DataFrame,
     *,
     group_cols: list[str],
@@ -202,8 +246,7 @@ def paired_delta_table(
         else [("All cohorts", data)]
     )
     for group_key, group_df in grouping:
-        group_key = (group_key,) if isinstance(group_key, str) else group_key
-        group_values = dict(zip(group_cols or ["cohort"], group_key))
+        group_values = dict(zip(group_cols or ["cohort"], _as_tuple(group_key)))
         for dmo, dmo_label in dmos.items():
             for metric, metric_label in error_metrics.items():
                 column = f"{dmo}__{metric}"
@@ -212,28 +255,25 @@ def paired_delta_table(
                     columns="version",
                     values=column,
                 )
-                for candidate in candidate_versions:
-                    paired = pivot[[baseline_version, candidate]].dropna()
-                    delta = paired[candidate] - paired[baseline_version]
-                    rows.append(
-                        {
-                            **group_values,
-                            "analysis": analysis,
-                            "candidate": candidate,
-                            "dmo": dmo_label,
-                            "metric": metric_label,
-                            "baseline_mean": paired[baseline_version].mean(),
-                            "candidate_mean": paired[candidate].mean(),
-                            "delta_mean": delta.mean(),
-                            "delta_median": delta.median(),
-                            "delta_std": delta.std(),
-                            "n_recordings": len(paired),
-                        }
-                    )
-    return pd.DataFrame(rows)
+                paired = pivot[version_order].dropna()
+                row = {
+                    **group_values,
+                    "analysis": analysis,
+                    "dmo": dmo_label,
+                    "metric": metric_label,
+                    **{
+                        version: paired[version].mean()
+                        for version in version_order
+                    },
+                    "n_recordings": len(paired),
+                }
+                rows.append(row)
+    index_cols = [*(group_cols or ["cohort"]), "analysis", "dmo", "metric"]
+    result = pd.DataFrame(rows)[[*index_cols, *version_order, "n_recordings"]]
+    return _sort_metric_rows(result, group_cols or ["cohort"])
 
 
-def paired_count_delta_table(
+def paired_count_table(
     data: pd.DataFrame,
     *,
     group_cols: list[str],
@@ -246,30 +286,22 @@ def paired_count_delta_table(
         else [("All cohorts", data)]
     )
     for group_key, group_df in grouping:
-        group_key = (group_key,) if isinstance(group_key, str) else group_key
-        group_values = dict(zip(group_cols or ["cohort"], group_key))
+        group_values = dict(zip(group_cols or ["cohort"], _as_tuple(group_key)))
         pivot = group_df.pivot(
             index=free_living_index_cols,
             columns="version",
             values="n_matched_wbs",
         )
-        for candidate in candidate_versions:
-            paired = pivot[[baseline_version, candidate]].dropna()
-            delta = paired[candidate] - paired[baseline_version]
-            rows.append(
-                {
-                    **group_values,
-                    "analysis": analysis,
-                    "candidate": candidate,
-                    "baseline_mean": paired[baseline_version].mean(),
-                    "candidate_mean": paired[candidate].mean(),
-                    "delta_mean": delta.mean(),
-                    "delta_median": delta.median(),
-                    "delta_std": delta.std(),
-                    "n_recordings": len(paired),
-                }
-            )
-    return pd.DataFrame(rows)
+        paired = pivot[version_order].dropna()
+        row = {
+            **group_values,
+            "analysis": analysis,
+            **{version: paired[version].mean() for version in version_order},
+            "n_recordings": len(paired),
+        }
+        rows.append(row)
+    index_cols = [*(group_cols or ["cohort"]), "analysis"]
+    return pd.DataFrame(rows)[[*index_cols, *version_order, "n_recordings"]]
 
 
 def paired_delta_long(
@@ -313,17 +345,17 @@ matched_means_all = mean_metric_table(
     group_cols=[],
     analysis="Matched",
 )
-combined_delta_all = paired_delta_table(
+combined_comparison_all = paired_metric_table(
     free_living_results_combined,
     group_cols=[],
     analysis="Combined",
 )
-matched_delta_all = paired_delta_table(
+matched_comparison_all = paired_metric_table(
     free_living_results_matched,
     group_cols=[],
     analysis="Matched",
 )
-matched_count_delta_all = paired_count_delta_table(
+matched_count_comparison_all = paired_count_table(
     free_living_results_matched,
     group_cols=[],
     analysis="Matched",
@@ -331,68 +363,72 @@ matched_count_delta_all = paired_count_delta_table(
 
 print("\nMean combined performance across all cohorts")
 print(combined_means_all.round(4).to_string(index=False))
-print("\nPaired combined deltas vs GsdIluz across all cohorts")
-print(combined_delta_all.round(4).to_string(index=False))
+print("\nPaired combined comparison across all cohorts")
+print(combined_comparison_all.round(4).to_string(index=False))
 print("\nMean matched performance across all cohorts")
 print(matched_means_all.round(4).to_string(index=False))
-print("\nPaired matched deltas vs GsdIluz across all cohorts")
-print(matched_delta_all.round(4).to_string(index=False))
-print("\nMatched WB count deltas vs GsdIluz across all cohorts")
-print(matched_count_delta_all.round(4).to_string(index=False))
+print("\nPaired matched comparison across all cohorts")
+print(matched_comparison_all.round(4).to_string(index=False))
+print("\nMatched WB count comparison across all cohorts")
+print(matched_count_comparison_all.round(4).to_string(index=False))
 
 combined_means_all.round(4)
 
 # %%
-combined_delta_all.round(4)
+combined_comparison_all.round(4)
 
 # %%
 matched_means_all.round(4)
 
 # %%
-matched_delta_all.round(4)
+matched_comparison_all.round(4)
 
 # %%
-matched_count_delta_all.round(4)
+matched_count_comparison_all.round(4)
 
 # %%
 # Per-cohort overview
 # -------------------
 
-combined_delta_cohort = paired_delta_table(
+combined_comparison_cohort = paired_metric_table(
     free_living_results_combined,
     group_cols=["cohort"],
     analysis="Combined",
 )
-matched_delta_cohort = paired_delta_table(
+matched_comparison_cohort = paired_metric_table(
     free_living_results_matched,
     group_cols=["cohort"],
     analysis="Matched",
 )
-matched_count_delta_cohort = paired_count_delta_table(
+matched_count_comparison_cohort = paired_count_table(
     free_living_results_matched,
     group_cols=["cohort"],
     analysis="Matched",
 )
 
-combined_delta_cohort = (
-    combined_delta_cohort.set_index("cohort").loc[cohort_order].reset_index()
+combined_comparison_cohort = (
+    combined_comparison_cohort.set_index("cohort")
+    .loc[cohort_order]
+    .reset_index()
 )
-matched_delta_cohort = (
-    matched_delta_cohort.set_index("cohort").loc[cohort_order].reset_index()
+matched_comparison_cohort = (
+    matched_comparison_cohort.set_index("cohort")
+    .loc[cohort_order]
+    .reset_index()
 )
-matched_count_delta_cohort = (
-    matched_count_delta_cohort.set_index("cohort")
+matched_count_comparison_cohort = (
+    matched_count_comparison_cohort.set_index("cohort")
     .loc[cohort_order]
     .reset_index()
 )
 
-combined_delta_cohort.round(4)
+combined_comparison_cohort.round(4)
 
 # %%
-matched_delta_cohort.round(4)
+matched_comparison_cohort.round(4)
 
 # %%
-matched_count_delta_cohort.round(4)
+matched_count_comparison_cohort.round(4)
 
 # %%
 # Absolute relative error deltas across all cohorts
@@ -454,58 +490,58 @@ matched_regular = free_living_results_matched[
     free_living_results_matched["cohort"].isin(regular_walking_cohorts)
 ].copy()
 
-combined_delta_regular_all = paired_delta_table(
+combined_comparison_regular_all = paired_metric_table(
     combined_regular,
     group_cols=[],
     analysis="Combined",
 )
-matched_delta_regular_all = paired_delta_table(
+matched_comparison_regular_all = paired_metric_table(
     matched_regular,
     group_cols=[],
     analysis="Matched",
 )
-matched_count_delta_regular_all = paired_count_delta_table(
+matched_count_comparison_regular_all = paired_count_table(
     matched_regular,
     group_cols=[],
     analysis="Matched",
 )
 
-print("\nPaired combined deltas vs GsdIluz for HA/COPD/CHF")
-print(combined_delta_regular_all.round(4).to_string(index=False))
-print("\nPaired matched deltas vs GsdIluz for HA/COPD/CHF")
-print(matched_delta_regular_all.round(4).to_string(index=False))
-print("\nMatched WB count deltas vs GsdIluz for HA/COPD/CHF")
-print(matched_count_delta_regular_all.round(4).to_string(index=False))
+print("\nPaired combined comparison for HA/COPD/CHF")
+print(combined_comparison_regular_all.round(4).to_string(index=False))
+print("\nPaired matched comparison for HA/COPD/CHF")
+print(matched_comparison_regular_all.round(4).to_string(index=False))
+print("\nMatched WB count comparison for HA/COPD/CHF")
+print(matched_count_comparison_regular_all.round(4).to_string(index=False))
 
-combined_delta_regular_all.round(4)
-
-# %%
-matched_delta_regular_all.round(4)
+combined_comparison_regular_all.round(4)
 
 # %%
-matched_count_delta_regular_all.round(4)
+matched_comparison_regular_all.round(4)
+
+# %%
+matched_count_comparison_regular_all.round(4)
 
 # %%
 # Regular-walking cohorts by cohort
 # ---------------------------------
 
-combined_delta_regular_cohort = combined_delta_cohort[
-    combined_delta_cohort["cohort"].isin(regular_walking_cohorts)
+combined_comparison_regular_cohort = combined_comparison_cohort[
+    combined_comparison_cohort["cohort"].isin(regular_walking_cohorts)
 ].copy()
-matched_delta_regular_cohort = matched_delta_cohort[
-    matched_delta_cohort["cohort"].isin(regular_walking_cohorts)
+matched_comparison_regular_cohort = matched_comparison_cohort[
+    matched_comparison_cohort["cohort"].isin(regular_walking_cohorts)
 ].copy()
-matched_count_delta_regular_cohort = matched_count_delta_cohort[
-    matched_count_delta_cohort["cohort"].isin(regular_walking_cohorts)
+matched_count_comparison_regular_cohort = matched_count_comparison_cohort[
+    matched_count_comparison_cohort["cohort"].isin(regular_walking_cohorts)
 ].copy()
 
-combined_delta_regular_cohort.round(4)
-
-# %%
-matched_delta_regular_cohort.round(4)
+combined_comparison_regular_cohort.round(4)
 
 # %%
-matched_count_delta_regular_cohort.round(4)
+matched_comparison_regular_cohort.round(4)
+
+# %%
+matched_count_comparison_regular_cohort.round(4)
 
 # %%
 # Regular-walking WB-level error distributions
