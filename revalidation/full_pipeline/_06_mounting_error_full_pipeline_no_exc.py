@@ -3,7 +3,7 @@
 .. _pipeline_val_mounting_error_results:
 
 Full-pipeline performance under simulated mounting errors
-========================================================
+==========================================================
 
 This analysis compares the free-living full-pipeline validation results across
 simulated lower-back sensor mounting orientations. It uses the result files
