@@ -49,9 +49,7 @@ class TestReorientationMethodDM:
         data = base.copy()
         data[["acc_is", "gyr_is", "acc_ml", "gyr_ml"]] *= -1
 
-        result = ReorientationMethodDM(correction_mode="full").detect_correct(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=sampling_rate_hz)
 
         assert_frame_equal(result.corrected_data_, base)
 
