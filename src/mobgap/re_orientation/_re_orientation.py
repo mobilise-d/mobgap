@@ -201,9 +201,7 @@ class ReorientationMethodDM(Algorithm):
 
 
 # Helper functions for each stage of the algorithm
-def _detect_gravity(
-    data: pd.DataFrame, grav_threshold_ms2: float
-) -> GravityDetectionResult:
+def _detect_gravity(data: pd.DataFrame, grav_threshold_ms2: float) -> GravityDetectionResult:
     """
     Stage 1: identify which axis captures gravity.
 
