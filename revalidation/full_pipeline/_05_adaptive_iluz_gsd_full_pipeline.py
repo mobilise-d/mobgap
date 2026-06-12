@@ -2,7 +2,7 @@
 .. _pipeline_val_adaptive_iluz_gsd:
 
 Orientation-independent GSD options in the full pipeline
-=======================================================
+========================================================
 
 This analysis compares full-pipeline variants that use the same gait sequence detection algorithm for both the
 healthy/mildly impaired and impaired sub-pipelines:
@@ -165,11 +165,6 @@ dmos = {
     "walking_speed_mps": "Walking speed",
     "stride_length_m": "Stride length",
     "cadence_spm": "Cadence",
-}
-dmo_units = {
-    "walking_speed_mps": "m/s",
-    "stride_length_m": "m",
-    "cadence_spm": "steps/min",
 }
 error_metrics = {
     "error": "Error",
@@ -506,29 +501,34 @@ combined_comparison_regular_cohort.round(4)
 matched_comparison_regular_cohort.round(4)
 
 # %%
-# Regular-walking combined DMO correlations
-# -----------------------------------------
+# Regular-walking combined walking-speed correlations
+# ---------------------------------------------------
 
 
-def plot_combined_dmo_correlation(
-    data: pd.DataFrame,
-    *,
-    candidate: str,
-) -> None:
+def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
     fig, axes = plt.subplots(
-        1, 3, figsize=(16, 5), sharey=False, constrained_layout=True
+        1,
+        2,
+        figsize=(13, 6),
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
     )
-    for ax, (dmo, dmo_label) in zip(axes, dmos.items()):
-        column = f"{dmo}__detected"
-        plot_data = (
-            data.pivot(
-                index=free_living_index_cols,
-                columns="version",
-                values=column,
-            )
-            .reset_index()[[baseline_version, candidate, "cohort"]]
-            .dropna()
+    column = "walking_speed_mps__detected"
+    plot_data = (
+        data.pivot(
+            index=free_living_index_cols,
+            columns="version",
+            values=column,
         )
+        .reset_index()[[baseline_version, *candidate_versions, "cohort"]]
+        .dropna()
+    )
+    min_max = calc_min_max_with_margin(
+        plot_data[baseline_version], *[plot_data[v] for v in candidate_versions]
+    )
+
+    for ax, candidate in zip(axes, candidate_versions):
         sns.scatterplot(
             data=plot_data,
             x=baseline_version,
@@ -537,36 +537,23 @@ def plot_combined_dmo_correlation(
             hue_order=regular_walking_cohorts,
             ax=ax,
         )
-        min_max = calc_min_max_with_margin(
-            plot_data[baseline_version], plot_data[candidate]
-        )
         make_square(ax, min_max, draw_diagonal=True)
         corr = plot_data[baseline_version].corr(plot_data[candidate])
-        unit = dmo_units[dmo]
-        ax.set_title(f"{dmo_label} (r = {corr:.3f})")
-        ax.set_xlabel(f"{baseline_version} [{unit}]")
-        ax.set_ylabel(f"{candidate} [{unit}]")
+        ax.set_title(f"{candidate} (r = {corr:.3f})")
+        ax.set_xlabel(f"{baseline_version} [m/s]")
+        ax.set_ylabel(f"{candidate} [m/s]")
         ax.grid(True, alpha=0.3)
         ax.legend(title=None)
-    fig.suptitle(f"Combined DMO agreement: {candidate} vs {baseline_version}")
+    fig.suptitle(f"Combined walking-speed agreement vs {baseline_version}")
     move_legend_outside(fig, axes[-1])
     plt.show()
 
 
-plot_combined_dmo_correlation(
-    combined_regular,
-    candidate="GsdIluzAdaptiveGravity",
-)
-
-# %%
-plot_combined_dmo_correlation(
-    combined_regular,
-    candidate="GsdIonescu",
-)
+plot_combined_walking_speed_correlation(combined_regular)
 
 # %%
 # Regular-walking combined recording-level error distributions
-# -----------------------------------------------------------
+# ------------------------------------------------------------
 
 
 def plot_regular_abs_rel_errors(
