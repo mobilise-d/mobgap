@@ -368,7 +368,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 continue
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
-            with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
+            with gs_iterator.subregion(refined_gs, data=gs_data) as ((_, refined_gs_data), rr):
                 cad_r = None
                 if self.cadence_calculation:
                     cad = self.cadence_calculation.clone().calculate(
