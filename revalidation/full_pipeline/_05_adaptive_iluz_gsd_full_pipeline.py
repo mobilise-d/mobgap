@@ -384,7 +384,7 @@ def plot_matched_wb_counts(data: pd.DataFrame, *, cohorts: list[str]) -> None:
     plt.show()
 
 
-def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
+def plot_combined_walking_speed_error_correlation(data: pd.DataFrame) -> None:
     fig, axes = plt.subplots(
         1,
         2,
@@ -393,7 +393,7 @@ def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
         sharey=True,
         constrained_layout=True,
     )
-    column = "walking_speed_mps__detected"
+    column = "walking_speed_mps__error"
     pivoted_data = data.pivot(
         index=free_living_index_cols,
         columns="version",
@@ -417,13 +417,17 @@ def plot_combined_walking_speed_correlation(data: pd.DataFrame) -> None:
             ax=ax,
         )
         make_square(ax, min_max, draw_diagonal=True)
+        ax.axhline(0, color="0.4", linewidth=1, linestyle=":", zorder=-50)
+        ax.axvline(0, color="0.4", linewidth=1, linestyle=":", zorder=-50)
         corr = plot_data[baseline_version].corr(plot_data[candidate])
         ax.set_title(f"{candidate} (r = {corr:.3f})")
-        ax.set_xlabel(f"{baseline_version} [m/s]")
-        ax.set_ylabel(f"{candidate} [m/s]")
+        ax.set_xlabel(f"{baseline_version} error [m/s]")
+        ax.set_ylabel(f"{candidate} error [m/s]")
         ax.grid(True, alpha=0.3)
         ax.legend(title=None)
-    fig.suptitle(f"Combined walking-speed agreement vs {baseline_version}")
+    fig.suptitle(
+        f"Combined walking-speed error agreement vs {baseline_version}"
+    )
     move_legend_outside(fig, axes[-1])
     plt.show()
 
@@ -516,12 +520,13 @@ plot_abs_rel_errors_by_cohort(
 )
 
 # %%
-# Regular-walking cohorts: direct walking-speed comparison
-# --------------------------------------------------------
-# These plots directly compare the combined detected walking-speed values between ``GsdIluz`` and each
-# orientation-independent candidate. Each point is one participant/recording, colored by cohort.
+# Regular-walking cohorts: direct walking-speed error comparison
+# --------------------------------------------------------------
+# These plots directly compare the combined walking-speed errors between ``GsdIluz`` and each orientation-independent
+# candidate. The error is the detected walking speed minus the INDIP reference walking speed. Each point is one
+# participant/recording, colored by cohort.
 
-plot_combined_walking_speed_correlation(combined_regular)
+plot_combined_walking_speed_error_correlation(combined_regular)
 
 # %%
 # Regular-walking cohorts: matched recording-level results
