@@ -252,7 +252,7 @@ def _cross_spec_pa_phase_power_weighted(
     """
     Compute power-weighted mean cross-spectral phase between acc_is and acc_pa.
 
-    Computed across 0.5-3.0 Hz (gait stride frequency band).
+    Computed across 0.5-2.5 Hz (gait stride frequency band).
 
     Signals are bandpass filtered before feature extraction.
 
