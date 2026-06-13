@@ -53,8 +53,8 @@ class TestReorientationMethodDM:
 
         assert_frame_equal(result.corrected_data_, base)
 
-    def test_correctly_oriented_data_family_1(self):
-        """Test that Family 1 data is left unchanged in trust-gravity mode."""
+    def test_correctly_oriented_data_family_is_up(self):
+        """Test that is_up data is left unchanged in trust-gravity mode."""
         data = pd.DataFrame(
             {
                 "acc_is": np.ones(1000) * 9.8,
@@ -68,12 +68,12 @@ class TestReorientationMethodDM:
 
         result = ReorientationMethodDM(correction_mode="trust_gravity").detect_correct(data, sampling_rate_hz=100.0)
 
-        assert result.result_.family == 1
+        assert result.result_.family == "is_up"
         assert result.result_.where_grav == "is"
         assert result.result_.where_grav_points == "up"
 
-    def test_family_2_misorientation(self):
-        """Test Family 2 (IS pointing down) is corrected."""
+    def test_family_is_down_misorientation(self):
+        """Test is_down (IS pointing down) is corrected."""
         data = pd.DataFrame(
             {
                 "acc_is": np.ones(1000) * -9.8,
@@ -87,14 +87,14 @@ class TestReorientationMethodDM:
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
-        assert result.result_.family == 2
+        assert result.result_.family == "is_down"
         assert result.result_.where_grav == "is"
         assert result.result_.where_grav_points == "down"
         assert result.result_.correction_applied is True
         assert "flipped IS" in result.result_.correction_action
 
-    def test_family_3_misorientation(self):
-        """Test Family 3 (gravity in ML pointing up) is corrected."""
+    def test_family_ml_up_misorientation(self):
+        """Test ml_up (gravity in ML pointing up) is corrected."""
         data = pd.DataFrame(
             {
                 "acc_is": np.random.randn(1000) * 0.5,
@@ -108,14 +108,14 @@ class TestReorientationMethodDM:
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
-        assert result.result_.family == 3
+        assert result.result_.family == "ml_up"
         assert result.result_.where_grav == "ml"
         assert result.result_.where_grav_points == "up"
         assert result.result_.correction_applied is True
         assert "swapped IS-ML" in result.result_.correction_action
 
-    def test_family_4_misorientation(self):
-        """Test Family 4 (gravity in ML pointing down) is corrected."""
+    def test_family_ml_down_misorientation(self):
+        """Test ml_down (gravity in ML pointing down) is corrected."""
         data = pd.DataFrame(
             {
                 "acc_is": np.random.randn(1000) * 0.5,
@@ -129,7 +129,7 @@ class TestReorientationMethodDM:
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
-        assert result.result_.family == 4
+        assert result.result_.family == "ml_down"
         assert result.result_.where_grav == "ml"
         assert result.result_.where_grav_points == "down"
         assert result.result_.correction_applied is True
@@ -158,8 +158,8 @@ class TestReorientationMethodDM:
         # Verify data unchanged
         assert_frame_equal(result.result_.data_corrected, data)
 
-    def test_full_vs_trust_gravity_correction_mode_family_1(self):
-        """Test that full and trust-gravity modes differ for Family 1."""
+    def test_full_vs_trust_gravity_correction_mode_family_is_up(self):
+        """Test that full and trust-gravity modes differ for is_up family."""
         single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(
             cohort="HA", participant_id="001", test="Test11", trial="Trial1"
         )
@@ -182,8 +182,8 @@ class TestReorientationMethodDM:
         # Both should detect same family
         assert result_full.result_.family == result_trust_gravity.result_.family
 
-        # If Family 1, trust-gravity mode skips Stage 3
-        if result_full.result_.family == 1:
+        # If is_up, trust-gravity mode skips Stage 3
+        if result_full.result_.family == "is_up":
             assert len(result_trust_gravity.result_.correction_action) <= len(result_full.result_.correction_action)
 
     def test_invalid_correction_mode_parameter(self):
