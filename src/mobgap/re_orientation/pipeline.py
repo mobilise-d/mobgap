@@ -42,16 +42,28 @@ def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
 
     if family is None:
         return UNKNOWN_ORIENTATION_LABEL
-    if family == 1:
-        return "pa_flipped__rot_pa_0" if phase < 0 else "identity"
-    if family == 2:
-        return "pa_normal__rot_pa_180" if phase > 0 else "pa_flipped__rot_pa_180"
-    if family == 3:
-        return "pa_normal__rot_pa_pos90" if phase > 0 else "pa_flipped__rot_pa_pos90"
-    if family == 4:
-        return "pa_flipped__rot_pa_neg90" if phase < 0 else "pa_normal__rot_pa_neg90"
 
-    return UNKNOWN_ORIENTATION_LABEL
+    # phase is None when trust_gravity skips Stage 3 for is_up (intentional)
+    # or when bout is too short to compute phase (treat as unknown for all families).
+    # For is_up + trust_gravity, correction_action is "none" — return identity.
+    # For all other phase=None cases, return unknown.
+    if phase is None:
+        if family == "is_up" and result.correction_action == "none":
+            return "identity"
+        return UNKNOWN_ORIENTATION_LABEL
+
+    family_map = {
+        "is_up": ("pa_flipped__rot_pa_0", "identity", phase < 0),
+        "is_down": ("pa_normal__rot_pa_180", "pa_flipped__rot_pa_180", phase > 0),
+        "ml_up": ("pa_normal__rot_pa_pos90", "pa_flipped__rot_pa_pos90", phase > 0),
+        "ml_down": ("pa_flipped__rot_pa_neg90", "pa_normal__rot_pa_neg90", phase < 0),
+    }
+
+    if family not in family_map:
+        return UNKNOWN_ORIENTATION_LABEL
+
+    label_if_true, label_if_false, condition = family_map[family]
+    return label_if_true if condition else label_if_false
 
 
 class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
@@ -118,6 +130,14 @@ class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
         for wb, wb_data in iter_gs(data, wb_list):
             wb_predictions = []
             for label, rotation in REORIENTATION_ROTATIONS.items():
+                # trust_gravity intentionally does not correct Family "is_up" front-back flips
+                # (pa_flipped__rot_pa_0), so skip this orientation for fair evaluation.
+                if (
+                    hasattr(self.algo, "correction_mode")
+                    and self.algo.correction_mode == "trust_gravity"
+                    and label == "pa_flipped__rot_pa_0"
+                ):
+                    continue
                 rotated_data = flip_dataset(wb_data, rotation)
                 algo = self.algo.clone().detect_correct(rotated_data, sampling_rate_hz=datapoint.sampling_rate_hz)
                 result_algo_list[(wb.id, label)] = algo
