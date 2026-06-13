@@ -168,5 +168,5 @@ class TestFullPipelineEdgeCases:
 
         result = pipeline._run_per_gs(gs_list, rotated_data, {"sampling_rate_hz": 100.0}).results_
 
-        assert result.reorientation_result[0].family == 3
+        assert result.reorientation_result[0].family == "ml_up"
         assert result.stride_length_per_sec["stride_length_m"].iloc[0] == pytest.approx(9.81)
