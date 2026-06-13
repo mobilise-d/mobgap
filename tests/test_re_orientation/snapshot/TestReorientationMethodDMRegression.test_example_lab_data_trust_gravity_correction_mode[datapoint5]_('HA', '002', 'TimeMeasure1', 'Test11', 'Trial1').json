@@ -7,7 +7,7 @@
             },
             {
                 "name":"family",
-                "type":"integer"
+                "type":"string"
             },
             {
                 "name":"correction_applied",
@@ -26,19 +26,19 @@
     "data":[
         {
             "index":0,
-            "family":1,
+            "family":"is_up",
             "correction_applied":false,
             "correction_action":"none"
         },
         {
             "index":1,
-            "family":1,
+            "family":"is_up",
             "correction_applied":false,
             "correction_action":"none"
         },
         {
             "index":2,
-            "family":1,
+            "family":"is_up",
             "correction_applied":false,
             "correction_action":"none"
         }
