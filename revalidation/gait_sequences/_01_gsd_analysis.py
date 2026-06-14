@@ -134,6 +134,22 @@ lab_results_long = lab_results.reset_index().assign(
 )
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
+version_order = [
+    "Original Implementation",
+    "MobGap",
+    "MobGap (PA peaks mean)",
+    "MobGap (PA peaks max)",
+    "MobGap (original peak)",
+]
+high_impairment_version_order = ["Original Implementation", "MobGap"]
+
+
+def add_algo_comparison_label(df: pd.DataFrame) -> pd.DataFrame:
+    return df.assign(
+        algo_comparison=lambda df_: df_["algo"] + " (" + df_["version"] + ")"
+    )
+
+
 # %%
 # Performance metrics
 # -------------------
@@ -338,15 +354,13 @@ def format_results(df: pd.DataFrame) -> pd.DataFrame:
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-hue_order = ["Original Implementation", "MobGap", "MobGap (original peak)"]
-
 fig, ax = plt.subplots()
 sns.boxplot(
     data=results_long,
     x="algo",
     y="f1_score",
     hue="version",
-    hue_order=hue_order,
+    hue_order=version_order,
     ax=ax,
 )
 fig.show()
@@ -414,37 +428,45 @@ perf_metrics_per_cohort.style.pipe(
 # Let's look at the performance of these algorithms on the respective cohorts.
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
 
-low_impairment_algo = "GsdIluz"
+low_impairment_algos = ["GsdIluz", "GsdIluzAdaptiveGravity"]
 low_impairment_cohorts = list(MobilisedPipelineHealthy().recommended_cohorts)
 
 low_impairment_results = results_long[
     results_long["cohort"].isin(low_impairment_cohorts)
-].query("algo == @low_impairment_algo")
+    & results_long["algo"].isin(low_impairment_algos)
+].pipe(add_algo_comparison_label)
+low_impairment_hue_order = [
+    "GsdIluz (Original Implementation)",
+    "GsdIluz (MobGap)",
+    "GsdIluz (MobGap (original peak))",
+    "GsdIluzAdaptiveGravity (MobGap (PA peaks mean))",
+    "GsdIluzAdaptiveGravity (MobGap (PA peaks max))",
+]
 
 fig, ax = plt.subplots()
 sns.boxplot(
     data=low_impairment_results,
     x="cohort",
     y="f1_score",
-    hue="version",
-    hue_order=hue_order,
+    hue="algo_comparison",
+    hue_order=low_impairment_hue_order,
     ax=ax,
 )
 sns.boxplot(
     data=low_impairment_results,
     x="_combined",
     y="f1_score",
-    hue="version",
-    hue_order=hue_order,
+    hue="algo_comparison",
+    hue_order=low_impairment_hue_order,
     legend=False,
     ax=ax,
 )
-fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.suptitle("Low Impairment Cohorts (GsdIluz and adaptive-gravity variants)")
 fig.show()
 
 # %%
 perf_metrics_per_cohort.copy().loc[
-    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algos], :
 ].reset_index("algo", drop=True).style.pipe(
     revalidation_table_styles,
     validation_thresholds,
@@ -459,15 +481,13 @@ high_impairment_results = results_long[
     results_long["cohort"].isin(high_impairment_cohorts)
 ].query("algo == @high_impairment_algo")
 
-hue_order = ["Original Implementation", "MobGap"]
-
 fig, ax = plt.subplots()
 sns.boxplot(
     data=high_impairment_results,
     x="cohort",
     y="f1_score",
     hue="version",
-    hue_order=hue_order,
+    hue_order=high_impairment_version_order,
     ax=ax,
 )
 sns.boxplot(
@@ -475,7 +495,7 @@ sns.boxplot(
     x="_combined",
     y="f1_score",
     hue="version",
-    hue_order=hue_order,
+    hue_order=high_impairment_version_order,
     legend=False,
     ax=ax,
 )
@@ -503,15 +523,13 @@ perf_metrics_per_cohort.copy().loc[
 #
 # All results across all cohorts
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-hue_order = ["Original Implementation", "MobGap", "MobGap (original peak)"]
-
 fig, ax = plt.subplots()
 sns.boxplot(
     data=lab_results_long,
     x="algo",
     y="f1_score",
     hue="version",
-    hue_order=hue_order,
+    hue_order=version_order,
     ax=ax,
 )
 fig.show()
@@ -584,32 +602,33 @@ perf_metrics_per_cohort.style.pipe(
 
 low_impairment_results = lab_results_long[
     lab_results_long["cohort"].isin(low_impairment_cohorts)
-].query("algo == @low_impairment_algo")
+    & lab_results_long["algo"].isin(low_impairment_algos)
+].pipe(add_algo_comparison_label)
 
 fig, ax = plt.subplots()
 sns.boxplot(
     data=low_impairment_results,
     x="cohort",
     y="f1_score",
-    hue="version",
-    hue_order=hue_order,
+    hue="algo_comparison",
+    hue_order=low_impairment_hue_order,
     ax=ax,
 )
 sns.boxplot(
     data=low_impairment_results,
     x="_combined",
     y="f1_score",
-    hue="version",
-    hue_order=hue_order,
+    hue="algo_comparison",
+    hue_order=low_impairment_hue_order,
     legend=False,
     ax=ax,
 )
-fig.suptitle(f"Low Impairment Cohorts ({low_impairment_algo})")
+fig.suptitle("Low Impairment Cohorts (GsdIluz and adaptive-gravity variants)")
 fig.show()
 
 # %%
 perf_metrics_per_cohort.copy().loc[
-    pd.IndexSlice[low_impairment_cohorts, low_impairment_algo], :
+    pd.IndexSlice[low_impairment_cohorts, low_impairment_algos], :
 ].reset_index("algo", drop=True).style.pipe(
     revalidation_table_styles,
     validation_thresholds,
@@ -621,15 +640,13 @@ high_impairment_results = lab_results_long[
     lab_results_long["cohort"].isin(high_impairment_cohorts)
 ].query("algo == @high_impairment_algo")
 
-hue_order = ["Original Implementation", "MobGap"]
-
 fig, ax = plt.subplots()
 sns.boxplot(
     data=high_impairment_results,
     x="cohort",
     y="f1_score",
     hue="version",
-    hue_order=hue_order,
+    hue_order=high_impairment_version_order,
     ax=ax,
 )
 sns.boxplot(
@@ -637,7 +654,7 @@ sns.boxplot(
     x="_combined",
     y="f1_score",
     hue="version",
-    hue_order=hue_order,
+    hue_order=high_impairment_version_order,
     legend=False,
     ax=ax,
 )
