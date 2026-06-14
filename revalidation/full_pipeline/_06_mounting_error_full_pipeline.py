@@ -1,9 +1,8 @@
-"""Full-pipeline performance under simulated mounting errors.
-
+"""
 .. _pipeline_val_mounting_error_results:
 
 Full-pipeline performance under simulated mounting errors
-==========================================================
+=========================================================
 
 This analysis compares the free-living full-pipeline validation results across
 simulated lower-back sensor mounting orientations. It uses the result files
@@ -282,13 +281,24 @@ def plot_identity_walking_speed_error_correlation(data: pd.DataFrame) -> None:
 # %%
 # Matched Walking Bout Counts
 # ---------------------------
-# This table shows the total number of matched walking bouts per pipeline
-# variant and simulated orientation, summed over all free-living recordings.
-# The plots split the same count by the two cohort groups used in the
-# performance analysis.
+# These tables show the total number of matched walking bouts per pipeline
+# variant and simulated orientation, summed over all free-living recordings
+# in each cohort group. The plots below show the same counts.
 
-matched_wb_counts = matched_wb_count_table(free_living_results)
-matched_wb_counts  # noqa: B018
+matched_wb_counts_regular = matched_wb_count_table(
+    free_living_results[
+        free_living_results["cohort"].isin(regular_walking_cohorts)
+    ]
+)
+matched_wb_counts_regular  # noqa: B018
+
+# %%
+matched_wb_counts_impaired = matched_wb_count_table(
+    free_living_results[
+        free_living_results["cohort"].isin(impaired_walking_cohorts)
+    ]
+)
+matched_wb_counts_impaired  # noqa: B018
 
 # %%
 plot_matched_wb_counts(

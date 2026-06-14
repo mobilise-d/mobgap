@@ -1,9 +1,8 @@
-"""Full-pipeline validation under simulated mounting errors.
-
+"""
 .. _pipeline_val_mounting_error_gen:
 
 Full-pipeline validation under simulated mounting errors
-=======================================================
+========================================================
 
 .. note::
     This is the code to create the results.
