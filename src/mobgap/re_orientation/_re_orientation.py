@@ -348,7 +348,9 @@ def _cross_spec_x_z_phase_power_weighted(
 
     Positive → PA correctly oriented.
     Negative → PA reversed.
-    Returns None if bout is too short for spectral estimation or filtering, or if the phase has no direction.
+    Returns None if the bout is too short for filtering or spectral estimation, no stride-band frequencies are
+    available, x-axis power in the stride band is zero, or the estimated phase is zero/near-zero and therefore has no
+    usable sign for resolving PA direction.
     """
     # Apply bandpass filter before feature extraction
     try:
