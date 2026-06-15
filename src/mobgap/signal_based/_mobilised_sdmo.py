@@ -33,11 +33,25 @@ class MobilisedSDMO(Pipeline):
     def __init__(self, calculators: Optional[list[tuple[str, BaseSDMOCalculator]]] = None):
         self.calculators = calculators
 
-    def calculate(self, data: pd.DataFrame, **kwargs) -> Self:
+    def calculate(
+            self,
+            data: pd.DataFrame,
+            sampling_rate_hz: float,
+            stride_list: Optional[pd.DataFrame] = None,
+            turn_list: Optional[pd.DataFrame] = None,
+            replicate_matlab: Optional[bool] = True,
+            **kwargs) -> Self:
+        params = {
+            "stride_list": stride_list,
+            "sampling_rate_hz": sampling_rate_hz,
+            "replicate_matlab": replicate_matlab,
+            "turn_list": turn_list,
+            **kwargs
+        }
         calc_list  = self.DEFAULT_CALCULATORS if self.calculators is None else self.calculators
         results = []
         for name, calculator in calc_list :
-            calculator_ = calculator.clone().calculate(data, **kwargs)
+            calculator_ = calculator.clone().calculate(data, **params)
             results.append(calculator_.signal_based_parameters)
         self.signal_based_parameters = pd.concat(results, axis=1)
         return self
