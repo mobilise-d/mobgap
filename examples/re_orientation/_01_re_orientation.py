@@ -12,9 +12,11 @@ misorientation in lower-back-worn devices.
 # %%
 # Import useful modules and packages
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation
+
+from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data import LabExampleDataset
 from mobgap.re_orientation import ReorientationMethodDM
-from mobgap.utils.conversions import to_body_frame
 
 # %%
 # Loading some example data
@@ -32,8 +34,7 @@ example_data = LabExampleDataset(
 # ---------------------------------
 # Below we apply the algorithm to a lab trial, where we extract a single walking bout.
 #
-# Like most algorithms, the algorithm requires the data to be in body frame coordinates.
-# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
+# The reorientation algorithm expects sensor-frame input and returns body-frame output.
 
 single_test = example_data.get_subset(
     cohort="HA", participant_id="001", test="Test11", trial="Trial1"
@@ -46,7 +47,7 @@ sampling_rate_hz = single_test.sampling_rate_hz
 start = reference_wbs.iloc[2]["start"]
 end = reference_wbs.iloc[2]["end"]
 
-imu_data = to_body_frame(single_test.data.get("LowerBack"))
+imu_data = single_test.data.get("LowerBack")
 imu_data = imu_data.reset_index(drop=True)
 
 first_WB = imu_data.loc[start:end].copy()
@@ -55,13 +56,9 @@ first_WB = imu_data.loc[start:end].copy()
 # Introducing artificial misorientation
 # -------------------------------------
 # To demonstrate the algorithm, we artificially introduce a misorientation.
-# Below we flip IS and mediolateral axes (family 2).
+# Below we rotate the sensor frame by 180 degrees around the sensor z-axis (family 2).
 
-# Flipping IS and mediolateral (family 2)
-first_WB["acc_is"] = -first_WB["acc_is"]
-first_WB["gyr_is"] = -first_WB["gyr_is"]
-first_WB["acc_ml"] = -first_WB["acc_ml"]
-first_WB["gyr_ml"] = -first_WB["gyr_ml"]
+first_WB = flip_dataset(first_WB, Rotation.from_euler("z", 180, degrees=True))
 
 print(first_WB)
 
@@ -72,9 +69,9 @@ print(first_WB)
 
 fig, ax = plt.subplots()
 
-ax.plot(first_WB["acc_is"].to_numpy(), label="acc_is")
-ax.plot(first_WB["acc_ml"].to_numpy(), label="acc_ml")
-ax.plot(first_WB["acc_pa"].to_numpy(), label="acc_pa")
+ax.plot(first_WB["acc_x"].to_numpy(), label="acc_x")
+ax.plot(first_WB["acc_y"].to_numpy(), label="acc_y")
+ax.plot(first_WB["acc_z"].to_numpy(), label="acc_z")
 
 ax.legend()
 fig.show()

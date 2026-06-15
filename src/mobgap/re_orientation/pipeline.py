@@ -11,7 +11,6 @@ from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.pipeline import iter_gs
 from mobgap.re_orientation.base import BaseReorientationCorrector
-from mobgap.utils.conversions import to_body_frame
 
 # Labels describe simulated mounting states: identity, rotations around PA, and PA-flipped variants.
 REORIENTATION_ROTATIONS = {
@@ -120,9 +119,7 @@ class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
             self.per_wb_algo_ = {}
             return self
 
-        # TODO: This needs to be changed, once the Reorientation algorithm is properly implemented as "converting
-        #  from sensor to body frame".
-        data = to_body_frame(datapoint.data_ss)
+        data = datapoint.data_ss
         result_algo_list = {}
         predictions_per_wb = {}
         predictions = []

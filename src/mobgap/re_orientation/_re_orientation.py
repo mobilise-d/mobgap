@@ -2,16 +2,16 @@
 Reorientation algorithm for lower-back-worn IMU devices.
 
 Corrects sensor axis orientation to the anatomical frame:
-    IS  → vertical (infero-superior), pointing up
-    ML  → mediolateral, pointing right
-    PA  → posterior-anterior, pointing forward
+    x  → vertical (infero-superior), pointing up
+    y  → mediolateral, pointing right
+    z  → posterior-anterior, pointing forward
 
 Coordinate system: right-handed (IS up, ML right, PA forward).
 
 Two correction modes:
     full - applies all three stages to every walking bout
-    trust_gravity - skips ML/PA correction when gravity is already pointing
-                    up in the vertical axis (is_up). Potential front/back
+    trust_gravity - skips PA direction correction when gravity is already pointing
+                    up in sensor x (is_up). Potential front/back
                     flips are ignored in this case.
 """
 
@@ -30,8 +30,9 @@ from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
+from mobgap.utils.conversions import to_body_frame
 
-GravityAxis = Literal["is", "ml"]
+GravityAxis = Literal["x", "y"]
 GravityDirection = Literal["up", "down"]
 OrientationFamily = Literal["is_up", "is_down", "ml_up", "ml_down"]
 ErrorHandling = Literal["raise", "warn", "ignore"]
@@ -70,7 +71,7 @@ class ReorientationResult(BaseReorientationCorrector):
     where_grav: Optional[GravityAxis]  # which device axis captured gravity
     where_grav_points: Optional[GravityDirection]  # direction of that axis
     family: Optional[OrientationFamily]  # orientation family
-    phase: Optional[float]  # IS-PA phase value used for ML/PA correction; None if phase could not be computed
+    phase: Optional[float]  # x-z phase value used for PA direction correction
     correction_applied: bool  # whether Stage 3 correction was applied
     correction_action: str  # description of correction applied, or 'none'
     orientation_resolved: bool  # whether all required orientation information was resolved
@@ -89,10 +90,10 @@ class ReorientationMethodDM(Algorithm):
     Parameters
     ----------
     correction_mode : {'full', 'trust_gravity'}
-        full - applies ML/PA correction to every walking bout.
+        full - applies PA direction correction to every walking bout.
         trust_gravity - assumes mounting orientation is correct if gravity
-        already points up along IS (``is_up``) and skips PA/ML sign correction.
-        This intentionally ignores possible 180 deg front/back flips in this case.
+        already points up along sensor x (``is_up``) and skips PA direction correction. This
+        intentionally ignores possible 180 deg front/back flips in this case.
     grav_threshold_ms2
         Minimum absolute mean acceleration in m/s² for an axis to be treated as
         capturing gravity.
@@ -101,7 +102,7 @@ class ReorientationMethodDM(Algorithm):
     pa_direction_detection_error_type : {'raise', 'warn', 'ignore'}
         How to handle gait sequences where the PA direction can not be detected.
     gait_frequency_band_filter
-        The filter applied to ``acc_is`` and ``acc_pa`` before the cross-spectral
+        The filter applied to ``acc_x`` and ``acc_z`` before the cross-spectral
         phase is calculated.
 
     Other Parameters
@@ -191,7 +192,7 @@ class ReorientationMethodDM(Algorithm):
                 gravity_rotation=_IDENTITY_ROTATION,
                 pa_direction_rotation=_IDENTITY_ROTATION,
                 correction_rotation=_IDENTITY_ROTATION,
-                data_corrected=data.copy(),
+                data_corrected=to_body_frame(data.copy()),
             )
             return self
 
@@ -215,12 +216,12 @@ class ReorientationMethodDM(Algorithm):
                 gravity_rotation=gravity_rotation,
                 pa_direction_rotation=_IDENTITY_ROTATION,
                 correction_rotation=gravity_rotation,
-                data_corrected=corrected,
+                data_corrected=to_body_frame(corrected),
             )
             return self
 
-        # Stage 3: compute IS-PA phase on IS-corrected data
-        phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz, self.gait_frequency_band_filter)
+        # Stage 3: compute x-z phase on gravity-corrected data
+        phase = _cross_spec_x_z_phase_power_weighted(corrected, sampling_rate_hz, self.gait_frequency_band_filter)
 
         # ML/PA correction based on family and phase sign
         if phase is None:
@@ -228,7 +229,7 @@ class ReorientationMethodDM(Algorithm):
 
         pa_direction_rotation = _pa_direction_rotation(phase)
         corrected = flip_dataset(corrected, pa_direction_rotation)
-        correction = _pa_direction_correction_action(family, phase)
+        correction = _pa_direction_correction_action(phase)
         if correction is not None:
             corrections.append(correction)
 
@@ -246,7 +247,7 @@ class ReorientationMethodDM(Algorithm):
             gravity_rotation=gravity_rotation,
             pa_direction_rotation=pa_direction_rotation,
             correction_rotation=pa_direction_rotation * gravity_rotation,
-            data_corrected=corrected,
+            data_corrected=to_body_frame(corrected),
         )
 
         return self
@@ -280,23 +281,23 @@ def _detect_gravity(data: pd.DataFrame, grav_threshold_ms2: float) -> GravityDet
     family is None if no axis captures gravity.
 
     Possible families:
-        ``is_up``   - gravity in IS axis, pointing up   (sensor correctly upright)
-        ``is_down`` - gravity in IS axis, pointing down (sensor upside down)
-        ``ml_up``   - gravity in ML axis, pointing up   (sensor rotated 90° sideways)
-        ``ml_down`` - gravity in ML axis, pointing down (sensor rotated 90° sideways, inverted)
+        ``is_up``   - gravity in sensor x axis, pointing up   (sensor correctly upright)
+        ``is_down`` - gravity in sensor x axis, pointing down (sensor upside down)
+        ``ml_up``   - gravity in sensor y axis, pointing up   (sensor rotated 90° sideways)
+        ``ml_down`` - gravity in sensor y axis, pointing down (sensor rotated 90° sideways, inverted)
     """
-    mean_is = data["acc_is"].mean()
-    mean_ml = data["acc_ml"].mean()
+    mean_x = data["acc_x"].mean()
+    mean_y = data["acc_y"].mean()
 
-    if abs(mean_is) >= grav_threshold_ms2:
-        where_grav = "is"
-        where_grav_points = "up" if mean_is > 0 else "down"
-        family = f"{where_grav}_{where_grav_points}"
+    if abs(mean_x) >= grav_threshold_ms2:
+        where_grav = "x"
+        where_grav_points = "up" if mean_x > 0 else "down"
+        family = "is_up" if where_grav_points == "up" else "is_down"
 
-    elif abs(mean_ml) >= grav_threshold_ms2:
-        where_grav = "ml"
-        where_grav_points = "up" if mean_ml > 0 else "down"
-        family = f"{where_grav}_{where_grav_points}"
+    elif abs(mean_y) >= grav_threshold_ms2:
+        where_grav = "y"
+        where_grav_points = "up" if mean_y > 0 else "down"
+        family = "ml_up" if where_grav_points == "up" else "ml_down"
 
     else:
         where_grav = None
@@ -313,9 +314,9 @@ def _gravity_rotation(family: OrientationFamily) -> Rotation:
 def _gravity_correction_actions(family: OrientationFamily) -> list[str]:
     actions = {
         "is_up": [],
-        "is_down": ["flipped IS"],
-        "ml_up": ["swapped IS-ML"],
-        "ml_down": ["swapped IS-ML", "flipped IS"],
+        "is_down": ["rotated 180 deg around sensor z-axis"],
+        "ml_up": ["rotated -90 deg around sensor z-axis"],
+        "ml_down": ["rotated 90 deg around sensor z-axis"],
     }
     return actions[family].copy()
 
@@ -326,23 +327,19 @@ def _pa_direction_rotation(phase: Optional[float]) -> Rotation:
     return Rotation.identity()
 
 
-def _pa_direction_correction_action(family: OrientationFamily, phase: Optional[float]) -> Optional[str]:
+def _pa_direction_correction_action(phase: Optional[float]) -> Optional[str]:
     if phase is None:
-        return "skipped ML/PA correction (phase unknown)"
+        return None
     if phase < 0:
-        if family in {"is_up", "ml_down"}:
-            return "flipped ML and PA"
-        return "flipped PA"
-    if family in {"is_down", "ml_up"}:
-        return "flipped ML"
+        return "rotated 180 deg around corrected sensor x-axis"
     return None
 
 
-def _cross_spec_pa_phase_power_weighted(
+def _cross_spec_x_z_phase_power_weighted(
     data: pd.DataFrame, sampling_rate_hz: float, gait_frequency_band_filter: BaseFilter
 ) -> Optional[float]:
     """
-    Compute power-weighted mean cross-spectral phase between acc_is and acc_pa.
+    Compute power-weighted mean cross-spectral phase between acc_x and acc_z.
 
     Computed across 0.5-2.5 Hz (gait stride frequency band).
 
@@ -350,7 +347,7 @@ def _cross_spec_pa_phase_power_weighted(
 
     Positive → PA correctly oriented.
     Negative → PA reversed.
-    Returns 0.0 if IS power in the stride band is zero (legitimate computed result).
+    Returns 0.0 if x-axis power in the stride band is zero (legitimate computed result).
     Returns None if phase cannot be computed (bout too short for filtering or
     spectral estimation, or no frequencies fall within the stride band).
     """
@@ -358,7 +355,7 @@ def _cross_spec_pa_phase_power_weighted(
     try:
         filtered = (
             gait_frequency_band_filter.clone()
-            .filter(data[["acc_is", "acc_pa"]], sampling_rate_hz=sampling_rate_hz)
+            .filter(data[["acc_x", "acc_z"]], sampling_rate_hz=sampling_rate_hz)
             .transformed_data_
         )
     except ValueError as e:
@@ -369,21 +366,21 @@ def _cross_spec_pa_phase_power_weighted(
     if len(filtered) < 4:
         return None
 
-    acc_is_filt = filtered["acc_is"].to_numpy()
-    acc_pa_filt = filtered["acc_pa"].to_numpy()
+    acc_x_filt = filtered["acc_x"].to_numpy()
+    acc_z_filt = filtered["acc_z"].to_numpy()
 
-    nperseg = min(256, len(acc_is_filt) // 2)
-    f, cxy = signal.csd(acc_is_filt, acc_pa_filt, fs=sampling_rate_hz, nperseg=nperseg)
-    f, pxx_is = signal.welch(acc_is_filt, fs=sampling_rate_hz, nperseg=nperseg)
+    nperseg = min(256, len(acc_x_filt) // 2)
+    f, cxy = signal.csd(acc_x_filt, acc_z_filt, fs=sampling_rate_hz, nperseg=nperseg)
+    f, pxx_x = signal.welch(acc_x_filt, fs=sampling_rate_hz, nperseg=nperseg)
 
     stride_mask = (f >= 0.5) & (f <= 2.5)
     if not np.any(stride_mask):
         return None
 
-    is_power = pxx_is[stride_mask]
+    x_power = pxx_x[stride_mask]
     phase = np.angle(cxy[stride_mask])
 
-    if is_power.sum() > 0:
-        return float(np.average(phase, weights=is_power))
+    if x_power.sum() > 0:
+        return float(np.average(phase, weights=x_power))
 
     return None

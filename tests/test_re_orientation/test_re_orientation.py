@@ -6,7 +6,7 @@ import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.consts import SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.pipeline import GsIterator
 from mobgap.re_orientation import ReorientationMethodDM
@@ -27,12 +27,29 @@ class TestMetaReorientationMethodDM(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self):
         algo = self.ALGORITHM_CLASS(gravity_detection_error_type="ignore")
-        algo.detect_correct(pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0)
+        algo.detect_correct(pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS), sampling_rate_hz=100.0)
         return algo
 
 
 class TestReorientationMethodDM:
     """Tests for ReorientationMethodDM."""
+
+    def test_sensor_frame_input_returns_body_frame_output(self):
+        data = pd.DataFrame(
+            {
+                "acc_x": np.ones(1000) * 9.8,
+                "acc_y": np.arange(1000, dtype=float),
+                "acc_z": np.arange(1000, dtype=float) + 1000,
+                "gyr_x": np.arange(1000, dtype=float) + 2000,
+                "gyr_y": np.arange(1000, dtype=float) + 3000,
+                "gyr_z": np.arange(1000, dtype=float) + 4000,
+            }
+        )
+
+        result = ReorientationMethodDM(correction_mode="trust_gravity").detect_correct(data, sampling_rate_hz=100.0)
+
+        expected = to_body_frame(data)
+        assert_frame_equal(result.corrected_data_, expected)
 
     def test_uses_sampling_rate_for_phase_detection(self):
         sampling_rate_hz = 50.0
@@ -40,114 +57,113 @@ class TestReorientationMethodDM:
         time_s = np.arange(int(20 * sampling_rate_hz)) / sampling_rate_hz
         base = pd.DataFrame(
             {
-                "acc_is": 9.81 + np.sin(2 * np.pi * gait_frequency_hz * time_s),
-                "acc_ml": 0.2 * np.sin(2 * np.pi * gait_frequency_hz * time_s + 0.4),
-                "acc_pa": np.cos(2 * np.pi * gait_frequency_hz * time_s),
-                "gyr_is": 0.01 * np.sin(2 * np.pi * gait_frequency_hz * time_s),
-                "gyr_ml": 0.02 * np.cos(2 * np.pi * gait_frequency_hz * time_s),
-                "gyr_pa": 0.03 * np.sin(2 * np.pi * gait_frequency_hz * time_s + 0.1),
+                "acc_x": 9.81 + np.sin(2 * np.pi * gait_frequency_hz * time_s),
+                "acc_y": 0.2 * np.sin(2 * np.pi * gait_frequency_hz * time_s + 0.4),
+                "acc_z": np.cos(2 * np.pi * gait_frequency_hz * time_s),
+                "gyr_x": 0.01 * np.sin(2 * np.pi * gait_frequency_hz * time_s),
+                "gyr_y": 0.02 * np.cos(2 * np.pi * gait_frequency_hz * time_s),
+                "gyr_z": 0.03 * np.sin(2 * np.pi * gait_frequency_hz * time_s + 0.1),
             }
         )
         data = base.copy()
-        data[["acc_is", "gyr_is", "acc_ml", "gyr_ml"]] *= -1
+        data[["acc_x", "gyr_x", "acc_y", "gyr_y"]] *= -1
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=sampling_rate_hz)
 
-        assert_frame_equal(result.corrected_data_, base)
+        assert_frame_equal(result.corrected_data_, to_body_frame(base))
 
     def test_correctly_oriented_data_family_is_up(self):
         """Test that is_up data is left unchanged in trust-gravity mode."""
         data = pd.DataFrame(
             {
-                "acc_is": np.ones(1000) * 9.8,
-                "acc_ml": np.random.randn(1000) * 0.5,
-                "acc_pa": np.random.randn(1000) * 0.5,
-                "gyr_is": np.random.randn(1000) * 0.1,
-                "gyr_ml": np.random.randn(1000) * 0.1,
-                "gyr_pa": np.random.randn(1000) * 0.1,
+                "acc_x": np.ones(1000) * 9.8,
+                "acc_y": np.random.randn(1000) * 0.5,
+                "acc_z": np.random.randn(1000) * 0.5,
+                "gyr_x": np.random.randn(1000) * 0.1,
+                "gyr_y": np.random.randn(1000) * 0.1,
+                "gyr_z": np.random.randn(1000) * 0.1,
             }
         )
 
         result = ReorientationMethodDM(correction_mode="trust_gravity").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == "is_up"
-        assert result.result_.where_grav == "is"
+        assert result.result_.where_grav == "x"
         assert result.result_.where_grav_points == "up"
 
     def test_family_is_down_misorientation(self):
         """Test is_down (IS pointing down) is corrected."""
         data = pd.DataFrame(
             {
-                "acc_is": np.ones(1000) * -9.8,
-                "acc_ml": np.random.randn(1000) * 0.5,
-                "acc_pa": np.random.randn(1000) * 0.5,
-                "gyr_is": np.random.randn(1000) * 0.1,
-                "gyr_ml": np.random.randn(1000) * 0.1,
-                "gyr_pa": np.random.randn(1000) * 0.1,
+                "acc_x": np.ones(1000) * -9.8,
+                "acc_y": np.random.randn(1000) * 0.5,
+                "acc_z": np.random.randn(1000) * 0.5,
+                "gyr_x": np.random.randn(1000) * 0.1,
+                "gyr_y": np.random.randn(1000) * 0.1,
+                "gyr_z": np.random.randn(1000) * 0.1,
             }
         )
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == "is_down"
-        assert result.result_.where_grav == "is"
+        assert result.result_.where_grav == "x"
         assert result.result_.where_grav_points == "down"
         assert result.result_.correction_applied is True
-        assert "flipped IS" in result.result_.correction_action
+        assert "rotated 180 deg around sensor z-axis" in result.result_.correction_action
 
     def test_family_ml_up_misorientation(self):
         """Test ml_up (gravity in ML pointing up) is corrected."""
         data = pd.DataFrame(
             {
-                "acc_is": np.random.randn(1000) * 0.5,
-                "acc_ml": np.ones(1000) * 9.8,
-                "acc_pa": np.random.randn(1000) * 0.5,
-                "gyr_is": np.random.randn(1000) * 0.1,
-                "gyr_ml": np.random.randn(1000) * 0.1,
-                "gyr_pa": np.random.randn(1000) * 0.1,
+                "acc_x": np.random.randn(1000) * 0.5,
+                "acc_y": np.ones(1000) * 9.8,
+                "acc_z": np.random.randn(1000) * 0.5,
+                "gyr_x": np.random.randn(1000) * 0.1,
+                "gyr_y": np.random.randn(1000) * 0.1,
+                "gyr_z": np.random.randn(1000) * 0.1,
             }
         )
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == "ml_up"
-        assert result.result_.where_grav == "ml"
+        assert result.result_.where_grav == "y"
         assert result.result_.where_grav_points == "up"
         assert result.result_.correction_applied is True
-        assert "swapped IS-ML" in result.result_.correction_action
+        assert "rotated -90 deg around sensor z-axis" in result.result_.correction_action
 
     def test_family_ml_down_misorientation(self):
         """Test ml_down (gravity in ML pointing down) is corrected."""
         data = pd.DataFrame(
             {
-                "acc_is": np.random.randn(1000) * 0.5,
-                "acc_ml": np.ones(1000) * -9.8,
-                "acc_pa": np.random.randn(1000) * 0.5,
-                "gyr_is": np.random.randn(1000) * 0.1,
-                "gyr_ml": np.random.randn(1000) * 0.1,
-                "gyr_pa": np.random.randn(1000) * 0.1,
+                "acc_x": np.random.randn(1000) * 0.5,
+                "acc_y": np.ones(1000) * -9.8,
+                "acc_z": np.random.randn(1000) * 0.5,
+                "gyr_x": np.random.randn(1000) * 0.1,
+                "gyr_y": np.random.randn(1000) * 0.1,
+                "gyr_z": np.random.randn(1000) * 0.1,
             }
         )
 
         result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family == "ml_down"
-        assert result.result_.where_grav == "ml"
+        assert result.result_.where_grav == "y"
         assert result.result_.where_grav_points == "down"
         assert result.result_.correction_applied is True
-        assert "swapped IS-ML" in result.result_.correction_action
-        assert "flipped IS" in result.result_.correction_action
+        assert "rotated 90 deg around sensor z-axis" in result.result_.correction_action
 
     def test_no_gravity_detected_warns_and_returns_uncorrected_data(self):
         """Test that data without clear gravity signal returns None family."""
         data = pd.DataFrame(
             {
-                "acc_is": np.random.randn(1000) * 2.0,
-                "acc_ml": np.random.randn(1000) * 2.0,
-                "acc_pa": np.random.randn(1000) * 2.0,
-                "gyr_is": np.random.randn(1000) * 0.1,
-                "gyr_ml": np.random.randn(1000) * 0.1,
-                "gyr_pa": np.random.randn(1000) * 0.1,
+                "acc_x": np.random.randn(1000) * 2.0,
+                "acc_y": np.random.randn(1000) * 2.0,
+                "acc_z": np.random.randn(1000) * 2.0,
+                "gyr_x": np.random.randn(1000) * 0.1,
+                "gyr_y": np.random.randn(1000) * 0.1,
+                "gyr_z": np.random.randn(1000) * 0.1,
             }
         )
 
@@ -160,11 +176,10 @@ class TestReorientationMethodDM:
         assert result.result_.unresolved_reason == "gravity"
         assert result.result_.correction_applied is False
         assert result.result_.correction_action == "none"
-        # Verify data unchanged
-        assert_frame_equal(result.result_.data_corrected, data)
+        assert_frame_equal(result.result_.data_corrected, to_body_frame(data))
 
     def test_no_gravity_detected_can_raise(self):
-        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
 
         with pytest.raises(ValueError, match="No sensor axis with a clear gravity signal could be identified"):
             ReorientationMethodDM(gravity_detection_error_type="raise").detect_correct(
@@ -172,7 +187,7 @@ class TestReorientationMethodDM:
             )
 
     def test_no_gravity_detected_can_be_ignored(self):
-        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
 
         with warnings.catch_warnings(record=True) as warning_info:
             result = ReorientationMethodDM(gravity_detection_error_type="ignore").detect_correct(
@@ -192,7 +207,7 @@ class TestReorientationMethodDM:
         start = reference_wbs.iloc[2]["start"]
         end = reference_wbs.iloc[2]["end"]
 
-        imu_data = to_body_frame(single_test.data.get("LowerBack"))
+        imu_data = single_test.data.get("LowerBack")
         imu_data = imu_data.reset_index(drop=True)
         wb_data = imu_data.loc[start:end]
 
@@ -214,24 +229,24 @@ class TestReorientationMethodDM:
         """Test that invalid correction mode parameter raises ValueError."""
         with pytest.raises(ValueError, match="correction_mode must be 'full' or 'trust_gravity'"):
             ReorientationMethodDM(correction_mode="invalid").detect_correct(
-                pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
+                pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS), sampling_rate_hz=100.0
             )
 
     def test_invalid_error_type_parameter(self):
         with pytest.raises(ValueError, match="gravity_detection_error_type must be one of"):
             ReorientationMethodDM(gravity_detection_error_type="invalid").detect_correct(
-                pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
+                pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS), sampling_rate_hz=100.0
             )
 
     def test_unresolved_phase_is_reported_as_none(self):
         data = pd.DataFrame(
             {
-                "acc_is": np.ones(10) * 9.8,
-                "acc_ml": np.zeros(10),
-                "acc_pa": np.zeros(10),
-                "gyr_is": np.zeros(10),
-                "gyr_ml": np.zeros(10),
-                "gyr_pa": np.zeros(10),
+                "acc_x": np.ones(10) * 9.8,
+                "acc_y": np.zeros(10),
+                "acc_z": np.zeros(10),
+                "gyr_x": np.zeros(10),
+                "gyr_y": np.zeros(10),
+                "gyr_z": np.zeros(10),
             }
         )
 
@@ -243,12 +258,12 @@ class TestReorientationMethodDM:
     def test_unresolved_pa_direction_warns_and_assumes_pa_is_correct(self):
         data = pd.DataFrame(
             {
-                "acc_is": [-9.8, -9.8],
-                "acc_ml": [1.0, 2.0],
-                "acc_pa": [3.0, 4.0],
-                "gyr_is": [5.0, 6.0],
-                "gyr_ml": [7.0, 8.0],
-                "gyr_pa": [9.0, 10.0],
+                "acc_x": [-9.8, -9.8],
+                "acc_y": [1.0, 2.0],
+                "acc_z": [3.0, 4.0],
+                "gyr_x": [5.0, 6.0],
+                "gyr_y": [7.0, 8.0],
+                "gyr_z": [9.0, 10.0],
             }
         )
 
@@ -273,12 +288,12 @@ class TestReorientationMethodDM:
     def test_unresolved_pa_direction_can_raise(self):
         data = pd.DataFrame(
             {
-                "acc_is": np.ones(10) * 9.8,
-                "acc_ml": np.zeros(10),
-                "acc_pa": np.zeros(10),
-                "gyr_is": np.zeros(10),
-                "gyr_ml": np.zeros(10),
-                "gyr_pa": np.zeros(10),
+                "acc_x": np.ones(10) * 9.8,
+                "acc_y": np.zeros(10),
+                "acc_z": np.zeros(10),
+                "gyr_x": np.zeros(10),
+                "gyr_y": np.zeros(10),
+                "gyr_z": np.zeros(10),
             }
         )
 
@@ -290,12 +305,12 @@ class TestReorientationMethodDM:
     def test_unresolved_pa_direction_can_be_ignored(self):
         data = pd.DataFrame(
             {
-                "acc_is": np.ones(10) * 9.8,
-                "acc_ml": np.zeros(10),
-                "acc_pa": np.zeros(10),
-                "gyr_is": np.zeros(10),
-                "gyr_ml": np.zeros(10),
-                "gyr_pa": np.zeros(10),
+                "acc_x": np.ones(10) * 9.8,
+                "acc_y": np.zeros(10),
+                "acc_z": np.zeros(10),
+                "gyr_x": np.zeros(10),
+                "gyr_y": np.zeros(10),
+                "gyr_z": np.zeros(10),
             }
         )
 
@@ -310,12 +325,12 @@ class TestReorientationMethodDM:
     def test_trust_gravity_family_1_does_not_require_pa_direction(self):
         data = pd.DataFrame(
             {
-                "acc_is": np.ones(10) * 9.8,
-                "acc_ml": np.zeros(10),
-                "acc_pa": np.zeros(10),
-                "gyr_is": np.zeros(10),
-                "gyr_ml": np.zeros(10),
-                "gyr_pa": np.zeros(10),
+                "acc_x": np.ones(10) * 9.8,
+                "acc_y": np.zeros(10),
+                "acc_z": np.zeros(10),
+                "gyr_x": np.zeros(10),
+                "gyr_y": np.zeros(10),
+                "gyr_z": np.zeros(10),
             }
         )
 
@@ -340,7 +355,7 @@ class TestReorientationMethodDM:
         start = reference_wbs.iloc[0]["start"]
         end = reference_wbs.iloc[0]["end"]
 
-        imu_data = to_body_frame(single_test.data.get("LowerBack"))
+        imu_data = single_test.data.get("LowerBack")
         imu_data = imu_data.reset_index(drop=True)
         wb_data = imu_data.loc[start:end]
 
@@ -372,7 +387,7 @@ class TestReorientationMethodDMRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data_full_correction_mode(self, datapoint, snapshot):
         """Test full correction mode on all lab data walking bouts."""
-        data = to_body_frame(datapoint.data_ss)
+        data = datapoint.data_ss
         ref_walk_bouts = datapoint.reference_parameters_.wb_list
 
         if len(ref_walk_bouts) == 0:
@@ -405,7 +420,7 @@ class TestReorientationMethodDMRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP", reference_para_level="wb"))
     def test_example_lab_data_trust_gravity_correction_mode(self, datapoint, snapshot):
         """Test trust-gravity mode on all lab data walking bouts."""
-        data = to_body_frame(datapoint.data_ss)
+        data = datapoint.data_ss
         ref_walk_bouts = datapoint.reference_parameters_.wb_list
 
         if len(ref_walk_bouts) == 0:

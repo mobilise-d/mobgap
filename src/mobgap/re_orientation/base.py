@@ -12,22 +12,22 @@ base_reorientation_docfiller = make_filldoc(
     {
         "other_parameters": """
 data
-    The raw IMU data in the body frame passed to the ``detect_correct`` method.
+    The raw IMU data in the sensor frame passed to the ``detect_correct`` method.
 sampling_rate_hz
     The sampling rate of the raw IMU data in Hz.
 """,
         "corrected_data_": """
 corrected_data_
-    The reoriented IMU data in the anatomical frame.
-    The dataframe has the same structure as the input data.
+    The reoriented IMU data in the body frame.
+    The dataframe has the same index as the input data and body-frame columns.
 """,
         "detect_correct_short": """
-Detect sensor orientation and apply correction to anatomical frame
+Detect sensor orientation and apply correction to the body frame
 """,
         "detect_correct_para": """
 data
-    The raw IMU data in the body frame (or arbitrary sensor frame).
-    Expected columns: acc_is, acc_ml, acc_pa, gyr_is, gyr_ml, gyr_pa.
+    The raw IMU data in the sensor frame.
+    Expected columns: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z.
 sampling_rate_hz
     The sampling rate of the raw IMU data in Hz.
 """,
@@ -49,13 +49,13 @@ class BaseReorientationCorrector(Algorithm):
 
     This base class should be used for all reorientation correction algorithms.
     Algorithms should implement the ``detect_correct`` method, which detects the sensor
-    orientation and applies corrections to align data to the anatomical frame:
+    orientation and applies corrections to align sensor-frame data to the body frame:
 
-    - IS → vertical (infero-superior), pointing up
-    - ML → mediolateral, pointing right
-    - PA → posterior-anterior, pointing forward
+    - x → vertical (infero-superior), pointing up
+    - y → mediolateral, pointing right
+    - z → posterior-anterior, pointing forward
 
-    The method should return the instance with the ``corrected_data_`` attribute set.
+    The method should return the instance with the ``corrected_data_`` attribute set to body-frame data.
 
     Other Parameters
     ----------------
