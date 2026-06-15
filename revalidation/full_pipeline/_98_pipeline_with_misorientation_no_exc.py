@@ -109,9 +109,9 @@ datasets_free_living = MisorientedDataset(
 # Running The Evaluation
 # ----------------------
 # We run the pipeline variants one after another and use datapoint-level
-# multiprocessing inside ``tpcp.validate``. Results are written after each
-# variant finishes so completed results remain available if a later run is
-# interrupted.
+# multiprocessing inside the scorer invoked by ``tpcp.validate``. Results are
+# written after each variant finishes so completed results remain available if a
+# later run is interrupted.
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
@@ -124,10 +124,10 @@ def run_evaluation(
     pipeline: BaseMobilisedPipeline,
     ds: MisorientedDataset,
 ) -> tuple[str, Evaluation[BaseMobilisedPipeline]]:
+    scoring = pipeline_score.clone().set_params(n_jobs=n_jobs, verbose=10)
     eval_pipe = Evaluation(
         ds,
-        scoring=pipeline_score,
-        validate_paras={"n_jobs": n_jobs, "verbose": 10},
+        scoring=scoring,
     ).run(pipeline)
     return name, eval_pipe
 
