@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -24,7 +26,7 @@ class TestMetaReorientationMethodDM(TestAlgorithmMixin):
 
     @pytest.fixture
     def after_action_instance(self):
-        algo = self.ALGORITHM_CLASS()
+        algo = self.ALGORITHM_CLASS(gravity_detection_error_type="ignore")
         algo.detect_correct(pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0)
         return algo
 
@@ -136,7 +138,7 @@ class TestReorientationMethodDM:
         assert "swapped IS-ML" in result.result_.correction_action
         assert "flipped IS" in result.result_.correction_action
 
-    def test_no_gravity_detected(self):
+    def test_no_gravity_detected_warns_and_returns_uncorrected_data(self):
         """Test that data without clear gravity signal returns None family."""
         data = pd.DataFrame(
             {
@@ -149,14 +151,36 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
+        with pytest.warns(UserWarning, match="No sensor axis with a clear gravity signal could be identified"):
+            result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.family is None
         assert result.result_.where_grav is None
+        assert result.result_.orientation_resolved is False
+        assert result.result_.unresolved_reason == "gravity"
         assert result.result_.correction_applied is False
         assert result.result_.correction_action == "none"
         # Verify data unchanged
         assert_frame_equal(result.result_.data_corrected, data)
+
+    def test_no_gravity_detected_can_raise(self):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+
+        with pytest.raises(ValueError, match="No sensor axis with a clear gravity signal could be identified"):
+            ReorientationMethodDM(gravity_detection_error_type="raise").detect_correct(
+                data, sampling_rate_hz=100.0
+            )
+
+    def test_no_gravity_detected_can_be_ignored(self):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+
+        with warnings.catch_warnings(record=True) as warning_info:
+            result = ReorientationMethodDM(gravity_detection_error_type="ignore").detect_correct(
+                data, sampling_rate_hz=100.0
+            )
+
+        assert len(warning_info) == 0
+        assert result.result_.unresolved_reason == "gravity"
 
     def test_full_vs_trust_gravity_correction_mode_family_is_up(self):
         """Test that full and trust-gravity modes differ for is_up family."""
@@ -193,6 +217,12 @@ class TestReorientationMethodDM:
                 pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
             )
 
+    def test_invalid_error_type_parameter(self):
+        with pytest.raises(ValueError, match="gravity_detection_error_type must be one of"):
+            ReorientationMethodDM(gravity_detection_error_type="invalid").detect_correct(
+                pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
+            )
+
     def test_unresolved_phase_is_reported_as_none(self):
         data = pd.DataFrame(
             {
@@ -205,8 +235,96 @@ class TestReorientationMethodDM:
             }
         )
 
-        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
+        with pytest.warns(UserWarning, match="The direction of the PA axis could not be resolved"):
+            result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
+        assert result.result_.phase is None
+
+    def test_unresolved_pa_direction_warns_and_assumes_pa_is_correct(self):
+        data = pd.DataFrame(
+            {
+                "acc_is": [-9.8, -9.8],
+                "acc_ml": [1.0, 2.0],
+                "acc_pa": [3.0, 4.0],
+                "gyr_is": [5.0, 6.0],
+                "gyr_ml": [7.0, 8.0],
+                "gyr_pa": [9.0, 10.0],
+            }
+        )
+
+        with pytest.warns(UserWarning, match="The direction of the PA axis could not be resolved"):
+            result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
+
+        expected = pd.DataFrame(
+            {
+                "acc_is": [9.8, 9.8],
+                "acc_ml": [-1.0, -2.0],
+                "acc_pa": [3.0, 4.0],
+                "gyr_is": [-5.0, -6.0],
+                "gyr_ml": [-7.0, -8.0],
+                "gyr_pa": [9.0, 10.0],
+            }
+        )
+        assert result.result_.phase is None
+        assert result.result_.orientation_resolved is False
+        assert result.result_.unresolved_reason == "pa_direction"
+        assert_frame_equal(result.corrected_data_, expected)
+
+    def test_unresolved_pa_direction_can_raise(self):
+        data = pd.DataFrame(
+            {
+                "acc_is": np.ones(10) * 9.8,
+                "acc_ml": np.zeros(10),
+                "acc_pa": np.zeros(10),
+                "gyr_is": np.zeros(10),
+                "gyr_ml": np.zeros(10),
+                "gyr_pa": np.zeros(10),
+            }
+        )
+
+        with pytest.raises(ValueError, match="The direction of the PA axis could not be resolved"):
+            ReorientationMethodDM(
+                correction_mode="full", pa_direction_detection_error_type="raise"
+            ).detect_correct(data, sampling_rate_hz=100.0)
+
+    def test_unresolved_pa_direction_can_be_ignored(self):
+        data = pd.DataFrame(
+            {
+                "acc_is": np.ones(10) * 9.8,
+                "acc_ml": np.zeros(10),
+                "acc_pa": np.zeros(10),
+                "gyr_is": np.zeros(10),
+                "gyr_ml": np.zeros(10),
+                "gyr_pa": np.zeros(10),
+            }
+        )
+
+        with warnings.catch_warnings(record=True) as warning_info:
+            result = ReorientationMethodDM(
+                correction_mode="full", pa_direction_detection_error_type="ignore"
+            ).detect_correct(data, sampling_rate_hz=100.0)
+
+        assert len(warning_info) == 0
+        assert result.result_.unresolved_reason == "pa_direction"
+
+    def test_trust_gravity_family_1_does_not_require_pa_direction(self):
+        data = pd.DataFrame(
+            {
+                "acc_is": np.ones(10) * 9.8,
+                "acc_ml": np.zeros(10),
+                "acc_pa": np.zeros(10),
+                "gyr_is": np.zeros(10),
+                "gyr_ml": np.zeros(10),
+                "gyr_pa": np.zeros(10),
+            }
+        )
+
+        result = ReorientationMethodDM(
+            correction_mode="trust_gravity", pa_direction_detection_error_type="raise"
+        ).detect_correct(data, sampling_rate_hz=100.0)
+
+        assert result.result_.orientation_resolved is True
+        assert result.result_.unresolved_reason is None
         assert result.result_.phase is None
 
     def test_single_walking_bout(self):
@@ -237,6 +355,11 @@ class TestReorientationMethodDM:
         assert hasattr(result.result_, "phase")
         assert hasattr(result.result_, "correction_applied")
         assert hasattr(result.result_, "correction_action")
+        assert hasattr(result.result_, "orientation_resolved")
+        assert hasattr(result.result_, "unresolved_reason")
+        assert hasattr(result.result_, "gravity_rotation")
+        assert hasattr(result.result_, "pa_direction_rotation")
+        assert hasattr(result.result_, "correction_rotation")
         assert hasattr(result.result_, "data_corrected")
 
         # Check corrected data has same shape as input
