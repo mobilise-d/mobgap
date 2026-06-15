@@ -38,14 +38,20 @@ OrientationFamily = Literal["is_up", "is_down", "ml_up", "ml_down"]
 ErrorHandling = Literal["raise", "warn", "ignore"]
 UnresolvedReason = Literal["gravity", "pa_direction"]
 GravityDetectionResult = tuple[Optional[GravityAxis], Optional[GravityDirection], Optional[OrientationFamily]]
+_IDENTITY_ROTATION = Rotation.identity()
 _GRAVITY_CORRECTIONS = {
-    "is_up": (Rotation.identity(), ()),
+    "is_up": (_IDENTITY_ROTATION, ()),
     "is_down": (Rotation.from_euler("z", 180, degrees=True), ("rotated 180 deg around sensor z-axis",)),
     "ml_up": (Rotation.from_euler("z", -90, degrees=True), ("rotated -90 deg around sensor z-axis",)),
     "ml_down": (Rotation.from_euler("z", 90, degrees=True), ("rotated 90 deg around sensor z-axis",)),
 }
-_PA_DIRECTION_ROTATION = Rotation.from_euler("x", 180, degrees=True)
-_IDENTITY_ROTATION = Rotation.identity()
+_PA_DIRECTION_CORRECTIONS = {
+    "correct": (_IDENTITY_ROTATION, ()),
+    "reversed": (
+        Rotation.from_euler("x", 180, degrees=True),
+        ("rotated 180 deg around corrected sensor x-axis",),
+    ),
+}
 _NO_GRAVITY_MESSAGE = (
     "No sensor axis with a clear gravity signal could be identified. No reorientation correction was applied. "
     "The data is returned uncorrected using the default Mobilise-D mounting assumption to transform it into the body "
@@ -227,10 +233,10 @@ class ReorientationMethodDM(Algorithm):
         if phase is None:
             _handle_error(self.pa_direction_detection_error_type, _PA_DIRECTION_UNRESOLVED_MESSAGE)
 
-        pa_direction_rotation = _pa_direction_rotation(phase)
+        pa_direction_key = "reversed" if phase is not None and phase < 0 else "correct"
+        pa_direction_rotation, pa_direction_actions = _PA_DIRECTION_CORRECTIONS[pa_direction_key]
         corrected = flip_dataset(corrected, pa_direction_rotation)
-        correction = _pa_direction_correction_action(phase)
-        correction_actions = gravity_actions if correction is None else (*gravity_actions, correction)
+        correction_actions = (*gravity_actions, *pa_direction_actions)
 
         correction_action = " and ".join(correction_actions) if correction_actions else "none"
 
@@ -304,20 +310,6 @@ def _detect_gravity(data: pd.DataFrame, grav_threshold_ms2: float) -> GravityDet
         family = None
 
     return where_grav, where_grav_points, family
-
-
-def _pa_direction_rotation(phase: Optional[float]) -> Rotation:
-    if phase is not None and phase < 0:
-        return _PA_DIRECTION_ROTATION
-    return Rotation.identity()
-
-
-def _pa_direction_correction_action(phase: Optional[float]) -> Optional[str]:
-    if phase is None:
-        return None
-    if phase < 0:
-        return "rotated 180 deg around corrected sensor x-axis"
-    return None
 
 
 def _cross_spec_x_z_phase_power_weighted(
