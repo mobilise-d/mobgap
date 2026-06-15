@@ -2,7 +2,7 @@
 Signal-based parameters
 =======================
 
-This example shows how to use the :class:`.SDMO` for calculating signal-based parameters.
+This example shows how to use the :class:`.MobilisedSDMO` for calculating signal-based parameters.
 
 First we load some data.
 
@@ -10,9 +10,9 @@ Example Data
 ------------
 We load example data from the lab dataset together with the INDIP reference system.
 We will use a single short-trail from the "HA" participant for this example, as it only contains a single gait sequence.
-The signal-based parameters are calculating for each walking bout in the Mobilise-D pipelines, however, the class
-is designed to work with any signal window (although note that some parameters require to have some characteristics such
-as certain number of strides).
+The signal-based parameters are calculated for each walking bout in the Mobilise-D pipelines, however, the calculator
+(algorithm) classes are designed to work with any signal window (although note that some parameters require to have
+some characteristics such as certain number of strides).
 
 """
 
@@ -24,10 +24,10 @@ short_trial = lab_example_data.get_subset(
 )
 
 # %%
-# SDMO
+# MobilisedSDMO
 # ----
-# To demonstrate the usage of :class:`.SDMO` we use the detected walking bout from the
-# reference system as input.
+# To demonstrate the usage of the pipeline :class:`.MobilisedSDMO`, we use the detected walking bout from the reference
+# system as input.
 reference_strides = (
     short_trial.reference_parameters_relative_to_wb_.stride_parameters
 )
@@ -42,20 +42,21 @@ data_in_wb = short_trial.data["LowerBack"].iloc[
 ]
 
 # %%
-# Like most algorithms, the SDMO requires the data to be in body frame coordinates.
+# The data is required to be in body frame coordinates.
 # As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
 from mobgap.utils.conversions import to_body_frame
 
 data_in_wb_bf = to_body_frame(data_in_wb)
 
 # %%
-# Then we initialize the algorithm and call the ``calculate`` method.
-# This method at least requires the data and the sampling frequency. ``stride_list`` and ``turn_list``
-# are optional. If these are not specified, some signal-based parameters aren't be calculated.
-# Here, we provide the algorithms the data, stride list and the sampling rate of the measurement.
-from mobgap.signal_based import SDMO
+# We can initialize the pipeline and call the ``calculate`` method similar to the individual algorithms.
+# Here, we provide the algorithms the data, stride list, the sampling rate of the measurement. The ``turn_list``
+# isn't available (or no turns), so the default value is used. Additionally, the ``replicate_matlab`` argument is used
+# its default True value.
+# See :class:`.MobilisedSDMO` for default parameters and details.
+from mobgap.signal_based import MobilisedSDMO
 
-sdmo = SDMO()
+sdmo = MobilisedSDMO()
 
 sdmo.calculate(
     data=data_in_wb_bf,
@@ -70,11 +71,11 @@ sdmo.signal_based_parameters
 
 
 # %%
-# Note that calling the ``calculate`` method raises warning regarding the availability of stride parameters and this
+# Note that the ``calculate`` method raises warning regarding the availability of stride parameters and this
 # results in 46 parameters calculated in total.
 # We miss three more parameters because the expected stride list parameters
 # (['stride_length_m', 'cadence_spm', 'stride_duration_s']) are given with a different name or not available in
-# the reference list. We can rename and calculate the missing one.
+# the reference list. We can rename and calculate the missing ones.
 reference_strides = reference_strides.rename(
     columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
 )

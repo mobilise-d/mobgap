@@ -14,7 +14,25 @@ Algorithms
    :toctree: generated/signal_based
    :template: class.rst
 
-    SDMO
+    SampleEntropy
+    HarmonicRatio
+    SDRange
+    Jerk
+    FrequencyAmplitudeWidthSlope
+    RegularitySymmetry
+    RMS
+    StrideLevelSDMO
+    TurnSDMO
+
+Pipelines
++++++++++
+.. currentmodule:: mobgap.signal_based
+
+.. autosummary::
+   :toctree: generated/signal_based
+   :template: class.rst
+
+    MobilisedSDMO
 
 Base Classes
 ++++++++++++
