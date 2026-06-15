@@ -1,7 +1,7 @@
-"""
-Reorientation algorithm for lower-back-worn IMU devices.
+"""Reorientation algorithm for lower-back-worn IMU devices.
 
-Corrects sensor axis orientation to the anatomical frame:
+Corrects sensor-axis orientation to the anatomical frame.
+To do so, the sensor frame is rotated so that its axes (x, y, z) align with the anatomical directions:
     x  → vertical (infero-superior), pointing up
     y  → mediolateral, pointing right
     z  → posterior-anterior, pointing forward
@@ -91,6 +91,9 @@ class ReorientationMethodDM(Algorithm):
     """
     Detects and corrects IMU sensor orientation for lower-back-worn devices.
 
+    .. warning:: This method cannot correct arbitrary misalignments. It makes concrete assumptions about the possible
+        orientation errors. See Notes for details.
+
     Parameters
     ----------
     correction_mode : {'full', 'trust_gravity'}
@@ -102,10 +105,12 @@ class ReorientationMethodDM(Algorithm):
         Minimum absolute mean acceleration in m/s² for an axis to be treated as
         capturing gravity.
     gait_frequency_band_filter
-        The filter applied to ``acc_x`` and ``acc_z`` before the cross-spectral
-        phase is calculated.
+        The filter applied to ``acc_x`` (IS) and ``acc_z`` (positive or negative PA), after the initial gravity
+        alignment and before calculating the cross-spectral phase.
     gravity_detection_error_type : {'raise', 'warn', 'ignore'}
         How to handle gait sequences where gravity can not be detected.
+        Note that errors in gravity detection will always skip the PA direction correction, even when not raising an
+        error.
     pa_direction_detection_error_type : {'raise', 'warn', 'ignore'}
         How to handle gait sequences where the PA direction can not be detected.
 
@@ -125,6 +130,51 @@ class ReorientationMethodDM(Algorithm):
     >>> algo = ReorientationMethodDM(correction_mode="trust_gravity")
     >>> algo = algo.detect_correct(wb_data, sampling_rate_hz=100.0)
     >>> corrected = algo.result_.data_corrected
+
+
+    Notes
+    -----
+    This method is designed to correct the most common orientation errors for lower-back-worn devices.
+    It assumes that the sensor is a flat rectangular device mounted with one of its large flat surfaces against the
+    body.
+    For the rest of this explanation, we refer to the sensor axis that points through the body as the PA axis.
+    In a correct mounting orientation, the PA axis (posterior to anterior) is aligned with the sensor z-axis, the
+    vertical IS axis is aligned with the sensor x-axis, and the ML axis is aligned with the sensor y-axis.
+    See the coordinate system guide for more details.
+
+    The method focuses on correcting mounting errors rather than small misalignments.
+    It only corrects 90 deg or 180 deg rotations around the sensor axes, not arbitrary rotations that would require more
+    complex corrections.
+
+    With this assumption, there are only eight possible mounting orientations, grouped into two independent error
+    types:
+
+    1. Rotations around the PA axis that cause gravity to point in the wrong direction in the sensor frame.
+       We correct four potential orientations of this type, which we call "orientation families":
+
+       - ``is_up``: gravity points up in sensor x (correct orientation) -> no correction.
+       - ``is_down``: gravity points down in sensor x (180 deg rotation around sensor z).
+       - ``ml_up``: gravity points up in sensor y (90 deg rotation around sensor z).
+       - ``ml_down``: gravity points down in sensor y (90 deg rotation around sensor z, then 180 deg rotation around
+         sensor x).
+
+    2. Independent of the gravity direction, the sensor could be flipped front-to-back around the vertical IS axis,
+       which causes the PA axis to point in the wrong direction in the sensor frame.
+       We correct this potential error by estimating PA direction from the cross-spectral phase between ``acc_x`` and
+       ``acc_z``. If the phase indicates a reversed PA direction, we apply a 180 deg rotation around the corrected
+       sensor x-axis.
+
+    To correctly detect and apply these corrections, we make the following assumptions about the data:
+
+    - The sensor axes of your data follow the expected directions under correct mounting (x: IS, y: ML, z: PA).
+    - It is impossible or infeasible for the sensor to be mounted with a large flat surface not against the body
+      (e.g., rotated 90 deg around the PA axis).
+    - For the data segments where the algorithm is applied, the participant is in an upright posture and is walking
+      the majority of the time.
+      Extremely hunched postures, non-walking activities, or extremely pathological gait patterns might cause the
+      algorithm to fail.
+      However, most other steps of the MOBGAP pipeline are also likely to fail on such data.
+
     """
 
     _action_methods = ("detect_correct",)
@@ -145,12 +195,12 @@ class ReorientationMethodDM(Algorithm):
 
     def __init__(
         self,
-        correction_mode: Literal["full", "trust_gravity"] = "trust_gravity",
+        *,
         grav_threshold_ms2: float = 6.37,
         gait_frequency_band_filter: BaseFilter = cf(
             FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
         ),
-        *,
+        correction_mode: Literal["full", "trust_gravity"] = "full",
         gravity_detection_error_type: ErrorHandling = "warn",
         pa_direction_detection_error_type: ErrorHandling = "warn",
     ) -> None:
