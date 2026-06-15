@@ -224,7 +224,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
     ):
         self.signal_based_parameters = pd.DataFrame([])
 
-    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, replicate_matlab: bool, **kwargs) -> Self:  # noqa: PLR0915
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, replicate_matlab: bool, **kwargs) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -243,79 +243,157 @@ class RegularitySymmetry(BaseSDMOCalculator):
             return self
         reg_sym = {}
         step_reg_is = np.nan
-        distance = int(sampling_rate_hz / 4)
+
         for axis in required_acc_columns:
-            signal = data[axis].to_numpy()
-            step_reg = stride_reg = asym_mn = sym_k = asym_g = np.nan
-            try:
-                n = len(signal)
-                x = signal - signal.mean()
-                # normalized cross-covariance
-                norm = n - np.abs(np.arange(-n + 1, n))
-                c = correlate(x, x, mode="full") / norm
-                lags = np.arange(-n + 1, n)
-                # normalize c to zero-lag
-                c = c / c[lags == 0][0]
-                # non-negative lags
-                c = c[lags >= 0]
+            axis_results = self._compute_axis_metrics(
+                data[axis].to_numpy(),
+                axis=axis,
+                sampling_rate_hz=sampling_rate_hz,
+                replicate_matlab=replicate_matlab,
+                step_reg_is=step_reg_is,
+            )
+            if axis == "acc_is" and "step_regularity_is" in axis_results:
+                step_reg_is = axis_results["step_regularity_is"]
+            reg_sym.update(axis_results)
 
-                # in order to remove wrong detections of the irrelevant peaks the signal is smoothened.
-                win_size = max(1, int((0.1 if axis == "acc_ml" else 0.2) * sampling_rate_hz))
-                smooth_moving_func = _matlab_smooth_moving_ave if replicate_matlab else _pd_smooth_moving_ave
-                smoothed_c = smooth_moving_func(c, win_size)
+        self.signal_based_parameters = pd.Series(reg_sym).to_frame().T
+        return self
 
-                # detect peaks
-                if axis == "acc_ml":
-                    # step regularity: negative peaks
-                    locs, _ = find_peaks(-smoothed_c, distance=distance + 1)
-                    if not np.isnan(step_reg_is):
-                        locs = locs[locs >= step_reg_is / 2]
-                    peaks = -smoothed_c[locs]
-                    locs = locs[peaks > 0]
-                    peaks = peaks[peaks > 0]
-                    _, peaks = _correct_peaks(-c, peaks, locs)
-                    step_reg = peaks[0]
+    def _compute_axis_metrics(self, signal, axis, sampling_rate_hz, replicate_matlab, step_reg_is):
+        """Compute regularity metrics for a single axis."""
+        ax_direction = axis.split("_")[1]
+        step_reg = stride_reg = asym_mn = sym_k = asym_g = np.nan
+        distance = int(sampling_rate_hz / 4)
+        try:
+            n = len(signal)
+            x = signal - signal.mean()
+            norm = n - np.abs(np.arange(-n + 1, n))
+            c = correlate(x, x, mode="full") / norm
+            lags = np.arange(-n + 1, n)
+            # normalise to zero‑lag
+            c = c / c[lags == 0][0]
+            # non‑negative lags
+            c = c[lags >= 0]
 
-                    # stride regularity: positive peaks
-                    locs, _ = find_peaks(smoothed_c, distance=distance + 1)
-                    if not np.isnan(step_reg_is):
-                        locs = locs[locs >= 1.5 * step_reg_is]
-                    peaks = smoothed_c[locs]
-                    locs = locs[peaks > 0]
-                    peaks = peaks[peaks > 0]
-                    _, peaks = _correct_peaks(c, peaks, locs)
-                    stride_reg = peaks[0]
+            # in order to remove wrong detections of the irrelevant peaks the signal is smoothened.
+            win_size = max(1, int((0.1 if axis == "acc_ml" else 0.2) * sampling_rate_hz))
+            smoothed_c = (
+                _matlab_smooth_moving_ave(c, win_size) if replicate_matlab else _pd_smooth_moving_ave(c, win_size)
+            )
 
-                else:
-                    # VT & AP axes
-                    locs, _ = find_peaks(smoothed_c, distance=distance + 1)
-                    peaks = smoothed_c[locs]
-                    locs = locs[peaks >= 0]
-                    peaks = peaks[peaks >= 0]
-                    locs, peaks = _correct_peaks(c, peaks, locs)
-                    step_reg = peaks[0]
-                    stride_reg = peaks[1]
+            # detect peaks
+            if axis == "acc_ml":
+                step_reg, stride_reg = self._process_ml_axis(c, smoothed_c, distance, step_reg_is)
+            else:
+                step_reg, stride_reg, step_reg_is = self._process_vt_ap_axis(c, smoothed_c, distance, step_reg_is)
 
-                    if np.isnan(step_reg_is):
-                        step_reg_is = locs[0]
-
+            if not np.isnan(step_reg) and not np.isnan(stride_reg):
                 asym_mn = abs(1 - step_reg / stride_reg)
                 sym_k = abs(step_reg - stride_reg) / np.mean([step_reg, stride_reg])
                 asym_g = (stride_reg - step_reg) / 2
 
-            except Exception:  # noqa: BLE001
-                if axis == "acc_is":
-                    step_reg_is = np.nan
+        except (IndexError, ValueError):
+            pass
 
-            ax_direction = axis.split("_")[1]
-            reg_sym[f"step_regularity_{ax_direction}"] = step_reg
-            reg_sym[f"stride_regularity_{ax_direction}"] = stride_reg
-            if ax_direction == "is":
-                reg_sym[f"asymmetry_mn_{ax_direction}"] = asym_mn
-                reg_sym[f"symmetry_k_{ax_direction}"] = sym_k
-                reg_sym[f"asymmetry_g_{ax_direction}"] = asym_g
-        self.signal_based_parameters = pd.Series(reg_sym).to_frame().T
-        return self
+        result = {
+            f"step_regularity_{ax_direction}": step_reg,
+            f"stride_regularity_{ax_direction}": stride_reg,
+        }
+        if ax_direction == "is":
+            result.update(
+                {
+                    f"asymmetry_mn_{ax_direction}": asym_mn,
+                    f"symmetry_k_{ax_direction}": sym_k,
+                    f"asymmetry_g_{ax_direction}": asym_g,
+                }
+            )
+        return result
+
+    @staticmethod
+    def _process_ml_axis(self, c, smoothed_c, distance, step_reg_is):
+        """Process ML axis."""
+        # step regularity: negative peaks
+        locs_neg, _ = find_peaks(-smoothed_c, distance=distance + 1)
+        if not np.isnan(step_reg_is):
+            locs_neg = locs_neg[locs_neg >= step_reg_is / 2]
+        peaks_neg = -smoothed_c[locs_neg]
+        mask = peaks_neg > 0
+        locs_neg = locs_neg[mask]
+        peaks_neg = peaks_neg[mask]
+        _, corrected_peaks_neg = self._correct_peaks(-c, peaks_neg, locs_neg)
+        step_reg = corrected_peaks_neg[0] if len(corrected_peaks_neg) > 0 else np.nan
+
+        # stride regularity: positive peaks
+        locs_pos, _ = find_peaks(smoothed_c, distance=distance + 1)
+        if not np.isnan(step_reg_is):
+            locs_pos = locs_pos[locs_pos >= 1.5 * step_reg_is]
+        peaks_pos = smoothed_c[locs_pos]
+        mask = peaks_pos > 0
+        locs_pos = locs_pos[mask]
+        peaks_pos = peaks_pos[mask]
+        _, corrected_peaks_pos = self._correct_peaks(c, peaks_pos, locs_pos)
+        stride_reg = corrected_peaks_pos[0] if len(corrected_peaks_pos) > 0 else np.nan
+
+        return step_reg, stride_reg
+
+    @staticmethod
+    def _process_vt_ap_axis(self, c, smoothed_c, distance, step_reg_is):
+        """Process IS/PA axes."""
+        locs, _ = find_peaks(smoothed_c, distance=distance + 1)
+        peaks = smoothed_c[locs]
+        mask = peaks >= 0
+        locs = locs[mask]
+        peaks = peaks[mask]
+        locs, corrected_peaks = self._correct_peaks(c, peaks, locs)
+        step_reg = corrected_peaks[0] if len(corrected_peaks) > 0 else np.nan
+        stride_reg = corrected_peaks[1] if len(corrected_peaks) > 1 else np.nan
+        if not np.isnan(step_reg) and np.isnan(step_reg_is):
+            step_reg_is = locs[0] if len(locs) > 0 else np.nan
+        return step_reg, stride_reg, step_reg_is
+
+    @staticmethod
+    def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Correct peaks found in a filtered signal to match original data."""
+        if len(locs) < 2:
+            return pks, locs
+
+        median_diff = np.median(np.diff(locs))
+        locale_win = int(np.ceil(0.2 * median_diff))
+
+        # remove peaks too close to start/end
+        mask = (locs > locale_win) & (locs < len(data) - locale_win)
+        locs = locs[mask]
+
+        # correct each peak to local maximum
+        corrected_locs = []
+        corrected_pks = []
+        for loc in locs:
+            start = max(loc - locale_win, 0)
+            end = min(loc + locale_win // 2 + 1, len(data))
+            window = data[start:end]
+            max_idx = np.argmax(window)
+            corrected_locs.append(start + max_idx)
+            corrected_pks.append(window[max_idx])
+
+        if len(corrected_locs) > 1:
+            peaks = sorted(zip(corrected_locs, corrected_pks), key=lambda x: x[0])
+            kept = []
+            i = 0
+            while i < len(peaks):
+                j = i + 1
+                while j < len(peaks) and peaks[j][0] - peaks[i][0] < locale_win:
+                    j += 1
+                cluster = peaks[i:j]
+                best = max(cluster, key=lambda x: x[1])
+                kept.append(best)
+                i = j
+            corrected_locs = np.array([p[0] for p in kept])
+            corrected_pks = np.array([p[1] for p in kept])
+        else:
+            corrected_locs = np.array(corrected_locs)
+            corrected_pks = np.array(corrected_pks)
+
+        return corrected_locs, corrected_pks
 
 
 @base_sdmo_docfiller
@@ -381,9 +459,9 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         vap_freq_range = np.where((f >= fmin - freq_delta) & (f <= fmax + freq_delta))[0]
         ml_freq_range = np.where((f >= fmin / 2 - freq_delta) & (f <= fmax / 2 + freq_delta))[0]
         # extract amplitude, frequency, width and slope
-        amp_is, freq_is, width_is, _slope_is = _extract_amp_freq_slope(psd_is, f, vap_freq_range)
-        amp_ml, freq_ml, width_ml, _slope_ml = _extract_amp_freq_slope(psd_ml, f, ml_freq_range)
-        amp_ap, freq_ap, width_ap, _slope_ap = _extract_amp_freq_slope(psd_ap, f, vap_freq_range)
+        amp_is, freq_is, width_is, _slope_is = self._extract_amp_freq_slope(psd_is, f, vap_freq_range)
+        amp_ml, freq_ml, width_ml, _slope_ml = self._extract_amp_freq_slope(psd_ml, f, ml_freq_range)
+        amp_ap, freq_ap, width_ap, _slope_ap = self._extract_amp_freq_slope(psd_ap, f, vap_freq_range)
 
         self.signal_based_parameters = pd.DataFrame(
             [{
@@ -404,6 +482,57 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
             }]
         )
         return self
+
+    @staticmethod
+    def _extract_amp_freq_slope(
+            psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray
+    ) -> tuple[Any, Any, Any, Any]:
+        """Extract amplitude, frequency, width and slope."""
+        psd_sub = psd[freq_range]
+        freq_sub = freq[freq_range]
+        peaks, _ = find_peaks(psd_sub, distance=6)
+        if len(peaks) == 0:
+            return np.nan, np.nan, np.nan, np.nan
+
+        peak = peaks[np.argmax(psd_sub[peaks])] if len(peaks) > 1 else peaks[0]
+
+        amp = psd_sub[peak]
+        freq_val = freq_sub[peak]
+        half_amp = 0.5 * amp
+        left_side = psd_sub[:peak]
+        right_side = psd_sub[peak:]
+
+        left_cross = np.where(left_side <= half_amp)[0]
+        right_cross = np.where(right_side <= half_amp)[0]
+
+        if len(left_cross) == 0 or len(right_cross) == 0:
+            return amp, freq_val, np.nan, np.nan
+
+        width_start = left_cross[-1]
+        width_end = peak + right_cross[0]
+        width = freq_sub[width_end] - freq_sub[width_start]
+        smoothed = medfilt(psd_sub, kernel_size=5)
+        minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
+        pre_peak_min = minima[minima < peak]
+        if len(pre_peak_min) == 0:
+            return amp, freq_val, width, np.nan
+
+        pre_peak = pre_peak_min[-1]
+        rise_psd = psd_sub[pre_peak: peak + 1]
+        rise_freq = freq_sub[pre_peak: peak + 1]
+        range_val = amp - psd_sub[pre_peak]
+        lower = psd_sub[pre_peak] + 0.25 * range_val
+        upper = amp - 0.25 * range_val
+        mask = (rise_psd >= lower) & (rise_psd <= upper)
+        fit_psd = rise_psd[mask]
+        fit_freq = rise_freq[mask]
+
+        if len(fit_psd) < 2:
+            return amp, freq_val, width, np.nan
+        line_fit = np.polyfit(fit_freq, fit_psd, 1)
+        slope = line_fit[0]
+
+        return amp, freq_val, width, slope
 
 
 @base_sdmo_docfiller
@@ -523,7 +652,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, stride_list: pd.DataFrame, sampling_rate_hz:float, **kwargs) -> Self:  # noqa: C901, PLR0912, PLR0915
+    def calculate(self, data: pd.DataFrame, stride_list: pd.DataFrame, sampling_rate_hz: float, **kwargs) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -533,9 +662,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         %(sampling_rate_param)s
 
         %(calculate_return)s
-
         """
-        # need the ic list
         ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
         acc_columns = self.acc_columns
         hr_results = {}
@@ -545,78 +672,123 @@ class HarmonicRatio(BaseSDMOCalculator):
         stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
 
         for col_name in acc_columns:
-            acc = data[col_name].to_numpy()
-            stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
-            is_ml = col_name == "acc_ml"
-            gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
-            in_phase = np.arange(2, 19, 2) if is_ml else np.arange(3, 20, 2)
-            out_phase = np.arange(1, 20, 2) if is_ml else np.arange(0, 19, 2)
+            hr_val = self._process_single_accelerometer(data, col_name, stride_pairs, sampling_rate_hz)
+            hr_results[f"harmonic_ratio_{col_name}"] = hr_val
 
-            for stride_idx, (start, end) in enumerate(stride_pairs):
-                current_end = end
-                # flexing IC end point to eliminate high freq noise due to first and last sample amplitude mismatch
-                start_points_in_data = np.where((acc[:-1] < acc[start]) & (acc[1:] >= acc[start]))[0]
-
-                if start_points_in_data.size:
-                    new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - current_end))]
-                    stride_len = end - start + 1
-                    if (current_end - new_end) <= 0.1 * stride_len:
-                        current_end = new_end
-                if start >= current_end:
-                    # skip the stride
-                    continue
-
-                stride_data = acc[start : current_end + 1] - np.mean(acc[start : current_end + 1])
-                # FFT
-                n = len(stride_data)
-                nfft = 2 ** (int(np.ceil(np.log2(n))) + 4)
-
-                fft_vals = np.abs(fft(stride_data, nfft))[: nfft // 2 + 1]
-                fft_freqs = np.linspace(0, sampling_rate_hz / 2, len(fft_vals))
-
-                max_idx = argrelextrema(fft_vals, np.greater)[0]
-                if not max_idx.size:
-                    continue
-
-                max_freqs = fft_freqs[max_idx]
-                max_amps = fft_vals[max_idx]
-                band_mask = (max_freqs >= gait_band[0]) & (max_freqs <= gait_band[1])
-
-                if not np.any(band_mask):
-                    continue
-
-                fundamental_idx = max_idx[band_mask][np.argmax(max_amps[band_mask])]
-                fundamental_amp = fft_vals[fundamental_idx]
-                fft_vals /= fundamental_amp
-                stride_time = n / sampling_rate_hz
-                f1 = (2 if is_ml else 1) / stride_time
-                stride_harmonics[stride_idx, 0 if is_ml else 1] = 1.0
-                harmonics = f1 * np.arange(1, 21)
-                for h in in_phase:
-                    f = harmonics[h]
-                    mask = np.abs(fft_freqs[max_idx] - f) <= f1
-                    if np.any(mask):
-                        stride_harmonics[stride_idx, h] = fft_vals[max_idx[mask]].max()
-                min_idx = argrelextrema(fft_vals, np.less)[0]
-                min_idx = min_idx[fft_freqs[min_idx] >= 0.25]
-                if min_idx.size:
-                    min_freqs = fft_freqs[min_idx]
-                    for h in out_phase:
-                        f = harmonics[h]
-                        mask = np.abs(min_freqs - f) <= f1
-                        if np.any(mask):
-                            stride_harmonics[stride_idx, h] = fft_vals[min_idx[mask]].min()
-            if np.isnan(stride_harmonics).all():
-                hr_results[f"harmonic_ratio_{col_name}"] = np.nan
-                continue
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=RuntimeWarning)
-                avg = np.nanmean(stride_harmonics, axis=0)
-                even_sum = np.nansum(avg[1::2])
-                odd_sum = np.nansum(avg[0::2])
-            hr_results[f"harmonic_ratio_{col_name}"] = even_sum / odd_sum if odd_sum else np.nan
         self.signal_based_parameters = pd.DataFrame([hr_results])
         return self
+
+    def _process_single_accelerometer(self, data: pd.DataFrame, col_name: str,
+                                      stride_pairs: list, sampling_rate_hz: float) -> float:
+        """Process a single accelerometer axis and return the Harmonic Ratio (or NaN).
+        """
+        acc = data[col_name].to_numpy()
+        stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
+        is_ml = col_name == "acc_ml"
+        gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
+
+        for stride_idx, (start, end) in enumerate(stride_pairs):
+            # adjust endpoint
+            current_end = self._adjust_ic_endpoint(acc, start, end)
+            if start >= current_end:
+                continue  # skip invalid stride
+
+            stride_data = acc[start:current_end + 1] - np.mean(acc[start:current_end + 1])
+            fft_vals, fft_freqs = self._compute_fft_spectrum(stride_data, sampling_rate_hz)
+
+            fundamental_idx, fundamental_amp = self._find_fundamental(fft_vals, fft_freqs, gait_band)
+            if fundamental_idx is None:
+                continue
+
+            # normalise by fundamental amplitude
+            fft_vals /= fundamental_amp
+            stride_time = len(stride_data) / sampling_rate_hz
+            f1 = (2 if is_ml else 1) / stride_time
+
+            # extract harmonic coefficients for this stride
+            harmonics_this = self._extract_harmonics(fft_vals, fft_freqs, f1, is_ml)
+            stride_harmonics[stride_idx, :] = harmonics_this
+
+        # If no stride contributed, return NaN
+        if np.isnan(stride_harmonics).all():
+            return np.nan
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            avg = np.nanmean(stride_harmonics, axis=0)
+            even_sum = np.nansum(avg[1::2])
+            odd_sum = np.nansum(avg[0::2])
+        return even_sum / odd_sum if odd_sum else np.nan
+
+    @staticmethod
+    def _adjust_ic_endpoint(acc: np.ndarray, start: int, end: int) -> int:
+        """Flex IC end point to eliminate high‑frequency noise from amplitude mismatch.
+        """
+        current_end = end
+        start_points_in_data = np.where((acc[:-1] < acc[start]) & (acc[1:] >= acc[start]))[0]
+        if start_points_in_data.size:
+            new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - current_end))]
+            stride_len = end - start + 1
+            if (current_end - new_end) <= 0.1 * stride_len:
+                current_end = new_end
+        return current_end
+
+    @staticmethod
+    def _compute_fft_spectrum(stride_data: np.ndarray, sampling_rate_hz: float):
+        """Compute FFT magnitudes and frequencies for a stride segment."""
+        n = len(stride_data)
+        nfft = 2 ** (int(np.ceil(np.log2(n))) + 4)
+        fft_vals = np.abs(fft(stride_data, nfft))[: nfft // 2 + 1]
+        fft_freqs = np.linspace(0, sampling_rate_hz / 2, len(fft_vals))
+        return fft_vals, fft_freqs
+
+    @staticmethod
+    def _find_fundamental(fft_vals: np.ndarray, fft_freqs: np.ndarray, gait_band: tuple):
+        """Find the fundamental frequency component within the gait."""
+        max_idx = argrelextrema(fft_vals, np.greater)[0]
+        if not max_idx.size:
+            return None, None
+        max_freqs = fft_freqs[max_idx]
+        max_amps = fft_vals[max_idx]
+        band_mask = (max_freqs >= gait_band[0]) & (max_freqs <= gait_band[1])
+        if not np.any(band_mask):
+            return None, None
+        fundamental_idx = max_idx[band_mask][np.argmax(max_amps[band_mask])]
+        fundamental_amp = fft_vals[fundamental_idx]
+        return fundamental_idx, fundamental_amp
+
+    @staticmethod
+    def _extract_harmonics(fft_vals: np.ndarray, fft_freqs: np.ndarray,
+                           f1: float, is_ml: bool) -> np.ndarray:
+        """Extract harmonic coefficients.
+        """
+        harmonics = f1 * np.arange(1, 21)
+        stride_harmonics = np.full(20, np.nan)
+
+        # fundamental harmonic is set to 1.0
+        stride_harmonics[0 if is_ml else 1] = 1.0
+
+        # In‑phase harmonics (local maxima)
+        in_phase = np.arange(2, 19, 2) if is_ml else np.arange(3, 20, 2)
+        max_idx = argrelextrema(fft_vals, np.greater)[0]
+        if max_idx.size:
+            for h in in_phase:
+                f = harmonics[h]
+                mask = np.abs(fft_freqs[max_idx] - f) <= f1
+                if np.any(mask):
+                    stride_harmonics[h] = fft_vals[max_idx[mask]].max()
+
+        # Out‑phase harmonics (local minima)
+        out_phase = np.arange(1, 20, 2) if is_ml else np.arange(0, 19, 2)
+        min_idx = argrelextrema(fft_vals, np.less)[0]
+        min_idx = min_idx[fft_freqs[min_idx] >= 0.25]  # ignore very low frequencies
+        if min_idx.size:
+            for h in out_phase:
+                f = harmonics[h]
+                mask = np.abs(fft_freqs[min_idx] - f) <= f1
+                if np.any(mask):
+                    stride_harmonics[h] = fft_vals[min_idx[mask]].min()
+        return stride_harmonics
 
 
 @base_sdmo_docfiller
@@ -769,98 +941,3 @@ def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
 
 def _pd_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     return pd.Series(y).rolling(span, center=True, min_periods=1).mean().to_numpy()
-
-
-def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Correct peaks found in a filtered signal to match original data."""
-    if len(locs) < 2:
-        return pks, locs
-
-    median_diff = np.median(np.diff(locs))
-    locale_win = int(np.ceil(0.2 * median_diff))
-
-    # remove peaks too close to start/end
-    mask = (locs > locale_win) & (locs < len(data) - locale_win)
-    locs = locs[mask]
-
-    # correct each peak to local maximum
-    corrected_locs = []
-    corrected_pks = []
-    for loc in locs:
-        start = max(loc - locale_win, 0)
-        end = min(loc + locale_win // 2 + 1, len(data))
-        window = data[start:end]
-        max_idx = np.argmax(window)
-        corrected_locs.append(start + max_idx)
-        corrected_pks.append(window[max_idx])
-
-    if len(corrected_locs) > 1:
-        peaks = sorted(zip(corrected_locs, corrected_pks), key=lambda x: x[0])
-        kept = []
-        i = 0
-        while i < len(peaks):
-            j = i + 1
-            while j < len(peaks) and peaks[j][0] - peaks[i][0] < locale_win:
-                j += 1
-            cluster = peaks[i:j]
-            best = max(cluster, key=lambda x: x[1])
-            kept.append(best)
-            i = j
-        corrected_locs = np.array([p[0] for p in kept])
-        corrected_pks = np.array([p[1] for p in kept])
-    else:
-        corrected_locs = np.array(corrected_locs)
-        corrected_pks = np.array(corrected_pks)
-
-    return corrected_locs, corrected_pks
-
-
-def _extract_amp_freq_slope(
-    psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray
-) -> tuple[float, float, float, float]:
-    """Extract amplitude, frequency, width and slope."""
-    psd_sub = psd[freq_range]
-    freq_sub = freq[freq_range]
-    peaks, _ = find_peaks(psd_sub, distance=6)
-    if len(peaks) == 0:
-        return np.nan, np.nan, np.nan, np.nan
-
-    peak = peaks[np.argmax(psd_sub[peaks])] if len(peaks) > 1 else peaks[0]
-
-    amp = psd_sub[peak]
-    freq_val = freq_sub[peak]
-    half_amp = 0.5 * amp
-    left_side = psd_sub[:peak]
-    right_side = psd_sub[peak:]
-
-    left_cross = np.where(left_side <= half_amp)[0]
-    right_cross = np.where(right_side <= half_amp)[0]
-
-    if len(left_cross) == 0 or len(right_cross) == 0:
-        return amp, freq_val, np.nan, np.nan
-
-    width_start = left_cross[-1]
-    width_end = peak + right_cross[0]
-    width = freq_sub[width_end] - freq_sub[width_start]
-    smoothed = medfilt(psd_sub, kernel_size=5)
-    minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
-    pre_peak_min = minima[minima < peak]
-    if len(pre_peak_min) == 0:
-        return amp, freq_val, width, np.nan
-
-    pre_peak = pre_peak_min[-1]
-    rise_psd = psd_sub[pre_peak : peak + 1]
-    rise_freq = freq_sub[pre_peak : peak + 1]
-    range_val = amp - psd_sub[pre_peak]
-    lower = psd_sub[pre_peak] + 0.25 * range_val
-    upper = amp - 0.25 * range_val
-    mask = (rise_psd >= lower) & (rise_psd <= upper)
-    fit_psd = rise_psd[mask]
-    fit_freq = rise_freq[mask]
-
-    if len(fit_psd) < 2:
-        return amp, freq_val, width, np.nan
-    line_fit = np.polyfit(fit_freq, fit_psd, 1)
-    slope = line_fit[0]
-
-    return amp, freq_val, width, slope
