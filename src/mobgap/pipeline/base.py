@@ -32,12 +32,12 @@ mobilised_pipeline_docfiller = make_filldoc(
         back via ``corrected_data_``. The corrected body-frame data is then used for all later per-gait-sequence
         algorithms.
         Set to None to disable (default). In that case, the pipeline converts the full recording from the Mobilise-D
-        sensor frame to the body frame before gait sequence detection.
+        sensor frame to the body frame before gait sequence detection assuming correct mounting according to the 
+        Mobilise-D specifications.
 
         .. warning:: Use this only if you have no other way to fix the orientation from prior mounting knowledge.
                      Because this correction runs after gait sequence detection, all algorithms before it must either
-                     be orientation-independent or explicitly support the sensor frame. The pipeline trusts the
-                     provided algorithms to follow this contract and does not validate frame compatibility.
+                     be orientation-independent or explicitly support the sensor frame.
     """,
         "core_parameters": """
     gait_sequence_detection

@@ -31,6 +31,13 @@ For more information about the individual steps, please refer to the respective 
 # We can do that, because we know that the data is already well aligned with the sensor frame conventions.
 # If this would not be the case, the data would need to be rotated/aligned before running through the
 # pipeline or corrected per gait sequence as shown below.
+#
+# In the "real" pipeline, the conversion from sensor to body frame will either happen at the very start or will be
+# postponed until after the gait sequence detection, depending on whether a automatic reorientation algorithm is used
+# via `per_gs_reorientation` or not.
+# This changes the set of supported GSD algorithms, as some of them are orientation-dependent and some are not.
+# For this example, we will go through the steps as if we would not apply a reorientation algorithm, but show how the
+# reorientation correction would work in step 1.5.
 import pandas as pd
 from mobgap.data import LabExampleDataset
 from mobgap.utils.conversions import to_body_frame
@@ -69,16 +76,24 @@ first_gait_sequence_data = imu_data.iloc[
 # Optionally, we can apply reorientation correction to align the sensor axes to the anatomical frame before
 # any gait parameter extraction.
 #
+# We are using the raw data sensor frame data here and then have the re-orienbtation algoriothm convert it back to
+# body frame data.
+# In this example, this will not change the data, as the sensor is already well aligned with the sensor frame
+# conventions.
+#
 # .. note:: A reorientation algorithm takes sensor-frame gait-sequence data and returns body-frame data.
 #           Because it runs after gait sequence detection, only use it if you have no way to solve the
 #           orientation from prior mounting knowledge and if all algorithms before it are orientation-independent
 #           or explicitly support sensor-frame input.
+#           The most notable limitations of using a reorientation algorithm is that the `GsdIluz` algorithm is not
+#           orientation-independent and hence can not be used in combination with a reorientation algorithm in the
+#           Mobilise-D pipeline.
 from mobgap.re_orientation import ReorientationMethodDM
 
 first_gait_sequence_sensor_data = long_trial.data_ss.iloc[
     first_gait_sequence.start : first_gait_sequence.end
 ]
-reorient = ReorientationMethodDM(correction_mode="trust_gravity")
+reorient = ReorientationMethodDM()
 reorient.detect_correct(
     first_gait_sequence_sensor_data, sampling_rate_hz=sampling_rate_hz
 )
