@@ -60,7 +60,11 @@ from mobgap.signal_based import HarmonicRatio
 
 hr = HarmonicRatio(acc_columns=["acc_is", "acc_pa"])
 
-hr.calculate(data=data_in_wb_bf, stride_list=reference_strides, sampling_rate_hz=short_trial.sampling_rate_hz)
+hr.calculate(
+    data=data_in_wb_bf,
+    stride_list=reference_strides,
+    sampling_rate_hz=short_trial.sampling_rate_hz,
+)
 
 # %%
 # The output (``signal_based_parameters``) attribute contains the calculated parameters.
@@ -74,7 +78,11 @@ from mobgap.signal_based import SDRange
 
 sdr = SDRange()
 
-sdr.calculate(data=data_in_wb_bf, stride_list=reference_strides, sampling_rate_hz=short_trial.sampling_rate_hz)
+sdr.calculate(
+    data=data_in_wb_bf,
+    stride_list=reference_strides,
+    sampling_rate_hz=short_trial.sampling_rate_hz,
+)
 
 # %%
 # The output (``signal_based_parameters``) attribute contains the calculated parameters.

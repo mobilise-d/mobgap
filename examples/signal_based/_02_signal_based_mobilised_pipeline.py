@@ -25,7 +25,7 @@ short_trial = lab_example_data.get_subset(
 
 # %%
 # MobilisedSDMO
-# ----
+# -------------
 # To demonstrate the usage of the pipeline :class:`.MobilisedSDMO`, we use the detected walking bout from the reference
 # system as input.
 reference_strides = (
