@@ -33,7 +33,7 @@ For more information about the individual steps, please refer to the respective 
 # pipeline or corrected per gait sequence as shown below.
 #
 # In the "real" pipeline, the conversion from sensor to body frame will either happen at the very start or will be
-# postponed until after the gait sequence detection, depending on whether a automatic reorientation algorithm is used
+# postponed until after the gait sequence detection, depending on whether an automatic reorientation algorithm is used
 # via `per_gs_reorientation` or not.
 # This changes the set of supported GSD algorithms, as some of them are orientation-dependent and some are not.
 # For this example, we will go through the steps as if we would not apply a reorientation algorithm, but show how the
@@ -76,8 +76,7 @@ first_gait_sequence_data = imu_data.iloc[
 # Optionally, we can apply reorientation correction to align the sensor axes to the anatomical frame before
 # any gait parameter extraction.
 #
-# We are using the raw data sensor frame data here and then have the re-orienbtation algoriothm convert it back to
-# body frame data.
+# We use the raw sensor-frame data here and let the reorientation algorithm convert it back to body-frame data.
 # In this example, this will not change the data, as the sensor is already well aligned with the sensor frame
 # conventions.
 #
@@ -85,7 +84,7 @@ first_gait_sequence_data = imu_data.iloc[
 #           Because it runs after gait sequence detection, only use it if you have no way to solve the
 #           orientation from prior mounting knowledge and if all algorithms before it are orientation-independent
 #           or explicitly support sensor-frame input.
-#           The most notable limitations of using a reorientation algorithm is that the `GsdIluz` algorithm is not
+#           The most notable limitation of using a reorientation algorithm is that the `GsdIluz` algorithm is not
 #           orientation-independent and hence can not be used in combination with a reorientation algorithm in the
 #           Mobilise-D pipeline.
 from mobgap.re_orientation import ReorientationMethodDM
