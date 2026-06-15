@@ -5,13 +5,13 @@ experiment as well.
 """
 
 from pathlib import Path
-from typing import Any, Literal, Optional, Unpack
+from typing import Any, Literal, Optional
 
 import pandas as pd
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.utils.conversions import as_samples
 from tpcp.caching import hybrid_cache
-from typing_extensions import Self
+from typing_extensions import Self, Unpack
 
 
 def load_old_gsd_results(result_file_path: Path) -> pd.DataFrame:
