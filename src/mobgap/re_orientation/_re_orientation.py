@@ -167,8 +167,7 @@ class ReorientationMethodDM(Algorithm):
     To correctly detect and apply these corrections, we make the following assumptions about the data:
 
     - The sensor axes of your data follow the expected directions under correct mounting (x: IS, y: ML, z: PA).
-    - It is impossible or infeasible for the sensor to be mounted with a large flat surface not against the body
-      (e.g., rotated 90 deg around the PA axis).
+    - The sensor is mounted with one of its large flat surfaces against the body, not edge-on.
     - For the data segments where the algorithm is applied, the participant is in an upright posture and is walking
       the majority of the time.
       Extremely hunched postures, non-walking activities, or extremely pathological gait patterns might cause the
