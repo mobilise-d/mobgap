@@ -483,6 +483,14 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     -----
     %(step_by_step)s
 
+    Current limitations: The MobilisedPipelineHealthy can currently not be used with `per_gs_reorientation` enabled,
+    unless a different GSD algorithm is selected as well.
+    This is because the default GSD algorithm for this pipeline (GsdIluz) assumes correct sensor mounting and can not
+    be used, if the sensor orientation is unknown.
+    If you need to use the MobilisedPipelineHealthy with `per_gs_reorientation` enabled, try to use `GsdIonescu`,
+    but be aware that we have not properly validated this combination and assume worse performance than using `GsdIluz`
+    with known mounting orientation.
+
     .. [1] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology?
            Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78
            (2023). https://doi.org/10.1186/s12984-023-01198-5
