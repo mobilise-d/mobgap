@@ -765,5 +765,5 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
                 return self
         raise ValueError(
             f"Could not determine the correct pipeline for the cohort {cohort}. "
-            "Check the ``RECOMMENDED_COHORTS`` attribute of the pipelines."
+            "Check the ``get_recommended_cohorts`` attribute of the pipelines."
         )
