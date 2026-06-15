@@ -5,9 +5,9 @@ import pytest
 from tpcp.testing import TestAlgorithmMixin
 from typing_extensions import Self
 
-from mobgap._gaitmap.utils.rotations import flip_dataset
-from mobgap.consts import BF_SENSOR_COLS
-from mobgap.data import LabExampleDataset
+from mobgap.consts import BF_SENSOR_COLS, SF_SENSOR_COLS
+from mobgap.data import GaitDatasetFromData, LabExampleDataset
+from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.laterality.base import BaseLRClassifier
 from mobgap.pipeline import (
@@ -17,8 +17,36 @@ from mobgap.pipeline import (
     MobilisedPipelineUniversal,
 )
 from mobgap.re_orientation import ReorientationMethodDM
-from mobgap.re_orientation.pipeline import REORIENTATION_ROTATIONS
+from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.stride_length.base import BaseSlCalculator
+from mobgap.wba import StrideSelection, WbAssembly
+
+
+class _FullRecordingGsDetector(BaseGsDetector):
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_kwargs: Any) -> Self:
+        del sampling_rate_hz
+        self.data_columns_ = tuple(data.columns)
+        self.gs_list_ = pd.DataFrame({"start": [0], "end": [len(data)]}).rename_axis("gs_id")
+        return self
+
+
+class _SensorToBodyFrameReorientation(BaseReorientationCorrector):
+    def detect_correct(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_kwargs: Any) -> Self:
+        del sampling_rate_hz
+        self.input_columns_ = tuple(data.columns)
+        self.corrected_data_ = pd.DataFrame(
+            {
+                "acc_is": data["acc_x"],
+                "acc_ml": data["acc_y"],
+                "acc_pa": data["acc_z"],
+                "gyr_is": data["gyr_x"],
+                "gyr_ml": data["gyr_y"],
+                "gyr_pa": data["gyr_z"],
+            },
+            index=data.index,
+        )
+        self.result_ = self.input_columns_
+        return self
 
 
 class _EmptyIcDetector(BaseIcDetector):
@@ -53,11 +81,53 @@ class _MeanAccIsSlCalculator(BaseSlCalculator):
         self.data = data
         self.initial_contacts = initial_contacts
         self.sampling_rate_hz = sampling_rate_hz
-        self.stride_length_per_sec_ = pd.DataFrame(
-            {"stride_length_m": [data["acc_is"].mean()]},
-            index=pd.Index([int(sampling_rate_hz // 2)], name="sec_center_samples"),
+        sec_center_samples = pd.Index(
+            range(int(sampling_rate_hz // 2), len(data) + int(sampling_rate_hz // 2) + 1, int(sampling_rate_hz)),
+            name="sec_center_samples",
         )
+        self.stride_length_per_sec_ = pd.DataFrame({"stride_length_m": data["acc_is"].mean()}, index=sec_center_samples)
         return self
+
+
+def _sensor_frame_test_dataset() -> GaitDatasetFromData:
+    sensor_data = pd.DataFrame(
+        {
+            "acc_x": 9.81,
+            "acc_y": 1.0,
+            "acc_z": 2.0,
+            "gyr_x": 0.0,
+            "gyr_y": 0.0,
+            "gyr_z": 0.0,
+        },
+        index=range(300),
+    )[SF_SENSOR_COLS]
+    return GaitDatasetFromData(
+        {"test": {"LowerBack": sensor_data}},
+        100.0,
+        _participant_metadata={"test": {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"}},
+        _recording_metadata={"test": {"measurement_condition": "laboratory"}},
+    )[0]
+
+
+def _minimal_pipeline(**overrides: Any) -> GenericMobilisedPipeline:
+    params = dict(GenericMobilisedPipeline.PredefinedParameters.regular_walking)
+    params.update(
+        {
+            "gait_sequence_detection": _FullRecordingGsDetector(),
+            "initial_contact_detection": _FixedIcDetector(),
+            "laterality_classification": _PassthroughLrc(),
+            "cadence_calculation": None,
+            "stride_length_calculation": _MeanAccIsSlCalculator(),
+            "walking_speed_calculation": None,
+            "turn_detection": None,
+            "stride_selection": StrideSelection(rules=None, incompatible_rules="raise"),
+            "wba": WbAssembly(rules=None),
+            "dmo_thresholds": None,
+            "dmo_aggregation": None,
+        }
+    )
+    params.update(overrides)
+    return GenericMobilisedPipeline(**params)
 
 
 class TestMetaBaseMobilisedPipeline(TestAlgorithmMixin):
@@ -119,6 +189,20 @@ class TestFullPipelineRegression:
 
 
 class TestFullPipelineEdgeCases:
+    def test_without_per_gs_reorientation_gsd_receives_body_frame_data(self) -> None:
+        pipeline = _minimal_pipeline().run(_sensor_frame_test_dataset())
+
+        assert pipeline.gait_sequence_detection_.data_columns_ == tuple(BF_SENSOR_COLS)
+
+    def test_per_gs_reorientation_keeps_gsd_in_sensor_frame_and_downstream_data_in_body_frame(self) -> None:
+        pipeline = _minimal_pipeline(per_gs_reorientation=_SensorToBodyFrameReorientation()).run(
+            _sensor_frame_test_dataset()
+        )
+
+        assert pipeline.gait_sequence_detection_.data_columns_ == tuple(SF_SENSOR_COLS)
+        assert pipeline.gs_iterator_.results_.reorientation_result[0] == tuple(SF_SENSOR_COLS)
+        assert pipeline.raw_per_sec_parameters_["stride_length_m"].iloc[0] == pytest.approx(9.81)
+
     def test_impaired_pipeline_handles_no_detected_ics(self):
         dataset = LabExampleDataset(reference_system="INDIP").get_subset(
             cohort="MS", participant_id="001", test="Test11", trial="Trial1"
@@ -135,25 +219,26 @@ class TestFullPipelineEdgeCases:
         assert result.per_stride_parameters_.empty
         assert result.per_wb_parameters_.empty
 
-    def test_reorientation_correction_is_used_for_refined_gs_data(self) -> None:
-        base_data = pd.DataFrame(
+    def test_per_gs_reorientation_is_used_for_refined_gs_data(self) -> None:
+        sensor_data = pd.DataFrame(
             {
-                "acc_is": 9.81,
-                "acc_ml": 0.0,
-                "acc_pa": 1.0,
-                "gyr_is": 0.0,
-                "gyr_ml": 0.0,
-                "gyr_pa": 0.0,
+                "acc_x": 0.0,
+                "acc_y": 9.81,
+                "acc_z": 1.0,
+                "gyr_x": 0.0,
+                "gyr_y": 0.0,
+                "gyr_z": 0.0,
             },
             index=range(300),
-        )[BF_SENSOR_COLS]
-        rotated_data = flip_dataset(base_data, REORIENTATION_ROTATIONS["pa_normal__rot_pa_pos90"])
-        gs_list = pd.DataFrame({"start": [0], "end": [len(rotated_data)]}).rename_axis("gs_id")
+        )[SF_SENSOR_COLS]
+        gs_list = pd.DataFrame({"start": [0], "end": [len(sensor_data)]}).rename_axis("gs_id")
         pipeline = GenericMobilisedPipeline(
             **(
                 GenericMobilisedPipeline.PredefinedParameters.regular_walking
                 | {
-                    "reorientation_correction": ReorientationMethodDM(correction_mode="full"),
+                    "per_gs_reorientation": ReorientationMethodDM(
+                        correction_mode="full", pa_direction_detection_error_type="ignore"
+                    ),
                     "initial_contact_detection": _FixedIcDetector(),
                     "laterality_classification": _PassthroughLrc(),
                     "cadence_calculation": None,
@@ -166,7 +251,7 @@ class TestFullPipelineEdgeCases:
             )
         )
 
-        result = pipeline._run_per_gs(gs_list, rotated_data, {"sampling_rate_hz": 100.0}).results_
+        result = pipeline._run_per_gs(gs_list, sensor_data, {"sampling_rate_hz": 100.0}).results_
 
         assert result.reorientation_result[0].family == "ml_up"
         assert result.stride_length_per_sec["stride_length_m"].iloc[0] == pytest.approx(9.81)

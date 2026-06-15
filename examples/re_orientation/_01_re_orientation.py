@@ -141,3 +141,27 @@ ax.plot(corrected["acc_pa"].to_numpy(), label="acc_pa")
 
 ax.legend()
 fig.show()
+
+
+# %%
+# Usage within the Mobilise-D pipeline
+# --------------------------------------
+# Instead of running the algorithm standalone, it can be used within the Mobilise-D pipeline to correct all gait
+# sequences in a recording.
+# The algorithm will be applied to each gait sequences detected by the used GSD algorithm.
+#
+# .. warning :: As the reorientation is performed after gait sequence detection, all algorithms before it must
+#    be orientation-independent or explicitly support sensor-frame input.
+#    This is NOT true for all GSD algorithms implemented in mobgap.
+#    The pipeline trusts the configured algorithms and does not perform an additional frame-compatibility
+#    check.
+#
+# Below we just show a simple example on how to do this, without artificial "flipping" of the data.
+
+from mobgap.pipeline import MobilisedPipelineImpaired
+
+pipeline = MobilisedPipelineImpaired(
+    per_gs_reorientation=ReorientationMethodDM(correction_mode="full")
+)
+
+result = pipeline.run(single_test)

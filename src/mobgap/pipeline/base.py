@@ -25,19 +25,19 @@ mobilised_pipeline_docfiller = make_filldoc(
     self
         The pipeline object itself with all the results stored in the attributes.
     """,
-        "reorientation_correction": """
-    reorientation_correction
-        Optional reorientation correction algorithm to align sensor axes to anatomical frame.
-        Runs at the start of each gait sequence before initial contact detection.
-        Set to None to disable (default).
+        "per_gs_reorientation": """
+    per_gs_reorientation
+        Optional per-gait-sequence reorientation algorithm.
+        If provided, the pipeline passes sensor-frame gait-sequence data to the algorithm and expects body-frame data
+        back via ``corrected_data_``. The corrected body-frame data is then used for all later per-gait-sequence
+        algorithms.
+        Set to None to disable (default). In that case, the pipeline converts the full recording from the Mobilise-D
+        sensor frame to the body frame before gait sequence detection.
 
-        .. note:: Reorientation is performed after gait sequence detection for two reasons:
-                  (1) Mobilise-D DMOs are calculated within walking bouts, so only gait sequence
-                  data requires correction; and (2) the reorientation method requires a known
-                  posture - upright walking provides this reference when device mounting is unknown.
-                  GsdIonescu is orientation-independent and detects gait sequences reliably regardless
-                  of device orientation. However, GsdIluz is orientation-dependent and may miss gait sequences
-                  in non-standard orientations before correction can be applied.
+        .. warning:: Use this only if you have no other way to fix the orientation from prior mounting knowledge.
+                     Because this correction runs after gait sequence detection, all algorithms before it must either
+                     be orientation-independent or explicitly support the sensor frame. The pipeline trusts the
+                     provided algorithms to follow this contract and does not validate frame compatibility.
     """,
         "core_parameters": """
     gait_sequence_detection

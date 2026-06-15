@@ -80,6 +80,7 @@ In this correct orientation, the sensor (when attached correctly) has:
 - the z-axis pointing forward (PA direction)
 
 ### When sensor mounting is known and controlled
+
 To use all functions and algorithms in mobgap, you need to make sure that your data follows the same conventions.
 This means, you likely need to define a rotation matrix that transforms your data into the expected coordinate system.
 This transformation is usually derived based on the known mounting orientation of your sensor.
@@ -88,14 +89,16 @@ Have a look at the sections 3 and 4 in this
 for more information on how to do this.
 
 ### When sensor mounting is unknown or may change during a recording
+
 If you don't have any information about the mounting orientation of your sensor (i.e., unsupervised free-living setting), 
-you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer patterns 
-during walking. The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
-(2) determines the gravity direction (up/down) and classifies the orientation into one of four families, and (3) uses 
-cross-spectral phase analysis between vertical and posterior-anterior axes to determine correct mediolateral and posterior-anterior
-orientations. Two correction modes are available: "trust_gravity" (assumes mounting orientation is correct when gravity
-already points up along IS, so potential 180° front/back flips are intentionally ignored) and "full" (applies all
-corrections to every walking bout).
+you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer 
+patterns during walking.
+The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
+(2) determines the gravity direction (up/down) and rotates the sensor data so that gravtiy correctly aligns with the 
+"assumed vertical", and (3) uses cross-spectral phase analysis between vertical (after step 2) and posterior-anterior 
+axes to determine correct mediolateral and posterior-anterior orientations.
+
+For more details see the documentation of the {py:class}`~mobgap.re_orientation.ReorientationMethodDM` class.
 
 <p align="center">
   <img src="docs/_static/images/orientation_families.svg" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
@@ -114,12 +117,12 @@ The green circle indicates PA direction: dot (•) = backward, cross (×) = forw
 You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
 the sensor data to the body frame on a gait sequence level.
 
-The sensor frame is used whenever we cannot assume that the orientation of the sensor is aligned with the body frame.
-However, whenever possible we work in the body frame to avoid confusion about which axis points in which direction.
-
-After reorientation correction, your data in the body-frame nomenclature (IS, ML, PA) truly 
-represents the correct anatomical directions during Walking Bouts. We maintain the body frame nomenclature (IS, ML, PA) 
-throughout the pipeline for consistency.
+Note, that knowing the sensor mounting orientation is always preferable and provides more predicatable results, then
+attempting to correct for it after the fact.
+You should also only activate/use the reorientation correction if you really don't have any information about the sensor
+mounting orientation.
+Activating the reorientation correction when the sensor data is already in the correct orientation can in rare cases
+lead to worse results, as the algorithm might detect a wrong orientation and apply a wrong correction.
 
 ## Global coordinate system
 

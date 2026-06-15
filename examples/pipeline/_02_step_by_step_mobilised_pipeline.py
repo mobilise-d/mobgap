@@ -23,13 +23,14 @@ For more information about the individual steps, please refer to the respective 
 # %%
 # Load example data
 # -----------------
-# We load example data from the lab dataset, and we will use a single long-trail from an "MS" participant for this
-# example.
+# We load example data from the lab dataset, and we will use a single long trial from an "MS" participant for
+# this example.
 #
-# Note, that we directly convert it into the body frame, as bascially all algorithms require the body frame data
-# (and all others support it).
+# Note, that we directly convert it into the body frame, as basically all algorithms require the body frame
+# data (and all others support it).
 # We can do that, because we know that the data is already well aligned with the sensor frame conventions.
-# If this would not be the case, the data would need to be rotated/algigned before running through the pipeline.
+# If this would not be the case, the data would need to be rotated/aligned before running through the
+# pipeline or corrected per gait sequence as shown below.
 import pandas as pd
 from mobgap.data import LabExampleDataset
 from mobgap.utils.conversions import to_body_frame
@@ -65,20 +66,24 @@ first_gait_sequence_data = imu_data.iloc[
 # %%
 # Step 1.5: Reorientation Correction (Optional)
 # ---------------------------------------------
-# Optionally, we can apply reorientation correction to align the sensor axes to the
-# anatomical frame before any gait parameter extraction.
+# Optionally, we can apply reorientation correction to align the sensor axes to the anatomical frame before
+# any gait parameter extraction.
 #
-# .. note:: Reorientation occurs after gait sequence detection because it requires
-#           a reference posture (upright walking). GsdIonescu is orientation-independent,
-#           but GsdIluz may fail to detect gait sequences in non-standard orientations.
+# .. note:: A reorientation algorithm takes sensor-frame gait-sequence data and returns body-frame data.
+#           Because it runs after gait sequence detection, only use it if you have no way to solve the
+#           orientation from prior mounting knowledge and if all algorithms before it are orientation-independent
+#           or explicitly support sensor-frame input.
 from mobgap.re_orientation import ReorientationMethodDM
 
+first_gait_sequence_sensor_data = long_trial.data_ss.iloc[
+    first_gait_sequence.start : first_gait_sequence.end
+]
 reorient = ReorientationMethodDM(correction_mode="trust_gravity")
 reorient.detect_correct(
-    first_gait_sequence_data, sampling_rate_hz=sampling_rate_hz
+    first_gait_sequence_sensor_data, sampling_rate_hz=sampling_rate_hz
 )
 
-# Use corrected data for all downstream processing
+# Use corrected body-frame data for all downstream processing.
 first_gait_sequence_data = reorient.corrected_data_
 
 
@@ -432,7 +437,7 @@ from mobgap.pipeline import GenericMobilisedPipeline
 
 pipeline = GenericMobilisedPipeline(
     gait_sequence_detection=gsd,
-    reorientation_correction=None,
+    per_gs_reorientation=None,
     initial_contact_detection=icd,
     laterality_classification=lrc,
     cadence_calculation=cad,
