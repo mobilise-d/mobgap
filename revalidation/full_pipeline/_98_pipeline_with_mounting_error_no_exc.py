@@ -17,13 +17,17 @@ The wrapped dataset returns the same frame as the wrapped TVS dataset. For TVS,
 this means the pipeline receives sensor-frame data and performs its standard
 sensor-to-body-frame conversion internally.
 
-The comparison contains three variants:
+The comparison contains two variants:
 
 * the current default Mobilise-D pipeline,
-* the current default Mobilise-D pipeline with reorientation correction enabled,
-* the same reorientation-enabled pipeline, but with
+* a reorientation-enabled pipeline that uses
   :class:`~mobgap.gait_sequences.GsdIluzAdaptiveGravity` in the regular-walking
   sub-pipeline.
+
+The regular-walking default :class:`~mobgap.gait_sequences.GsdIluz` is not
+orientation-independent. Because per-GS reorientation now runs after gait
+sequence detection, the plain default regular-walking pipeline cannot be
+combined with reorientation correction for this evaluation.
 
 Only the free-living condition is evaluated because this is the intended use
 case for unknown mounting orientations.
@@ -39,10 +43,11 @@ case for unknown mounting orientations.
 # %%
 # Setting Up The Pipelines
 # ------------------------
-# We compare the current default full pipeline against two variants that enable
-# per-gait-sequence reorientation correction. The adaptive-GSD variant only
-# changes the regular-walking sub-pipeline; the impaired sub-pipeline stays on
-# the current ``GsdIonescu`` setup.
+# We compare the current default full pipeline against a variant that enables
+# per-gait-sequence reorientation correction. This requires an
+# orientation-independent GSD before the reorientation step. Therefore, the
+# regular-walking sub-pipeline uses ``GsdIluzAdaptiveGravity``; the impaired
+# sub-pipeline stays on the current ``GsdIonescu`` setup.
 from pathlib import Path
 
 from joblib import Memory, parallel_backend
@@ -64,26 +69,6 @@ from revalidation.full_pipeline._orientation_dataset import MisorientedDataset
 
 pipelines = {
     "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(),
-    "Official_MobiliseD_Pipeline__reorientation": MobilisedPipelineUniversal(
-        pipelines=[
-            (
-                "healthy",
-                MobilisedPipelineHealthy(
-                    reorientation_correction=ReorientationMethodDM(
-                        correction_mode="full"
-                    ),
-                ),
-            ),
-            (
-                "impaired",
-                MobilisedPipelineImpaired(
-                    reorientation_correction=ReorientationMethodDM(
-                        correction_mode="full"
-                    ),
-                ),
-            ),
-        ]
-    ),
     "Official_MobiliseD_Pipeline__reorientation_gsd_iluz_adaptive": (
         MobilisedPipelineUniversal(
             pipelines=[
@@ -91,9 +76,9 @@ pipelines = {
                     "healthy",
                     MobilisedPipelineHealthy(
                         gait_sequence_detection=GsdIluzAdaptiveGravity(
-                            expected_pa_axis="pa"
+                            expected_pa_axis="z"
                         ),
-                        reorientation_correction=ReorientationMethodDM(
+                        per_gs_reorientation=ReorientationMethodDM(
                             correction_mode="full"
                         ),
                     ),
@@ -101,7 +86,7 @@ pipelines = {
                 (
                     "impaired",
                     MobilisedPipelineImpaired(
-                        reorientation_correction=ReorientationMethodDM(
+                        per_gs_reorientation=ReorientationMethodDM(
                             correction_mode="full"
                         ),
                     ),

@@ -17,6 +17,11 @@ and one simulated orientation.
     real-world performance, where downstream users typically consume aggregates
     over full recordings.
 
+The plain default regular-walking pipeline is not evaluated with reorientation
+enabled here. Its default :class:`~mobgap.gait_sequences.GsdIluz` requires
+body-frame input, but per-GS reorientation now runs after gait sequence
+detection and therefore requires an orientation-independent GSD first.
+
 """
 
 # %%
@@ -37,7 +42,6 @@ from mobgap.utils.misc import get_env_var
 
 algorithms = {
     "Official_MobiliseD_Pipeline": "Default",
-    "Official_MobiliseD_Pipeline__reorientation": "Default + Reorientation",
     "Official_MobiliseD_Pipeline__reorientation_gsd_iluz_adaptive": (
         "Adaptive GSD + Reorientation"
     ),
