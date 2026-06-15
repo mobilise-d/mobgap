@@ -21,9 +21,11 @@ from typing import Any, Literal, Optional
 import numpy as np
 import pandas as pd
 from scipy import signal
+from scipy.spatial.transform import Rotation
 from tpcp import Algorithm, cf
 from typing_extensions import Self, Unpack
 
+from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
@@ -32,6 +34,13 @@ GravityAxis = Literal["is", "ml"]
 GravityDirection = Literal["up", "down"]
 OrientationFamily = Literal["is_up", "is_down", "ml_up", "ml_down"]
 GravityDetectionResult = tuple[Optional[GravityAxis], Optional[GravityDirection], Optional[OrientationFamily]]
+_GRAVITY_ROTATIONS = {
+    "is_up": Rotation.identity(),
+    "is_down": Rotation.from_euler("z", 180, degrees=True),
+    "ml_up": Rotation.from_euler("z", -90, degrees=True),
+    "ml_down": Rotation.from_euler("z", 90, degrees=True),
+}
+_PA_DIRECTION_ROTATION = Rotation.from_euler("x", 180, degrees=True)
 
 
 # Results container
@@ -127,9 +136,6 @@ class ReorientationMethodDM(Algorithm):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        corrected = data.copy()
-        corrections = []  # Track all corrections applied
-
         # Stage 1+2: identify gravity axis, direction, and family
         where_grav, where_grav_points, family = _detect_gravity(data, self.grav_threshold_ms2)
 
@@ -146,13 +152,8 @@ class ReorientationMethodDM(Algorithm):
             )
             return self
 
-        # Stage 1: IS axis identity and direction correction
-        if where_grav == "ml":
-            corrected = _swap_is_ml(corrected)
-            corrections.append("swapped IS-ML")
-        if where_grav_points == "down":
-            corrected = _flip_axes(corrected, ("is",))
-            corrections.append("flipped IS")
+        corrected = flip_dataset(data, _gravity_rotation(family))
+        corrections = _gravity_correction_actions(family)
 
         # trust_gravity: skip ML/PA correction when gravity is already correctly
         # aligned (is_up), as front/back flips are intentionally ignored
@@ -173,11 +174,8 @@ class ReorientationMethodDM(Algorithm):
         phase = _cross_spec_pa_phase_power_weighted(corrected, sampling_rate_hz, self.gait_frequency_band_filter)
 
         # ML/PA correction based on family and phase sign
-        corrected, correction = _apply_ml_ap_correction(
-            corrected,
-            family,
-            phase,
-        )
+        corrected = flip_dataset(corrected, _pa_direction_rotation(phase))
+        correction = _pa_direction_correction_action(family, phase)
         if correction is not None:
             corrections.append(correction)
 
@@ -238,19 +236,36 @@ def _detect_gravity(data: pd.DataFrame, grav_threshold_ms2: float) -> GravityDet
     return where_grav, where_grav_points, family
 
 
-def _swap_is_ml(data: pd.DataFrame) -> pd.DataFrame:
-    """Swap IS and ML axes (acc and gyr)."""
-    out = data.copy()
-    out[["acc_is", "acc_ml", "gyr_is", "gyr_ml"]] = data[["acc_ml", "acc_is", "gyr_ml", "gyr_is"]].to_numpy()
-    return out
+def _gravity_rotation(family: OrientationFamily) -> Rotation:
+    return _GRAVITY_ROTATIONS[family]
 
 
-def _flip_axes(data: pd.DataFrame, axes: tuple[str, ...]) -> pd.DataFrame:
-    """Negate one or more body axes (acc and gyr)."""
-    out = data.copy()
-    cols = [f"{sensor}_{axis}" for axis in axes for sensor in ("acc", "gyr")]
-    out[cols] = -out[cols]
-    return out
+def _gravity_correction_actions(family: OrientationFamily) -> list[str]:
+    actions = {
+        "is_up": [],
+        "is_down": ["flipped IS"],
+        "ml_up": ["swapped IS-ML"],
+        "ml_down": ["swapped IS-ML", "flipped IS"],
+    }
+    return actions[family].copy()
+
+
+def _pa_direction_rotation(phase: Optional[float]) -> Rotation:
+    if phase is not None and phase < 0:
+        return _PA_DIRECTION_ROTATION
+    return Rotation.identity()
+
+
+def _pa_direction_correction_action(family: OrientationFamily, phase: Optional[float]) -> Optional[str]:
+    if phase is None:
+        return "skipped ML/PA correction (phase unknown)"
+    if phase < 0:
+        if family in {"is_up", "ml_down"}:
+            return "flipped ML and PA"
+        return "flipped PA"
+    if family in {"is_down", "ml_up"}:
+        return "flipped ML"
+    return None
 
 
 def _cross_spec_pa_phase_power_weighted(
@@ -302,30 +317,3 @@ def _cross_spec_pa_phase_power_weighted(
         return float(np.average(phase, weights=is_power))
 
     return None
-
-
-def _apply_ml_ap_correction(
-    corrected: pd.DataFrame,
-    family: OrientationFamily,
-    phase: Optional[float],
-) -> tuple[pd.DataFrame, Optional[str]]:
-    """Apply ML/PA correction based on family and phase.
-
-    If phase is None (could not be computed), no ML/PA correction is applied.
-    """
-    if phase is None:
-        return corrected, "skipped ML/PA correction (phase unknown)"
-
-    if family == "is_up":
-        if phase < 0:
-            return _flip_axes(corrected, ("ml", "pa")), "flipped ML and PA"
-
-    elif family in {"is_down", "ml_up"}:
-        if phase > 0:
-            return _flip_axes(corrected, ("ml",)), "flipped ML"
-        return _flip_axes(corrected, ("pa",)), "flipped PA"
-
-    elif family == "ml_down" and phase < 0:
-        return _flip_axes(corrected, ("ml", "pa")), "flipped ML and PA"
-
-    return corrected, None
