@@ -193,9 +193,7 @@ class TestReorientationMethodDM:
         data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
 
         with pytest.raises(ValueError, match="No sensor axis with a clear gravity signal could be identified"):
-            ReorientationMethodDM(gravity_detection_error_type="raise").detect_correct(
-                data, sampling_rate_hz=100.0
-            )
+            ReorientationMethodDM(gravity_detection_error_type="raise").detect_correct(data, sampling_rate_hz=100.0)
 
     def test_no_gravity_detected_can_be_ignored(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
@@ -333,9 +331,9 @@ class TestReorientationMethodDM:
         )
 
         with pytest.raises(ValueError, match="The direction of the PA axis could not be resolved"):
-            ReorientationMethodDM(
-                correction_mode="full", pa_direction_detection_error_type="raise"
-            ).detect_correct(data, sampling_rate_hz=100.0)
+            ReorientationMethodDM(correction_mode="full", pa_direction_detection_error_type="raise").detect_correct(
+                data, sampling_rate_hz=100.0
+            )
 
     def test_unresolved_pa_direction_can_be_ignored(self):
         data = pd.DataFrame(
