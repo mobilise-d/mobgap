@@ -8,6 +8,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
+from mobgap.data_transform.base import BaseFilter
 from mobgap.pipeline import GsIterator
 from mobgap.re_orientation import ReorientationMethodDM
 from mobgap.re_orientation.evaluation import reorientation_score
@@ -17,6 +18,16 @@ from mobgap.re_orientation.pipeline import (
 )
 from mobgap.utils.conversions import to_body_frame
 from mobgap.utils.evaluation import Evaluation
+
+
+class _ZeroPhaseFilter(BaseFilter):
+    def filter(self, data, *, sampling_rate_hz=None, **kwargs):
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.transformed_data_ = pd.DataFrame(
+            {"acc_x": data["acc_z"].to_numpy(), "acc_z": data["acc_z"].to_numpy()}, index=data.index
+        )
+        return self
 
 
 class TestMetaReorientationMethodDM(TestAlgorithmMixin):
@@ -254,6 +265,30 @@ class TestReorientationMethodDM:
             result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
 
         assert result.result_.phase is None
+
+    def test_zero_phase_is_reported_as_unresolved_pa_direction(self):
+        sampling_rate_hz = 100.0
+        time_s = np.arange(1000) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_x": np.ones(1000) * 9.8,
+                "acc_y": np.zeros(1000),
+                "acc_z": np.sin(2 * np.pi * 1.2 * time_s),
+                "gyr_x": np.zeros(1000),
+                "gyr_y": np.zeros(1000),
+                "gyr_z": np.zeros(1000),
+            }
+        )
+
+        with pytest.warns(UserWarning, match="The direction of the PA axis could not be resolved"):
+            result = ReorientationMethodDM(
+                correction_mode="full", gait_frequency_band_filter=_ZeroPhaseFilter()
+            ).detect_correct(data, sampling_rate_hz=sampling_rate_hz)
+
+        assert result.result_.phase is None
+        assert result.result_.orientation_resolved is False
+        assert result.result_.unresolved_reason == "pa_direction"
+        assert_frame_equal(result.corrected_data_, to_body_frame(data))
 
     def test_unresolved_pa_direction_warns_and_assumes_pa_is_correct(self):
         data = pd.DataFrame(

@@ -97,13 +97,13 @@ class ReorientationMethodDM(Algorithm):
     grav_threshold_ms2
         Minimum absolute mean acceleration in m/s² for an axis to be treated as
         capturing gravity.
+    gait_frequency_band_filter
+        The filter applied to ``acc_x`` and ``acc_z`` before the cross-spectral
+        phase is calculated.
     gravity_detection_error_type : {'raise', 'warn', 'ignore'}
         How to handle gait sequences where gravity can not be detected.
     pa_direction_detection_error_type : {'raise', 'warn', 'ignore'}
         How to handle gait sequences where the PA direction can not be detected.
-    gait_frequency_band_filter
-        The filter applied to ``acc_x`` and ``acc_z`` before the cross-spectral
-        phase is calculated.
 
     Other Parameters
     ----------------
@@ -143,11 +143,12 @@ class ReorientationMethodDM(Algorithm):
         self,
         correction_mode: Literal["full", "trust_gravity"] = "trust_gravity",
         grav_threshold_ms2: float = 6.37,
-        gravity_detection_error_type: ErrorHandling = "warn",
-        pa_direction_detection_error_type: ErrorHandling = "warn",
         gait_frequency_band_filter: BaseFilter = cf(
             FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
         ),
+        *,
+        gravity_detection_error_type: ErrorHandling = "warn",
+        pa_direction_detection_error_type: ErrorHandling = "warn",
     ) -> None:
         self.correction_mode = correction_mode
         self.grav_threshold_ms2 = grav_threshold_ms2
@@ -347,9 +348,7 @@ def _cross_spec_x_z_phase_power_weighted(
 
     Positive → PA correctly oriented.
     Negative → PA reversed.
-    Returns 0.0 if x-axis power in the stride band is zero (legitimate computed result).
-    Returns None if phase cannot be computed (bout too short for filtering or
-    spectral estimation, or no frequencies fall within the stride band).
+    Returns None if bout is too short for spectral estimation or filtering, or if the phase has no direction.
     """
     # Apply bandpass filter before feature extraction
     try:
@@ -381,6 +380,9 @@ def _cross_spec_x_z_phase_power_weighted(
     phase = np.angle(cxy[stride_mask])
 
     if x_power.sum() > 0:
-        return float(np.average(phase, weights=x_power))
+        estimated_phase = float(np.average(phase, weights=x_power))
+        if np.isclose(estimated_phase, 0.0):
+            return None
+        return estimated_phase
 
     return None
