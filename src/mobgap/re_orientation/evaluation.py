@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from copy import copy
-from typing import Any, Literal, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,6 @@ from mobgap.utils.conversions import to_body_frame, to_sensor_frame
 from mobgap.utils.dtypes import get_frame_definition
 
 OrientationSpec = Optional[Union[Mapping[str, Rotation], Sequence[str]]]
-OutputFrame = Literal["same", "body"]
 
 
 class MisorientedDataset(BaseGaitDatasetWithReference):
@@ -45,9 +44,6 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
         Either a mapping from orientation labels to rotations, or a sequence of
         labels from
         :data:`mobgap.re_orientation.pipeline.REORIENTATION_ROTATIONS`.
-    output_frame
-        Frame of the returned data. ``"same"`` preserves the wrapped dataset
-        frame. ``"body"`` always returns body-frame data.
     orientation_col
         Name of the added index column.
     groupby_cols
@@ -58,7 +54,6 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
 
     base_dataset: BaseGaitDatasetWithReference
     orientations: OrientationSpec
-    output_frame: OutputFrame
     orientation_col: str
 
     def __init__(
@@ -66,14 +61,12 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
         base_dataset: BaseGaitDatasetWithReference,
         orientations: OrientationSpec = None,
         *,
-        output_frame: OutputFrame = "same",
         orientation_col: str = "orientation",
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
         self.base_dataset = base_dataset
         self.orientations = orientations
-        self.output_frame = output_frame
         self.orientation_col = orientation_col
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
@@ -118,12 +111,7 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
         frame = get_frame_definition(data, ["sensor", "body"])
         body_frame_data = to_body_frame(data) if frame == "sensor" else data
         rotated = flip_dataset(body_frame_data, self.orientation_rotation)
-
-        if self.output_frame == "body":
-            return rotated
-        if self.output_frame == "same":
-            return to_sensor_frame(rotated) if frame == "sensor" else rotated
-        raise ValueError('output_frame must be "same" or "body".')
+        return to_sensor_frame(rotated) if frame == "sensor" else rotated
 
     @property
     def data(self) -> IMU_DATA_DTYPE:

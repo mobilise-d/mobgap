@@ -15,7 +15,9 @@ orientation.
 The TVS dataset does not provide recordings with known sensor mounting errors.
 We therefore load each recording normally, convert the lower-back IMU signal to
 body frame, apply the same rough rotations that are used in the reorientation
-validation, and run the GSD algorithms on the rotated body-frame data.
+validation, convert back to the original frame of the wrapped dataset, and let
+the GSD emulation pipeline perform its normal body-frame conversion before
+running the algorithms.
 
 The standard GSD validation script remains unchanged. This page writes its
 results to a separate ``gsd_misorientation`` result folder.
@@ -51,17 +53,13 @@ from mobgap.utils.evaluation import Evaluation, save_evaluation_results
 from mobgap.utils.misc import get_env_var
 
 pipelines = {
-    "GsdIluz": GsdEmulationPipeline(GsdIluz(), convert_to_body_frame=False),
+    "GsdIluz": GsdEmulationPipeline(GsdIluz()),
     "GsdIluz_orig_peak": GsdEmulationPipeline(
         GsdIluz(**GsdIluz.PredefinedParameters.original),
-        convert_to_body_frame=False,
     ),
-    "GsdIonescu": GsdEmulationPipeline(
-        GsdIonescu(), convert_to_body_frame=False
-    ),
+    "GsdIonescu": GsdEmulationPipeline(GsdIonescu()),
     "GsdAdaptiveIonescu": GsdEmulationPipeline(
         GsdAdaptiveIonescu(),
-        convert_to_body_frame=False,
     ),
 }
 
@@ -69,8 +67,9 @@ pipelines = {
 # Setting up the dataset
 # ----------------------
 # ``MisorientedDataset`` expands each TVS datapoint by an additional
-# ``orientation`` index column. With ``output_frame="body"``, every algorithm
-# receives body-frame data after the simulated rough mounting rotation.
+# ``orientation`` index column and preserves the wrapped dataset frame. For TVS,
+# this means the GSD emulation pipeline receives sensor-frame data and performs
+# its standard sensor-to-body-frame conversion internally.
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
 datasets_free_living = MisorientedDataset(
@@ -80,7 +79,6 @@ datasets_free_living = MisorientedDataset(
         memory=Memory(cache_dir),
         missing_reference_error_type="skip",
     ),
-    output_frame="body",
 )
 datasets_laboratory = MisorientedDataset(
     TVSLabDataset(
@@ -89,7 +87,6 @@ datasets_laboratory = MisorientedDataset(
         memory=Memory(cache_dir),
         missing_reference_error_type="skip",
     ),
-    output_frame="body",
 )
 
 # %%

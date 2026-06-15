@@ -83,7 +83,7 @@ def test_misoriented_dataset_extends_index_with_orientation() -> None:
     assert datapoint.reference_sampling_rate_hz_ == 100.0
 
 
-def test_misoriented_dataset_body_output_rotates_body_frame_data() -> None:
+def test_misoriented_dataset_preserves_body_frame_data() -> None:
     body_frame_data = pd.DataFrame(
         [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
         columns=BF_SENSOR_COLS,
@@ -100,7 +100,6 @@ def test_misoriented_dataset_body_output_rotates_body_frame_data() -> None:
     datapoint = MisorientedDataset(
         base_dataset,
         orientations=["pa_normal__rot_pa_180"],
-        output_frame="body",
     )[0]
 
     expected = pd.DataFrame(
@@ -110,30 +109,7 @@ def test_misoriented_dataset_body_output_rotates_body_frame_data() -> None:
     pd.testing.assert_frame_equal(datapoint.data_ss, expected)
 
 
-def test_misoriented_dataset_body_output_converts_sensor_frame_data_before_rotation() -> None:
-    sensor_frame_data = pd.DataFrame(
-        [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
-        columns=SF_SENSOR_COLS,
-    )
-    base_dataset = ReferenceGaitDatasetFromData(
-        {"p1": {"LowerBack": sensor_frame_data}},
-        100.0,
-        {"p1": {"cohort": "HA", "height_m": 1.7, "sensor_height_m": 1.0}},
-        {"p1": {"measurement_condition": "laboratory"}},
-        index_cols="participant_id",
-        reference_parameters=_minimal_reference(),
-    )
-
-    datapoint = MisorientedDataset(base_dataset, orientations=["identity"], output_frame="body")[0]
-
-    expected = pd.DataFrame(
-        [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
-        columns=BF_SENSOR_COLS,
-    )
-    pd.testing.assert_frame_equal(datapoint.data_ss, expected)
-
-
-def test_misoriented_dataset_same_output_preserves_sensor_frame_data() -> None:
+def test_misoriented_dataset_preserves_sensor_frame_data() -> None:
     sensor_frame_data = pd.DataFrame(
         [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
         columns=SF_SENSOR_COLS,
@@ -150,7 +126,6 @@ def test_misoriented_dataset_same_output_preserves_sensor_frame_data() -> None:
     datapoint = MisorientedDataset(
         base_dataset,
         orientations=["pa_normal__rot_pa_180"],
-        output_frame="same",
     )[0]
 
     expected = pd.DataFrame(
