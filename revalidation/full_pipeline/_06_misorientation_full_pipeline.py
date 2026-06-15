@@ -31,6 +31,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.plotting import (
     calc_min_max_with_margin,
     make_square,
@@ -61,19 +62,29 @@ dmos = {
 # Loading The Free-Living Results
 # -------------------------------
 # The result files add ``orientation`` to the usual TVS index. The standard
-# validation loader has fixed index columns, so we load the local CSV files
-# directly from the validation result folder.
-results_base_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
-    / "results/full_pipeline_misorientation/free_living"
+# validation loader keeps unknown CSV columns as data columns, so we can still
+# use it for local and remote loading.
+local_data_path = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
+    else None
+)
+__RESULT_VERSION = "main"
+loader = ValidationResultLoader(
+    "full_pipeline_misorientation",
+    result_path=local_data_path,
+    version=__RESULT_VERSION,
 )
 
 
 def load_misorientation_results() -> pd.DataFrame:
     results = []
     for folder_name, algorithm_label in algorithms.items():
-        result_file = results_base_path / folder_name / "single_results.csv"
-        data = pd.read_csv(result_file).assign(algorithm=algorithm_label)
+        data = (
+            loader.load_single_results(folder_name, "free_living")
+            .reset_index()
+            .assign(algorithm=algorithm_label)
+        )
         results.append(data)
     return pd.concat(results, ignore_index=True)
 

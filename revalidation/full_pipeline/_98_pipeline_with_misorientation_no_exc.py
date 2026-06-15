@@ -47,7 +47,7 @@ case for unknown mounting orientations.
 # when reorientation happens after GSD.
 from pathlib import Path
 
-from joblib import Memory, parallel_backend
+from joblib import Memory
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset
 from mobgap.gait_sequences import GsdIonescu
@@ -108,9 +108,10 @@ datasets_free_living = MisorientedDataset(
 # %%
 # Running The Evaluation
 # ----------------------
-# We run the pipeline variants one after another and use multiprocessing within
-# each evaluation. Results are written after each variant finishes so completed
-# results remain available if a later run is interrupted.
+# We run the pipeline variants one after another and use datapoint-level
+# multiprocessing inside ``tpcp.validate``. Results are written after each
+# variant finishes so completed results remain available if a later run is
+# interrupted.
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
@@ -123,9 +124,11 @@ def run_evaluation(
     pipeline: BaseMobilisedPipeline,
     ds: MisorientedDataset,
 ) -> tuple[str, Evaluation[BaseMobilisedPipeline]]:
-    scoring = pipeline_score.clone().set_params(n_jobs=n_jobs, verbose=10)
-    with parallel_backend("loky", n_jobs=n_jobs):
-        eval_pipe = Evaluation(ds, scoring=scoring).run(pipeline)
+    eval_pipe = Evaluation(
+        ds,
+        scoring=pipeline_score,
+        validate_paras={"n_jobs": n_jobs, "verbose": 10},
+    ).run(pipeline)
     return name, eval_pipe
 
 
