@@ -193,6 +193,22 @@ class TestReorientationMethodDM:
                 pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS), sampling_rate_hz=100.0
             )
 
+    def test_unresolved_phase_is_reported_as_none(self):
+        data = pd.DataFrame(
+            {
+                "acc_is": np.ones(10) * 9.8,
+                "acc_ml": np.zeros(10),
+                "acc_pa": np.zeros(10),
+                "gyr_is": np.zeros(10),
+                "gyr_ml": np.zeros(10),
+                "gyr_pa": np.zeros(10),
+            }
+        )
+
+        result = ReorientationMethodDM(correction_mode="full").detect_correct(data, sampling_rate_hz=100.0)
+
+        assert result.result_.phase is None
+
     def test_single_walking_bout(self):
         """Test algorithm on a single walking bout from lab data."""
         single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(

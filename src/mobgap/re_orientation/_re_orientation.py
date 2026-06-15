@@ -301,7 +301,7 @@ def _cross_spec_pa_phase_power_weighted(
     if is_power.sum() > 0:
         return float(np.average(phase, weights=is_power))
 
-    return 0.0
+    return None
 
 
 def _apply_ml_ap_correction(

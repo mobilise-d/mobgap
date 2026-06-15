@@ -40,7 +40,7 @@ def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
     family = result.family
     phase = result.phase
 
-    if family is None:
+    if family is None or phase is None:
         return UNKNOWN_ORIENTATION_LABEL
 
     # phase is None when trust_gravity skips Stage 3 for is_up (intentional)
