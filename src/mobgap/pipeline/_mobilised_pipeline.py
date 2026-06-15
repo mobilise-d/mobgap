@@ -345,7 +345,11 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 if not turn_list.empty:
                     turn_list.loc[:, ["start", "end"]] -= wb_region.start
                 self.sdmo_calculation_ = self.sdmo_calculation.clone().calculate(
-                    wb_data, stride_list=stride_list, turn_list=turn_list, sampling_rate_hz=sampling_rate_hz, replicate_matlab=True
+                    wb_data,
+                    stride_list=stride_list,
+                    turn_list=turn_list,
+                    sampling_rate_hz=sampling_rate_hz,
+                    replicate_matlab=True,
                 )
                 r.signal_based_parameters = self.sdmo_calculation_.signal_based_parameters
             self.per_wb_signal_based_parameters_ = pd.concat(

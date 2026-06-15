@@ -1,7 +1,6 @@
 """Base class for signal-based digital mobility outcome calculations."""
 
-from collections.abc import Callable
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 from tpcp import Algorithm
@@ -15,7 +14,7 @@ base_sdmo_docfiller = make_filldoc(
     signal_based_parameters
         The main output of the signal-based digital mobility outcomes (SDMO) block as a DataFrame with a single row
         and multiple columns containing the implemented signal-based parameters.
-        This is a single value per metric per data. 
+        This is a single value per metric per data.
     """,
         "data_param": """
     data
@@ -28,10 +27,6 @@ base_sdmo_docfiller = make_filldoc(
         "stride_list_param": """
     stride_list
         The stride list associated with the ``data`` passed to the ``calculate`` method.
-    """,
-        "turn_list_param": """
-    turn_list
-        The turn list associated with the ``data`` passed to the ``calculate`` method.
     """,
         "acc_columns_para": """
     acc_columns
@@ -69,8 +64,10 @@ class BaseSDMOCalculator(Algorithm):
     %(data_param)s
     %(sampling_rate_param)s
     %(stride_list_param)s
-    %(turn_list_param)s
-    %(replicate_matlab_param)s
+    turn_list
+        The turn list associated with the ``data`` passed to the ``calculate`` method.
+    replicate_matlab
+            If True, use MATLAB-compatible smoothing, otherwise the direct pandas-based moving average smoothing.
 
     Attributes
     ----------

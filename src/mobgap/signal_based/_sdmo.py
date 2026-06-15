@@ -1,13 +1,15 @@
 import warnings
-from typing import Optional, Any
+from typing import Any, Optional
+
 import numpy as np
 import pandas as pd
 from numba import njit
 from scipy.fft import fft
 from scipy.ndimage import minimum_filter1d
 from scipy.signal import argrelextrema, correlate, detrend, find_peaks, medfilt, welch
-from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 from typing_extensions import Self, Unpack
+
+from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 
 
 @base_sdmo_docfiller
@@ -26,18 +28,24 @@ class TurnSDMO(BaseSDMOCalculator):
     %(signal_based_parameters)s
 
     """
-    def __init__(self,):
+
+    def __init__(
+        self,
+    ) -> None:
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, turn_list: pd.DataFrame, **kwargs) -> Self:
+    def calculate(
+        self, data: pd.DataFrame, sampling_rate_hz: float, turn_list: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]
+    ) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
         %(data_param)s
         %(sampling_rate_param)s
-        %(turn_list_param)s
+        turn_list
+            The turn list associated with the ``data`` passed to the ``calculate`` method.
 
         %(calculate_return)s
 
@@ -51,10 +59,10 @@ class TurnSDMO(BaseSDMOCalculator):
         # smoothness == jerk of yaw
         jerk_gyr = []
         for start, end, dur in turn_list[["start", "end", "duration_s"]].to_numpy():
-            seg = gyr[int(start): int(end)]
+            seg = gyr[int(start) : int(end)]
             means.append(seg.mean())
             maxs.append(seg.max())
-            jerk_gyr.append(np.sqrt(np.trapezoid(seg ** 2) / dur))
+            jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / dur))
 
         turn_params = {
             "turn_mean_ang_vel": np.mean(means),
@@ -78,25 +86,26 @@ class StrideLevelSDMO(BaseSDMOCalculator):
     .. math::
           CV = 100*std/mean
 
-	Parameters
+    Parameters
     ----------
-	stride_list_columns
-	    Name of the columns in the `stride_list` for which parameters will be calculated.
+    stride_list_columns
+            Name of the columns in the `stride_list` for which parameters will be calculated.
 
     Attributes
     ----------
     %(signal_based_parameters)s
 
     """
+
     def __init__(
-            self,
-            stride_list_columns: Optional[list[str]] = None,
-    ):
+        self,
+        stride_list_columns: Optional[list[str]] = None,
+    ) -> None:
         self.stride_list_columns = stride_list_columns
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data:pd.DataFrame, stride_list: pd.DataFrame, **kwargs) -> Self:
+    def calculate(self, _data: pd.DataFrame, stride_list: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -139,13 +148,14 @@ class RMS(BaseSDMOCalculator):
     %(signal_based_parameters)s
 
     """
+
     def __init__(
-            self,
-    ):
+        self,
+    ) -> None:
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, **kwargs: Unpack[dict[str, Any]]) -> Self:
+    def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -219,12 +229,15 @@ class RegularitySymmetry(BaseSDMOCalculator):
     %(signal_based_parameters)s
 
     """
+
     def __init__(
-            self,
-    ):
+        self,
+    ) -> None:
         self.signal_based_parameters = pd.DataFrame([])
 
-    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, replicate_matlab: bool, **kwargs) -> Self:
+    def calculate(
+        self, data: pd.DataFrame, sampling_rate_hz: float, replicate_matlab: bool, **_kwargs: Unpack[dict[str, Any]]
+    ) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -232,7 +245,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         %(data_param)s
         %(sampling_rate_param)s
         replicate_matlab
-            If True, use MATLAB‑compatible smoothing, otherwise the direct pandas-based moving average smoothing.
+            If True, use MATLAB-compatible smoothing, otherwise the direct pandas-based moving average smoothing.
 
         %(calculate_return)s
 
@@ -259,7 +272,14 @@ class RegularitySymmetry(BaseSDMOCalculator):
         self.signal_based_parameters = pd.Series(reg_sym).to_frame().T
         return self
 
-    def _compute_axis_metrics(self, signal, axis, sampling_rate_hz, replicate_matlab, step_reg_is):
+    def _compute_axis_metrics(
+        self,
+        signal: np.ndarray,
+        axis: str,
+        sampling_rate_hz: float,
+        replicate_matlab: bool,
+        step_reg_is: float,
+    ) -> dict[str, float]:
         """Compute regularity metrics for a single axis."""
         ax_direction = axis.split("_")[1]
         step_reg = stride_reg = asym_mn = sym_k = asym_g = np.nan
@@ -270,9 +290,9 @@ class RegularitySymmetry(BaseSDMOCalculator):
             norm = n - np.abs(np.arange(-n + 1, n))
             c = correlate(x, x, mode="full") / norm
             lags = np.arange(-n + 1, n)
-            # normalise to zero‑lag
+            # normalise to zero-lag
             c = c / c[lags == 0][0]
-            # non‑negative lags
+            # non-negative lags
             c = c[lags >= 0]
 
             # in order to remove wrong detections of the irrelevant peaks the signal is smoothened.
@@ -309,8 +329,9 @@ class RegularitySymmetry(BaseSDMOCalculator):
             )
         return result
 
-    @staticmethod
-    def _process_ml_axis(self, c, smoothed_c, distance, step_reg_is):
+    def _process_ml_axis(
+        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is: float
+    ) -> tuple[float, float]:
         """Process ML axis."""
         # step regularity: negative peaks
         locs_neg, _ = find_peaks(-smoothed_c, distance=distance + 1)
@@ -336,8 +357,9 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
         return step_reg, stride_reg
 
-    @staticmethod
-    def _process_vt_ap_axis(self, c, smoothed_c, distance, step_reg_is):
+    def _process_vt_ap_axis(
+        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is: float
+    ) -> tuple[float, float, float]:
         """Process IS/PA axes."""
         locs, _ = find_peaks(smoothed_c, distance=distance + 1)
         peaks = smoothed_c[locs]
@@ -412,21 +434,22 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
 
     Parameters
     ----------
-	%(acc_columns_para)s
+    %(acc_columns_para)s
 
     Attributes
     ----------
     %(signal_based_parameters)s
 
     """
+
     def __init__(
-            self,
-            acc_columns: Optional[list[str]] = None,
-    ):
+        self,
+        acc_columns: Optional[list[str]] = None,
+    ) -> None:
         self.acc_columns = acc_columns
         self.signal_based_parameters = pd.DataFrame([])
 
-    def calculate(self, data: pd.DataFrame, sampling_rate_hz:float, **kwargs) -> Self:
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -446,9 +469,7 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
 
         # welch PSD (should be close to the matlab's pwelch with the following params)
         def matlab_welch(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-            return welch(
-                x, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False
-            )
+            return welch(x, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False)
 
         f, psd_is = matlab_welch(acc[:, 0])
         _, psd_ml = matlab_welch(acc[:, 1])
@@ -464,29 +485,29 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         amp_ap, freq_ap, width_ap, _slope_ap = self._extract_amp_freq_slope(psd_ap, f, vap_freq_range)
 
         self.signal_based_parameters = pd.DataFrame(
-            [{
-                "amplitude_is": amp_is,
-                "amplitude_ml": amp_ml,
-                "amplitude_pa": amp_ap,
-                "freq_is": freq_is,
-                "freq_ml": freq_ml,
-                "freq_pa": freq_ap,
-                # the width and slope was commented out in the original implementation, but the sustain project
-                # report lists width in the variability domain signal-based parameters, so return width default
-                "width_is": width_is,
-                "width_ml": width_ml,
-                "width_pa": width_ap,
-                # "slope_is": slope_is,
-                # "slope_ml": slope_ml,
-                # "slope_pa": slope_ap
-            }]
+            [
+                {
+                    "amplitude_is": amp_is,
+                    "amplitude_ml": amp_ml,
+                    "amplitude_pa": amp_ap,
+                    "freq_is": freq_is,
+                    "freq_ml": freq_ml,
+                    "freq_pa": freq_ap,
+                    # the width and slope was commented out in the original implementation, but the sustain project
+                    # report lists width in the variability domain signal-based parameters, so return width default
+                    "width_is": width_is,
+                    "width_ml": width_ml,
+                    "width_pa": width_ap,
+                    # "slope_is": slope_is,
+                    # "slope_ml": slope_ml,
+                    # "slope_pa": slope_ap
+                }
+            ]
         )
         return self
 
     @staticmethod
-    def _extract_amp_freq_slope(
-            psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray
-    ) -> tuple[Any, Any, Any, Any]:
+    def _extract_amp_freq_slope(psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray) -> tuple[Any, Any, Any, Any]:
         """Extract amplitude, frequency, width and slope."""
         psd_sub = psd[freq_range]
         freq_sub = freq[freq_range]
@@ -518,8 +539,8 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
             return amp, freq_val, width, np.nan
 
         pre_peak = pre_peak_min[-1]
-        rise_psd = psd_sub[pre_peak: peak + 1]
-        rise_freq = freq_sub[pre_peak: peak + 1]
+        rise_psd = psd_sub[pre_peak : peak + 1]
+        rise_freq = freq_sub[pre_peak : peak + 1]
         range_val = amp - psd_sub[pre_peak]
         lower = psd_sub[pre_peak] + 0.25 * range_val
         upper = amp - 0.25 * range_val
@@ -565,6 +586,7 @@ class SampleEntropy(BaseSDMOCalculator):
     %(signal_based_parameters)s
 
     """
+
     def __init__(
         self,
         *,
@@ -580,7 +602,7 @@ class SampleEntropy(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, **kwargs) -> Self:
+    def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -602,7 +624,9 @@ class SampleEntropy(BaseSDMOCalculator):
         num_samples = accs.size
 
         if num_samples <= self.num_samples_threshold:
-            self.signal_based_parameters = pd.DataFrame([{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}])
+            self.signal_based_parameters = pd.DataFrame(
+                [{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}]
+            )
             return self
 
         se_results = {}
@@ -613,6 +637,7 @@ class SampleEntropy(BaseSDMOCalculator):
             se_results[f"sample_entropy_{col_name}"] = -np.log(phi_m1 / phi_m)
         self.signal_based_parameters = pd.DataFrame([se_results])
         return self
+
 
 @base_sdmo_docfiller
 class HarmonicRatio(BaseSDMOCalculator):
@@ -643,6 +668,7 @@ class HarmonicRatio(BaseSDMOCalculator):
     %(signal_based_parameters)s
 
     """
+
     def __init__(
         self,
         *,
@@ -652,7 +678,9 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, stride_list: pd.DataFrame, sampling_rate_hz: float, **kwargs) -> Self:
+    def calculate(
+        self, data: pd.DataFrame, stride_list: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]
+    ) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -678,10 +706,10 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([hr_results])
         return self
 
-    def _process_single_accelerometer(self, data: pd.DataFrame, col_name: str,
-                                      stride_pairs: list, sampling_rate_hz: float) -> float:
-        """Process a single accelerometer axis and return the Harmonic Ratio (or NaN).
-        """
+    def _process_single_accelerometer(
+        self, data: pd.DataFrame, col_name: str, stride_pairs: list, sampling_rate_hz: float
+    ) -> float:
+        """Process a single accelerometer axis and return the Harmonic Ratio (or NaN)."""
         acc = data[col_name].to_numpy()
         stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
         is_ml = col_name == "acc_ml"
@@ -693,7 +721,7 @@ class HarmonicRatio(BaseSDMOCalculator):
             if start >= current_end:
                 continue  # skip invalid stride
 
-            stride_data = acc[start:current_end + 1] - np.mean(acc[start:current_end + 1])
+            stride_data = acc[start : current_end + 1] - np.mean(acc[start : current_end + 1])
             fft_vals, fft_freqs = self._compute_fft_spectrum(stride_data, sampling_rate_hz)
 
             fundamental_idx, fundamental_amp = self._find_fundamental(fft_vals, fft_freqs, gait_band)
@@ -722,8 +750,7 @@ class HarmonicRatio(BaseSDMOCalculator):
 
     @staticmethod
     def _adjust_ic_endpoint(acc: np.ndarray, start: int, end: int) -> int:
-        """Flex IC end point to eliminate high‑frequency noise from amplitude mismatch.
-        """
+        """Flex IC end point to eliminate high-frequency noise from amplitude mismatch."""
         current_end = end
         start_points_in_data = np.where((acc[:-1] < acc[start]) & (acc[1:] >= acc[start]))[0]
         if start_points_in_data.size:
@@ -734,7 +761,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         return current_end
 
     @staticmethod
-    def _compute_fft_spectrum(stride_data: np.ndarray, sampling_rate_hz: float):
+    def _compute_fft_spectrum(stride_data: np.ndarray, sampling_rate_hz: float) -> tuple[np.ndarray, np.ndarray]:
         """Compute FFT magnitudes and frequencies for a stride segment."""
         n = len(stride_data)
         nfft = 2 ** (int(np.ceil(np.log2(n))) + 4)
@@ -743,7 +770,9 @@ class HarmonicRatio(BaseSDMOCalculator):
         return fft_vals, fft_freqs
 
     @staticmethod
-    def _find_fundamental(fft_vals: np.ndarray, fft_freqs: np.ndarray, gait_band: tuple):
+    def _find_fundamental(
+        fft_vals: np.ndarray, fft_freqs: np.ndarray, gait_band: tuple
+    ) -> tuple[Optional[int], Optional[float]]:
         """Find the fundamental frequency component within the gait."""
         max_idx = argrelextrema(fft_vals, np.greater)[0]
         if not max_idx.size:
@@ -758,17 +787,15 @@ class HarmonicRatio(BaseSDMOCalculator):
         return fundamental_idx, fundamental_amp
 
     @staticmethod
-    def _extract_harmonics(fft_vals: np.ndarray, fft_freqs: np.ndarray,
-                           f1: float, is_ml: bool) -> np.ndarray:
-        """Extract harmonic coefficients.
-        """
+    def _extract_harmonics(fft_vals: np.ndarray, fft_freqs: np.ndarray, f1: float, is_ml: bool) -> np.ndarray:
+        """Extract harmonic coefficients."""
         harmonics = f1 * np.arange(1, 21)
         stride_harmonics = np.full(20, np.nan)
 
         # fundamental harmonic is set to 1.0
         stride_harmonics[0 if is_ml else 1] = 1.0
 
-        # In‑phase harmonics (local maxima)
+        # in phase harmonics (local maxima)
         in_phase = np.arange(2, 19, 2) if is_ml else np.arange(3, 20, 2)
         max_idx = argrelextrema(fft_vals, np.greater)[0]
         if max_idx.size:
@@ -778,7 +805,7 @@ class HarmonicRatio(BaseSDMOCalculator):
                 if np.any(mask):
                     stride_harmonics[h] = fft_vals[max_idx[mask]].max()
 
-        # Out‑phase harmonics (local minima)
+        # out phase harmonics (local minima)
         out_phase = np.arange(1, 20, 2) if is_ml else np.arange(0, 19, 2)
         min_idx = argrelextrema(fft_vals, np.less)[0]
         min_idx = min_idx[fft_freqs[min_idx] >= 0.25]  # ignore very low frequencies
@@ -800,13 +827,14 @@ class SDRange(BaseSDMOCalculator):
     %(signal_based_parameters)s
 
     """
+
     def __init__(
         self,
     ) -> None:
         self.signal_based_parameters = pd.DataFrame([])
 
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, **kwargs) -> Self:
+    def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -854,16 +882,17 @@ class Jerk(BaseSDMOCalculator):
     ----------
     %(signal_based_parameters)s
     """
+
     def __init__(
-            self,
-            acc_columns: Optional[list[str]] = None,
-            gyr_columns: Optional[list[str]] = None,
+        self,
+        acc_columns: Optional[list[str]] = None,
+        gyr_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
         self.gyr_columns = gyr_columns
         self.signal_based_parameters = pd.DataFrame([])
 
-    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **kwargs) -> Self:
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
@@ -890,6 +919,7 @@ class Jerk(BaseSDMOCalculator):
             out.update(**{f"jerk_{col}": jerk_gyr[i] for i, col in enumerate(self.gyr_columns)})
         self.signal_based_parameters = pd.DataFrame([out])
         return self
+
 
 @njit
 def _phi(signal: np.ndarray, m: int, tol: float) -> np.ndarray:
