@@ -407,9 +407,8 @@ class TestReorientationMethodDM:
         assert hasattr(result.result_, "correction_action")
         assert hasattr(result.result_, "orientation_resolved")
         assert hasattr(result.result_, "unresolved_reason")
-        assert hasattr(result.result_, "gravity_rotation")
-        assert hasattr(result.result_, "pa_direction_rotation")
-        assert hasattr(result.result_, "correction_rotation")
+        assert hasattr(result.result_, "correction_rotations")
+        assert len(result.result_.correction_rotations) == 2
         assert hasattr(result.result_, "data_corrected")
 
         # Check corrected data has same shape as input

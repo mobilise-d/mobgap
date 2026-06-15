@@ -82,9 +82,7 @@ class ReorientationResult(BaseReorientationCorrector):
     correction_action: str  # description of correction applied, or 'none'
     orientation_resolved: bool  # whether all required orientation information was resolved
     unresolved_reason: Optional[UnresolvedReason]  # reason why orientation could not be fully resolved
-    gravity_rotation: Rotation = field(repr=False)  # rotation applied to align gravity
-    pa_direction_rotation: Rotation = field(repr=False)  # rotation applied to correct PA direction
-    correction_rotation: Rotation = field(repr=False)  # combined correction rotation
+    correction_rotations: tuple[Rotation, Rotation] = field(repr=False)  # gravity, then PA correction rotation
     data_corrected: pd.DataFrame = field(repr=False)  # corrected data
 
 
@@ -120,7 +118,7 @@ class ReorientationMethodDM(Algorithm):
     %(corrected_data_)s
     result_ : ReorientationResult
         Full detection and correction diagnostics including family, phase, correction flags, unresolved detection
-        reason, and the gravity/PA/combined correction rotations.
+        reason, and the gravity/PA correction rotations.
 
     Examples
     --------
@@ -196,9 +194,7 @@ class ReorientationMethodDM(Algorithm):
                 correction_action="none",
                 orientation_resolved=False,
                 unresolved_reason="gravity",
-                gravity_rotation=_IDENTITY_ROTATION,
-                pa_direction_rotation=_IDENTITY_ROTATION,
-                correction_rotation=_IDENTITY_ROTATION,
+                correction_rotations=(_IDENTITY_ROTATION, _IDENTITY_ROTATION),
                 data_corrected=to_body_frame(data.copy()),
             )
             return self
@@ -219,9 +215,7 @@ class ReorientationMethodDM(Algorithm):
                 correction_action=correction_action,
                 orientation_resolved=True,
                 unresolved_reason=None,
-                gravity_rotation=gravity_rotation,
-                pa_direction_rotation=_IDENTITY_ROTATION,
-                correction_rotation=gravity_rotation,
+                correction_rotations=(gravity_rotation, _IDENTITY_ROTATION),
                 data_corrected=to_body_frame(corrected),
             )
             return self
@@ -249,9 +243,7 @@ class ReorientationMethodDM(Algorithm):
             correction_action=correction_action,
             orientation_resolved=phase is not None,
             unresolved_reason=None if phase is not None else "pa_direction",
-            gravity_rotation=gravity_rotation,
-            pa_direction_rotation=pa_direction_rotation,
-            correction_rotation=pa_direction_rotation * gravity_rotation,
+            correction_rotations=(gravity_rotation, pa_direction_rotation),
             data_corrected=to_body_frame(corrected),
         )
 
