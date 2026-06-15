@@ -151,5 +151,5 @@ for k, v in results_free_living.items():
         v,
         condition="free_living",
         base_path=results_base_path,
-        raw_results=["detected", "reference"],
+        raw_results=["detected"],
     )
