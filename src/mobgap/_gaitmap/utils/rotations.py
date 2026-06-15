@@ -5,6 +5,7 @@ import pandas as pd
 from scipy.spatial.transform import Rotation
 
 from mobgap.consts import BF_ACC_COLS, BF_GYR_COLS, SF_ACC_COLS, SF_GYR_COLS
+from mobgap.utils.dtypes import get_frame_definition
 
 
 def _rotate_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
@@ -92,6 +93,10 @@ def _flip_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFra
 
     Compared to normal rotations, this function can result in massive speedups!
     """
+    data = data.copy()
+    if rotation is None:
+        return data
+
     if rotation.single is False:
         raise ValueError("Only single rotations are allowed!")
 
@@ -107,15 +112,15 @@ def _flip_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFra
     # Now that we know the rotation is valid, we round the values to make all further checks simpler
     rot_matrix = np.round(rot_matrix)
 
-    data = data.copy()
-    if rotation is None:
-        return data
-
     orig_col_order = data.columns
-    sensors = ["acc", "gyr"]
-    rots = {"acc": BF_ACC_COLS, "gyr": BF_GYR_COLS}
-    for sensor in sensors:
-        cols = np.array(rots[sensor])
+    frame = get_frame_definition(data, ["sensor", "body"])
+    cols_per_sensor = {
+        "sensor": {"acc": SF_ACC_COLS, "gyr": SF_GYR_COLS},
+        "body": {"acc": BF_ACC_COLS, "gyr": BF_GYR_COLS},
+    }[frame]
+
+    for sensor in ("acc", "gyr"):
+        cols = np.array(cols_per_sensor[sensor])
         rename = {}
         mirror = []
         # We basically iterate over the rotation matrix and find which axis is transformed to which other axis.
@@ -132,7 +137,7 @@ def _flip_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFra
     return data
 
 
-def flip_dataset(dataset: pd.DataFrame, rotation: Union[Rotation, dict[str, Rotation]]) -> pd.DataFrame:
+def flip_dataset(dataset: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
     """Flip datasets around axis data of a dataset.
 
     This is equivalent to rotating the data, but only 90/180 deg rotations are allowed.
@@ -145,12 +150,10 @@ def flip_dataset(dataset: pd.DataFrame, rotation: Union[Rotation, dict[str, Rota
     Parameters
     ----------
     dataset
-        dataframe representing a single or multiple sensors.
-        In case of multiple sensors a df with MultiIndex columns is expected where the first level is the sensor name
-        and the second level the axis names (all sensor frame axis must be present)
+        Dataframe representing a single sensor in either sensor or body frame.
     rotation
-        A single rotation or a dict with sensor names as keys and rotations as values.
-        All rotations must only contain 90 deg rotations (i.e. 1 and -1 in the rotation matrix).
+        A single rotation.
+        The rotation must only contain 90 deg rotations (i.e. 1 and -1 in the rotation matrix).
         If this is not the case, use :func:`rotate_dataset` instead.
 
     Returns
