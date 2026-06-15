@@ -12,7 +12,7 @@ from typing_extensions import Self, Unpack
 
 @base_sdmo_docfiller
 class TurnSDMO(BaseSDMOCalculator):
-    """Extract various features from the angular velocity signal around the Yaw axis during a turn.
+    """Extract various features from the angular velocity signal around the Yaw axis during turns.
 
     `turn_mean_ang_vel` is the amplitude of the mean angular velocity in the turn. Absolute value is used since the
     direction of the turn is not important.
@@ -20,16 +20,25 @@ class TurnSDMO(BaseSDMOCalculator):
     `turn_smoothness` is the jerk of the angular velocity signal.
     `turn_dur_percentage_from_wb_dur` is the percentage of the total duration of the turning instances to the walking
     bout duration (the total duration of the given signal).
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
+
     """
     def __init__(self,):
         self.signal_based_parameters = pd.DataFrame([])
 
-
+    @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, turn_list: pd.DataFrame, **kwargs) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+        %(turn_list_param)s
+
         %(calculate_return)s
 
         """
@@ -59,18 +68,46 @@ class TurnSDMO(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([turn_params])
         return self
 
+
 @base_sdmo_docfiller
 class StrideLevelSDMO(BaseSDMOCalculator):
+    r"""Compute stride-level parameters.
 
+    This algorithm calculates the precentage coefficient of variation in stride-level primary parameters (stride length,
+    cadence and stride duration):
+    .. math::
+          CV = 100*std/mean
+
+	Parameters
+    ----------
+	stride_list_columns
+	    Name of the columns in the `stride_list` for which parameters will be calculated.
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
+
+    """
     def __init__(
             self,
-            stride_list_columns: list, # ["stride_length_m", "cadence_spm", "stride_duration_s"]
+            stride_list_columns: Optional[list[str]] = None,
     ):
         self.stride_list_columns = stride_list_columns
         self.signal_based_parameters = pd.DataFrame([])
 
+    @base_sdmo_docfiller
     def calculate(self, data:pd.DataFrame, stride_list: pd.DataFrame, **kwargs) -> Self:
-        if stride_list is None:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(stride_list_param)s
+
+        %(calculate_return)s
+
+        """
+        if stride_list is None or self.stride_list_columns is None:
             return self
         # in case the required columns are not available in the `stride_list`, then raise warning
         cols = self.stride_list_columns
@@ -82,9 +119,10 @@ class StrideLevelSDMO(BaseSDMOCalculator):
                 stacklevel=1,
             )
             return self
-        cv = 100 * stride_list[available_cols].std() / stride_list[available_cols].mean()
+        cv = 100 * stride_list[available_cols].mean() / stride_list[available_cols].std()
         self.signal_based_parameters = cv.to_frame().T.add_prefix("cv_")
         return self
+
 
 @base_sdmo_docfiller
 class RMS(BaseSDMOCalculator):
@@ -96,6 +134,9 @@ class RMS(BaseSDMOCalculator):
     Masaki Sekine et al. Journal of NeuroEngineering and Rehabilitation 2013, 10:118
     http://www.jneuroengrehab.com/content/10/1/118
 
+    Attributes
+    ----------
+    %(signal_based_parameters)s
 
     """
     def __init__(
@@ -103,7 +144,16 @@ class RMS(BaseSDMOCalculator):
     ):
         self.signal_based_parameters = pd.DataFrame([])
 
+    @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **kwargs: Unpack[dict[str, Any]]) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+
+        %(calculate_return)s
+        """
         if not any(data.columns.str.contains("acc")):
             return self
         # first remove DC of acc signals
@@ -118,6 +168,7 @@ class RMS(BaseSDMOCalculator):
             rms[f"rms_ratio_{key.replace('rms_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
         self.signal_based_parameters = rms.to_frame().T
         return self
+
 
 @base_sdmo_docfiller
 class RegularitySymmetry(BaseSDMOCalculator):
@@ -162,6 +213,11 @@ class RegularitySymmetry(BaseSDMOCalculator):
     The article describing the Asymmetry_G measure can be found at:
     Van Gelder et al.A Proposal for a Linear Calculation of
     Gait Asymmetry. Symmetry 2021, 13,1560. https://doi.org/10.3390/sym13091560
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
+
     """
     def __init__(
             self,
@@ -169,6 +225,18 @@ class RegularitySymmetry(BaseSDMOCalculator):
         self.signal_based_parameters = pd.DataFrame([])
 
     def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, replicate_matlab: bool, **kwargs) -> Self:  # noqa: PLR0915
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+        replicate_matlab
+            If True, use MATLAB‑compatible smoothing, otherwise the direct pandas-based moving average smoothing.
+
+        %(calculate_return)s
+
+        """
         # return empty if not all accs are available
         required_acc_columns = ["acc_is", "acc_pa", "acc_ml"]
         if not all(col in data.columns for col in required_acc_columns):
@@ -249,6 +317,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         self.signal_based_parameters = pd.Series(reg_sym).to_frame().T
         return self
 
+
 @base_sdmo_docfiller
 class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
     """Analyse the acceleration signal in the frequency domain.
@@ -262,15 +331,34 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
     Aner Weiss et al.
     Neurorehabilitation and Neural Repair25(9) 810-818
     DOI: 10.1177/1545968311424869
+
+    Parameters
+    ----------
+	%(acc_columns_para)s
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
+
     """
     def __init__(
             self,
-            acc_columns: Optional[list[str]] = None, #["acc_is", "acc_ml", "acc_pa"]
+            acc_columns: Optional[list[str]] = None,
     ):
         self.acc_columns = acc_columns
         self.signal_based_parameters = pd.DataFrame([])
 
     def calculate(self, data: pd.DataFrame, sampling_rate_hz:float, **kwargs) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+
+        %(calculate_return)s
+
+        """
         acc = data.filter(like="acc")
         acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
         acc = acc[self.acc_columns].to_numpy()
@@ -320,7 +408,7 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class SampleEntropy(BaseSDMOCalculator):
-    r"""Calculate Sample Entropy (SE) for accelerometer data.
+    """Calculate Sample Entropy for accelerometer data.
 
     The Sample Entropy is defined as the negative natural average logarithm of the conditional probability
     that two sequences are similar for m points remain similar when the number of points is increased to m+1.
@@ -336,20 +424,16 @@ class SampleEntropy(BaseSDMOCalculator):
     Parameters
     ----------
     dim
-        ##
+        the sequence length that will be used for calculating the sample entropy. For gait dim=2 often used [1].
     r
-
-    acc_columns
-
+        used for defining similarity between two sequences. Set to 0.15 as default in the original implementation.
+    %(acc_columns_para)s
     num_samples_threshold
-
-    Other Parameters
-    ----------------
-    (other_parameters)s
+        Threshold number of samples for calculating entropy. Default is 200 from [1].
 
     Attributes
     ----------
-    (signal_based_parameters)s
+    %(signal_based_parameters)s
 
     """
     def __init__(
@@ -357,7 +441,7 @@ class SampleEntropy(BaseSDMOCalculator):
         *,
         dim: int = 2,
         r: float = 0.15,
-        acc_columns: Optional[list[str]] = None, #["acc_is"]
+        acc_columns: Optional[list[str]] = None,
         num_samples_threshold: int = 200,
     ) -> None:
         self.dim = dim
@@ -366,7 +450,17 @@ class SampleEntropy(BaseSDMOCalculator):
         self.num_samples_threshold = num_samples_threshold
         self.signal_based_parameters = pd.DataFrame([])
 
+    @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **kwargs) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+
+        %(calculate_return)s
+
+        """
         acc_columns = self.acc_columns
         if acc_columns is None:
             return self
@@ -378,7 +472,6 @@ class SampleEntropy(BaseSDMOCalculator):
         accs = data[acc_columns].to_numpy()[::2]
         num_samples = accs.size
 
-        # N=200 threshold is from [1]
         if num_samples <= self.num_samples_threshold:
             self.signal_based_parameters = pd.DataFrame([{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}])
             return self
@@ -411,16 +504,37 @@ class HarmonicRatio(BaseSDMOCalculator):
     Their amplitude is normalized using the fundamental frequency component amplitude. This process is
     performed for all the strides and then the harmonics are averaged across the strides. The ratio is
     calculated as the ratio of the even to odd harmonics.
+
+    Parameters
+    ----------
+    %(acc_columns_para)s
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
+
     """
     def __init__(
         self,
         *,
-        acc_columns: Optional[list[str]] = None, #["acc_is", "acc_pa"]
+        acc_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
         self.signal_based_parameters = pd.DataFrame([])
 
+    @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, stride_list: pd.DataFrame, sampling_rate_hz:float, **kwargs) -> Self:  # noqa: C901, PLR0912, PLR0915
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(stride_list_param)s
+        %(sampling_rate_param)s
+
+        %(calculate_return)s
+
+        """
         # need the ic list
         ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
         acc_columns = self.acc_columns
@@ -507,13 +621,29 @@ class HarmonicRatio(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class SDRange(BaseSDMOCalculator):
+    """Calculate standard deviation of acceleration and gyroscope signals and range of acceleration signals.
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
+
+    """
     def __init__(
         self,
     ) -> None:
         self.signal_based_parameters = pd.DataFrame([])
 
-
+    @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **kwargs) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+
+        %(calculate_return)s
+
+        """
         out = {}
         for c in data.columns:
             out[f"sd_{c}"] = data[c].std()
@@ -521,6 +651,7 @@ class SDRange(BaseSDMOCalculator):
                 out[f"range_{c}"] = data[c].max() - data[c].min()
         self.signal_based_parameters = pd.DataFrame([out])
         return self
+
 
 @base_sdmo_docfiller
 class Jerk(BaseSDMOCalculator):
@@ -538,17 +669,39 @@ class Jerk(BaseSDMOCalculator):
     Different methods of calculating jerk can be found in the following article:
     Sensitivity of smoothness measures to movement duration, amplitude, and arrests.
     Hogan N. et al., Journal of motor behavior (2009) 41,6. DOI:10.3200/35-09-004-RC
+
+    Log-normalised ratios are commented out because they are not included in the Sustain project report.
+
+    Parameters
+    ----------
+    %(acc_columns_para)s
+    gyr_columns
+        Name of the gyroscope signal columns for which parameters will be calculated.
+
+    Attributes
+    ----------
+    %(signal_based_parameters)s
     """
     def __init__(
             self,
-            acc_columns: Optional[list[str]] = None,  # ["acc_is", "acc_ml", "acc_pa"]
-            gyr_columns: Optional[list[str]] = None,  # ["acc_is", "acc_ml", "acc_pa"]
+            acc_columns: Optional[list[str]] = None,
+            gyr_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
         self.gyr_columns = gyr_columns
         self.signal_based_parameters = pd.DataFrame([])
 
     def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **kwargs) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+
+        %(calculate_return)s
+
+        """
         dt = 1 / sampling_rate_hz
         acc_dot = np.gradient(data[self.acc_columns].to_numpy(), dt, axis=0)
         integral_duration = dt * len(acc_dot)

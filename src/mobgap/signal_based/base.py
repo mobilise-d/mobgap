@@ -33,9 +33,9 @@ base_sdmo_docfiller = make_filldoc(
     turn_list
         The turn list associated with the ``data`` passed to the ``calculate`` method.
     """,
-        "replicate_matlab_param": """
-    replicate_matlab
-        If True, use MATLAB‑compatible smoothing, otherwise the direct pandas-based moving average smoothing.
+        "acc_columns_para": """
+    acc_columns
+        Name of the acceleration signal columns for which parameters will be calculated.
     """,
         "calculate_short": """
     Calculate parameters for the passed data.
