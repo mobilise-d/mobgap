@@ -203,6 +203,12 @@ class TestFullPipelineEdgeCases:
         assert pipeline.gs_iterator_.results_.reorientation_result[0] == tuple(SF_SENSOR_COLS)
         assert pipeline.raw_per_sec_parameters_["stride_length_m"].iloc[0] == pytest.approx(9.81)
 
+    def test_healthy_pipeline_with_per_gs_reorientation_fails_because_gsd_iluz_requires_body_frame(self) -> None:
+        dataset = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")[0]
+
+        with pytest.raises(AssertionError, match="no valid imu data in the body frame"):
+            MobilisedPipelineHealthy(per_gs_reorientation=ReorientationMethodDM()).run(dataset)
+
     def test_impaired_pipeline_handles_no_detected_ics(self):
         dataset = LabExampleDataset(reference_system="INDIP").get_subset(
             cohort="MS", participant_id="001", test="Test11", trial="Trial1"
