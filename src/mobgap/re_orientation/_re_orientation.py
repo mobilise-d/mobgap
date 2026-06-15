@@ -38,11 +38,11 @@ OrientationFamily = Literal["is_up", "is_down", "ml_up", "ml_down"]
 ErrorHandling = Literal["raise", "warn", "ignore"]
 UnresolvedReason = Literal["gravity", "pa_direction"]
 GravityDetectionResult = tuple[Optional[GravityAxis], Optional[GravityDirection], Optional[OrientationFamily]]
-_GRAVITY_ROTATIONS = {
-    "is_up": Rotation.identity(),
-    "is_down": Rotation.from_euler("z", 180, degrees=True),
-    "ml_up": Rotation.from_euler("z", -90, degrees=True),
-    "ml_down": Rotation.from_euler("z", 90, degrees=True),
+_GRAVITY_CORRECTIONS = {
+    "is_up": (Rotation.identity(), ()),
+    "is_down": (Rotation.from_euler("z", 180, degrees=True), ("rotated 180 deg around sensor z-axis",)),
+    "ml_up": (Rotation.from_euler("z", -90, degrees=True), ("rotated -90 deg around sensor z-axis",)),
+    "ml_down": (Rotation.from_euler("z", 90, degrees=True), ("rotated 90 deg around sensor z-axis",)),
 }
 _PA_DIRECTION_ROTATION = Rotation.from_euler("x", 180, degrees=True)
 _IDENTITY_ROTATION = Rotation.identity()
@@ -197,20 +197,19 @@ class ReorientationMethodDM(Algorithm):
             )
             return self
 
-        gravity_rotation = _gravity_rotation(family)
+        gravity_rotation, gravity_actions = _GRAVITY_CORRECTIONS[family]
         corrected = flip_dataset(data, gravity_rotation)
-        corrections = _gravity_correction_actions(family)
 
         # trust_gravity: skip ML/PA correction when gravity is already correctly
         # aligned (is_up), as front/back flips are intentionally ignored
         if self.correction_mode == "trust_gravity" and family == "is_up":
-            correction_action = " and ".join(corrections) if corrections else "none"
+            correction_action = " and ".join(gravity_actions) if gravity_actions else "none"
             self.result_ = ReorientationResult(
                 where_grav=where_grav,
                 where_grav_points=where_grav_points,
                 family=family,
                 phase=None,
-                correction_applied=len(corrections) > 0,
+                correction_applied=bool(gravity_actions),
                 correction_action=correction_action,
                 orientation_resolved=True,
                 unresolved_reason=None,
@@ -231,17 +230,16 @@ class ReorientationMethodDM(Algorithm):
         pa_direction_rotation = _pa_direction_rotation(phase)
         corrected = flip_dataset(corrected, pa_direction_rotation)
         correction = _pa_direction_correction_action(phase)
-        if correction is not None:
-            corrections.append(correction)
+        correction_actions = gravity_actions if correction is None else (*gravity_actions, correction)
 
-        correction_action = " and ".join(corrections) if corrections else "none"
+        correction_action = " and ".join(correction_actions) if correction_actions else "none"
 
         self.result_ = ReorientationResult(
             where_grav=where_grav,
             where_grav_points=where_grav_points,
             family=family,
             phase=phase,
-            correction_applied=len(corrections) > 0,
+            correction_applied=bool(correction_actions),
             correction_action=correction_action,
             orientation_resolved=phase is not None,
             unresolved_reason=None if phase is not None else "pa_direction",
@@ -306,20 +304,6 @@ def _detect_gravity(data: pd.DataFrame, grav_threshold_ms2: float) -> GravityDet
         family = None
 
     return where_grav, where_grav_points, family
-
-
-def _gravity_rotation(family: OrientationFamily) -> Rotation:
-    return _GRAVITY_ROTATIONS[family]
-
-
-def _gravity_correction_actions(family: OrientationFamily) -> list[str]:
-    actions = {
-        "is_up": [],
-        "is_down": ["rotated 180 deg around sensor z-axis"],
-        "ml_up": ["rotated -90 deg around sensor z-axis"],
-        "ml_down": ["rotated 90 deg around sensor z-axis"],
-    }
-    return actions[family].copy()
 
 
 def _pa_direction_rotation(phase: Optional[float]) -> Rotation:
