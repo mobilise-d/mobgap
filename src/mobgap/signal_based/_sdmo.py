@@ -81,7 +81,7 @@ class TurnSDMO(BaseSDMOCalculator):
 class StrideLevelSDMO(BaseSDMOCalculator):
     r"""Compute stride-level parameters.
 
-    This algorithm calculates the precentage coefficient of variation in stride-level primary parameters (stride length,
+    This algorithm calculates the percentage coefficient of variation in stride-level primary parameters (stride length,
     cadence and stride duration):
     .. math::
           CV = 100*std/mean
@@ -123,7 +123,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         available_cols = [c for c in cols if c in stride_list.columns]
         if not available_cols:
             warnings.warn(
-                f"Stride-level signal-based parameters are not calculated. None of {cols} is available in the"
+                f"Stride-level signal-based parameters are not calculated. None of {cols} is available in the "
                 "stride list.",
                 stacklevel=1,
             )
@@ -171,7 +171,7 @@ class RMS(BaseSDMOCalculator):
         data.loc[:, data.columns.str.contains("acc")] = detrend(data.filter(like="acc").to_numpy(), axis=0)
         rms = (data.pow(2).mean() ** 0.5).add_prefix("rms_")
         # total RMS
-        rms_total_acc = ((rms[rms.index.str.contains("acc")]).pow(2).sum()) ** 0.5
+        rms_total_acc = rms.pow(2).sum() ** 0.5
         rms["rms_total_acc"] = rms_total_acc
         # ratio rms
         for key in rms.filter(like="rms_acc").index:
@@ -613,10 +613,8 @@ class SampleEntropy(BaseSDMOCalculator):
 
         """
         acc_columns = self.acc_columns
-        if acc_columns is None:
+        if not data.columns.isin(acc_columns or []).any():
             return self
-        # dim: the sequence length that will be used for calculating the sample entropy. For gait dim=2 often used [1].
-        # r: used for defining similarity between two sequences. Set to 0.15 as default in the original implementation
         dim = self.dim
         r = self.r
         # input data is downsampled by half
@@ -903,17 +901,19 @@ class Jerk(BaseSDMOCalculator):
         %(calculate_return)s
 
         """
+        out = {}
         dt = 1 / sampling_rate_hz
-        acc_dot = np.gradient(data[self.acc_columns].to_numpy(), dt, axis=0)
-        integral_duration = dt * len(acc_dot)
-        jerk_acc = np.sqrt(np.trapezoid(acc_dot**2, axis=0) / integral_duration)
-        out = {
-            **{f"jerk_{col}": jerk_acc[i] for i, col in enumerate(self.acc_columns)},
-            # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
-            # "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
-            # "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
-        }
-        if set(self.gyr_columns).issubset(data.columns):
+        integral_duration = dt * data.size
+        if data.columns.isin(self.acc_columns or []).any():
+            acc_dot = np.gradient(data[self.acc_columns].to_numpy(), dt, axis=0)
+            jerk_acc = np.sqrt(np.trapezoid(acc_dot**2, axis=0) / integral_duration)
+            out = {
+                **{f"jerk_{col}": jerk_acc[i] for i, col in enumerate(self.acc_columns)},
+                # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
+                # "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
+                # "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
+            }
+        if data.columns.isin(self.gyr_columns or []).any():
             gyr = data[self.gyr_columns].to_numpy().T
             jerk_gyr = np.sqrt(np.trapezoid(gyr**2, axis=1) / integral_duration)
             out.update(**{f"jerk_{col}": jerk_gyr[i] for i, col in enumerate(self.gyr_columns)})
