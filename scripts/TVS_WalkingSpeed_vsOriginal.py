@@ -61,7 +61,7 @@ def format_loaded_results(
     values: dict[str, pd.DataFrame],
     index_cols: list[str],
     col_prefix_filter: Optional[str],
-    convert_rel_error: bool = False,
+    convert_rel_error: bool = True,
 ) -> pd.DataFrame:
     """Reshape raw results dict into a clean flat DataFrame."""
     formatted = (
@@ -138,7 +138,9 @@ def build_fp_paired(df: pd.DataFrame, col: str) -> tuple:
 
     def get_ns(source):
         sub = df[df["source"] == source]
-        return [len(sub)] + [len(sub[sub["cohort"] == c]) for c in COHORTS]
+        all_n = len(sub[col].dropna())
+        cohort_ns = [len(sub[sub["cohort"] == c][col].dropna()) for c in COHORTS]
+        return [all_n] + cohort_ns
 
     return get_data("mobgap"), get_data("MATLAB"), get_ns("mobgap")
 

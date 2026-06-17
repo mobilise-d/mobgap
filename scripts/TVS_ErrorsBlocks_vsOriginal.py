@@ -159,7 +159,9 @@ def build_data_paired(df: pd.DataFrame, col: str) -> tuple:
 
     def get_ns(source):
         sub = df[df["source"] == source]
-        return [len(sub)] + [len(sub[sub["cohort"] == c]) for c in COHORTS]
+        all_n = len(sub[col].dropna())
+        cohort_ns = [len(sub[sub["cohort"] == c][col].dropna()) for c in COHORTS]
+        return [all_n] + cohort_ns
 
     return get_data("mobgap"), get_data("MATLAB"), get_ns("mobgap")
 
