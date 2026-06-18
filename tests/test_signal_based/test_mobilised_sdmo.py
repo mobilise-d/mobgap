@@ -1,26 +1,14 @@
-import json
-from pathlib import Path
-
 import pandas as pd
 import pytest
-from tpcp import Pipeline
+from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.data import LabExampleDataset
-from mobgap.signal_based import MobilisedSDMO
+from mobgap.signal_based import (
+    HarmonicRatio,
+    MobilisedSDMO,
+    TurnSDMO,
+)
 from mobgap.utils.conversions import to_body_frame
-
-from mobgap.signal_based import RegularitySymmetry, SampleEntropy, Jerk
-
-SNAPSHOT_DIR = Path(__file__).parent / "snapshot"
-
-
-def test_mobilised_sdmo_structure():
-    sdmo = MobilisedSDMO()
-    assert issubclass(type(sdmo), Pipeline)
-    assert hasattr(sdmo, "calculate"), "MobilisedSDMO missing calculate method"
-    assert callable(sdmo.calculate), "MobilisedSDMO.calculate is not callable"
-    assert "calculators" in sdmo._composite_params
-    assert hasattr(sdmo, "_composite_params")
 
 
 @pytest.fixture
@@ -39,90 +27,89 @@ def example_walking_bout():
     return data, stride_list, turn_list, sampling_rate_hz
 
 
-def test_mobilised_sdmo_regression(example_walking_bout, request):
-    data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+class TestMetaMobilisedSDMO(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = MobilisedSDMO
+    ONLY_DEFAULT_PARAMS = False
 
-    sdmo = MobilisedSDMO()
-    result = sdmo.calculate(
-        data,
-        stride_list=stride_list,
-        turn_list=turn_list,
-        sampling_rate_hz=sampling_rate_hz,
-        replicate_matlab=True,
-    )
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(**self.ALGORITHM_CLASS.PredefinedParameters.default).calculate(
+            data=data,
+            sampling_rate_hz=100.0,
+            stride_list=stride_list,
+            turn_list=turn_list,
+            replicate_matlab=True,
+        )
 
-    result_dict = result.signal_based_parameters.iloc[0].to_dict()
 
-    snapshot_file = SNAPSHOT_DIR / f"{request.node.name}.json"
+class TestMobilisedSDMORegression:
+    @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP"))
+    @pytest.mark.parametrize("replicate_matlab", [True, False])
+    def test_regression(self, datapoint, replicate_matlab, snapshot):
+        stride_meta = datapoint.reference_parameters_relative_to_wb_.stride_parameters
+        if stride_meta.empty:
+            pytest.skip("No stride parameters available for this datapoint")
+        wb_ids = stride_meta.index.get_level_values(0).unique()
 
-    if not snapshot_file.exists():
-        snapshot_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(snapshot_file, "w") as f:
-            json.dump(result_dict, f, indent=2, default=str)
-        pytest.skip(f"Snapshot created: {snapshot_file}")
+        for wb_id in wb_ids:
+            stride_list = stride_meta.loc[wb_id].rename(
+                columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
+            )
+            if stride_list.empty:
+                continue
+            stride_list["cadence_spm"] = 60 * stride_list["speed_mps"] / stride_list["stride_length_m"]
+            turn_meta = datapoint.reference_parameters_relative_to_wb_.turn_parameters
+            if not turn_meta.empty and wb_id in turn_meta.index.get_level_values(0):
+                turn_list = turn_meta.loc[wb_id]
+            else:
+                turn_list = pd.DataFrame([])
+            sampling_rate_hz = datapoint.sampling_rate_hz
+            data_start = stride_list["start"].min()
+            data_end = stride_list["end"].max()
+            imu_data = to_body_frame(datapoint.data_ss.iloc[data_start:data_end])
 
-    with open(snapshot_file) as f:
-        expected = json.load(f)
+            result = MobilisedSDMO().calculate(
+                data=imu_data,
+                sampling_rate_hz=sampling_rate_hz,
+                stride_list=stride_list,
+                turn_list=turn_list,
+                replicate_matlab=replicate_matlab,
+            )
+            snapshot_name = f"{tuple(datapoint.group_label)!s}_wb{wb_id}_replicate_{replicate_matlab}"
+            snapshot.assert_match(result.signal_based_parameters_, name=snapshot_name)
 
-    result_series = pd.Series(result_dict)
-    expected_series = pd.Series(expected)
 
-    pd.testing.assert_series_equal(
-        result_series,
-        expected_series,
-        rtol=1e-5,
-        atol=1e-5,
-        check_dtype=False,
-    )
+class TestMobilisedSDMO:
+    def test_empty_calculators(self, example_walking_bout):
+        result = MobilisedSDMO(calculators=()).calculate(
+            data=None,
+            sampling_rate_hz=None,
+            stride_list=None,
+            turn_list=None,
+            replicate_matlab=True,
+        )
+        assert result.signal_based_parameters_.empty
 
-def test_mobilised_sdmo_runs_with_defaults(example_walking_bout):
-    data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-    sdmo = MobilisedSDMO()
-    result = sdmo.calculate(
-        data=data,
-        sampling_rate_hz=sampling_rate_hz,
-        stride_list=stride_list,
-        turn_list=turn_list,
-        replicate_matlab=True,
-    )
-    df = result.signal_based_parameters
-    assert df.shape[0] == 1
-    assert df.shape[1] > 0
+    def test_empty_turn_list(self, example_walking_bout):
+        data, stride_list, _, sampling_rate_hz = example_walking_bout
+        result = MobilisedSDMO(calculators=(("turn", TurnSDMO()),)).calculate(
+            data=data,
+            sampling_rate_hz=100.0,
+            stride_list=stride_list,
+            turn_list=pd.DataFrame([]),
+            replicate_matlab=True,
+        )
+        assert result.signal_based_parameters_.empty
 
-    expected_columns = [
-        "sample_entropy_acc_is",
-        "harmonic_ratio_acc_is",
-        "harmonic_ratio_acc_pa",
-        "sd_acc_is", "range_acc_is",
-        "jerk_acc_is", "jerk_acc_ml", "jerk_acc_pa",
-        "rms_acc_is", "rms_total_acc",
-        "step_regularity_is",
-        "amplitude_is",
-        "cv_stride_length_m",
-        "turn_mean_ang_vel",
-    ]
-    for col in expected_columns:
-        assert col in df.columns, f"Missing expected column: {col}"
-
-def test_mobilised_sdmo_with_custom_calculators(example_walking_bout):
-    data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-    custom = (
-        ("sample_entropy", SampleEntropy(acc_columns=["acc_ml"])),
-        ("regularity_symmetry", RegularitySymmetry()),
-        ("jerk", Jerk(gyr_columns=["gyr_is"])),
-    )
-    sdmo = MobilisedSDMO(calculators=custom)
-    result = sdmo.calculate(
-        data=data,
-        sampling_rate_hz=sampling_rate_hz,
-        stride_list=stride_list,
-        turn_list=turn_list,
-        replicate_matlab=False
-    )
-    df = result.signal_based_parameters
-    assert "sample_entropy_acc_ml" in df.columns
-    assert "step_regularity_is" in df.columns
-    assert "jerk_gyr_is" in df.columns
-    assert "jerk_gyr_ml" not in df.columns
-    assert "jerk_acc_is" not in df.columns
-
+    def test_empty_stride_list(self, example_walking_bout):
+        data, _, turn_list, sampling_rate_hz = example_walking_bout
+        result = MobilisedSDMO(calculators=(("harmonic_ratio", HarmonicRatio(acc_columns=["acc_is"])),)).calculate(
+            data=data,
+            sampling_rate_hz=100.0,
+            stride_list=pd.DataFrame([]),
+            turn_list=turn_list,
+            replicate_matlab=True,
+        )
+        assert result.signal_based_parameters_.empty

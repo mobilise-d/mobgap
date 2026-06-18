@@ -26,6 +26,7 @@ def _custom_quantile_10(x: pd.Series) -> float:
     return np.nanpercentile(x, 10)
 
 
+@base_aggregator_docfiller
 class SDMOAggregator(BaseAggregator):
     """Implementation of the aggregations used for the signal-based digital mobility outcomes.
 
@@ -66,7 +67,8 @@ class SDMOAggregator(BaseAggregator):
 
     Other Parameters
     ----------------
-    %(other_parameters)s
+    wb_sdmos
+        The SDMO data per walking bout passed to the ``aggregate`` method.
     wb_sdmos_mask
         A boolean DataFrame with the same shape the ``wb_sdmos`` indicating the validity of every measure.
         See ``MobilisedAggregator`` for more details.
@@ -76,15 +78,22 @@ class SDMOAggregator(BaseAggregator):
 
     Attributes
     ----------
-    %(aggregated_data_)s
+    aggregated_data_
+        A dataframe containing the aggregated results.
+        The index of the dataframe contains the ``groupby_columns``. Consequently, there is one row which
+        aggregation results for each group.
     filtered_wb_sdmos_
         An updated version of ``wb_sdmos`` with the implausible entries removed based on ``wb_sdmos_mask``.
         ``filtered_wb_sdmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
     """
 
     groupby: typing.Optional[typing.Sequence[str]]
+    unique_wb_id_column: str
     wb_sdmos_mask: pd.DataFrame
     filtered_wb_sdmos_: pd.DataFrame
+
+    # Other Parameters
+    wb_sdmos: pd.DataFrame
 
     class PredefinedParameters:
         cvs_sdmo_data: Final = MappingProxyType(
@@ -132,7 +141,7 @@ class SDMOAggregator(BaseAggregator):
         self.unique_wb_id_column = unique_wb_id_column
 
     @base_aggregator_docfiller
-    def aggregate(  # noqa: C901, PLR0912
+    def aggregate( # noqa: C901
         self,
         wb_sdmos: pd.DataFrame,
         *,
@@ -143,7 +152,12 @@ class SDMOAggregator(BaseAggregator):
 
         Parameters
         ----------
-        %(aggregate_para)s
+        wb_dmos
+            The SDMO data per walking bout.
+            This is a dataframe with one row for every walking bout and one column for every SDMO parameter.
+            This should further have relevant metadata (i.e. ``participant_id``, ``visit_date``, ``wb_id``) as columns
+            or indices.
+            The specific requirements depend on the aggregation algorithm.
         wb_sdmos_mask
             A boolean DataFrame with the same shape the ``wb_sdmos`` indicating the validity of every measure.
             If the DataFrame contains a ``NaN`` value, this is interpreted as ``True``, assuming no checks were applied
@@ -165,7 +179,7 @@ class SDMOAggregator(BaseAggregator):
 
         if not value_cols:
             warnings.warn(
-                f"No valid columns to aggregate found after excluding {exclude_cols}.",
+                "No valid columns to aggregate found in the passed dataframe.",
                 stacklevel=2,
             )
             self.aggregated_data_ = pd.DataFrame()
@@ -197,6 +211,11 @@ class SDMOAggregator(BaseAggregator):
                     "`wb_sdmos_mask` must have exactly the same indices as `wb_sdmos` after grouping."
                 )
 
+            wb_sdmos_mask = wb_sdmos_mask.reindex(data_correct_index.index)
+            # In case the wb_dmos_mask has columns that are not boolean, we set them to True implicitly
+            # Note, in columns with "Falsy" values (e.g. empty string) this might introduce some False values, but
+            # this shouldn't matter, as the potential additional columns will not be used in the aggregation anyway.
+            wb_sdmos_mask = wb_sdmos_mask.astype(bool)
             # We remove all individual elements from the data that are flagged as implausible in the data mask.
             self.filtered_wb_sdmos_ = data_correct_index.where(wb_sdmos_mask)
             # implausible bout duration
@@ -212,19 +231,7 @@ class SDMOAggregator(BaseAggregator):
 
         # select filters and aggregations
         # Resulting column names: f"{group_name}__{col}__{metric_name}" following the convention for the primary DMOs
-        filters_and_aggs = []
-        for group_name, (low, high) in self.duration_filters.items():
-            if low == 0 and np.isinf(high):
-                query = None
-            elif np.isinf(high):
-                query = f"{duration_col} >= {low}"
-            else:
-                query = f"{duration_col} >= {low} & {duration_col} < {high}"
-            agg_dict = {}
-            for col in value_cols:
-                for metric_name, func in self.metrics.items():
-                    agg_dict[f"{group_name}__{col}__{metric_name}"] = (col, func)
-            filters_and_aggs.append((query, agg_dict))
+        filters_and_aggs = self._select_filters_and_aggregations(value_cols)
 
         # apply aggregations
         aggregated_results = []
@@ -240,3 +247,42 @@ class SDMOAggregator(BaseAggregator):
             aggregated_results.append(grouped.agg(**agg))
         self.aggregated_data_ = pd.concat(aggregated_results, axis=1)
         return self
+
+    def _select_filters_and_aggregations(self, value_cols: list[str]) -> list[tuple[str, dict]]:
+        # for filt, aggs in self._FILTERS_AND_AGGS:
+        #     if all([filt is not None, "duration_s" not in data_columns]):
+        #         warnings.warn(
+        #             f"Filter '{filt}' for walking bout length cannot be applied, "
+        #             "because the data does not contain a 'duration_s' column.",
+        #             stacklevel=2,
+        #         )
+        #         continue
+        duration_col = "duration_s"
+        duration_filters = self.duration_filters
+        if duration_col not in self.wb_sdmos.columns and "all" not in self.duration_filters:
+            raise ValueError(
+                "the data does not contain 'duration_s' column AND no 'all' duration filter (using all walking bouts) "
+                "exists. This configuration is ambiguous and cannot be resolved."
+            )
+        elif duration_col not in self.wb_sdmos.columns and "all" in self.duration_filters:
+            warnings.warn(
+                "Filters based on walking bout duration cannot be applied, "
+                "because the data does not contain a 'duration_s' column.",
+                stacklevel=2,
+            )
+            duration_filters = {"all": self.duration_filters["all"]}
+
+        filters_and_aggs = []
+        for group_name, (low, high) in duration_filters.items():
+            if low == 0 and np.isinf(high):
+                query = None
+            elif np.isinf(high):
+                query = f"{duration_col} >= {low}"
+            else:
+                query = f"{duration_col} >= {low} & {duration_col} < {high}"
+            agg_dict = {}
+            for col in value_cols:
+                for metric_name, func in self.metrics.items():
+                    agg_dict[f"{group_name}__{col}__{metric_name}"] = (col, func)
+            filters_and_aggs.append((query, agg_dict))
+        return filters_and_aggs

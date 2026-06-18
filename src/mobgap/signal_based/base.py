@@ -7,11 +7,12 @@ from tpcp import Algorithm
 from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
+from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
 
 base_sdmo_docfiller = make_filldoc(
     {
-        "signal_based_parameters": """
-    signal_based_parameters
+        "signal_based_parameters_": """
+    signal_based_parameters_
         The main output of the signal-based digital mobility outcomes (SDMO) block as a DataFrame with a single row
         and multiple columns containing the implemented signal-based parameters.
         This is a single value per metric per data.
@@ -39,9 +40,11 @@ base_sdmo_docfiller = make_filldoc(
     Returns
     -------
     self
-        The instance of the class with the ``signal_based_parameters`` attribute set to the estimated parameters.
+        The instance of the class with the ``signal_based_parameters_`` attribute set to the estimated parameters.
     """,
     }
+    | timer_doc_filler._dict,
+    doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseSDMOCalculator`.",
 )
 
 
@@ -52,7 +55,7 @@ class BaseSDMOCalculator(Algorithm):
     This base class should be used for all SDMO calculation procedures/classes (currently one because all
     outcomes will be calculated together as there is no need for dividing them into groups).
     Algorithms should implement the ``calculate`` method.
-    The method should return the instance of the class with the ``signal_based_parameters`` attribute.
+    The method should return the instance of the class with the ``signal_based_parameters_`` attribute.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     We allow that subclasses specify further parameters for the calculate methods (hence, this baseclass supports
@@ -71,7 +74,7 @@ class BaseSDMOCalculator(Algorithm):
 
     Attributes
     ----------
-    %(signal_based_parameters)s
+    %(signal_based_parameters_)s
 
     Notes
     -----
@@ -81,13 +84,17 @@ class BaseSDMOCalculator(Algorithm):
 
     _action_methods = ("calculate",)
 
+    # Other Parameters
+    data: pd.DataFrame
+
     # results
-    signal_based_parameters: pd.DataFrame
+    signal_based_parameters_: pd.DataFrame
+
+    perf_: MeasureTimeResults
 
     @base_sdmo_docfiller
     def calculate(
         self,
-        *,
         data: pd.DataFrame,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
@@ -95,6 +102,8 @@ class BaseSDMOCalculator(Algorithm):
 
         Parameters
         ----------
+        %(data_param)s
+
         %(calculate_return)s
         """
         raise NotImplementedError
