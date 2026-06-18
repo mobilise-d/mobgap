@@ -36,12 +36,14 @@ data.head()
 # walking bouts from one participant, or over all walking bouts per participant and day, week, or other criteria.
 # The data is grouped using additional columns in the input data, which are not used for the aggregation itself.
 # In this example, the data is grouped by participant (`subject_code`) and day (`visit_date`).
-# Although default aggregations for the  :class:`.MobilisedPipeline` are provided, this class can be used to perform
-# any aggregations by providing the `duration_filters` (for walking bout duration filtering) and `metrics` (for
-# calculating statistics)
+# Although some aggregations (that are used in the  :class:`.MobilisedPipeline`) are provided as a default,
+# this class can be used to perform any aggregations by providing the `duration_filters`
+# (for walking bout duration filtering) and `metrics` (for calculating statistics)
 agg = SDMOAggregator(
     **dict(
         SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
     )
 )
 agg.aggregate(data)
+
+agg.aggregated_data_

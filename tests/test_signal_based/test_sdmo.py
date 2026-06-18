@@ -1,3 +1,10 @@
+import numpy as np
+import pandas as pd
+import pytest
+from tpcp.testing import TestAlgorithmMixin
+
+from mobgap.consts import BF_SENSOR_COLS
+from mobgap.data import LabExampleDataset
 from mobgap.signal_based import (
     RMS,
     FrequencyAmplitudeWidthSlope,
@@ -9,158 +16,213 @@ from mobgap.signal_based import (
     StrideLevelSDMO,
     TurnSDMO,
 )
-import numpy as np
-import pandas as pd
-import pytest
+from mobgap.utils.conversions import to_body_frame
 
 
 @pytest.fixture
-def sample_data() -> pd.DataFrame:
-    t = np.linspace(0, 10, 1000)
-    acc_is = 1.0 + 0.5 * np.sin(2 * np.pi * 1.0 * t)
-    acc_ml = 0.5 + 0.3 * np.sin(2 * np.pi * 2.0 * t)
-    acc_pa = -0.5 + 0.4 * np.cos(2 * np.pi * 1.5 * t)
-    gyr_is = 0.0 + 0.1 * np.sin(2 * np.pi * 0.8 * t)
-    gyr_ml = 0.0 + 0.2 * np.cos(2 * np.pi * 1.2 * t)
-    gyr_pa = 0.0 + 0.15 * np.sin(2 * np.pi * 0.9 * t)
-    return pd.DataFrame({
-        "acc_is": acc_is,
-        "acc_ml": acc_ml,
-        "acc_pa": acc_pa,
-        "gyr_is": gyr_is,
-        "gyr_ml": gyr_ml,
-        "gyr_pa": gyr_pa,
-    })
+def example_walking_bout():
+    data = LabExampleDataset(reference_system="INDIP").get_subset(test="Test11")[0]
+    wb_id = data.reference_parameters_relative_to_wb_.turn_parameters.index.get_level_values(0)[0]
+    turn_list = data.reference_parameters_relative_to_wb_.turn_parameters.loc[wb_id]
+    stride_list = data.reference_parameters_relative_to_wb_.stride_parameters.loc[wb_id].rename(
+        columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
+    )
+    stride_list["cadence_spm"] = 60 * stride_list["speed_mps"] / stride_list["stride_length_m"]
+    sampling_rate_hz = data.sampling_rate_hz
+    data_start = data.reference_parameters_.stride_parameters.loc[wb_id][["start", "end"]].min().min()
+    data_end = data.reference_parameters_.stride_parameters.loc[wb_id][["start", "end"]].max().max()
+    data = to_body_frame(data.data_ss.iloc[data_start:data_end])
+    return data, stride_list, turn_list, sampling_rate_hz
 
-@pytest.fixture
-def stride_list() -> pd.DataFrame:
-    return pd.DataFrame({
-        "start": [0, 200, 400, 600, 800],
-        "end": [199, 399, 599, 799, 999],
-        "stride_length_m": [1.2, 1.3, 1.1, 1.4, 1.2],
-        "cadence_spm": [110, 108, 112, 109, 111],
-        "stride_duration_s": [1.0, 0.98, 1.02, 0.99, 1.01],
-    })
 
-@pytest.fixture
-def turn_list() -> pd.DataFrame:
-    return pd.DataFrame({
-        "start": [50, 700],
-        "end": [150, 850],
-        "duration_s": [1.0, 1.5],
-    })
+class TestMetaTurnSDMO(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = TurnSDMO
 
-@pytest.fixture
-def example_walking_bout(sample_data, stride_list, turn_list):
-    return {
-        "data": sample_data,
-        "stride_list": stride_list,
-        "turn_list": turn_list,
-        "sampling_rate_hz": 100.0,
-    }
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS().calculate(data, sampling_rate_hz=sampling_rate_hz, turn_list=turn_list)
 
-class TestSampleEntropy:
-    def test_missing_columns_returns_self(self, sample_data):
-        algo = SampleEntropy(acc_columns=["acc_x"])
-        result = algo.calculate(sample_data)
+
+class TestMetaStrideLevelSDMO(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = StrideLevelSDMO
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(
+            stride_list_columns=["stride_length_m", "cadence_spm", "stride_duration_s"]
+        ).calculate(data, stride_list=stride_list)
+
+
+class TestMetaRMS(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = RMS
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS().calculate(data)
+
+
+class TestMetaRegularitySymmetry(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = RegularitySymmetry
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS().calculate(data, sampling_rate_hz=sampling_rate_hz, replicate_matlab=True)
+
+
+class TestMetaFrequencyAmplitudeWidthSlope(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = FrequencyAmplitudeWidthSlope
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(acc_columns=["acc_is", "acc_ml", "acc_pa"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
+
+
+class TestMetaSampleEntropy(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = SampleEntropy
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(acc_columns=["acc_is"]).calculate(data)
+
+
+class TestMetaHarmonicRatio(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = HarmonicRatio
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(acc_columns=["acc_is"]).calculate(
+            data, stride_list=stride_list, sampling_rate_hz=sampling_rate_hz
+        )
+
+
+class TestMetaSDRange(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = SDRange
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS().calculate(data)
+
+
+class TestMetaJerk(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = Jerk
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(
+            acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
+        ).calculate(data, sampling_rate_hz=sampling_rate_hz)
+
+
+class TestTurnSDMO:
+    def test_no_turns(self):
+        algo = TurnSDMO()
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(1000, 6), columns=BF_SENSOR_COLS),
+            sampling_rate_hz=100,
+            turn_list=pd.DataFrame([]),
+        )
         assert result is algo
-        assert result.signal_based_parameters.empty
+        assert result.signal_based_parameters_.empty
 
-    def test_insufficient_samples_returns_nan(self, sample_data):
-        # take only first 100 samples
-        data_small = sample_data.iloc[:100]
-        algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
-        result = algo.calculate(data_small)
-        df = result.signal_based_parameters
-        assert df.shape == (1, 1)
-        assert np.isnan(df.iloc[0, 0])
+    def test_pipe_data(self):
+        data = [[0, 20, 72, 0.51, -52.0, "right"]]
+        columns = ["turn_id", "start", "end", "duration_s", "angle_deg", "direction"]
+        turn_list = pd.DataFrame(data, columns=columns).set_index("turn_id")
+        algo = TurnSDMO()
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100, turn_list=turn_list
+        )
+        row = result.signal_based_parameters_.iloc[0]
+        assert not np.isnan(row["turn_mean_ang_vel"])
+        assert not np.isnan(row["turn_peak_ang_vel"])
+        assert row["turn_smoothness"] >= 0
+        assert 0 <= row["turn_dur_percentage_from_wb_dur"] <= 100
 
-    def test_sufficient_samples_returns_float(self, sample_data):
-        algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
-        result = algo.calculate(sample_data)
-        df = result.signal_based_parameters
-        assert df.shape == (1, 1)
-        val = df.iloc[0, 0]
-        assert isinstance(val, float) and not np.isnan(val) and val > 0
 
-class TestHarmonicRatio:
-    def test_insufficient_strides_returns_self(self, sample_data, stride_list):
-        sl = stride_list.iloc[:2]
-        algo = HarmonicRatio(acc_columns=["acc_is"])
-        result = algo.calculate(sample_data, stride_list=sl, sampling_rate_hz=100)
-        assert result.signal_based_parameters.empty
+class TestStrideLevelSDMO:
+    def test_no_columns(self):
+        algo = StrideLevelSDMO(stride_list_columns=None)
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(1000, 6), columns=BF_SENSOR_COLS), stride_list=pd.DataFrame([0, 101, 1.0])
+        )
+        assert result is algo
+        assert result.signal_based_parameters_.empty
 
-    def test_sufficient_strides_returns_float(self, sample_data, stride_list):
-        algo = HarmonicRatio(acc_columns=["acc_is"])
-        result = algo.calculate(sample_data, stride_list=stride_list, sampling_rate_hz=100)
-        df = result.signal_based_parameters
-        assert df.shape == (1, 1)
-        val = df.iloc[0, 0]
-        assert isinstance(val, float) and not np.isnan(val)
+    def test_missing_columns_warns(self):
+        stride_list = pd.DataFrame([[0, 91, 0.9]], columns=["start", "end", "stride_duration_s"])
+        algo = StrideLevelSDMO(stride_list_columns=["non_existent"])
+        with pytest.warns(UserWarning, match="None of .* is available"):
+            result = algo.calculate(
+                pd.DataFrame(np.random.randn(1000, 6), columns=BF_SENSOR_COLS), stride_list=stride_list
+            )
+        assert result.signal_based_parameters_.empty
 
-class TestSDRange:
-    def test_output_has_correct_columns(self, sample_data):
-        algo = SDRange()
-        result = algo.calculate(sample_data)
-        df = result.signal_based_parameters
-        expected_cols = [f"sd_{c}" for c in sample_data.columns] + \
-                        [f"range_{c}" for c in sample_data.columns if "acc" in c]
-        assert set(df.columns) == set(expected_cols)
-        assert df.shape == (1, len(expected_cols))
+    def test_pipe_data(self):
+        algo = StrideLevelSDMO(stride_list_columns=["stride_length_m", "cadence_spm", "stride_duration_s"])
+        stride_list = pd.DataFrame(
+            {
+                "start": [0, 54],
+                "end": [91, 185],
+                "stride_duration_s": [0.9, 1.3],
+                "stride_length_m": [1.2, 1.1],
+                "speed_mps": [1.3, 0.8],
+                "stance_time_s": [0.6, 0.9],
+                "swing_time_s": [0.3, 0.4],
+                "lr_label": ["left", "right"],
+                "cadence_spm": [45, 35],
+            }
+        )
+        result = algo.calculate(pd.DataFrame(np.random.randn(200, 6), columns=BF_SENSOR_COLS), stride_list=stride_list)
+        for col in ["cv_stride_length_m", "cv_cadence_spm", "cv_stride_duration_s"]:
+            assert result.signal_based_parameters_.iloc[0][col] > 0
 
-class TestJerk:
-    def test_requires_acc_columns(self, sample_data):
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(sample_data, sampling_rate_hz=100)
-        df = result.signal_based_parameters
-        expected = [f"jerk_{col}" for col in algo.acc_columns] + [f"jerk_{col}" for col in algo.gyr_columns]
-        assert set(df.columns) == set(expected)
-        assert all(not np.isnan(v) and v > 0 for v in df.iloc[0])
-
-    def test_missing_gyr_columns_ignores(self, sample_data):
-        # Remove gyr columns
-        data_no_gyr = sample_data.drop(columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(data_no_gyr, sampling_rate_hz=100)
-        df = result.signal_based_parameters
-        expected = [f"jerk_{col}" for col in algo.acc_columns]
-        assert set(df.columns) == set(expected)
 
 class TestRMS:
     def test_no_acc_columns_returns_self(self):
-        data = pd.DataFrame({
-            "gyr_is": np.random.randn(100),
-            "gyr_ml": np.random.randn(100),
-        })
         algo = RMS()
-        result = algo.calculate(data)
+        result = algo.calculate(pd.DataFrame(np.ones((100, 2)), columns=["gyr_is", "gyr_ml"]))
         assert result is algo
-        assert result.signal_based_parameters.empty
+        assert result.signal_based_parameters_.empty
 
     def test_constant_signal(self):
-        data = pd.DataFrame({
-            "acc_is": 2.0 * np.ones(100),
-            "acc_ml": 3.0 * np.ones(100),
-            "acc_pa": 4.0 * np.ones(100),
-        })
         algo = RMS()
-        result = algo.calculate(data)
-        df = result.signal_based_parameters
+        result = algo.calculate(pd.DataFrame(np.ones((100, 6)), columns=BF_SENSOR_COLS))
+        df = result.signal_based_parameters_
 
         for col in ["rms_acc_is", "rms_acc_ml", "rms_acc_pa"]:
             assert df[col].iloc[0] == pytest.approx(0.0, abs=1e-12)
-
-        assert df["rms_total_acc"].iloc[0] == pytest.approx(0.0, abs=1e-12)
+        for col in ["rms_gyr_is", "rms_gyr_ml", "rms_gyr_pa"]:
+            assert df[col].iloc[0] == pytest.approx(1.0, abs=1e-12)
 
     def test_signal_with_dc_offset(self):
-        t = np.linspace(0, 1, 1000)
+        t = np.linspace(0, 1, 200)
         A = 2.0
         dc = 5.0
         signal = dc + A * np.sin(2 * np.pi * 5 * t)
         data = pd.DataFrame({"acc_is": signal})
         algo = RMS()
         result = algo.calculate(data)
-        df = result.signal_based_parameters
+        df = result.signal_based_parameters_
 
         expected = A / np.sqrt(2)
         assert df["rms_acc_is"].iloc[0] == pytest.approx(expected, rel=1e-1)
@@ -168,46 +230,47 @@ class TestRMS:
         assert df["rms_ratio_acc_is"].iloc[0] == pytest.approx(1.0, rel=1e-2)
 
 
-class TestFrequencyAmplitudeWidthSlope:
-    def test_pipe_data(self, sample_data):
-        algo = FrequencyAmplitudeWidthSlope(acc_columns=["acc_is", "acc_ml", "acc_pa"])
-        result = algo.calculate(sample_data, sampling_rate_hz=100)
-        df = result.signal_based_parameters
-        expected_cols = ["amplitude_is", "amplitude_ml", "amplitude_pa",
-                         "freq_is", "freq_ml", "freq_pa",
-                         "width_is", "width_ml", "width_pa"]
-        assert set(df.columns) == set(expected_cols)
-        assert not df.isnull().all().all()
-
 class TestRegularitySymmetry:
-    def test_missing_columns_returns_self(self, sample_data):
-        data_missing = sample_data[["acc_is"]]
+    def test_missing_columns_returns_self(self):
+        data_missing = pd.DataFrame({"acc_is": np.random.randn(100)})
         algo = RegularitySymmetry()
         result = algo.calculate(data_missing, sampling_rate_hz=100, replicate_matlab=False)
         assert result is algo
-        assert result.signal_based_parameters.empty
+        assert result.signal_based_parameters_.empty
 
-    def test_pipe_data(self, sample_data):
+    def test_pipe_data(self):
         algo = RegularitySymmetry()
-        result = algo.calculate(sample_data, sampling_rate_hz=100, replicate_matlab=False)
-        df = result.signal_based_parameters
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(200, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100, replicate_matlab=False
+        )
+        df = result.signal_based_parameters_
 
         expected = [
-            "step_regularity_is", "stride_regularity_is",
-            "asymmetry_mn_is", "symmetry_k_is", "asymmetry_g_is",
-            "step_regularity_ml", "stride_regularity_ml",
-            "step_regularity_pa", "stride_regularity_pa",
+            "step_regularity_is",
+            "stride_regularity_is",
+            "asymmetry_mn_is",
+            "symmetry_k_is",
+            "asymmetry_g_is",
+            "step_regularity_ml",
+            "stride_regularity_ml",
+            "step_regularity_pa",
+            "stride_regularity_pa",
         ]
         assert set(df.columns) == set(expected)
 
         row = df.iloc[0]
 
-        for col in ["step_regularity_is", "stride_regularity_is",
-                    "step_regularity_ml", "stride_regularity_ml",
-                    "step_regularity_pa", "stride_regularity_pa"]:
+        for col in [
+            "step_regularity_is",
+            "stride_regularity_is",
+            "step_regularity_ml",
+            "stride_regularity_ml",
+            "step_regularity_pa",
+            "stride_regularity_pa",
+        ]:
             val = row[col]
             assert not np.isnan(val), f"{col} is NaN"
-            assert 0 <= val <= 1.03, f"{col} = {val} outside [0, 1.01]"
+            assert 0 <= val <= 1.0, f"{col} = {val} outside [0, 1.0]"
 
         assert not np.isnan(row["asymmetry_mn_is"])
         assert row["asymmetry_mn_is"] >= 0
@@ -217,45 +280,120 @@ class TestRegularitySymmetry:
 
         assert not np.isnan(row["asymmetry_g_is"])
 
-class TestStrideLevelSDMO:
-    def test_no_columns_returns_self(self, sample_data, stride_list):
-        algo = StrideLevelSDMO(stride_list_columns=None)
-        result = algo.calculate(sample_data, stride_list=stride_list)
+
+class TestFrequencyAmplitudeWidthSlope:
+    def test_pipe_data(self):
+        algo = FrequencyAmplitudeWidthSlope(acc_columns=["acc_is", "acc_ml", "acc_pa"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(200, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
+        df = result.signal_based_parameters_
+        expected_cols = [
+            "amplitude_is",
+            "amplitude_ml",
+            "amplitude_pa",
+            "freq_is",
+            "freq_ml",
+            "freq_pa",
+            "width_is",
+            "width_ml",
+            "width_pa",
+        ]
+        assert set(df.columns) == set(expected_cols)
+        assert not df.isnull().all().all()
+
+
+class TestSampleEntropy:
+    def test_missing_columns_returns_self(self):
+        algo = SampleEntropy(acc_columns=["acc_x"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS))
         assert result is algo
-        assert result.signal_based_parameters.empty
+        assert result.signal_based_parameters_.empty
 
-    def test_missing_columns_warns(self, sample_data, stride_list):
-        algo = StrideLevelSDMO(stride_list_columns=["non_existent"])
-        with pytest.warns(UserWarning, match="None of .* is available"):
-            result = algo.calculate(sample_data, stride_list=stride_list)
-        assert result.signal_based_parameters.empty
+    def test_insufficient_samples_returns_nan(self):
+        algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
+        result = algo.calculate(pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS))
+        df = result.signal_based_parameters_
+        assert df.shape == (1, 1)
+        assert np.isnan(df.iloc[0, 0])
 
-    def test_pipe_data(self, sample_data, stride_list):
-        algo = StrideLevelSDMO(stride_list_columns=["stride_length_m", "cadence_spm", "stride_duration_s"])
-        result = algo.calculate(sample_data, stride_list=stride_list)
-        df = result.signal_based_parameters
-        expected = ["cv_stride_length_m", "cv_cadence_spm", "cv_stride_duration_s"]
+    def test_sufficient_samples_returns_float(self):
+        algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
+        result = algo.calculate(pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS))
+        df = result.signal_based_parameters_
+        assert df.shape == (1, 1)
+        val = df.iloc[0, 0]
+        assert isinstance(val, float) and not np.isnan(val) and val > 0
+
+
+class TestHarmonicRatio:
+    def test_insufficient_strides_returns_self(self):
+        stride_list = pd.DataFrame(
+            {
+                "start": [0, 60],
+                "end": [101, 211],
+                "stride_duration_s": [1.0, 1.5],
+                "stride_length_m": [0.9, 1.1],
+                "speed_mps": [0.8, 0.6],
+                "stance_time_s": [0.8, 0.9],
+                "swing_time_s": [0.2, 0.6],
+                "lr_label": ["left", "right"],
+                "cadence_spm": [45, 35],
+            }
+        )
+        algo = HarmonicRatio(acc_columns=["acc_is"])
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(250, 6), columns=BF_SENSOR_COLS), stride_list=stride_list, sampling_rate_hz=100
+        )
+        assert result.signal_based_parameters_.empty
+
+    def test_sufficient_strides_returns_float(self):
+        stride_list = pd.DataFrame(
+            {
+                "start": [0, 60, 120],
+                "end": [101, 211, 281],
+                "stride_duration_s": [1.0, 1.5, 1.6],
+                "stride_length_m": [0.9, 1.1, 1.0],
+                "speed_mps": [0.8, 0.6, 0.7],
+                "stance_time_s": [0.8, 0.9, 0.9],
+                "swing_time_s": [0.2, 0.6, 0.7],
+                "lr_label": ["left", "right", "left"],
+                "cadence_spm": [45, 35, 50],
+            }
+        )
+        algo = HarmonicRatio(acc_columns=["acc_is"])
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), stride_list=stride_list, sampling_rate_hz=100
+        )
+        df = result.signal_based_parameters_
+        assert df.shape == (1, 1)
+        val = df.iloc[0, 0]
+        assert isinstance(val, float) and not np.isnan(val)
+
+
+class TestSDRange:
+    def test_output_has_correct_columns(self):
+        algo = SDRange()
+        data = pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS)
+        result = algo.calculate(data)
+        df = result.signal_based_parameters_
+        expected_cols = [f"sd_{c}" for c in data.columns] + [f"range_{c}" for c in data.columns if "acc" in c]
+        assert set(df.columns) == set(expected_cols)
+        assert df.shape == (1, len(expected_cols))
+
+
+class TestJerk:
+    def test_requires_acc_columns(self):
+        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
+        df = result.signal_based_parameters_
+        expected = [f"jerk_{col}" for col in algo.acc_columns] + [f"jerk_{col}" for col in algo.gyr_columns]
         assert set(df.columns) == set(expected)
-        for col in expected:
-            assert df.iloc[0][col] > 0
+        assert all(not np.isnan(v) and v > 0 for v in df.iloc[0])
 
-class TestTurnSDMO:
-    def test_no_turns_returns_self(self, sample_data, turn_list):
-        turn_list_empty = pd.DataFrame(columns=["start", "end", "duration_s"])
-        algo = TurnSDMO()
-        result = algo.calculate(sample_data, sampling_rate_hz=100, turn_list=turn_list_empty)
-        assert result is algo
-        assert result.signal_based_parameters.empty
-
-    def test_pipe_data(self, sample_data, turn_list):
-        algo = TurnSDMO()
-        result = algo.calculate(sample_data, sampling_rate_hz=100, turn_list=turn_list)
-        df = result.signal_based_parameters
-        expected = ["turn_mean_ang_vel", "turn_peak_ang_vel", "turn_smoothness", "turn_dur_percentage_from_wb_dur"]
+    def test_missing_gyr_columns_ignores(self):
+        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(300, 3), columns=["acc_is", "acc_ml", "acc_pa"]), sampling_rate_hz=100
+        )
+        df = result.signal_based_parameters_
+        expected = [f"jerk_{col}" for col in algo.acc_columns]
         assert set(df.columns) == set(expected)
-
-        row = df.iloc[0]
-        assert not np.isnan(row["turn_mean_ang_vel"])
-        assert not np.isnan(row["turn_peak_ang_vel"])
-        assert row["turn_smoothness"] >= 0
-        assert 0 <= row["turn_dur_percentage_from_wb_dur"] <= 100

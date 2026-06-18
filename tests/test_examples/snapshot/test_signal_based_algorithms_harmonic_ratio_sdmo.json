@@ -1,0 +1,29 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"index",
+                "type":"integer"
+            },
+            {
+                "name":"harmonic_ratio_acc_is",
+                "type":"number"
+            },
+            {
+                "name":"harmonic_ratio_acc_pa",
+                "type":"number"
+            }
+        ],
+        "primaryKey":[
+            "index"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "index":0,
+            "harmonic_ratio_acc_is":3.330463009,
+            "harmonic_ratio_acc_pa":2.7915306502
+        }
+    ]
+}
