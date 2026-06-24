@@ -96,6 +96,17 @@ MS Project Dataset
 
     MsProjectDataset
 
+SUSTAIN Wear-Time Dataset
+-------------------------
+
+.. currentmodule:: mobgap.data
+
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    SustainWearTimeDataset
+
 
 Base Classes
 ++++++++++++

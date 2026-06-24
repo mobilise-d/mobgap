@@ -2135,6 +2135,9 @@ dependencies = [
 ax6 = [
     { name = "cwa-reader-rs", marker = "python_full_version >= '3.10'" },
 ]
+weartime = [
+    { name = "cwa-reader-rs", marker = "python_full_version >= '3.10'" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -2196,6 +2199,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "cwa-reader-rs", marker = "python_full_version >= '3.10' and extra == 'ax6'", specifier = ">=0.2.0,<0.3" },
+    { name = "cwa-reader-rs", marker = "python_full_version >= '3.10' and extra == 'weartime'", specifier = ">=0.2.0,<0.3" },
     { name = "intervaltree", specifier = ">=3.1.0" },
     { name = "joblib", specifier = ">=1.3.2" },
     { name = "numba", specifier = ">=0.60.0" },
@@ -2212,7 +2216,7 @@ requires-dist = [
     { name = "statsmodels", specifier = ">=0.14.3" },
     { name = "tpcp", specifier = ">=2.3.0" },
 ]
-provides-extras = ["ax6"]
+provides-extras = ["ax6", "weartime"]
 
 [package.metadata.requires-dev]
 dev = [
