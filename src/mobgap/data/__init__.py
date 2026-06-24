@@ -31,6 +31,7 @@ from mobgap.data.ax6 import (
     split_by_utc_day,
     split_by_utc_hour,
 )
+from mobgap.data._sustain_weartime_dataset import SustainWearTimeDataset
 
 __all__ = [
     "AX6Dataset",
@@ -46,6 +47,7 @@ __all__ = [
     "MobilisedParticipantMetadata",
     "MobilisedTestData",
     "MsProjectDataset",
+    "SustainWearTimeDataset",
     "TVSFreeLivingDataset",
     "TVSLabDataset",
     "get_all_lab_example_data_paths",
