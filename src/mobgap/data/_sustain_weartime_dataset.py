@@ -17,43 +17,62 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 try:
-    from cwa_reader_rs import read_cwa_file, read_header
+    from cwa_reader_rs import read_cwa_file, read_header, sampling_consistency_report
 except ImportError:
     read_cwa_file = None
     read_header = None
+    sampling_consistency_report = None
 
 PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
+AdditionalCwaChannel = Literal["temperature", "light", "battery"]
 
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
+ADDITIONAL_CWA_CHANNELS: tuple[AdditionalCwaChannel, ...] = ("temperature", "light", "battery")
+ADDITIONAL_CWA_OUTPUT_COLUMNS: dict[AdditionalCwaChannel, tuple[str, ...]] = {
+    "temperature": ("temperature",),
+    "light": ("light",),
+    "battery": ("battery",),
+}
+DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
+SAMPLING_RATE_DEVIATION_WARNING = (
+    "The expected number of samples/the effective sampling rate waries considerable from the expected values. "
+    "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
+    "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
+)
+CWA_READER_IMPORT_ERROR = (
+    "The optional dependency `cwa_reader_rs` is required to load SUSTAIN wear-time CWA files. "
+    "Install MobGap with the optional wear-time dependencies before using `SustainWearTimeDataset`."
+)
 
 
 class _CwaRecording(NamedTuple):
     data: pd.DataFrame
     sampling_rate_hz: float
     metadata: dict[str, Any]
+    timing_report: dict[str, Any]
 
 
-def _normalize_sensor_position(sensor_position: str) -> str:
-    normalized = sensor_position.lower().replace("_", "").replace("-", "").replace(" ", "")
-    if normalized in {"lowerback", "lowback", "lb"}:
-        return "lowerback"
-    if normalized in {"wrist", "wr"}:
-        return "wrist"
-    return normalized
+def _is_lowerback_name(name: str) -> bool:
+    normalized = name.lower().replace("_", "").replace("-", "").replace(" ", "")
+    return "lowerback" in normalized or "lowback" in normalized
 
 
-def _sensor_position_from_file_name(file_path: Path) -> str:
-    file_name = file_path.name.lower()
-    for sensor_position in ("lowerback", "lowback", "lb", "wrist", "wr"):
-        if sensor_position in file_name:
-            return _normalize_sensor_position(sensor_position)
-    raise ValueError(f"Could not infer the sensor position from the file name: {file_path.name}.")
+def _normalize_additional_channels(
+    additional_channels: Sequence[AdditionalCwaChannel],
+) -> tuple[AdditionalCwaChannel, ...]:
+    unique_channels = tuple(dict.fromkeys(additional_channels))
+    unknown_channels = set(unique_channels) - set(ADDITIONAL_CWA_CHANNELS)
+    if unknown_channels:
+        raise ValueError(
+            "Unknown additional CWA channels. "
+            f"Unknown: {sorted(unknown_channels)}. Available: {list(ADDITIONAL_CWA_CHANNELS)}."
+        )
+    return unique_channels
 
 
-def _data_key_from_sensor_position(sensor_position: str) -> str:
-    mapping = {"lowerback": "LowerBack", "wrist": "Wrist"}
-    return mapping.get(sensor_position, sensor_position)
+def _available_additional_channels() -> tuple[AdditionalCwaChannel, ...]:
+    return ADDITIONAL_CWA_CHANNELS
 
 
 def _as_utc_timestamp(timestamp: Any) -> pd.Timestamp:
@@ -70,7 +89,7 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
 
     reference = pd.read_json(reference_path, lines=True, dtype={"id": "string", "sensor": "string"})
     if reference.empty:
-        return pd.DataFrame(columns=["participant_id", "sensor_position", "device_off", "device_on", "wear_status"])
+        return pd.DataFrame(columns=["participant_id", "device_off", "device_on", "wear_status"])
 
     required_columns = {"id", "sensor", "device_off", "device_on", "wear_status"}
     missing_columns = required_columns - set(reference.columns)
@@ -79,44 +98,76 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
             f"The SUSTAIN wear-time reference file is missing the following columns: {sorted(missing_columns)}."
         )
 
-    return (
+    reference = (
         reference.assign(
             participant_id=lambda df_: df_["id"].astype("string").str.zfill(3),
-            sensor_position=lambda df_: df_["sensor"].map(_normalize_sensor_position).astype("string"),
-            device_off=lambda df_: pd.to_datetime(df_["device_off"], errors="coerce", utc=True),
-            device_on=lambda df_: pd.to_datetime(df_["device_on"], errors="coerce", utc=True),
+            is_lowerback=lambda df_: df_["sensor"].map(_is_lowerback_name),
+            device_off=lambda df_: pd.to_datetime(df_["device_off"], errors="raise", utc=True),
+            device_on=lambda df_: pd.to_datetime(df_["device_on"], errors="raise", utc=True),
             wear_status=lambda df_: df_["wear_status"].astype("string"),
         )
-        .drop(columns=["id", "sensor"])
-        .sort_values(["participant_id", "sensor_position", "device_off", "device_on"], ignore_index=True)
+        .loc[lambda df_: df_["is_lowerback"]]
+        .drop(columns=["id", "sensor", "is_lowerback"])
     )
+
+    invalid_timestamp_rows = reference[["device_off", "device_on"]].isna().any(axis=1)
+    if invalid_timestamp_rows.any():
+        raise ValueError(
+            "The SUSTAIN wear-time reference file contains missing `device_off` or `device_on` timestamps for "
+            "lower-back rows."
+        )
+
+    return reference.sort_values(["participant_id", "device_off", "device_on"], ignore_index=True)
 
 
 def _read_cwa_header(file_path: PathLike) -> dict[str, Any]:
     if read_header is None:
-        raise ImportError(
-            "The optional dependency `cwa_reader_rs` is required to load SUSTAIN wear-time CWA files. "
-            "Install it with `uv sync --extra weartime`."
-        )
+        raise ImportError(CWA_READER_IMPORT_ERROR)
 
     return dict(read_header(str(file_path)))
 
 
-def _read_cwa_recording(file_path: PathLike) -> _CwaRecording:
-    if read_cwa_file is None:
-        raise ImportError(
-            "The optional dependency `cwa_reader_rs` is required to load SUSTAIN wear-time CWA files. "
-            "Install it with `uv sync --extra weartime`."
-        )
+def _read_cwa_timing_report(file_path: PathLike) -> dict[str, Any]:
+    if sampling_consistency_report is None:
+        raise ImportError(CWA_READER_IMPORT_ERROR)
 
+    return dict(sampling_consistency_report(str(file_path)))
+
+
+def _warn_if_effective_sampling_rate_deviates(
+    timing_report: dict[str, Any],
+    threshold_hz: float | None,
+) -> None:
+    if threshold_hz is None:
+        return
+    expected_sampling_rate_hz = timing_report.get("samplingrate_hz_from_header")
+    effective_sampling_rate_hz = timing_report.get("samplingrate_hz_from_data")
+    if expected_sampling_rate_hz is None or effective_sampling_rate_hz is None:
+        return
+    if abs(float(effective_sampling_rate_hz) - float(expected_sampling_rate_hz)) > threshold_hz:
+        warnings.warn(SAMPLING_RATE_DEVIATION_WARNING, stacklevel=2)
+
+
+def _read_cwa_recording(
+    file_path: PathLike,
+    additional_channels: Sequence[AdditionalCwaChannel],
+    timing_report: dict[str, Any],
+) -> _CwaRecording:
+    if read_cwa_file is None:
+        raise ImportError(CWA_READER_IMPORT_ERROR)
+
+    additional_channels = _normalize_additional_channels(additional_channels)
     metadata = _read_cwa_header(file_path)
+    sampling_rate_hz = float(timing_report.get("samplingrate_hz_from_header") or metadata["sample_rate_hz"])
     raw_data = pd.DataFrame(
         read_cwa_file(
             str(file_path),
             include_magnetometer=False,
-            include_temperature=True,
-            include_light=False,
-            include_battery=False,
+            include_temperature="temperature" in additional_channels,
+            include_light="light" in additional_channels,
+            include_battery="battery" in additional_channels,
+            resample_hz=sampling_rate_hz,
+            resample_method="cubic",
         )
     )
 
@@ -134,14 +185,28 @@ def _read_cwa_recording(file_path: PathLike) -> _CwaRecording:
             f"Missing columns: {sorted(missing_sensor_columns)}."
         )
 
-    output_columns = [*SF_SENSOR_COLS, *(["temperature"] if "temperature" in data.columns else [])]
+    additional_output_columns = [
+        column
+        for channel in ADDITIONAL_CWA_CHANNELS
+        if channel in additional_channels
+        for column in ADDITIONAL_CWA_OUTPUT_COLUMNS[channel]
+    ]
+    missing_additional_columns = set(additional_output_columns) - set(data.columns)
+    if missing_additional_columns:
+        raise ValueError(
+            "The CWA reader did not return all requested additional channel columns. "
+            f"Missing columns: {sorted(missing_additional_columns)}."
+        )
+
+    output_columns = [*SF_SENSOR_COLS, *additional_output_columns]
     data = data[output_columns].copy()
     data[SF_ACC_COLS] *= GRAV_MS2
 
     return _CwaRecording(
         data=data,
-        sampling_rate_hz=float(metadata["sample_rate_hz"]),
+        sampling_rate_hz=sampling_rate_hz,
         metadata=metadata,
+        timing_report=timing_report,
     )
 
 
@@ -253,17 +318,15 @@ class SustainWearTimeDataset(BaseGaitDataset):
     ----------
     base_path
         The root folder containing ``weartime_part_a_all`` and ``weartime_part_b``.
-    human_movement_path
-        Optional override for the folder containing the part A recordings.
-    simulated_movements_path
-        Optional override for the folder containing the part B recordings.
-    reference_path
-        Optional override for the part A JSON-lines reference file.
-    sensor_positions
-        Optional list of sensor positions to include. Values are normalized to the reference-file naming convention,
-        e.g. ``"lowerback"``.
+    additional_channels
+        Additional CWA channels to append to the core accelerometer and gyroscope data. Potential channels are
+        ``"temperature"``, ``"light"`` and ``"battery"``. The dataset validates that the selected recording actually
+        contains each requested channel.
     missing_reference_error_type
         How to handle missing part A reference rows for a selected recording.
+    warn_thres_for_sampling_rate_deviations_hz
+        Threshold in Hz used to warn when the effective sampling rate differs from the expected sampling rate. Set to
+        ``None`` to disable the warning.
     memory
         A joblib memory object used to cache CWA header, CWA data, and reference file loading.
     groupby_cols
@@ -279,6 +342,12 @@ class SustainWearTimeDataset(BaseGaitDataset):
         The raw IMU data of the selected recording in sensor frame.
     sampling_rate_hz
         The sampling rate of the selected CWA recording.
+    cwa_header_
+        The full CWA header of the selected recording as returned by ``cwa_reader_rs``.
+    cwa_timing_report_
+        The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
+    available_additional_channels_
+        Additional CWA channels available for the selected recording.
     reference_nonwear_
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
@@ -287,58 +356,44 @@ class SustainWearTimeDataset(BaseGaitDataset):
     """
 
     base_path: PathLike
-    human_movement_path: PathLike | None
-    simulated_movements_path: PathLike | None
-    reference_path: PathLike | None
-    sensor_positions: Sequence[str] | None
+    additional_channels: Sequence[AdditionalCwaChannel]
     missing_reference_error_type: MissingReferenceErrorType
+    warn_thres_for_sampling_rate_deviations_hz: float | None
     memory: joblib.Memory
 
     def __init__(
         self,
         base_path: PathLike,
         *,
-        human_movement_path: PathLike | None = None,
-        simulated_movements_path: PathLike | None = None,
-        reference_path: PathLike | None = None,
-        sensor_positions: Sequence[str] | None = None,
+        additional_channels: Sequence[AdditionalCwaChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
+        warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
         subset_index: pd.DataFrame | None = None,
     ) -> None:
         self.base_path = base_path
-        self.human_movement_path = human_movement_path
-        self.simulated_movements_path = simulated_movements_path
-        self.reference_path = reference_path
-        self.sensor_positions = sensor_positions
+        self.additional_channels = additional_channels
         self.missing_reference_error_type = missing_reference_error_type
+        self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
         self.memory = memory
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
     @property
     def _human_movement_path(self) -> Path:
-        return (
-            Path(self.human_movement_path)
-            if self.human_movement_path is not None
-            else Path(self.base_path) / ("weartime_part_a_all")
-        )
+        return Path(self.base_path) / "weartime_part_a_all"
 
     @property
     def _simulated_movements_path(self) -> Path:
-        return (
-            Path(self.simulated_movements_path)
-            if self.simulated_movements_path is not None
-            else Path(self.base_path) / "weartime_part_b"
-        )
+        return Path(self.base_path) / "weartime_part_b"
 
     @property
     def _reference_path(self) -> Path:
-        return (
-            Path(self.reference_path)
-            if self.reference_path is not None
-            else self._human_movement_path / "reference.json"
-        )
+        return self._human_movement_path / "reference.json"
+
+    @property
+    def _additional_channels(self) -> tuple[AdditionalCwaChannel, ...]:
+        return _normalize_additional_channels(self.additional_channels)
 
     @property
     def selected_data_file(self) -> Path:
@@ -348,7 +403,6 @@ class SustainWearTimeDataset(BaseGaitDataset):
         matches = file_index[
             (file_index["recording_type"] == row["recording_type"])
             & (file_index["participant_id"] == row["participant_id"])
-            & (file_index["sensor_position"] == row["sensor_position"])
             & (file_index["recording_id"] == row["recording_id"])
         ]
         if len(matches) != 1:
@@ -358,32 +412,50 @@ class SustainWearTimeDataset(BaseGaitDataset):
     @property
     def data(self) -> IMU_DATA_DTYPE:
         self.assert_is_single(None, "data")
-        return {_data_key_from_sensor_position(self.group_label.sensor_position): self.data_ss}
+        return {"LowerBack": self.data_ss}
 
     @property
     def data_ss(self) -> pd.DataFrame:
         self.assert_is_single(None, "data_ss")
-        return self._cached_load_cwa_recording(self.selected_data_file).data
+        additional_channels = self._additional_channels
+        timing_report = self.cwa_timing_report_
+        _warn_if_effective_sampling_rate_deviates(timing_report, self.warn_thres_for_sampling_rate_deviations_hz)
+        return self._cached_load_cwa_recording(self.selected_data_file, additional_channels, timing_report).data
 
     @property
     def sampling_rate_hz(self) -> float:
         self.assert_is_single(None, "sampling_rate_hz")
-        return float(self._cached_load_cwa_header(self.selected_data_file)["sample_rate_hz"])
+        return float(self.cwa_header_["sample_rate_hz"])
+
+    @property
+    def cwa_header_(self) -> dict[str, Any]:
+        self.assert_is_single(None, "cwa_header_")
+        return dict(self._cached_load_cwa_header(self.selected_data_file))
+
+    @property
+    def cwa_timing_report_(self) -> dict[str, Any]:
+        self.assert_is_single(None, "cwa_timing_report_")
+        return dict(self._cached_load_cwa_timing_report(self.selected_data_file))
+
+    @property
+    def available_additional_channels_(self) -> tuple[AdditionalCwaChannel, ...]:
+        self.assert_is_single(None, "available_additional_channels_")
+        return _available_additional_channels()
 
     @property
     def recording_metadata(self) -> RecordingMetadata:
         self.assert_is_single(None, "recording_metadata")
-        metadata = self._cached_load_cwa_header(self.selected_data_file)
+        metadata = self.cwa_header_
         return {
             "measurement_condition": "laboratory",
             "recording_id": self.group_label.recording_id,
             "recording_type": self.group_label.recording_type,
-            "sensor_position": self.group_label.sensor_position,
             "file_name": self.selected_data_file.name,
             "hardware_type": metadata.get("hardware_type"),
             "device_id": metadata.get("device_id"),
             "logging_start_time": metadata.get("logging_start_time"),
             "logging_end_time": metadata.get("logging_end_time"),
+            "cwa_header": metadata,
         }
 
     @property
@@ -441,8 +513,16 @@ class SustainWearTimeDataset(BaseGaitDataset):
     def _cached_load_cwa_header(self, file_path: PathLike) -> dict[str, Any]:
         return hybrid_cache(self.memory, 1)(_read_cwa_header)(file_path)
 
-    def _cached_load_cwa_recording(self, file_path: PathLike) -> _CwaRecording:
-        return hybrid_cache(self.memory, 1)(_read_cwa_recording)(file_path)
+    def _cached_load_cwa_timing_report(self, file_path: PathLike) -> dict[str, Any]:
+        return hybrid_cache(self.memory, 1)(_read_cwa_timing_report)(file_path)
+
+    def _cached_load_cwa_recording(
+        self,
+        file_path: PathLike,
+        additional_channels: Sequence[AdditionalCwaChannel],
+        timing_report: dict[str, Any],
+    ) -> _CwaRecording:
+        return hybrid_cache(self.memory, 1)(_read_cwa_recording)(file_path, additional_channels, timing_report)
 
     def _cached_load_reference_file(self) -> pd.DataFrame:
         return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path)
@@ -450,17 +530,11 @@ class SustainWearTimeDataset(BaseGaitDataset):
     def _raw_reference_for_selected_recording(self) -> pd.DataFrame:
         reference = self._cached_load_reference_file()
         reference = reference[
-            (reference["participant_id"] == self.group_label.participant_id)
-            & (reference["sensor_position"] == self.group_label.sensor_position)
-            & (reference["wear_status"] == "non_wear")
+            (reference["participant_id"] == self.group_label.participant_id) & (reference["wear_status"] == "non_wear")
         ]
 
         if reference.empty:
-            msg = (
-                "Could not find non-wear reference rows for "
-                f"participant={self.group_label.participant_id}, "
-                f"sensor_position={self.group_label.sensor_position}."
-            )
+            msg = f"Could not find non-wear reference rows for participant={self.group_label.participant_id}."
             if self.missing_reference_error_type == "raise":
                 raise ValueError(msg)
             if self.missing_reference_error_type == "warn":
@@ -470,9 +544,6 @@ class SustainWearTimeDataset(BaseGaitDataset):
 
     def _recording_file_index(self) -> pd.DataFrame:
         rows = []
-        sensor_position_filter = (
-            None if self.sensor_positions is None else {_normalize_sensor_position(s) for s in self.sensor_positions}
-        )
 
         for recording_type, recording_path in (
             ("human_movement", self._human_movement_path),
@@ -481,29 +552,25 @@ class SustainWearTimeDataset(BaseGaitDataset):
             if not recording_path.exists():
                 continue
             for file_path in sorted(recording_path.glob("*/*.cwa")):
-                sensor_position = _sensor_position_from_file_name(file_path)
-                if sensor_position_filter is not None and sensor_position not in sensor_position_filter:
+                if not _is_lowerback_name(file_path.name):
                     continue
                 participant_id = file_path.parent.name
                 rows.append(
                     {
                         "recording_type": recording_type,
                         "participant_id": participant_id,
-                        "sensor_position": sensor_position,
-                        "recording_id": f"{recording_type}_{participant_id}_{sensor_position}",
+                        "recording_id": f"{recording_type}_{participant_id}_{file_path.stem}",
                         "file_path": file_path,
                     }
                 )
 
         if not rows:
             raise FileNotFoundError(
-                "Could not find any SUSTAIN wear-time CWA files below "
+                "Could not find any SUSTAIN wear-time lower-back CWA files below "
                 f"{self._human_movement_path} or {self._simulated_movements_path}."
             )
 
-        return pd.DataFrame(rows).sort_values(
-            ["recording_type", "participant_id", "sensor_position", "recording_id"], ignore_index=True
-        )
+        return pd.DataFrame(rows).sort_values(["recording_type", "participant_id", "recording_id"], ignore_index=True)
 
     def create_index(self) -> pd.DataFrame:
         return self._recording_file_index().drop(columns=["file_path"]).astype("string")
