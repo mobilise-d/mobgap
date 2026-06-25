@@ -1,7 +1,6 @@
 """Small interval adapters for wear-time utilities."""
 
 import numpy as np
-import pandas as pd
 
 from mobgap.utils.array_handling import bool_array_to_start_end_array, start_end_array_to_bool_array
 
@@ -28,16 +27,6 @@ def intervals_to_flags(intervals: np.ndarray, length: int, *, dtype: np.dtype = 
         return np.zeros(length, dtype=dtype)
 
     return start_end_array_to_bool_array(intervals.reshape(-1, 2), pad_to_length=length).astype(dtype, copy=False)
-
-
-def intervals_to_weartime_df(intervals: np.ndarray) -> pd.DataFrame:
-    """Convert ``[start, end)`` intervals to the canonical wear-time dataframe shape."""
-    intervals = np.asarray(intervals, dtype=np.int64)
-    intervals = np.empty((0, 2), dtype=np.int64) if intervals.size == 0 else intervals.reshape(-1, 2)
-
-    df = pd.DataFrame(intervals, columns=["start", "end"])
-    df.index.name = "wt_id"
-    return df
 
 
 def remove_short_interior_intervals(intervals: np.ndarray, min_samples: int, data_length: int) -> np.ndarray:

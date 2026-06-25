@@ -24,8 +24,8 @@ from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
+from mobgap.weartime.utils._intervals import flags_to_intervals
 from mobgap.weartime.utils.ml_feature_extraction import remove_short_wear_bouts_by_ratio
-from mobgap.weartime.utils.weartime_calc import generate_weartime_list_from_samples
 from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_periods
 
 
@@ -319,7 +319,9 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             }
         )
 
-        self.weartime_list_ = generate_weartime_list_from_samples(weartime_flags)
+        self.weartime_list_ = pd.DataFrame(flags_to_intervals(weartime_flags), columns=["start", "end"]).rename_axis(
+            index="wt_id"
+        )
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
 
