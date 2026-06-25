@@ -612,11 +612,12 @@ class SustainWearTimeDataset(BaseGaitDataset):
             if self.missing_reference_error_type == "warn":
                 warnings.warn(msg, stacklevel=2)
 
-        invalid_timestamp_rows = reference[["device_off", "device_on"]].isna().any(axis=1)
+        invalid_timestamp_rows = reference["device_off"].isna()
         if invalid_timestamp_rows.any():
             raise ValueError(
-                "The SUSTAIN wear-time reference file contains missing `device_off` or `device_on` timestamps for "
-                f"participant={self.group_label.participant_id}."
+                "The SUSTAIN wear-time reference file contains missing `device_off` timestamps for "
+                f"participant={self.group_label.participant_id}. Missing `device_on` timestamps are supported and "
+                "treated as open non-wear intervals until the end of the selected recording data."
             )
 
         return reference.sort_values(["device_off", "device_on"], ignore_index=True)
