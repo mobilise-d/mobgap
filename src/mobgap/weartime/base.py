@@ -1,5 +1,6 @@
 """Base class for weartime detectors."""
 
+import warnings
 from collections.abc import Iterable
 from typing import Any, Union
 
@@ -9,6 +10,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
+from mobgap.weartime.utils import clip_intervals_to_waking_hours
 
 base_weartime_docfiller = make_filldoc(
     {
@@ -29,18 +31,14 @@ weartime_list_
 total_weartime_samples_
     The total weartime in samples across all detected weartime periods.
 """,
-        "total_weartime_minutes_": """
-total_weartime_minutes_
+        "total_weartime_min_": """
+total_weartime_min_
     The total weartime in minutes across all detected weartime periods.
 """,
-        "total_weartime_hours_": """
-total_weartime_hours_
-    The total weartime in hours across all detected weartime periods.
-""",
-        "total_weartime_hours_during_waking_": """
-total_weartime_hours_during_waking_
-    Total wear-time during the configured waking-hours window in hours.
-    For recordings that do not cover the full configured window, this can fall back to ``total_weartime_hours_``.
+        "total_weartime_during_waking_min_": """
+total_weartime_during_waking_min_
+    Total wear-time during the configured waking-hours window in minutes.
+    For recordings that do not cover the full configured window, this can fall back to ``total_weartime_min_``.
     For recordings longer than one day, algorithms should raise an error instead of applying a single daily window.
 """,
         "detect_short": """
@@ -57,9 +55,8 @@ Returns
 -------
 self
     The instance of the class with the ``weartime_list_``, ``total_weartime_samples_``,
-    ``total_weartime_minutes_``, ``total_weartime_hours_``, and
-    ``total_weartime_hours_during_waking_`` attributes or properties available for the detected weartime periods
-    and total weartime values.
+    ``total_weartime_min_``, and ``total_weartime_during_waking_min_`` properties available for the detected
+    weartime periods and total weartime values.
 """,
         "self_optimize_paras": """
 data_sequences
@@ -93,9 +90,8 @@ class BaseWeartimeDetector(Algorithm):
 
     This base class should be used for all weartime detection algorithms.
     Algorithms should implement the ``detect`` method, which will perform all relevant processing steps.
-    The method should then return the instance of the class, with the ``weartime_list_``, ``total_weartime_samples_``,
-    ``total_weartime_minutes_``, ``total_weartime_hours_``, and ``total_weartime_hours_during_waking_``
-    attributes set to the detected weartime periods and summary statistics.
+    The method should then return the instance of the class with ``weartime_list_`` set to the detected weartime
+    periods. Summary statistics are exposed as properties derived from ``weartime_list_`` and ``sampling_rate_hz``.
 
     Further, the detect method should set ``self.data`` and ``self.sampling_rate_hz`` to the parameters passed to the
     method.
@@ -114,9 +110,8 @@ class BaseWeartimeDetector(Algorithm):
     ----------
     %(weartime_list_)s
     %(total_weartime_samples_)s
-    %(total_weartime_minutes_)s
-    %(total_weartime_hours_)s
-    %(total_weartime_hours_during_waking_)s
+    %(total_weartime_min_)s
+    %(total_weartime_during_waking_min_)s
     %(perf_)s
 
     Notes
@@ -130,7 +125,7 @@ class BaseWeartimeDetector(Algorithm):
 
     The waking hours calculation assumes recordings are segmented per day (midnight-to-midnight).
     For recordings shorter than the configured waking-hours end, algorithms issue a warning and use
-    ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``.
+    ``total_weartime_min_`` as a fallback for ``total_weartime_during_waking_min_``.
     For recordings longer than one day, algorithms should raise an error instead of applying a single daily window to
     multi-day data.
 
@@ -150,11 +145,59 @@ class BaseWeartimeDetector(Algorithm):
     # Results
     weartime_list_: pd.DataFrame
     total_weartime_samples_: int
-    total_weartime_minutes_: float
-    total_weartime_hours_: float
-    total_weartime_hours_during_waking_: float
+    total_weartime_min_: float
+    total_weartime_during_waking_min_: float
 
     perf_: MeasureTimeResults
+
+    @property
+    def total_weartime_samples_(self) -> int:
+        """The total weartime in samples across all detected weartime periods."""
+        return int((self.weartime_list_["end"] - self.weartime_list_["start"]).sum())
+
+    @property
+    def total_weartime_min_(self) -> float:
+        """The total weartime in minutes across all detected weartime periods."""
+        return self.total_weartime_samples_ / (60 * self.sampling_rate_hz)
+
+    @property
+    def total_weartime_during_waking_min_(self) -> float:
+        """Wear-time in minutes during the configured daily waking-hours window."""
+        try:
+            data = self.data
+            sampling_rate_hz = self.sampling_rate_hz
+            waking_hours_min = self.waking_hours_min
+        except AttributeError as exc:
+            raise AttributeError(
+                "`total_weartime_during_waking_min_` is only available after calling `detect` on an algorithm with "
+                "`data`, `sampling_rate_hz`, and `waking_hours_min` available."
+            ) from exc
+
+        data_length = len(data)
+        recording_hours = data_length / (3600 * sampling_rate_hz)
+        if recording_hours > 24:
+            raise ValueError(
+                "Cannot calculate weartime during waking hours for recordings longer than one day. "
+                "Segment the recording into individual days before applying a daily waking-hours window."
+            )
+
+        waking_end_sample = int(waking_hours_min[1] * 60 * sampling_rate_hz)
+        if not isinstance(data.index, pd.DatetimeIndex) and data_length < waking_end_sample:
+            warnings.warn(
+                f"Recording duration ({recording_hours:.1f}h) is shorter than the configured waking-hours window. "
+                "Using total_weartime_min_ for total_weartime_during_waking_min_.",
+                stacklevel=2,
+            )
+            return self.total_weartime_min_
+
+        weartime_waking = clip_intervals_to_waking_hours(
+            self.weartime_list_,
+            data=data,
+            sampling_rate_hz=sampling_rate_hz,
+            waking_hours_min=waking_hours_min,
+        )
+        total_weartime_waking_samples = (weartime_waking["end"] - weartime_waking["start"]).sum()
+        return total_weartime_waking_samples / (60 * sampling_rate_hz)
 
     @base_weartime_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:

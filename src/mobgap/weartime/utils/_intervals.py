@@ -33,11 +33,7 @@ def _validate_waking_hours_min(waking_hours_min: tuple[int, int]) -> tuple[int, 
 
 
 def _timestamp_to_sample_boundary(timestamp: pd.Timestamp, data_index: pd.DatetimeIndex) -> int:
-    if timestamp < data_index[0]:
-        return 0
-    if timestamp > data_index[-1]:
-        return len(data_index)
-    return int(data_index.get_indexer([timestamp], method="nearest")[0])
+    return int(data_index.searchsorted(timestamp, side="left"))
 
 
 def _waking_hours_sample_bounds(

@@ -86,8 +86,8 @@ def wtd_per_datapoint_score(
         reference_waking_weartime = clip_intervals_to_waking_hours(
             reference_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours_min=waking_hours_min
         )
-        detected_weartime_min = pipeline.total_weartime_minutes_
-        detected_waking_weartime_min = pipeline.total_weartime_hours_during_waking_ * 60
+        detected_weartime_min = pipeline.total_weartime_min_
+        detected_waking_weartime_min = pipeline.total_weartime_during_waking_min_
 
         return {
             **calculate_matched_gsd_performance_metrics(matches, zero_division=zero_division),
@@ -140,9 +140,7 @@ def wtd_final_agg(
             "Provide a custom scorer that can handle this case."
         )
 
-    combined_matched = {
-        f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(matches).items()
-    }
+    combined_matched = {f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(matches).items()}
     combined_duration = {
         f"combined__{k}": v
         for k, v in _duration_metrics(
