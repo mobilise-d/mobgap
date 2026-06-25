@@ -79,7 +79,7 @@ aggregated_results = pd.concat(
 # The core classification metrics are calculated from interval overlaps on the sample level. The duration metrics are
 # reported in minutes. Waking-hours duration metrics use the same waking-hours configuration as the algorithm.
 human_movement_summary_aggs = {
-    "n_datapoints": ("weartime_error_min", "size"),
+    "n_days": ("weartime_error_min", "size"),
     "precision_mean": ("precision", "mean"),
     "recall_mean": ("recall", "mean"),
     "f1_score_mean": ("f1_score", "mean"),
@@ -117,7 +117,7 @@ human_movement_summary_by_participant
 # The simulated-movement recordings are reference non-wear across the full selected day. For these datapoints, the
 # relevant question is whether the algorithm detected any wear by accident.
 simulated_nonwear_summary_aggs = {
-    "n_datapoints": ("detected_weartime_min", "size"),
+    "n_days": ("detected_weartime_min", "size"),
     "n_days_with_detected_wear": ("detected_weartime_min", lambda series: (series > 0).sum()),
     "detected_wear_day_fraction": ("detected_weartime_min", lambda series: (series > 0).mean()),
     "detected_weartime_min_total": ("detected_weartime_min", "sum"),
