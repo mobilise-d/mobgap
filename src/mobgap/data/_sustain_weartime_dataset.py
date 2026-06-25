@@ -17,11 +17,12 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 try:
-    from cwa_reader_rs import read_cwa_file, read_header, sampling_consistency_report
+    from cwa_reader_rs import read_cwa_file, read_header, sampling_consistency_report, seconds
 except ImportError:
     read_cwa_file = None
     read_header = None
     sampling_consistency_report = None
+    seconds = None
 
 PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
@@ -145,6 +146,8 @@ def _read_cwa_recording(
     file_path: PathLike,
     additional_channels: Sequence[AdditionalCwaChannel],
     timing_report: dict[str, Any],
+    start_time_s: float | None = None,
+    end_time_s: float | None = None,
 ) -> _CwaRecording:
     if read_cwa_file is None:
         raise ImportError(CWA_READER_IMPORT_ERROR)
@@ -152,9 +155,11 @@ def _read_cwa_recording(
     additional_channels = _normalize_additional_channels(additional_channels)
     metadata = _read_cwa_header(file_path)
     sampling_rate_hz = float(timing_report.get("samplingrate_hz_from_header") or metadata["sample_rate_hz"])
+    cut = None if start_time_s is None and end_time_s is None else seconds(start_time_s, end_time_s)
     raw_data = pd.DataFrame(
         read_cwa_file(
             str(file_path),
+            cut=cut,
             include_magnetometer=False,
             include_temperature="temperature" in additional_channels,
             include_light="light" in additional_channels,
@@ -299,6 +304,51 @@ def _complement_intervals(intervals: pd.DataFrame, data_length: int) -> pd.DataF
     return pd.DataFrame(complement, columns=["start", "end"])
 
 
+def _recording_start_end_from_timing_report(timing_report: dict[str, Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
+    start = timing_report.get("start_from_data")
+    end = timing_report.get("end_from_data")
+    if start is None or end is None:
+        raise ValueError(
+            "The CWA timing report does not contain `start_from_data` and `end_from_data`. "
+            "These fields are required to split SUSTAIN wear-time recordings by day."
+        )
+
+    start = _as_utc_timestamp(start)
+    end = _as_utc_timestamp(end)
+    if end < start:
+        raise ValueError(
+            f"The CWA timing report contains an `end_from_data` timestamp before `start_from_data`: {end} < {start}."
+        )
+    return start, end
+
+
+def _recording_days_from_timing_report(timing_report: dict[str, Any]) -> list[str]:
+    start, end = _recording_start_end_from_timing_report(timing_report)
+    days = pd.date_range(start.normalize(), end.normalize(), freq="D")
+    return [day.date().isoformat() for day in days]
+
+
+def _day_cut_seconds(
+    recording_day: str | None, timing_report: dict[str, Any], sampling_rate_hz: float
+) -> tuple[float | None, float | None]:
+    if recording_day is None:
+        return None, None
+
+    recording_start, recording_end = _recording_start_end_from_timing_report(timing_report)
+    recording_end_exclusive = recording_end + pd.to_timedelta(1 / sampling_rate_hz, unit="s")
+    day_start = _as_utc_timestamp(recording_day)
+    day_end = day_start + pd.Timedelta(days=1)
+
+    start = max(day_start, recording_start)
+    end = min(day_end, recording_end_exclusive)
+    if end <= start:
+        raise ValueError(f"The selected day {recording_day} does not overlap the selected CWA recording.")
+
+    start_time_s = None if start <= recording_start else (start - recording_start).total_seconds()
+    end_time_s = None if end >= recording_end_exclusive else (end - recording_start).total_seconds()
+    return start_time_s, end_time_s
+
+
 class SustainWearTimeDataset(BaseGaitDataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
@@ -320,8 +370,12 @@ class SustainWearTimeDataset(BaseGaitDataset):
     warn_thres_for_sampling_rate_deviations_hz
         Threshold in Hz used to warn when the effective sampling rate differs from the expected sampling rate. Set to
         ``None`` to disable the warning.
+    split_by_day
+        If ``True``, the dataset index contains one row per calendar day spanned by a raw CWA recording. The
+        ``recording_day`` column identifies the selected day and ``data_ss`` loads only the respective time window.
+        If ``False``, the index contains one row per raw CWA recording.
     memory
-        A joblib memory object used to cache CWA header, CWA data, and reference file loading.
+        A joblib memory object used to cache CWA header, timing report, CWA data, and reference file loading.
     groupby_cols
         Columns to group the data by. See :class:`~tpcp.Dataset` for details.
     subset_index
@@ -352,6 +406,7 @@ class SustainWearTimeDataset(BaseGaitDataset):
     additional_channels: Sequence[AdditionalCwaChannel]
     missing_reference_error_type: MissingReferenceErrorType
     warn_thres_for_sampling_rate_deviations_hz: float | None
+    split_by_day: bool
     memory: joblib.Memory
 
     def __init__(
@@ -361,6 +416,7 @@ class SustainWearTimeDataset(BaseGaitDataset):
         additional_channels: Sequence[AdditionalCwaChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
+        split_by_day: bool = False,
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
         subset_index: pd.DataFrame | None = None,
@@ -369,6 +425,7 @@ class SustainWearTimeDataset(BaseGaitDataset):
         self.additional_channels = additional_channels
         self.missing_reference_error_type = missing_reference_error_type
         self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
+        self.split_by_day = split_by_day
         self.memory = memory
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
@@ -403,6 +460,13 @@ class SustainWearTimeDataset(BaseGaitDataset):
         return Path(matches.iloc[0]["file_path"])
 
     @property
+    def _selected_recording_day(self) -> str | None:
+        self.assert_is_single(None, "_selected_recording_day")
+        if "recording_day" not in self.index.columns:
+            return None
+        return str(self.index.iloc[0]["recording_day"])
+
+    @property
     def data(self) -> IMU_DATA_DTYPE:
         self.assert_is_single(None, "data")
         return {"LowerBack": self.data_ss}
@@ -413,7 +477,10 @@ class SustainWearTimeDataset(BaseGaitDataset):
         additional_channels = self._additional_channels
         timing_report = self.cwa_timing_report_
         _warn_if_effective_sampling_rate_deviates(timing_report, self.warn_thres_for_sampling_rate_deviations_hz)
-        return self._cached_load_cwa_recording(self.selected_data_file, additional_channels, timing_report).data
+        start_time_s, end_time_s = _day_cut_seconds(self._selected_recording_day, timing_report, self.sampling_rate_hz)
+        return self._cached_load_cwa_recording(
+            self.selected_data_file, additional_channels, timing_report, start_time_s, end_time_s
+        ).data
 
     @property
     def sampling_rate_hz(self) -> float:
@@ -439,7 +506,7 @@ class SustainWearTimeDataset(BaseGaitDataset):
     def recording_metadata(self) -> RecordingMetadata:
         self.assert_is_single(None, "recording_metadata")
         metadata = self.cwa_header_
-        return {
+        recording_metadata = {
             "measurement_condition": "laboratory",
             "recording_id": self.group_label.recording_id,
             "recording_type": self.group_label.recording_type,
@@ -450,6 +517,9 @@ class SustainWearTimeDataset(BaseGaitDataset):
             "logging_end_time": metadata.get("logging_end_time"),
             "cwa_header": metadata,
         }
+        if (recording_day := self._selected_recording_day) is not None:
+            recording_metadata["recording_day"] = recording_day
+        return recording_metadata
 
     @property
     def participant_metadata(self) -> ParticipantMetadata:
@@ -514,8 +584,12 @@ class SustainWearTimeDataset(BaseGaitDataset):
         file_path: PathLike,
         additional_channels: Sequence[AdditionalCwaChannel],
         timing_report: dict[str, Any],
+        start_time_s: float | None = None,
+        end_time_s: float | None = None,
     ) -> _CwaRecording:
-        return hybrid_cache(self.memory, 1)(_read_cwa_recording)(file_path, additional_channels, timing_report)
+        return hybrid_cache(self.memory, 1)(_read_cwa_recording)(
+            file_path, additional_channels, timing_report, start_time_s, end_time_s
+        )
 
     def _cached_load_reference_file(self) -> pd.DataFrame:
         return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path)
@@ -573,7 +647,17 @@ class SustainWearTimeDataset(BaseGaitDataset):
         return pd.DataFrame(rows).sort_values(["recording_type", "participant_id", "recording_id"], ignore_index=True)
 
     def create_index(self) -> pd.DataFrame:
-        return self._recording_file_index().drop(columns=["file_path"]).astype("string")
+        file_index = self._recording_file_index()
+        if not self.split_by_day:
+            return file_index.drop(columns=["file_path"]).astype("string")
+
+        rows: list[dict[str, Any]] = []
+        for row in file_index.to_dict("records"):
+            timing_report = self._cached_load_cwa_timing_report(row["file_path"])
+            for recording_day in _recording_days_from_timing_report(timing_report):
+                rows.append({**row, "recording_day": recording_day})
+
+        return pd.DataFrame(rows).drop(columns=["file_path"]).astype("string")
 
 
 __all__ = ["SustainWearTimeDataset"]
