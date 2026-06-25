@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from scipy.signal import welch
 
+from mobgap.weartime.utils._intervals import flags_to_intervals, intervals_to_flags
+
 
 def rolling_window_indices(n_samples: int, win_samples: int, step: int) -> tuple[int, int]:
     """
@@ -82,7 +84,7 @@ def extract_features_from_windows(window: pd.DataFrame, sampling_rate: float = 1
     return features
 
 
-def remove_short_wear_bouts_by_ratio(  # noqa: C901
+def remove_short_wear_bouts_by_ratio(
     weartime_flags: np.ndarray, max_bout_minutes: float = 20.0, min_ratio: float = 0.3, sampling_rate_hz: float = 100.0
 ) -> np.ndarray:
     """
@@ -123,52 +125,24 @@ def remove_short_wear_bouts_by_ratio(  # noqa: C901
     np.ndarray
         Flags with suspicious short wear bouts removed
     """
+    weartime_flags = np.asarray(weartime_flags).ravel()
     max_bout_samples = int(max_bout_minutes * 60 * sampling_rate_hz)
+    wear_intervals = flags_to_intervals(weartime_flags)
 
-    # Find wear segments
-    padded = np.pad(weartime_flags, (1, 1), constant_values=0)
-    diff = np.diff(padded)
+    if len(wear_intervals) == 0:
+        return weartime_flags.copy()
 
-    wear_starts = np.where(diff == 1)[0]
-    wear_ends = np.where(diff == -1)[0]
-
-    filtered_flags = weartime_flags.copy()
-
-    for start, end in zip(wear_starts, wear_ends):
+    keep = np.ones(len(wear_intervals), dtype=bool)
+    for i, (start, end) in enumerate(wear_intervals):
         wear_duration_samples = end - start
+        if wear_duration_samples > max_bout_samples:
+            continue
 
-        # Only apply rule to short wear bouts (≤20 minutes)
-        if wear_duration_samples <= max_bout_samples:
-            # Get surrounding non-wear durations
-            before_nonwear_samples = 0
-            after_nonwear_samples = 0
+        previous_wear_end = wear_intervals[i - 1, 1] if i > 0 else 0
+        next_wear_start = wear_intervals[i + 1, 0] if i < len(wear_intervals) - 1 else len(weartime_flags)
+        surrounding_nonwear_samples = (start - previous_wear_end) + (next_wear_start - end)
 
-            # Before: Find start of preceding non-wear period
-            if start > 0:
-                nonwear_start = 0
-                for i in range(start - 1, -1, -1):
-                    if weartime_flags[i] == 1:  # Hit previous wear period
-                        nonwear_start = i + 1
-                        break
-                before_nonwear_samples = start - nonwear_start
+        if surrounding_nonwear_samples > 0 and wear_duration_samples / surrounding_nonwear_samples < min_ratio:
+            keep[i] = False
 
-            # After: Find end of following non-wear period
-            if end < len(weartime_flags):
-                nonwear_end = len(weartime_flags)
-                for i in range(end, len(weartime_flags)):
-                    if weartime_flags[i] == 1:  # Hit next wear period
-                        nonwear_end = i
-                        break
-                after_nonwear_samples = nonwear_end - end
-
-            # Calculate ratio
-            surrounding_nonwear_samples = before_nonwear_samples + after_nonwear_samples
-
-            if surrounding_nonwear_samples > 0:
-                ratio = wear_duration_samples / surrounding_nonwear_samples
-
-                # Remove if ratio too low
-                if ratio < min_ratio:
-                    filtered_flags[start:end] = 0
-
-    return filtered_flags
+    return intervals_to_flags(wear_intervals[keep], len(weartime_flags), dtype=weartime_flags.dtype)

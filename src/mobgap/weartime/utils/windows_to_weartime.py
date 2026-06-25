@@ -5,6 +5,9 @@ import warnings
 import numpy as np
 import pandas as pd
 
+from mobgap.utils.array_handling import merge_intervals
+from mobgap.weartime.utils._intervals import flags_to_intervals, intervals_to_flags, remove_short_interior_intervals
+
 
 def overlapping_windows_to_sample_labels(  # noqa: C901, PLR0912, PLR0915
     predictions: list[int],
@@ -322,34 +325,16 @@ def remove_isolated_short_periods(
     np.ndarray
         Flags with brief isolated periods removed
     """
+    weartime_flags = np.asarray(weartime_flags).ravel()
     min_samples = int(min_period_sec * sampling_rate_hz)
-    smoothed_flags = weartime_flags.copy()
 
-    # Step 1: Remove short WEAR bouts
-    if np.any(smoothed_flags == 1):
-        padded = np.pad(smoothed_flags, (1, 1), constant_values=0)
-        diff = np.diff(padded)
-        starts = np.where(diff == 1)[0]
-        ends = np.where(diff == -1)[0]
+    if min_samples <= 0 or len(weartime_flags) == 0:
+        return weartime_flags.copy()
 
-        for start, end in zip(starts, ends):
-            bout_duration = end - start
-            at_boundary = (start == 0) or (end == len(weartime_flags))
-            if bout_duration < min_samples and not at_boundary:
-                smoothed_flags[start:end] = 0
+    wear_intervals = flags_to_intervals(weartime_flags)
+    wear_intervals = remove_short_interior_intervals(wear_intervals, min_samples, len(weartime_flags))
 
-    # Step 2: Remove short NON-WEAR bouts
-    if np.any(smoothed_flags == 0):
-        nonwear = 1 - smoothed_flags
-        padded_nw = np.pad(nonwear, (1, 1), constant_values=0)
-        diff_nw = np.diff(padded_nw)
-        nw_starts = np.where(diff_nw == 1)[0]
-        nw_ends = np.where(diff_nw == -1)[0]
+    if len(wear_intervals) > 0:
+        wear_intervals = merge_intervals(wear_intervals, gap_size=min_samples - 1)
 
-        for nw_start, nw_end in zip(nw_starts, nw_ends):
-            bout_duration = nw_end - nw_start
-            at_boundary = (nw_start == 0) or (nw_end == len(weartime_flags))
-            if bout_duration < min_samples and not at_boundary:
-                smoothed_flags[nw_start:nw_end] = 1
-
-    return smoothed_flags
+    return intervals_to_flags(wear_intervals, len(weartime_flags), dtype=weartime_flags.dtype)
