@@ -86,6 +86,41 @@ def test_index_creation(tmp_path):
     assert_frame_equal(dataset.index, expected_index)
 
 
+def test_index_creation_detects_lb_abbreviation(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    human_file = base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"
+    human_file.rename(human_file.with_name("example_lb.cwa"))
+
+    dataset = SustainWearTimeDataset(base_path)
+
+    expected_human_row = {
+        "recording_type": "human_movement",
+        "participant_id": "001",
+        "recording_id": "human_movement_001_example_lb",
+    }
+    assert dataset.index.iloc[0].to_dict() == expected_human_row
+
+
+def test_non_lowerback_reference_rows_are_filtered_before_timestamp_parsing(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    valid_reference_row = json.loads((base_path / "weartime_part_a_all" / "reference.json").read_text())
+    ignored_reference_row = {
+        "id": "1",
+        "sensor": "wrist",
+        "device_off": "not-a-date",
+        "device_on": "also-not-a-date",
+        "wear_status": "non_wear",
+    }
+    (base_path / "weartime_part_a_all" / "reference.json").write_text(
+        "\n".join(json.dumps(row) for row in [valid_reference_row, ignored_reference_row]) + "\n"
+    )
+    datapoint = SustainWearTimeDataset(base_path, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
+
+    assert len(datapoint.reference_nonwear_) == 1
+
+
 def test_split_by_day_index_creation(tmp_path, monkeypatch):
     base_path = _create_sustain_layout(tmp_path)
 

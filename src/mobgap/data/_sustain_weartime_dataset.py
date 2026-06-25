@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Union
@@ -55,8 +56,10 @@ class _CwaRecording(NamedTuple):
 
 
 def _is_lowerback_name(name: str) -> bool:
-    normalized = name.lower().replace("_", "").replace("-", "").replace(" ", "")
-    return "lowerback" in normalized or "lowback" in normalized
+    name = name.lower()
+    compact_name = name.replace("_", "").replace("-", "").replace(" ", "")
+    tokens = {token for token in re.split(r"[\W_]+", name) if token}
+    return "lowerback" in compact_name or "lowback" in compact_name or "lb" in tokens
 
 
 def _normalize_additional_channels(
@@ -103,11 +106,13 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
         reference.assign(
             participant_id=lambda df_: df_["id"].astype("string").str.zfill(3),
             is_lowerback=lambda df_: df_["sensor"].map(_is_lowerback_name),
-            device_off=lambda df_: pd.to_datetime(df_["device_off"], errors="raise", utc=True),
-            device_on=lambda df_: pd.to_datetime(df_["device_on"], errors="raise", utc=True),
             wear_status=lambda df_: df_["wear_status"].astype("string"),
         )
         .loc[lambda df_: df_["is_lowerback"]]
+        .assign(
+            device_off=lambda df_: pd.to_datetime(df_["device_off"], errors="raise", utc=True),
+            device_on=lambda df_: pd.to_datetime(df_["device_on"], errors="raise", utc=True),
+        )
         .drop(columns=["id", "sensor", "is_lowerback"])
     )
 
