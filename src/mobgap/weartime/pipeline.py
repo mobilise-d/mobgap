@@ -71,16 +71,12 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
         return self.algo_.total_weartime_samples_
 
     @property
-    def total_weartime_minutes_(self) -> float:  # noqa: D102
-        return self.algo_.total_weartime_minutes_
+    def total_weartime_min_(self) -> float:  # noqa: D102
+        return self.algo_.total_weartime_min_
 
     @property
-    def total_weartime_hours_(self) -> float:  # noqa: D102
-        return self.algo_.total_weartime_hours_
-
-    @property
-    def total_weartime_hours_during_waking_(self) -> float:  # noqa: D102
-        return self.algo_.total_weartime_hours_during_waking_
+    def total_weartime_during_waking_min_(self) -> float:  # noqa: D102
+        return self.algo_.total_weartime_during_waking_min_
 
     def run(self, datapoint: BaseGaitDataset) -> Self:
         """Run the detector on a single datapoint."""

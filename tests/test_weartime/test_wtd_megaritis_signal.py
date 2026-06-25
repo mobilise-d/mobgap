@@ -55,8 +55,8 @@ class TestWtdMegaritisSignal:
             waking_hours_min=(1, 3),
         ).detect(data, sampling_rate_hz=10.0)
 
-        assert result.total_weartime_hours_ == pytest.approx(4 / 60)
-        assert result.total_weartime_hours_during_waking_ == pytest.approx(2 / 60)
+        assert result.total_weartime_min_ == pytest.approx(4)
+        assert result.total_weartime_during_waking_min_ == pytest.approx(2)
 
     def test_waking_hours_rejects_recordings_longer_than_one_day(self):
         sampling_rate_hz = 0.1
@@ -73,7 +73,7 @@ class TestWtdMegaritisSignal:
         ).detect(data, sampling_rate_hz=sampling_rate_hz)
 
         with pytest.raises(ValueError, match="longer than one day"):
-            result.total_weartime_hours_during_waking_
+            _ = result.total_weartime_during_waking_min_
 
     def test_all_zero_signal_is_nonwear(self):
         data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
@@ -85,7 +85,7 @@ class TestWtdMegaritisSignal:
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
         assert result.total_weartime_samples_ == 0
-        assert result.total_weartime_hours_ == 0
+        assert result.total_weartime_min_ == 0
 
     def test_short_recording_uses_single_boundary_macro_window(self):
         data = pd.DataFrame(np.ones((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
@@ -168,4 +168,16 @@ class TestWtdMegaritisSignal:
         assert_frame_equal(result.weartime_list_, expected_weartime)
         assert_frame_equal(result.diagnostics_["macro"], expected_macro)
         assert result.total_weartime_samples_ == 15228
-        assert result.total_weartime_hours_ == pytest.approx(0.0423)
+        assert result.total_weartime_min_ == pytest.approx(2.538)
+
+    def test_does_not_expose_duplicate_total_weartime_units(self):
+        data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, waking_hours_min=(0, 1)).detect(
+            data,
+            sampling_rate_hz=10.0,
+        )
+
+        assert not hasattr(result, "total_weartime_minutes_")
+        assert not hasattr(result, "total_weartime_hours_")
+        assert not hasattr(result, "total_weartime_hours_during_waking_")

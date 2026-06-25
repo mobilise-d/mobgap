@@ -39,11 +39,11 @@ class DummyWtd(BaseWeartimeDetector):
         weartime_list: pd.DataFrame,
         *,
         waking_hours_min: tuple[int, int] = (0, 24 * 60),
-        total_weartime_hours_during_waking: Optional[float] = None,
+        total_weartime_during_waking_min: Optional[float] = None,
     ) -> None:
         self.weartime_list = weartime_list
         self.waking_hours_min = waking_hours_min
-        self.total_weartime_hours_during_waking = total_weartime_hours_during_waking
+        self.total_weartime_during_waking_min = total_weartime_during_waking_min
 
     def detect(
         self,
@@ -56,16 +56,14 @@ class DummyWtd(BaseWeartimeDetector):
         self.sampling_rate_hz = sampling_rate_hz
         self.detect_kwargs = kwargs
         self.weartime_list_ = _unify_weartime_df(self.weartime_list.copy())
-        self.total_weartime_samples_ = int((self.weartime_list_["end"] - self.weartime_list_["start"]).sum())
-        self.total_weartime_minutes_ = self.total_weartime_samples_ / (sampling_rate_hz * 60)
-        self.total_weartime_hours_ = self.total_weartime_samples_ / (sampling_rate_hz * 3600)
-        self.total_weartime_hours_during_waking_ = (
-            self.total_weartime_hours_
-            if self.total_weartime_hours_during_waking is None
-            else self.total_weartime_hours_during_waking
-        )
         self.perf_ = {"runtime_s": 1.25}
         return self
+
+    @property
+    def total_weartime_during_waking_min_(self) -> float:
+        if self.total_weartime_during_waking_min is not None:
+            return self.total_weartime_during_waking_min
+        return super().total_weartime_during_waking_min_
 
 
 def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:
@@ -97,9 +95,11 @@ def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():
     assert pipeline.algo_.detect_kwargs["recording_id"] == "rec_1"
     assert pipeline.algo_.detect_kwargs["dp_group"] == GroupLabel("001", "rec_1")
     assert pipeline.total_weartime_samples_ == 1
-    assert pipeline.total_weartime_minutes_ == pytest.approx(1 / 600)
-    assert pipeline.total_weartime_hours_ == pytest.approx(1 / 36000)
-    assert pipeline.total_weartime_hours_during_waking_ == pytest.approx(1 / 36000)
+    assert pipeline.total_weartime_min_ == pytest.approx(1 / 600)
+    assert pipeline.total_weartime_during_waking_min_ == pytest.approx(1 / 600)
+    assert not hasattr(pipeline, "total_weartime_minutes_")
+    assert not hasattr(pipeline, "total_weartime_hours_")
+    assert not hasattr(pipeline, "total_weartime_hours_during_waking_")
 
 
 def test_wtd_score_uses_gsd_sample_counts_and_minute_durations():
@@ -110,7 +110,7 @@ def test_wtd_score_uses_gsd_sample_counts_and_minute_durations():
         sampling_rate_hz=1.0,
     )
     pipeline = WtdEmulationPipeline(
-        DummyWtd(_intervals([(60, 119)]), waking_hours_min=(1, 2), total_weartime_hours_during_waking=0.5 / 60)
+        DummyWtd(_intervals([(60, 119)]), waking_hours_min=(1, 2), total_weartime_during_waking_min=0.5)
     )
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
