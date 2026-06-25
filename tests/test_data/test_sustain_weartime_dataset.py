@@ -9,6 +9,7 @@ from pandas._testing import assert_frame_equal
 
 from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
 from mobgap.data import SustainWearTimeDataset
+from mobgap.data import _sustain_weartime_dataset as sustain_dataset
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
@@ -83,6 +84,95 @@ def test_index_creation(tmp_path):
         ]
     ).astype("string")
     assert_frame_equal(dataset.index, expected_index)
+
+
+def test_split_by_day_index_creation(tmp_path, monkeypatch):
+    base_path = _create_sustain_layout(tmp_path)
+
+    def fake_read_cwa_timing_report(file_path):
+        participant_id = Path(file_path).parent.name
+        if participant_id == "001":
+            return {
+                "start_from_data": "2020-01-01T23:59:58+00:00",
+                "end_from_data": "2020-01-03T00:00:01+00:00",
+                "samplingrate_hz_from_header": 100.0,
+                "samplingrate_hz_from_data": 100.0,
+            }
+        return {
+            "start_from_data": "2020-02-01T00:00:00+00:00",
+            "end_from_data": "2020-02-01T12:00:00+00:00",
+            "samplingrate_hz_from_header": 100.0,
+            "samplingrate_hz_from_data": 100.0,
+        }
+
+    monkeypatch.setattr(sustain_dataset, "_read_cwa_timing_report", fake_read_cwa_timing_report)
+
+    dataset = SustainWearTimeDataset(base_path, split_by_day=True)
+
+    expected_index = pd.DataFrame(
+        [
+            {
+                "recording_type": "human_movement",
+                "participant_id": "001",
+                "recording_id": HUMAN_RECORDING_ID,
+                "recording_day": "2020-01-01",
+            },
+            {
+                "recording_type": "human_movement",
+                "participant_id": "001",
+                "recording_id": HUMAN_RECORDING_ID,
+                "recording_day": "2020-01-02",
+            },
+            {
+                "recording_type": "human_movement",
+                "participant_id": "001",
+                "recording_id": HUMAN_RECORDING_ID,
+                "recording_day": "2020-01-03",
+            },
+            {
+                "recording_type": "simulated_movements",
+                "participant_id": "020",
+                "recording_id": SIMULATED_RECORDING_ID,
+                "recording_day": "2020-02-01",
+            },
+        ]
+    ).astype("string")
+    assert_frame_equal(dataset.index, expected_index)
+
+
+def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch):
+    base_path = _create_sustain_layout(tmp_path)
+    timing_report = {
+        "start_from_data": "2020-01-01T23:59:58+00:00",
+        "end_from_data": "2020-01-03T00:00:01+00:00",
+        "samplingrate_hz_from_header": 100.0,
+        "samplingrate_hz_from_data": 100.0,
+    }
+    cuts = []
+
+    def fake_read_cwa_timing_report(file_path):
+        return timing_report
+
+    def fake_read_cwa_recording(file_path, additional_channels, timing_report, start_time_s=None, end_time_s=None):
+        cuts.append((start_time_s, end_time_s))
+        data = pd.DataFrame(
+            [[0.0] * (len(SF_SENSOR_COLS) + 1)],
+            columns=[*SF_SENSOR_COLS, "temperature"],
+            index=pd.DatetimeIndex(["2020-01-02T00:00:00Z"], name="time"),
+        )
+        return sustain_dataset._CwaRecording(data, 100.0, {}, timing_report)
+
+    monkeypatch.setattr(sustain_dataset, "_read_cwa_timing_report", fake_read_cwa_timing_report)
+    monkeypatch.setattr(sustain_dataset, "_read_cwa_recording", fake_read_cwa_recording)
+
+    datapoint = SustainWearTimeDataset(
+        base_path, split_by_day=True, warn_thres_for_sampling_rate_deviations_hz=None
+    ).get_subset(recording_id=HUMAN_RECORDING_ID, recording_day="2020-01-02")
+
+    data = datapoint.data_ss
+
+    assert data.index[0] == pd.Timestamp("2020-01-02T00:00:00Z")
+    assert cuts == [(2.0, 86402.0)]
 
 
 def test_loads_cwa_data_in_sensor_frame(tmp_path):
