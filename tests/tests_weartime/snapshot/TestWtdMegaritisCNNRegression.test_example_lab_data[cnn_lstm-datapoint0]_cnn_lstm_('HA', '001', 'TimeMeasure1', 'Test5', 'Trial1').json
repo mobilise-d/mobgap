@@ -1,0 +1,25 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"wt_id",
+                "type":"integer"
+            },
+            {
+                "name":"start",
+                "type":"integer"
+            },
+            {
+                "name":"end",
+                "type":"integer"
+            }
+        ],
+        "primaryKey":[
+            "wt_id"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+
+    ]
+}

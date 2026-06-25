@@ -7,7 +7,7 @@
             },
             {
                 "name":"visit_date",
-                "type":"any",
+                "type":"string",
                 "extDtype":"string"
             },
             {

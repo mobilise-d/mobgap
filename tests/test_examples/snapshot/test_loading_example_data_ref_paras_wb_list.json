@@ -39,7 +39,7 @@
             },
             {
                 "name":"termination_reason",
-                "type":"any",
+                "type":"string",
                 "extDtype":"string"
             }
         ],

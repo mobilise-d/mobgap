@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-11
+
+### Added
+
+- **Wear-Time Detection Algorithms**: Three novel and validated algorithms for accurate wear-time detection:
+  - `WtdMegaritisSignal`: Novel signal processing algorithm using gyroscope rotational patterns and accelerometer movement variability. Uses multi-level voting (micro, macro, and sample-level) with biomechanical post-processing.
+  - `WtdMegaritisXGBoost`: Machine learning approach with pre-trained XGBoost models (full: 230 features, lightweight: 79 features). Includes biomechanically-informed post-processing with confidence filtering.
+  - `WtdMegaritisCNN`: Deep learning approach using 1D Convolutional Neural Network trained on raw windowed IMU data. Available in CNN and CNN-LSTM variants.
+  
+  These algorithms were developed and validated using real-world and simulated wear/non-wear data, achieving wear-time quantification errors of 1(CNN/CNN-LSTM)–15(Signal processing) minutes per day period and outperforming existing literature methods by 8- to 131-fold. The CNN achieved a performance index of 0.934, and XGBoost (reduced features) achieved 0.885.
+  
+These additions enhance MobGap by integrating transparent and validated algorithms that address critical gaps in current Digital Mobility Assessment (DMA) pipelines. The Mobilise-D Clinical Validation Study (CVS) currently relies on proprietary wear-time and orientation methods with undisclosed internal processes, limiting reproducibility and independent validation. By providing open-source, validated alternatives, these algorithms establish complete end-to-end independence for Digital Mobility Outcome (DMO) extraction in clinical trials.
+The wear-time detection forms an essential data quality check that ensures robustness of mobility outcomes: wear-time detection validates sufficient recording duration (≥12 hours during waking hours for ≥3 days per Mobilise-D criteria) required for reliable DMO calculation.
+
+### Documentation
+
+- Added comprehensive examples for wear-time detection algorithms
+- Full API documentation with algorithm descriptions, parameters, and usage examples
+- Extensive test suites including unit tests, integration tests, and regression tests
+- For full reproducibility and retraining, we provide scripts for data preprocessing, train/test/evaluation, and final production training.
+
 ## [1.2.0] - 2026-04-01
 
 ### Added

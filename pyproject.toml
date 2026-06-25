@@ -35,6 +35,10 @@ dependencies = [
     "numba>=0.60.0",
     "python-dotenv>=1.0.1",
     "seaborn>=0.12.0",
+    # Additions for weartime and reorientatoin
+    "pyentrp>=2.1.0",
+    "tensorflow>=2.18.0,<2.22; sys_platform != 'win32' and python_version < '3.14'",
+    "xgboost>=1.7.5,<2.0",
 ]
 
 [dependency-groups]

@@ -1,0 +1,33 @@
+{
+  "model_type": "CNN_LSTM",
+  "version": "fullfeatures",
+  "training_date": "2026-05-17T20:12:33.972746",
+  "n_samples": 6465361,
+  "input_shape": [
+    500,
+    6
+  ],
+  "hyperparameters": {
+    "num_conv_layers": 3,
+    "filters": [
+      32,
+      64,
+      128
+    ],
+    "kernel_size": 9,
+    "pool_size": 2,
+    "dropout_rate": 0.3,
+    "dense_units": 64,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "epochs": 57,
+    "lstm_units": 64
+  },
+  "class_distribution": {
+    "0": 3933435,
+    "1": 2531926
+  },
+  "training_time_seconds": 118557,
+  "tensorflow_version": "2.18.0",
+  "notes": "Trained on all 26 subjects for production deployment"
+}
