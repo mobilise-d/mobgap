@@ -41,6 +41,7 @@ total_weartime_hours_
 total_weartime_hours_during_waking_
     Total wear-time during the configured waking-hours window in hours.
     For recordings that do not cover the full configured window, this can fall back to ``total_weartime_hours_``.
+    For recordings longer than one day, algorithms should raise an error instead of applying a single daily window.
 """,
         "detect_short": """
 Detect weartime periods in the passed data
@@ -57,7 +58,7 @@ Returns
 self
     The instance of the class with the ``weartime_list_``, ``total_weartime_samples_``,
     ``total_weartime_minutes_``, ``total_weartime_hours_``, and
-    ``total_weartime_hours_during_waking_`` attributes set to the detected weartime periods
+    ``total_weartime_hours_during_waking_`` attributes or properties available for the detected weartime periods
     and total weartime values.
 """,
         "self_optimize_paras": """
@@ -128,8 +129,10 @@ class BaseWeartimeDetector(Algorithm):
     07:00-22:00.
 
     The waking hours calculation assumes recordings are segmented per day (midnight-to-midnight).
-    For recordings shorter than the configured waking-hours end or longer than 25 hours, algorithms issue a warning and
-    use ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``.
+    For recordings shorter than the configured waking-hours end, algorithms issue a warning and use
+    ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``.
+    For recordings longer than one day, algorithms should raise an error instead of applying a single daily window to
+    multi-day data.
 
     **Implementation Notes**
 

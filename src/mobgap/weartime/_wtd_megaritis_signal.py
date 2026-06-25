@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import warnings
+from functools import cached_property
 from numbers import Integral
 from typing import Any, Union
 
@@ -154,9 +155,10 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     configured waking-hours window.
 
     The pipeline is designed for daily recordings (midnight-to-midnight, ~24 hours).
-    For recordings shorter than 22 hours or longer than 25 hours, the algorithm issues a warning
-    and uses ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``,
-    as the waking hours window cannot be reliably identified in non-standard recording durations.
+    For recordings shorter than the configured waking-hours end, the algorithm issues a warning and uses
+    ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``. For recordings longer than
+    one day, accessing ``total_weartime_hours_during_waking_`` raises an error because the recording must be segmented
+    per day before a single daily waking-hours window can be applied.
     Waking hours are identified using sample indices derived from minutes since midnight rather than timestamps,
     ensuring compatibility with devices that may not provide timestamp metadata.
     """
@@ -228,9 +230,12 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.__dict__.pop("total_weartime_hours_during_waking_", None)
         data_length = len(data)
         self.diagnostics_ = {"macro": [], "sample_votes": pd.DataFrame()}
         waking_start_min, waking_end_min = _validate_waking_hours_min(self.waking_hours_min)
+        self._waking_start_min = waking_start_min
+        self._waking_end_min = waking_end_min
 
         window_samples = int(self.window_min * 60 * self.sampling_rate_hz)
         step_samples = int(self.step_min * 60 * self.sampling_rate_hz)
@@ -321,7 +326,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.total_weartime_samples_ = (self.weartime_list_["end"] - self.weartime_list_["start"]).sum()
         self.total_weartime_minutes_ = self.total_weartime_samples_ / (60 * self.sampling_rate_hz)
         self.total_weartime_hours_ = self.total_weartime_samples_ / (3600 * self.sampling_rate_hz)
-        self._set_waking_hours_summary(weartime_flags, data_length, waking_start_min, waking_end_min)
+        self._weartime_flags = weartime_flags
 
         return self
 
@@ -515,12 +520,28 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             }
         )
 
-    def _set_waking_hours_summary(
-        self, weartime_flags: np.ndarray, data_length: int, waking_start_min: int, waking_end_min: int
-    ) -> None:
+    @cached_property
+    def total_weartime_hours_during_waking_(self) -> float:
+        """Wear-time in hours during the configured daily waking-hours window."""
+        try:
+            weartime_flags = self._weartime_flags
+            waking_start_min = self._waking_start_min
+            waking_end_min = self._waking_end_min
+        except AttributeError as exc:
+            raise AttributeError(
+                "`total_weartime_hours_during_waking_` is only available after calling `detect`."
+            ) from exc
+
+        data_length = len(weartime_flags)
+        recording_hours = data_length / (3600 * self.sampling_rate_hz)
+        if recording_hours > 24:
+            raise ValueError(
+                "Cannot calculate weartime during waking hours for recordings longer than one day. "
+                "Segment the recording into individual days before applying a daily waking-hours window."
+            )
+
         waking_start_sample = int(waking_start_min * 60 * self.sampling_rate_hz)
         waking_end_sample = int(waking_end_min * 60 * self.sampling_rate_hz)
-        recording_hours = data_length / (3600 * self.sampling_rate_hz)
         waking_window = _format_time_window(waking_start_min, waking_end_min)
 
         if data_length < waking_end_sample:
@@ -530,19 +551,10 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                 f"Using total_weartime_hours_ for weartime_during_waking_hours.",
                 stacklevel=2,
             )
-            self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
-        elif recording_hours > 25:
-            # Multi-day recordings need to be segmented before applying a single daily waking-hours window.
-            warnings.warn(
-                f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
-                f"Waking hours calculation assumes the recording is segmented per day. "
-                f"Using total_weartime_hours_ for weartime_during_waking_hours.",
-                stacklevel=2,
-            )
-            self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
-        else:
-            weartime_flags_waking = weartime_flags.copy()
-            weartime_flags_waking[:waking_start_sample] = 0
-            weartime_flags_waking[waking_end_sample:] = 0
-            total_weartime_samples_waking = weartime_flags_waking.sum()
-            self.total_weartime_hours_during_waking_ = total_weartime_samples_waking / (3600 * self.sampling_rate_hz)
+            return self.total_weartime_hours_
+
+        weartime_flags_waking = weartime_flags.copy()
+        weartime_flags_waking[:waking_start_sample] = 0
+        weartime_flags_waking[waking_end_sample:] = 0
+        total_weartime_samples_waking = weartime_flags_waking.sum()
+        return total_weartime_samples_waking / (3600 * self.sampling_rate_hz)

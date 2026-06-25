@@ -58,6 +58,23 @@ class TestWtdMegaritisSignal:
         assert result.total_weartime_hours_ == pytest.approx(4 / 60)
         assert result.total_weartime_hours_during_waking_ == pytest.approx(2 / 60)
 
+    def test_waking_hours_rejects_recordings_longer_than_one_day(self):
+        sampling_rate_hz = 0.1
+        data = pd.DataFrame(
+            np.zeros((int(24 * 60 * 60 * sampling_rate_hz) + 1, len(BF_SENSOR_COLS))),
+            columns=BF_SENSOR_COLS,
+        )
+        result = WtdMegaritisSignal(
+            window_min=24 * 60 + 1,
+            step_min=24 * 60 + 1,
+            window_size=60,
+            overlap=0.0,
+            waking_hours_min=(0, 60),
+        ).detect(data, sampling_rate_hz=sampling_rate_hz)
+
+        with pytest.raises(ValueError, match="longer than one day"):
+            result.total_weartime_hours_during_waking_
+
     def test_all_zero_signal_is_nonwear(self):
         data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
