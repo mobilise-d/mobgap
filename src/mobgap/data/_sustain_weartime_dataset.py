@@ -110,13 +110,6 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
         .drop(columns=["id", "sensor", "is_lowerback"])
     )
 
-    invalid_timestamp_rows = reference[["device_off", "device_on"]].isna().any(axis=1)
-    if invalid_timestamp_rows.any():
-        raise ValueError(
-            "The SUSTAIN wear-time reference file contains missing `device_off` or `device_on` timestamps for "
-            "lower-back rows."
-        )
-
     return reference.sort_values(["participant_id", "device_off", "device_on"], ignore_index=True)
 
 
@@ -539,6 +532,13 @@ class SustainWearTimeDataset(BaseGaitDataset):
                 raise ValueError(msg)
             if self.missing_reference_error_type == "warn":
                 warnings.warn(msg, stacklevel=2)
+
+        invalid_timestamp_rows = reference[["device_off", "device_on"]].isna().any(axis=1)
+        if invalid_timestamp_rows.any():
+            raise ValueError(
+                "The SUSTAIN wear-time reference file contains missing `device_off` or `device_on` timestamps for "
+                f"participant={self.group_label.participant_id}."
+            )
 
         return reference.sort_values(["device_off", "device_on"], ignore_index=True)
 
