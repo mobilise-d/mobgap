@@ -354,6 +354,17 @@ def _day_cut_seconds(
     return start_time_s, end_time_s
 
 
+def _clip_data_to_recording_day(data: pd.DataFrame, recording_day: str | None) -> pd.DataFrame:
+    if recording_day is None or not isinstance(data.index, pd.DatetimeIndex):
+        return data
+
+    day_start = _as_utc_timestamp(recording_day)
+    day_start = day_start.tz_localize(None) if data.index.tz is None else day_start.tz_convert(data.index.tz)
+    day_end = day_start + pd.Timedelta(days=1)
+
+    return data.loc[(data.index >= day_start) & (data.index < day_end)]
+
+
 class SustainWearTimeDataset(BaseGaitDataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
@@ -483,9 +494,10 @@ class SustainWearTimeDataset(BaseGaitDataset):
         timing_report = self.cwa_timing_report_
         _warn_if_effective_sampling_rate_deviates(timing_report, self.warn_thres_for_sampling_rate_deviations_hz)
         start_time_s, end_time_s = _day_cut_seconds(self._selected_recording_day, timing_report, self.sampling_rate_hz)
-        return self._cached_load_cwa_recording(
+        data = self._cached_load_cwa_recording(
             self.selected_data_file, additional_channels, timing_report, start_time_s, end_time_s
         ).data
+        return _clip_data_to_recording_day(data, self._selected_recording_day)
 
     @property
     def sampling_rate_hz(self) -> float:
