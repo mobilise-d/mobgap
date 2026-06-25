@@ -10,6 +10,7 @@ from pandas._testing import assert_frame_equal
 from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
 from mobgap.data import SustainWearTimeDataset
 from mobgap.data import _sustain_weartime_dataset as sustain_dataset
+from mobgap.utils.misc import get_env_var
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
@@ -18,6 +19,11 @@ CWA_FIXTURE = HERE / "data" / "sustain_weartime" / "example-610-steps.cwa"
 TIMING_WARNING_MATCH = "effective sampling rate waries considerable"
 HUMAN_RECORDING_ID = "human_movement_001_example_lowback"
 SIMULATED_RECORDING_ID = "simulated_movements_020_example_lowback"
+SUSTAIN_DATA_PATH = get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH", None)
+requires_sustain_data = pytest.mark.skipif(
+    not SUSTAIN_DATA_PATH,
+    reason="SUSTAIN wear-time dataset path (`MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH`) not set. Skipping test.",
+)
 
 
 def _read_fixture_data(**kwargs):
@@ -208,6 +214,53 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
 
     assert data.index[0] == pd.Timestamp("2020-01-02T00:00:00Z")
     assert cuts == [(2.0, 86402.0)]
+
+
+@requires_sustain_data
+def test_real_dataset_regression_index(snapshot):
+    dataset = SustainWearTimeDataset(SUSTAIN_DATA_PATH)
+    split_dataset = SustainWearTimeDataset(SUSTAIN_DATA_PATH, split_by_day=True)
+
+    snapshot.assert_match(dataset.index, "recording")
+    snapshot.assert_match(split_dataset.index, "split_by_day")
+
+
+@requires_sustain_data
+def test_real_dataset_split_by_day_matches_full_recording_for_single_participant():
+    dataset = SustainWearTimeDataset(
+        SUSTAIN_DATA_PATH,
+        additional_channels=(),
+        warn_thres_for_sampling_rate_deviations_hz=None,
+    )
+    split_dataset = SustainWearTimeDataset(
+        SUSTAIN_DATA_PATH,
+        additional_channels=(),
+        warn_thres_for_sampling_rate_deviations_hz=None,
+        split_by_day=True,
+    )
+    recording_cols = ["recording_type", "participant_id", "recording_id"]
+    split_index = split_dataset.index
+    n_days_per_recording = split_index.groupby(recording_cols, sort=False).size()
+    multi_day_recordings = n_days_per_recording[n_days_per_recording > 1]
+    if multi_day_recordings.empty:
+        pytest.skip("No multi-day recording found in the SUSTAIN wear-time dataset.")
+
+    participant_id = multi_day_recordings.index[0][1]
+    participant_index = dataset.index[dataset.index["participant_id"] == participant_id]
+
+    for recording_row in participant_index.to_dict("records"):
+        full_data = dataset.get_subset(**recording_row).data_ss
+        split_recording_index = split_index[
+            (split_index["recording_type"] == recording_row["recording_type"])
+            & (split_index["participant_id"] == recording_row["participant_id"])
+            & (split_index["recording_id"] == recording_row["recording_id"])
+        ]
+        split_data = pd.concat(
+            split_dataset.get_subset(index=recording_day.to_frame().T).data_ss
+            for _, recording_day in split_recording_index.iterrows()
+        )
+
+        assert_frame_equal(split_data, full_data)
 
 
 def test_loads_cwa_data_in_sensor_frame(tmp_path):
