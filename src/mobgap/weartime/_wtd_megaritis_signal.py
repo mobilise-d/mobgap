@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Literal, Union
+from numbers import Integral
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
@@ -49,6 +50,27 @@ def _spectral_centroid_batched(
     return centroid
 
 
+def _validate_waking_hours_min(waking_hours_min: tuple[int, int]) -> tuple[int, int]:
+    try:
+        start_min, end_min = waking_hours_min
+    except (TypeError, ValueError) as exc:
+        raise ValueError("`waking_hours_min` must be a tuple with exactly two values: `(start_min, end_min)`.") from exc
+
+    if not isinstance(start_min, Integral) or not isinstance(end_min, Integral):
+        raise TypeError("`waking_hours_min` values must be integer minutes since midnight.")
+    if not 0 <= start_min < end_min <= 24 * 60:
+        raise ValueError(
+            "`waking_hours_min` must define a non-empty window within one day using minutes since midnight."
+        )
+    return int(start_min), int(end_min)
+
+
+def _format_time_window(start_min: int, end_min: int) -> str:
+    start_h, start_m = divmod(start_min, 60)
+    end_h, end_m = divmod(end_min, 60)
+    return f"{start_h:02d}:{start_m:02d}-{end_h:02d}:{end_m:02d}"
+
+
 @base_weartime_docfiller
 class WtdMegaritisSignal(BaseWeartimeDetector):
     """
@@ -81,9 +103,10 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         If True, use voting system (default: True)
     min_features_required : int
         Minimum features meeting wear criteria (default: 2)
-    position : Literal['lowback']
-        Sensor position (default: 'lowback', only supported position)
-    feature_batch_size
+    waking_hours_min : tuple[int, int]
+        Waking-hours window used for ``total_weartime_hours_during_waking_`` as ``(start, end)`` in minutes since
+        midnight.
+    feature_batch_size : int
         Number of 5-second windows processed together during feature extraction. Larger batches reduce overhead, while
         smaller batches reduce peak memory use.
 
@@ -126,16 +149,16 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     **Waking Hours Calculation**
 
     In addition to total wear-time, this algorithm calculates wear-time during waking hours
-    (07:00-22:00), required for Mobilise-D DMO weekly aggregation. The waking hours value is
+    (07:00-22:00 by default), required for Mobilise-D DMO weekly aggregation. The waking hours value is
     extracted from the post-processed sample-level predictions by filtering wear-time to the
-    07:00-22:00 window.
+    configured waking-hours window.
 
     The pipeline is designed for daily recordings (midnight-to-midnight, ~24 hours).
     For recordings shorter than 22 hours or longer than 25 hours, the algorithm issues a warning
     and uses ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``,
     as the waking hours window cannot be reliably identified in non-standard recording durations.
-    Waking hours are identified using sample indices (07:00 = 7x3600xsampling_rate_hz) rather than
-    timestamps, ensuring compatibility with devices that may not provide timestamp metadata.
+    Waking hours are identified using sample indices derived from minutes since midnight rather than timestamps,
+    ensuring compatibility with devices that may not provide timestamp metadata.
     """
 
     diagnostics_: dict[str, Union[pd.DataFrame, list]]
@@ -154,7 +177,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         acc_pa_std_thresh: float = 0.17,
         voting_mode: bool = True,
         min_features_required: int = 2,
-        position: Literal["lowback"] = "lowback",
+        waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
         feature_batch_size: int = 4096,
     ) -> None:
         self.window_min = window_min
@@ -167,7 +190,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.acc_pa_std_thresh = acc_pa_std_thresh
         self.voting_mode = voting_mode
         self.min_features_required = min_features_required
-        self.position = position
+        self.waking_hours_min = waking_hours_min
         self.feature_batch_size = feature_batch_size
 
     @timed_action_method
@@ -176,7 +199,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self,
         data: pd.DataFrame,
         *,
-        sampling_rate_hz: float = 100,
+        sampling_rate_hz: float,
         **_: Unpack[dict[str, Any]],
     ) -> Self:
         """
@@ -207,6 +230,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.sampling_rate_hz = sampling_rate_hz
         data_length = len(data)
         self.diagnostics_ = {"macro": [], "sample_votes": pd.DataFrame()}
+        waking_start_min, waking_end_min = _validate_waking_hours_min(self.waking_hours_min)
 
         window_samples = int(self.window_min * 60 * self.sampling_rate_hz)
         step_samples = int(self.step_min * 60 * self.sampling_rate_hz)
@@ -218,6 +242,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         if self.feature_batch_size <= 0:
             raise ValueError("`feature_batch_size` must be a positive integer.")
 
+        # Difference arrays let each macro-window decision vote for a full sample range without materializing all
+        # overlapping per-sample updates immediately.
         wear_vote_diff = np.zeros(data_length + 1, dtype=np.int32)
         non_wear_vote_diff = np.zeros(data_length + 1, dtype=np.int32)
 
@@ -249,6 +275,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
             last_complete_macro_end = ((data_length - window_samples) // step_samples + 1) * step_samples
             if last_complete_macro_end < data_length:
+                # The final boundary window is anchored to the recording end and can be shifted relative to the shared
+                # global micro-window grid, so it is classified separately.
                 self._process_single_macro_window(
                     data=data,
                     start_idx=max(0, data_length - window_samples),
@@ -264,11 +292,14 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
         wear_votes = np.cumsum(wear_vote_diff[:-1])
         non_wear_votes = np.cumsum(non_wear_vote_diff[:-1])
+        # Keep the original conservative tie-breaking behavior: equal votes are treated as wear.
         weartime_flags = (wear_votes >= non_wear_votes).astype(int)
 
+        # Stage 1 removes brief isolated periods caused by sensor noise, voting edge effects, or transient artifacts.
         weartime_flags = remove_isolated_short_periods(
             weartime_flags, min_period_sec=15.0, sampling_rate_hz=self.sampling_rate_hz
         )
+        # Stage 2 removes short wear bouts that are likely device handling rather than sustained wear.
         weartime_flags = remove_short_wear_bouts_by_ratio(
             weartime_flags, max_bout_minutes=20.0, min_ratio=0.3, sampling_rate_hz=self.sampling_rate_hz
         )
@@ -290,7 +321,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.total_weartime_samples_ = (self.weartime_list_["end"] - self.weartime_list_["start"]).sum()
         self.total_weartime_minutes_ = self.total_weartime_samples_ / (60 * self.sampling_rate_hz)
         self.total_weartime_hours_ = self.total_weartime_samples_ / (3600 * self.sampling_rate_hz)
-        self._set_waking_hours_summary(weartime_flags, data_length)
+        self._set_waking_hours_summary(weartime_flags, data_length, waking_start_min, waking_end_min)
 
         return self
 
@@ -315,6 +346,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
         first_micro_start = int(macro_starts[0])
         last_micro_start = int(macro_starts[-1] + (n_micro_per_macro - 1) * micro_step_samples)
+        # Complete macro windows all start on the same step grid, so their overlapping micro windows can be classified
+        # once globally and reused for each macro decision.
         global_micro_starts = np.arange(
             first_micro_start,
             last_micro_start + micro_step_samples,
@@ -394,6 +427,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
         required_columns = {"acc_pa", "gyr_ml", "gyr_is"}
         if not required_columns.issubset(data.columns):
+            # Missing channels are treated as inconclusive and therefore as wear, matching the original conservative
+            # handling of missing feature values.
             wear_flags[:] = True
             return wear_flags
 
@@ -437,6 +472,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             wear_flags = gyr_ml_wear & gyr_is_wear & acc_pa_wear
 
         wear_flags[missing_features] = True
+        # All-zero synthetic signals have zero spectral centroids and zero acceleration variance. The centroid checks
+        # alone would otherwise classify them as wear, although a constant signal should be non-wear.
         wear_flags[all_zero_features & ~missing_features] = False
         return wear_flags
 
@@ -478,19 +515,24 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             }
         )
 
-    def _set_waking_hours_summary(self, weartime_flags: np.ndarray, data_length: int) -> None:
-        waking_start_sample = int(7 * 3600 * self.sampling_rate_hz)
-        waking_end_sample = int(22 * 3600 * self.sampling_rate_hz)
+    def _set_waking_hours_summary(
+        self, weartime_flags: np.ndarray, data_length: int, waking_start_min: int, waking_end_min: int
+    ) -> None:
+        waking_start_sample = int(waking_start_min * 60 * self.sampling_rate_hz)
+        waking_end_sample = int(waking_end_min * 60 * self.sampling_rate_hz)
         recording_hours = data_length / (3600 * self.sampling_rate_hz)
+        waking_window = _format_time_window(waking_start_min, waking_end_min)
 
         if data_length < waking_end_sample:
+            # The sample-index based waking-hours calculation assumes a complete enough daily recording.
             warnings.warn(
-                f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "
+                f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window ({waking_window}). "
                 f"Using total_weartime_hours_ for weartime_during_waking_hours.",
                 stacklevel=2,
             )
             self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
         elif recording_hours > 25:
+            # Multi-day recordings need to be segmented before applying a single daily waking-hours window.
             warnings.warn(
                 f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
                 f"Waking hours calculation assumes the recording is segmented per day. "

@@ -39,8 +39,8 @@ total_weartime_hours_
 """,
         "total_weartime_hours_during_waking_": """
 total_weartime_hours_during_waking_
-    Total wear-time during waking hours (07:00-22:00) in hours.
-    For recordings shorter than 22:00, this equals ``total_weartime_hours_``.
+    Total wear-time during the configured waking-hours window in hours.
+    For recordings that do not cover the full configured window, this can fall back to ``total_weartime_hours_``.
 """,
         "detect_short": """
 Detect weartime periods in the passed data
@@ -122,13 +122,14 @@ class BaseWeartimeDetector(Algorithm):
     -----
     **Waking Hours Calculation**
 
-    All algorithms calculate wear-time during waking hours (07:00-22:00) in addition to
-    total wear-time. This is required for Mobilise-D Digital Mobility Assessment (DMA)
-    validation, which requires ≥12 hours of wear-time during waking hours per valid day.
+    All algorithms calculate wear-time during waking hours in addition to total wear-time.
+    This is required for Mobilise-D Digital Mobility Assessment (DMA) validation, which requires ≥12 hours of wear-time
+    during waking hours per valid day. Algorithms may expose a configurable waking-hours window; the current default is
+    07:00-22:00.
 
     The waking hours calculation assumes recordings are segmented per day (midnight-to-midnight).
-    For recordings shorter than 22:00 or longer than 25 hours, algorithms issue a warning
-    and use ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``.
+    For recordings shorter than the configured waking-hours end or longer than 25 hours, algorithms issue a warning and
+    use ``total_weartime_hours_`` as a fallback for ``total_weartime_hours_during_waking_``.
 
     **Implementation Notes**
 
