@@ -237,6 +237,26 @@ def test_missing_reference_timestamps_raise(tmp_path):
         datapoint.reference_nonwear_
 
 
+def test_missing_reference_timestamps_for_unrelated_recording_are_ignored(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    valid_reference_row = json.loads((base_path / "weartime_part_a_all" / "reference.json").read_text())
+    unrelated_reference_row = {
+        "id": "999",
+        "sensor": "lowerback",
+        "device_off": None,
+        "device_on": None,
+        "wear_status": "non_wear",
+    }
+    (base_path / "weartime_part_a_all" / "reference.json").write_text(
+        "\n".join(json.dumps(row) for row in [valid_reference_row, unrelated_reference_row]) + "\n"
+    )
+    datapoint = SustainWearTimeDataset(base_path, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
+
+    assert len(datapoint.reference_nonwear_) == 1
+
+
 def test_simulated_movements_are_all_nonwear(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
     datapoint = SustainWearTimeDataset(base_path, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
