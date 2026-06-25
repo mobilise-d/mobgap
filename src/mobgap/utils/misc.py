@@ -1,7 +1,10 @@
 """Miscellaneous utility functions."""
 
 import os
+from pathlib import Path
 from typing import Any
+
+from mobgap import PROJECT_ROOT
 
 _NONE = object()
 
@@ -9,12 +12,12 @@ _NONE = object()
 def get_env_var(name: str, default: Any = _NONE) -> str:
     """Get an environment variable.
 
-    We first check if it exists, if not, we attempt to load a `.env` file, which might be present during development.
+    We first check if it exists, then load the project-root `.env` file if needed.
     """
     if name not in os.environ:
         from dotenv import load_dotenv  # noqa: PLC0415
 
-        load_dotenv()
+        load_dotenv(Path(PROJECT_ROOT) / ".env")
 
     if name not in os.environ and default is _NONE:
         raise ValueError(
