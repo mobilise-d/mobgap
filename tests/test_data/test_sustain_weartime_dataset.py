@@ -397,12 +397,32 @@ def test_human_movement_references_are_snapped_to_sample_boundaries(tmp_path):
     ]
 
 
-def test_missing_reference_timestamps_raise(tmp_path):
+def test_missing_reference_device_off_timestamps_raise(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
+    data_index = _read_fixture_index()
     reference_row = {
         "id": "1",
         "sensor": "lowerback",
         "device_off": None,
+        "device_on": data_index[20].isoformat(),
+        "wear_status": "non_wear",
+    }
+    (base_path / "weartime_part_a_all" / "reference.json").write_text(json.dumps(reference_row) + "\n")
+    datapoint = SustainWearTimeDataset(base_path, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
+
+    with pytest.raises(ValueError, match="missing `device_off` timestamps"):
+        datapoint.reference_nonwear_
+
+
+def test_missing_reference_device_on_extends_nonwear_to_end_of_data(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    data_index = _read_fixture_index()
+    reference_row = {
+        "id": "1",
+        "sensor": "lowerback",
+        "device_off": data_index[10].isoformat(),
         "device_on": None,
         "wear_status": "non_wear",
     }
@@ -411,8 +431,17 @@ def test_missing_reference_timestamps_raise(tmp_path):
         recording_id=HUMAN_RECORDING_ID
     )
 
-    with pytest.raises(ValueError, match="missing `device_off` or `device_on` timestamps"):
-        datapoint.reference_nonwear_
+    data = datapoint.data_ss
+    nonwear = datapoint.reference_nonwear_
+
+    assert nonwear[["start", "end", "duration"]].to_dict("records") == [
+        {"start": 10, "end": len(data), "duration": len(data) - 10}
+    ]
+    assert nonwear.iloc[0]["start_dt"] == data.index[10]
+    assert nonwear.iloc[0]["end_dt"] == data.index[-1] + pd.to_timedelta(1 / datapoint.sampling_rate_hz, unit="s")
+
+    weartime = datapoint.reference_weartime_
+    assert weartime[["start", "end", "duration"]].to_dict("records") == [{"start": 0, "end": 10, "duration": 10}]
 
 
 def test_missing_reference_timestamps_for_unrelated_recording_are_ignored(tmp_path):
