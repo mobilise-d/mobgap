@@ -196,7 +196,7 @@ for ax in axes.flatten():
         legend.set_title("")
 
 plt.tight_layout()
-plt.show()
+fig_human.show()
 
 # %%
 # Simulated non-wear plots
@@ -233,4 +233,4 @@ for ax in axes.flatten():
         legend.set_title("")
 
 plt.tight_layout()
-plt.show()
+fig_simulated.show()
