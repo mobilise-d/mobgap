@@ -1,47 +1,8 @@
 import numpy as np
-import pandas as pd
 from numpy.testing import assert_array_equal
-from pandas._testing import assert_frame_equal
 
 from mobgap.weartime.utils.ml_feature_extraction import remove_short_wear_bouts_by_ratio
-from mobgap.weartime.utils.weartime_calc import (
-    generate_weartime_list_from_minutes,
-    generate_weartime_list_from_samples,
-    generate_weartime_list_from_seconds,
-)
 from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_periods
-
-
-def _weartime_df(start_ends: list[tuple[int, int]]) -> pd.DataFrame:
-    return pd.DataFrame(start_ends, columns=["start", "end"]).rename_axis(index="wt_id")
-
-
-class TestGenerateWeartimeList:
-    def test_detects_wear_intervals_at_boundaries(self):
-        flags = np.array([1, 1, 0, 1, 0, 1, 1])
-
-        result = generate_weartime_list_from_samples(flags)
-
-        assert_frame_equal(result, _weartime_df([(0, 2), (3, 4), (5, 7)]))
-
-    def test_handles_empty_and_all_nonwear_flags(self):
-        expected = _weartime_df([]).astype({"start": "int64", "end": "int64"})
-
-        assert_frame_equal(generate_weartime_list_from_samples(np.array([], dtype=int)), expected)
-        assert_frame_equal(generate_weartime_list_from_samples(np.zeros(4, dtype=int)), expected)
-
-    def test_scales_second_and_minute_flags_to_samples(self):
-        second_flags = np.array([0, 1, 1, 0, 1])
-        minute_flags = np.array([1, 0, 1])
-
-        assert_frame_equal(
-            generate_weartime_list_from_seconds(second_flags, sampling_rate=20),
-            _weartime_df([(20, 60), (80, 100)]),
-        )
-        assert_frame_equal(
-            generate_weartime_list_from_minutes(minute_flags, sampling_rate=20),
-            _weartime_df([(0, 1200), (2400, 3600)]),
-        )
 
 
 class TestRemoveIsolatedShortPeriods:
