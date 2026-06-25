@@ -1,8 +1,38 @@
 import numpy as np
+import pandas as pd
 from numpy.testing import assert_array_equal
+from pandas.testing import assert_frame_equal
 
+from mobgap.weartime.utils import clip_intervals_to_waking_hours
 from mobgap.weartime.utils.ml_feature_extraction import remove_short_wear_bouts_by_ratio
 from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_periods
+
+
+def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:
+    return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index_name).astype("int64")
+
+
+def test_clip_intervals_to_waking_hours_drops_empty_boundary_intervals():
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(120, 120)]),
+        sampling_rate_hz=1.0,
+        waking_hours_min=(1, 2),
+    )
+
+    assert_frame_equal(clipped, _intervals([]))
+
+
+def test_clip_intervals_to_waking_hours_uses_datetime_index_when_available():
+    data = pd.DataFrame(index=pd.date_range("2026-01-01 00:02:00", periods=240, freq="s", tz="UTC"))
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, 239)]),
+        data=data,
+        sampling_rate_hz=1.0,
+        waking_hours_min=(1, 3),
+    )
+
+    assert_frame_equal(clipped, _intervals([(0, 60)]))
 
 
 class TestRemoveIsolatedShortPeriods:
