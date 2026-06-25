@@ -197,9 +197,9 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
     def fake_read_cwa_recording(file_path, additional_channels, timing_report, start_time_s=None, end_time_s=None):
         cuts.append((start_time_s, end_time_s))
         data = pd.DataFrame(
-            [[0.0] * (len(SF_SENSOR_COLS) + 1)],
+            [[0.0] * (len(SF_SENSOR_COLS) + 1), [1.0] * (len(SF_SENSOR_COLS) + 1)],
             columns=[*SF_SENSOR_COLS, "temperature"],
-            index=pd.DatetimeIndex(["2020-01-02T00:00:00Z"], name="time"),
+            index=pd.DatetimeIndex(["2020-01-02T23:59:59Z", "2020-01-03T00:00:00Z"], name="time"),
         )
         return sustain_dataset._CwaRecording(data, 100.0, {}, timing_report)
 
@@ -212,7 +212,7 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
 
     data = datapoint.data_ss
 
-    assert data.index[0] == pd.Timestamp("2020-01-02T00:00:00Z")
+    assert data.index.to_list() == [pd.Timestamp("2020-01-02T23:59:59Z")]
     assert cuts == [(2.0, 86402.0)]
 
 
