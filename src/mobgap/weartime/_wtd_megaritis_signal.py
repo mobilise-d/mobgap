@@ -17,17 +17,36 @@ from typing import Any, Literal, Union
 
 import numpy as np
 import pandas as pd
+from scipy.signal import welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
-from mobgap.weartime.utils.ml_feature_extraction import (
-    extract_features_from_windows,
-    remove_short_wear_bouts_by_ratio,
-    rolling_window_indices,
-)
+from mobgap.weartime.utils.ml_feature_extraction import remove_short_wear_bouts_by_ratio
 from mobgap.weartime.utils.weartime_calc import generate_weartime_list_from_samples
 from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_periods
+
+
+def _window_starts(n_samples: int, window_samples: int, step_samples: int) -> np.ndarray:
+    if n_samples < window_samples:
+        return np.array([], dtype=np.int64)
+    return np.arange(0, n_samples - window_samples + 1, step_samples, dtype=np.int64)
+
+
+def _spectral_centroid_batched(
+    signal: np.ndarray,
+    starts: np.ndarray,
+    offsets: np.ndarray,
+    *,
+    sampling_rate_hz: float,
+) -> np.ndarray:
+    windows = signal[starts[:, None] + offsets]
+    frequencies, power = welch(windows, fs=sampling_rate_hz, nperseg=len(offsets), axis=1)
+    total_power = power.sum(axis=1)
+    weighted_power = (power * frequencies).sum(axis=1)
+    centroid = np.zeros(len(starts), dtype=np.float64)
+    np.divide(weighted_power, total_power, out=centroid, where=total_power > 0)
+    return centroid
 
 
 @base_weartime_docfiller
@@ -64,6 +83,9 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         Minimum features meeting wear criteria (default: 2)
     position : Literal['lowback']
         Sensor position (default: 'lowback', only supported position)
+    feature_batch_size
+        Number of 5-second windows processed together during feature extraction. Larger batches reduce overhead, while
+        smaller batches reduce peak memory use.
 
     Other Parameters
     ----------------
@@ -85,7 +107,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     **Algorithm Workflow**
 
     1. Sliding macro windows are defined over the input data
-    2. Each macro window is divided into micro windows (5s) for feature extraction
+    2. The complete macro windows share a global 5-second micro-window grid
     3. Three features are extracted per micro window:
        gyr_ml_spectral_centroid (frequency of mediolateral rotation),
        gyr_is_spectral_centroid (frequency of vertical rotation),
@@ -116,7 +138,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     timestamps, ensuring compatibility with devices that may not provide timestamp metadata.
     """
 
-    # Type hints
     diagnostics_: dict[str, Union[pd.DataFrame, list]]
     total_weartime_hours_during_waking_: float
 
@@ -134,6 +155,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         voting_mode: bool = True,
         min_features_required: int = 2,
         position: Literal["lowback"] = "lowback",
+        feature_batch_size: int = 4096,
     ) -> None:
         self.window_min = window_min
         self.step_min = step_min
@@ -146,6 +168,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.voting_mode = voting_mode
         self.min_features_required = min_features_required
         self.position = position
+        self.feature_batch_size = feature_batch_size
 
     @timed_action_method
     @base_weartime_docfiller
@@ -183,84 +206,73 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         data_length = len(data)
-        self.diagnostics_: dict[str, Union[pd.DataFrame, list]] = {
-            "macro": [],
-            "sample_votes": pd.DataFrame(),
-        }
+        self.diagnostics_ = {"macro": [], "sample_votes": pd.DataFrame()}
 
-        n_samples = len(self.data)
-
-        # Macro window definition
         window_samples = int(self.window_min * 60 * self.sampling_rate_hz)
         step_samples = int(self.step_min * 60 * self.sampling_rate_hz)
+        micro_window_samples = int(self.window_size * self.sampling_rate_hz)
+        micro_step_samples = int(micro_window_samples * (1 - self.overlap))
 
-        # --- per-sample vote counters ---
-        wear_votes = np.zeros(n_samples, dtype=int)
-        non_wear_votes = np.zeros(n_samples, dtype=int)
+        if micro_step_samples <= 0:
+            raise ValueError("The micro-window step must be positive. Check `window_size` and `overlap`.")
+        if self.feature_batch_size <= 0:
+            raise ValueError("`feature_batch_size` must be a positive integer.")
 
-        # --- Handle very short recordings (shorter than one macro window) ---
-        if n_samples < window_samples:
-            # Process entire recording as a single partial macro window
-            self._process_macro_window(
+        wear_vote_diff = np.zeros(data_length + 1, dtype=np.int32)
+        non_wear_vote_diff = np.zeros(data_length + 1, dtype=np.int32)
+
+        if data_length < window_samples:
+            self._process_single_macro_window(
                 data=data,
                 start_idx=0,
-                end_idx=n_samples,
-                wear_votes=wear_votes,
-                non_wear_votes=non_wear_votes,
+                end_idx=data_length,
+                wear_vote_diff=wear_vote_diff,
+                non_wear_vote_diff=non_wear_vote_diff,
                 sampling_rate_hz=sampling_rate_hz,
+                micro_window_samples=micro_window_samples,
+                micro_step_samples=micro_step_samples,
                 is_boundary=True,
                 is_short_recording=True,
             )
         else:
-            # --- Normal processing: Sliding macro windows ---
-            for start_macro in range(0, n_samples - window_samples + 1, step_samples):
-                end_macro = start_macro + window_samples
+            complete_macro_starts = _window_starts(data_length, window_samples, step_samples)
+            self._process_complete_macro_windows(
+                data=data,
+                macro_starts=complete_macro_starts,
+                window_samples=window_samples,
+                micro_window_samples=micro_window_samples,
+                micro_step_samples=micro_step_samples,
+                wear_vote_diff=wear_vote_diff,
+                non_wear_vote_diff=non_wear_vote_diff,
+                sampling_rate_hz=sampling_rate_hz,
+            )
 
-                self._process_macro_window(
+            last_complete_macro_end = ((data_length - window_samples) // step_samples + 1) * step_samples
+            if last_complete_macro_end < data_length:
+                self._process_single_macro_window(
                     data=data,
-                    start_idx=start_macro,
-                    end_idx=end_macro,
-                    wear_votes=wear_votes,
-                    non_wear_votes=non_wear_votes,
+                    start_idx=max(0, data_length - window_samples),
+                    end_idx=data_length,
+                    wear_vote_diff=wear_vote_diff,
+                    non_wear_vote_diff=non_wear_vote_diff,
                     sampling_rate_hz=sampling_rate_hz,
-                    is_boundary=False,
-                )
-
-            # --- Process boundary samples (partial macro window at end) ---
-            # Calculate where the last complete macro window ended
-            last_complete_macro_end = ((n_samples - window_samples) // step_samples + 1) * step_samples
-
-            if last_complete_macro_end < n_samples:
-                # There are unprocessed boundary samples
-                # Create a partial macro window that ends at n_samples
-                boundary_macro_start = max(0, n_samples - window_samples)
-
-                self._process_macro_window(
-                    data=data,
-                    start_idx=boundary_macro_start,
-                    end_idx=n_samples,
-                    wear_votes=wear_votes,
-                    non_wear_votes=non_wear_votes,
-                    sampling_rate_hz=sampling_rate_hz,
+                    micro_window_samples=micro_window_samples,
+                    micro_step_samples=micro_step_samples,
                     is_boundary=True,
+                    is_short_recording=False,
                 )
 
-        # --- FINAL decision per sample ---
+        wear_votes = np.cumsum(wear_vote_diff[:-1])
+        non_wear_votes = np.cumsum(non_wear_vote_diff[:-1])
         weartime_flags = (wear_votes >= non_wear_votes).astype(int)
 
-        # Post-processing Stage 1: Remove very brief isolated periods (<15 seconds)
-        # Removes sensor noise, voting edge effects, and transient artifacts
         weartime_flags = remove_isolated_short_periods(
             weartime_flags, min_period_sec=15.0, sampling_rate_hz=self.sampling_rate_hz
         )
-
-        # Post-processing Stage 2: Remove short wear bouts (≤20 min) with low contextual ratio
-        # Removes suspected device handling events (e.g., 10-min "wear" surrounded by hours of non-wear)
         weartime_flags = remove_short_wear_bouts_by_ratio(
             weartime_flags, max_bout_minutes=20.0, min_ratio=0.3, sampling_rate_hz=self.sampling_rate_hz
         )
 
-        # Add diagnostic info after loop
         self.diagnostics_["macro"] = pd.DataFrame(self.diagnostics_["macro"])
         self.diagnostics_["sample_votes"] = pd.DataFrame(
             {
@@ -271,27 +283,207 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             }
         )
 
-        # Output formatting (per sample converted to weartime list)
         self.weartime_list_ = generate_weartime_list_from_samples(weartime_flags)
-
-        # Clip end to actual data length
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
-
-        # Unify format (adds wt_id index, ensures correct dtypes)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
 
         self.total_weartime_samples_ = (self.weartime_list_["end"] - self.weartime_list_["start"]).sum()
         self.total_weartime_minutes_ = self.total_weartime_samples_ / (60 * self.sampling_rate_hz)
         self.total_weartime_hours_ = self.total_weartime_samples_ / (3600 * self.sampling_rate_hz)
+        self._set_waking_hours_summary(weartime_flags, data_length)
 
-        # Weartime during waking hours (07:00-22:00)
+        return self
+
+    def _process_complete_macro_windows(
+        self,
+        *,
+        data: pd.DataFrame,
+        macro_starts: np.ndarray,
+        window_samples: int,
+        micro_window_samples: int,
+        micro_step_samples: int,
+        wear_vote_diff: np.ndarray,
+        non_wear_vote_diff: np.ndarray,
+        sampling_rate_hz: float,
+    ) -> None:
+        if len(macro_starts) == 0:
+            return
+
+        n_micro_per_macro = len(_window_starts(window_samples, micro_window_samples, micro_step_samples))
+        if n_micro_per_macro == 0:
+            return
+
+        first_micro_start = int(macro_starts[0])
+        last_micro_start = int(macro_starts[-1] + (n_micro_per_macro - 1) * micro_step_samples)
+        global_micro_starts = np.arange(
+            first_micro_start,
+            last_micro_start + micro_step_samples,
+            micro_step_samples,
+            dtype=np.int64,
+        )
+        micro_wear_flags = self._classify_micro_windows_from_starts(
+            data=data,
+            starts=global_micro_starts,
+            window_samples=micro_window_samples,
+            sampling_rate_hz=sampling_rate_hz,
+        )
+        micro_non_wear = ~micro_wear_flags
+        non_wear_prefix = np.concatenate([[0], np.cumsum(micro_non_wear, dtype=np.int64)])
+
+        for start_idx in macro_starts:
+            end_idx = int(start_idx + window_samples)
+            micro_start_idx = int((start_idx - first_micro_start) // micro_step_samples)
+            n_non_wear = int(non_wear_prefix[micro_start_idx + n_micro_per_macro] - non_wear_prefix[micro_start_idx])
+            self._add_macro_decision(
+                start_idx=int(start_idx),
+                end_idx=end_idx,
+                n_micro_windows=n_micro_per_macro,
+                n_non_wear=n_non_wear,
+                wear_vote_diff=wear_vote_diff,
+                non_wear_vote_diff=non_wear_vote_diff,
+                is_boundary=False,
+                is_short_recording=False,
+            )
+
+    def _process_single_macro_window(
+        self,
+        *,
+        data: pd.DataFrame,
+        start_idx: int,
+        end_idx: int,
+        wear_vote_diff: np.ndarray,
+        non_wear_vote_diff: np.ndarray,
+        sampling_rate_hz: float,
+        micro_window_samples: int,
+        micro_step_samples: int,
+        is_boundary: bool,
+        is_short_recording: bool,
+    ) -> None:
+        relative_micro_starts = _window_starts(end_idx - start_idx, micro_window_samples, micro_step_samples)
+        if len(relative_micro_starts) == 0:
+            return
+
+        micro_wear_flags = self._classify_micro_windows_from_starts(
+            data=data,
+            starts=relative_micro_starts + start_idx,
+            window_samples=micro_window_samples,
+            sampling_rate_hz=sampling_rate_hz,
+        )
+        self._add_macro_decision(
+            start_idx=start_idx,
+            end_idx=end_idx,
+            n_micro_windows=len(micro_wear_flags),
+            n_non_wear=int((~micro_wear_flags).sum()),
+            wear_vote_diff=wear_vote_diff,
+            non_wear_vote_diff=non_wear_vote_diff,
+            is_boundary=is_boundary,
+            is_short_recording=is_short_recording,
+        )
+
+    def _classify_micro_windows_from_starts(
+        self,
+        *,
+        data: pd.DataFrame,
+        starts: np.ndarray,
+        window_samples: int,
+        sampling_rate_hz: float,
+    ) -> np.ndarray:
+        wear_flags = np.empty(len(starts), dtype=bool)
+        if len(starts) == 0:
+            return wear_flags
+
+        required_columns = {"acc_pa", "gyr_ml", "gyr_is"}
+        if not required_columns.issubset(data.columns):
+            wear_flags[:] = True
+            return wear_flags
+
+        acc_pa = data["acc_pa"].to_numpy(copy=False)
+        gyr_ml = data["gyr_ml"].to_numpy(copy=False)
+        gyr_is = data["gyr_is"].to_numpy(copy=False)
+        offsets = np.arange(window_samples, dtype=np.int64)
+
+        for batch_start in range(0, len(starts), self.feature_batch_size):
+            batch = starts[batch_start : batch_start + self.feature_batch_size]
+            batch_offsets = batch[:, None] + offsets
+            acc_pa_std = np.std(acc_pa[batch_offsets], axis=1, ddof=1)
+            gyr_ml_centroid = _spectral_centroid_batched(gyr_ml, batch, offsets, sampling_rate_hz=sampling_rate_hz)
+            gyr_is_centroid = _spectral_centroid_batched(gyr_is, batch, offsets, sampling_rate_hz=sampling_rate_hz)
+            wear_flags[batch_start : batch_start + len(batch)] = self._classify_feature_arrays(
+                acc_pa_std=acc_pa_std,
+                gyr_ml_centroid=gyr_ml_centroid,
+                gyr_is_centroid=gyr_is_centroid,
+            )
+
+        return wear_flags
+
+    def _classify_feature_arrays(
+        self,
+        *,
+        acc_pa_std: np.ndarray,
+        gyr_ml_centroid: np.ndarray,
+        gyr_is_centroid: np.ndarray,
+    ) -> np.ndarray:
+        missing_features = np.isnan(acc_pa_std) | np.isnan(gyr_ml_centroid) | np.isnan(gyr_is_centroid)
+        all_zero_features = (gyr_ml_centroid == 0) & (gyr_is_centroid == 0) & (acc_pa_std == 0)
+
+        gyr_ml_wear = gyr_ml_centroid < self.gyr_ml_centroid_thresh_hz
+        gyr_is_wear = gyr_is_centroid < self.gyr_is_centroid_thresh_hz
+        acc_pa_wear = acc_pa_std > self.acc_pa_std_thresh
+
+        if self.voting_mode:
+            wear_score = gyr_ml_wear.astype(np.int8) + gyr_is_wear.astype(np.int8) + acc_pa_wear.astype(np.int8)
+            wear_flags = wear_score >= self.min_features_required
+        else:
+            wear_flags = gyr_ml_wear & gyr_is_wear & acc_pa_wear
+
+        wear_flags[missing_features] = True
+        wear_flags[all_zero_features & ~missing_features] = False
+        return wear_flags
+
+    def _add_macro_decision(
+        self,
+        *,
+        start_idx: int,
+        end_idx: int,
+        n_micro_windows: int,
+        n_non_wear: int,
+        wear_vote_diff: np.ndarray,
+        non_wear_vote_diff: np.ndarray,
+        is_boundary: bool,
+        is_short_recording: bool,
+    ) -> None:
+        n_wear = n_micro_windows - n_non_wear
+        macro_score = n_non_wear / n_micro_windows
+        macro_non_wear = macro_score >= self.prob_thresh
+
+        if macro_non_wear:
+            non_wear_vote_diff[start_idx] += 1
+            non_wear_vote_diff[end_idx] -= 1
+        else:
+            wear_vote_diff[start_idx] += 1
+            wear_vote_diff[end_idx] -= 1
+
+        self.diagnostics_["macro"].append(
+            {
+                "start": start_idx,
+                "end": end_idx,
+                "macro_score": macro_score,
+                "macro_non_wear": macro_non_wear,
+                "n_micro_windows": n_micro_windows,
+                "micro_non_wear_rate": macro_score,
+                "n_wear": n_wear,
+                "n_non_wear": n_non_wear,
+                "is_boundary_window": is_boundary,
+                "is_short_recording": is_short_recording,
+            }
+        )
+
+    def _set_waking_hours_summary(self, weartime_flags: np.ndarray, data_length: int) -> None:
         waking_start_sample = int(7 * 3600 * self.sampling_rate_hz)
         waking_end_sample = int(22 * 3600 * self.sampling_rate_hz)
         recording_hours = data_length / (3600 * self.sampling_rate_hz)
 
-        # Check if recording is according to mobgap use case (single day)
         if data_length < waking_end_sample:
-            # Recording shorter than 22:00 - use full weartime
             warnings.warn(
                 f"Recording duration ({recording_hours:.1f}h) is shorter than waking hours window (07:00-22:00). "
                 f"Using total_weartime_hours_ for weartime_during_waking_hours.",
@@ -299,7 +491,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             )
             self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
         elif recording_hours > 25:
-            # Recording longer than 25 hours - use full weartime
             warnings.warn(
                 f"Recording duration ({recording_hours:.1f}h) exceeds a full day. "
                 f"Waking hours calculation assumes the recording is segmented per day. "
@@ -308,161 +499,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             )
             self.total_weartime_hours_during_waking_ = self.total_weartime_hours_
         else:
-            # Normal day (22-25h): crop to waking hours
             weartime_flags_waking = weartime_flags.copy()
             weartime_flags_waking[:waking_start_sample] = 0
             weartime_flags_waking[waking_end_sample:] = 0
-
             total_weartime_samples_waking = weartime_flags_waking.sum()
             self.total_weartime_hours_during_waking_ = total_weartime_samples_waking / (3600 * self.sampling_rate_hz)
-
-        return self
-
-    def _process_macro_window(
-        self,
-        data: pd.DataFrame,
-        start_idx: int,
-        end_idx: int,
-        wear_votes: np.ndarray,
-        non_wear_votes: np.ndarray,
-        sampling_rate_hz: float,
-        is_boundary: bool = False,
-        is_short_recording: bool = False,
-    ) -> None:
-        """
-        Process a single macro window (complete or partial) and accumulate sample-level votes.
-
-        Extracts micro windows, computes features, classifies each micro window, aggregates
-        to macro-level decision, and assigns votes to all samples within the macro window.
-
-        Parameters
-        ----------
-        data : pd.DataFrame
-            Complete input data with accelerometer and gyroscope columns
-        start_idx : int
-            Start sample index of macro window
-        end_idx : int
-            End sample index of macro window (exclusive)
-        wear_votes : np.ndarray
-            Array to accumulate wear votes (modified in place)
-        non_wear_votes : np.ndarray
-            Array to accumulate non-wear votes (modified in place)
-        sampling_rate_hz : float
-            Sampling frequency in Hz
-        is_boundary : bool, optional
-            Whether this is a partial macro window at recording boundary (default: False)
-        is_short_recording : bool, optional
-            Whether entire recording is shorter than one macro window (default: False)
-        """
-        macro_window_data = data.iloc[start_idx:end_idx]
-        n_samples_macro = len(macro_window_data)
-
-        # Micro windows
-        win_samples_micro = int(self.window_size * sampling_rate_hz)
-        step = int(win_samples_micro * (1 - self.overlap))
-
-        features_micro = []
-        for start_micro, end_micro in rolling_window_indices(n_samples_macro, win_samples_micro, step):
-            micro_window = macro_window_data.iloc[start_micro:end_micro]
-            features_micro.append(extract_features_from_windows(micro_window, sampling_rate=sampling_rate_hz))
-
-        # Only proceed if we have micro windows
-        if len(features_micro) == 0:
-            return
-
-        features_micro_df = pd.DataFrame(features_micro)
-
-        # --- Wear/Non-wear classification per micro window ---
-        micro_wear_flags = self._classify_micro_windows(features_micro_df)
-
-        # Macro-level decision: proportion of micro windows classified as non-wear
-        micro_non_wear = ~micro_wear_flags
-        macro_non_wear = micro_non_wear.mean() >= self.prob_thresh
-
-        # --- per-sample vote assignment ---
-        # All samples in this macro window receive one vote (wear or non-wear)
-        if macro_non_wear:
-            non_wear_votes[start_idx:end_idx] += 1
-        else:
-            wear_votes[start_idx:end_idx] += 1
-
-        # Diagnostic info for this macro window
-        macro_score = micro_non_wear.mean()
-        self.diagnostics_["macro"].append(
-            {
-                "start": start_idx,
-                "end": end_idx,
-                "macro_score": macro_score,
-                "macro_non_wear": macro_non_wear,
-                "n_micro_windows": len(micro_non_wear),
-                "micro_non_wear_rate": macro_score,
-                "n_wear": micro_wear_flags.sum(),
-                "n_non_wear": micro_non_wear.sum(),
-                "is_boundary_window": is_boundary,
-                "is_short_recording": is_short_recording,
-            }
-        )
-
-    def _classify_micro_windows(self, features_df: pd.DataFrame) -> np.ndarray:
-        """
-        Classify micro windows as wear/non-wear based on feature thresholds.
-
-        Evaluates three features per micro window:
-        1. gyr_ml_spectral_centroid < threshold → wear
-        2. gyr_is_spectral_centroid < threshold → wear
-        3. acc_pa_std > threshold → wear
-
-        Uses 2-out-of-3 voting (default) for robustness to individual sensor failures.
-
-        Parameters
-        ----------
-        features_df : pd.DataFrame
-            DataFrame with columns: gyr_ml_spectral_centroid, gyr_is_spectral_centroid, acc_pa_std.
-            Features should be computed using extract_features_from_windows() with appropriate sampling_rate.
-
-        Returns
-        -------
-        np.ndarray
-            Boolean array where True = wear, False = non-wear.
-            Windows with missing features (NaN) are conservatively classified as wear.
-        """
-        n_windows = len(features_df)
-        wear_flags = np.zeros(n_windows, dtype=bool)
-
-        for i in range(n_windows):
-            # Check if required features are present (not NaN)
-            if features_df.loc[i, ["gyr_ml_spectral_centroid", "gyr_is_spectral_centroid", "acc_pa_std"]].isna().any():
-                # Default to wear if features are missing (conservative)
-                wear_flags[i] = True
-                continue
-
-            # Extract feature values
-            gyr_ml_centroid = features_df.loc[i, "gyr_ml_spectral_centroid"]
-            gyr_is_centroid = features_df.loc[i, "gyr_is_spectral_centroid"]
-            acc_pa_std = features_df.loc[i, "acc_pa_std"]
-
-            # Sanity check: Handle theoretical all-zero feature case
-            # When signal is all zeros, spectral centroids = 0 and acc_pa_std = 0.
-            # Zero spectral centroids would incorrectly meet wear criteria (< threshold),
-            # causing false positive detection. This scenario is impossible with real sensor data
-            # (device noise always produces non-zero signal), but can occur in synthetic test data.
-            # Algorithm was validated with this check on real-world data where this condition
-            # never occurs.
-            if gyr_ml_centroid == 0 and gyr_is_centroid == 0 and acc_pa_std == 0:
-                wear_flags[i] = False  # Classifying as non-wear
-                continue
-
-            # Evaluate wear criteria for each feature
-            gyr_ml_wear = gyr_ml_centroid < self.gyr_ml_centroid_thresh_hz
-            gyr_is_wear = gyr_is_centroid < self.gyr_is_centroid_thresh_hz
-            acc_pa_wear = acc_pa_std > self.acc_pa_std_thresh
-
-            if self.voting_mode:
-                # Voting system: count how many features meet wear criteria
-                wear_score = int(gyr_ml_wear) + int(gyr_is_wear) + int(acc_pa_wear)
-                wear_flags[i] = wear_score >= self.min_features_required
-            else:
-                # Strict AND: all features must meet wear criteria
-                wear_flags[i] = gyr_ml_wear and gyr_is_wear and acc_pa_wear
-
-        return wear_flags
