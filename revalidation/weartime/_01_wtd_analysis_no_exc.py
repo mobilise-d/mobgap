@@ -65,6 +65,8 @@ results = results.assign(
     abs_weartime_error_min=lambda df_: df_["weartime_error_min"].abs(),
     abs_waking_weartime_error_min=lambda df_: df_["waking_weartime_error_min"].abs(),
 )
+human_movement_results = results[results["recording_type"] == "human_movement"]
+simulated_nonwear_results = results[results["recording_type"] == "simulated_movements"]
 
 aggregated_results = pd.concat(
     {display_name: load_aggregated_results(result_name) for result_name, display_name in algorithms.items()},
@@ -76,7 +78,7 @@ aggregated_results = pd.concat(
 # --------
 # The core classification metrics are calculated from interval overlaps on the sample level. The duration metrics are
 # reported in minutes. Waking-hours duration metrics use the same waking-hours configuration as the algorithm.
-summary_aggs = {
+human_movement_summary_aggs = {
     "n_datapoints": ("weartime_error_min", "size"),
     "precision_mean": ("precision", "mean"),
     "recall_mean": ("recall", "mean"),
@@ -94,38 +96,63 @@ summary_aggs = {
     "abs_waking_weartime_error_min_mean": ("abs_waking_weartime_error_min", "mean"),
 }
 
-summary_overall = results.groupby(["algo", "version"]).agg(**summary_aggs)
-summary_overall
+human_movement_summary_overall = human_movement_results.groupby(["algo", "version"]).agg(
+    **human_movement_summary_aggs
+)
+human_movement_summary_overall
 
 # %%
-# Per recording type
-# ------------------
-# SUSTAIN contains human-movement recordings and simulated-movement recordings. The simulated-movement recordings are
-# expected to be reference non-wear across the full selected day.
-summary_by_recording_type = results.groupby(["recording_type", "algo", "version"]).agg(**summary_aggs)
-summary_by_recording_type
+# Human movement: per participant
+# -------------------------------
+# For the human-movement recordings we inspect the full set of overlap and duration metrics. The dataset is evaluated
+# per day; this aggregation keeps the participant identity, then averages across the selected participant's days.
+human_movement_summary_by_participant = human_movement_results.groupby(["participant_id", "algo", "version"]).agg(
+    **human_movement_summary_aggs
+)
+human_movement_summary_by_participant
 
 # %%
-# Per participant
-# ---------------
-# The dataset is evaluated per day. This aggregation keeps the recording type and participant identity, then averages
-# across the selected participant's days.
-summary_by_participant = results.groupby(["recording_type", "participant_id", "algo", "version"]).agg(**summary_aggs)
-summary_by_participant
+# Simulated non-wear movement
+# ---------------------------
+# The simulated-movement recordings are reference non-wear across the full selected day. For these datapoints, the
+# relevant question is whether the algorithm detected any wear by accident.
+simulated_nonwear_summary_aggs = {
+    "n_datapoints": ("detected_weartime_min", "size"),
+    "n_days_with_detected_wear": ("detected_weartime_min", lambda series: (series > 0).sum()),
+    "detected_wear_day_fraction": ("detected_weartime_min", lambda series: (series > 0).mean()),
+    "detected_weartime_min_total": ("detected_weartime_min", "sum"),
+    "detected_weartime_min_mean": ("detected_weartime_min", "mean"),
+    "detected_weartime_min_median": ("detected_weartime_min", "median"),
+    "detected_weartime_min_max": ("detected_weartime_min", "max"),
+    "waking_detected_weartime_min_total": ("waking_detected_weartime_min", "sum"),
+    "waking_detected_weartime_min_max": ("waking_detected_weartime_min", "max"),
+}
+
+simulated_nonwear_summary_overall = simulated_nonwear_results.groupby(["algo", "version"]).agg(
+    **simulated_nonwear_summary_aggs
+)
+simulated_nonwear_summary_overall
 
 # %%
-# Debug plots
-# -----------
+# Simulated non-wear: per participant
+# -----------------------------------
+simulated_nonwear_summary_by_participant = simulated_nonwear_results.groupby(["participant_id", "algo", "version"]).agg(
+    **simulated_nonwear_summary_aggs
+)
+simulated_nonwear_summary_by_participant
+
+# %%
+# Human movement plots
+# --------------------
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+fig_human, axes = plt.subplots(2, 2, figsize=(13, 9))
 
 sns.boxplot(
-    data=results,
-    x="recording_type",
+    data=human_movement_results,
+    x="algo_with_version",
     y="abs_weartime_error_min",
-    hue="algo_with_version",
     ax=axes[0, 0],
     showmeans=True,
 )
@@ -133,10 +160,9 @@ axes[0, 0].set_title("Absolute overall wear-time error")
 axes[0, 0].set_xlabel("")
 
 sns.boxplot(
-    data=results,
-    x="recording_type",
+    data=human_movement_results,
+    x="algo_with_version",
     y="abs_waking_weartime_error_min",
-    hue="algo_with_version",
     ax=axes[0, 1],
     showmeans=True,
 )
@@ -144,10 +170,9 @@ axes[0, 1].set_title("Absolute waking-hours wear-time error")
 axes[0, 1].set_xlabel("")
 
 sns.boxplot(
-    data=results,
-    x="recording_type",
+    data=human_movement_results,
+    x="algo_with_version",
     y="f1_score",
-    hue="algo_with_version",
     ax=axes[1, 0],
     showmeans=True,
 )
@@ -155,11 +180,10 @@ axes[1, 0].set_title("F1 score")
 axes[1, 0].set_xlabel("")
 
 sns.scatterplot(
-    data=results,
+    data=human_movement_results,
     x="reference_weartime_min",
     y="detected_weartime_min",
-    hue="recording_type",
-    style="algo_with_version",
+    hue="algo_with_version",
     ax=axes[1, 1],
 )
 axes[1, 1].set_title("Detected vs reference wear-time")
@@ -172,5 +196,41 @@ for ax in axes.flatten():
         legend.set_title("")
 
 plt.tight_layout()
-fig.show()
+fig_human.show()
 
+# %%
+# Simulated non-wear plots
+# ------------------------
+fig_simulated, axes = plt.subplots(1, 2, figsize=(13, 4))
+
+sns.boxplot(
+    data=simulated_nonwear_results,
+    x="algo_with_version",
+    y="detected_weartime_min",
+    ax=axes[0],
+    showmeans=True,
+)
+axes[0].set_title("Accidental detected wear-time")
+axes[0].set_xlabel("")
+axes[0].set_ylabel("Detected wear-time [min]")
+
+sns.scatterplot(
+    data=simulated_nonwear_results,
+    x="recording_day",
+    y="detected_weartime_min",
+    hue="participant_id",
+    style="algo_with_version",
+    ax=axes[1],
+)
+axes[1].set_title("Accidental wear detections per simulated day")
+axes[1].set_xlabel("Recording day")
+axes[1].set_ylabel("Detected wear-time [min]")
+axes[1].tick_params(axis="x", rotation=45)
+
+for ax in axes.flatten():
+    legend = ax.get_legend()
+    if legend is not None:
+        legend.set_title("")
+
+plt.tight_layout()
+fig_simulated.show()
