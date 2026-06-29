@@ -62,6 +62,25 @@ class TestReorientationMethodDM:
         expected = to_body_frame(data)
         assert_frame_equal(result.corrected_data_, expected)
 
+    def test_default_correction_mode_is_trust_gravity(self):
+        result = ReorientationMethodDM().detect_correct(
+            pd.DataFrame(
+                {
+                    "acc_x": np.ones(10) * 9.8,
+                    "acc_y": np.zeros(10),
+                    "acc_z": np.zeros(10),
+                    "gyr_x": np.zeros(10),
+                    "gyr_y": np.zeros(10),
+                    "gyr_z": np.zeros(10),
+                }
+            ),
+            sampling_rate_hz=100.0,
+        )
+
+        assert result.correction_mode == "trust_gravity"
+        assert result.result_.phase is None
+        assert result.result_.orientation_resolved is True
+
     def test_uses_sampling_rate_for_phase_detection(self):
         sampling_rate_hz = 50.0
         gait_frequency_hz = 1.8
@@ -502,6 +521,23 @@ class TestReorientationEmulationPipeline:
         first_wb_predictions = result.predictions_per_wb_[first_wb_id]
         assert first_wb_predictions.columns.to_list() == ["label", "prediction"]
         assert first_wb_predictions["label"].to_list() == list(REORIENTATION_LABELS)
+
+    def test_trust_gravity_emulation_includes_uncorrectable_pa_flip(self):
+        single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(
+            cohort="HA",
+            participant_id="001",
+            test="Test11",
+            trial="Trial1",
+        )
+
+        result = ReorientationEmulationPipeline(ReorientationMethodDM()).run(single_test)
+
+        assert len(result.predictions_) == len(single_test.reference_parameters_.wb_list) * len(REORIENTATION_LABELS)
+        pa_flipped_predictions = result.predictions_.loc[
+            result.predictions_["label"] == "pa_flipped__rot_pa_0", "prediction"
+        ]
+        assert len(pa_flipped_predictions) == len(single_test.reference_parameters_.wb_list)
+        assert set(pa_flipped_predictions) == {"identity"}
 
     def test_reorientation_score_returns_combined_accuracy_and_confusion_matrix(self):
         single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(

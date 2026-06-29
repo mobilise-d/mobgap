@@ -19,7 +19,7 @@ The comparison contains two variants:
   per-GS reorientation and with the usual cohort-specific GSD choices,
 * a reorientation-enabled variant where both cohort-specific sub-pipelines use
   :class:`~mobgap.gait_sequences.GsdIonescu` and
-  :class:`~mobgap.re_orientation.ReorientationMethodDM`.
+  :class:`~mobgap.re_orientation.ReorientationMethodDM` in ``full`` mode.
 
 The default regular-walking GSD, :class:`~mobgap.gait_sequences.GsdIluz`, is
 therefore present in the default pipeline only. It is not evaluated with
@@ -73,14 +73,18 @@ pipelines = {
                 "healthy",
                 MobilisedPipelineHealthy(
                     gait_sequence_detection=GsdIonescu(),
-                    per_gs_reorientation=ReorientationMethodDM(),
+                    per_gs_reorientation=ReorientationMethodDM(
+                        correction_mode="full"
+                    ),
                 ),
             ),
             (
                 "impaired",
                 MobilisedPipelineImpaired(
                     gait_sequence_detection=GsdIonescu(),
-                    per_gs_reorientation=ReorientationMethodDM(),
+                    per_gs_reorientation=ReorientationMethodDM(
+                        correction_mode="full"
+                    ),
                 ),
             ),
         ]

@@ -97,6 +97,7 @@ class ReorientationMethodDM(Algorithm):
     Parameters
     ----------
     correction_mode : {'full', 'trust_gravity'}
+        Default: ``"trust_gravity"``.
         full - applies PA direction correction to every walking bout.
         trust_gravity - assumes mounting orientation is correct if gravity
         already points up along sensor x (``is_up``) and skips PA direction correction. This
@@ -208,7 +209,7 @@ class ReorientationMethodDM(Algorithm):
         gait_frequency_band_filter: BaseFilter = cf(
             FirFilter(order=100, cutoff_freq_hz=(0.5, 2.5), filter_type="bandpass", zero_phase=True)
         ),
-        correction_mode: Literal["full", "trust_gravity"] = "full",
+        correction_mode: Literal["full", "trust_gravity"] = "trust_gravity",
         gravity_detection_error_type: ErrorHandling = "warn",
         pa_direction_detection_error_type: ErrorHandling = "warn",
     ) -> None:

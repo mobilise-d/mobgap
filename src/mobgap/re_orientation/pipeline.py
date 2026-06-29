@@ -39,13 +39,12 @@ def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
     family = result.family
     phase = result.phase
 
-    if family is None or phase is None:
-        return UNKNOWN_ORIENTATION_LABEL
-
     # phase is None when trust_gravity skips Stage 3 for is_up (intentional)
     # or when bout is too short to compute phase (treat as unknown for all families).
     # For is_up + trust_gravity, correction_action is "none" — return identity.
     # For all other phase=None cases, return unknown.
+    if family is None:
+        return UNKNOWN_ORIENTATION_LABEL
     if phase is None:
         if family == "is_up" and result.correction_action == "none":
             return "identity"
@@ -127,14 +126,6 @@ class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
         for wb, wb_data in iter_gs(data, wb_list):
             wb_predictions = []
             for label, rotation in REORIENTATION_ROTATIONS.items():
-                # trust_gravity intentionally does not correct Family "is_up" front-back flips
-                # (pa_flipped__rot_pa_0), so skip this orientation for fair evaluation.
-                if (
-                    hasattr(self.algo, "correction_mode")
-                    and self.algo.correction_mode == "trust_gravity"
-                    and label == "pa_flipped__rot_pa_0"
-                ):
-                    continue
                 rotated_data = flip_dataset(wb_data, rotation)
                 algo = self.algo.clone().detect_correct(rotated_data, sampling_rate_hz=datapoint.sampling_rate_hz)
                 result_algo_list[(wb.id, label)] = algo

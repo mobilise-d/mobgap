@@ -35,10 +35,34 @@ algorithms = {
 # `MOBGAP_VALIDATION_DATA_PATH` to the local validation-data folder.
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.re_orientation.pipeline import REORIENTATION_LABELS
 from mobgap.utils.misc import get_env_var
+
+IDENTITY_LABEL = "identity"
+UNCORRECTABLE_TRUST_GRAVITY_LABEL = "pa_flipped__rot_pa_0"
+FULL_VERSION = "Full"
+TRUST_GRAVITY_VERSION = "Trust gravity"
+
+
+def _add_expected_trust_gravity_uncorrectable_predictions(
+    predictions: pd.DataFrame,
+) -> pd.DataFrame:
+    """Add deterministic trust-gravity PA-flip predictions if an older export omitted them."""
+    if UNCORRECTABLE_TRUST_GRAVITY_LABEL in set(predictions["label"]):
+        return predictions
+
+    identity_predictions = predictions[
+        predictions["label"] == IDENTITY_LABEL
+    ].copy()
+    if identity_predictions.empty:
+        return predictions
+
+    identity_predictions["label"] = UNCORRECTABLE_TRUST_GRAVITY_LABEL
+    identity_predictions["prediction"] = IDENTITY_LABEL
+    return pd.concat([predictions, identity_predictions], ignore_index=True)
 
 
 def format_loaded_results(
@@ -71,16 +95,24 @@ def load_raw_predictions(
 def format_loaded_predictions(
     values: dict[tuple[str, str], pd.DataFrame],
 ) -> pd.DataFrame:
-    return pd.concat(
-        [
-            df.assign(
+    formatted_predictions = []
+    for (algo, version), df in values.items():
+        formatted_df = df
+        if version == TRUST_GRAVITY_VERSION:
+            formatted_df = (
+                _add_expected_trust_gravity_uncorrectable_predictions(df)
+            )
+        formatted_predictions.append(
+            formatted_df.assign(
                 algo=algo,
                 version=version,
                 algo_with_version=f"{algo} ({version})",
                 is_correct=lambda data: data["label"] == data["prediction"],
             )
-            for (algo, version), df in values.items()
-        ],
+        )
+
+    return pd.concat(
+        formatted_predictions,
         ignore_index=True,
     )
 
@@ -247,14 +279,196 @@ def calculate_confusion_matrix(predictions: pd.DataFrame) -> pd.DataFrame:
     return matrix.reindex(index=labels, columns=labels, fill_value=0)
 
 
+def calculate_label_accuracies(
+    predictions: pd.DataFrame,
+    groupby: list[str],
+) -> pd.DataFrame:
+    return predictions.pivot_table(
+        index=groupby,
+        columns="label",
+        values="is_correct",
+        aggfunc="mean",
+    ).reindex(columns=REORIENTATION_LABELS)
+
+
+def orientation_prevalence_weights(
+    total_misorientation_prevalence: float,
+) -> pd.Series:
+    weights = pd.Series(
+        total_misorientation_prevalence / (len(REORIENTATION_LABELS) - 1),
+        index=REORIENTATION_LABELS,
+    )
+    weights[IDENTITY_LABEL] = 1 - total_misorientation_prevalence
+    return weights
+
+
+def calculate_weighted_accuracy_by_prevalence(
+    predictions: pd.DataFrame,
+    prevalence_scenarios: pd.Series,
+) -> pd.DataFrame:
+    label_accuracies = calculate_label_accuracies(
+        predictions, ["algo", "version"]
+    )
+    return pd.DataFrame(
+        {
+            scenario: label_accuracies.mul(
+                orientation_prevalence_weights(prevalence),
+                axis=1,
+            ).sum(axis=1)
+            for scenario, prevalence in prevalence_scenarios.items()
+        }
+    )
+
+
+def calculate_weighted_accuracy_curve(
+    predictions: pd.DataFrame,
+    prevalence_grid: np.ndarray,
+) -> pd.DataFrame:
+    label_accuracies = calculate_label_accuracies(predictions, ["version"])
+    rows = []
+    for version, accuracies in label_accuracies.iterrows():
+        for prevalence in prevalence_grid:
+            rows.append(
+                {
+                    "version": version,
+                    "total_misorientation_prevalence": prevalence,
+                    "weighted_accuracy": accuracies.mul(
+                        orientation_prevalence_weights(prevalence)
+                    ).sum(),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def _break_even_prevalence(identity_diff: float, error_diff: float) -> float:
+    denominator = error_diff - identity_diff
+    if np.isclose(denominator, 0):
+        return np.nan
+
+    break_even = -identity_diff / denominator
+    if 0 <= break_even <= 1:
+        return break_even
+    return np.nan
+
+
+def calculate_mode_break_even_points(predictions: pd.DataFrame) -> pd.Series:
+    label_accuracies = calculate_label_accuracies(predictions, ["version"])
+    diff = (
+        label_accuracies.loc[TRUST_GRAVITY_VERSION]
+        - label_accuracies.loc[FULL_VERSION]
+    )
+
+    return pd.Series(
+        {
+            "Total error prevalence": _break_even_prevalence(
+                diff[IDENTITY_LABEL],
+                diff.drop(index=IDENTITY_LABEL).mean(),
+            ),
+            "Specific PA-flip prevalence": _break_even_prevalence(
+                diff[IDENTITY_LABEL],
+                diff[UNCORRECTABLE_TRUST_GRAVITY_LABEL],
+            ),
+        }
+    )
+
+
+# %%
+# Prevalence-weighted mode choice
+# -------------------------------
+# The simulated validation data contains all supported orientation labels with equal
+# weight. This is useful to stress-test every class, but it is not the expected
+# real-world prevalence. In practice, most walking bouts should already be correctly
+# oriented. We therefore also calculate weighted accuracies for explicit prevalence
+# scenarios.
+#
+# - ``5% total errors``: 95% identity orientation and 5% errors split equally across
+#   the seven non-identity orientation classes.
+# - ``Equal simulated classes``: the class-balanced simulation view. This corresponds
+#   to 12.5% identity and 87.5% total orientation errors.
+#
+# The break-even table reports where ``full`` and ``trust_gravity`` have the same
+# weighted accuracy under two assumptions:
+#
+# - ``Total error prevalence``: identity has prevalence ``1 - p`` and all seven
+#   non-identity classes have prevalence ``p / 7``.
+# - ``Specific PA-flip prevalence``: only the identity orientation and the
+#   ``pa_flipped__rot_pa_0`` class vary. This isolates the one class that
+#   ``trust_gravity`` intentionally cannot distinguish from identity.
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+prevalence_scenarios = pd.Series(
+    {
+        "5% total errors": 0.05,
+        "33% total errors": 0.33,
+        "Equal simulated classes": 1 - 1 / len(REORIENTATION_LABELS),
+    }
+)
+
+weighted_accuracy_scenarios = pd.concat(
+    {
+        "Free-living": calculate_weighted_accuracy_by_prevalence(
+            free_living_predictions, prevalence_scenarios
+        ),
+        "Laboratory": calculate_weighted_accuracy_by_prevalence(
+            lab_predictions, prevalence_scenarios
+        ),
+    },
+    names=["condition"],
+)
+weighted_accuracy_scenarios.style.format("{:.1%}")
+
+# %%
+break_even_points = pd.DataFrame(
+    {
+        "Free-living": calculate_mode_break_even_points(
+            free_living_predictions
+        ),
+        "Laboratory": calculate_mode_break_even_points(lab_predictions),
+    }
+).T
+break_even_points.style.format("{:.1%}", na_rep="outside [0, 100%]")
+
+# %%
+# The free-living curve shows why the preferred mode depends on the expected
+# prevalence of orientation errors.
+prevalence_grid = np.linspace(0, 1, 101)
+free_living_weighted_accuracy_curve = calculate_weighted_accuracy_curve(
+    free_living_predictions,
+    prevalence_grid,
+)
+
+fig, ax = plt.subplots()
+sns.lineplot(
+    data=free_living_weighted_accuracy_curve,
+    x="total_misorientation_prevalence",
+    y="weighted_accuracy",
+    hue="version",
+    ax=ax,
+)
+free_living_break_even = break_even_points.loc[
+    "Free-living", "Total error prevalence"
+]
+if not np.isnan(free_living_break_even):
+    ax.axvline(
+        free_living_break_even,
+        color="black",
+        linestyle="--",
+        label="Break-even",
+    )
+ax.set(
+    xlabel="Total misorientation prevalence",
+    ylabel="Weighted accuracy",
+    title="Free-living prevalence-weighted accuracy",
+)
+ax.legend()
+fig.show()
+
 # %%
 # Free-Living Comparison
 # ----------------------
 # The free-living condition is the expected use case for unknown sensor mounting
 # orientations.
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 fig, ax = plt.subplots()
 sns.boxplot(
     data=free_living_results,
