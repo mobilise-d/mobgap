@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import (
     Any,
@@ -169,7 +169,7 @@ class FullPipelinePerGsResult:
     cadence_per_sec: pd.DataFrame
     stride_length_per_sec: pd.DataFrame
     walking_speed_per_sec: pd.DataFrame
-    reorientation_result: pd.DataFrame = field(default_factory=pd.DataFrame)
+    reorientation_result: Optional[Any] = None
 
 
 def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
@@ -266,14 +266,16 @@ def create_aggregate_df(
 
 def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> Union[pd.DataFrame, list]:
     """Aggregate reorientation results from iterator results."""
-    if not any(hasattr(r.result, "reorientation_result") for r in results):
-        return pd.DataFrame()
-
-    return [
+    reorientation_results = [
         r.result.reorientation_result
         for r in results
-        if hasattr(r.result, "reorientation_result") and r.result.reorientation_result is not None
+        if r.iteration_name == "__main__"
+        and hasattr(r.result, "reorientation_result")
+        and r.result.reorientation_result is not None
+        and r.result.reorientation_result is not BaseTypedIterator.NULL_VALUE
     ]
+
+    return reorientation_results or pd.DataFrame()
 
 
 class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[DataclassT]):
