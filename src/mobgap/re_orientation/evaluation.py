@@ -125,30 +125,37 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
 
     @property
     def sampling_rate_hz(self) -> float:
+        """Return sampling rate from the wrapped datapoint."""
         return self._base_datapoint.sampling_rate_hz
 
     @property
     def participant_metadata(self) -> ParticipantMetadata:
+        """Return participant metadata from the wrapped datapoint."""
         return self._base_datapoint.participant_metadata
 
     @property
     def recording_metadata(self) -> RecordingMetadata:
+        """Return recording metadata from the wrapped datapoint."""
         return self._base_datapoint.recording_metadata
 
     @property
     def reference_parameters_(self) -> ReferenceData:
+        """Return reference parameters from the wrapped datapoint."""
         return self._base_datapoint.reference_parameters_
 
     @property
     def reference_parameters_relative_to_wb_(self) -> ReferenceData:
+        """Return WB-relative reference parameters from the wrapped datapoint."""
         return self._base_datapoint.reference_parameters_relative_to_wb_
 
     @property
     def reference_sampling_rate_hz_(self) -> float:
+        """Return reference sampling rate from the wrapped datapoint."""
         return self._base_datapoint.reference_sampling_rate_hz_
 
     @classmethod
     def __clone_param__(cls, param_name: str, value: Any) -> Any:
+        """Customize cloning for wrapped datasets and configured orientations."""
         if param_name == "base_dataset":
             return value
         if param_name == "orientations":

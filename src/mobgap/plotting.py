@@ -176,7 +176,12 @@ def move_legend_outside(
         raise ValueError("Figure must have constrained layout enabled to move legend outside the plot")
     handles, labels = ax.get_legend_handles_labels()
     pos_dic = {"below": "lower", "above": "upper"}
-    legend_kwargs = dict(loc=f"outside {pos_dic[position]} center", ncol=len(labels), frameon=False, borderpad=padding)
+    legend_kwargs = {
+        "loc": f"outside {pos_dic[position]} center",
+        "ncol": len(labels),
+        "frameon": False,
+        "borderpad": padding,
+    }
     legend_kwargs.update(kwargs)
     fig.legend(
         handles,
