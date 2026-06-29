@@ -150,6 +150,9 @@ lab_predictions = format_loaded_predictions(
         for k, v in algorithms.items()
     }
 )
+combined_predictions = pd.concat(
+    [free_living_predictions, lab_predictions], ignore_index=True
+)
 
 cohort_order = ["HA", "CHF", "COPD", "MS", "PD", "PFF"]
 
@@ -349,28 +352,92 @@ def calculate_mode_break_even_points(predictions: pd.DataFrame) -> pd.Series:
     )
 
 
+def calculate_mode_break_even_inputs(predictions: pd.DataFrame) -> pd.DataFrame:
+    label_accuracies = calculate_label_accuracies(predictions, ["version"])
+    non_identity_labels = [
+        label for label in REORIENTATION_LABELS if label != IDENTITY_LABEL
+    ]
+    input_labels = {
+        "Identity orientation": IDENTITY_LABEL,
+        "Mean non-identity orientation": non_identity_labels,
+        "Uncorrectable PA-flip orientation": (
+            UNCORRECTABLE_TRUST_GRAVITY_LABEL
+        ),
+    }
+
+    rows = []
+    for name, label_or_labels in input_labels.items():
+        labels = (
+            [label_or_labels]
+            if isinstance(label_or_labels, str)
+            else label_or_labels
+        )
+        full_accuracy = label_accuracies.loc[FULL_VERSION, labels].mean()
+        trust_gravity_accuracy = label_accuracies.loc[
+            TRUST_GRAVITY_VERSION, labels
+        ].mean()
+        rows.append(
+            {
+                "Input": name,
+                "Full accuracy": full_accuracy,
+                "Trust gravity accuracy": trust_gravity_accuracy,
+                "Trust gravity - full": (
+                    trust_gravity_accuracy - full_accuracy
+                ),
+            }
+        )
+    return pd.DataFrame(rows).set_index("Input")
+
+
 # %%
 # Prevalence-weighted mode choice
 # -------------------------------
-# The simulated validation data contains all supported orientation labels with equal
-# weight. This is useful to stress-test every class, but it is not the expected
-# real-world prevalence. In practice, most walking bouts should already be correctly
-# oriented. We therefore also calculate weighted accuracies for explicit prevalence
-# scenarios.
+# The simulated validation data contains all supported orientation labels with
+# equal weight. This is useful to stress-test every class, but it is not the
+# expected real-world prevalence. In practice, most walking bouts should already
+# be correctly oriented. We therefore also calculate weighted accuracies for
+# explicit prevalence scenarios.
 #
-# - ``5% total errors``: 95% identity orientation and 5% errors split equally across
-#   the seven non-identity orientation classes.
-# - ``Equal simulated classes``: the class-balanced simulation view. This corresponds
-#   to 12.5% identity and 87.5% total orientation errors.
+# - ``5% total errors``: 95% identity orientation and 5% errors split equally
+#   across the seven non-identity orientation classes.
+# - ``Equal simulated classes``: the class-balanced simulation view. This
+#   corresponds to 12.5% identity and 87.5% total orientation errors.
 #
-# The break-even table reports where ``full`` and ``trust_gravity`` have the same
-# weighted accuracy under two assumptions:
+# The break-even calculation uses the accuracy difference
+# ``trust_gravity - full``. ``trust_gravity`` usually wins on the identity
+# class, because it does not try to correct a front-back flip when gravity is
+# already plausible. ``full`` wins on the one front-back flip class that
+# ``trust_gravity`` intentionally leaves unresolved. The relevant question is
+# therefore how common these true orientation errors are compared to correctly
+# mounted walking bouts.
+#
+# We calculate the break-even point by solving:
+#
+# .. math::
+#
+#    (1 - p) \Delta_\mathrm{identity} + p \Delta_\mathrm{error} = 0
+#
+# for ``p``:
+#
+# .. math::
+#
+#    p = -\Delta_\mathrm{identity}
+#        / (\Delta_\mathrm{error} - \Delta_\mathrm{identity})
+#
+# The reported thresholds use two choices for :math:`\Delta_\mathrm{error}`:
 #
 # - ``Total error prevalence``: identity has prevalence ``1 - p`` and all seven
-#   non-identity classes have prevalence ``p / 7``.
-# - ``Specific PA-flip prevalence``: only the identity orientation and the
-#   ``pa_flipped__rot_pa_0`` class vary. This isolates the one class that
-#   ``trust_gravity`` intentionally cannot distinguish from identity.
+#   non-identity classes have prevalence ``p / 7``. Here,
+#   :math:`\Delta_\mathrm{error}` is the mean difference across all non-identity
+#   labels.
+# - ``Uncorrectable PA-flip prevalence``: only the correctly mounted identity
+#   orientation and ``pa_flipped__rot_pa_0`` vary. This isolates the
+#   same-gravity, front-back flip case that ``trust_gravity`` intentionally
+#   cannot distinguish from identity.
+#
+# The ``Combined TVS`` rows pool the free-living and laboratory prediction rows
+# to provide a single rough TVS-level threshold. Use the condition-specific rows
+# if your target setting maps clearly to one of the two validation conditions.
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -384,6 +451,9 @@ prevalence_scenarios = pd.Series(
 
 weighted_accuracy_scenarios = pd.concat(
     {
+        "Combined TVS": calculate_weighted_accuracy_by_prevalence(
+            combined_predictions, prevalence_scenarios
+        ),
         "Free-living": calculate_weighted_accuracy_by_prevalence(
             free_living_predictions, prevalence_scenarios
         ),
@@ -396,14 +466,34 @@ weighted_accuracy_scenarios = pd.concat(
 weighted_accuracy_scenarios.style.format("{:.1%}")
 
 # %%
+break_even_inputs = pd.concat(
+    {
+        "Combined TVS": calculate_mode_break_even_inputs(combined_predictions),
+        "Free-living": calculate_mode_break_even_inputs(
+            free_living_predictions
+        ),
+        "Laboratory": calculate_mode_break_even_inputs(lab_predictions),
+    },
+    names=["condition", "input"],
+)
+break_even_inputs.style.format("{:.1%}")
+
+# %%
 break_even_points = pd.DataFrame(
     {
+        "Combined TVS": calculate_mode_break_even_points(combined_predictions),
         "Free-living": calculate_mode_break_even_points(
             free_living_predictions
         ),
         "Laboratory": calculate_mode_break_even_points(lab_predictions),
     }
 ).T
+break_even_points = break_even_points.rename(
+    columns={
+        "Total error prevalence": "Total error prevalence p",
+        "Specific PA-flip prevalence": "Uncorrectable PA-flip prevalence q",
+    }
+)
 break_even_points.style.format("{:.1%}", na_rep="outside [0, 100%]")
 
 # %%
@@ -424,7 +514,7 @@ sns.lineplot(
     ax=ax,
 )
 free_living_break_even = break_even_points.loc[
-    "Free-living", "Total error prevalence"
+    "Free-living", "Total error prevalence p"
 ]
 if not np.isnan(free_living_break_even):
     ax.axvline(
