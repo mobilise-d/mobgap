@@ -94,7 +94,7 @@ If you don't have any information about the mounting orientation of your sensor 
 you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer 
 patterns during walking.
 The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
-(2) determines the gravity direction (up/down) and rotates the sensor data so that gravtiy correctly aligns with the 
+(2) determines the gravity direction (up/down) and rotates the sensor data so that gravity correctly aligns with the
 "assumed vertical", and (3) uses cross-spectral phase analysis between vertical (after step 2) and posterior-anterior 
 axes to determine correct mediolateral and posterior-anterior orientations.
 
@@ -117,7 +117,7 @@ The green circle indicates PA direction: dot (•) = backward, cross (×) = forw
 You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
 the sensor data to the body frame on a gait sequence level.
 
-Note, that knowing the sensor mounting orientation is always preferable and provides more predicatable results, then
+Note, that knowing the sensor mounting orientation is always preferable and provides more predictable results than
 attempting to correct for it after the fact.
 You should also only activate/use the reorientation correction if you really don't have any information about the sensor
 mounting orientation.

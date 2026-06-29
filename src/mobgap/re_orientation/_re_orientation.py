@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 from scipy.spatial.transform import Rotation
-from tpcp import Algorithm, cf
+from tpcp import cf
 from typing_extensions import Self, Unpack
 
 from mobgap._gaitmap.utils.rotations import flip_dataset
@@ -66,7 +66,7 @@ _PA_DIRECTION_UNRESOLVED_MESSAGE = (
 
 # Results container
 @dataclass
-class ReorientationResult(BaseReorientationCorrector):
+class ReorientationResult:
     """Stores detection output, correction rotations, and corrected data.
 
     ``orientation_resolved`` is ``False`` when either gravity or the PA direction could not be detected. In non-raising
@@ -87,7 +87,7 @@ class ReorientationResult(BaseReorientationCorrector):
 
 
 @base_reorientation_docfiller
-class ReorientationMethodDM(Algorithm):
+class ReorientationMethodDM(BaseReorientationCorrector):
     """
     Detects and corrects IMU sensor orientation for lower-back-worn devices.
 
