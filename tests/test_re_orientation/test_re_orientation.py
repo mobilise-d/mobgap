@@ -14,7 +14,9 @@ from mobgap.re_orientation import ReorientationMethodDM
 from mobgap.re_orientation.evaluation import reorientation_score
 from mobgap.re_orientation.pipeline import (
     REORIENTATION_LABELS,
+    UNKNOWN_ORIENTATION_LABEL,
     ReorientationEmulationPipeline,
+    _orientation_class_from_result,
 )
 from mobgap.utils.conversions import to_body_frame
 from mobgap.utils.evaluation import Evaluation
@@ -503,6 +505,35 @@ class TestReorientationMethodDMRegression:
 
 
 class TestReorientationEmulationPipeline:
+    def test_full_mode_unresolved_is_up_prediction_is_unknown(self):
+        data = pd.DataFrame(
+            {
+                "acc_x": np.ones(10) * 9.8,
+                "acc_y": np.zeros(10),
+                "acc_z": np.zeros(10),
+                "gyr_x": np.zeros(10),
+                "gyr_y": np.zeros(10),
+                "gyr_z": np.zeros(10),
+            }
+        )
+
+        full_result = ReorientationMethodDM(
+            correction_mode="full",
+            pa_direction_detection_error_type="ignore",
+        ).detect_correct(data, sampling_rate_hz=100.0)
+        trust_gravity_result = ReorientationMethodDM(
+            correction_mode="trust_gravity",
+            pa_direction_detection_error_type="raise",
+        ).detect_correct(data, sampling_rate_hz=100.0)
+
+        assert full_result.result_.family == "is_up"
+        assert full_result.result_.phase is None
+        assert full_result.result_.correction_action == "none"
+        assert full_result.result_.orientation_resolved is False
+        assert _orientation_class_from_result(full_result) == UNKNOWN_ORIENTATION_LABEL
+        assert trust_gravity_result.result_.orientation_resolved is True
+        assert _orientation_class_from_result(trust_gravity_result) == "identity"
+
     def test_example_lab_data_creates_prediction_per_orientation_and_wb(self):
         single_test = LabExampleDataset(reference_system="INDIP", reference_para_level="wb").get_subset(
             cohort="HA",

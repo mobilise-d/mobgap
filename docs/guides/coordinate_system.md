@@ -101,7 +101,7 @@ axes to determine correct mediolateral and posterior-anterior orientations.
 For more details see the documentation of the {py:class}`~mobgap.re_orientation.ReorientationMethodDM` class.
 
 <p align="center">
-  <img src="docs/_static/images/orientation_families.svg" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
+  <img src="../_static/images/orientation_families.svg" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
 </p>
 
 **Figure.** All possible device orientation families for a lower-back-worn IMU (belt-worn (Families is_up, is_down) 
@@ -190,4 +190,3 @@ global frame, when body-frame input is detected.
 Under the hood, this uses {py:func}`~mobgap.utils.conversions.transform_to_global_frame` that takes the orientation 
 estimation from sensor to normal global frame as input and correctly applies it to either sensor frame or body frame 
 data (see graphic above for more details).
-

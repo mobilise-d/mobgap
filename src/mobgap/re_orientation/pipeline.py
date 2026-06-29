@@ -39,14 +39,14 @@ def _orientation_class_from_result(algo: BaseReorientationCorrector) -> str:
     family = result.family
     phase = result.phase
 
-    # phase is None when trust_gravity skips Stage 3 for is_up (intentional)
-    # or when bout is too short to compute phase (treat as unknown for all families).
-    # For is_up + trust_gravity, correction_action is "none" — return identity.
-    # For all other phase=None cases, return unknown.
+    # phase is None when trust_gravity intentionally skips Stage 3 for
+    # resolved is_up results, or when the bout is too short to compute phase.
+    # The latter is unresolved and must stay unknown, even if no correction was
+    # applied.
     if family is None:
         return UNKNOWN_ORIENTATION_LABEL
     if phase is None:
-        if family == "is_up" and result.correction_action == "none":
+        if family == "is_up" and result.orientation_resolved and result.correction_action == "none":
             return "identity"
         return UNKNOWN_ORIENTATION_LABEL
 
