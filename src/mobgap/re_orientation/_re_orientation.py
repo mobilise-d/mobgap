@@ -101,6 +101,8 @@ class ReorientationMethodDM(Algorithm):
         trust_gravity - assumes mounting orientation is correct if gravity
         already points up along sensor x (``is_up``) and skips PA direction correction. This
         intentionally ignores possible 180 deg front/back flips in this case.
+        Before choosing this parameter for a pipeline, read the primary example
+        :ref:`reorientation_method_dm`, which contains the mode-selection decision tree.
     grav_threshold_ms2
         Minimum absolute mean acceleration in m/s² for an axis to be treated as
         capturing gravity.
@@ -163,6 +165,13 @@ class ReorientationMethodDM(Algorithm):
        We correct this potential error by estimating PA direction from the cross-spectral phase between ``acc_x`` and
        ``acc_z``. If the phase indicates a reversed PA direction, we apply a 180 deg rotation around the corrected
        sensor x-axis.
+
+    .. important::
+       Knowing the mounting orientation is always preferable to recovering it from data. If the orientation is known,
+       apply a manual rotation before using mobgap and do not add data-driven orientation correction. If orientation
+       errors are possible, first decide whether they can occur within a recording or only for a full recording/session.
+       Read :ref:`reorientation_method_dm` before choosing a diagnostic workflow or a per-GS/WB correction mode for
+       real data.
 
     To correctly detect and apply these corrections, we make the following assumptions about the data:
 
