@@ -1,7 +1,6 @@
 """Evaluation and scoring helpers for the reorientation emulation pipeline."""
 
 from collections.abc import Mapping, Sequence
-from copy import copy
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -33,8 +32,13 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
     """Wrap a dataset and simulate mounting orientations per recording.
 
     The wrapped dataset index is expanded by an additional ``orientation`` column.
-    Data access delegates to the matching row of the wrapped dataset, converts the
-    signal to body frame, and applies the selected rough mounting rotation.
+    Data access delegates to the matching row of the wrapped dataset, converts each
+    signal to body frame to apply the selected rough mounting rotation, and returns
+    it in the same frame as the wrapped dataset.
+
+    The rotation is intentionally performed outside of the wrapped dataset loading
+    cache. This keeps expensive raw data loading reusable while each simulated
+    orientation remains a cheap access-time transformation.
 
     Parameters
     ----------
@@ -111,6 +115,8 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
         frame = get_frame_definition(data, ["sensor", "body"])
         body_frame_data = to_body_frame(data) if frame == "sensor" else data
         rotated = flip_dataset(body_frame_data, self.orientation_rotation)
+        # Consumers should still see the same frame as the wrapped dataset. The
+        # full pipeline converts sensor-frame data to body frame itself.
         return to_sensor_frame(rotated) if frame == "sensor" else rotated
 
     @property
@@ -152,15 +158,6 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
     def reference_sampling_rate_hz_(self) -> float:
         """Return reference sampling rate from the wrapped datapoint."""
         return self._base_datapoint.reference_sampling_rate_hz_
-
-    @classmethod
-    def __clone_param__(cls, param_name: str, value: Any) -> Any:
-        """Customize cloning for wrapped datasets and configured orientations."""
-        if param_name == "base_dataset":
-            return value
-        if param_name == "orientations":
-            return copy(value)
-        return super().__clone_param__(param_name, value)
 
 
 def _confusion_matrix_as_df(predictions: pd.DataFrame) -> pd.DataFrame:

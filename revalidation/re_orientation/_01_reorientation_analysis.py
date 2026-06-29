@@ -47,24 +47,6 @@ FULL_VERSION = "Full"
 TRUST_GRAVITY_VERSION = "Trust gravity"
 
 
-def _add_expected_trust_gravity_uncorrectable_predictions(
-    predictions: pd.DataFrame,
-) -> pd.DataFrame:
-    """Add deterministic trust-gravity PA-flip predictions if an older export omitted them."""
-    if UNCORRECTABLE_TRUST_GRAVITY_LABEL in set(predictions["label"]):
-        return predictions
-
-    identity_predictions = predictions[
-        predictions["label"] == IDENTITY_LABEL
-    ].copy()
-    if identity_predictions.empty:
-        return predictions
-
-    identity_predictions["label"] = UNCORRECTABLE_TRUST_GRAVITY_LABEL
-    identity_predictions["prediction"] = IDENTITY_LABEL
-    return pd.concat([predictions, identity_predictions], ignore_index=True)
-
-
 def format_loaded_results(
     values: dict[tuple[str, str], pd.DataFrame],
     index_cols: list[str],
@@ -97,13 +79,8 @@ def format_loaded_predictions(
 ) -> pd.DataFrame:
     formatted_predictions = []
     for (algo, version), df in values.items():
-        formatted_df = df
-        if version == TRUST_GRAVITY_VERSION:
-            formatted_df = (
-                _add_expected_trust_gravity_uncorrectable_predictions(df)
-            )
         formatted_predictions.append(
-            formatted_df.assign(
+            df.assign(
                 algo=algo,
                 version=version,
                 algo_with_version=f"{algo} ({version})",

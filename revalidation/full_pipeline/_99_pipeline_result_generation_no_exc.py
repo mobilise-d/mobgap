@@ -46,7 +46,7 @@ import warnings
 # results.
 # This way, we can ensure that the exact format, order and participants are used for the comparison.
 from pathlib import Path
-from typing import Optional, Self
+from typing import Optional
 
 import pandas as pd
 from mobgap.data import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
@@ -54,6 +54,7 @@ from mobgap.laterality import LrcBenMansour, LrcUllrich
 from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.misc import get_env_var
 from tpcp.caching import hybrid_cache
+from typing_extensions import Self
 
 from revalidation.gait_sequences import DummyGsdAlgo
 
