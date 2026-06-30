@@ -73,8 +73,6 @@ from mobgap.re_orientation.evaluation import MisorientedDataset
 from mobgap.utils.evaluation import Evaluation, save_evaluation_results
 from mobgap.utils.misc import get_env_var
 
-FULL_REORIENTATION_MODE = "full"
-
 pipelines = {
     "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(),
     (
@@ -86,7 +84,7 @@ pipelines = {
                 MobilisedPipelineHealthy(
                     gait_sequence_detection=GsdIonescu(),
                     per_gs_reorientation=ReorientationMethodDM(
-                        correction_mode=FULL_REORIENTATION_MODE
+                        correction_mode="full"
                     ),
                 ),
             ),
@@ -95,7 +93,7 @@ pipelines = {
                 MobilisedPipelineImpaired(
                     gait_sequence_detection=GsdIonescu(),
                     per_gs_reorientation=ReorientationMethodDM(
-                        correction_mode=FULL_REORIENTATION_MODE
+                        correction_mode="full"
                     ),
                 ),
             ),
