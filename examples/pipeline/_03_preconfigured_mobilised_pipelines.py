@@ -3,10 +3,10 @@ Preconfigured Mobilised Pipelines
 =================================
 
 As part of the Mobilise-D project two separate pipelines have been developed depending on the patient characteristics.
-The first pipeline :class:`~mobgab.pipeline.MobilisedPipelineHealthy` (P1 in [1]_) is designed for people that likely
+The first pipeline :class:`~mobgap.pipeline.MobilisedPipelineHealthy` (P1 in [1]_) is designed for people that likely
 still have a somewhat normal gait pattern.
 In Mobilise-D, this pipeline is used for healthy controls and patients with "COPD" and "CHF".
-The second pipeline :class:`~mobgab.pipeline.MobilisedPipelineImpaired` (P2 in [1]_) is designed for patients with
+The second pipeline :class:`~mobgap.pipeline.MobilisedPipelineImpaired` (P2 in [1]_) is designed for patients with
 likely significantly impaired gait patterns.
 In Mobilise-D, this pipeline is used for patients with "PD", "PFF" and "MS".
 
@@ -125,7 +125,7 @@ MobilisedPipelineImpaired().recommended_cohorts
 # We add a little bit of logic to deal with trials that for which we might not detect a valid WB.
 # Then we aggregate the results.
 #
-# For the ``aggreate_parameters`` we modify the index, so that we have rows with NaNs for the trials that did not have
+# For the ``aggregated_parameters`` we modify the index, so that we have rows with NaNs for the trials that did not have
 # any valid WBs.
 import pandas as pd
 from tqdm.auto import tqdm
@@ -222,7 +222,7 @@ pipe_adaptive_gsd.per_wb_parameters_
 # See the end of the `step-by-step example <mobilised_pipeline_step_by_step>`_ for a demonstration.
 #
 # If you want to reuse some of the defaults of the preconfigured pipelines, you can still use the
-# ``PreconfiguredParameters``.
+# ``PredefinedParameters``.
 # For example, we could get the same pipeline as before like this:
 from mobgap.pipeline import GenericMobilisedPipeline
 
@@ -232,12 +232,12 @@ pipe_custom = GenericMobilisedPipeline(
         gait_sequence_detection=GsdAdaptiveIonescu(min_n_steps=3),
     )
 )
-pipe_adaptive_gsd.safe_run(long_test_ha)
+pipe_custom.safe_run(long_test_ha)
 # %%
-pipe_adaptive_gsd.aggregated_parameters_
+pipe_custom.aggregated_parameters_
 
 # %%
-pipe_adaptive_gsd.per_wb_parameters_
+pipe_custom.per_wb_parameters_
 
 # %%
 # On the other end, if you are only planning to change a single sub-parameter of a pipeline, it might be easier to use

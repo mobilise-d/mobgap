@@ -17,9 +17,9 @@ The comparison contains two variants:
 
 * the default :class:`~mobgap.pipeline.MobilisedPipelineUniversal` without
   per-GS reorientation and with the usual cohort-specific GSD choices,
-* a reorientation-enabled variant where both cohort-specific sub-pipelines use
-  :class:`~mobgap.gait_sequences.GsdIonescu` and
-  :class:`~mobgap.re_orientation.ReorientationMethodDM` in ``full`` mode.
+* a full-mode reorientation variant where both cohort-specific sub-pipelines
+  use :class:`~mobgap.gait_sequences.GsdIonescu` and
+  :class:`~mobgap.re_orientation.ReorientationMethodDM`.
 
 The default regular-walking GSD, :class:`~mobgap.gait_sequences.GsdIluz`, is
 therefore present in the default pipeline only. It is not evaluated with
@@ -41,10 +41,20 @@ case for unknown mounting orientations.
 # %%
 # Setting Up The Pipelines
 # ------------------------
-# The default pipeline keeps the usual cohort-specific GSDs. The
-# reorientation-enabled variant explicitly uses ``GsdIonescu`` in both
-# sub-pipelines because ``GsdIluz`` is orientation-dependent and cannot be used
-# when reorientation happens after GSD.
+# The default pipeline keeps the usual cohort-specific GSDs. The full-mode
+# reorientation variant explicitly uses ``GsdIonescu`` in both sub-pipelines
+# because ``GsdIluz`` is orientation-dependent and cannot be used when
+# reorientation happens after GSD.
+#
+# We intentionally use ``correction_mode="full"`` here, even though
+# ``trust_gravity`` is the default mode of ``ReorientationMethodDM``. This
+# validation creates one result for every simulated orientation class per
+# recording. This corresponds to an equal-prevalence stress test, where the
+# specific front-back flip class that ``trust_gravity`` intentionally does not
+# correct is much more common than expected in a realistic low-error setting.
+# Under this validation setup, ``full`` is the appropriate correction mode. For
+# realistic expected error prevalence, where ``trust_gravity`` can outperform
+# ``full``, see the dedicated reorientation validation analysis.
 from pathlib import Path
 
 from joblib import Memory
@@ -63,6 +73,8 @@ from mobgap.re_orientation.evaluation import MisorientedDataset
 from mobgap.utils.evaluation import Evaluation, save_evaluation_results
 from mobgap.utils.misc import get_env_var
 
+FULL_REORIENTATION_MODE = "full"
+
 pipelines = {
     "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(),
     (
@@ -74,7 +86,7 @@ pipelines = {
                 MobilisedPipelineHealthy(
                     gait_sequence_detection=GsdIonescu(),
                     per_gs_reorientation=ReorientationMethodDM(
-                        correction_mode="full"
+                        correction_mode=FULL_REORIENTATION_MODE
                     ),
                 ),
             ),
@@ -83,7 +95,7 @@ pipelines = {
                 MobilisedPipelineImpaired(
                     gait_sequence_detection=GsdIonescu(),
                     per_gs_reorientation=ReorientationMethodDM(
-                        correction_mode="full"
+                        correction_mode=FULL_REORIENTATION_MODE
                     ),
                 ),
             ),
