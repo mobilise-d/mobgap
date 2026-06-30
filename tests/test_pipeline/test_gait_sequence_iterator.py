@@ -167,6 +167,21 @@ class TestGsIterator:
         for v in asdict(iterator.results_).values():
             assert v.empty
 
+    def test_reorientation_results_ignore_missing_and_subregion_values(self):
+        dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
+        dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})
+
+        iterator = GsIterator()
+        for (s, d), r in iterator.iterate(dummy_data, dummy_sections):
+            if s.id == "s1":
+                r.reorientation_result = "main-s1"
+
+            subregions = pd.DataFrame({"start": [0], "end": [len(d)], "sub_gs_id": ["sub"]}).set_index("sub_gs_id")
+            for (_, _), sr in iterator.iterate_subregions(subregions):
+                sr.reorientation_result = f"sub-{s.id}"
+
+        assert iterator.results_.reorientation_result == ["main-s1"]
+
 
 class TestSubregionIteration:
     def test_subregions_iterate(self):

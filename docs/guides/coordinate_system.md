@@ -9,12 +9,12 @@ expectations.
 
 In general, we differentiate between 4 different coordinate systems:
 
-1. The IMU sensor frame, defined by the axis x, y, z of the sensor. This coordinate system moves with the sensor.
-2. The body frame, defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and moves
+1. The IMU sensor frame, which represents the correctly aligned physical orientation where sensor axes (x, y, z) truly correspond to anatomical body directions.
+2. The body frame, defined by the axis IS (inferior-superior), ML (medial-lateral), PA (posterior-anterior) and moves
    with the body/sensor.
 3. The "normal" global frame, defined by the axis gx, gy, gz that is defined globally* and does not move with the sensor.
    (* the initial orientation is defined by the first sample of the data)
-4. The body-aligned global frame, defined by the axis GIS, GPA, GML and that is fixed like the global frame but 
+4. The body-aligned global frame, defined by the axis GIS, GML, GPA and that is fixed like the global frame but
    expressed in terms of body axis in the initial position.
 
 **All** of these coordinate systems follow the [right-hand rule](https://en.wikipedia.org/wiki/Right-hand_rule) and the direction of rotation defined by the 
@@ -46,42 +46,10 @@ frame will lead to output in the body-aligned global frame.
 More details below.
 ```
 
-## Sensor Frame
-
-The sensor frame is defined by the axis x, y, z of the sensor.
-We expect these axis directions to follow the directions of the MM+ sensor of McRoberts (when worn correctly), which is 
-the primary sensor used in the mobilise-d project.
-This assumes that the sensor (if attached correctly) has the x-axis pointing upwards, the y-axis pointing to the right
-and the z-axis pointing forward.
-
-To use all functions and algorithms in mobgap, you need to make sure that your data follows the same conventions.
-This means, you likely need to define a rotation matrix that transforms your data into the expected coordinate system.
-This transformation is usually derived based on the known mounting orientation of your sensor.
-Have a look at the sections 3 and 4 in this 
-[guide in gaitmap](https://gaitmap.readthedocs.io/en/latest/source/user_guide/prepare_data.html#converting-into-the-correct-units) 
-for more information on how to do this.
-
-If you don't have any information about the mounting orientation of your sensor, you can try to estimate it based on the
-sensor data.
-The upwards axis could for example be identified using gravity and forward/backward axis can be identified using PCA
-with some additional assumptions.
-You can try to use the automatic alignment function
-([TODO: Under development in #112](https://github.com/mobilise-d/mobgap/pull/112)) to align the sensor data to the body 
-frame on a gait sequence level.
-Depending on the measurement setup, other constrains might be available to further refine the alignment.
-In all cases, manual inspection of the data is recommended to ensure that the alignment is correct.
-
-Data that is in the sensor frame is simply named by the axis postfix `_x`, `_y`, and `_z`.
-So the imu-data pandas Dataframe has the axes `["acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z"]`.
-
-The sensor frame is used whenever, we need to perform rotational mathc (i.e. rotations) or when we can not assume that
-the orientation of the sensor is probably aligned with the body frame.
-However, when ever possible we work in the body frame to avoid confusion about which axis points in which direction.
-
 ## Body Frame
 
-The body frame is defined by the axis IS (inferior-superior), PA (posterior-anterior), ML (medial-lateral) and is 
-simply a renaming of the sensor frame axis.
+The body frame is defined by the axis IS (inferior-superior), ML (medial-lateral), PA (posterior-anterior) and is
+simply a renaming of the sensor axes.
 The figure above shows the expected direction of the body frame axis.
 The naming of the axis/conversion of the sensor frame is as follows:
     - x -> IS (inferior-superior)
@@ -90,13 +58,71 @@ The naming of the axis/conversion of the sensor frame is as follows:
 
 In code, this transformation can be done by the {py:func}`~mobgap.utils.to_body_frame` function.
 This will return a dataframe with renamed axis and the same index as the input data.
-Note, that this will only work, if your data is already correctly aligned with the sensor frame!
-If you don't have this yet, go back to the previous section to understand how to transform your data into the expected
-sensor frame.
+
+**Note:** This assumes your raw data already uses mobgap's x, y, z axis naming convention. 
+Different IMU devices may use different axis labels or column orders, so you will need to 
+pre-process such data to match mobgap's expected format before calling `to_body_frame()`.
 
 Most algorithms in mobgap expect the data to be in the body frame, so that they can easily work on the "upwards" or 
 "forward" axis.
 Algorithms that would work in both the sensor and body frame, will usually accept both.
+
+## Sensor Frame
+
+The sensor frame represents the correctly aligned physical orientation where the sensor axes (x, y, z) truly correspond 
+to the anatomical body axes (IS, ML, PA).
+We expect these axis directions to follow the directions of the MM+ sensor of McRoberts (when worn correctly), which is 
+the primary sensor used in the mobilise-d project.
+In this correct orientation, the sensor (when attached correctly) has:
+
+- the x-axis pointing upwards (IS direction)
+- the y-axis pointing to the right (ML direction)
+- the z-axis pointing forward (PA direction)
+
+### When sensor mounting is known and controlled
+
+To use all functions and algorithms in mobgap, you need to make sure that your data follows the same conventions.
+This means, you likely need to define a rotation matrix that transforms your data into the expected coordinate system.
+This transformation is usually derived based on the known mounting orientation of your sensor.
+Have a look at the sections 3 and 4 in this 
+[guide in gaitmap](https://gaitmap.readthedocs.io/en/latest/source/user_guide/prepare_data.html#converting-into-the-correct-units) 
+for more information on how to do this.
+
+### When sensor mounting is unknown or may change during a recording
+
+If you don't have any information about the mounting orientation of your sensor (i.e., unsupervised free-living setting), 
+you can use the reorientation correction algorithm to detect and correct sensor orientation based on accelerometer 
+patterns during walking.
+The algorithm operates in three stages: (1) identifies which device axis captures gravity (vertical acceleration), 
+(2) determines the gravity direction (up/down) and rotates the sensor data so that gravity correctly aligns with the
+"assumed vertical", and (3) uses cross-spectral phase analysis between vertical (after step 2) and posterior-anterior 
+axes to determine correct mediolateral and posterior-anterior orientations.
+
+For more details see the documentation of the {py:class}`~mobgap.re_orientation.ReorientationMethodDM` class.
+
+<p align="center">
+  <img src="../_static/images/orientation_families.svg" alt="Sensor orientation families" width="500" style="background-color: white; padding: 20px;">
+</p>
+
+**Figure.** All possible device orientation families for a lower-back-worn IMU (belt-worn (Families is_up, is_down) 
+and patch-attached (all Families)). Each panel shows a distinct orientation defined by which device axis captures gravity and its direction. 
+Family "is_up" A (top-left) represents the correct reference orientation (IS up, ML right, PA forward).
+Boxes adjacent to each orientation indicate the rotation(s) of that device orientation from the reference frame: 
+rot(x) = rotation around x/IS axis, rot(y) = rotation around y/ML axis, rot(z) = rotation around z/PA axis. 
+Composite rotations (e.g., "180° rot(x) + 90° rot(z)") indicate sequential transformations. 
+The algorithm detects these families and applies the inverse rotations to restore the reference frame alignment. 
+Within each family (i.e., "is_up", "is_down", "ml_up", "ml_down"), two orientations differ only in ML and PA axis directions, determined through cross-spectral phase analysis.
+The green circle indicates PA direction: dot (•) = backward, cross (×) = forward. IS = infero-superior, ML = mediolateral, PA = posterior-anterior.
+
+You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
+the sensor data to the body frame on a gait sequence level.
+
+Note, that knowing the sensor mounting orientation is always preferable and provides more predictable results than
+attempting to correct for it after the fact.
+You should also only activate/use the reorientation correction if you really don't have any information about the sensor
+mounting orientation.
+Activating the reorientation correction when the sensor data is already in the correct orientation can in rare cases
+lead to worse results, as the algorithm might detect a wrong orientation and apply a wrong correction.
 
 ## Global coordinate system
 
@@ -149,8 +175,8 @@ Therefore, we introduce the body-aligned global frame.
 
 ## Body-aligned global frame
 
-The body-aligned global frame is defined by the axis GIS (global inferior-superior), GPA (global posterior-anterior),
-GML (global medial-lateral) and is fixed in space like the global frame.
+The body-aligned global frame is defined by the axis GIS (global inferior-superior), GML (global medial-lateral),
+GPA (global posterior-anterior) and is fixed in space like the global frame.
 However, the axis are defined in terms of the body frame axis.
 This allows to easily pick, for example, the axis that points "upwards" without remembering the global frame convention.
 
@@ -164,6 +190,3 @@ global frame, when body-frame input is detected.
 Under the hood, this uses {py:func}`~mobgap.utils.conversions.transform_to_global_frame` that takes the orientation 
 estimation from sensor to normal global frame as input and correctly applies it to either sensor frame or body frame 
 data (see graphic above for more details).
-
-
-

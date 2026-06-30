@@ -210,6 +210,7 @@ sphinx_gallery_conf = {
             "../examples/turning",
             "../examples/wba",
             "../examples/aggregation",
+            "../examples/re_orientation",
             "../examples/data_transform",
             "../examples/dev_guides",
             "../revalidation/full_pipeline",
@@ -219,6 +220,7 @@ sphinx_gallery_conf = {
             "../revalidation/laterality",
             "../revalidation/cadence",
             "../revalidation/stride_length",
+            "../revalidation/re_orientation",
         ]
     ),
     "within_subsection_order": FileNameSortKey,

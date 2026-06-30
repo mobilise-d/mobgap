@@ -23,13 +23,22 @@ For more information about the individual steps, please refer to the respective 
 # %%
 # Load example data
 # -----------------
-# We load example data from the lab dataset, and we will use a single long-trail from an "MS" participant for this
-# example.
+# We load example data from the lab dataset, and we will use a single long trial from an "MS" participant for
+# this example.
 #
-# Note, that we directly convert it into the body frame, as bascially all algorithms require the body frame data
-# (and all others support it).
+# Note, that we directly convert it into the body frame, as basically all algorithms require the body frame
+# data (and all others support it).
 # We can do that, because we know that the data is already well aligned with the sensor frame conventions.
-# If this would not be the case, the data would need to be rotated/algigned before running through the pipeline.
+# If this would not be the case, the data would need to be rotated/aligned before running through the
+# pipeline. Only use per-gait-sequence reorientation when the orientation can change within a recording and when the
+# gait sequence detector can handle the uncorrected sensor-frame data.
+#
+# In the "real" pipeline, the conversion from sensor to body frame will either happen at the very start or will be
+# postponed until after the gait sequence detection, depending on whether an automatic reorientation algorithm is used
+# via `per_gs_reorientation` or not.
+# This changes the set of supported GSD algorithms, as some of them are orientation-dependent and some are not.
+# For this example, we will go through the steps as if we would not apply a reorientation algorithm, but briefly show
+# the reorientation interface in step 1.5.
 import pandas as pd
 from mobgap.data import LabExampleDataset
 from mobgap.utils.conversions import to_body_frame
@@ -61,6 +70,39 @@ first_gait_sequence = gait_sequences.iloc[0]
 first_gait_sequence_data = imu_data.iloc[
     first_gait_sequence.start : first_gait_sequence.end
 ]
+
+# %%
+# Step 1.5: Reorientation Correction Interface (Optional)
+# -------------------------------------------------------
+# If a pipeline uses a suitable orientation-independent gait sequence detector on sensor-frame data, it can apply
+# per-gait-sequence reorientation to align the sensor axes to the anatomical frame before any gait parameter extraction.
+#
+# We use the raw sensor-frame data here and let the reorientation algorithm convert it back to body-frame data.
+# In this example, this will not change the data, as the sensor is already well aligned with the sensor frame
+# conventions. The result is only shown to demonstrate the interface; the rest of this walkthrough continues with the
+# body-frame data detected by `GsdIluz`.
+#
+# .. note:: A reorientation algorithm takes sensor-frame gait-sequence data and returns body-frame data.
+#           Because it runs after gait sequence detection, only use it if you have no way to solve the
+#           orientation from prior mounting knowledge and if all algorithms before it are orientation-independent or
+#           explicitly support sensor-frame input.
+#           The most notable limitation is that the `GsdIluz` algorithm is not orientation-independent and hence can
+#           not be used in combination with a reorientation algorithm in the
+#           Mobilise-D pipeline.
+from mobgap.re_orientation import ReorientationMethodDM
+
+first_gait_sequence_sensor_data = long_trial.data_ss.iloc[
+    first_gait_sequence.start : first_gait_sequence.end
+]
+reorient = ReorientationMethodDM()
+reorient.detect_correct(
+    first_gait_sequence_sensor_data, sampling_rate_hz=sampling_rate_hz
+)
+
+# A real per-gait-sequence reorientation pipeline would use this corrected body-frame data for all downstream
+# processing.
+example_reoriented_gs_data = reorient.corrected_data_
+example_reoriented_gs_data.head()
 
 
 # %%
@@ -413,6 +455,7 @@ from mobgap.pipeline import GenericMobilisedPipeline
 
 pipeline = GenericMobilisedPipeline(
     gait_sequence_detection=gsd,
+    per_gs_reorientation=None,
     initial_contact_detection=icd,
     laterality_classification=lrc,
     cadence_calculation=cad,

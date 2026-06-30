@@ -21,6 +21,8 @@ from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
+from mobgap.re_orientation import ReorientationMethodDM  # noqa: F401
+from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -51,6 +53,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     Parameters
     ----------
+    %(per_gs_reorientation)s
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
@@ -80,6 +83,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     """
 
     gait_sequence_detection: BaseGsDetector
+    per_gs_reorientation: Optional[BaseReorientationCorrector]
     initial_contact_detection: BaseIcDetector
     laterality_classification: BaseLRClassifier
     cadence_calculation: Optional[BaseCadCalculator]
@@ -113,6 +117,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         regular_walking: Final = MappingProxyType(
             {
                 "gait_sequence_detection": GsdIluz(),
+                "per_gs_reorientation": None,
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(
@@ -132,6 +137,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         impaired_walking: Final = MappingProxyType(
             {
                 "gait_sequence_detection": GsdIonescu(),
+                "per_gs_reorientation": None,
                 "initial_contact_detection": IcdIonescu(),
                 "laterality_classification": LrcUllrich(**LrcUllrich.PredefinedParameters.msproject_all),
                 "cadence_calculation": CadFromIcDetector(
@@ -152,6 +158,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self,
         *,
         gait_sequence_detection: BaseGsDetector,
+        per_gs_reorientation: Optional[BaseReorientationCorrector],
         initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
@@ -165,6 +172,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         recommended_cohorts: Optional[tuple[str, ...]] = None,
     ) -> None:
         self.gait_sequence_detection = gait_sequence_detection
+        self.per_gs_reorientation = per_gs_reorientation
         self.initial_contact_detection = initial_contact_detection
         self.laterality_classification = laterality_classification
         self.cadence_calculation = cadence_calculation
@@ -232,7 +240,9 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             "sampling_rate_hz": datapoint.sampling_rate_hz,
         }
 
-        imu_data = to_body_frame(datapoint.data_ss)
+        imu_data = datapoint.data_ss
+        if self.per_gs_reorientation is None:
+            imu_data = to_body_frame(imu_data)
         sampling_rate_hz = datapoint.sampling_rate_hz
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
@@ -339,6 +349,13 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         # TODO: How to expose the individual algo instances of the algos that run in the loop?
 
         for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
+            if self.per_gs_reorientation is not None:
+                reorient = self.per_gs_reorientation.clone().detect_correct(
+                    gs_data, sampling_rate_hz=action_kwargs["sampling_rate_hz"]
+                )
+                gs_data = reorient.corrected_data_  # noqa: PLW2901
+                r.reorientation_result = reorient.result_
+
             icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
             lrc = self.laterality_classification.clone().predict(gs_data, icd.ic_list_, **action_kwargs)
             r.ic_list = lrc.ic_lr_list_
@@ -353,7 +370,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 continue
             refined_gs, refined_ic_list = refine_gs(r.ic_list)
 
-            with gs_iterator.subregion(refined_gs) as ((_, refined_gs_data), rr):
+            with gs_iterator.subregion(refined_gs, data=gs_data) as ((_, refined_gs_data), rr):
                 cad_r = None
                 if self.cadence_calculation:
                     cad = self.cadence_calculation.clone().calculate(
@@ -444,6 +461,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
 
     Parameters
     ----------
+    %(per_gs_reorientation)s
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
@@ -465,6 +483,14 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     -----
     %(step_by_step)s
 
+    Current limitations: The MobilisedPipelineHealthy can currently not be used with `per_gs_reorientation` enabled,
+    unless a different GSD algorithm is selected as well.
+    This is because the default GSD algorithm for this pipeline (GsdIluz) assumes correct sensor mounting and can not
+    be used, if the sensor orientation is unknown.
+    If you need to use the MobilisedPipelineHealthy with `per_gs_reorientation` enabled, try to use `GsdIonescu`,
+    but be aware that we have not properly validated this combination and assume worse performance than using `GsdIluz`
+    with known mounting orientation.
+
     .. [1] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology?
            Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78
            (2023). https://doi.org/10.1186/s12984-023-01198-5
@@ -484,6 +510,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
         self,
         *,
         gait_sequence_detection: BaseGsDetector,
+        per_gs_reorientation: Optional[BaseReorientationCorrector],
         initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
@@ -498,6 +525,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     ) -> None:
         super().__init__(
             gait_sequence_detection=gait_sequence_detection,
+            per_gs_reorientation=per_gs_reorientation,
             initial_contact_detection=initial_contact_detection,
             laterality_classification=laterality_classification,
             cadence_calculation=cadence_calculation,
@@ -529,6 +557,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
 
     Parameters
     ----------
+    %(per_gs_reorientation)s
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
@@ -569,6 +598,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
         self,
         *,
         gait_sequence_detection: BaseGsDetector,
+        per_gs_reorientation: Optional[BaseReorientationCorrector],
         initial_contact_detection: BaseIcDetector,
         laterality_classification: BaseLRClassifier,
         cadence_calculation: Optional[BaseCadCalculator],
@@ -583,6 +613,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
     ) -> None:
         super().__init__(
             gait_sequence_detection=gait_sequence_detection,
+            per_gs_reorientation=per_gs_reorientation,
             initial_contact_detection=initial_contact_detection,
             laterality_classification=laterality_classification,
             cadence_calculation=cadence_calculation,
@@ -734,5 +765,5 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
                 return self
         raise ValueError(
             f"Could not determine the correct pipeline for the cohort {cohort}. "
-            "Check the ``RECOMMENDED_COHORTS`` attribute of the pipelines."
+            "Check the ``get_recommended_cohorts`` attribute of the pipelines."
         )

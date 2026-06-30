@@ -10,6 +10,7 @@ from typing import (
     NamedTuple,
     Optional,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -168,6 +169,7 @@ class FullPipelinePerGsResult:
     cadence_per_sec: pd.DataFrame
     stride_length_per_sec: pd.DataFrame
     walking_speed_per_sec: pd.DataFrame
+    reorientation_result: Optional[Any] = None
 
 
 def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
@@ -260,6 +262,20 @@ def create_aggregate_df(
         return pd.concat(to_concat, names=[*iter_index_name, *next(iter(to_concat.values())).index.names])
 
     return aggregate_df
+
+
+def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> Union[pd.DataFrame, list]:
+    """Aggregate reorientation results from iterator results."""
+    reorientation_results = [
+        r.result.reorientation_result
+        for r in results
+        if r.iteration_name == "__main__"
+        and hasattr(r.result, "reorientation_result")
+        and r.result.reorientation_result is not None
+        and r.result.reorientation_result is not BaseTypedIterator.NULL_VALUE
+    ]
+
+    return reorientation_results or pd.DataFrame()
 
 
 class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[DataclassT]):
@@ -377,6 +393,10 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                             "walking_speed_per_sec",
                             create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True),
                         ),
+                        (
+                            "reorientation_result",
+                            _aggregate_reorientation_results,
+                        ),
                     ]
                 ),
             }
@@ -470,7 +490,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         yield from self._iterate(iter_gs(data, region_list))
 
     def iterate_subregions(
-        self, sub_region_list: pd.DataFrame
+        self, sub_region_list: pd.DataFrame, *, data: Optional[pd.DataFrame] = None
     ) -> Iterator[tuple[tuple[Region, pd.DataFrame], DataclassT]]:
         """Iterate subregions within the current gait sequence.
 
@@ -487,6 +507,10 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         sub_region_list
             The list of subregions within the current region.
             The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
+        data
+            Optional data to slice for the subregions instead of the current parent-region data.
+            This is useful when the parent data was transformed after the main iterator yielded it, for example by
+            reorienting the signal before downstream refined-region algorithms are run.
 
         Returns
         -------
@@ -507,6 +531,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
 
         current_result = self._raw_results[-1]
         current_region, current_data = current_result.input
+        subregion_data = current_data if data is None else data
 
         # We calculate the hash of the last outer result to check if it was changed during the sub-iteration.
         # Note, that when you are using the ``subregion`` context manager, this check is duplicated.
@@ -516,7 +541,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         before_result_hash = custom_hash(current_result_obj)
 
         yield from self._iterate(
-            iter_gs(current_data, sub_region_list),
+            iter_gs(subregion_data, sub_region_list),
             iteration_name="__sub_iter__",
             iteration_context={"parent_region": current_region},
         )
@@ -529,7 +554,9 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 "Make sure you use the result object returned by the subregion iteration."
             )
 
-    def with_subregion(self, sub_region_list: pd.DataFrame) -> tuple[tuple[Region, pd.DataFrame], DataclassT]:
+    def with_subregion(
+        self, sub_region_list: pd.DataFrame, *, data: Optional[pd.DataFrame] = None
+    ) -> tuple[tuple[Region, pd.DataFrame], DataclassT]:
         """Get a subregion of the current gait sequence.
 
         For details see ``iterate_subregions``.
@@ -541,6 +568,8 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
             The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
             For the ``with_subregions`` method this must be just a single GS.
             If you want to iterate multiple GSs see ``iterate_subregions``.
+        data
+            Optional data to slice for the subregion instead of the current parent-region data.
 
         Returns
         -------
@@ -575,12 +604,14 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                 "However, the passed ``region_list`` has 0 or more than one GSs. "
                 "If you want to process multiple sub-regions, use ``iterate_subregions``."
             )
-        return list(self.iterate_subregions(sub_region_list))[0]  # noqa: RUF015
+        return list(self.iterate_subregions(sub_region_list, data=data))[0]  # noqa: RUF015
 
     # Note: Iterator[...] is the correct type annotation here. PyCharm just does not recognize it. See:
     #       PY-71674 PyCharm doesn't infer types when using contextlib.contextmanager decorator on a method
     @contextmanager
-    def subregion(self, sub_region_list: pd.DataFrame) -> Iterator[tuple[tuple[Region, pd.DataFrame], DataclassT]]:
+    def subregion(
+        self, sub_region_list: pd.DataFrame, *, data: Optional[pd.DataFrame] = None
+    ) -> Iterator[tuple[tuple[Region, pd.DataFrame], DataclassT]]:
         """Context manager for handling a subregion of the current gait sequence.
 
         This is basically just syntactic sugar for the ``with_subregion`` method.
@@ -594,6 +625,8 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
             The "start" and "end" values need to be relative to the current gait sequence the parent is iterating over.
             For the ``with_subregions`` method this must be just a single GS.
             If you want to iterate multiple GSs see ``iterate_subregions``.
+        data
+            Optional data to slice for the subregion instead of the current parent-region data.
 
         Yields
         ------
@@ -628,7 +661,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         before_result_hash = custom_hash(outer_result)
 
         try:
-            yield self.with_subregion(sub_region_list)
+            yield self.with_subregion(sub_region_list, data=data)
         finally:
             after_result_hash = custom_hash(outer_result)
             if before_result_hash != after_result_hash:
