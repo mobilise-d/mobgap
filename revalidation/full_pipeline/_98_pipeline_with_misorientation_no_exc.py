@@ -138,10 +138,10 @@ def run_evaluation(
     pipeline: BaseMobilisedPipeline,
     ds: MisorientedDataset,
 ) -> tuple[str, Evaluation[BaseMobilisedPipeline]]:
+    scoring = pipeline_score.clone().set_params(n_jobs=n_jobs, verbose=10)
     eval_pipe = Evaluation(
         ds,
-        scoring=pipeline_score,
-        validate_paras={"n_jobs": n_jobs, "verbose": 10},
+        scoring=scoring,
     ).run(pipeline)
     return name, eval_pipe
 
