@@ -261,8 +261,12 @@ def test_split_by_day_n_samples_matches_loaded_recording_length(tmp_path, monkey
     assert datapoint.n_samples == len(datapoint.data_ss)
 
 
-def test_n_samples_rounds_floating_point_duration_artifacts():
-    assert sustain_dataset._sample_count_from_duration_s(86_399.999999999, 100.0) == 8_640_000
+def test_split_by_day_n_samples_handles_floating_point_boundary_artifacts():
+    assert sustain_dataset._sample_count_from_time_bounds_s(0.0, 86_399.999999999, 100.0) == 8_640_000
+
+
+def test_split_by_day_n_samples_handles_unaligned_partial_day_boundaries():
+    assert sustain_dataset._sample_count_from_time_bounds_s(0.6, 130.2, 1.0) == 130
 
 
 @requires_sustain_data
