@@ -369,7 +369,11 @@ def _recording_sample_count_from_timing_report(
     start_time_s, end_time_s = _day_cut_seconds(recording_day, timing_report, sampling_rate_hz)
     start_time_s = 0.0 if start_time_s is None else start_time_s
     end_time_s = recording_duration_exclusive_s if end_time_s is None else end_time_s
-    return max(0, floor((end_time_s - start_time_s) * sampling_rate_hz + 1e-9))
+    return _sample_count_from_duration_s(end_time_s - start_time_s, sampling_rate_hz)
+
+
+def _sample_count_from_duration_s(duration_s: float, sampling_rate_hz: float) -> int:
+    return max(0, round(duration_s * sampling_rate_hz))
 
 
 def _clip_data_to_recording_day(data: pd.DataFrame, recording_day: str | None) -> pd.DataFrame:
