@@ -216,6 +216,55 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
     assert cuts == [(2.0, 86402.0)]
 
 
+def test_n_samples_matches_loaded_recording_length(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    datapoint = SustainWearTimeDataset(base_path, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
+
+    assert datapoint.n_samples == len(datapoint.data_ss)
+
+
+def test_split_by_day_n_samples_matches_loaded_recording_length(tmp_path, monkeypatch):
+    base_path = _create_sustain_layout(tmp_path)
+    timing_report = {
+        "start_from_data": "2020-01-01T23:59:58+00:00",
+        "end_from_data": "2020-01-02T00:00:01+00:00",
+        "duration_s_from_data": 3.0,
+        "samplingrate_hz_from_header": 1.0,
+        "samplingrate_hz_from_data": 1.0,
+    }
+
+    def fake_read_cwa_header(file_path):
+        return {"sample_rate_hz": 1.0}
+
+    def fake_read_cwa_timing_report(file_path):
+        return timing_report
+
+    def fake_read_cwa_recording(file_path, additional_channels, timing_report, start_time_s=None, end_time_s=None):
+        data = pd.DataFrame(
+            [[0.0] * (len(SF_SENSOR_COLS) + 1), [1.0] * (len(SF_SENSOR_COLS) + 1)],
+            columns=[*SF_SENSOR_COLS, "temperature"],
+            index=pd.DatetimeIndex(["2020-01-02T00:00:00Z", "2020-01-02T00:00:01Z"], name="time"),
+        )
+        return sustain_dataset._CwaRecording(data, 1.0, {}, timing_report)
+
+    monkeypatch.setattr(sustain_dataset, "_read_cwa_header", fake_read_cwa_header)
+    monkeypatch.setattr(sustain_dataset, "_read_cwa_timing_report", fake_read_cwa_timing_report)
+    monkeypatch.setattr(sustain_dataset, "_read_cwa_recording", fake_read_cwa_recording)
+
+    datapoint = SustainWearTimeDataset(
+        base_path, split_by_day=True, warn_thres_for_sampling_rate_deviations_hz=None
+    ).get_subset(recording_id=HUMAN_RECORDING_ID, recording_day="2020-01-02")
+
+    assert datapoint.n_samples == 2
+    assert datapoint.n_samples == len(datapoint.data_ss)
+
+
+def test_n_samples_rounds_floating_point_duration_artifacts():
+    assert sustain_dataset._sample_count_from_duration_s(86_399.999999999, 100.0) == 8_640_000
+
+
 @requires_sustain_data
 def test_real_dataset_regression_index(snapshot):
     dataset = SustainWearTimeDataset(SUSTAIN_DATA_PATH)
