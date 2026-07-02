@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import warnings
-from math import floor
+from math import ceil, floor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Union
 
@@ -38,6 +38,7 @@ ADDITIONAL_CWA_OUTPUT_COLUMNS: dict[AdditionalCwaChannel, tuple[str, ...]] = {
     "battery": ("battery",),
 }
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
+SAMPLE_COUNT_TOL = 1e-6
 SAMPLING_RATE_DEVIATION_WARNING = (
     "The expected number of samples/the effective sampling rate waries considerable from the expected values. "
     "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
@@ -369,11 +370,13 @@ def _recording_sample_count_from_timing_report(
     start_time_s, end_time_s = _day_cut_seconds(recording_day, timing_report, sampling_rate_hz)
     start_time_s = 0.0 if start_time_s is None else start_time_s
     end_time_s = recording_duration_exclusive_s if end_time_s is None else end_time_s
-    return _sample_count_from_duration_s(end_time_s - start_time_s, sampling_rate_hz)
+    return _sample_count_from_time_bounds_s(start_time_s, end_time_s, sampling_rate_hz)
 
 
-def _sample_count_from_duration_s(duration_s: float, sampling_rate_hz: float) -> int:
-    return max(0, round(duration_s * sampling_rate_hz))
+def _sample_count_from_time_bounds_s(start_time_s: float, end_time_s: float, sampling_rate_hz: float) -> int:
+    start_sample = ceil(start_time_s * sampling_rate_hz - SAMPLE_COUNT_TOL)
+    end_sample = ceil(end_time_s * sampling_rate_hz - SAMPLE_COUNT_TOL)
+    return max(0, end_sample - start_sample)
 
 
 def _clip_data_to_recording_day(data: pd.DataFrame, recording_day: str | None) -> pd.DataFrame:
