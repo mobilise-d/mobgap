@@ -352,51 +352,51 @@
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_is__median",
+                "name":"all__angular_acceleration_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_is__std",
+                "name":"all__angular_acceleration_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_is__p10",
+                "name":"all__angular_acceleration_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_is__p90",
+                "name":"all__angular_acceleration_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_ml__median",
+                "name":"all__angular_acceleration_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_ml__std",
+                "name":"all__angular_acceleration_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_ml__p10",
+                "name":"all__angular_acceleration_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_ml__p90",
+                "name":"all__angular_acceleration_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_pa__median",
+                "name":"all__angular_acceleration_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_pa__std",
+                "name":"all__angular_acceleration_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_pa__p10",
+                "name":"all__angular_acceleration_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"all__jerk_gyr_pa__p90",
+                "name":"all__angular_acceleration_gyr_pa__p90",
                 "type":"number"
             },
             {
@@ -1200,51 +1200,51 @@
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_is__median",
+                "name":"wb_10_30__angular_acceleration_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_is__std",
+                "name":"wb_10_30__angular_acceleration_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_is__p10",
+                "name":"wb_10_30__angular_acceleration_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_is__p90",
+                "name":"wb_10_30__angular_acceleration_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_ml__median",
+                "name":"wb_10_30__angular_acceleration_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_ml__std",
+                "name":"wb_10_30__angular_acceleration_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_ml__p10",
+                "name":"wb_10_30__angular_acceleration_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_ml__p90",
+                "name":"wb_10_30__angular_acceleration_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_pa__median",
+                "name":"wb_10_30__angular_acceleration_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_pa__std",
+                "name":"wb_10_30__angular_acceleration_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_pa__p10",
+                "name":"wb_10_30__angular_acceleration_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__jerk_gyr_pa__p90",
+                "name":"wb_10_30__angular_acceleration_gyr_pa__p90",
                 "type":"number"
             },
             {
@@ -2048,51 +2048,51 @@
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_is__median",
+                "name":"wb_10__angular_acceleration_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_is__std",
+                "name":"wb_10__angular_acceleration_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_is__p10",
+                "name":"wb_10__angular_acceleration_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_is__p90",
+                "name":"wb_10__angular_acceleration_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_ml__median",
+                "name":"wb_10__angular_acceleration_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_ml__std",
+                "name":"wb_10__angular_acceleration_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_ml__p10",
+                "name":"wb_10__angular_acceleration_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_ml__p90",
+                "name":"wb_10__angular_acceleration_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_pa__median",
+                "name":"wb_10__angular_acceleration_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_pa__std",
+                "name":"wb_10__angular_acceleration_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_pa__p10",
+                "name":"wb_10__angular_acceleration_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__jerk_gyr_pa__p90",
+                "name":"wb_10__angular_acceleration_gyr_pa__p90",
                 "type":"number"
             },
             {
@@ -2896,51 +2896,51 @@
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_is__median",
+                "name":"wb_30__angular_acceleration_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_is__std",
+                "name":"wb_30__angular_acceleration_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_is__p10",
+                "name":"wb_30__angular_acceleration_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_is__p90",
+                "name":"wb_30__angular_acceleration_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_ml__median",
+                "name":"wb_30__angular_acceleration_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_ml__std",
+                "name":"wb_30__angular_acceleration_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_ml__p10",
+                "name":"wb_30__angular_acceleration_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_ml__p90",
+                "name":"wb_30__angular_acceleration_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_pa__median",
+                "name":"wb_30__angular_acceleration_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_pa__std",
+                "name":"wb_30__angular_acceleration_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_pa__p10",
+                "name":"wb_30__angular_acceleration_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__jerk_gyr_pa__p90",
+                "name":"wb_30__angular_acceleration_gyr_pa__p90",
                 "type":"number"
             },
             {
@@ -3744,51 +3744,51 @@
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_is__median",
+                "name":"wb_30_60__angular_acceleration_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_is__std",
+                "name":"wb_30_60__angular_acceleration_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_is__p10",
+                "name":"wb_30_60__angular_acceleration_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_is__p90",
+                "name":"wb_30_60__angular_acceleration_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_ml__median",
+                "name":"wb_30_60__angular_acceleration_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_ml__std",
+                "name":"wb_30_60__angular_acceleration_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_ml__p10",
+                "name":"wb_30_60__angular_acceleration_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_ml__p90",
+                "name":"wb_30_60__angular_acceleration_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_pa__median",
+                "name":"wb_30_60__angular_acceleration_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_pa__std",
+                "name":"wb_30_60__angular_acceleration_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_pa__p10",
+                "name":"wb_30_60__angular_acceleration_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__jerk_gyr_pa__p90",
+                "name":"wb_30_60__angular_acceleration_gyr_pa__p90",
                 "type":"number"
             },
             {
@@ -4592,51 +4592,51 @@
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_is__median",
+                "name":"wb_60__angular_acceleration_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_is__std",
+                "name":"wb_60__angular_acceleration_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_is__p10",
+                "name":"wb_60__angular_acceleration_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_is__p90",
+                "name":"wb_60__angular_acceleration_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_ml__median",
+                "name":"wb_60__angular_acceleration_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_ml__std",
+                "name":"wb_60__angular_acceleration_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_ml__p10",
+                "name":"wb_60__angular_acceleration_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_ml__p90",
+                "name":"wb_60__angular_acceleration_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_pa__median",
+                "name":"wb_60__angular_acceleration_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_pa__std",
+                "name":"wb_60__angular_acceleration_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_pa__p10",
+                "name":"wb_60__angular_acceleration_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__jerk_gyr_pa__p90",
+                "name":"wb_60__angular_acceleration_gyr_pa__p90",
                 "type":"number"
             },
             {
@@ -5281,30 +5281,30 @@
             "all__sd_gyr_pa__std":2.5174106787,
             "all__sd_gyr_pa__p10":10.2543271322,
             "all__sd_gyr_pa__p90":15.0779687763,
-            "all__jerk_acc_is__median":140.7360566889,
-            "all__jerk_acc_is__std":24.5406045256,
-            "all__jerk_acc_is__p10":119.5582430348,
-            "all__jerk_acc_is__p90":168.3705384103,
-            "all__jerk_acc_ml__median":144.81820418,
-            "all__jerk_acc_ml__std":23.0078626542,
-            "all__jerk_acc_ml__p10":115.1335564393,
-            "all__jerk_acc_ml__p90":165.8931674599,
-            "all__jerk_acc_pa__median":98.1647685242,
-            "all__jerk_acc_pa__std":25.4071177054,
-            "all__jerk_acc_pa__p10":70.8874175177,
-            "all__jerk_acc_pa__p90":126.9122980907,
-            "all__jerk_gyr_is__median":168.8356987921,
-            "all__jerk_gyr_is__std":39.9586824842,
-            "all__jerk_gyr_is__p10":133.1039850274,
-            "all__jerk_gyr_is__p90":218.4898049517,
-            "all__jerk_gyr_ml__median":61.7031511373,
-            "all__jerk_gyr_ml__std":20.2386917996,
-            "all__jerk_gyr_ml__p10":56.2779151466,
-            "all__jerk_gyr_ml__p90":97.0624755747,
-            "all__jerk_gyr_pa__median":44.4463969601,
-            "all__jerk_gyr_pa__std":11.3617993653,
-            "all__jerk_gyr_pa__p10":41.8535092248,
-            "all__jerk_gyr_pa__p90":63.1471662178,
+            "all__jerk_acc_is__median":34.4842097815,
+            "all__jerk_acc_is__std":6.0139081426,
+            "all__jerk_acc_is__p10":29.2979138664,
+            "all__jerk_acc_is__p90":41.2616460915,
+            "all__jerk_acc_ml__median":35.4846971745,
+            "all__jerk_acc_ml__std":5.6387490536,
+            "all__jerk_acc_ml__p10":28.2137547321,
+            "all__jerk_acc_ml__p90":40.6545328004,
+            "all__jerk_acc_pa__median":24.0531493979,
+            "all__jerk_acc_pa__std":6.2266921506,
+            "all__jerk_acc_pa__p10":17.3712299303,
+            "all__jerk_acc_pa__p90":31.1017031061,
+            "all__angular_acceleration_gyr_is__median":314.270706395,
+            "all__angular_acceleration_gyr_is__std":34.4826168686,
+            "all__angular_acceleration_gyr_is__p10":275.1181328351,
+            "all__angular_acceleration_gyr_is__p90":344.8745248213,
+            "all__angular_acceleration_gyr_ml__median":277.9784066182,
+            "all__angular_acceleration_gyr_ml__std":37.7387309956,
+            "all__angular_acceleration_gyr_ml__p10":248.5509883609,
+            "all__angular_acceleration_gyr_ml__p90":327.1110699776,
+            "all__angular_acceleration_gyr_pa__median":232.1925103095,
+            "all__angular_acceleration_gyr_pa__std":47.472923961,
+            "all__angular_acceleration_gyr_pa__p10":198.9554330976,
+            "all__angular_acceleration_gyr_pa__p90":298.6441744927,
             "all__amplitude_is__median":0.3332222669,
             "all__amplitude_is__std":0.1629363792,
             "all__amplitude_is__p10":0.2534304578,
@@ -5417,18 +5417,18 @@
             "all__rms_ratio_acc_pa__std":0.0072792737,
             "all__rms_ratio_acc_pa__p10":0.0211657264,
             "all__rms_ratio_acc_pa__p90":0.0357806921,
-            "all__cv_stride_length_m__median":361.1522908082,
-            "all__cv_stride_length_m__std":142.8862539465,
-            "all__cv_stride_length_m__p10":298.4750308194,
-            "all__cv_stride_length_m__p90":598.5363715143,
-            "all__cv_cadence_spm__median":653.5352574631,
-            "all__cv_cadence_spm__std":253.2499454044,
-            "all__cv_cadence_spm__p10":504.5297117082,
-            "all__cv_cadence_spm__p90":1016.14174657,
-            "all__cv_stride_duration_s__median":212.9627292346,
-            "all__cv_stride_duration_s__std":50.9844131611,
-            "all__cv_stride_duration_s__p10":204.9352495952,
-            "all__cv_stride_duration_s__p90":286.796529395,
+            "all__cv_stride_length_m__median":27.7998188913,
+            "all__cv_stride_length_m__std":7.733342484,
+            "all__cv_stride_length_m__p10":16.7254028096,
+            "all__cv_stride_length_m__p90":33.5154378548,
+            "all__cv_cadence_spm__median":15.4881558305,
+            "all__cv_cadence_spm__std":4.9239816405,
+            "all__cv_cadence_spm__p10":9.9708394237,
+            "all__cv_cadence_spm__p90":20.0792010962,
+            "all__cv_stride_duration_s__median":46.9565745856,
+            "all__cv_stride_duration_s__std":7.3702713281,
+            "all__cv_stride_duration_s__p10":35.9210834994,
+            "all__cv_stride_duration_s__p90":48.8128912762,
             "all__turn_mean_ang_vel__median":7.2674544469,
             "all__turn_mean_ang_vel__std":8.0423044074,
             "all__turn_mean_ang_vel__p10":-1.7791346572,
@@ -5493,30 +5493,30 @@
             "wb_10_30__sd_gyr_pa__std":2.8470803734,
             "wb_10_30__sd_gyr_pa__p10":10.5094108309,
             "wb_10_30__sd_gyr_pa__p90":15.6324418113,
-            "wb_10_30__jerk_acc_is__median":144.3167724335,
-            "wb_10_30__jerk_acc_is__std":31.3644971019,
-            "wb_10_30__jerk_acc_is__p10":114.6504961906,
-            "wb_10_30__jerk_acc_is__p90":172.9963798857,
-            "wb_10_30__jerk_acc_ml__median":141.3343091734,
-            "wb_10_30__jerk_acc_ml__std":29.5600980311,
-            "wb_10_30__jerk_acc_ml__p10":113.5064973199,
-            "wb_10_30__jerk_acc_ml__p90":166.8634688004,
-            "wb_10_30__jerk_acc_pa__median":98.3852702662,
-            "wb_10_30__jerk_acc_pa__std":32.770007121,
-            "wb_10_30__jerk_acc_pa__p10":69.2846767885,
-            "wb_10_30__jerk_acc_pa__p90":128.9267088503,
-            "wb_10_30__jerk_gyr_is__median":154.1486104116,
-            "wb_10_30__jerk_gyr_is__std":33.3809839904,
-            "wb_10_30__jerk_gyr_is__p10":130.7977421043,
-            "wb_10_30__jerk_gyr_is__p90":192.0480111815,
-            "wb_10_30__jerk_gyr_ml__median":76.8653990721,
-            "wb_10_30__jerk_gyr_ml__std":21.1900338179,
-            "wb_10_30__jerk_gyr_ml__p10":60.8164552815,
-            "wb_10_30__jerk_gyr_ml__p90":99.0967787793,
-            "wb_10_30__jerk_gyr_pa__median":49.8038466769,
-            "wb_10_30__jerk_gyr_pa__std":12.9716384309,
-            "wb_10_30__jerk_gyr_pa__p10":42.9107597728,
-            "wb_10_30__jerk_gyr_pa__p90":66.0197020793,
+            "wb_10_30__jerk_acc_is__median":35.3651892817,
+            "wb_10_30__jerk_acc_is__std":7.6866233245,
+            "wb_10_30__jerk_acc_is__p10":28.0959750531,
+            "wb_10_30__jerk_acc_is__p90":42.3952574626,
+            "wb_10_30__jerk_acc_ml__median":34.6344623934,
+            "wb_10_30__jerk_acc_ml__std":7.2447662232,
+            "wb_10_30__jerk_acc_ml__p10":27.815731466,
+            "wb_10_30__jerk_acc_ml__p90":40.8923011648,
+            "wb_10_30__jerk_acc_pa__median":24.1108862438,
+            "wb_10_30__jerk_acc_pa__std":8.0312803101,
+            "wb_10_30__jerk_acc_pa__p10":16.9780473356,
+            "wb_10_30__jerk_acc_pa__p90":31.5953499204,
+            "wb_10_30__angular_acceleration_gyr_is__median":313.8738898623,
+            "wb_10_30__angular_acceleration_gyr_is__std":40.9052029785,
+            "wb_10_30__angular_acceleration_gyr_is__p10":271.6320554412,
+            "wb_10_30__angular_acceleration_gyr_is__p90":345.258553388,
+            "wb_10_30__angular_acceleration_gyr_ml__median":293.6474280114,
+            "wb_10_30__angular_acceleration_gyr_ml__std":45.5962443892,
+            "wb_10_30__angular_acceleration_gyr_ml__p10":249.3233986584,
+            "wb_10_30__angular_acceleration_gyr_ml__p90":333.8691102416,
+            "wb_10_30__angular_acceleration_gyr_pa__median":240.5428971099,
+            "wb_10_30__angular_acceleration_gyr_pa__std":60.1768672338,
+            "wb_10_30__angular_acceleration_gyr_pa__p10":197.1465821038,
+            "wb_10_30__angular_acceleration_gyr_pa__p90":307.0585508348,
             "wb_10_30__amplitude_is__median":0.2904008077,
             "wb_10_30__amplitude_is__std":0.2089475771,
             "wb_10_30__amplitude_is__p10":0.2440489502,
@@ -5629,18 +5629,18 @@
             "wb_10_30__rms_ratio_acc_pa__std":0.0057548643,
             "wb_10_30__rms_ratio_acc_pa__p10":0.0262867109,
             "wb_10_30__rms_ratio_acc_pa__p90":0.036564064,
-            "wb_10_30__cv_stride_length_m__median":458.6386495761,
-            "wb_10_30__cv_stride_length_m__std":161.5161355243,
-            "wb_10_30__cv_stride_length_m__p10":314.3621724438,
-            "wb_10_30__cv_stride_length_m__p90":606.3862267016,
-            "wb_10_30__cv_cadence_spm__median":653.5352574631,
-            "wb_10_30__cv_cadence_spm__std":296.2463410587,
-            "wb_10_30__cv_cadence_spm__p10":487.6093640019,
-            "wb_10_30__cv_cadence_spm__p90":1010.0124180207,
-            "wb_10_30__cv_stride_duration_s__median":225.3081904483,
-            "wb_10_30__cv_stride_duration_s__std":61.256931265,
-            "wb_10_30__cv_stride_duration_s__p10":204.656379638,
-            "wb_10_30__cv_stride_duration_s__p90":306.4394449263,
+            "wb_10_30__cv_stride_length_m__median":23.4138126059,
+            "wb_10_30__cv_stride_length_m__std":8.4902920657,
+            "wb_10_30__cv_stride_length_m__p10":16.5060477357,
+            "wb_10_30__cv_stride_length_m__p90":31.8867864727,
+            "wb_10_30__cv_cadence_spm__median":15.4881558305,
+            "wb_10_30__cv_cadence_spm__std":5.6938259296,
+            "wb_10_30__cv_cadence_spm__p10":10.3197885103,
+            "wb_10_30__cv_cadence_spm__p90":20.8077108451,
+            "wb_10_30__cv_stride_duration_s__median":44.5180809743,
+            "wb_10_30__cv_stride_duration_s__std":8.8279240807,
+            "wb_10_30__cv_stride_duration_s__p10":33.4608207812,
+            "wb_10_30__cv_stride_duration_s__p90":48.895842657,
             "wb_10_30__turn_mean_ang_vel__median":9.233269348,
             "wb_10_30__turn_mean_ang_vel__std":4.4179976482,
             "wb_10_30__turn_mean_ang_vel__p10":7.1163051963,
@@ -5705,30 +5705,30 @@
             "wb_10__sd_gyr_pa__std":2.7548939875,
             "wb_10__sd_gyr_pa__p10":10.217315242,
             "wb_10__sd_gyr_pa__p90":15.3552052938,
-            "wb_10__jerk_acc_is__median":145.5378860033,
-            "wb_10__jerk_acc_is__std":27.1715648486,
-            "wb_10__jerk_acc_is__p10":117.1043696127,
-            "wb_10__jerk_acc_is__p90":170.683459148,
-            "wb_10__jerk_acc_ml__median":144.2259019343,
-            "wb_10__jerk_acc_ml__std":25.6535794254,
-            "wb_10__jerk_acc_ml__p10":114.3200268796,
-            "wb_10__jerk_acc_ml__p90":166.3783181301,
-            "wb_10__jerk_acc_pa__median":99.7876633672,
-            "wb_10__jerk_acc_pa__std":28.38243585,
-            "wb_10__jerk_acc_pa__p10":70.0860471531,
-            "wb_10__jerk_acc_pa__p90":127.9195034705,
-            "wb_10__jerk_gyr_is__median":168.2437690962,
-            "wb_10__jerk_gyr_is__std":29.1814481188,
-            "wb_10__jerk_gyr_is__p10":131.9508635659,
-            "wb_10__jerk_gyr_is__p90":188.8165279396,
-            "wb_10__jerk_gyr_ml__median":61.7540805809,
-            "wb_10__jerk_gyr_ml__std":21.9506674627,
-            "wb_10__jerk_gyr_ml__p10":55.4505750024,
-            "wb_10__jerk_gyr_ml__p90":98.079627177,
-            "wb_10__jerk_gyr_pa__median":43.6418667897,
-            "wb_10__jerk_gyr_pa__std":12.4543962443,
-            "wb_10__jerk_gyr_pa__p10":41.704725431,
-            "wb_10__jerk_gyr_pa__p90":64.5834341485,
+            "wb_10__jerk_acc_is__median":35.6544687465,
+            "wb_10__jerk_acc_is__std":6.6589197272,
+            "wb_10__jerk_acc_is__p10":28.6969444598,
+            "wb_10__jerk_acc_is__p90":41.8284517771,
+            "wb_10__jerk_acc_ml__median":35.3330535036,
+            "wb_10__jerk_acc_ml__std":6.2870172551,
+            "wb_10__jerk_acc_ml__p10":28.0147430991,
+            "wb_10__jerk_acc_ml__p90":40.7734169826,
+            "wb_10__jerk_acc_pa__median":24.4463914003,
+            "wb_10__jerk_acc_pa__std":6.9559263406,
+            "wb_10__jerk_acc_pa__p10":17.174638633,
+            "wb_10__jerk_acc_pa__p90":31.3485265132,
+            "wb_10__angular_acceleration_gyr_is__median":293.0435182437,
+            "wb_10__angular_acceleration_gyr_is__std":36.2271483887,
+            "wb_10__angular_acceleration_gyr_is__p10":273.3750941382,
+            "wb_10__angular_acceleration_gyr_is__p90":345.0665391046,
+            "wb_10__angular_acceleration_gyr_ml__median":277.0788867051,
+            "wb_10__angular_acceleration_gyr_ml__std":42.0787815874,
+            "wb_10__angular_acceleration_gyr_ml__p10":246.3264285878,
+            "wb_10__angular_acceleration_gyr_ml__p90":330.4900901096,
+            "wb_10__angular_acceleration_gyr_pa__median":227.8977324197,
+            "wb_10__angular_acceleration_gyr_pa__std":52.946395818,
+            "wb_10__angular_acceleration_gyr_pa__p10":198.0510076007,
+            "wb_10__angular_acceleration_gyr_pa__p90":302.8513626637,
             "wb_10__amplitude_is__median":0.3039173885,
             "wb_10__amplitude_is__std":0.1810217848,
             "wb_10__amplitude_is__p10":0.248739704,
@@ -5841,18 +5841,18 @@
             "wb_10__rms_ratio_acc_pa__std":0.0060902183,
             "wb_10__rms_ratio_acc_pa__p10":0.023993646,
             "wb_10__rms_ratio_acc_pa__p90":0.0361723781,
-            "wb_10__cv_stride_length_m__median":338.3655656061,
-            "wb_10__cv_stride_length_m__std":158.5673831353,
-            "wb_10__cv_stride_length_m__p10":297.3550361941,
-            "wb_10__cv_stride_length_m__p90":602.4612991079,
-            "wb_10__cv_cadence_spm__median":581.770030974,
-            "wb_10__cv_cadence_spm__std":266.322450888,
-            "wb_10__cv_cadence_spm__p10":493.0747278551,
-            "wb_10__cv_cadence_spm__p90":969.3392845823,
-            "wb_10__cv_stride_duration_s__median":212.9983181393,
-            "wb_10__cv_stride_duration_s__std":55.1750116809,
-            "wb_10__cv_stride_duration_s__p10":205.8379168797,
-            "wb_10__cv_stride_duration_s__p90":296.6179871606,
+            "wb_10__cv_stride_length_m__median":29.5538347174,
+            "wb_10__cv_stride_length_m__std":8.6461217001,
+            "wb_10__cv_stride_length_m__p10":16.6157252727,
+            "wb_10__cv_stride_length_m__p90":33.6412008379,
+            "wb_10__cv_cadence_spm__median":17.1889225426,
+            "wb_10__cv_cadence_spm__std":5.0333010548,
+            "wb_10__cv_cadence_spm__p10":10.8151600257,
+            "wb_10__cv_cadence_spm__p90":20.5350849005,
+            "wb_10__cv_stride_duration_s__median":46.9487275175,
+            "wb_10__cv_stride_duration_s__std":7.9428146122,
+            "wb_10__cv_stride_duration_s__p10":34.6909521403,
+            "wb_10__cv_stride_duration_s__p90":48.6199253708,
             "wb_10__turn_mean_ang_vel__median":7.6453275732,
             "wb_10__turn_mean_ang_vel__std":4.8342569461,
             "wb_10__turn_mean_ang_vel__p10":5.0856573637,
@@ -5917,30 +5917,30 @@
             "wb_30__sd_gyr_pa__std":null,
             "wb_30__sd_gyr_pa__p10":10.0692676812,
             "wb_30__sd_gyr_pa__p90":10.0692676812,
-            "wb_30__jerk_acc_is__median":145.5378860033,
+            "wb_30__jerk_acc_is__median":35.6544687465,
             "wb_30__jerk_acc_is__std":null,
-            "wb_30__jerk_acc_is__p10":145.5378860033,
-            "wb_30__jerk_acc_is__p90":145.5378860033,
-            "wb_30__jerk_acc_ml__median":144.2259019343,
+            "wb_30__jerk_acc_is__p10":35.6544687465,
+            "wb_30__jerk_acc_is__p90":35.6544687465,
+            "wb_30__jerk_acc_ml__median":35.3330535036,
             "wb_30__jerk_acc_ml__std":null,
-            "wb_30__jerk_acc_ml__p10":144.2259019343,
-            "wb_30__jerk_acc_ml__p90":144.2259019343,
-            "wb_30__jerk_acc_pa__median":99.7876633672,
+            "wb_30__jerk_acc_ml__p10":35.3330535036,
+            "wb_30__jerk_acc_ml__p90":35.3330535036,
+            "wb_30__jerk_acc_pa__median":24.4463914003,
             "wb_30__jerk_acc_pa__std":null,
-            "wb_30__jerk_acc_pa__p10":99.7876633672,
-            "wb_30__jerk_acc_pa__p90":99.7876633672,
-            "wb_30__jerk_gyr_is__median":168.2437690962,
-            "wb_30__jerk_gyr_is__std":null,
-            "wb_30__jerk_gyr_is__p10":168.2437690962,
-            "wb_30__jerk_gyr_is__p90":168.2437690962,
-            "wb_30__jerk_gyr_ml__median":52.1412144257,
-            "wb_30__jerk_gyr_ml__std":null,
-            "wb_30__jerk_gyr_ml__p10":52.1412144257,
-            "wb_30__jerk_gyr_ml__p90":52.1412144257,
-            "wb_30__jerk_gyr_pa__median":41.1095902555,
-            "wb_30__jerk_gyr_pa__std":null,
-            "wb_30__jerk_gyr_pa__p10":41.1095902555,
-            "wb_30__jerk_gyr_pa__p90":41.1095902555,
+            "wb_30__jerk_acc_pa__p10":24.4463914003,
+            "wb_30__jerk_acc_pa__p90":24.4463914003,
+            "wb_30__angular_acceleration_gyr_is__median":293.0435182437,
+            "wb_30__angular_acceleration_gyr_is__std":null,
+            "wb_30__angular_acceleration_gyr_is__p10":293.0435182437,
+            "wb_30__angular_acceleration_gyr_is__p90":293.0435182437,
+            "wb_30__angular_acceleration_gyr_ml__median":259.6737872261,
+            "wb_30__angular_acceleration_gyr_ml__std":null,
+            "wb_30__angular_acceleration_gyr_ml__p10":259.6737872261,
+            "wb_30__angular_acceleration_gyr_ml__p90":259.6737872261,
+            "wb_30__angular_acceleration_gyr_pa__median":227.8977324197,
+            "wb_30__angular_acceleration_gyr_pa__std":null,
+            "wb_30__angular_acceleration_gyr_pa__p10":227.8977324197,
+            "wb_30__angular_acceleration_gyr_pa__p90":227.8977324197,
             "wb_30__amplitude_is__median":0.3625271452,
             "wb_30__amplitude_is__std":null,
             "wb_30__amplitude_is__p10":0.3625271452,
@@ -6053,18 +6053,18 @@
             "wb_30__rms_ratio_acc_pa__std":null,
             "wb_30__rms_ratio_acc_pa__p10":0.0239487698,
             "wb_30__rms_ratio_acc_pa__p90":0.0239487698,
-            "wb_30__cv_stride_length_m__median":292.8750576931,
+            "wb_30__cv_stride_length_m__median":34.1442527703,
             "wb_30__cv_stride_length_m__std":null,
-            "wb_30__cv_stride_length_m__p10":292.8750576931,
-            "wb_30__cv_stride_length_m__p90":292.8750576931,
-            "wb_30__cv_cadence_spm__median":561.804630974,
+            "wb_30__cv_stride_length_m__p10":34.1442527703,
+            "wb_30__cv_stride_length_m__p90":34.1442527703,
+            "wb_30__cv_cadence_spm__median":17.7997820749,
             "wb_30__cv_cadence_spm__std":null,
-            "wb_30__cv_cadence_spm__p10":561.804630974,
-            "wb_30__cv_cadence_spm__p90":561.804630974,
-            "wb_30__cv_stride_duration_s__median":212.9983181393,
+            "wb_30__cv_cadence_spm__p10":17.7997820749,
+            "wb_30__cv_cadence_spm__p90":17.7997820749,
+            "wb_30__cv_stride_duration_s__median":46.9487275175,
             "wb_30__cv_stride_duration_s__std":null,
-            "wb_30__cv_stride_duration_s__p10":212.9983181393,
-            "wb_30__cv_stride_duration_s__p90":212.9983181393,
+            "wb_30__cv_stride_duration_s__p10":46.9487275175,
+            "wb_30__cv_stride_duration_s__p90":46.9487275175,
             "wb_30__turn_mean_ang_vel__median":3.8830413925,
             "wb_30__turn_mean_ang_vel__std":null,
             "wb_30__turn_mean_ang_vel__p10":3.8830413925,
@@ -6129,30 +6129,30 @@
             "wb_30_60__sd_gyr_pa__std":null,
             "wb_30_60__sd_gyr_pa__p10":10.0692676812,
             "wb_30_60__sd_gyr_pa__p90":10.0692676812,
-            "wb_30_60__jerk_acc_is__median":145.5378860033,
+            "wb_30_60__jerk_acc_is__median":35.6544687465,
             "wb_30_60__jerk_acc_is__std":null,
-            "wb_30_60__jerk_acc_is__p10":145.5378860033,
-            "wb_30_60__jerk_acc_is__p90":145.5378860033,
-            "wb_30_60__jerk_acc_ml__median":144.2259019343,
+            "wb_30_60__jerk_acc_is__p10":35.6544687465,
+            "wb_30_60__jerk_acc_is__p90":35.6544687465,
+            "wb_30_60__jerk_acc_ml__median":35.3330535036,
             "wb_30_60__jerk_acc_ml__std":null,
-            "wb_30_60__jerk_acc_ml__p10":144.2259019343,
-            "wb_30_60__jerk_acc_ml__p90":144.2259019343,
-            "wb_30_60__jerk_acc_pa__median":99.7876633672,
+            "wb_30_60__jerk_acc_ml__p10":35.3330535036,
+            "wb_30_60__jerk_acc_ml__p90":35.3330535036,
+            "wb_30_60__jerk_acc_pa__median":24.4463914003,
             "wb_30_60__jerk_acc_pa__std":null,
-            "wb_30_60__jerk_acc_pa__p10":99.7876633672,
-            "wb_30_60__jerk_acc_pa__p90":99.7876633672,
-            "wb_30_60__jerk_gyr_is__median":168.2437690962,
-            "wb_30_60__jerk_gyr_is__std":null,
-            "wb_30_60__jerk_gyr_is__p10":168.2437690962,
-            "wb_30_60__jerk_gyr_is__p90":168.2437690962,
-            "wb_30_60__jerk_gyr_ml__median":52.1412144257,
-            "wb_30_60__jerk_gyr_ml__std":null,
-            "wb_30_60__jerk_gyr_ml__p10":52.1412144257,
-            "wb_30_60__jerk_gyr_ml__p90":52.1412144257,
-            "wb_30_60__jerk_gyr_pa__median":41.1095902555,
-            "wb_30_60__jerk_gyr_pa__std":null,
-            "wb_30_60__jerk_gyr_pa__p10":41.1095902555,
-            "wb_30_60__jerk_gyr_pa__p90":41.1095902555,
+            "wb_30_60__jerk_acc_pa__p10":24.4463914003,
+            "wb_30_60__jerk_acc_pa__p90":24.4463914003,
+            "wb_30_60__angular_acceleration_gyr_is__median":293.0435182437,
+            "wb_30_60__angular_acceleration_gyr_is__std":null,
+            "wb_30_60__angular_acceleration_gyr_is__p10":293.0435182437,
+            "wb_30_60__angular_acceleration_gyr_is__p90":293.0435182437,
+            "wb_30_60__angular_acceleration_gyr_ml__median":259.6737872261,
+            "wb_30_60__angular_acceleration_gyr_ml__std":null,
+            "wb_30_60__angular_acceleration_gyr_ml__p10":259.6737872261,
+            "wb_30_60__angular_acceleration_gyr_ml__p90":259.6737872261,
+            "wb_30_60__angular_acceleration_gyr_pa__median":227.8977324197,
+            "wb_30_60__angular_acceleration_gyr_pa__std":null,
+            "wb_30_60__angular_acceleration_gyr_pa__p10":227.8977324197,
+            "wb_30_60__angular_acceleration_gyr_pa__p90":227.8977324197,
             "wb_30_60__amplitude_is__median":0.3625271452,
             "wb_30_60__amplitude_is__std":null,
             "wb_30_60__amplitude_is__p10":0.3625271452,
@@ -6265,18 +6265,18 @@
             "wb_30_60__rms_ratio_acc_pa__std":null,
             "wb_30_60__rms_ratio_acc_pa__p10":0.0239487698,
             "wb_30_60__rms_ratio_acc_pa__p90":0.0239487698,
-            "wb_30_60__cv_stride_length_m__median":292.8750576931,
+            "wb_30_60__cv_stride_length_m__median":34.1442527703,
             "wb_30_60__cv_stride_length_m__std":null,
-            "wb_30_60__cv_stride_length_m__p10":292.8750576931,
-            "wb_30_60__cv_stride_length_m__p90":292.8750576931,
-            "wb_30_60__cv_cadence_spm__median":561.804630974,
+            "wb_30_60__cv_stride_length_m__p10":34.1442527703,
+            "wb_30_60__cv_stride_length_m__p90":34.1442527703,
+            "wb_30_60__cv_cadence_spm__median":17.7997820749,
             "wb_30_60__cv_cadence_spm__std":null,
-            "wb_30_60__cv_cadence_spm__p10":561.804630974,
-            "wb_30_60__cv_cadence_spm__p90":561.804630974,
-            "wb_30_60__cv_stride_duration_s__median":212.9983181393,
+            "wb_30_60__cv_cadence_spm__p10":17.7997820749,
+            "wb_30_60__cv_cadence_spm__p90":17.7997820749,
+            "wb_30_60__cv_stride_duration_s__median":46.9487275175,
             "wb_30_60__cv_stride_duration_s__std":null,
-            "wb_30_60__cv_stride_duration_s__p10":212.9983181393,
-            "wb_30_60__cv_stride_duration_s__p90":212.9983181393,
+            "wb_30_60__cv_stride_duration_s__p10":46.9487275175,
+            "wb_30_60__cv_stride_duration_s__p90":46.9487275175,
             "wb_30_60__turn_mean_ang_vel__median":3.8830413925,
             "wb_30_60__turn_mean_ang_vel__std":null,
             "wb_30_60__turn_mean_ang_vel__p10":3.8830413925,
@@ -6353,18 +6353,18 @@
             "wb_60__jerk_acc_pa__std":null,
             "wb_60__jerk_acc_pa__p10":null,
             "wb_60__jerk_acc_pa__p90":null,
-            "wb_60__jerk_gyr_is__median":null,
-            "wb_60__jerk_gyr_is__std":null,
-            "wb_60__jerk_gyr_is__p10":null,
-            "wb_60__jerk_gyr_is__p90":null,
-            "wb_60__jerk_gyr_ml__median":null,
-            "wb_60__jerk_gyr_ml__std":null,
-            "wb_60__jerk_gyr_ml__p10":null,
-            "wb_60__jerk_gyr_ml__p90":null,
-            "wb_60__jerk_gyr_pa__median":null,
-            "wb_60__jerk_gyr_pa__std":null,
-            "wb_60__jerk_gyr_pa__p10":null,
-            "wb_60__jerk_gyr_pa__p90":null,
+            "wb_60__angular_acceleration_gyr_is__median":null,
+            "wb_60__angular_acceleration_gyr_is__std":null,
+            "wb_60__angular_acceleration_gyr_is__p10":null,
+            "wb_60__angular_acceleration_gyr_is__p90":null,
+            "wb_60__angular_acceleration_gyr_ml__median":null,
+            "wb_60__angular_acceleration_gyr_ml__std":null,
+            "wb_60__angular_acceleration_gyr_ml__p10":null,
+            "wb_60__angular_acceleration_gyr_ml__p90":null,
+            "wb_60__angular_acceleration_gyr_pa__median":null,
+            "wb_60__angular_acceleration_gyr_pa__std":null,
+            "wb_60__angular_acceleration_gyr_pa__p10":null,
+            "wb_60__angular_acceleration_gyr_pa__p90":null,
             "wb_60__amplitude_is__median":null,
             "wb_60__amplitude_is__std":null,
             "wb_60__amplitude_is__p10":null,

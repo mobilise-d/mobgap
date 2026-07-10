@@ -7,6 +7,7 @@ from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.signal_based import (
     RMS,
+    AngularAcceleration,
     FrequencyAmplitudeWidthSlope,
     HarmonicRatio,
     Jerk,
@@ -128,9 +129,21 @@ class TestMetaJerk(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS(
-            acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
-        ).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        return self.ALGORITHM_CLASS(acc_columns=["acc_is", "acc_ml", "acc_pa"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
+
+
+class TestMetaAngularAcceleration(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = AngularAcceleration
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
 
 
 @pytest.mark.parametrize(
@@ -145,6 +158,7 @@ class TestMetaJerk(TestAlgorithmMixin):
         HarmonicRatio(),
         SDRange(),
         Jerk(),
+        AngularAcceleration(),
     ],
 )
 def test_result_attributes_are_created_by_calculate(algorithm):
@@ -190,6 +204,15 @@ class TestTurnSDMO:
 
 
 class TestStrideLevelSDMO:
+    def test_calculates_coefficient_of_variation_as_percentage(self):
+        stride_list = pd.DataFrame({"stride_duration_s": [1.0, 2.0, 3.0]})
+
+        result = StrideLevelSDMO(stride_list_columns=["stride_duration_s"]).calculate(
+            pd.DataFrame(), stride_list=stride_list
+        )
+
+        assert result.signal_based_parameters_.loc[0, "cv_stride_duration_s"] == pytest.approx(50.0)
+
     def test_no_columns(self):
         algo = StrideLevelSDMO(stride_list_columns=None)
         result = algo.calculate(
@@ -411,19 +434,38 @@ class TestSDRange:
 
 
 class TestJerk:
-    def test_requires_acc_columns(self):
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
-        df = result.signal_based_parameters_
-        expected = [f"jerk_{col}" for col in algo.acc_columns] + [f"jerk_{col}" for col in algo.gyr_columns]
-        assert set(df.columns) == set(expected)
-        assert all(not np.isnan(v) and v > 0 for v in df.iloc[0])
+    def test_linear_acceleration_has_constant_jerk(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"acc_is": 2.0 * time})
 
-    def test_missing_gyr_columns_ignores(self):
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(300, 3), columns=["acc_is", "acc_ml", "acc_pa"]), sampling_rate_hz=100
-        )
+        result = Jerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+
+        assert result.signal_based_parameters_.loc[0, "jerk_acc_is"] == pytest.approx(2.0)
+
+    def test_requires_acc_columns(self):
+        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
         df = result.signal_based_parameters_
         expected = [f"jerk_{col}" for col in algo.acc_columns]
         assert set(df.columns) == set(expected)
+        assert all(not np.isnan(value) and value > 0 for value in df.iloc[0])
+
+
+class TestAngularAcceleration:
+    def test_linear_angular_velocity_has_constant_angular_acceleration(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"gyr_is": 3.0 * time})
+
+        result = AngularAcceleration(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+
+        assert result.signal_based_parameters_.loc[0, "angular_acceleration_gyr_is"] == pytest.approx(3.0)
+
+    def test_requires_gyr_columns(self):
+        algo = AngularAcceleration(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
+        df = result.signal_based_parameters_
+        expected = [f"angular_acceleration_{column}" for column in algo.gyr_columns]
+        assert set(df.columns) == set(expected)
+        assert all(not np.isnan(value) and value > 0 for value in df.iloc[0])

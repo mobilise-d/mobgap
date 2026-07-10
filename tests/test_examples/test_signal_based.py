@@ -9,6 +9,7 @@ def test_signal_based_algorithms(snapshot):
         harmonic_ratio,
         sd_range,
         jerk,
+        angular_acceleration,
     )
 
     snapshot.assert_match(turn.signal_based_parameters_, "turn_sdmo")
@@ -20,6 +21,7 @@ def test_signal_based_algorithms(snapshot):
     snapshot.assert_match(harmonic_ratio.signal_based_parameters_, "harmonic_ratio_sdmo")
     snapshot.assert_match(sd_range.signal_based_parameters_, "sd_range_sdmo")
     snapshot.assert_match(jerk.signal_based_parameters_, "jerk_sdmo")
+    snapshot.assert_match(angular_acceleration.signal_based_parameters_, "angular_acceleration_sdmo")
 
 
 def test_signal_based_mobilised_pipeline(snapshot):

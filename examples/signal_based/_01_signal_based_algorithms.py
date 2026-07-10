@@ -173,9 +173,21 @@ from mobgap.signal_based import Jerk
 
 jerk = Jerk(
     acc_columns=["acc_is", "acc_ml", "acc_pa"],
-    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
 )
 
 jerk.calculate(data=data_in_wb_bf, **params)
 
 jerk.signal_based_parameters_
+
+# %%
+# the :class:`.AngularAcceleration` algorithm.
+
+from mobgap.signal_based import AngularAcceleration
+
+angular_acceleration = AngularAcceleration(
+    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
+)
+
+angular_acceleration.calculate(data=data_in_wb_bf, **params)
+
+angular_acceleration.signal_based_parameters_
