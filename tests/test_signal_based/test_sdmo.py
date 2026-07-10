@@ -133,7 +133,37 @@ class TestMetaJerk(TestAlgorithmMixin):
         ).calculate(data, sampling_rate_hz=sampling_rate_hz)
 
 
+@pytest.mark.parametrize(
+    "algorithm",
+    [
+        TurnSDMO(),
+        StrideLevelSDMO(),
+        RMS(),
+        RegularitySymmetry(),
+        FrequencyAmplitudeWidthSlope(),
+        SampleEntropy(),
+        HarmonicRatio(),
+        SDRange(),
+        Jerk(),
+    ],
+)
+def test_result_attributes_are_created_by_calculate(algorithm):
+    assert not hasattr(algorithm, "signal_based_parameters_")
+
+
 class TestTurnSDMO:
+    def test_result_is_created_by_calculate(self):
+        algo = TurnSDMO()
+
+        assert not hasattr(algo, "signal_based_parameters_")
+
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS),
+            sampling_rate_hz=100,
+            turn_list=pd.DataFrame(),
+        )
+        assert result.signal_based_parameters_.empty
+
     def test_no_turns(self):
         algo = TurnSDMO()
         result = algo.calculate(
