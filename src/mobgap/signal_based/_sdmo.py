@@ -38,11 +38,6 @@ class TurnSDMO(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(
@@ -63,6 +58,7 @@ class TurnSDMO(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.turn_list = turn_list
+        self.signal_based_parameters_ = pd.DataFrame()
         if turn_list is None or turn_list.empty:
             return self
         turn_list = turn_list.copy()
@@ -121,7 +117,6 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         stride_list_columns: Optional[list[str]] = None,
     ) -> None:
         self.stride_list_columns = stride_list_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -138,6 +133,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.stride_list = stride_list
+        self.signal_based_parameters_ = pd.DataFrame()
         if stride_list is None or self.stride_list_columns is None:
             return self
         # in case the required columns are not available in the `stride_list`, then raise warning
@@ -176,11 +172,6 @@ class RMS(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
@@ -193,6 +184,7 @@ class RMS(BaseSDMOCalculator):
         %(calculate_return)s
         """
         self.data = data
+        self.signal_based_parameters_ = pd.DataFrame()
         if not any(data.columns.str.contains("acc")):
             return self
         # first remove DC of acc signals
@@ -267,11 +259,6 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(
@@ -292,6 +279,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.replicate_matlab = replicate_matlab
+        self.signal_based_parameters_ = pd.DataFrame()
         # return empty if not all accs are available
         required_acc_columns = ["acc_is", "acc_pa", "acc_ml"]
         if not all(col in data.columns for col in required_acc_columns):
@@ -495,7 +483,6 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         acc_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -512,6 +499,7 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
         acc = data.filter(like="acc")
         acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
         acc = acc[self.acc_columns].to_numpy()
@@ -656,7 +644,6 @@ class SampleEntropy(BaseSDMOCalculator):
         self.r = r
         self.acc_columns = acc_columns
         self.num_samples_threshold = num_samples_threshold
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -671,6 +658,7 @@ class SampleEntropy(BaseSDMOCalculator):
 
         """
         self.data = data
+        self.signal_based_parameters_ = pd.DataFrame()
         acc_columns = self.acc_columns
         if not data.columns.isin(acc_columns or []).any():
             return self
@@ -739,7 +727,6 @@ class HarmonicRatio(BaseSDMOCalculator):
         acc_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -759,6 +746,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.data = data
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
         if stride_list is None or stride_list.empty:
             return self
         ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
@@ -903,11 +891,6 @@ class SDRange(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
@@ -921,6 +904,7 @@ class SDRange(BaseSDMOCalculator):
 
         """
         self.data = data
+        self.signal_based_parameters_ = pd.DataFrame()
         out = {}
         for c in data.columns:
             out[f"sd_{c}"] = data[c].std()
@@ -974,7 +958,6 @@ class Jerk(BaseSDMOCalculator):
     ) -> None:
         self.acc_columns = acc_columns
         self.gyr_columns = gyr_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -991,6 +974,7 @@ class Jerk(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
         out = {}
         dt = 1 / sampling_rate_hz
         integral_duration = dt * data.size
