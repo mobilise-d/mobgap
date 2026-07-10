@@ -56,5 +56,3 @@ Docu-helper
    :template: func.rst
 
     base_sdmo_docfiller
-
-
