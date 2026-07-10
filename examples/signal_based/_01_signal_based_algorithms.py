@@ -35,7 +35,9 @@ reference_strides
 
 # %%
 # We may also use the turn data. We select the example data with turns.
-reference_turns = short_trial.reference_parameters_relative_to_wb_.turn_parameters
+reference_turns = (
+    short_trial.reference_parameters_relative_to_wb_.turn_parameters
+)
 reference_turns
 
 # %%
@@ -57,7 +59,7 @@ data_in_wb_bf = to_body_frame(data_in_wb)
 # %%
 # Then we can initialize a representative algorithm and call the ``calculate`` method.
 # Although there might be some additional parameters in the algorithm init functions, the calculate methods are provided
-# **kwargs so that, they can all be called and executed in the same manner. Note that you must explicitly provide
+# ``**kwargs`` so that they can all be called and executed in the same manner. Note that you must explicitly provide
 # ``data`` argument to all algorithms.
 # The output (``signal_based_parameters_``) attribute contains the calculated parameters.
 # Below, we define the extra parameters and we provide examples to all algorithms.
@@ -119,7 +121,9 @@ regularity_symmetry.signal_based_parameters_
 
 from mobgap.signal_based import FrequencyAmplitudeWidthSlope
 
-frequency_amplitude = FrequencyAmplitudeWidthSlope(acc_columns=["acc_is", "acc_ml", "acc_pa"])
+frequency_amplitude = FrequencyAmplitudeWidthSlope(
+    acc_columns=["acc_is", "acc_ml", "acc_pa"]
+)
 
 frequency_amplitude.calculate(data=data_in_wb_bf, **params)
 
@@ -167,7 +171,10 @@ sd_range.signal_based_parameters_
 
 from mobgap.signal_based import Jerk
 
-jerk = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
+jerk = Jerk(
+    acc_columns=["acc_is", "acc_ml", "acc_pa"],
+    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
+)
 
 jerk.calculate(data=data_in_wb_bf, **params)
 
