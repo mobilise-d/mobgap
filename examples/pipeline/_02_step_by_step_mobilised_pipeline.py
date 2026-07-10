@@ -423,6 +423,8 @@ pipeline = GenericMobilisedPipeline(
     wba=wba,
     dmo_thresholds=thresholds,
     dmo_aggregation=agg,
+    sdmo_calculation=None,
+    sdmo_aggregation=None,
 )
 
 pipeline.safe_run(long_trial)

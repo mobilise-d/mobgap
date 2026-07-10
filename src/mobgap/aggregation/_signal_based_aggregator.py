@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from tpcp import cf
 from tpcp.misc import set_defaults
-from typing_extensions import Self, Unpack
+from typing_extensions import Self
 
 from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
 
@@ -20,7 +20,7 @@ def _custom_quantile_90(x: pd.Series) -> float:
 
 
 def _custom_quantile_10(x: pd.Series) -> float:
-    """Calculate the 90th percentile of the passed data."""
+    """Calculate the 10th percentile of the passed data."""
     if x.isna().all():
         return np.nan
     return np.nanpercentile(x, 10)
@@ -30,22 +30,20 @@ def _custom_quantile_10(x: pd.Series) -> float:
 class SDMOAggregator(BaseAggregator):
     """Implementation of the aggregations used for the signal-based digital mobility outcomes.
 
-    This aggregator automatically detects all columns in the input DataFrame (except `duration_s` and `groupby` columns)
-    and computes a predefined set of statistics (mean, 90th/10th percentile, coefficient of variation) for each of the
-    default filter groups (all WBs, WBs between 10s and 30s and WBs greater than 10s, 30s, 60s).
+    This aggregator automatically detects all columns in the input DataFrame, except the duration, walking-bout ID,
+    and grouping columns. It computes the median, standard deviation, and 10th and 90th percentiles for each default
+    duration group: all WBs, WBs greater than 10, 30, or 60 seconds, and the bounded 10-30 and 30-60 second groups.
 
     Depending on available columns in the input data, calculated parameters will be added to a distinct column
     in the aggregated data.
-
-    If no ``duration_filters`` is provided, only the "all"-parameters without duration filter will be calculated.
 
     Similar to the ``MobilisedAggregator``, the aggregation parameters are calculated for every unique group of the
     ``groupby``. Per default, one set of aggregation results is calculated per participant and recording date.
     This can however be adapted by passing a different list of ``groupby``.
 
     Here, due to the large number of SDMOs, original names are not provided as in the primary DMOs in
-    ``MobilisedAggregator``, but, the same naming convention is followed. For example, ``all__RMS_acc_is__p90``
-    refers to the 90th percentile of root mean square acceleration (RMS_acc) in the  vertical (``is``) in all WBs.
+    ``MobilisedAggregator``, but the same naming convention is followed. For example, ``all__rms_acc_is__p90``
+    refers to the 90th percentile of root mean square acceleration in the vertical (``is``) direction across all WBs.
 
 
     Parameters
@@ -63,14 +61,14 @@ class SDMOAggregator(BaseAggregator):
     unique_wb_id_column
         The name of the column (or index level) containing a unique identifier for every walking bout.
         The id does not have to be unique globally, but only within the groups defined by ``groupby``.
-        Aka ``wb_sdmos.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
+        Aka ``wb_dmos.reset_index().set_index([*groupby, unique_wb_id_column]).index.is_unique`` must be ``True``.
 
     Other Parameters
     ----------------
-    wb_sdmos
+    wb_dmos
         The SDMO data per walking bout passed to the ``aggregate`` method.
-    wb_sdmos_mask
-        A boolean DataFrame with the same shape the ``wb_sdmos`` indicating the validity of every measure.
+    wb_dmos_mask
+        A boolean DataFrame with the same shape the ``wb_dmos`` indicating the validity of every measure.
         See ``MobilisedAggregator`` for more details.
         For the signal-based DMOs, it is unlikely that this parameter will be set, so it defaults to None, meaning
         that no masking will be performed. However, to align this with the main aggregator and allow flexibility,
@@ -82,18 +80,18 @@ class SDMOAggregator(BaseAggregator):
         A dataframe containing the aggregated results.
         The index of the dataframe contains the ``groupby_columns``. Consequently, there is one row which
         aggregation results for each group.
-    filtered_wb_sdmos_
-        An updated version of ``wb_sdmos`` with the implausible entries removed based on ``wb_sdmos_mask``.
-        ``filtered_wb_sdmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
+    filtered_wb_dmos_
+        An updated version of ``wb_dmos`` with implausible entries removed based on ``wb_dmos_mask``.
+        ``filtered_wb_dmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
     """
 
     groupby: typing.Optional[typing.Sequence[str]]
     unique_wb_id_column: str
-    wb_sdmos_mask: pd.DataFrame
-    filtered_wb_sdmos_: pd.DataFrame
+    wb_dmos_mask: pd.DataFrame
+    filtered_wb_dmos_: pd.DataFrame
 
     # Other Parameters
-    wb_sdmos: pd.DataFrame
+    wb_dmos: pd.DataFrame
 
     class PredefinedParameters:
         cvs_sdmo_data: Final = MappingProxyType(
@@ -131,8 +129,8 @@ class SDMOAggregator(BaseAggregator):
         self,
         groupby: typing.Optional[typing.Sequence[str]],
         *,
-        duration_filters: typing.Optional[dict[str, tuple[float, float]]],
-        metrics: typing.Optional[dict[str, typing.Callable]],
+        duration_filters: dict[str, tuple[float, float]],
+        metrics: dict[str, typing.Callable | str],
         unique_wb_id_column: str,
     ) -> None:
         self.groupby = groupby
@@ -141,41 +139,32 @@ class SDMOAggregator(BaseAggregator):
         self.unique_wb_id_column = unique_wb_id_column
 
     @base_aggregator_docfiller
-    def aggregate( # noqa: C901
+    def aggregate(
         self,
-        wb_sdmos: pd.DataFrame,
+        wb_dmos: pd.DataFrame,
         *,
-        wb_sdmos_mask: typing.Union[pd.DataFrame, None] = None,
-        **_: Unpack[dict[str, typing.Any]],
+        wb_dmos_mask: pd.DataFrame | None = None,
     ) -> Self:
         """%(aggregate_short)s.
 
         Parameters
         ----------
-        wb_dmos
-            The SDMO data per walking bout.
-            This is a dataframe with one row for every walking bout and one column for every SDMO parameter.
-            This should further have relevant metadata (i.e. ``participant_id``, ``visit_date``, ``wb_id``) as columns
-            or indices.
-            The specific requirements depend on the aggregation algorithm.
-        wb_sdmos_mask
-            A boolean DataFrame with the same shape the ``wb_sdmos`` indicating the validity of every measure.
+        %(aggregate_para)s
+        wb_dmos_mask
+            A boolean DataFrame with the same shape the ``wb_dmos`` indicating the validity of every measure.
             If the DataFrame contains a ``NaN`` value, this is interpreted as ``True``, assuming no checks were applied
             to this value and the corresponding measure is regarded as plausible.
 
         %(aggregate_return)s
         """
-        self.wb_sdmos = wb_sdmos
-        self.wb_sdmos_mask = wb_sdmos_mask
+        self.wb_dmos = wb_dmos
+        self.wb_dmos_mask = wb_dmos_mask
         groupby = self.groupby if self.groupby is None else list(self.groupby)
         duration_col = "duration_s"
 
-        # select columns to aggregate, except duration_col and groupby
-        exclude_cols = {duration_col}
-        if groupby:
-            # filter any groupby col in the index
-            exclude_cols.update([c for c in groupby if c in wb_sdmos.columns])
-        value_cols = [c for c in wb_sdmos.columns if c not in exclude_cols]
+        exclude_cols = {duration_col, self.unique_wb_id_column}
+        exclude_cols.update(groupby or [])
+        value_cols = [c for c in wb_dmos.columns if c not in exclude_cols]
 
         if not value_cols:
             warnings.warn(
@@ -185,10 +174,10 @@ class SDMOAggregator(BaseAggregator):
             self.aggregated_data_ = pd.DataFrame()
             return self
 
-        if groupby and not all(col in wb_sdmos.reset_index().columns for col in groupby):
+        if groupby and not all(col in wb_dmos.reset_index().columns for col in groupby):
             raise ValueError(f"Not all groupby columns {groupby} found in the passed dataframe.")
 
-        data_correct_index = wb_sdmos.reset_index().set_index([*(groupby or []), self.unique_wb_id_column]).sort_index()
+        data_correct_index = wb_dmos.reset_index().set_index([*(groupby or []), self.unique_wb_id_column]).sort_index()
 
         if not data_correct_index.index.is_unique:
             raise ValueError(
@@ -197,37 +186,26 @@ class SDMOAggregator(BaseAggregator):
                 "column combination."
             )
 
-        if wb_sdmos_mask is not None:
-            wb_sdmos_mask = (
-                wb_sdmos_mask.fillna(True)
+        self.filtered_wb_dmos_ = data_correct_index.copy()
+        if wb_dmos_mask is not None:
+            indexed_mask = (
+                wb_dmos_mask.fillna(True)
                 .reset_index()
                 .set_index([*(groupby or []), self.unique_wb_id_column])
                 .sort_index()
                 .astype(bool)
             )
-            if not data_correct_index.index.equals(wb_sdmos_mask.index):
+            if not data_correct_index.index.equals(indexed_mask.index):
                 raise ValueError(
                     "The data mask seems to be missing some data indices. "
-                    "`wb_sdmos_mask` must have exactly the same indices as `wb_sdmos` after grouping."
+                    "`wb_dmos_mask` must have exactly the same indices as `wb_dmos` after grouping."
                 )
+            if not data_correct_index.columns.equals(indexed_mask.columns):
+                raise ValueError("`wb_dmos_mask` must have exactly the same columns as `wb_dmos` after grouping.")
 
-            wb_sdmos_mask = wb_sdmos_mask.reindex(data_correct_index.index)
-            # In case the wb_dmos_mask has columns that are not boolean, we set them to True implicitly
-            # Note, in columns with "Falsy" values (e.g. empty string) this might introduce some False values, but
-            # this shouldn't matter, as the potential additional columns will not be used in the aggregation anyway.
-            wb_sdmos_mask = wb_sdmos_mask.astype(bool)
-            # We remove all individual elements from the data that are flagged as implausible in the data mask.
-            self.filtered_wb_sdmos_ = data_correct_index.where(wb_sdmos_mask)
-            # implausible bout duration
-            if duration_col in data_correct_index.columns and duration_col in wb_sdmos_mask.columns:
-                # If the duration is implausible, we need to remove the whole walking bout
-                self.filtered_wb_sdmos_ = self.filtered_wb_sdmos_.where(wb_sdmos_mask[duration_col])
-            # for the other columns (SDMOs)
-            cols_to_check = wb_sdmos_mask.columns.intersection(value_cols)
-            combined_mask = wb_sdmos_mask[cols_to_check].all(axis=1)
-            self.filtered_wb_sdmos_ = self.filtered_wb_sdmos_.loc[combined_mask]
-        else:
-            self.filtered_wb_sdmos_ = data_correct_index.copy()
+            self.filtered_wb_dmos_ = data_correct_index.where(indexed_mask)
+            if duration_col in data_correct_index.columns and duration_col in indexed_mask.columns:
+                self.filtered_wb_dmos_.loc[~indexed_mask[duration_col], :] = np.nan
 
         # select filters and aggregations
         # Resulting column names: f"{group_name}__{col}__{metric_name}" following the convention for the primary DMOs
@@ -236,35 +214,22 @@ class SDMOAggregator(BaseAggregator):
         # apply aggregations
         aggregated_results = []
         for query, agg in filters_and_aggs:
-            internal_filtered = self.filtered_wb_sdmos_
-            if query is not None:
-                internal_filtered = internal_filtered.query(query)
-            if groupby:
-                grouped = internal_filtered.groupby(groupby)
-            else:
-                # "all_wbs" index is assigned to match the aggregated data of the MobilisedAggregator
-                grouped = internal_filtered.groupby(pd.Series("all_wbs", index=internal_filtered.index))
+            internal_filtered = self.filtered_wb_dmos_.query(query) if query is not None else self.filtered_wb_dmos_
+            grouping = groupby or pd.Series("all_wbs", index=internal_filtered.index)
+            grouped = internal_filtered.groupby(grouping)
             aggregated_results.append(grouped.agg(**agg))
         self.aggregated_data_ = pd.concat(aggregated_results, axis=1)
         return self
 
     def _select_filters_and_aggregations(self, value_cols: list[str]) -> list[tuple[str, dict]]:
-        # for filt, aggs in self._FILTERS_AND_AGGS:
-        #     if all([filt is not None, "duration_s" not in data_columns]):
-        #         warnings.warn(
-        #             f"Filter '{filt}' for walking bout length cannot be applied, "
-        #             "because the data does not contain a 'duration_s' column.",
-        #             stacklevel=2,
-        #         )
-        #         continue
         duration_col = "duration_s"
         duration_filters = self.duration_filters
-        if duration_col not in self.wb_sdmos.columns and "all" not in self.duration_filters:
+        if duration_col not in self.wb_dmos.columns and "all" not in self.duration_filters:
             raise ValueError(
                 "the data does not contain 'duration_s' column AND no 'all' duration filter (using all walking bouts) "
                 "exists. This configuration is ambiguous and cannot be resolved."
             )
-        elif duration_col not in self.wb_sdmos.columns and "all" in self.duration_filters:
+        if duration_col not in self.wb_dmos.columns:
             warnings.warn(
                 "Filters based on walking bout duration cannot be applied, "
                 "because the data does not contain a 'duration_s' column.",
@@ -277,9 +242,9 @@ class SDMOAggregator(BaseAggregator):
             if low == 0 and np.isinf(high):
                 query = None
             elif np.isinf(high):
-                query = f"{duration_col} >= {low}"
+                query = f"{duration_col} > {low}"
             else:
-                query = f"{duration_col} >= {low} & {duration_col} < {high}"
+                query = f"{duration_col} > {low} & {duration_col} <= {high}"
             agg_dict = {}
             for col in value_cols:
                 for metric_name, func in self.metrics.items():

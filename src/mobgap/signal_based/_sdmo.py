@@ -38,11 +38,6 @@ class TurnSDMO(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(
@@ -63,6 +58,7 @@ class TurnSDMO(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.turn_list = turn_list
+        self.signal_based_parameters_ = pd.DataFrame()
         if turn_list is None or turn_list.empty:
             return self
         turn_list = turn_list.copy()
@@ -96,13 +92,15 @@ class StrideLevelSDMO(BaseSDMOCalculator):
 
     This algorithm calculates the percentage coefficient of variation in stride-level primary parameters (stride length,
     cadence and stride duration):
+
     .. math::
-          CV = 100*std/mean
+
+        CV = 100*std/mean
 
     Parameters
     ----------
     stride_list_columns
-            Name of the columns in the `stride_list` for which parameters will be calculated.
+        Name of the columns in the ``stride_list`` for which parameters will be calculated.
 
     Other Parameters
     ----------------
@@ -121,7 +119,6 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         stride_list_columns: Optional[list[str]] = None,
     ) -> None:
         self.stride_list_columns = stride_list_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -138,6 +135,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.stride_list = stride_list
+        self.signal_based_parameters_ = pd.DataFrame()
         if stride_list is None or self.stride_list_columns is None:
             return self
         # in case the required columns are not available in the `stride_list`, then raise warning
@@ -176,11 +174,6 @@ class RMS(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
@@ -193,6 +186,7 @@ class RMS(BaseSDMOCalculator):
         %(calculate_return)s
         """
         self.data = data
+        self.signal_based_parameters_ = pd.DataFrame()
         if not any(data.columns.str.contains("acc")):
             return self
         # first remove DC of acc signals
@@ -217,16 +211,16 @@ class RegularitySymmetry(BaseSDMOCalculator):
     Estimation of gait cycle characteristics by trunk accelerometry. By Moe-Nilssen, Rolf, and Jorunn L. Helbostad.
     Journal of biomechanics 37, no. 1 (2004): 121-126. https://doi.org/10.1016/S0021-9290(03)00233-1
 
-    Step Regularity - expression of the regularity of the acceleration signal
-       between neighboring steps. Values range between [0-1] were closeness to 1
-       means higher (better) regularity of the ait pattern. For ML only the
-       value of the step regularity is provided as absolute value of the first negative peak.
-    Stride Regularity - expression of the regularity of the acceleration signal
-       between neighboring Strides. Values range between [0-1] were closeness to 1
-       means higher (better) regularity of the ait pattern.
-    Asymmetry_MN - step symmetry is defined as the ratio StepRegularity/StrideRegularity.
-       closeness of the symmetry to 1 reflecs symmetry. Assymetry is defined
-       as how close the ratio is to 1 and calculated as abs(1-symmetry).
+    Step regularity
+        Expresses the regularity of the acceleration signal between neighboring steps. Values range between 0 and 1,
+        where values close to 1 indicate greater regularity of the gait pattern. For the mediolateral axis, the absolute
+        value of the first negative peak is reported.
+    Stride regularity
+        Expresses the regularity of the acceleration signal between neighboring strides. Values range between 0 and 1,
+        where values close to 1 indicate greater regularity of the gait pattern.
+    Asymmetry MN
+        Step symmetry is defined as the ratio of step regularity to stride regularity. Values close to 1 indicate
+        symmetry. Asymmetry is calculated as ``abs(1 - symmetry)``.
 
     Please refer to section 2.5 in the article for additional discussion
     regarding the possible values of the 3 outcomes.
@@ -267,11 +261,6 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(
@@ -292,6 +281,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.replicate_matlab = replicate_matlab
+        self.signal_based_parameters_ = pd.DataFrame()
         # return empty if not all accs are available
         required_acc_columns = ["acc_is", "acc_pa", "acc_ml"]
         if not all(col in data.columns for col in required_acc_columns):
@@ -495,7 +485,6 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         acc_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -512,6 +501,7 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
         acc = data.filter(like="acc")
         acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
         acc = acc[self.acc_columns].to_numpy()
@@ -619,9 +609,10 @@ class SampleEntropy(BaseSDMOCalculator):
     Useage for sway is given in Sofiane (2009) [2]_.
 
     .. [1] B.D.L.C. Torres, et al. "Entropy in the Analysis of Gait Complexity: A State of the Art". British Journal
-    of Applied Science & Technology. 3(4) 1097-1105, 2013.
+       of Applied Science & Technology. 3(4) 1097-1105, 2013.
+
     .. [2] R. Sofiane, et al. "On the use of sample entropy to analyze human postural sway data". Medical
-    Engineering & Physics. 31, 1023-1031, 2009.
+       Engineering & Physics. 31, 1023-1031, 2009.
 
     Parameters
     ----------
@@ -656,7 +647,6 @@ class SampleEntropy(BaseSDMOCalculator):
         self.r = r
         self.acc_columns = acc_columns
         self.num_samples_threshold = num_samples_threshold
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -671,6 +661,7 @@ class SampleEntropy(BaseSDMOCalculator):
 
         """
         self.data = data
+        self.signal_based_parameters_ = pd.DataFrame()
         acc_columns = self.acc_columns
         if not data.columns.isin(acc_columns or []).any():
             return self
@@ -739,7 +730,6 @@ class HarmonicRatio(BaseSDMOCalculator):
         acc_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -759,6 +749,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.data = data
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
         if stride_list is None or stride_list.empty:
             return self
         ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
@@ -903,11 +894,6 @@ class SDRange(BaseSDMOCalculator):
 
     """
 
-    def __init__(
-        self,
-    ) -> None:
-        self.signal_based_parameters_ = pd.DataFrame([])
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
@@ -921,6 +907,7 @@ class SDRange(BaseSDMOCalculator):
 
         """
         self.data = data
+        self.signal_based_parameters_ = pd.DataFrame()
         out = {}
         for c in data.columns:
             out[f"sd_{c}"] = data[c].std()
@@ -974,7 +961,6 @@ class Jerk(BaseSDMOCalculator):
     ) -> None:
         self.acc_columns = acc_columns
         self.gyr_columns = gyr_columns
-        self.signal_based_parameters_ = pd.DataFrame([])
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -991,6 +977,7 @@ class Jerk(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
         out = {}
         dt = 1 / sampling_rate_hz
         integral_duration = dt * data.size

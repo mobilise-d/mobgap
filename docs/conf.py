@@ -209,6 +209,7 @@ sphinx_gallery_conf = {
             "../examples/stride_length",
             "../examples/turning",
             "../examples/wba",
+            "../examples/signal_based",
             "../examples/aggregation",
             "../examples/data_transform",
             "../examples/dev_guides",
