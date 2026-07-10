@@ -148,7 +148,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
                 stacklevel=1,
             )
             return self
-        cv = 100 * stride_list[available_cols].mean() / stride_list[available_cols].std()
+        cv = 100 * stride_list[available_cols].std() / stride_list[available_cols].mean()
         self.signal_based_parameters_ = cv.to_frame().T.add_prefix("cv_")
         return self
 
@@ -919,14 +919,12 @@ class SDRange(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class Jerk(BaseSDMOCalculator):
-    """Calculate jerk of acceleration and gyroscope signals in each principal direction, and log-normalised ratios.
+    """Calculate RMS jerk of acceleration signals in each principal direction.
 
     Jerk is defined as the third derivative of position with respect to time, so it is the second derivative
     of velocity and the first derivative of acceleration.
-    In addition to the jerk of signals, log-normalized ratio of the jerk in AP vs jerk in the IS axis and
-    jerk in ML vs jerk in the IS are calculated.
-
-    Jerk ratio formula was taken from the following article:
+    With acceleration in m/s², the returned RMS jerk is expressed in m/s³.
+    The definition follows the following article:
     Age associated changes in head jerk while walking reveal altered dynamic stability in older people.
     Matthew A. et al., Exp Brain Res (2014) 232:51-60. DOI: 10.1007/s00221-013-3719-6
 
@@ -934,13 +932,9 @@ class Jerk(BaseSDMOCalculator):
     Sensitivity of smoothness measures to movement duration, amplitude, and arrests.
     Hogan N. et al., Journal of motor behavior (2009) 41,6. DOI:10.3200/35-09-004-RC
 
-    Log-normalised ratios are commented out because they are not included in the Sustain project report.
-
     Parameters
     ----------
     %(acc_columns_para)s
-    gyr_columns
-        Name of the gyroscope signal columns for which parameters will be calculated.
 
     Other Parameters
     ----------------
@@ -957,10 +951,8 @@ class Jerk(BaseSDMOCalculator):
     def __init__(
         self,
         acc_columns: Optional[list[str]] = None,
-        gyr_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-        self.gyr_columns = gyr_columns
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -978,24 +970,70 @@ class Jerk(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        out = {}
-        dt = 1 / sampling_rate_hz
-        integral_duration = dt * data.size
-        if data.columns.isin(self.acc_columns or []).any():
-            acc_dot = np.gradient(data[self.acc_columns].to_numpy(), dt, axis=0)
-            jerk_acc = np.sqrt(np.trapezoid(acc_dot**2, axis=0) / integral_duration)
-            out = {
-                **{f"jerk_{col}": jerk_acc[i] for i, col in enumerate(self.acc_columns)},
-                # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
-                # "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
-                # "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
-            }
-        if data.columns.isin(self.gyr_columns or []).any():
-            gyr = data[self.gyr_columns].to_numpy().T
-            jerk_gyr = np.sqrt(np.trapezoid(gyr**2, axis=1) / integral_duration)
-            out.update(**{f"jerk_{col}": jerk_gyr[i] for i, col in enumerate(self.gyr_columns)})
+        acc_columns = [column for column in self.acc_columns or [] if column in data.columns]
+        jerk = _rms_derivative(data[acc_columns].to_numpy(), sampling_rate_hz)
+        out = {f"jerk_{column}": jerk[i] for i, column in enumerate(acc_columns)}
         self.signal_based_parameters_ = pd.DataFrame([out])
         return self
+
+
+@base_sdmo_docfiller
+class AngularAcceleration(BaseSDMOCalculator):
+    """Calculate RMS angular acceleration from gyroscope signals in each principal direction.
+
+    Angular acceleration is the first temporal derivative of angular velocity.
+    With angular velocity in deg/s, the returned RMS angular acceleration is expressed in deg/s².
+
+    Parameters
+    ----------
+    gyr_columns
+        Name of the gyroscope signal columns for which parameters will be calculated.
+
+    Other Parameters
+    ----------------
+    %(data_param)s
+    %(sampling_rate_param)s
+
+    Attributes
+    ----------
+    %(signal_based_parameters_)s
+    %(perf_)s
+
+    """
+
+    def __init__(self, gyr_columns: Optional[list[str]] = None) -> None:
+        self.gyr_columns = gyr_columns
+
+    @timed_action_method
+    @base_sdmo_docfiller
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+
+        %(calculate_return)s
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
+        gyr_columns = [column for column in self.gyr_columns or [] if column in data.columns]
+        angular_acceleration = _rms_derivative(data[gyr_columns].to_numpy(), sampling_rate_hz)
+        out = {f"angular_acceleration_{column}": angular_acceleration[i] for i, column in enumerate(gyr_columns)}
+        self.signal_based_parameters_ = pd.DataFrame([out])
+        return self
+
+
+def _rms_derivative(signal: np.ndarray, sampling_rate_hz: float) -> np.ndarray:
+    """Calculate the RMS of the first temporal derivative for each signal column."""
+    if len(signal) < 2:
+        return np.full(signal.shape[1], np.nan)
+    dt = 1 / sampling_rate_hz
+    derivative = np.gradient(signal, dt, axis=0)
+    duration = dt * (len(signal) - 1)
+    return np.sqrt(np.trapezoid(derivative**2, dx=dt, axis=0) / duration)
 
 
 @njit
