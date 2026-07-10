@@ -88,7 +88,7 @@ mobilised_pipeline_docfiller = make_filldoc(
     sdmo_calculation
         A valid instance of a signal based parameter calculation algorithm.
         This will run on each assembled walking bout individually.
-        The concatenated signal-based parameters are available via the ``signal_based_parameters`` attribute.
+        The concatenated signal-based parameters are available via the ``per_wb_signal_based_parameters_`` attribute.
     """,
         "aggregation_parameters": """
     dmo_thresholds
@@ -172,7 +172,7 @@ mobilised_pipeline_docfiller = make_filldoc(
         The instance of the stride selection algorithm that was run with all of its results.
     wba_
         The instance of the WBA algorithm that was run with all of its results.
-    sdmo_
+    sdmo_calculation_
         The instance of the signal based DMO algorithm that was run with all of its results.
     dmo_aggregation_
         The instance of the DMO aggregation algorithm that was run with all of its results.
