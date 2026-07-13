@@ -251,11 +251,13 @@ class TestStrideLevelSDMO:
 
 
 class TestRMS:
-    def test_no_acc_columns_returns_self(self):
-        algo = RMS()
-        result = algo.calculate(pd.DataFrame(np.ones((100, 2)), columns=["gyr_is", "gyr_ml"]))
-        assert result is algo
-        assert result.signal_based_parameters_.empty
+    def test_gyroscope_rms_is_available_without_acceleration(self):
+        data = pd.DataFrame({"gyr_is": [3.0, 3.0], "gyr_ml": [-4.0, -4.0]})
+
+        result = RMS().calculate(data).signal_based_parameters_
+
+        expected = pd.DataFrame({"rms_gyr_is": [3.0], "rms_gyr_ml": [4.0]})
+        pd.testing.assert_frame_equal(result, expected)
 
     def test_constant_signal(self):
         algo = RMS()
@@ -266,6 +268,44 @@ class TestRMS:
             assert df[col].iloc[0] == pytest.approx(0.0, abs=1e-12)
         for col in ["rms_gyr_is", "rms_gyr_ml", "rms_gyr_pa"]:
             assert df[col].iloc[0] == pytest.approx(1.0, abs=1e-12)
+
+    def test_acceleration_total_and_ratios_exclude_gyroscope(self):
+        acc_is = np.array([1.0, -1.0, -1.0, 1.0])
+        data = pd.DataFrame(
+            {
+                "acc_is": acc_is,
+                "acc_ml": 2 * acc_is,
+                "acc_pa": np.zeros_like(acc_is),
+                "gyr_is": np.full_like(acc_is, 10.0),
+                "gyr_ml": np.full_like(acc_is, 20.0),
+                "gyr_pa": np.full_like(acc_is, 30.0),
+            }
+        )
+
+        result = RMS().calculate(data).signal_based_parameters_.iloc[0]
+
+        expected_total = np.sqrt(5)
+        assert result["rms_total_acc"] == pytest.approx(expected_total)
+        assert result["rms_ratio_acc_is"] == pytest.approx(1 / expected_total)
+        assert result["rms_ratio_acc_ml"] == pytest.approx(2 / expected_total)
+        assert result["rms_ratio_acc_pa"] == pytest.approx(0)
+
+    def test_acceleration_rms_removes_only_dc_offset(self):
+        data = pd.DataFrame({"acc_is": [10.0, 11.0, 12.0]})
+
+        result = RMS().calculate(data).signal_based_parameters_.iloc[0]
+
+        expected_rms = np.sqrt(2 / 3)
+        assert result["rms_acc_is"] == pytest.approx(expected_rms)
+        assert result["rms_total_acc"] == pytest.approx(expected_rms)
+        assert result["rms_ratio_acc_is"] == pytest.approx(1)
+
+    def test_unrelated_columns_are_ignored(self):
+        data = pd.DataFrame({"acc_is": [1.0, -1.0], "temperature": [20.0, 22.0]})
+
+        result = RMS().calculate(data).signal_based_parameters_
+
+        assert list(result.columns) == ["rms_acc_is", "rms_total_acc", "rms_ratio_acc_is"]
 
     def test_signal_with_dc_offset(self):
         t = np.linspace(0, 1, 200)
