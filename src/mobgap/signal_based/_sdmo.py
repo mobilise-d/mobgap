@@ -6,7 +6,7 @@ import pandas as pd
 from numba import njit
 from scipy.fft import fft
 from scipy.ndimage import minimum_filter1d
-from scipy.signal import argrelextrema, correlate, detrend, find_peaks, medfilt, welch
+from scipy.signal import argrelextrema, correlate, find_peaks, medfilt, welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -155,13 +155,17 @@ class StrideLevelSDMO(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class RMS(BaseSDMOCalculator):
-    """Compute acceleration, gyroscope, total acceleration signal root-mean-square (RMS), and ratio metrics.
+    """Compute root-mean-square (RMS) parameters for acceleration and gyroscope signals.
 
-    Ratio between RMS of axes i to RMSAccTotal (i = is, ml or pa)
-    RMS ratio is based on the following article:
-    A gait abnormality measure based on root mean square of trunk acceleration
-    Masaki Sekine et al. Journal of NeuroEngineering and Rehabilitation 2013, 10:118
-    http://www.jneuroengrehab.com/content/10/1/118
+    Acceleration signals are mean-centered before calculating their per-axis RMS. The total acceleration RMS is the
+    Euclidean norm of the per-axis acceleration RMS values, and each acceleration ratio is the corresponding per-axis
+    RMS divided by that total. Gyroscope signals are not mean-centered and are reported as independent per-axis RMS
+    parameters; they do not contribute to the total acceleration RMS or acceleration ratios.
+
+    The acceleration RMS ratios follow:
+    A gait abnormality measure based on root mean square of trunk acceleration.
+    Masaki Sekine et al. Journal of NeuroEngineering and Rehabilitation 2013, 10:118.
+    https://doi.org/10.1186/1743-0003-10-118
 
     Other Parameters
     ----------------
@@ -187,18 +191,23 @@ class RMS(BaseSDMOCalculator):
         """
         self.data = data
         self.signal_based_parameters_ = pd.DataFrame()
-        if not any(data.columns.str.contains("acc")):
+        acc_columns = [column for column in data.columns if column.startswith("acc_")]
+        gyr_columns = [column for column in data.columns if column.startswith("gyr_")]
+        if not acc_columns and not gyr_columns:
             return self
-        # first remove DC of acc signals
-        data = data.copy()
-        data.loc[:, data.columns.str.contains("acc")] = detrend(data.filter(like="acc").to_numpy(), axis=0)
-        rms = (data.pow(2).mean() ** 0.5).add_prefix("rms_")
-        # total RMS
-        rms_total_acc = rms.pow(2).sum() ** 0.5
-        rms["rms_total_acc"] = rms_total_acc
-        # ratio rms
-        for key in rms.filter(like="rms_acc").index:
-            rms[f"rms_ratio_{key.replace('rms_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
+
+        signals = data[[*acc_columns, *gyr_columns]].copy()
+        # Remove the DC component of the acceleration signals.
+        if acc_columns:
+            signals.loc[:, acc_columns] = signals[acc_columns] - signals[acc_columns].mean()
+
+        rms = np.sqrt(signals.pow(2).mean()).add_prefix("rms_")
+        if acc_columns:
+            acc_rms_columns = [f"rms_{column}" for column in acc_columns]
+            rms_total_acc = np.linalg.norm(rms[acc_rms_columns])
+            rms["rms_total_acc"] = rms_total_acc
+            for column, rms_column in zip(acc_columns, acc_rms_columns):
+                rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else 0
         self.signal_based_parameters_ = rms.to_frame().T
         return self
 
