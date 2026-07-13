@@ -5,8 +5,10 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
+from mobgap.data_transform import Resample
 from mobgap.signal_based import (
     RMS,
+    AngularAcceleration,
     FrequencyAmplitudeWidthSlope,
     HarmonicRatio,
     Jerk,
@@ -96,7 +98,7 @@ class TestMetaSampleEntropy(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS(acc_columns=["acc_is"]).calculate(data)
+        return self.ALGORITHM_CLASS(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
 
 
 class TestMetaHarmonicRatio(TestAlgorithmMixin):
@@ -128,9 +130,21 @@ class TestMetaJerk(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS(
-            acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
-        ).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        return self.ALGORITHM_CLASS(acc_columns=["acc_is", "acc_ml", "acc_pa"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
+
+
+class TestMetaAngularAcceleration(TestAlgorithmMixin):
+    __test__ = True
+    ALGORITHM_CLASS = AngularAcceleration
+
+    @pytest.fixture
+    def after_action_instance(self, example_walking_bout):
+        data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
+        return self.ALGORITHM_CLASS(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
 
 
 @pytest.mark.parametrize(
@@ -145,6 +159,7 @@ class TestMetaJerk(TestAlgorithmMixin):
         HarmonicRatio(),
         SDRange(),
         Jerk(),
+        AngularAcceleration(),
     ],
 )
 def test_result_attributes_are_created_by_calculate(algorithm):
@@ -190,6 +205,15 @@ class TestTurnSDMO:
 
 
 class TestStrideLevelSDMO:
+    def test_calculates_coefficient_of_variation_as_percentage(self):
+        stride_list = pd.DataFrame({"stride_duration_s": [1.0, 2.0, 3.0]})
+
+        result = StrideLevelSDMO(stride_list_columns=["stride_duration_s"]).calculate(
+            pd.DataFrame(), stride_list=stride_list
+        )
+
+        assert result.signal_based_parameters_.loc[0, "cv_stride_duration_s"] == pytest.approx(50.0)
+
     def test_no_columns(self):
         algo = StrideLevelSDMO(stride_list_columns=None)
         result = algo.calculate(
@@ -228,11 +252,13 @@ class TestStrideLevelSDMO:
 
 
 class TestRMS:
-    def test_no_acc_columns_returns_self(self):
-        algo = RMS()
-        result = algo.calculate(pd.DataFrame(np.ones((100, 2)), columns=["gyr_is", "gyr_ml"]))
-        assert result is algo
-        assert result.signal_based_parameters_.empty
+    def test_gyroscope_rms_is_available_without_acceleration(self):
+        data = pd.DataFrame({"gyr_is": [3.0, 3.0], "gyr_ml": [-4.0, -4.0]})
+
+        result = RMS().calculate(data).signal_based_parameters_
+
+        expected = pd.DataFrame({"rms_gyr_is": [3.0], "rms_gyr_ml": [4.0]})
+        pd.testing.assert_frame_equal(result, expected)
 
     def test_constant_signal(self):
         algo = RMS()
@@ -243,6 +269,44 @@ class TestRMS:
             assert df[col].iloc[0] == pytest.approx(0.0, abs=1e-12)
         for col in ["rms_gyr_is", "rms_gyr_ml", "rms_gyr_pa"]:
             assert df[col].iloc[0] == pytest.approx(1.0, abs=1e-12)
+
+    def test_acceleration_total_and_ratios_exclude_gyroscope(self):
+        acc_is = np.array([1.0, -1.0, -1.0, 1.0])
+        data = pd.DataFrame(
+            {
+                "acc_is": acc_is,
+                "acc_ml": 2 * acc_is,
+                "acc_pa": np.zeros_like(acc_is),
+                "gyr_is": np.full_like(acc_is, 10.0),
+                "gyr_ml": np.full_like(acc_is, 20.0),
+                "gyr_pa": np.full_like(acc_is, 30.0),
+            }
+        )
+
+        result = RMS().calculate(data).signal_based_parameters_.iloc[0]
+
+        expected_total = np.sqrt(5)
+        assert result["rms_total_acc"] == pytest.approx(expected_total)
+        assert result["rms_ratio_acc_is"] == pytest.approx(1 / expected_total)
+        assert result["rms_ratio_acc_ml"] == pytest.approx(2 / expected_total)
+        assert result["rms_ratio_acc_pa"] == pytest.approx(0)
+
+    def test_acceleration_rms_removes_only_dc_offset(self):
+        data = pd.DataFrame({"acc_is": [10.0, 11.0, 12.0]})
+
+        result = RMS().calculate(data).signal_based_parameters_.iloc[0]
+
+        expected_rms = np.sqrt(2 / 3)
+        assert result["rms_acc_is"] == pytest.approx(expected_rms)
+        assert result["rms_total_acc"] == pytest.approx(expected_rms)
+        assert result["rms_ratio_acc_is"] == pytest.approx(1)
+
+    def test_unrelated_columns_are_ignored(self):
+        data = pd.DataFrame({"acc_is": [1.0, -1.0], "temperature": [20.0, 22.0]})
+
+        result = RMS().calculate(data).signal_based_parameters_
+
+        assert list(result.columns) == ["rms_acc_is", "rms_total_acc", "rms_ratio_acc_is"]
 
     def test_signal_with_dc_offset(self):
         t = np.linspace(0, 1, 200)
@@ -334,20 +398,89 @@ class TestFrequencyAmplitudeWidthSlope:
 class TestSampleEntropy:
     def test_missing_columns_returns_self(self):
         algo = SampleEntropy(acc_columns=["acc_x"])
-        result = algo.calculate(pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS))
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS),
+            sampling_rate_hz=100,
+        )
         assert result is algo
         assert result.signal_based_parameters_.empty
 
     def test_insufficient_samples_returns_nan(self):
         algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
-        result = algo.calculate(pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS))
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS),
+            sampling_rate_hz=100,
+        )
         df = result.signal_based_parameters_
         assert df.shape == (1, 1)
         assert np.isnan(df.iloc[0, 0])
 
+    def test_empty_input_returns_nan(self):
+        result = SampleEntropy(acc_columns=["acc_is"]).calculate(pd.DataFrame({"acc_is": []}), sampling_rate_hz=100)
+
+        assert np.isnan(result.signal_based_parameters_.loc[0, "sample_entropy_acc_is"])
+
+    def test_single_sample_input_returns_nan(self):
+        result = SampleEntropy(acc_columns=["acc_is"]).calculate(pd.DataFrame({"acc_is": [1.0]}), sampling_rate_hz=100)
+
+        assert np.isnan(result.signal_based_parameters_.loc[0, "sample_entropy_acc_is"])
+
+    def test_sample_threshold_is_applied_per_axis(self):
+        data = pd.DataFrame(
+            np.random.default_rng(0).normal(size=(300, 2)),
+            columns=["acc_is", "acc_ml"],
+        )
+
+        result = SampleEntropy(acc_columns=["acc_is", "acc_ml"], num_samples_threshold=200).calculate(
+            data, sampling_rate_hz=100
+        )
+
+        assert result.signal_based_parameters_.isna().all().all()
+
+    def test_entropy_is_independent_of_other_requested_axes(self):
+        data = pd.DataFrame(
+            np.random.default_rng(0).normal(size=(800, 2)),
+            columns=["acc_is", "acc_ml"],
+        )
+        kwargs = {"sampling_rate_hz": 100}
+
+        entropy_single_axis = (
+            SampleEntropy(acc_columns=["acc_is"])
+            .calculate(data, **kwargs)
+            .signal_based_parameters_["sample_entropy_acc_is"]
+        )
+        entropy_multiple_axes = (
+            SampleEntropy(acc_columns=["acc_is", "acc_ml"])
+            .calculate(data, **kwargs)
+            .signal_based_parameters_["sample_entropy_acc_is"]
+        )
+
+        pd.testing.assert_series_equal(entropy_single_axis, entropy_multiple_axes)
+
+    def test_resamples_to_internal_sampling_rate(self):
+        data_100_hz = pd.DataFrame({"acc_is": np.random.default_rng(0).normal(size=800)})
+        data_50_hz = (
+            Resample(target_sampling_rate_hz=50, attempt_index_resample=False)
+            .transform(data_100_hz, sampling_rate_hz=100)
+            .transformed_data_
+        )
+        algorithm = SampleEntropy(
+            acc_columns=["acc_is"],
+            internal_sampling_rate_hz=50,
+            num_samples_threshold=100,
+        )
+
+        entropy_from_100_hz = algorithm.clone().calculate(data_100_hz, sampling_rate_hz=100).signal_based_parameters_
+        entropy_from_50_hz = algorithm.clone().calculate(data_50_hz, sampling_rate_hz=50).signal_based_parameters_
+
+        pd.testing.assert_frame_equal(entropy_from_100_hz, entropy_from_50_hz)
+
     def test_sufficient_samples_returns_float(self):
         algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
-        result = algo.calculate(pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS))
+        result = algo.calculate(
+            pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS),
+            sampling_rate_hz=100,
+        )
         df = result.signal_based_parameters_
         assert df.shape == (1, 1)
         val = df.iloc[0, 0]
@@ -411,19 +544,38 @@ class TestSDRange:
 
 
 class TestJerk:
-    def test_requires_acc_columns(self):
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
-        df = result.signal_based_parameters_
-        expected = [f"jerk_{col}" for col in algo.acc_columns] + [f"jerk_{col}" for col in algo.gyr_columns]
-        assert set(df.columns) == set(expected)
-        assert all(not np.isnan(v) and v > 0 for v in df.iloc[0])
+    def test_linear_acceleration_has_constant_jerk(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"acc_is": 2.0 * time})
 
-    def test_missing_gyr_columns_ignores(self):
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(300, 3), columns=["acc_is", "acc_ml", "acc_pa"]), sampling_rate_hz=100
-        )
+        result = Jerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+
+        assert result.signal_based_parameters_.loc[0, "jerk_acc_is"] == pytest.approx(2.0)
+
+    def test_requires_acc_columns(self):
+        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
         df = result.signal_based_parameters_
         expected = [f"jerk_{col}" for col in algo.acc_columns]
         assert set(df.columns) == set(expected)
+        assert all(not np.isnan(value) and value > 0 for value in df.iloc[0])
+
+
+class TestAngularAcceleration:
+    def test_linear_angular_velocity_has_constant_angular_acceleration(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"gyr_is": 3.0 * time})
+
+        result = AngularAcceleration(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+
+        assert result.signal_based_parameters_.loc[0, "angular_acceleration_gyr_is"] == pytest.approx(3.0)
+
+    def test_requires_gyr_columns(self):
+        algo = AngularAcceleration(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
+        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
+        df = result.signal_based_parameters_
+        expected = [f"angular_acceleration_{column}" for column in algo.gyr_columns]
+        assert set(df.columns) == set(expected)
+        assert all(not np.isnan(value) and value > 0 for value in df.iloc[0])
