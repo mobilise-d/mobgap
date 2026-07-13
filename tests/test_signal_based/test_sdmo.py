@@ -415,6 +415,16 @@ class TestSampleEntropy:
         assert df.shape == (1, 1)
         assert np.isnan(df.iloc[0, 0])
 
+    def test_empty_input_returns_nan(self):
+        result = SampleEntropy(acc_columns=["acc_is"]).calculate(pd.DataFrame({"acc_is": []}), sampling_rate_hz=100)
+
+        assert np.isnan(result.signal_based_parameters_.loc[0, "sample_entropy_acc_is"])
+
+    def test_single_sample_input_returns_nan(self):
+        result = SampleEntropy(acc_columns=["acc_is"]).calculate(pd.DataFrame({"acc_is": [1.0]}), sampling_rate_hz=100)
+
+        assert np.isnan(result.signal_based_parameters_.loc[0, "sample_entropy_acc_is"])
+
     def test_sample_threshold_is_applied_per_axis(self):
         data = pd.DataFrame(
             np.random.default_rng(0).normal(size=(300, 2)),

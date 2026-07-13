@@ -685,18 +685,18 @@ class SampleEntropy(BaseSDMOCalculator):
             return self
         dim = self.dim
         r = self.r
-        accs = (
-            Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
-            .transform(data[acc_columns], sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_.to_numpy()
-        )
-        num_samples = len(accs)
-
+        num_samples = round(len(data) * self.internal_sampling_rate_hz / sampling_rate_hz)
         if num_samples <= self.num_samples_threshold:
             self.signal_based_parameters_ = pd.DataFrame(
                 [{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}]
             )
             return self
+
+        accs = (
+            Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
+            .transform(data[acc_columns], sampling_rate_hz=sampling_rate_hz)
+            .transformed_data_.to_numpy()
+        )
 
         se_results = {}
         for acc, col_name in zip(accs.T, acc_columns):
