@@ -226,7 +226,7 @@
     "data":[
         {
             "index":0,
-            "sample_entropy_acc_is":0.1568194846,
+            "sample_entropy_acc_is":0.1580939665,
             "harmonic_ratio_acc_is":3.2486076441,
             "harmonic_ratio_acc_pa":3.6769546469,
             "sd_acc_is":0.9146257858,
