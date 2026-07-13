@@ -10,6 +10,7 @@ from scipy.signal import argrelextrema, correlate, find_peaks, medfilt, welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.data_transform import Resample
 from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 
 
@@ -631,11 +632,15 @@ class SampleEntropy(BaseSDMOCalculator):
         used for defining similarity between two sequences. Set to 0.15 as default in the original implementation.
     %(acc_columns_para)s
     num_samples_threshold
-        Threshold number of samples for calculating entropy. Default is 200 from [1].
+        Threshold number of samples for calculating entropy after resampling. Default is 200 from [1].
+    internal_sampling_rate_hz
+        Sampling rate in Hertz used internally to calculate the sample entropy. The input data is resampled to this
+        sampling rate before calculating the metric.
 
     Other Parameters
     ----------------
     %(data_param)s
+    %(sampling_rate_param)s
 
     Attributes
     ----------
@@ -651,34 +656,41 @@ class SampleEntropy(BaseSDMOCalculator):
         r: float = 0.15,
         acc_columns: Optional[list[str]] = None,
         num_samples_threshold: int = 200,
+        internal_sampling_rate_hz: float = 50.0,
     ) -> None:
         self.dim = dim
         self.r = r
         self.acc_columns = acc_columns
         self.num_samples_threshold = num_samples_threshold
+        self.internal_sampling_rate_hz = internal_sampling_rate_hz
 
     @timed_action_method
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
         %(data_param)s
+        %(sampling_rate_param)s
 
         %(calculate_return)s
 
         """
         self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
         acc_columns = self.acc_columns
         if not data.columns.isin(acc_columns or []).any():
             return self
         dim = self.dim
         r = self.r
-        # input data is downsampled by half
-        accs = data[acc_columns].to_numpy()[::2]
-        num_samples = accs.size
+        accs = (
+            Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
+            .transform(data[acc_columns], sampling_rate_hz=sampling_rate_hz)
+            .transformed_data_.to_numpy()
+        )
+        num_samples = len(accs)
 
         if num_samples <= self.num_samples_threshold:
             self.signal_based_parameters_ = pd.DataFrame(
