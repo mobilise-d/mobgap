@@ -9,21 +9,22 @@ jobs:
   release:
     name: Publish to PyPI
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: pypi
     permissions:
+      contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
       - name: Install uv and python
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
           python-version: "3.10"
-
-      - name: Install the project
-        run: uv sync --all-groups
 
       - name: Build wheel
         run: uv build
