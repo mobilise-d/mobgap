@@ -66,21 +66,28 @@ If you are using mobgap in your research or work, we would like to ask you to me
 For papers, we recommend citing the library using the following reference:
 
 ```
-Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
-A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
-MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
+Kirk, C., Kuederle, A., Tasca, P., et al. Mobgap: A State-of-the-Art Python Framework for Reproducible Estimation and
+Algorithm Validation of Digital Mobility Outcomes from a Single Wearable Device. Sensors 2026, 26(13), 4294.
+https://doi.org/10.3390/s26134294
 ```
 
 ```
-@software{Kuderle_MobGap,
-   author = {Küderle, Arne and Tasca, Paolo and Bicer, Metin and Kirk, Cameron and Megaritis, Dimitrios and Hinchliffe, Chloe and
-    Stihi, Alexandru and Muecke, Annika and Babar, Zamal and Kluge, Felix and Mueller, Arne and Mazzà, Claudia 
-    and Del Din, Silvia and Cereatti, Andrea and Rochester, Lynn and Rooks, Daniel and Caulfield, Brian},
-   license = {Apache-2.0},
-   title = {{MobGap}},
-   url = {https://github.com/mobilise-d/mobgap/}
-   doi = {10.5281/zenodo.14035833},
- }
+@article{kirk2026mobgap,
+  author = {Kirk, Cameron and Kuederle, Arne and Tasca, Paolo and Bicer, Metin and Megaritis, Dimitrios and Gazit, Eran
+    and Bonci, Tecla and Ionescu, Anisora and Hinchliffe, Chloe and Stihi, Alexandru and Muecke, Anika and Babar, Zamal
+    and Vogiatzis, Ioannis and Eskofier, Bjoern and Mazzà, Claudia and Cereatti, Andrea and Mueller, Arne and Rooks, Daniel
+    and Caulfield, Brian and Rochester, Lynn and Del Din, Silvia},
+  title = {Mobgap: A State-of-the-Art Python Framework for Reproducible Estimation and Algorithm Validation of Digital
+    Mobility Outcomes from a Single Wearable Device},
+  journal = {Sensors},
+  year = {2026},
+  month = {July},
+  volume = {26},
+  number = {13},
+  pages = {4294},
+  doi = {10.3390/s26134294},
+  url = {https://doi.org/10.3390/s26134294}
+}
 ```
 
 For concrete examples on how to cite the library in your work, see the [Usage Recommendation](#usage-recommendation) 
@@ -126,9 +133,9 @@ The package is designed to be used in two modes:
    Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78 (2023). 
    https://doi.org/10.1186/s12984-023-01198-5
    
-   [3] Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
-   A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
-   MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
+   [3] Kirk, C., Kuederle, A., Tasca, P., et al. Mobgap: A State-of-the-Art Python Framework for Reproducible Estimation
+   and Algorithm Validation of Digital Mobility Outcomes from a Single Wearable Device. Sensors 2026, 26(13), 4294.
+   https://doi.org/10.3390/s26134294
    ```
 
 2. Usage of individual algorithms:
@@ -147,14 +154,14 @@ The package is designed to be used in two modes:
    > mobgap Python library [[3]] version {insert version you used}.
 
    ```
-   [3] Küderle, A., Tasca, P., Bicer, M., Kirk, C., Megaritis, D., Hinchliffe, C., Stihi, A., Muecke, A., Babar, Z., Kluge, F., Mueller, 
-   A., Mazzà, C., Del Din, S., Cereatti, A., Rochester, L., Rooks, D., & Caulfield, B. 
-   MobGap [Computer software]. https://doi.org/10.5281/zenodo.14035833 URL: https://github.com/mobilise-d/mobgap/ 
+   [3] Kirk, C., Kuederle, A., Tasca, P., et al. Mobgap: A State-of-the-Art Python Framework for Reproducible Estimation
+   and Algorithm Validation of Digital Mobility Outcomes from a Single Wearable Device. Sensors 2026, 26(13), 4294.
+   https://doi.org/10.3390/s26134294
    ```
 
 [1]: https://doi.org/10.1038/s41598-024-51766-5
 [2]: https://doi.org/10.1186/s12984-023-01198-5
-[3]: https://github.com/mobilise-d/mobgap/
+[3]: https://doi.org/10.3390/s26134294
 
 ## Used by
 
