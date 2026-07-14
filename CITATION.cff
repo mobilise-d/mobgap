@@ -98,6 +98,76 @@ identifiers:
       release, please follow the DOI link for one of the
       specific releases and grab DOI from the archived
       record.
+preferred-citation:
+  type: article
+  title: >-
+    Mobgap: A State-of-the-Art Python Framework for
+    Reproducible Estimation and Algorithm Validation of
+    Digital Mobility Outcomes from a Single Wearable Device
+  authors:
+    - given-names: Cameron
+      family-names: Kirk
+      orcid: 'https://orcid.org/0000-0003-2508-5816'
+    - given-names: Arne
+      family-names: Kuederle
+    - given-names: Paolo
+      family-names: Tasca
+      orcid: 'https://orcid.org/0009-0008-7157-3451'
+    - given-names: Metin
+      family-names: Bicer
+      orcid: 'https://orcid.org/0000-0002-9491-2080'
+    - given-names: Dimitrios
+      family-names: Megaritis
+      orcid: 'https://orcid.org/0000-0001-6786-4346'
+    - given-names: Eran
+      family-names: Gazit
+    - given-names: Tecla
+      family-names: Bonci
+      orcid: 'https://orcid.org/0000-0002-8255-4730'
+    - given-names: Anisora
+      family-names: Ionescu
+      orcid: 'https://orcid.org/0000-0002-2341-4383'
+    - given-names: Chloe
+      family-names: Hinchliffe
+    - given-names: Alexandru
+      family-names: Stihi
+      orcid: 'https://orcid.org/0000-0002-6073-671X'
+    - given-names: Anika
+      family-names: Muecke
+    - given-names: Zamal
+      family-names: Babar
+    - given-names: Ioannis
+      family-names: Vogiatzis
+      orcid: 'https://orcid.org/0000-0003-4830-7207'
+    - given-names: Bjoern
+      family-names: Eskofier
+      orcid: 'https://orcid.org/0000-0002-0417-0336'
+    - given-names: Claudia
+      family-names: Mazzà
+      orcid: 'https://orcid.org/0000-0002-5215-1746'
+    - given-names: Andrea
+      family-names: Cereatti
+      orcid: 'https://orcid.org/0000-0002-7276-5382'
+    - given-names: Arne
+      family-names: Mueller
+      orcid: 'https://orcid.org/0000-0001-6551-2283'
+    - given-names: Daniel
+      family-names: Rooks
+      orcid: 'https://orcid.org/0000-0002-1121-3517'
+    - given-names: Brian
+      family-names: Caulfield
+      orcid: 'https://orcid.org/0000-0003-0290-9587'
+    - given-names: Lynn
+      family-names: Rochester
+    - given-names: Silvia
+      family-names: Del Din
+      orcid: 'https://orcid.org/0000-0003-1154-4751'
+  doi: 10.3390/s26134294
+  journal: Sensors
+  volume: 26
+  issue: 13
+  month: 7
+  year: 2026
 repository-code: 'https://github.com/mobilise-d/mobgap/'
 url: 'https://mobgap.readthedocs.io/en/latest/README.html'
 repository: >-
