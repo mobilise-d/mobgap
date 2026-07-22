@@ -73,7 +73,7 @@ class MobilisedSDMO(Pipeline):
                         AngularAcceleration(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]),
                     ),
                     (
-                        "freq_amp_width_slope",
+                        "freq_amp_width",
                         FrequencyAmplitudeWidth(acc_columns=["acc_is", "acc_ml", "acc_pa"]),
                     ),
                     ("regularity_symmetry", RegularitySymmetry()),
