@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from numba import njit
 from scipy.fft import fft
-from scipy.ndimage import minimum_filter1d
-from scipy.signal import argrelextrema, correlate, find_peaks, medfilt, welch
+from scipy.signal import argrelextrema, correlate, find_peaks, welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -344,12 +343,14 @@ class RegularitySymmetry(BaseSDMOCalculator):
             if axis == "acc_ml":
                 step_reg, stride_reg = self._process_ml_axis(c, smoothed_c, distance, step_reg_is_loc)
             else:
-                step_reg, stride_reg, step_reg_is_loc = self._process_vt_ap_axis(c, smoothed_c, distance, step_reg_is_loc)
+                step_reg, stride_reg, step_reg_is_loc = self._process_vt_ap_axis(
+                    c, smoothed_c, distance, step_reg_is_loc
+                )
 
             if not np.isnan(step_reg) and not np.isnan(stride_reg):
                 asym_mn = abs(1 - step_reg / stride_reg)
                 sym_k = abs(step_reg - stride_reg) / np.mean([step_reg, stride_reg])
-                asym_g = (stride_reg + step_reg) / 2 if axis == "acc_ml" else  (stride_reg - step_reg) / 2
+                asym_g = (stride_reg + step_reg) / 2 if axis == "acc_ml" else (stride_reg - step_reg) / 2
 
         except (IndexError, ValueError):
             pass
@@ -481,16 +482,26 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
 
     Notes
     -----
-    The implementation here differs from [1]_ regarding the frequency bands. Although a single frequency band
+    - The implementation here differs from [1]_ regarding the frequency bands. Although a single frequency band
     (0.5-3.0 Hz) for the width calculation is specified in the paper, this class provides default values for each axis
     as:
-    - Vertical: 0.4 Hz to 3.1 Hz
-    - Antero-posterior: 0.4 Hz to 3.1 Hz
-    - Medio-lateral: 0.15 Hz to 1.6 Hz
+        - Vertical: 0.4 Hz to 3.1 Hz
+        - Antero-posterior: 0.4 Hz to 3.1 Hz
+        - Medio-lateral: 0.15 Hz to 1.6 Hz
+    - The FFT length in Welch's method determines the frequency resolution of the PSD estimate. In [1]_, the FFT length
+    is described as "2 times the next higher power of 2 of the signal length". However, this contradicts standard
+    Welch's method, where the FFT length should be based on the segment (window) size, not the total signal length.
+    This appears to be a mis-wording in the original paper. We therefore follow the more common and logically consistent
+    definition, as also used in [2]_, which sets the FFT length as 2 times the next higher power of 2 of the window
+    size (`win_size`).
 
-    .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman, "Toward Automated, At-Home Assessment of Mobility
-    Among Patients With Parkinson Disease, Using a Body-Worn Accelerometer," Neurorehabil Neural Repair,
-    vol. 25, no. 9, pp. 810-818, 2011. https://doi.org/10.1177/1545968311424869
+    .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman,
+    "Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a Body-Worn
+    Accelerometer," Neurorehabil Neural Repair, vol. 25, no. 9, pp. 810-818, 2011.
+    https://doi.org/10.1177/1545968311424869
+    .. [2] D. Pradeep Kumar, N. Toosizadeh, J. Mohler, H. Ehsani, C. Mannier, and K. Laksari,
+    "Sensor-based characterization of daily walking: a new paradigm in pre-frailty/frailty assessment,"
+    BMC Geriatr, vol. 20, no. 1, p. 164, 2020.
 
     """
 
@@ -532,12 +543,14 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
         acc = data.filter(like="acc").copy()
         acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
         n = len(acc)
-        fft_length = 2 ** (int(np.ceil(np.log2(n))) + 1)
         win_size = int(sampling_rate_hz * 2) if n >= 2 * sampling_rate_hz else n
+        fft_length = 2 ** (int(np.ceil(np.log2(win_size))) + 1)
 
         # welch PSD (should be close to the matlab's pwelch with the following params)
         def matlab_welch(x: pd.Series) -> tuple[np.ndarray, np.ndarray]:
-            return welch(x.values, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False)
+            return welch(
+                x.values, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False
+            )
 
         f, psd_is = matlab_welch(acc["acc_is"])
         lower_v, upper_v = self.freq_band_is
@@ -554,22 +567,26 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
             lower_ml, upper_ml = self.freq_band_ml
             ml_freq_range = np.where((f >= lower_ml) & (f <= upper_ml))[0]
             amp_ml, freq_ml, width_ml = self._extract_amp_freq_width(psd_ml, f, ml_freq_range)
-            results.update({
-                "amplitude_ml": amp_ml,
-                "freq_ml": freq_ml,
-                "width_ml": width_ml,
-            })
+            results.update(
+                {
+                    "amplitude_ml": amp_ml,
+                    "freq_ml": freq_ml,
+                    "width_ml": width_ml,
+                }
+            )
 
         if "acc_pa" in check_cols:
             _, psd_pa = matlab_welch(acc["acc_pa"])
             lower_pa, upper_pa = self.freq_band_pa
             ap_freq_range = np.where((f >= lower_pa) & (f <= upper_pa))[0]
             amp_pa, freq_pa, width_pa = self._extract_amp_freq_width(psd_pa, f, ap_freq_range)
-            results.update({
-                "amplitude_pa": amp_pa,
-                "freq_pa": freq_pa,
-                "width_pa": width_pa,
-            })
+            results.update(
+                {
+                    "amplitude_pa": amp_pa,
+                    "freq_pa": freq_pa,
+                    "width_pa": width_pa,
+                }
+            )
 
         self.signal_based_parameters_ = pd.DataFrame([results])
         return self
