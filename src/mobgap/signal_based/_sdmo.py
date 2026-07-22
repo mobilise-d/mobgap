@@ -217,45 +217,35 @@ class RMS(BaseSDMOCalculator):
 class RegularitySymmetry(BaseSDMOCalculator):
     """Compute step/stride regularity and symmetry metrics from accelerations.
 
-    Step/stride regularity and Assymetry_MN were developed according to:
-    Estimation of gait cycle characteristics by trunk accelerometry. By Moe-Nilssen, Rolf, and Jorunn L. Helbostad.
-    Journal of biomechanics 37, no. 1 (2004): 121-126. https://doi.org/10.1016/S0021-9290(03)00233-1
-
     Step regularity
         Expresses the regularity of the acceleration signal between neighboring steps. Values range between 0 and 1,
         where values close to 1 indicate greater regularity of the gait pattern. For the mediolateral axis, the absolute
-        value of the first negative peak is reported.
+        value of the first negative peak is reported. Implemented from [1]_.
     Stride regularity
         Expresses the regularity of the acceleration signal between neighboring strides. Values range between 0 and 1,
-        where values close to 1 indicate greater regularity of the gait pattern.
-    Asymmetry MN
-        Step symmetry is defined as the ratio of step regularity to stride regularity. Values close to 1 indicate
-        symmetry. Asymmetry is calculated as ``abs(1 - symmetry)``.
+        where values close to 1 indicate greater regularity of the gait pattern.  Implemented from [1]_.
 
-    Please refer to section 2.5 in the article for additional discussion
-    regarding the possible values of the 3 outcomes.
+    This class outputs the step and stride regularity for all available acceleration signals in the principal directions.
+    The parameters below (Asymmetry_MN, Symmetry_K, Asymmetry_G) are calculated for all axes, but only vertical-axis
+    components are included in the output.
 
-    Symmetry_K = 100*(absolute difference between step and stride regularity)/
-                      (average of step and stride regularity).
-    Symmetry_K was developed according to the following article:
-    Gait Posture. 2014;39(1):553-7.
-    doi: 10.1016/j.gaitpost.2013.09.008. Epub 2013 Sep 19.
-    Value of zero means perfect symmetry and larger values depicting greater levels of step
-    asymmetry in the accelerometer waveform.
+    Asymmetry_MN
+        Step symmetry is defined as the ratio of step regularity to stride regularity. Closeness of the symmetry to 1
+        reflects symmetry. Asymmetry_MN is defined as how close this ratio is to 1 ``abs(1 - symmetry)``.
+        Implemented from [1]_.
+
+    Symmetry_K
+        It is defined as the relative symmetry between step and stride regularity. It is calculated as the
+        absolute difference between the two values divided by their mean. Value of zero means perfect symmetry and
+        larger values depicting greater levels of step asymmetry in the accelerometer waveform. Implemented from [2]_.
 
     Asymmetry_G
-    For V and AP:
-    AS=(stride regularity-step regularity)/2
-    For ML:
-    AS=(stride regularity+step regularity)/2
-    The suggested equation provides a linear scale, ranging between -1 and 1 and
-    a value of 0 indicates perfect gait symmetry.
-    Positive symmetry values relate to a gait pattern with a higher regularity of strides
-    Negative values correspond to a gait pattern where the strides are more irregular than the steps.
-
-    The article describing the Asymmetry_G measure can be found at:
-    Van Gelder et al.A Proposal for a Linear Calculation of
-    Gait Asymmetry. Symmetry 2021, 13,1560. https://doi.org/10.3390/sym13091560
+        It is defined on a linear scale, with different formulations for different axes in [3]_. For the vertical and
+        antero-posterior axes, it is calculated as ``(stride regularity-step regularity)/2``. For the medio-lateral axis,
+        it is ``(stride regularity+step regularity)/2``. The metric ranges between -1 and 1, where 0 indicates perfect
+        symmetry. Positive values reflect a gait pattern with higher regularity of strides than steps, while negative
+        values indicate the opposite. Note that the original matlab implementation uses the same formulation for
+        all axes `(stride regularity-step regularity)/2``.
 
     Other Parameters
     ----------------
@@ -269,6 +259,15 @@ class RegularitySymmetry(BaseSDMOCalculator):
     %(signal_based_parameters_)s
     %(perf_)s
 
+    References
+    ----------
+    .. [1] R. Moe-Nilssen and J. L. Helbostad, "Estimation of gait cycle characteristics by trunk accelerometry,"
+        J Biomech, vol. 37, no. 1, pp. 121-126, 2004.
+    .. [2] D. Kobsar, C. Olson, R. Paranjape, T. Hadjistavropoulos, and J. M. Barden, "Evaluation of age-related
+        differences in the stride-to-stride fluctuations, regularity and symmetry of gait using a waist-mounted
+        tri-axial accelerometer," Gait Posture, vol. 39, no. 1, pp. 553-557, 2014.
+    .. [3] L. M. A. van Gelder, L. Angelini, E. E. Buckley, and C. Mazza, "A proposal for a linear calculation of gait
+        asymmetry," Symmetry, vol. 13, no. 9, p. 1560, 2021.
     """
 
     @timed_action_method
@@ -297,18 +296,16 @@ class RegularitySymmetry(BaseSDMOCalculator):
         if not all(col in data.columns for col in required_acc_columns):
             return self
         reg_sym = {}
-        step_reg_is = np.nan
+        step_reg_is_loc = np.nan
 
         for axis in required_acc_columns:
-            axis_results = self._compute_axis_metrics(
+            axis_results, step_reg_is_loc = self._compute_axis_metrics(
                 data[axis].to_numpy(),
                 axis=axis,
                 sampling_rate_hz=sampling_rate_hz,
                 replicate_matlab=replicate_matlab,
-                step_reg_is=step_reg_is,
+                step_reg_is_loc=step_reg_is_loc,
             )
-            if axis == "acc_is" and "step_regularity_is" in axis_results:
-                step_reg_is = axis_results["step_regularity_is"]
             reg_sym.update(axis_results)
 
         self.signal_based_parameters_ = pd.Series(reg_sym).to_frame().T
@@ -320,8 +317,8 @@ class RegularitySymmetry(BaseSDMOCalculator):
         axis: str,
         sampling_rate_hz: float,
         replicate_matlab: bool,
-        step_reg_is: float,
-    ) -> dict[str, float]:
+        step_reg_is_loc: float,
+    ) -> tuple[dict[str, float], float]:
         """Compute regularity metrics for a single axis."""
         ax_direction = axis.split("_")[1]
         step_reg = stride_reg = asym_mn = sym_k = asym_g = np.nan
@@ -345,14 +342,14 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
             # detect peaks
             if axis == "acc_ml":
-                step_reg, stride_reg = self._process_ml_axis(c, smoothed_c, distance, step_reg_is)
+                step_reg, stride_reg = self._process_ml_axis(c, smoothed_c, distance, step_reg_is_loc)
             else:
-                step_reg, stride_reg, step_reg_is = self._process_vt_ap_axis(c, smoothed_c, distance, step_reg_is)
+                step_reg, stride_reg, step_reg_is_loc = self._process_vt_ap_axis(c, smoothed_c, distance, step_reg_is_loc)
 
             if not np.isnan(step_reg) and not np.isnan(stride_reg):
                 asym_mn = abs(1 - step_reg / stride_reg)
                 sym_k = abs(step_reg - stride_reg) / np.mean([step_reg, stride_reg])
-                asym_g = (stride_reg - step_reg) / 2
+                asym_g = (stride_reg + step_reg) / 2 if axis == "acc_ml" else  (stride_reg - step_reg) / 2
 
         except (IndexError, ValueError):
             pass
@@ -369,16 +366,16 @@ class RegularitySymmetry(BaseSDMOCalculator):
                     f"asymmetry_g_{ax_direction}": asym_g,
                 }
             )
-        return result
+        return result, step_reg_is_loc
 
     def _process_ml_axis(
-        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is: float
+        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is_loc: float
     ) -> tuple[float, float]:
         """Process ML axis."""
         # step regularity: negative peaks
         locs_neg, _ = find_peaks(-smoothed_c, distance=distance + 1)
-        if not np.isnan(step_reg_is):
-            locs_neg = locs_neg[locs_neg >= step_reg_is / 2]
+        if not np.isnan(step_reg_is_loc):
+            locs_neg = locs_neg[locs_neg >= step_reg_is_loc / 2]
         peaks_neg = -smoothed_c[locs_neg]
         mask = peaks_neg > 0
         locs_neg = locs_neg[mask]
@@ -388,8 +385,8 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
         # stride regularity: positive peaks
         locs_pos, _ = find_peaks(smoothed_c, distance=distance + 1)
-        if not np.isnan(step_reg_is):
-            locs_pos = locs_pos[locs_pos >= 1.5 * step_reg_is]
+        if not np.isnan(step_reg_is_loc):
+            locs_pos = locs_pos[locs_pos >= 1.5 * step_reg_is_loc]
         peaks_pos = smoothed_c[locs_pos]
         mask = peaks_pos > 0
         locs_pos = locs_pos[mask]
@@ -400,7 +397,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         return step_reg, stride_reg
 
     def _process_vt_ap_axis(
-        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is: float
+        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is_loc: float
     ) -> tuple[float, float, float]:
         """Process IS/PA axes."""
         locs, _ = find_peaks(smoothed_c, distance=distance + 1)
@@ -411,15 +408,15 @@ class RegularitySymmetry(BaseSDMOCalculator):
         locs, corrected_peaks = self._correct_peaks(c, peaks, locs)
         step_reg = corrected_peaks[0] if len(corrected_peaks) > 0 else np.nan
         stride_reg = corrected_peaks[1] if len(corrected_peaks) > 1 else np.nan
-        if not np.isnan(step_reg) and np.isnan(step_reg_is):
-            step_reg_is = locs[0] if len(locs) > 0 else np.nan
-        return step_reg, stride_reg, step_reg_is
+        if not np.isnan(step_reg) and np.isnan(step_reg_is_loc):
+            step_reg_is_loc = locs[0] if len(locs) > 0 else np.nan
+        return step_reg, stride_reg, step_reg_is_loc
 
     @staticmethod
     def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Correct peaks found in a filtered signal to match original data."""
         if len(locs) < 2:
-            return pks, locs
+            return locs, pks
 
         median_diff = np.median(np.diff(locs))
         locale_win = int(np.ceil(0.2 * median_diff))
