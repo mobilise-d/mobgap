@@ -458,18 +458,12 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
 
 @base_sdmo_docfiller
-class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
+class FrequencyAmplitudeWidth(BaseSDMOCalculator):
     """Analyse the acceleration signal in the frequency domain.
 
-    Calculate the max peak (center of the gait signal) amplitude and frequency, and the width (spread)
-    of the gait frequencies around the main gait peak and the slope.
-
-    More information:
-    Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a
-    Body-Worn Accelerometer
-    Aner Weiss et al.
-    Neurorehabilitation and Neural Repair25(9) 810-818
-    DOI: 10.1177/1545968311424869
+    The amplitude and frequency were defined as the amplitude and frequency of the main peak of the power spectral
+    density function. The width of the dominant harmony was defined as the width of the peak at half of its peak
+    amplitude [1]_.
 
     Parameters
     ----------
@@ -484,6 +478,10 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
     ----------
     %(signal_based_parameters_)s
     %(perf_)s
+
+    .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman, "Toward Automated, At-Home Assessment of Mobility
+    Among Patients With Parkinson Disease, Using a Body-Worn Accelerometer," Neurorehabil Neural Repair,
+    vol. 25, no. 9, pp. 810-818, 2011. https://doi.org/10.1177/1545968311424869
 
     """
 
@@ -528,10 +526,10 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         freq_delta = 0.1
         vap_freq_range = np.where((f >= fmin - freq_delta) & (f <= fmax + freq_delta))[0]
         ml_freq_range = np.where((f >= fmin / 2 - freq_delta) & (f <= fmax / 2 + freq_delta))[0]
-        # extract amplitude, frequency, width and slope
-        amp_is, freq_is, width_is, _slope_is = self._extract_amp_freq_slope(psd_is, f, vap_freq_range)
-        amp_ml, freq_ml, width_ml, _slope_ml = self._extract_amp_freq_slope(psd_ml, f, ml_freq_range)
-        amp_ap, freq_ap, width_ap, _slope_ap = self._extract_amp_freq_slope(psd_ap, f, vap_freq_range)
+        # extract amplitude, frequency, width
+        amp_is, freq_is, width_is = self._extract_amp_freq_width(psd_is, f, vap_freq_range)
+        amp_ml, freq_ml, width_ml = self._extract_amp_freq_width(psd_ml, f, ml_freq_range)
+        amp_ap, freq_ap, width_ap = self._extract_amp_freq_width(psd_ap, f, vap_freq_range)
 
         self.signal_based_parameters_ = pd.DataFrame(
             [
@@ -542,27 +540,22 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
                     "freq_is": freq_is,
                     "freq_ml": freq_ml,
                     "freq_pa": freq_ap,
-                    # the width and slope was commented out in the original implementation, but the sustain project
-                    # report lists width in the variability domain signal-based parameters, so return width default
                     "width_is": width_is,
                     "width_ml": width_ml,
                     "width_pa": width_ap,
-                    # "slope_is": slope_is,
-                    # "slope_ml": slope_ml,
-                    # "slope_pa": slope_ap
                 }
             ]
         )
         return self
 
     @staticmethod
-    def _extract_amp_freq_slope(psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray) -> tuple[Any, Any, Any, Any]:
-        """Extract amplitude, frequency, width and slope."""
+    def _extract_amp_freq_width(psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray) -> tuple[Any, Any, Any]:
+        """Extract amplitude, frequency, width."""
         psd_sub = psd[freq_range]
         freq_sub = freq[freq_range]
         peaks, _ = find_peaks(psd_sub, distance=6)
         if len(peaks) == 0:
-            return np.nan, np.nan, np.nan, np.nan
+            return np.nan, np.nan, np.nan
 
         peak = peaks[np.argmax(psd_sub[peaks])] if len(peaks) > 1 else peaks[0]
 
@@ -576,33 +569,12 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         right_cross = np.where(right_side <= half_amp)[0]
 
         if len(left_cross) == 0 or len(right_cross) == 0:
-            return amp, freq_val, np.nan, np.nan
+            return amp, freq_val, np.nan
 
         width_start = left_cross[-1]
         width_end = peak + right_cross[0]
         width = freq_sub[width_end] - freq_sub[width_start]
-        smoothed = medfilt(psd_sub, kernel_size=5)
-        minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
-        pre_peak_min = minima[minima < peak]
-        if len(pre_peak_min) == 0:
-            return amp, freq_val, width, np.nan
-
-        pre_peak = pre_peak_min[-1]
-        rise_psd = psd_sub[pre_peak : peak + 1]
-        rise_freq = freq_sub[pre_peak : peak + 1]
-        range_val = amp - psd_sub[pre_peak]
-        lower = psd_sub[pre_peak] + 0.25 * range_val
-        upper = amp - 0.25 * range_val
-        mask = (rise_psd >= lower) & (rise_psd <= upper)
-        fit_psd = rise_psd[mask]
-        fit_freq = rise_freq[mask]
-
-        if len(fit_psd) < 2:
-            return amp, freq_val, width, np.nan
-        line_fit = np.polyfit(fit_freq, fit_psd, 1)
-        slope = line_fit[0]
-
-        return amp, freq_val, width, slope
+        return amp, freq_val, width
 
 
 @base_sdmo_docfiller
