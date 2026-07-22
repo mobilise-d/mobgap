@@ -722,23 +722,19 @@ class SampleEntropy(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class HarmonicRatio(BaseSDMOCalculator):
-    """Calculate the Harmonic Ratio (HR) for gait smoothness based on accelerometer data.
+    """Calculate the Harmonic Ratio (HR) based on accelerometer data.
 
-    HR is a measure of gait smoothness, based on the following article:
-    Dynamic Stability in the Elderly: Identifying a Possible Measure
-    H. John Yack et al., Journal of Gerontology: MEDICAL SCIENCES, 1993, Vol. 48, No. 5, M225-M230.
+    HR is defined as the ratio of the summed amplitudes of even harmonics to odd harmonics (first 20 harmonics). It is
+    a measure of gait smoothness developed to discriminate between walking patterns of individuals with and without
+    stability problems [1]_. A larger ratio represents a smoother gait pattern.
 
-    The acceleration from the lower back contains repeatable patterns that contains information regarding
-    the smoothness of the walking pattern. For acc_is and acc_ap accelerations a relatively larger ratio
-    represents a smoother gait pattern. Their HR should be always greater than 1. The acc_ml acceleration has
-    a monophasis pattern (one cycle in a stride vs 2 steps that are seen in other axes) which causes the first
-    harmonic to be the dominant one. It has an HR smaller than 1.
+    Stride time defines the fundamental frequency. We calculate the first 20 harmonic coefficients using a finite
+    Fourier transform, normalise them by the fundamental amplitude, average the coefficients across strides, and then
+    compute the ratio of even to odd harmonics.
 
-    Stride time defines the period of the fundamental frequency component for calculating the smoothness
-    of the signal. We calculate the first 20 harmonic coefficients using the finite fourier transform.
-    Their amplitude is normalized using the fundamental frequency component amplitude. This process is
-    performed for all the strides and then the harmonics are averaged across the strides. The ratio is
-    calculated as the ratio of the even to odd harmonics.
+    The vertical and antero-posterior acceleration components have biphasic patterns (two cycles per stride). Thus,
+    even harmonics dominate, and HR should be > 1. The medio-lateral component has a monophasic pattern (one cycle
+    per stride), making the first harmonic dominant. HR should be < 1.
 
     Parameters
     ----------
@@ -754,6 +750,25 @@ class HarmonicRatio(BaseSDMOCalculator):
     ----------
     %(signal_based_parameters_)s
     %(perf_)s
+
+    Notes
+    -----
+    This implementation was based on the original Matlab implementation. There are deviations from the paper [1]_.
+    Although these deviations did not drastically change how HR is computed, they are documented below:
+    - To avoid picking the wrong fundamental (e.g., DC or high‑frequency noise), the search for the fundamental
+    frequency was restricted to 0.5–3.0 Hz for IS/AP axes and 0.25–1.5 Hz for the ML axis. The original paper did not
+    specify such bands.
+    - An optional adjustment of the stride end point is performed to align with a similar acceleration value, reducing
+    spectral leakage caused by amplitude mismatch at stride boundaries. This heuristic is not described in the paper.
+    - In the paper, the harmonic ratio was calculated per stride and then averaged across strides. Here, the harmonic
+    coefficients are averaged across strides first, and then the ratio is computed from the averaged coefficients. This
+    differs mathematically but should produce similar results in practice.
+    - The paper used exactly 10 strides per subject. In this implementation, all available strides in the provided
+    `stride_list` are used. This is more suitable for variable‑length walking bouts.
+
+
+    ..[1] H. J. Yack and R. C. Berger, "Dynamic stability in the elderly: identifying a possible measure,"
+        J Gerontol, vol. 48, no. 5, pp. M225–M230, 1993.
 
     """
 
@@ -786,27 +801,27 @@ class HarmonicRatio(BaseSDMOCalculator):
         if stride_list is None or stride_list.empty:
             return self
         ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
-        acc_columns = self.acc_columns
+        acc_columns = [c for c in self.acc_columns if c in data.columns]
         hr_results = {}
-        if stride_list is None or len(ic_list) < 3:
+        if len(ic_list) < 3 or not acc_columns:
             return self
 
         stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
 
         for col_name in acc_columns:
-            hr_val = self._process_single_accelerometer(data, col_name, stride_pairs, sampling_rate_hz)
+            hr_val = self._process_single_accelerometer(data[col_name], stride_pairs, sampling_rate_hz)
             hr_results[f"harmonic_ratio_{col_name}"] = hr_val
 
         self.signal_based_parameters_ = pd.DataFrame([hr_results])
         return self
 
     def _process_single_accelerometer(
-        self, data: pd.DataFrame, col_name: str, stride_pairs: list, sampling_rate_hz: float
+        self, data: pd.Series, stride_pairs: list, sampling_rate_hz: float
     ) -> float:
-        """Process a single accelerometer axis and return the Harmonic Ratio (or NaN)."""
-        acc = data[col_name].to_numpy()
+        """Process a single accelerometer axis and return the Harmonic Ratio."""
+        acc = data.to_numpy()
         stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
-        is_ml = col_name == "acc_ml"
+        is_ml = data.name == "acc_ml"
         gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
 
         for stride_idx, (start, end) in enumerate(stride_pairs):
