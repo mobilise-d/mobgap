@@ -117,11 +117,11 @@ regularity_symmetry.signal_based_parameters_
 
 
 # %%
-# the :class:`.FrequencyAmplitudeWidthSlope` algorithm.
+# the :class:`.FrequencyAmplitudeWidth` algorithm.
 
-from mobgap.signal_based import FrequencyAmplitudeWidthSlope
+from mobgap.signal_based import FrequencyAmplitudeWidth
 
-frequency_amplitude = FrequencyAmplitudeWidthSlope(
+frequency_amplitude = FrequencyAmplitudeWidth(
     acc_columns=["acc_is", "acc_ml", "acc_pa"]
 )
 

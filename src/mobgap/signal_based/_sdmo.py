@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from numba import njit
 from scipy.fft import fft
-from scipy.ndimage import minimum_filter1d
-from scipy.signal import argrelextrema, correlate, find_peaks, medfilt, welch
+from scipy.signal import argrelextrema, correlate, find_peaks, welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -217,45 +216,35 @@ class RMS(BaseSDMOCalculator):
 class RegularitySymmetry(BaseSDMOCalculator):
     """Compute step/stride regularity and symmetry metrics from accelerations.
 
-    Step/stride regularity and Assymetry_MN were developed according to:
-    Estimation of gait cycle characteristics by trunk accelerometry. By Moe-Nilssen, Rolf, and Jorunn L. Helbostad.
-    Journal of biomechanics 37, no. 1 (2004): 121-126. https://doi.org/10.1016/S0021-9290(03)00233-1
-
     Step regularity
         Expresses the regularity of the acceleration signal between neighboring steps. Values range between 0 and 1,
         where values close to 1 indicate greater regularity of the gait pattern. For the mediolateral axis, the absolute
-        value of the first negative peak is reported.
+        value of the first negative peak is reported. Implemented from [1]_.
     Stride regularity
         Expresses the regularity of the acceleration signal between neighboring strides. Values range between 0 and 1,
-        where values close to 1 indicate greater regularity of the gait pattern.
-    Asymmetry MN
-        Step symmetry is defined as the ratio of step regularity to stride regularity. Values close to 1 indicate
-        symmetry. Asymmetry is calculated as ``abs(1 - symmetry)``.
+        where values close to 1 indicate greater regularity of the gait pattern.  Implemented from [1]_.
 
-    Please refer to section 2.5 in the article for additional discussion
-    regarding the possible values of the 3 outcomes.
+    This class outputs the step and stride regularity for all available acceleration signals in the principal directions.
+    The parameters below (Asymmetry_MN, Symmetry_K, Asymmetry_G) are calculated for all axes, but only vertical-axis
+    components are included in the output.
 
-    Symmetry_K = 100*(absolute difference between step and stride regularity)/
-                      (average of step and stride regularity).
-    Symmetry_K was developed according to the following article:
-    Gait Posture. 2014;39(1):553-7.
-    doi: 10.1016/j.gaitpost.2013.09.008. Epub 2013 Sep 19.
-    Value of zero means perfect symmetry and larger values depicting greater levels of step
-    asymmetry in the accelerometer waveform.
+    Asymmetry_MN
+        Step symmetry is defined as the ratio of step regularity to stride regularity. Closeness of the symmetry to 1
+        reflects symmetry. Asymmetry_MN is defined as how close this ratio is to 1 ``abs(1 - symmetry)``.
+        Implemented from [1]_.
+
+    Symmetry_K
+        It is defined as the relative symmetry between step and stride regularity. It is calculated as the
+        absolute difference between the two values divided by their mean. Value of zero means perfect symmetry and
+        larger values depicting greater levels of step asymmetry in the accelerometer waveform. Implemented from [2]_.
 
     Asymmetry_G
-    For V and AP:
-    AS=(stride regularity-step regularity)/2
-    For ML:
-    AS=(stride regularity+step regularity)/2
-    The suggested equation provides a linear scale, ranging between -1 and 1 and
-    a value of 0 indicates perfect gait symmetry.
-    Positive symmetry values relate to a gait pattern with a higher regularity of strides
-    Negative values correspond to a gait pattern where the strides are more irregular than the steps.
-
-    The article describing the Asymmetry_G measure can be found at:
-    Van Gelder et al.A Proposal for a Linear Calculation of
-    Gait Asymmetry. Symmetry 2021, 13,1560. https://doi.org/10.3390/sym13091560
+        It is defined on a linear scale, with different formulations for different axes in [3]_. For the vertical and
+        antero-posterior axes, it is calculated as ``(stride regularity-step regularity)/2``. For the medio-lateral axis,
+        it is ``(stride regularity+step regularity)/2``. The metric ranges between -1 and 1, where 0 indicates perfect
+        symmetry. Positive values reflect a gait pattern with higher regularity of strides than steps, while negative
+        values indicate the opposite. Note that the original matlab implementation uses the same formulation for
+        all axes `(stride regularity-step regularity)/2``.
 
     Other Parameters
     ----------------
@@ -269,6 +258,15 @@ class RegularitySymmetry(BaseSDMOCalculator):
     %(signal_based_parameters_)s
     %(perf_)s
 
+    References
+    ----------
+    .. [1] R. Moe-Nilssen and J. L. Helbostad, "Estimation of gait cycle characteristics by trunk accelerometry,"
+        J Biomech, vol. 37, no. 1, pp. 121-126, 2004.
+    .. [2] D. Kobsar, C. Olson, R. Paranjape, T. Hadjistavropoulos, and J. M. Barden, "Evaluation of age-related
+        differences in the stride-to-stride fluctuations, regularity and symmetry of gait using a waist-mounted
+        tri-axial accelerometer," Gait Posture, vol. 39, no. 1, pp. 553-557, 2014.
+    .. [3] L. M. A. van Gelder, L. Angelini, E. E. Buckley, and C. Mazza, "A proposal for a linear calculation of gait
+        asymmetry," Symmetry, vol. 13, no. 9, p. 1560, 2021.
     """
 
     @timed_action_method
@@ -297,18 +295,16 @@ class RegularitySymmetry(BaseSDMOCalculator):
         if not all(col in data.columns for col in required_acc_columns):
             return self
         reg_sym = {}
-        step_reg_is = np.nan
+        step_reg_is_loc = np.nan
 
         for axis in required_acc_columns:
-            axis_results = self._compute_axis_metrics(
+            axis_results, step_reg_is_loc = self._compute_axis_metrics(
                 data[axis].to_numpy(),
                 axis=axis,
                 sampling_rate_hz=sampling_rate_hz,
                 replicate_matlab=replicate_matlab,
-                step_reg_is=step_reg_is,
+                step_reg_is_loc=step_reg_is_loc,
             )
-            if axis == "acc_is" and "step_regularity_is" in axis_results:
-                step_reg_is = axis_results["step_regularity_is"]
             reg_sym.update(axis_results)
 
         self.signal_based_parameters_ = pd.Series(reg_sym).to_frame().T
@@ -320,8 +316,8 @@ class RegularitySymmetry(BaseSDMOCalculator):
         axis: str,
         sampling_rate_hz: float,
         replicate_matlab: bool,
-        step_reg_is: float,
-    ) -> dict[str, float]:
+        step_reg_is_loc: float,
+    ) -> tuple[dict[str, float], float]:
         """Compute regularity metrics for a single axis."""
         ax_direction = axis.split("_")[1]
         step_reg = stride_reg = asym_mn = sym_k = asym_g = np.nan
@@ -345,14 +341,16 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
             # detect peaks
             if axis == "acc_ml":
-                step_reg, stride_reg = self._process_ml_axis(c, smoothed_c, distance, step_reg_is)
+                step_reg, stride_reg = self._process_ml_axis(c, smoothed_c, distance, step_reg_is_loc)
             else:
-                step_reg, stride_reg, step_reg_is = self._process_vt_ap_axis(c, smoothed_c, distance, step_reg_is)
+                step_reg, stride_reg, step_reg_is_loc = self._process_vt_ap_axis(
+                    c, smoothed_c, distance, step_reg_is_loc
+                )
 
             if not np.isnan(step_reg) and not np.isnan(stride_reg):
                 asym_mn = abs(1 - step_reg / stride_reg)
                 sym_k = abs(step_reg - stride_reg) / np.mean([step_reg, stride_reg])
-                asym_g = (stride_reg - step_reg) / 2
+                asym_g = (stride_reg + step_reg) / 2 if axis == "acc_ml" else (stride_reg - step_reg) / 2
 
         except (IndexError, ValueError):
             pass
@@ -369,16 +367,16 @@ class RegularitySymmetry(BaseSDMOCalculator):
                     f"asymmetry_g_{ax_direction}": asym_g,
                 }
             )
-        return result
+        return result, step_reg_is_loc
 
     def _process_ml_axis(
-        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is: float
+        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is_loc: float
     ) -> tuple[float, float]:
         """Process ML axis."""
         # step regularity: negative peaks
         locs_neg, _ = find_peaks(-smoothed_c, distance=distance + 1)
-        if not np.isnan(step_reg_is):
-            locs_neg = locs_neg[locs_neg >= step_reg_is / 2]
+        if not np.isnan(step_reg_is_loc):
+            locs_neg = locs_neg[locs_neg >= step_reg_is_loc / 2]
         peaks_neg = -smoothed_c[locs_neg]
         mask = peaks_neg > 0
         locs_neg = locs_neg[mask]
@@ -388,8 +386,8 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
         # stride regularity: positive peaks
         locs_pos, _ = find_peaks(smoothed_c, distance=distance + 1)
-        if not np.isnan(step_reg_is):
-            locs_pos = locs_pos[locs_pos >= 1.5 * step_reg_is]
+        if not np.isnan(step_reg_is_loc):
+            locs_pos = locs_pos[locs_pos >= 1.5 * step_reg_is_loc]
         peaks_pos = smoothed_c[locs_pos]
         mask = peaks_pos > 0
         locs_pos = locs_pos[mask]
@@ -400,7 +398,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         return step_reg, stride_reg
 
     def _process_vt_ap_axis(
-        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is: float
+        self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is_loc: float
     ) -> tuple[float, float, float]:
         """Process IS/PA axes."""
         locs, _ = find_peaks(smoothed_c, distance=distance + 1)
@@ -411,15 +409,15 @@ class RegularitySymmetry(BaseSDMOCalculator):
         locs, corrected_peaks = self._correct_peaks(c, peaks, locs)
         step_reg = corrected_peaks[0] if len(corrected_peaks) > 0 else np.nan
         stride_reg = corrected_peaks[1] if len(corrected_peaks) > 1 else np.nan
-        if not np.isnan(step_reg) and np.isnan(step_reg_is):
-            step_reg_is = locs[0] if len(locs) > 0 else np.nan
-        return step_reg, stride_reg, step_reg_is
+        if not np.isnan(step_reg) and np.isnan(step_reg_is_loc):
+            step_reg_is_loc = locs[0] if len(locs) > 0 else np.nan
+        return step_reg, stride_reg, step_reg_is_loc
 
     @staticmethod
     def _correct_peaks(data: np.ndarray, pks: np.ndarray, locs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Correct peaks found in a filtered signal to match original data."""
         if len(locs) < 2:
-            return pks, locs
+            return locs, pks
 
         median_diff = np.median(np.diff(locs))
         locale_win = int(np.ceil(0.2 * median_diff))
@@ -461,18 +459,12 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
 
 @base_sdmo_docfiller
-class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
+class FrequencyAmplitudeWidth(BaseSDMOCalculator):
     """Analyse the acceleration signal in the frequency domain.
 
-    Calculate the max peak (center of the gait signal) amplitude and frequency, and the width (spread)
-    of the gait frequencies around the main gait peak and the slope.
-
-    More information:
-    Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a
-    Body-Worn Accelerometer
-    Aner Weiss et al.
-    Neurorehabilitation and Neural Repair25(9) 810-818
-    DOI: 10.1177/1545968311424869
+    The amplitude and frequency were defined as the amplitude and frequency of the main peak of the power spectral
+    density function. The width of the dominant harmony was defined as the width of the peak at half of its peak
+    amplitude [1]_.
 
     Parameters
     ----------
@@ -488,13 +480,42 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
     %(signal_based_parameters_)s
     %(perf_)s
 
+    Notes
+    -----
+    - The implementation here differs from [1]_ regarding the frequency bands. Although a single frequency band
+    (0.5-3.0 Hz) for the width calculation is specified in the paper, this class provides default values for each axis
+    as:
+        - Vertical: 0.4 Hz to 3.1 Hz
+        - Antero-posterior: 0.4 Hz to 3.1 Hz
+        - Medio-lateral: 0.15 Hz to 1.6 Hz
+    - The FFT length in Welch's method determines the frequency resolution of the PSD estimate. In [1]_, the FFT length
+    is described as "2 times the next higher power of 2 of the signal length". However, this contradicts standard
+    Welch's method, where the FFT length should be based on the segment (window) size, not the total signal length.
+    This appears to be a mis-wording in the original paper. We therefore follow the more common and logically consistent
+    definition, as also used in [2]_, which sets the FFT length as 2 times the next higher power of 2 of the window
+    size (`win_size`).
+
+    .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman,
+    "Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a Body-Worn
+    Accelerometer," Neurorehabil Neural Repair, vol. 25, no. 9, pp. 810-818, 2011.
+    https://doi.org/10.1177/1545968311424869
+    .. [2] D. Pradeep Kumar, N. Toosizadeh, J. Mohler, H. Ehsani, C. Mannier, and K. Laksari,
+    "Sensor-based characterization of daily walking: a new paradigm in pre-frailty/frailty assessment,"
+    BMC Geriatr, vol. 20, no. 1, p. 164, 2020.
+
     """
 
     def __init__(
         self,
         acc_columns: Optional[list[str]] = None,
+        freq_band_is: tuple[float, float] = (0.4, 3.1),
+        freq_band_ml: tuple[float, float] = (0.15, 1.6),
+        freq_band_pa: tuple[float, float] = (0.4, 3.1),
     ) -> None:
         self.acc_columns = acc_columns
+        self.freq_band_is = freq_band_is
+        self.freq_band_ml = freq_band_ml
+        self.freq_band_pa = freq_band_pa
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -512,60 +533,72 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        acc = data.filter(like="acc")
+        # at least acc_is required
+        if self.acc_columns is None:
+            return self
+        check_cols = [c for c in self.acc_columns if c in data.columns]
+        if "acc_is" not in check_cols:
+            return self
+
+        acc = data.filter(like="acc").copy()
         acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
-        acc = acc[self.acc_columns].to_numpy()
         n = len(acc)
-        fft_length = 2 ** (int(np.ceil(np.log2(n))) + 1)
         win_size = int(sampling_rate_hz * 2) if n >= 2 * sampling_rate_hz else n
+        fft_length = 2 ** (int(np.ceil(np.log2(win_size))) + 1)
 
         # welch PSD (should be close to the matlab's pwelch with the following params)
-        def matlab_welch(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-            return welch(x, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False)
+        def matlab_welch(x: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+            return welch(
+                x.values, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False
+            )
 
-        f, psd_is = matlab_welch(acc[:, 0])
-        _, psd_ml = matlab_welch(acc[:, 1])
-        _, psd_ap = matlab_welch(acc[:, 2])
-        # frequency ranges
-        fmin, fmax = 0.5, 3.0
-        freq_delta = 0.1
-        vap_freq_range = np.where((f >= fmin - freq_delta) & (f <= fmax + freq_delta))[0]
-        ml_freq_range = np.where((f >= fmin / 2 - freq_delta) & (f <= fmax / 2 + freq_delta))[0]
-        # extract amplitude, frequency, width and slope
-        amp_is, freq_is, width_is, _slope_is = self._extract_amp_freq_slope(psd_is, f, vap_freq_range)
-        amp_ml, freq_ml, width_ml, _slope_ml = self._extract_amp_freq_slope(psd_ml, f, ml_freq_range)
-        amp_ap, freq_ap, width_ap, _slope_ap = self._extract_amp_freq_slope(psd_ap, f, vap_freq_range)
+        f, psd_is = matlab_welch(acc["acc_is"])
+        lower_v, upper_v = self.freq_band_is
+        v_freq_range = np.where((f >= lower_v) & (f <= upper_v))[0]
+        amp_is, freq_is, width_is = self._extract_amp_freq_width(psd_is, f, v_freq_range)
+        results = {
+            "amplitude_is": amp_is,
+            "freq_is": freq_is,
+            "width_is": width_is,
+        }
 
-        self.signal_based_parameters_ = pd.DataFrame(
-            [
+        if "acc_ml" in check_cols:
+            _, psd_ml = matlab_welch(acc["acc_ml"])
+            lower_ml, upper_ml = self.freq_band_ml
+            ml_freq_range = np.where((f >= lower_ml) & (f <= upper_ml))[0]
+            amp_ml, freq_ml, width_ml = self._extract_amp_freq_width(psd_ml, f, ml_freq_range)
+            results.update(
                 {
-                    "amplitude_is": amp_is,
                     "amplitude_ml": amp_ml,
-                    "amplitude_pa": amp_ap,
-                    "freq_is": freq_is,
                     "freq_ml": freq_ml,
-                    "freq_pa": freq_ap,
-                    # the width and slope was commented out in the original implementation, but the sustain project
-                    # report lists width in the variability domain signal-based parameters, so return width default
-                    "width_is": width_is,
                     "width_ml": width_ml,
-                    "width_pa": width_ap,
-                    # "slope_is": slope_is,
-                    # "slope_ml": slope_ml,
-                    # "slope_pa": slope_ap
                 }
-            ]
-        )
+            )
+
+        if "acc_pa" in check_cols:
+            _, psd_pa = matlab_welch(acc["acc_pa"])
+            lower_pa, upper_pa = self.freq_band_pa
+            ap_freq_range = np.where((f >= lower_pa) & (f <= upper_pa))[0]
+            amp_pa, freq_pa, width_pa = self._extract_amp_freq_width(psd_pa, f, ap_freq_range)
+            results.update(
+                {
+                    "amplitude_pa": amp_pa,
+                    "freq_pa": freq_pa,
+                    "width_pa": width_pa,
+                }
+            )
+
+        self.signal_based_parameters_ = pd.DataFrame([results])
         return self
 
     @staticmethod
-    def _extract_amp_freq_slope(psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray) -> tuple[Any, Any, Any, Any]:
-        """Extract amplitude, frequency, width and slope."""
+    def _extract_amp_freq_width(psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray) -> tuple[Any, Any, Any]:
+        """Extract amplitude, frequency, width."""
         psd_sub = psd[freq_range]
         freq_sub = freq[freq_range]
         peaks, _ = find_peaks(psd_sub, distance=6)
         if len(peaks) == 0:
-            return np.nan, np.nan, np.nan, np.nan
+            return np.nan, np.nan, np.nan
 
         peak = peaks[np.argmax(psd_sub[peaks])] if len(peaks) > 1 else peaks[0]
 
@@ -579,33 +612,12 @@ class FrequencyAmplitudeWidthSlope(BaseSDMOCalculator):
         right_cross = np.where(right_side <= half_amp)[0]
 
         if len(left_cross) == 0 or len(right_cross) == 0:
-            return amp, freq_val, np.nan, np.nan
+            return amp, freq_val, np.nan
 
         width_start = left_cross[-1]
         width_end = peak + right_cross[0]
         width = freq_sub[width_end] - freq_sub[width_start]
-        smoothed = medfilt(psd_sub, kernel_size=5)
-        minima = np.where(minimum_filter1d(smoothed, size=5) == smoothed)[0]
-        pre_peak_min = minima[minima < peak]
-        if len(pre_peak_min) == 0:
-            return amp, freq_val, width, np.nan
-
-        pre_peak = pre_peak_min[-1]
-        rise_psd = psd_sub[pre_peak : peak + 1]
-        rise_freq = freq_sub[pre_peak : peak + 1]
-        range_val = amp - psd_sub[pre_peak]
-        lower = psd_sub[pre_peak] + 0.25 * range_val
-        upper = amp - 0.25 * range_val
-        mask = (rise_psd >= lower) & (rise_psd <= upper)
-        fit_psd = rise_psd[mask]
-        fit_freq = rise_freq[mask]
-
-        if len(fit_psd) < 2:
-            return amp, freq_val, width, np.nan
-        line_fit = np.polyfit(fit_freq, fit_psd, 1)
-        slope = line_fit[0]
-
-        return amp, freq_val, width, slope
+        return amp, freq_val, width
 
 
 @base_sdmo_docfiller
@@ -710,23 +722,19 @@ class SampleEntropy(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class HarmonicRatio(BaseSDMOCalculator):
-    """Calculate the Harmonic Ratio (HR) for gait smoothness based on accelerometer data.
+    """Calculate the Harmonic Ratio (HR) based on accelerometer data.
 
-    HR is a measure of gait smoothness, based on the following article:
-    Dynamic Stability in the Elderly: Identifying a Possible Measure
-    H. John Yack et al., Journal of Gerontology: MEDICAL SCIENCES, 1993, Vol. 48, No. 5, M225-M230.
+    HR is defined as the ratio of the summed amplitudes of even harmonics to odd harmonics (first 20 harmonics). It is
+    a measure of gait smoothness developed to discriminate between walking patterns of individuals with and without
+    stability problems [1]_. A larger ratio represents a smoother gait pattern.
 
-    The acceleration from the lower back contains repeatable patterns that contains information regarding
-    the smoothness of the walking pattern. For acc_is and acc_ap accelerations a relatively larger ratio
-    represents a smoother gait pattern. Their HR should be always greater than 1. The acc_ml acceleration has
-    a monophasis pattern (one cycle in a stride vs 2 steps that are seen in other axes) which causes the first
-    harmonic to be the dominant one. It has an HR smaller than 1.
+    Stride time defines the fundamental frequency. We calculate the first 20 harmonic coefficients using a finite
+    Fourier transform, normalise them by the fundamental amplitude, average the coefficients across strides, and then
+    compute the ratio of even to odd harmonics.
 
-    Stride time defines the period of the fundamental frequency component for calculating the smoothness
-    of the signal. We calculate the first 20 harmonic coefficients using the finite fourier transform.
-    Their amplitude is normalized using the fundamental frequency component amplitude. This process is
-    performed for all the strides and then the harmonics are averaged across the strides. The ratio is
-    calculated as the ratio of the even to odd harmonics.
+    The vertical and antero-posterior acceleration components have biphasic patterns (two cycles per stride). Thus,
+    even harmonics dominate, and HR should be > 1. The medio-lateral component has a monophasic pattern (one cycle
+    per stride), making the first harmonic dominant. HR should be < 1.
 
     Parameters
     ----------
@@ -742,6 +750,25 @@ class HarmonicRatio(BaseSDMOCalculator):
     ----------
     %(signal_based_parameters_)s
     %(perf_)s
+
+    Notes
+    -----
+    This implementation was based on the original Matlab implementation. There are deviations from the paper [1]_.
+    Although these deviations did not drastically change how HR is computed, they are documented below:
+    - To avoid picking the wrong fundamental (e.g., DC or high‑frequency noise), the search for the fundamental
+    frequency was restricted to 0.5–3.0 Hz for IS/AP axes and 0.25–1.5 Hz for the ML axis. The original paper did not
+    specify such bands.
+    - An optional adjustment of the stride end point is performed to align with a similar acceleration value, reducing
+    spectral leakage caused by amplitude mismatch at stride boundaries. This heuristic is not described in the paper.
+    - In the paper, the harmonic ratio was calculated per stride and then averaged across strides. Here, the harmonic
+    coefficients are averaged across strides first, and then the ratio is computed from the averaged coefficients. This
+    differs mathematically but should produce similar results in practice.
+    - The paper used exactly 10 strides per subject. In this implementation, all available strides in the provided
+    `stride_list` are used. This is more suitable for variable‑length walking bouts.
+
+
+    ..[1] H. J. Yack and R. C. Berger, "Dynamic stability in the elderly: identifying a possible measure,"
+        J Gerontol, vol. 48, no. 5, pp. M225–M230, 1993.
 
     """
 
@@ -774,27 +801,27 @@ class HarmonicRatio(BaseSDMOCalculator):
         if stride_list is None or stride_list.empty:
             return self
         ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
-        acc_columns = self.acc_columns
+        acc_columns = [c for c in self.acc_columns if c in data.columns]
         hr_results = {}
-        if stride_list is None or len(ic_list) < 3:
+        if len(ic_list) < 3 or not acc_columns:
             return self
 
         stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
 
         for col_name in acc_columns:
-            hr_val = self._process_single_accelerometer(data, col_name, stride_pairs, sampling_rate_hz)
+            hr_val = self._process_single_accelerometer(data[col_name], stride_pairs, sampling_rate_hz)
             hr_results[f"harmonic_ratio_{col_name}"] = hr_val
 
         self.signal_based_parameters_ = pd.DataFrame([hr_results])
         return self
 
     def _process_single_accelerometer(
-        self, data: pd.DataFrame, col_name: str, stride_pairs: list, sampling_rate_hz: float
+        self, data: pd.Series, stride_pairs: list, sampling_rate_hz: float
     ) -> float:
-        """Process a single accelerometer axis and return the Harmonic Ratio (or NaN)."""
-        acc = data[col_name].to_numpy()
+        """Process a single accelerometer axis and return the Harmonic Ratio."""
+        acc = data.to_numpy()
         stride_harmonics = np.full((len(stride_pairs), 20), np.nan)
-        is_ml = col_name == "acc_ml"
+        is_ml = data.name == "acc_ml"
         gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
 
         for stride_idx, (start, end) in enumerate(stride_pairs):

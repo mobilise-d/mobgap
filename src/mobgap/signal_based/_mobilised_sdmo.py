@@ -10,7 +10,7 @@ from mobgap._utils_internal.misc import MeasureTimeResults, timed_action_method
 from mobgap.signal_based._sdmo import (
     RMS,
     AngularAcceleration,
-    FrequencyAmplitudeWidthSlope,
+    FrequencyAmplitudeWidth,
     HarmonicRatio,
     Jerk,
     RegularitySymmetry,
@@ -73,8 +73,8 @@ class MobilisedSDMO(Pipeline):
                         AngularAcceleration(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]),
                     ),
                     (
-                        "freq_amp_width_slope",
-                        FrequencyAmplitudeWidthSlope(acc_columns=["acc_is", "acc_ml", "acc_pa"]),
+                        "freq_amp_width",
+                        FrequencyAmplitudeWidth(acc_columns=["acc_is", "acc_ml", "acc_pa"]),
                     ),
                     ("regularity_symmetry", RegularitySymmetry()),
                     ("rms", RMS()),
