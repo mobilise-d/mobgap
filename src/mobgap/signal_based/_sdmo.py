@@ -479,6 +479,15 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
     %(signal_based_parameters_)s
     %(perf_)s
 
+    Notes
+    -----
+    The implementation here differs from [1]_ regarding the frequency bands. Although a single frequency band
+    (0.5-3.0 Hz) for the width calculation is specified in the paper, this class provides default values for each axis
+    as:
+    - Vertical: 0.4 Hz to 3.1 Hz
+    - Antero-posterior: 0.4 Hz to 3.1 Hz
+    - Medio-lateral: 0.15 Hz to 1.6 Hz
+
     .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman, "Toward Automated, At-Home Assessment of Mobility
     Among Patients With Parkinson Disease, Using a Body-Worn Accelerometer," Neurorehabil Neural Repair,
     vol. 25, no. 9, pp. 810-818, 2011. https://doi.org/10.1177/1545968311424869
@@ -488,8 +497,14 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
     def __init__(
         self,
         acc_columns: Optional[list[str]] = None,
+        freq_band_is: tuple[float, float] = (0.4, 3.1),
+        freq_band_ml: tuple[float, float] = (0.15, 1.6),
+        freq_band_pa: tuple[float, float] = (0.4, 3.1),
     ) -> None:
         self.acc_columns = acc_columns
+        self.freq_band_is = freq_band_is
+        self.freq_band_ml = freq_band_ml
+        self.freq_band_pa = freq_band_pa
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -507,45 +522,56 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        acc = data.filter(like="acc")
+        # at least acc_is required
+        if self.acc_columns is None:
+            return self
+        check_cols = [c for c in self.acc_columns if c in data.columns]
+        if "acc_is" not in check_cols:
+            return self
+
+        acc = data.filter(like="acc").copy()
         acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
-        acc = acc[self.acc_columns].to_numpy()
         n = len(acc)
         fft_length = 2 ** (int(np.ceil(np.log2(n))) + 1)
         win_size = int(sampling_rate_hz * 2) if n >= 2 * sampling_rate_hz else n
 
         # welch PSD (should be close to the matlab's pwelch with the following params)
-        def matlab_welch(x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-            return welch(x, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False)
+        def matlab_welch(x: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+            return welch(x.values, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False)
 
-        f, psd_is = matlab_welch(acc[:, 0])
-        _, psd_ml = matlab_welch(acc[:, 1])
-        _, psd_ap = matlab_welch(acc[:, 2])
-        # frequency ranges
-        fmin, fmax = 0.5, 3.0
-        freq_delta = 0.1
-        vap_freq_range = np.where((f >= fmin - freq_delta) & (f <= fmax + freq_delta))[0]
-        ml_freq_range = np.where((f >= fmin / 2 - freq_delta) & (f <= fmax / 2 + freq_delta))[0]
-        # extract amplitude, frequency, width
-        amp_is, freq_is, width_is = self._extract_amp_freq_width(psd_is, f, vap_freq_range)
-        amp_ml, freq_ml, width_ml = self._extract_amp_freq_width(psd_ml, f, ml_freq_range)
-        amp_ap, freq_ap, width_ap = self._extract_amp_freq_width(psd_ap, f, vap_freq_range)
+        f, psd_is = matlab_welch(acc["acc_is"])
+        lower_v, upper_v = self.freq_band_is
+        v_freq_range = np.where((f >= lower_v) & (f <= upper_v))[0]
+        amp_is, freq_is, width_is = self._extract_amp_freq_width(psd_is, f, v_freq_range)
+        results = {
+            "amplitude_is": amp_is,
+            "freq_is": freq_is,
+            "width_is": width_is,
+        }
 
-        self.signal_based_parameters_ = pd.DataFrame(
-            [
-                {
-                    "amplitude_is": amp_is,
-                    "amplitude_ml": amp_ml,
-                    "amplitude_pa": amp_ap,
-                    "freq_is": freq_is,
-                    "freq_ml": freq_ml,
-                    "freq_pa": freq_ap,
-                    "width_is": width_is,
-                    "width_ml": width_ml,
-                    "width_pa": width_ap,
-                }
-            ]
-        )
+        if "acc_ml" in check_cols:
+            _, psd_ml = matlab_welch(acc["acc_ml"])
+            lower_ml, upper_ml = self.freq_band_ml
+            ml_freq_range = np.where((f >= lower_ml) & (f <= upper_ml))[0]
+            amp_ml, freq_ml, width_ml = self._extract_amp_freq_width(psd_ml, f, ml_freq_range)
+            results.update({
+                "amplitude_ml": amp_ml,
+                "freq_ml": freq_ml,
+                "width_ml": width_ml,
+            })
+
+        if "acc_pa" in check_cols:
+            _, psd_pa = matlab_welch(acc["acc_pa"])
+            lower_pa, upper_pa = self.freq_band_pa
+            ap_freq_range = np.where((f >= lower_pa) & (f <= upper_pa))[0]
+            amp_pa, freq_pa, width_pa = self._extract_amp_freq_width(psd_pa, f, ap_freq_range)
+            results.update({
+                "amplitude_pa": amp_pa,
+                "freq_pa": freq_pa,
+                "width_pa": width_pa,
+            })
+
+        self.signal_based_parameters_ = pd.DataFrame([results])
         return self
 
     @staticmethod
