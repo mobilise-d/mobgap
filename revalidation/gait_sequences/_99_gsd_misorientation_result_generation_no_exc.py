@@ -76,7 +76,7 @@ pipelines = {
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
 datasets_free_living = MisorientedDataset(
-    TVSFreeLivingDataset(
+    wrapped_dataset=TVSFreeLivingDataset(
         get_env_var("MOBGAP_TVS_DATASET_PATH"),
         reference_system="INDIP",
         memory=Memory(cache_dir),

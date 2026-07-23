@@ -55,7 +55,7 @@ def _minimal_reference() -> ReferenceData:
 
 
 def test_misoriented_dataset_extends_index_with_orientation() -> None:
-    base_dataset = ReferenceGaitDatasetFromData(
+    wrapped_dataset = ReferenceGaitDatasetFromData(
         {("p1", "r1"): {"LowerBack": pd.DataFrame(index=range(3))}},
         100.0,
         {("p1", "r1"): {"cohort": "HA", "height_m": 1.7, "sensor_height_m": 1.0}},
@@ -65,10 +65,11 @@ def test_misoriented_dataset_extends_index_with_orientation() -> None:
     )
 
     dataset = MisorientedDataset(
-        base_dataset,
+        wrapped_dataset=wrapped_dataset,
         orientations=["identity", "pa_normal__rot_pa_180"],
     )
 
+    assert dataset.wrapped_dataset is wrapped_dataset
     assert list(dataset.index.columns) == ["participant_id", "recording", "orientation"]
     assert dataset.index.to_dict("records") == [
         {"participant_id": "p1", "recording": "r1", "orientation": "identity"},
@@ -78,9 +79,36 @@ def test_misoriented_dataset_extends_index_with_orientation() -> None:
     datapoint = dataset.get_subset(participant_id="p1", recording="r1", orientation="identity")
     pd.testing.assert_frame_equal(
         datapoint.reference_parameters_.wb_list,
-        base_dataset.reference_parameters_.wb_list,
+        wrapped_dataset.reference_parameters_.wb_list,
     )
     assert datapoint.reference_sampling_rate_hz_ == 100.0
+
+
+def test_misoriented_dataset_preserves_wrapped_grouping() -> None:
+    wrapped_dataset = ReferenceGaitDatasetFromData(
+        {
+            ("p1", "r1"): {"LowerBack": pd.DataFrame(index=range(3))},
+            ("p1", "r2"): {"LowerBack": pd.DataFrame(index=range(3))},
+            ("p2", "r1"): {"LowerBack": pd.DataFrame(index=range(3))},
+        },
+        100.0,
+        index_cols=["participant_id", "recording"],
+        groupby_cols="participant_id",
+        reference_parameters=_minimal_reference(),
+    )
+
+    dataset = MisorientedDataset(
+        wrapped_dataset=wrapped_dataset,
+        orientations=["identity", "pa_normal__rot_pa_180"],
+    )
+
+    assert len(dataset) == 4
+    assert dataset.groupby_cols == ["participant_id", "orientation"]
+    assert dataset[0].index.to_dict("records") == [
+        {"participant_id": "p1", "recording": "r1", "orientation": "identity"},
+        {"participant_id": "p1", "recording": "r2", "orientation": "identity"},
+    ]
+    assert dataset[0].orientation_label == "identity"
 
 
 def test_misoriented_dataset_preserves_body_frame_data() -> None:
@@ -88,7 +116,7 @@ def test_misoriented_dataset_preserves_body_frame_data() -> None:
         [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
         columns=BF_SENSOR_COLS,
     )
-    base_dataset = ReferenceGaitDatasetFromData(
+    wrapped_dataset = ReferenceGaitDatasetFromData(
         {"p1": {"LowerBack": body_frame_data}},
         100.0,
         {"p1": {"cohort": "HA", "height_m": 1.7, "sensor_height_m": 1.0}},
@@ -98,7 +126,7 @@ def test_misoriented_dataset_preserves_body_frame_data() -> None:
     )
 
     datapoint = MisorientedDataset(
-        base_dataset,
+        wrapped_dataset=wrapped_dataset,
         orientations=["pa_normal__rot_pa_180"],
     )[0]
 
@@ -114,7 +142,7 @@ def test_misoriented_dataset_preserves_sensor_frame_data() -> None:
         [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]],
         columns=SF_SENSOR_COLS,
     )
-    base_dataset = ReferenceGaitDatasetFromData(
+    wrapped_dataset = ReferenceGaitDatasetFromData(
         {"p1": {"LowerBack": sensor_frame_data}},
         100.0,
         {"p1": {"cohort": "HA", "height_m": 1.7, "sensor_height_m": 1.0}},
@@ -124,7 +152,7 @@ def test_misoriented_dataset_preserves_sensor_frame_data() -> None:
     )
 
     datapoint = MisorientedDataset(
-        base_dataset,
+        wrapped_dataset=wrapped_dataset,
         orientations=["pa_normal__rot_pa_180"],
     )[0]
 

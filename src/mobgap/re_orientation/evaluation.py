@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation
 from sklearn.metrics import accuracy_score, confusion_matrix
+from tpcp import DatasetWrapperMixin
 from tpcp.validate import Scorer, no_agg
 
 from mobgap._gaitmap.utils.rotations import flip_dataset
@@ -28,10 +29,14 @@ from mobgap.utils.dtypes import get_frame_definition
 OrientationSpec = Optional[Union[Mapping[str, Rotation], Sequence[str]]]
 
 
-class MisorientedDataset(BaseGaitDatasetWithReference):
+class MisorientedDataset(
+    DatasetWrapperMixin[BaseGaitDatasetWithReference],
+    BaseGaitDatasetWithReference,
+):
     """Wrap a dataset and simulate mounting orientations per recording.
 
     The wrapped dataset index is expanded by an additional ``orientation`` column.
+    Its existing grouping is preserved and extended with that column.
     Data access delegates to the matching row of the wrapped dataset, converts each
     signal to body frame to apply the selected rough mounting rotation, and returns
     it in the same frame as the wrapped dataset.
@@ -42,7 +47,7 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
 
     Parameters
     ----------
-    base_dataset
+    wrapped_dataset
         Dataset to wrap.
     orientations
         Either a mapping from orientation labels to rotations, or a sequence of
@@ -56,20 +61,20 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
         Selected subset of the expanded index. See :class:`tpcp.Dataset`.
     """
 
-    base_dataset: BaseGaitDatasetWithReference
+    wrapped_dataset: BaseGaitDatasetWithReference
     orientations: OrientationSpec
     orientation_col: str
 
     def __init__(
         self,
-        base_dataset: BaseGaitDatasetWithReference,
+        wrapped_dataset: BaseGaitDatasetWithReference,
         orientations: OrientationSpec = None,
         *,
         orientation_col: str = "orientation",
         groupby_cols: Optional[Union[list[str], str]] = None,
         subset_index: Optional[pd.DataFrame] = None,
     ) -> None:
-        self.base_dataset = base_dataset
+        self.wrapped_dataset = wrapped_dataset
         self.orientations = orientations
         self.orientation_col = orientation_col
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -86,7 +91,7 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
     @property
     def orientation_label(self) -> str:
         """Return simulated orientation label for one dataset subset."""
-        self.assert_is_single(None, "orientation_label")
+        self.assert_is_single_group("orientation_label")
         return getattr(self.group_label, self.orientation_col)
 
     @property
@@ -94,22 +99,19 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
         """Return simulated orientation rotation for one dataset subset."""
         return self.orientation_map[self.orientation_label]
 
-    def create_index(self) -> pd.DataFrame:
+    @property
+    def _wrapper_groupby_cols(self) -> tuple[str, ...]:
+        return (self.orientation_col,)
+
+    def _create_wrapped_index(self, source_index: pd.DataFrame) -> pd.DataFrame:
         """Expand the wrapped dataset index by configured orientation labels."""
-        base_index = self.base_dataset.index
-        if self.orientation_col in base_index.columns:
+        if self.orientation_col in source_index.columns:
             raise ValueError(f"Wrapped dataset already contains an `{self.orientation_col}` column.")
 
         orientation_labels = list(self.orientation_map)
-        expanded_index = base_index.loc[base_index.index.repeat(len(orientation_labels))].reset_index(drop=True)
-        expanded_index[self.orientation_col] = orientation_labels * len(base_index)
+        expanded_index = source_index.loc[source_index.index.repeat(len(orientation_labels))].reset_index(drop=True)
+        expanded_index[self.orientation_col] = orientation_labels * len(source_index)
         return expanded_index
-
-    @property
-    def _base_datapoint(self) -> BaseGaitDatasetWithReference:
-        self.assert_is_single(None, "_base_datapoint")
-        base_index = self.index.drop(columns=self.orientation_col)
-        return self.base_dataset.get_subset(index=base_index)
 
     def _rotate_imu_data(self, data: pd.DataFrame) -> pd.DataFrame:
         frame = get_frame_definition(data, ["sensor", "body"])
@@ -122,42 +124,44 @@ class MisorientedDataset(BaseGaitDatasetWithReference):
     @property
     def data(self) -> IMU_DATA_DTYPE:
         """Return all sensor data with simulated orientation applied."""
-        return {sensor: self._rotate_imu_data(sensor_data) for sensor, sensor_data in self._base_datapoint.data.items()}
+        return {
+            sensor: self._rotate_imu_data(sensor_data) for sensor, sensor_data in self.wrapped_datapoint.data.items()
+        }
 
     @property
     def data_ss(self) -> pd.DataFrame:
         """Return single-sensor data with simulated orientation applied."""
-        return self._rotate_imu_data(self._base_datapoint.data_ss)
+        return self._rotate_imu_data(self.wrapped_datapoint.data_ss)
 
     @property
     def sampling_rate_hz(self) -> float:
         """Return sampling rate from the wrapped datapoint."""
-        return self._base_datapoint.sampling_rate_hz
+        return self.wrapped_datapoint.sampling_rate_hz
 
     @property
     def participant_metadata(self) -> ParticipantMetadata:
         """Return participant metadata from the wrapped datapoint."""
-        return self._base_datapoint.participant_metadata
+        return self.wrapped_datapoint.participant_metadata
 
     @property
     def recording_metadata(self) -> RecordingMetadata:
         """Return recording metadata from the wrapped datapoint."""
-        return self._base_datapoint.recording_metadata
+        return self.wrapped_datapoint.recording_metadata
 
     @property
     def reference_parameters_(self) -> ReferenceData:
         """Return reference parameters from the wrapped datapoint."""
-        return self._base_datapoint.reference_parameters_
+        return self.wrapped_datapoint.reference_parameters_
 
     @property
     def reference_parameters_relative_to_wb_(self) -> ReferenceData:
         """Return WB-relative reference parameters from the wrapped datapoint."""
-        return self._base_datapoint.reference_parameters_relative_to_wb_
+        return self.wrapped_datapoint.reference_parameters_relative_to_wb_
 
     @property
     def reference_sampling_rate_hz_(self) -> float:
         """Return reference sampling rate from the wrapped datapoint."""
-        return self._base_datapoint.reference_sampling_rate_hz_
+        return self.wrapped_datapoint.reference_sampling_rate_hz_
 
 
 def _confusion_matrix_as_df(predictions: pd.DataFrame) -> pd.DataFrame:

@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The minimum supported `tpcp` version is now 2.3.0. Environments pinned to an older version must upgrade `tpcp`
   before updating mobgap. This does not change mobgap's public APIs, but warnings and exceptions produced during tpcp
   validation and optimization can now include structured fold, parameter, and datapoint context.
+- **Breaking:** `MisorientedDataset` now follows tpcp's dataset-wrapper convention: pass the source dataset as
+  `wrapped_dataset` instead of `base_dataset`, and access it through the `wrapped_dataset` attribute.
+
+### Fixed
+
+- `MisorientedDataset` now preserves the wrapped dataset's grouping and appends its orientation column instead of
+  resetting iteration to every source-index row. Callers that intentionally need the previous row-level grouping can
+  pass all source-index columns plus the orientation column explicitly via `groupby_cols`.
 
 ## [1.2.0] - 2026-04-01
 
