@@ -19,7 +19,7 @@ requires-python = ">=3.9,<3.15"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
-    "tpcp>=2.2.1",
+    "tpcp>=2.3.0",
     "pandas>=2.2.0",
     "scipy>=1.11.2",
     "numpy>=1.25.2",
