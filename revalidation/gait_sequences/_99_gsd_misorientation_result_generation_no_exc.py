@@ -42,7 +42,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
+from tpcp.parallel import Parallel, delayed
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset
 from mobgap.gait_sequences import GsdIluz, GsdIonescu

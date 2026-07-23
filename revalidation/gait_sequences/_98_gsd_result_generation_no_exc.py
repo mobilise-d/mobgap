@@ -132,7 +132,8 @@ datasets_laboratory = TVSLabDataset(
 # %%
 # Running the evaluation
 # ----------------------
-# We multiprocess the evaluation on the level of algorithms using joblib.
+# We multiprocess the evaluation on the level of algorithms using tpcp's
+# context-aware joblib helpers.
 # Each algorithm pipeline is run using its own instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #
 # The evaluation object iterates over the entire dataset, runs the algorithm on each recording and calculates the
@@ -140,7 +141,7 @@ datasets_laboratory = TVSLabDataset(
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from joblib import Parallel, delayed
+from tpcp.parallel import Parallel, delayed
 from mobgap.gait_sequences.evaluation import gsd_score
 from mobgap.utils.evaluation import Evaluation
 

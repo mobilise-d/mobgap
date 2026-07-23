@@ -244,7 +244,8 @@ pipelines["ShinImproved"] = CadEmulationPipeline(
 # recordings.
 # Depending on how you want to interpret the results, you might not want to use the aggregated results, but rather
 # perform custom aggregations over the provided "single_results".
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
+from tpcp.parallel import Parallel, delayed
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
 
@@ -266,7 +267,8 @@ datasets_laboratory = TVSLabDataset(
 # %%
 # Running the evaluation
 # ----------------------
-# We multiprocess the evaluation on the level of algorithms using joblib.
+# We multiprocess the evaluation on the level of algorithms using tpcp's
+# context-aware joblib helpers.
 # Each algorithm pipeline is run using its own instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #
 # The evaluation object iterates over the entire dataset, runs the algorithm on each recording and calculates the

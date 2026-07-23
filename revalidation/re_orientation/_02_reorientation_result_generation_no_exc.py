@@ -85,13 +85,14 @@ datasets_laboratory = TVSLabDataset(
 # %%
 # Running the evaluation
 # ----------------------
-# We multiprocess the evaluation on the level of algorithms using joblib. Each
-# algorithm pipeline is run using its own instance of the
+# We multiprocess the evaluation on the level of algorithms using tpcp's
+# context-aware joblib helpers. Each algorithm pipeline is run using its own
+# instance of the
 # :class:`~mobgap.utils.evaluation.Evaluation` class.
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from joblib import Parallel, delayed
+from tpcp.parallel import Parallel, delayed
 from mobgap.re_orientation.evaluation import reorientation_score
 from mobgap.utils.evaluation import Evaluation
 
