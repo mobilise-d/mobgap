@@ -247,9 +247,12 @@ pipelines["SlZjilstra__MS_MS"] = SlEmulationPipeline(
 # recordings.
 # Depending on how you want to interpret the results, you might not want to use the aggregated results, but rather
 # perform custom aggregations over the provided "single_results".
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
+from tpcp.parallel import Parallel
+
+from revalidation._utils import create_evaluation_tasks
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
@@ -269,7 +272,8 @@ datasets_laboratory = TVSLabDataset(
 # %%
 # Running the evaluation
 # ----------------------
-# We multiprocess the evaluation on the level of algorithms using joblib.
+# We multiprocess the evaluation on the level of algorithms using tpcp's
+# context-aware joblib helpers.
 # Each algorithm pipeline is run using its own instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #
 # The evaluation object iterates over the entire dataset, runs the algorithm on each recording and calculates the
@@ -347,8 +351,12 @@ def eval_debug_plot(
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[SlEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_free_living,
+                condition="free_living",
+            )
         )
     )
 
@@ -382,8 +390,12 @@ for k, v in results_free_living.items():
 with Parallel(n_jobs=n_jobs) as parallel:
     results_laboratory: dict[str, Evaluation[SlEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_laboratory)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_laboratory,
+                condition="laboratory",
+            )
         )
     )
 

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from pandas import option_context
 from tpcp import cf
-from tpcp.misc import set_defaults
+from tpcp.misc import iter_with_warning_error_context, set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
@@ -395,19 +395,20 @@ class MobilisedAggregator(BaseAggregator):
         the input data.
         """
         available_filters_and_aggs = []
-        for filt, aggs in self._FILTERS_AND_AGGS:
-            if all([filt is not None, "duration_s" not in data_columns]):
-                warnings.warn(
-                    f"Filter '{filt}' for walking bout length cannot be applied, "
-                    "because the data does not contain a 'duration_s' column.",
-                    stacklevel=2,
-                )
-                continue
+        for make_context, (filt, aggs) in iter_with_warning_error_context(self._FILTERS_AND_AGGS):
+            with make_context("dmo_aggregation_filter", {"filter": filt}):
+                if all([filt is not None, "duration_s" not in data_columns]):
+                    warnings.warn(
+                        f"Filter '{filt}' for walking bout length cannot be applied, "
+                        "because the data does not contain a 'duration_s' column.",
+                        stacklevel=2,
+                    )
+                    continue
 
-            # check if the property to aggregate is contained in data columns
-            available_aggs = {key: value for key, value in aggs.items() if value[0] in data_columns}
-            if available_aggs:
-                available_filters_and_aggs.append((filt, available_aggs))
+                # check if the property to aggregate is contained in data columns
+                available_aggs = {key: value for key, value in aggs.items() if value[0] in data_columns}
+                if available_aggs:
+                    available_filters_and_aggs.append((filt, available_aggs))
         return available_filters_and_aggs
 
     @staticmethod
@@ -418,13 +419,14 @@ class MobilisedAggregator(BaseAggregator):
     ) -> pd.DataFrame:
         """Apply filters and aggregations to the data."""
         aggregated_results = []
-        for f, agg in available_filters_and_aggs:
-            internal_filtered = filtered_data if f is None else filtered_data.query(f)
-            if groupby:
-                data_to_agg = internal_filtered.groupby(groupby)
-            else:
-                data_to_agg = internal_filtered.groupby(pd.Series("all_wbs", index=internal_filtered.index))
-            aggregated_results.append(data_to_agg.agg(**agg))
+        for make_context, (filt, agg) in iter_with_warning_error_context(available_filters_and_aggs):
+            with make_context("dmo_aggregation_filter", {"filter": filt}):
+                internal_filtered = filtered_data if filt is None else filtered_data.query(filt)
+                if groupby:
+                    data_to_agg = internal_filtered.groupby(groupby)
+                else:
+                    data_to_agg = internal_filtered.groupby(pd.Series("all_wbs", index=internal_filtered.index))
+                aggregated_results.append(data_to_agg.agg(**agg))
         return pd.concat(aggregated_results, axis=1)
 
     def _fillna_count_columns(self, data: pd.DataFrame) -> pd.DataFrame:

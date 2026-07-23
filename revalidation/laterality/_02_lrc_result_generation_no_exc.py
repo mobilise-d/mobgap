@@ -92,7 +92,8 @@ datasets_laboratory = TVSLabDataset(
 # %%
 # Running the evaluation
 # ----------------------
-# We multiprocess the evaluation on the level of algorithms using joblib.
+# We multiprocess the evaluation on the level of algorithms using tpcp's
+# context-aware joblib helpers.
 # Each algorithm pipeline is run using its own instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #
 # The evaluation object iterates over the entire dataset, runs the algorithm on each recording and calculates the
@@ -100,9 +101,11 @@ datasets_laboratory = TVSLabDataset(
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from joblib import Parallel, delayed
 from mobgap.laterality.evaluation import lrc_score
 from mobgap.utils.evaluation import Evaluation
+from tpcp.parallel import Parallel
+
+from revalidation._utils import create_evaluation_tasks
 
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
@@ -149,8 +152,12 @@ def eval_debug_plot(
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[LrcEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_free_living,
+                condition="free_living",
+            )
         )
     )
 
@@ -180,8 +187,12 @@ for k, v in results_free_living.items():
 with Parallel(n_jobs=n_jobs) as parallel:
     results_laboratory: dict[str, Evaluation[LrcEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_laboratory)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_laboratory,
+                condition="laboratory",
+            )
         )
     )
 

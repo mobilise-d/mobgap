@@ -7,7 +7,7 @@ from typing import Final, Optional
 import numpy as np
 import pandas as pd
 from tpcp import Algorithm, cf
-from tpcp.misc import set_defaults
+from tpcp.misc import iter_with_warning_error_context, set_defaults
 from typing_extensions import Self
 
 from mobgap.wba._wb_criteria import MaxBreakCriteria, NStridesCriteria
@@ -220,9 +220,10 @@ class WbAssembly(Algorithm):
             The instance itself with the result parameters set.
         """
         # TODO: Add better checks for correct type of compound rule field
-        for _, rule in self.rules or []:
-            if not isinstance(rule, BaseWbCriteria):
-                raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
+        for make_context, (name, rule) in iter_with_warning_error_context(self.rules or []):
+            with make_context("walking_bout_rule", {"name": name}):
+                if not isinstance(rule, BaseWbCriteria):
+                    raise TypeError("All rules must be instances of `WBCriteria` or one of its child classes.")
 
         self.filtered_stride_list = filtered_stride_list
         self.raw_initial_contacts = raw_initial_contacts
@@ -431,21 +432,30 @@ class WbAssembly(Algorithm):
         tmp_start = -1
         tmp_end = np.inf
         tmp_restart_at = np.inf
-        for rule_name, rule in self.rules or []:
-            start, end, restart_at = rule.check_wb_start_end(
-                stride_list,
-                original_start=original_start,
-                current_start=current_start,
-                current_end=current_end,
-                sampling_rate_hz=self.sampling_rate_hz,
-            )
-            if start is not None and start > tmp_start:
-                tmp_start = start
-                start_delay_rule = (rule_name, rule)
-            if end is not None and end < tmp_end:
-                tmp_end = end
-                tmp_restart_at = restart_at
-                termination_rule = (rule_name, rule)
+        for make_context, (rule_name, rule) in iter_with_warning_error_context(self.rules or []):
+            with make_context(
+                "walking_bout_rule",
+                {
+                    "name": rule_name,
+                    "original_start": original_start,
+                    "current_start": current_start,
+                    "current_end": current_end,
+                },
+            ):
+                start, end, restart_at = rule.check_wb_start_end(
+                    stride_list,
+                    original_start=original_start,
+                    current_start=current_start,
+                    current_end=current_end,
+                    sampling_rate_hz=self.sampling_rate_hz,
+                )
+                if start is not None and start > tmp_start:
+                    tmp_start = start
+                    start_delay_rule = (rule_name, rule)
+                if end is not None and end < tmp_end:
+                    tmp_end = end
+                    tmp_restart_at = restart_at
+                    termination_rule = (rule_name, rule)
         return tmp_start, tmp_end, tmp_restart_at, start_delay_rule, termination_rule
 
     def _apply_inclusion_rules(
@@ -458,12 +468,14 @@ class WbAssembly(Algorithm):
         wb_list = {}
         removed_wb_list = {}
         exclusion_reasons = {}
-        for wb_id, stride_list in preliminary_wb_list.items():
-            for rule_name, rule in self.rules or []:
-                if not rule.check_include(stride_list, sampling_rate_hz=self.sampling_rate_hz):
-                    removed_wb_list[wb_id] = stride_list
-                    exclusion_reasons[wb_id] = (rule_name, rule)
-                    break
-            else:
-                wb_list[wb_id] = stride_list
+        for make_wb_context, (wb_id, stride_list) in iter_with_warning_error_context(preliminary_wb_list.items()):
+            with make_wb_context("walking_bout", {"wb_id": wb_id}):
+                for make_rule_context, (rule_name, rule) in iter_with_warning_error_context(self.rules or []):
+                    with make_rule_context("walking_bout_rule", {"name": rule_name}):
+                        if not rule.check_include(stride_list, sampling_rate_hz=self.sampling_rate_hz):
+                            removed_wb_list[wb_id] = stride_list
+                            exclusion_reasons[wb_id] = (rule_name, rule)
+                            break
+                else:
+                    wb_list[wb_id] = stride_list
         return wb_list, removed_wb_list, exclusion_reasons

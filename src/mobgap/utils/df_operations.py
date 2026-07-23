@@ -7,6 +7,7 @@ from typing import Any, Callable, NamedTuple, Union
 
 import numpy as np
 import pandas as pd
+from tpcp.misc import iter_with_warning_error_context
 from typing_extensions import Literal, Unpack
 
 
@@ -364,47 +365,53 @@ def apply_transformations(  # noqa: C901, PLR0912
     """
     transformation_results = []
     column_names = []
-    for transformation in transformations:
-        if getattr(transformation, "_TAG", None) == "CustomOperation":
-            identifier = transformation.identifier
-            functions = [transformation.function]
-            if isinstance(transformation.column_name, list):
-                col_names = transformation.column_name
+    for make_transformation_context, transformation in iter_with_warning_error_context(transformations):
+        with make_transformation_context("transformation"):
+            if getattr(transformation, "_TAG", None) == "CustomOperation":
+                identifier = transformation.identifier
+                functions = [transformation.function]
+                if isinstance(transformation.column_name, list):
+                    col_names = transformation.column_name
+                else:
+                    col_names = [transformation.column_name]
             else:
-                col_names = [transformation.column_name]
-        else:
-            identifier, functions = transformation
-            col_names = []
-            if not isinstance(functions, list):
-                functions = [functions]
-            for fct in functions:
-                try:
-                    fct_name = fct.__name__
-                except AttributeError as e:
-                    raise ValueError(
-                        f"Transformation function {fct} for identifier {identifier} does not have a "
-                        "`__name__`-Attribute. "
-                        "Please use a named function or assign a name."
-                    ) from e
-                col_names.append((identifier, fct_name))
+                identifier, functions = transformation
+                col_names = []
+                if not isinstance(functions, list):
+                    functions = [functions]
+                for fct in functions:
+                    try:
+                        fct_name = fct.__name__
+                    except AttributeError as e:
+                        raise ValueError(
+                            f"Transformation function {fct} for identifier {identifier} does not have a "
+                            "`__name__`-Attribute. "
+                            "Please use a named function or assign a name."
+                        ) from e
+                    col_names.append((identifier, fct_name))
 
-        for fct, col_name in zip(functions, col_names):
-            try:
-                data = _get_data_from_identifier(df, identifier, num_levels=None)
-            except MissingDataColumnsError as e:
-                if missing_columns == "raise":
-                    raise
-                if missing_columns == "warn":
-                    warnings.warn(str(e), stacklevel=1)
-                continue
-            result = fct(data)
-            if isinstance(result, tuple):
-                assert len(result) == len(col_name)
-                transformation_results.extend(result)
-                column_names.extend(col_name)
-            else:
-                transformation_results.append(result)
-                column_names.append(col_name)
+            for make_function_context, (fct, col_name) in iter_with_warning_error_context(zip(functions, col_names)):
+                function_name = getattr(fct, "__name__", type(fct).__name__)
+                with make_function_context(
+                    "transformation_function",
+                    {"identifier": identifier, "function": function_name, "column_name": col_name},
+                ):
+                    try:
+                        data = _get_data_from_identifier(df, identifier, num_levels=None)
+                    except MissingDataColumnsError as e:
+                        if missing_columns == "raise":
+                            raise
+                        if missing_columns == "warn":
+                            warnings.warn(str(e), stacklevel=1)
+                        continue
+                    result = fct(data)
+                    if isinstance(result, tuple):
+                        assert len(result) == len(col_name)
+                        transformation_results.extend(result)
+                        column_names.extend(col_name)
+                    else:
+                        transformation_results.append(result)
+                        column_names.append(col_name)
 
     # combine results
     try:
@@ -505,18 +512,19 @@ def apply_aggregations(
 
     # apply built-in aggregations
     agg_aggregation_results = []
-    for key, aggregation in agg_aggregations.items():
-        try:
-            aggregation_result = df.agg({key: aggregation})
-            agg_aggregation_results.append(
-                aggregation_result.stack(level=np.arange(df.columns.nlevels).tolist(), future_stack=True)
-            )
-        except KeyError as e:
-            if missing_columns == "raise":
-                raise MissingDataColumnsError(key) from e
-            if missing_columns == "warn":
-                warnings.warn(str(MissingDataColumnsError(key)), UserWarning, stacklevel=1)
-            continue
+    for make_context, (key, aggregation) in iter_with_warning_error_context(agg_aggregations.items()):
+        with make_context("aggregation", {"identifier": key}):
+            try:
+                aggregation_result = df.agg({key: aggregation})
+                agg_aggregation_results.append(
+                    aggregation_result.stack(level=np.arange(df.columns.nlevels).tolist(), future_stack=True)
+                )
+            except KeyError as e:
+                if missing_columns == "raise":
+                    raise MissingDataColumnsError(key) from e
+                if missing_columns == "warn":
+                    warnings.warn(str(MissingDataColumnsError(key)), UserWarning, stacklevel=1)
+                continue
     agg_aggregation_results = pd.concat(agg_aggregation_results) if agg_aggregation_results else pd.Series()
 
     manual_aggregation_results = _apply_manual_aggregations(df, manual_aggregations, missing_columns)
@@ -601,37 +609,42 @@ def _apply_manual_aggregations(  # noqa: C901
 ) -> pd.Series:
     # apply manual aggregations
     manual_aggregation_results = []
-    for agg in manual_aggregations:
+    for make_context, agg in iter_with_warning_error_context(manual_aggregations):
         agg_function = agg.function
+        function_name = getattr(agg_function, "__name__", type(agg_function).__name__)
+        with make_context(
+            "aggregation",
+            {"identifier": agg.identifier, "function": function_name, "column_name": agg.column_name},
+        ):
+            try:
+                data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
+            except MissingDataColumnsError as e:
+                if missing_columns == "raise":
+                    raise
+                if missing_columns == "warn":
+                    warnings.warn(str(e), UserWarning, stacklevel=1)
+                continue
 
-        try:
-            data = _get_data_from_identifier(df, agg.identifier, num_levels=None)
-        except MissingDataColumnsError as e:
-            if missing_columns == "raise":
-                raise
-            if missing_columns == "warn":
-                warnings.warn(str(e), UserWarning, stacklevel=1)
-            continue
-
-        result = agg_function(data)
-        if not agg.column_name:
-            raise ValueError(
-                "Custom aggregations always need to specify a column name that includes the metric."
-                "E.g. ('icc', 'speed_error') for the ICC of the speed error."
-            )
-        if isinstance(agg.column_name, list):
-            # We need to spread the results over multiple columns
-            result = result if isinstance(result, tuple) else (result,)
-            if not len(agg.column_name) == len(result):
+            result = agg_function(data)
+            if not agg.column_name:
                 raise ValueError(
-                    "The number of column names provided does not match the number of results returned by the function."
+                    "Custom aggregations always need to specify a column name that includes the metric."
+                    "E.g. ('icc', 'speed_error') for the ICC of the speed error."
                 )
-            for col_name, res in zip(agg.column_name, result):
-                manual_aggregation_results.append(pd.Series([res], index=_construct_index_from_col_name(col_name)))
-        else:
-            manual_aggregation_results.append(
-                pd.Series([result], index=_construct_index_from_col_name(agg.column_name))
-            )
+            if isinstance(agg.column_name, list):
+                # We need to spread the results over multiple columns
+                result = result if isinstance(result, tuple) else (result,)
+                if not len(agg.column_name) == len(result):
+                    raise ValueError(
+                        "The number of column names provided does not match the number of results returned by the "
+                        "function."
+                    )
+                for col_name, res in zip(agg.column_name, result):
+                    manual_aggregation_results.append(pd.Series([res], index=_construct_index_from_col_name(col_name)))
+            else:
+                manual_aggregation_results.append(
+                    pd.Series([result], index=_construct_index_from_col_name(agg.column_name))
+                )
     if len(manual_aggregation_results) == 0:
         return pd.Series()
     try:

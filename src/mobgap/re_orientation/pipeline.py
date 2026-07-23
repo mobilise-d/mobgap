@@ -5,6 +5,7 @@ from collections.abc import Hashable
 import pandas as pd
 from scipy.spatial.transform import Rotation
 from tpcp import OptimizableParameter, Pipeline
+from tpcp.misc import iter_with_warning_error_context
 from typing_extensions import Self
 
 from mobgap._gaitmap.utils.rotations import flip_dataset
@@ -123,21 +124,27 @@ class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
         predictions_per_wb = {}
         predictions = []
 
-        for wb, wb_data in iter_gs(data, wb_list):
-            wb_predictions = []
-            for label, rotation in REORIENTATION_ROTATIONS.items():
-                rotated_data = flip_dataset(wb_data, rotation)
-                algo = self.algo.clone().detect_correct(rotated_data, sampling_rate_hz=datapoint.sampling_rate_hz)
-                result_algo_list[(wb.id, label)] = algo
-                wb_predictions.append(
-                    {
-                        "wb_id": wb.id,
-                        "label": label,
-                        "prediction": _orientation_class_from_result(algo),
-                    }
-                )
-            predictions_per_wb[wb.id] = pd.DataFrame(wb_predictions)[["label", "prediction"]]
-            predictions.extend(wb_predictions)
+        for make_wb_context, (wb, wb_data) in iter_with_warning_error_context(iter_gs(data, wb_list)):
+            with make_wb_context("walking_bout", {"wb_id": wb.id, "start": wb.start, "end": wb.end}):
+                wb_predictions = []
+                for make_orientation_context, (label, rotation) in iter_with_warning_error_context(
+                    REORIENTATION_ROTATIONS.items()
+                ):
+                    with make_orientation_context("orientation", {"label": label}):
+                        rotated_data = flip_dataset(wb_data, rotation)
+                        algo = self.algo.clone().detect_correct(
+                            rotated_data, sampling_rate_hz=datapoint.sampling_rate_hz
+                        )
+                        result_algo_list[(wb.id, label)] = algo
+                        wb_predictions.append(
+                            {
+                                "wb_id": wb.id,
+                                "label": label,
+                                "prediction": _orientation_class_from_result(algo),
+                            }
+                        )
+                predictions_per_wb[wb.id] = pd.DataFrame(wb_predictions)[["label", "prediction"]]
+                predictions.extend(wb_predictions)
 
         self.per_wb_algo_ = result_algo_list
         self.predictions_per_wb_ = predictions_per_wb

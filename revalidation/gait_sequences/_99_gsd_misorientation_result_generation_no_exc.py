@@ -42,7 +42,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset
 from mobgap.gait_sequences import GsdIluz, GsdIonescu
@@ -51,6 +51,9 @@ from mobgap.gait_sequences.pipeline import GsdEmulationPipeline
 from mobgap.re_orientation.evaluation import MisorientedDataset
 from mobgap.utils.evaluation import Evaluation, save_evaluation_results
 from mobgap.utils.misc import get_env_var
+from tpcp.parallel import Parallel
+
+from revalidation._utils import create_evaluation_tasks
 
 pipelines = {
     "GsdIluz": GsdEmulationPipeline(GsdIluz()),
@@ -75,7 +78,7 @@ pipelines = {
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
 datasets_free_living = MisorientedDataset(
-    TVSFreeLivingDataset(
+    wrapped_dataset=TVSFreeLivingDataset(
         get_env_var("MOBGAP_TVS_DATASET_PATH"),
         reference_system="INDIP",
         memory=Memory(cache_dir),
@@ -134,8 +137,12 @@ def eval_debug_plot(
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[GsdEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_free_living,
+                condition="free_living_misoriented",
+            )
         )
     )
 

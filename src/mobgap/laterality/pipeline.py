@@ -104,12 +104,13 @@ class LrcEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         # TODO: maybe do it properly and create a custom iter type
         result_algo_list = {}
         for (wb, data), r in wb_iterator.iterate(to_body_frame(datapoint.data_ss), ref_paras.wb_list):
-            ref_ic_list = ref_paras.ic_list.loc[wb.id]
-            algo = self.algo.clone().predict(
-                data, ref_ic_list.drop("lr_label", axis=1, errors="ignore"), sampling_rate_hz=sampling_rate_hz
-            )
-            result_algo_list[wb.id] = algo
-            r.ic_list = algo.ic_lr_list_
+            with wb_iterator.warning_error_context("walking_bout", {"wb_id": wb.id, "start": wb.start, "end": wb.end}):
+                ref_ic_list = ref_paras.ic_list.loc[wb.id]
+                algo = self.algo.clone().predict(
+                    data, ref_ic_list.drop("lr_label", axis=1, errors="ignore"), sampling_rate_hz=sampling_rate_hz
+                )
+                result_algo_list[wb.id] = algo
+                r.ic_list = algo.ic_lr_list_
 
         self.per_wb_algo_ = result_algo_list
         self.ic_lr_list_ = wb_iterator.results_.ic_list.pipe(_unify_ic_lr_list_df)

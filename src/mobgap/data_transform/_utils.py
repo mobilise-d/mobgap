@@ -1,5 +1,6 @@
 from typing import Any
 
+from tpcp.misc import iter_with_warning_error_context
 from typing_extensions import Unpack
 
 from mobgap.data_transform.base import BaseTransformer
@@ -27,15 +28,16 @@ def chain_transformers(
         The transformed data.
 
     """
-    for name, transformer in transformers:
-        try:
-            transformer_with_results = transformer.transform(data, **kwargs)
-            data = transformer_with_results.transformed_data_
-        except Exception as e:
-            raise RuntimeError(
-                f"Error while applying transformer '{name}' in the transformer chain. "
-                "Scroll up to see the full traceback of this error."
-            ) from e
-        # We ask the transformer that was just use to potentially update the kwargs for the next transformer
-        kwargs = transformer_with_results._get_updated_chain_kwargs(**kwargs)
+    for make_context, (name, transformer) in iter_with_warning_error_context(transformers):
+        with make_context("transformer", {"name": name}):
+            try:
+                transformer_with_results = transformer.transform(data, **kwargs)
+                data = transformer_with_results.transformed_data_
+            except Exception as e:
+                raise RuntimeError(
+                    f"Error while applying transformer '{name}' in the transformer chain. "
+                    "Scroll up to see the full traceback of this error."
+                ) from e
+            # We ask the transformer that was just use to potentially update the kwargs for the next transformer
+            kwargs = transformer_with_results._get_updated_chain_kwargs(**kwargs)
     return data

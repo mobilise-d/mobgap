@@ -4,7 +4,7 @@ from typing import Final, Literal, Optional
 
 import pandas as pd
 from tpcp import Algorithm, cf
-from tpcp.misc import set_defaults
+from tpcp.misc import iter_with_warning_error_context, set_defaults
 from typing_extensions import Self
 
 from mobgap.wba._interval_criteria import (
@@ -140,9 +140,12 @@ class StrideSelection(Algorithm):
             The instance itself with the result parameters set.
         """
         # TODO: Add better checking for compound fields dtype
-        for _, rule in self.rules or []:
-            if not isinstance(rule, BaseIntervalCriteria):
-                raise TypeError("All rules must be instances of `IntervalSummaryCriteria` or one of its child classes.")
+        for make_context, (name, rule) in iter_with_warning_error_context(self.rules or []):
+            with make_context("stride_selection_rule", {"name": name}):
+                if not isinstance(rule, BaseIntervalCriteria):
+                    raise TypeError(
+                        "All rules must be instances of `IntervalSummaryCriteria` or one of its child classes."
+                    )
 
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
@@ -156,23 +159,24 @@ class StrideSelection(Algorithm):
         stride_list_cols = set(stride_list.columns)
 
         rule_results = {}
-        for name, rule in rules_as_dict.items():
-            compatible = set(rule.requires_columns()).issubset(stride_list_cols)
-            if not compatible:
-                if self.incompatible_rules == "raise":
-                    raise ValueError(
-                        f"Rule {name} requires columns {rule.requires_columns()} which are not present in the stride "
-                        "list."
-                    )
-                if self.incompatible_rules == "warn":
-                    warnings.warn(
-                        f"Rule {name} requires columns {rule.requires_columns()} which are not present in the "
-                        "stride list. "
-                        "Skipping rule.",
-                        stacklevel=1,
-                    )
-                continue
-            rule_results[name] = rule.check_multiple(stride_list, sampling_rate_hz=sampling_rate_hz)
+        for make_context, (name, rule) in iter_with_warning_error_context(rules_as_dict.items()):
+            with make_context("stride_selection_rule", {"name": name}):
+                compatible = set(rule.requires_columns()).issubset(stride_list_cols)
+                if not compatible:
+                    if self.incompatible_rules == "raise":
+                        raise ValueError(
+                            f"Rule {name} requires columns {rule.requires_columns()} which are not present in the "
+                            "stride list."
+                        )
+                    if self.incompatible_rules == "warn":
+                        warnings.warn(
+                            f"Rule {name} requires columns {rule.requires_columns()} which are not present in the "
+                            "stride list. "
+                            "Skipping rule.",
+                            stacklevel=1,
+                        )
+                    continue
+                rule_results[name] = rule.check_multiple(stride_list, sampling_rate_hz=sampling_rate_hz)
 
         if len(rule_results) == 0:
             self._exclusion_reasons = pd.DataFrame(columns=["rule_name", "rule_obj"]).reindex(stride_list.index)

@@ -113,27 +113,34 @@ class CadEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
 
         result_algo_list = {}
         for (wb, _), r in wb_iterator.iterate(to_body_frame(datapoint.data_ss), ref_paras.wb_list):
-            r.ic_list = ref_paras.ic_list.loc[wb.id]
+            with wb_iterator.warning_error_context("walking_bout", {"wb_id": wb.id, "start": wb.start, "end": wb.end}):
+                r.ic_list = ref_paras.ic_list.loc[wb.id]
 
-            # The WBs from all reference systems are usually already defined so that they start and end with an
-            # initial contact.
-            # So refinement should not be required.
-            # We have it here in the pipeline, in case we use other data input in the future.
-            refined_wb_list, refined_ic_list = refine_gs(r.ic_list)
+                # The WBs from all reference systems are usually already defined so that they start and end with an
+                # initial contact.
+                # So refinement should not be required.
+                # We have it here in the pipeline, in case we use other data input in the future.
+                refined_wb_list, refined_ic_list = refine_gs(r.ic_list)
 
-            with wb_iterator.subregion(refined_wb_list) as ((refined_wb, refined_gs_data), rr):
-                # Not quite happy, that we have to pass the current-gs offset here, but I don't see an easy way to
-                # still make this pipeline universally usable and support our revalidation dummy algos.
-                current_wb_absolute = Region(wb.id, wb.start + refined_wb.start, wb.end + refined_wb.start)
-                algo = self.algo.clone().calculate(
-                    refined_gs_data,
-                    initial_contacts=refined_ic_list,
-                    **kwargs,
-                    current_gs=refined_wb,
-                    current_gs_absolute=current_wb_absolute,
-                )
-                result_algo_list[wb.id] = algo
-                rr.cadence_per_sec = algo.cadence_per_sec_
+                with (
+                    wb_iterator.subregion(refined_wb_list) as ((refined_wb, refined_gs_data), rr),
+                    wb_iterator.warning_error_context(
+                        "refined_walking_bout",
+                        {"wb_id": refined_wb.id, "start": refined_wb.start, "end": refined_wb.end},
+                    ),
+                ):
+                    # Not quite happy, that we have to pass the current-gs offset here, but I don't see an easy way
+                    # to still make this pipeline universally usable and support our revalidation dummy algos.
+                    current_wb_absolute = Region(wb.id, wb.start + refined_wb.start, wb.end + refined_wb.start)
+                    algo = self.algo.clone().calculate(
+                        refined_gs_data,
+                        initial_contacts=refined_ic_list,
+                        **kwargs,
+                        current_gs=refined_wb,
+                        current_gs_absolute=current_wb_absolute,
+                    )
+                    result_algo_list[wb.id] = algo
+                    rr.cadence_per_sec = algo.cadence_per_sec_
 
         # The Cad algorithms provide outputs per second of each WB.
         # We further provide interpolated outputs per stride.

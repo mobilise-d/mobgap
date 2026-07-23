@@ -1,12 +1,15 @@
 import warnings
+from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
-from typing import ClassVar, Literal, Optional, Union
+from typing import Any, ClassVar, Literal, Optional, Union
 
 import pandas as pd
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
 from tpcp import Dataset
 from tpcp.caching import hybrid_cache
+from tpcp.misc import iter_with_warning_error_context
+from tpcp.parallel import Parallel, delayed
 from tqdm.auto import tqdm
 
 from mobgap.data._mobilsed_weartime_loader import load_weartime_from_daily_mcroberts_report
@@ -421,9 +424,15 @@ class MobilisedCvsDmoDataset(Dataset):
         # Note: We use multiprocessing here, as this can speed up the computation significantly.
         #       However, we are still primarily bound by the IO speed of the hard drive, so to many processes will
         #       not help.
+        def create_tasks() -> Iterator[Any]:
+            for make_context, file_path in iter_with_warning_error_context(filelist):
+                with make_context("wear_time_file", {"path": str(file_path)}):
+                    task = delayed(process_single_file)(file_path)
+                yield task
+
         results = list(
             tqdm(
-                Parallel(n_jobs=3, return_as="generator")(delayed(process_single_file)(f) for f in filelist),
+                Parallel(n_jobs=3, return_as="generator")(create_tasks()),
                 total=len(filelist),
                 desc="Loading daily weartime reports for participants",
             )

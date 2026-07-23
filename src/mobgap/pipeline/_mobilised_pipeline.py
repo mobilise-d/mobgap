@@ -5,7 +5,7 @@ from typing import Any, Final, Generic, Optional
 
 import pandas as pd
 from tpcp import cf
-from tpcp.misc import set_defaults
+from tpcp.misc import iter_with_warning_error_context, set_defaults
 from typing_extensions import Self
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -348,54 +348,64 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         gs_iterator = GsIterator[FullPipelinePerGsResult]()
         # TODO: How to expose the individual algo instances of the algos that run in the loop?
 
-        for (_, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
-            if self.per_gs_reorientation is not None:
-                reorient = self.per_gs_reorientation.clone().detect_correct(
-                    gs_data, sampling_rate_hz=action_kwargs["sampling_rate_hz"]
-                )
-                gs_data = reorient.corrected_data_  # noqa: PLW2901
-                r.reorientation_result = reorient.result_
-
-            icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
-            lrc = self.laterality_classification.clone().predict(gs_data, icd.ic_list_, **action_kwargs)
-            r.ic_list = lrc.ic_lr_list_
-            if self.turn_detection:
-                turn = self.turn_detection.clone().detect(gs_data, **action_kwargs)
-                r.turn_list = turn.turn_list_
-
-            if len(r.ic_list) < 2:
-                # We need at least two initial contacts to calculate the per-second parameters, so we skip the rest of
-                # the loop if there are less than 2 initial contacts.
-                # This also fixes #227
-                continue
-            refined_gs, refined_ic_list = refine_gs(r.ic_list)
-
-            with gs_iterator.subregion(refined_gs, data=gs_data) as ((_, refined_gs_data), rr):
-                cad_r = None
-                if self.cadence_calculation:
-                    cad = self.cadence_calculation.clone().calculate(
-                        refined_gs_data,
-                        initial_contacts=refined_ic_list,
-                        **action_kwargs,
+        for (gs, gs_data), r in gs_iterator.iterate(imu_data, gait_sequences):
+            with gs_iterator.warning_error_context("gait_sequence", {"gs_id": gs.id, "start": gs.start, "end": gs.end}):
+                if self.per_gs_reorientation is not None:
+                    reorient = self.per_gs_reorientation.clone().detect_correct(
+                        gs_data, sampling_rate_hz=action_kwargs["sampling_rate_hz"]
                     )
-                    cad_r = cad.cadence_per_sec_
-                    rr.cadence_per_sec = cad_r
-                sl_r = None
-                if self.stride_length_calculation:
-                    sl = self.stride_length_calculation.clone().calculate(
-                        refined_gs_data, initial_contacts=refined_ic_list, **action_kwargs
-                    )
-                    sl_r = sl.stride_length_per_sec_
-                    rr.stride_length_per_sec = sl.stride_length_per_sec_
-                if self.walking_speed_calculation:
-                    ws = self.walking_speed_calculation.clone().calculate(
-                        refined_gs_data,
-                        initial_contacts=refined_ic_list,
-                        cadence_per_sec=cad_r,
-                        stride_length_per_sec=sl_r,
-                        **action_kwargs,
-                    )
-                    rr.walking_speed_per_sec = ws.walking_speed_per_sec_
+                    gs_data = reorient.corrected_data_  # noqa: PLW2901
+                    r.reorientation_result = reorient.result_
+
+                icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
+                lrc = self.laterality_classification.clone().predict(gs_data, icd.ic_list_, **action_kwargs)
+                r.ic_list = lrc.ic_lr_list_
+                if self.turn_detection:
+                    turn = self.turn_detection.clone().detect(gs_data, **action_kwargs)
+                    r.turn_list = turn.turn_list_
+
+                if len(r.ic_list) < 2:
+                    # We need at least two initial contacts to calculate the per-second parameters, so we skip the rest
+                    # of the loop if there are less than 2 initial contacts. This also fixes #227.
+                    continue
+                refined_gs, refined_ic_list = refine_gs(r.ic_list)
+
+                with (
+                    gs_iterator.subregion(refined_gs, data=gs_data) as ((refined_region, refined_gs_data), rr),
+                    gs_iterator.warning_error_context(
+                        "refined_gait_sequence",
+                        {
+                            "gs_id": refined_region.id,
+                            "start": refined_region.start,
+                            "end": refined_region.end,
+                        },
+                    ),
+                ):
+                    cad_r = None
+                    if self.cadence_calculation:
+                        cad = self.cadence_calculation.clone().calculate(
+                            refined_gs_data,
+                            initial_contacts=refined_ic_list,
+                            **action_kwargs,
+                        )
+                        cad_r = cad.cadence_per_sec_
+                        rr.cadence_per_sec = cad_r
+                    sl_r = None
+                    if self.stride_length_calculation:
+                        sl = self.stride_length_calculation.clone().calculate(
+                            refined_gs_data, initial_contacts=refined_ic_list, **action_kwargs
+                        )
+                        sl_r = sl.stride_length_per_sec_
+                        rr.stride_length_per_sec = sl.stride_length_per_sec_
+                    if self.walking_speed_calculation:
+                        ws = self.walking_speed_calculation.clone().calculate(
+                            refined_gs_data,
+                            initial_contacts=refined_ic_list,
+                            cadence_per_sec=cad_r,
+                            stride_length_per_sec=sl_r,
+                            **action_kwargs,
+                        )
+                        rr.walking_speed_per_sec = ws.walking_speed_per_sec_
 
         return gs_iterator
 
@@ -753,16 +763,17 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
                 union = set(p1[1].get_recommended_cohorts()) & set(p2[1].get_recommended_cohorts())
                 if union:
                     raise ValueError(
-                        f"The provided pipelines with the names {p1[0]} and {p2[0]} have an overlap in the recommended "
-                        f"cohorts: {union}"
+                        f"The provided pipelines with the names {p1[0]} and {p2[0]} have an overlap in the "
+                        f"recommended cohorts: {union}"
                     )
 
         cohort = datapoint.participant_metadata["cohort"]
-        for name, pipeline in self.pipelines:
-            if pipeline.get_recommended_cohorts() and cohort in pipeline.get_recommended_cohorts():
-                self.pipeline_ = pipeline.clone().run(datapoint)
-                self.pipeline_name_ = name
-                return self
+        for make_context, (name, pipeline) in iter_with_warning_error_context(self.pipelines):
+            with make_context("pipeline", {"name": name, "cohort": cohort}):
+                if pipeline.get_recommended_cohorts() and cohort in pipeline.get_recommended_cohorts():
+                    self.pipeline_ = pipeline.clone().run(datapoint)
+                    self.pipeline_name_ = name
+                    return self
         raise ValueError(
             f"Could not determine the correct pipeline for the cohort {cohort}. "
             "Check the ``get_recommended_cohorts`` attribute of the pipelines."
