@@ -116,9 +116,10 @@ class IcdEmulationPipeline(OptimizablePipeline[BaseGaitDatasetWithReference]):
         wb_iterator = GsIterator()
         result_algo_list = {}
         for (wb, data), r in wb_iterator.iterate(imu_data, ref_paras.wb_list):
-            algo = self.algo.clone().detect(data, **kwargs, current_gs=wb)
-            result_algo_list[wb.id] = algo
-            r.ic_list = algo.ic_list_
+            with wb_iterator.warning_error_context("walking_bout", {"wb_id": wb.id, "start": wb.start, "end": wb.end}):
+                algo = self.algo.clone().detect(data, **kwargs, current_gs=wb)
+                result_algo_list[wb.id] = algo
+                r.ic_list = algo.ic_list_
         self.per_wb_algo_ = result_algo_list
         self.ic_list_ = wb_iterator.results_.ic_list
         return self

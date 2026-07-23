@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validation and optimization can now include structured fold, parameter, and datapoint context.
 - **Breaking:** `MisorientedDataset` now follows tpcp's dataset-wrapper convention: pass the source dataset as
   `wrapped_dataset` instead of `base_dataset`, and access it through the `wrapped_dataset` attribute.
+- Warnings and exceptions raised inside mobgap's iterative processing now identify the active pipeline, gait sequence,
+  walking bout, refined region, orientation, transformer, rule, aggregation, or transformation callback as applicable.
 
 ### Fixed
 
