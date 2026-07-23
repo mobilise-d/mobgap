@@ -255,8 +255,10 @@ pipelines = {
 # perform custom aggregations over the provided "single_results".
 
 from joblib import Memory
-from tpcp.parallel import Parallel, delayed
 from mobgap import PROJECT_ROOT
+from tpcp.parallel import Parallel
+
+from revalidation._utils import create_evaluation_tasks
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
@@ -347,8 +349,12 @@ with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
         dict(
             parallel(
-                delayed(run_evaluation)(name, pipeline, datasets_free_living)
-                for name, pipeline in pipelines.items()
+                create_evaluation_tasks(
+                    run_evaluation,
+                    pipelines,
+                    datasets_free_living,
+                    condition="free_living",
+                )
             )
         )
     )
@@ -385,8 +391,12 @@ with Parallel(n_jobs=n_jobs) as parallel:
     results_laboratory: dict[str, Evaluation[MobilisedPipelineUniversal]] = (
         dict(
             parallel(
-                delayed(run_evaluation)(name, pipeline, datasets_laboratory)
-                for name, pipeline in pipelines.items()
+                create_evaluation_tasks(
+                    run_evaluation,
+                    pipelines,
+                    datasets_laboratory,
+                    condition="laboratory",
+                )
             )
         )
     )

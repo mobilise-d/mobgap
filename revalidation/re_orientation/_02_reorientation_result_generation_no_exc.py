@@ -92,9 +92,11 @@ datasets_laboratory = TVSLabDataset(
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from tpcp.parallel import Parallel, delayed
 from mobgap.re_orientation.evaluation import reorientation_score
 from mobgap.utils.evaluation import Evaluation
+from tpcp.parallel import Parallel
+
+from revalidation._utils import create_evaluation_tasks
 
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
 results_base_path = (
@@ -142,8 +144,12 @@ with Parallel(n_jobs=n_jobs) as parallel:
         str, Evaluation[ReorientationEmulationPipeline]
     ] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_free_living,
+                condition="free_living",
+            )
         )
     )
 
@@ -174,8 +180,12 @@ with Parallel(n_jobs=n_jobs) as parallel:
         str, Evaluation[ReorientationEmulationPipeline]
     ] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_laboratory)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_laboratory,
+                condition="laboratory",
+            )
         )
     )
 

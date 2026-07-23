@@ -1269,7 +1269,8 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         import json  # noqa: PLC0415
 
-        from joblib import Parallel, delayed  # noqa: PLC0415
+        from tpcp.misc import iter_with_warning_error_context  # noqa: PLC0415
+        from tpcp.parallel import Parallel, delayed  # noqa: PLC0415
 
         def process_path(p: str, rel_out_path: str) -> Path:
             _, available_data_per_test = _load_test_data_without_checks(p)
@@ -1286,10 +1287,14 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
                 json.dump(available_data_per_test, f, indent=4)
             return out_path
 
+        def create_tasks() -> Iterator[Any]:
+            for make_context, path in iter_with_warning_error_context(self._paths_list):
+                with make_context("matlab_file", {"path": str(path)}):
+                    task = delayed(process_path)(path, rel_out_path)
+                yield task
+
         pbar = tqdm(
-            Parallel(n_jobs=n_jobs, return_as="generator")(
-                delayed(process_path)(p, rel_out_path) for p in self._paths_list
-            ),
+            Parallel(n_jobs=n_jobs, return_as="generator")(create_tasks()),
             total=len(self._paths_list),
             desc="Creating precomputed test list.",
         )

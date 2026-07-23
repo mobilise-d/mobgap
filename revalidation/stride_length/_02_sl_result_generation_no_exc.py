@@ -248,9 +248,11 @@ pipelines["SlZjilstra__MS_MS"] = SlEmulationPipeline(
 # Depending on how you want to interpret the results, you might not want to use the aggregated results, but rather
 # perform custom aggregations over the provided "single_results".
 from joblib import Memory
-from tpcp.parallel import Parallel, delayed
 from mobgap import PROJECT_ROOT
 from mobgap.data import TVSFreeLivingDataset, TVSLabDataset
+from tpcp.parallel import Parallel
+
+from revalidation._utils import create_evaluation_tasks
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 
@@ -349,8 +351,12 @@ def eval_debug_plot(
 with Parallel(n_jobs=n_jobs) as parallel:
     results_free_living: dict[str, Evaluation[SlEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_free_living)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_free_living,
+                condition="free_living",
+            )
         )
     )
 
@@ -384,8 +390,12 @@ for k, v in results_free_living.items():
 with Parallel(n_jobs=n_jobs) as parallel:
     results_laboratory: dict[str, Evaluation[SlEmulationPipeline]] = dict(
         parallel(
-            delayed(run_evaluation)(name, pipeline, datasets_laboratory)
-            for name, pipeline in pipelines.items()
+            create_evaluation_tasks(
+                run_evaluation,
+                pipelines,
+                datasets_laboratory,
+                condition="laboratory",
+            )
         )
     )
 
