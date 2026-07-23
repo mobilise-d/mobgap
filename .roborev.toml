@@ -1,0 +1,6 @@
+# Project-specific review guidelines
+review_guidelines = """
+Flag any change that breaks a public interface, user-facing behavior, or persisted data format without explicit
+maintainer approval, a documented migration plan, and prominent release communication. Permit safe internal refactors
+only when all in-repository consumers are updated and public behavior remains stable.
+"""
