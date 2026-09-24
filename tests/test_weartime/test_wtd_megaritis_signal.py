@@ -44,6 +44,14 @@ class TestMetaWtdMegaritisSignal(TestAlgorithmMixin):
 
 
 class TestWtdMegaritisSignal:
+    def test_recording_shorter_than_micro_window_has_no_wear_evidence(self):
+        data = pd.DataFrame(np.ones((30, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+
+        assert_frame_equal(result.weartime_list_, _empty_weartime_list())
+        assert not result.diagnostics_["sample_votes"]["wear_votes"].any()
+
     def test_exactly_tiled_recording_has_no_extra_boundary_vote(self):
         data = pd.DataFrame(np.zeros((750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 

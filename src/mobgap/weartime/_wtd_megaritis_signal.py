@@ -270,8 +270,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
         wear_votes = np.cumsum(wear_vote_diff[:-1])
         non_wear_votes = np.cumsum(non_wear_vote_diff[:-1])
-        # Keep the original conservative tie-breaking behavior: equal votes are treated as wear.
-        weartime_flags = (wear_votes >= non_wear_votes).astype(int)
+        # Equal votes favor wear when a window has voted; samples without evidence remain non-wear.
+        weartime_flags = ((wear_votes >= non_wear_votes) & ((wear_votes + non_wear_votes) > 0)).astype(int)
         weartime_intervals = flags_to_intervals(weartime_flags)
 
         # Stage 1 removes brief isolated periods caused by sensor noise, voting edge effects, or transient artifacts.
