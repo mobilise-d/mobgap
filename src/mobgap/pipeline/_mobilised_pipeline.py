@@ -493,13 +493,13 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     -----
     %(step_by_step)s
 
-    Current limitations: The MobilisedPipelineHealthy can currently not be used with `per_gs_reorientation` enabled,
-    unless a different GSD algorithm is selected as well.
-    This is because the default GSD algorithm for this pipeline (GsdIluz) assumes correct sensor mounting and can not
-    be used, if the sensor orientation is unknown.
-    If you need to use the MobilisedPipelineHealthy with `per_gs_reorientation` enabled, try to use `GsdIonescu`,
-    but be aware that we have not properly validated this combination and assume worse performance than using `GsdIluz`
-    with known mounting orientation.
+    When sensor mounting may be misoriented and `per_gs_reorientation` is enabled, replace the default
+    :class:`~mobgap.gait_sequences.GsdIluz` with :class:`~mobgap.gait_sequences.GsdIluzAdaptiveGravity` for gait
+    sequence detection. The default detector requires aligned body-frame data, while the adaptive detector can run on
+    sensor-frame data before gait-sequence reorientation. Set its `expected_pa_axis` to the sensor axis aligned with the
+    anatomical PA direction (typically `"z"` for the Mobilise-D lower-back sensor). Use
+    `pa_peak_aggregation="max"` to handle a reversed PA direction and
+    `ReorientationMethodDM(correction_mode="full")` to correct it after gait sequence detection.
 
     .. [1] Micó-Amigo, M., Bonci, T., Paraschiv-Ionescu, A. et al. Assessing real-world gait with digital technology?
            Validation, insights and recommendations from the Mobilise-D consortium. J NeuroEngineering Rehabil 20, 78

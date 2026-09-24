@@ -116,6 +116,15 @@ The green circle indicates PA direction: dot (•) = backward, cross (×) = forw
 
 You can use the automatic reorientation correction incorporated in the pipeline (needs to be enabled manually) to align 
 the sensor data to the body frame on a gait sequence level.
+For a lower-back sensor whose `z` axis points along the PA direction, we recommend
+{py:class}`~mobgap.gait_sequences.GsdIluzAdaptiveGravity` instead of the standard
+{py:class}`~mobgap.gait_sequences.GsdIluz` when enabling per-gait-sequence automatic reorientation.
+The adaptive detector accepts sensor-frame data and estimates the vertical axis before reorientation runs.
+Configure it as `gait_sequence_detection=GsdIluzAdaptiveGravity(expected_pa_axis="z", pa_peak_aggregation="max")`
+alongside `per_gs_reorientation=ReorientationMethodDM(correction_mode="full")` in
+{py:class}`~mobgap.pipeline.MobilisedPipelineHealthy`.
+The PA sensor axis must still be known; the mounting orientations handled by the reorientation algorithm preserve
+that axis, although its direction may be reversed.
 
 Note, that knowing the sensor mounting orientation is always preferable and provides more predictable results than
 attempting to correct for it after the fact.
