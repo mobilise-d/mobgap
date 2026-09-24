@@ -23,6 +23,7 @@ from mobgap.data._mobilised_matlab_loader import (
 from mobgap.data._mobilised_tvs_dataset import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
 from mobgap.data._mobilsed_weartime_loader import load_weartime_from_daily_mcroberts_report
 from mobgap.data._ms_project import MsProjectDataset
+from mobgap.data._sustain_weartime_dataset import SustainWearTimeDataset
 from mobgap.data.ax6 import (
     AX6Dataset,
     BaseAX6Dataset,
@@ -31,7 +32,6 @@ from mobgap.data.ax6 import (
     split_by_utc_day,
     split_by_utc_hour,
 )
-from mobgap.data._sustain_weartime_dataset import SustainWearTimeDataset
 
 __all__ = [
     "AX6Dataset",
