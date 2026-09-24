@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from math import floor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Union
 
@@ -354,6 +355,23 @@ def _day_cut_seconds(
     return start_time_s, end_time_s
 
 
+def _recording_sample_count_from_timing_report(
+    timing_report: dict[str, Any], sampling_rate_hz: float, recording_day: str | None
+) -> int:
+    duration_s = timing_report.get("duration_s_from_data")
+    if duration_s is None:
+        raise ValueError("The CWA timing report does not contain `duration_s_from_data`.")
+
+    recording_duration_exclusive_s = float(duration_s) + 1 / sampling_rate_hz
+    if recording_day is None:
+        return max(0, floor(recording_duration_exclusive_s * sampling_rate_hz + 1e-9))
+
+    start_time_s, end_time_s = _day_cut_seconds(recording_day, timing_report, sampling_rate_hz)
+    start_time_s = 0.0 if start_time_s is None else start_time_s
+    end_time_s = recording_duration_exclusive_s if end_time_s is None else end_time_s
+    return max(0, floor((end_time_s - start_time_s) * sampling_rate_hz + 1e-9))
+
+
 def _clip_data_to_recording_day(data: pd.DataFrame, recording_day: str | None) -> pd.DataFrame:
     if recording_day is None or not isinstance(data.index, pd.DatetimeIndex):
         return data
@@ -411,6 +429,8 @@ class SustainWearTimeDataset(BaseGaitDataset):
         The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
     available_additional_channels_
         Additional CWA channels available for the selected recording.
+    n_samples
+        Number of samples in the selected recording, derived from CWA timing metadata without loading the full data.
     reference_nonwear_
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
@@ -518,6 +538,15 @@ class SustainWearTimeDataset(BaseGaitDataset):
     def available_additional_channels_(self) -> tuple[AdditionalCwaChannel, ...]:
         self.assert_is_single(None, "available_additional_channels_")
         return _available_additional_channels()
+
+    @property
+    def n_samples(self) -> int:
+        self.assert_is_single(None, "n_samples")
+        return _recording_sample_count_from_timing_report(
+            self.cwa_timing_report_,
+            self.sampling_rate_hz,
+            self._selected_recording_day,
+        )
 
     @property
     def recording_metadata(self) -> RecordingMetadata:
