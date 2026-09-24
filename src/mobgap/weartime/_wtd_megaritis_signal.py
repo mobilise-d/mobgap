@@ -108,7 +108,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     **Algorithm Workflow**
 
     1. Sliding macro windows are defined over the input data
-    2. The complete macro windows share a global 5-second micro-window grid
+    2. Complete macro windows with the same micro-step phase share a grid of 5-second micro windows
     3. Three features are extracted per micro window:
        gyr_ml_spectral_centroid (frequency of mediolateral rotation),
        gyr_is_spectral_centroid (frequency of vertical rotation),
@@ -251,7 +251,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                 sampling_rate_hz=sampling_rate_hz,
             )
 
-            last_complete_macro_end = ((data_length - window_samples) // step_samples + 1) * step_samples
+            last_complete_macro_end = int(complete_macro_starts[-1] + window_samples)
             if last_complete_macro_end < data_length:
                 # The final boundary window is anchored to the recording end and can be shifted relative to the shared
                 # global micro-window grid, so it is classified separately.
@@ -290,6 +290,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             sampling_rate_hz=self.sampling_rate_hz,
         )
 
+        self.diagnostics_["macro"].sort(key=lambda row: row["start"])
         self.diagnostics_["macro"] = pd.DataFrame(self.diagnostics_["macro"])
         self.diagnostics_["sample_votes"] = pd.DataFrame(
             {
@@ -324,39 +325,42 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         if n_micro_per_macro == 0:
             return
 
-        first_micro_start = int(macro_starts[0])
-        last_micro_start = int(macro_starts[-1] + (n_micro_per_macro - 1) * micro_step_samples)
-        # Complete macro windows all start on the same step grid, so their overlapping micro windows can be classified
-        # once globally and reused for each macro decision.
-        global_micro_starts = np.arange(
-            first_micro_start,
-            last_micro_start + micro_step_samples,
-            micro_step_samples,
-            dtype=np.int64,
-        )
-        micro_wear_flags = self._classify_micro_windows_from_starts(
-            data=data,
-            starts=global_micro_starts,
-            window_samples=micro_window_samples,
-            sampling_rate_hz=sampling_rate_hz,
-        )
-        micro_non_wear = ~micro_wear_flags
-        non_wear_prefix = np.concatenate([[0], np.cumsum(micro_non_wear, dtype=np.int64)])
-
-        for start_idx in macro_starts:
-            end_idx = int(start_idx + window_samples)
-            micro_start_idx = int((start_idx - first_micro_start) // micro_step_samples)
-            n_non_wear = int(non_wear_prefix[micro_start_idx + n_micro_per_macro] - non_wear_prefix[micro_start_idx])
-            self._add_macro_decision(
-                start_idx=int(start_idx),
-                end_idx=end_idx,
-                n_micro_windows=n_micro_per_macro,
-                n_non_wear=n_non_wear,
-                wear_vote_diff=wear_vote_diff,
-                non_wear_vote_diff=non_wear_vote_diff,
-                is_boundary=False,
-                is_short_recording=False,
+        # A macro start may have a different phase on the micro-step grid. Reuse features only within matching phases.
+        phases = macro_starts % micro_step_samples
+        for phase in np.unique(phases):
+            phase_macro_starts = macro_starts[phases == phase]
+            first_micro_start = int(phase_macro_starts[0])
+            last_micro_start = int(phase_macro_starts[-1] + (n_micro_per_macro - 1) * micro_step_samples)
+            global_micro_starts = np.arange(
+                first_micro_start,
+                last_micro_start + micro_step_samples,
+                micro_step_samples,
+                dtype=np.int64,
             )
+            micro_wear_flags = self._classify_micro_windows_from_starts(
+                data=data,
+                starts=global_micro_starts,
+                window_samples=micro_window_samples,
+                sampling_rate_hz=sampling_rate_hz,
+            )
+            non_wear_prefix = np.concatenate([[0], np.cumsum(~micro_wear_flags, dtype=np.int64)])
+
+            for start_idx in phase_macro_starts:
+                end_idx = int(start_idx + window_samples)
+                micro_start_idx = int((start_idx - first_micro_start) // micro_step_samples)
+                n_non_wear = int(
+                    non_wear_prefix[micro_start_idx + n_micro_per_macro] - non_wear_prefix[micro_start_idx]
+                )
+                self._add_macro_decision(
+                    start_idx=int(start_idx),
+                    end_idx=end_idx,
+                    n_micro_windows=n_micro_per_macro,
+                    n_non_wear=n_non_wear,
+                    wear_vote_diff=wear_vote_diff,
+                    non_wear_vote_diff=non_wear_vote_diff,
+                    is_boundary=False,
+                    is_short_recording=False,
+                )
 
     def _process_single_macro_window(
         self,
