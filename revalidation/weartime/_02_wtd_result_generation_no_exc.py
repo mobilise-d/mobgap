@@ -50,7 +50,9 @@ from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
-results_base_path = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/weartime_no_exc"
+results_base_path = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/weartime_no_exc"
+)
 condition_name = "sustain_weartime"
 
 dataset_sustain_weartime = SustainWearTimeDataset(
@@ -87,7 +89,9 @@ def run_evaluation(name, pipeline, ds):
     return name, eval_pipe
 
 
-def eval_debug_plot(results: dict[str, Evaluation[WtdEmulationPipeline]]) -> None:
+def eval_debug_plot(
+    results: dict[str, Evaluation[WtdEmulationPipeline]],
+) -> None:
     results_df = (
         pd.concat({k: v.get_single_results_as_df() for k, v in results.items()})
         .reset_index()
@@ -136,10 +140,12 @@ def save_weartime_evaluation_results(
     for key in raw_results:
         raw_results_vals[key].to_csv(folder / f"raw_{key}.csv")
 
-    eval_obj.get_aggregated_results_as_df().drop(columns="runtime_s", errors="ignore").T.to_csv(
-        folder / "aggregated_results.csv"
-    )
-    eval_obj.get_single_results_as_df().drop(columns="runtime_s", errors="ignore").to_csv(folder / "single_results.csv")
+    eval_obj.get_aggregated_results_as_df().drop(
+        columns="runtime_s", errors="ignore"
+    ).T.to_csv(folder / "aggregated_results.csv")
+    eval_obj.get_single_results_as_df().drop(
+        columns="runtime_s", errors="ignore"
+    ).to_csv(folder / "single_results.csv")
 
     if include_non_stable_results:
         with (folder / "timings.json").open("w") as file:
@@ -147,10 +153,14 @@ def save_weartime_evaluation_results(
 
 
 with Parallel(n_jobs=n_jobs) as parallel:
-    results_sustain_weartime: dict[str, Evaluation[WtdEmulationPipeline]] = dict(
-        parallel(
-            delayed(run_evaluation)(name, pipeline, dataset_sustain_weartime)
-            for name, pipeline in pipelines.items()
+    results_sustain_weartime: dict[str, Evaluation[WtdEmulationPipeline]] = (
+        dict(
+            parallel(
+                delayed(run_evaluation)(
+                    name, pipeline, dataset_sustain_weartime
+                )
+                for name, pipeline in pipelines.items()
+            )
         )
     )
 
@@ -169,4 +179,3 @@ for name, result in results_sustain_weartime.items():
         base_path=results_base_path,
         raw_results=raw_results_to_save,
     )
-
