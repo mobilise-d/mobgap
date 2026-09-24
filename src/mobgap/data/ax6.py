@@ -215,9 +215,10 @@ class AX6Dataset(BaseAX6Dataset):
 
     This class can also handle AX3 CWA recordings.
 
-    The optional ``ax6`` dependency provides the Rust CWA reader. The ``splitter``
-    determines the index rows. Data is loaded only when ``data_ss`` is accessed
-    and is resampled to the nominal header sampling rate.
+    Install the optional Rust reader with ``pip install mobgap[ax6]`` on Python
+    3.10 or newer. The ``splitter`` determines the index rows. Data is loaded
+    only when ``data_ss`` is accessed and is resampled to the nominal header
+    sampling rate.
 
     Parameters
     ----------
