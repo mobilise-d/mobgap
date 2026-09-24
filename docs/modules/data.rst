@@ -28,6 +28,14 @@ Generic Loader Classes
    :template: class.rst
 
     GaitDatasetFromData
+    SingleRecordingDataset
+
+AX6 CWA recording
+-----------------
+
+``SingleRecordingDataset`` reads one raw AX6 CWA file. Install the optional
+dependency with ``pip install mobgap[ax6]`` on Python 3.10 or newer. The index
+can select the full recording or individual UTC calendar days.
 
 
 Mobilise-D Matlab format
