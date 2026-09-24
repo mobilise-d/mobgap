@@ -1,6 +1,6 @@
 import warnings
 from types import MappingProxyType
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import numpy as np
 import pandas as pd
@@ -9,17 +9,86 @@ from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self, Unpack
 
+from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.consts import GRAV_MS2
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
+from mobgap.orientation_estimation import MadgwickAHRS
+from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.utils.array_handling import merge_intervals, sliding_window_view
 from mobgap.utils.conversions import as_samples
-from mobgap.utils.dtypes import assert_is_sensor_data
+from mobgap.utils.dtypes import assert_is_sensor_data, get_frame_definition
+
+_ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
+_SENSOR_AXES = ("x", "y", "z")
+_BODY_FRAME_AXES = ("is", "ml", "pa")
+
+_gsd_iluz_docfiller = make_filldoc(
+    base_gsd_docfiller._dict
+    | {
+        "common_parameters": """
+    pre_filter
+        A pre-processing filter to apply to the prepared ILUZ data before the GSD algorithm is applied.
+    window_length_s
+        The length of the window in seconds that is used to detect gait sequences.
+        Each window will be processed separately.
+    window_overlap
+        The overlap between two consecutive windows in percent.
+        For example, a value of 0.5 means that the windows will overlap by 50%%.
+    std_activity_threshold
+        The lower threshold for the standard deviation of the filtered vertical acceleration to be considered as
+        activity.
+    mean_activity_threshold
+        A lower threshold applied to the mean of the mean-shifted raw gravity corrected vertical acceleration to be
+        considered as activity.
+    acc_v_standing_threshold
+        A lower threshold applied to the mean of the vertical acceleration in each window to detect standing/upright
+        positions. Only "standing" windows are considered for further processing.
+    step_detection_thresholds
+        The minimal peak height for the step detection. This expects a tuple with one value for the vertical axis and
+        one for the PA axis.
+    sin_template_freq_hz
+        The frequency of the sin template used for the convolution.
+    allowed_steps_per_s
+        A tuple with two values, specifying the lower and upper bound for the number of steps per second.
+        This is converted in a minimum and maximum number of steps per window using the ``window_length_s`` parameter.
+    allowed_acc_v_change_per_window
+        The maximum change in the mean vertical acceleration between the first and the last second of the window in
+        percent. I.e. 0.1 means a maximum change of 10%%.
+        If this change is exceeded, the window is discarded, as we assume that the person changed their posture (i.e
+        from lying to standing).
+    min_gsd_duration_s
+        The minimum duration of a gait sequence in seconds.
+        This is applied after the gait sequences are detected.
+    use_original_peak_detection
+        If True, the original peak detection algorithm is used.
+        It uses zero crossings to identify peaks and further interpolate the existence of peaks, when none are found
+        for a certain period of time.
+        We default to the new peak detection algorithm, as it is simpler and less magic.
+        The performance of the two algorithms is similar, but not identical.
+        For the best possible performance with the original algorithm, some of the other parameters might need to be
+        adjusted.
+""",
+        "adaptive_other_parameters": """
+    data
+        The raw IMU data in the sensor frame passed to the ``detect`` method.
+    sampling_rate_hz
+        The sampling rate of the IMU data in Hz passed to the ``detect`` method.
+""",
+        "pa_peak_aggregation": """
+    pa_peak_aggregation
+        How positive and negative PA-axis peak counts are aggregated before applying the ILUZ step-count thresholds.
+        ``"positive"`` keeps the original ILUZ behavior and only counts positive peaks in the convolved PA signal.
+        ``"mean"`` counts positive and negative peaks separately and uses their mean. ``"max"`` uses the larger of the
+        two counts.
+""",
+    }
+)
 
 
-@base_gsd_docfiller
+@_gsd_iluz_docfiller
 class GsdIluz(BaseGsDetector):
     """Implementation of the GSD algorithm by Iluz et al. (2014) [1]_.
 
@@ -36,46 +105,7 @@ class GsdIluz(BaseGsDetector):
 
     Parameters
     ----------
-    pre_filter
-        A pre-processing filter to apply to the data before the GSD algorithm is applied.
-    window_length_s
-        The length of the window in seconds that is used to detect gait sequences.
-        Each window will be processed separately.
-    window_overlap
-        The overlap between two consecutive windows in percent.
-        For example, a value of 0.5 means that the windows will overlap by 50%%.
-    std_activity_threshold
-        The lower threshold for the standard deviation of the filtered acc_x data to be considered as activity.
-    mean_activity_threshold
-        A lower threshold applied to the mean of the mean-shifted raw gravity corrected acc_x data to be considered as
-        activity.
-    acc_v_standing_threshold
-        A lower threshold applied to the mean of the acc_v data in each window to detect standing/upright positions.
-        Only "standing" windows are considered for further processing.
-    step_detection_thresholds
-        The minimal peak height for the step detection.
-        This expects a tuple with two values, one for each axis (acc_x and acc_z).
-    sin_template_freq_hz
-        The frequency of the sin template used for the convolution.
-    allowed_steps_per_s
-        A tuple with two values, specifying the lower and upper bound for the number of steps per second.
-        This is converted in a minimum and maximum number of steps per window using the ``window_length_s`` parameter.
-    allowed_acc_v_change_per_window
-        The maximum change in the mean of the acc_v data between the first and the last second of the window in percent.
-        I.e. 0.1 means a maximum change of 10%%.
-        If this change is exceeded, the window is discarded, as we assume that the person changed their posture (i.e
-        from lying to standing).
-    min_gsd_duration_s
-        The minimum duration of a gait sequence in seconds.
-        This is applied after the gait sequences are detected.
-    use_original_peak_detection
-        If True, the original peak detection algorithm is used.
-        It uses zero crossings to identify peaks and further interpolate the existence of peaks, when none are found
-        for a certain period of time.
-        We default to the new peak detection algorithm, as it is simpler and less magic.
-        The performance of the two algorithms is similar, but not identical.
-        For the best possible performance with the original algorithm, some of the other parameters might need to be
-        adjusted.
+    %(common_parameters)s
 
     Other Parameters
     ----------------
@@ -232,7 +262,7 @@ class GsdIluz(BaseGsDetector):
 
     @timed_action_method
     @base_gsd_docfiller
-    def detect(  # noqa: PLR0915
+    def detect(
         self,
         data: pd.DataFrame,
         *,
@@ -253,12 +283,19 @@ class GsdIluz(BaseGsDetector):
 
         assert_is_sensor_data(data, frame="body")
 
-        relevant_columns = ["acc_is", "acc_pa"]
-        data = data[relevant_columns]
+        data = data[_ILUZ_CORE_COLUMNS]
 
+        self.gs_list_ = self._detect_from_prepared_data(data, sampling_rate_hz=sampling_rate_hz)
+        return self
+
+    def _detect_from_prepared_data(
+        self,
+        data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
+    ) -> pd.DataFrame:
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-            return self
+            return _empty_gs_list()
 
         # Filter the data
         try:
@@ -266,8 +303,7 @@ class GsdIluz(BaseGsDetector):
         except ValueError as e:
             if "padlen" in str(e):
                 warnings.warn("Data is too short for the filter. Returning empty gait sequence list.", stacklevel=1)
-                self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-                return self
+                return _empty_gs_list()
             raise e from None
 
         # Window data and define activity windows
@@ -300,8 +336,7 @@ class GsdIluz(BaseGsDetector):
 
         # We shortcut here, if there are no activity windows
         if not activity_windows.any():
-            self.gs_list_ = _unify_gs_df(pd.DataFrame(columns=["start", "end"]))
-            return self
+            return _empty_gs_list()
 
         # Convolve the data with sin signal
         # The template is equivalent to cycle of a sin wave with a frequency of `sin_template_freq_hz`
@@ -312,7 +347,7 @@ class GsdIluz(BaseGsDetector):
 
         # We split this explicitly by the two axis here, as both axis have slightly different configurations and
         # thresholds
-        n_peaks = np.zeros((activity_windows.shape[0], 2), dtype=np.int32)
+        n_peaks = np.zeros((activity_windows.shape[0], 2), dtype=float)
         # IS:
         # NOTE: THE -GRAV_MS2! I missed that for the longest time in the original implementation.
         # TODO: Explore if using the filtered data here would be better. Note, that substracting GRAV_MS2 does not
@@ -333,12 +368,9 @@ class GsdIluz(BaseGsDetector):
         data_channel = data["acc_pa"].to_numpy()
         convolved_data = np.convolve(data_channel, sin_template, mode="same")
         convolved_data_windowed = sliding_window_view(convolved_data, window_length_samples, window_overlap_samples)
-        n_peaks[activity_windows, 1] = self._find_peaks(
+        n_peaks[activity_windows, 1] = self._count_pa_peaks(
             convolved_data_windowed[activity_windows],
             sampling_rate_hz=sampling_rate_hz,
-            step_detection_threshold=self.step_detection_thresholds[1],
-            max_allowed_steps_per_s=self.allowed_steps_per_s[1],
-            use_original_peak_detection=self.use_original_peak_detection,
         )
 
         del data_channel, convolved_data, convolved_data_windowed
@@ -382,9 +414,21 @@ class GsdIluz(BaseGsDetector):
         # Finally, we remove all gsds that are shorter than `min_duration` seconds
         gs_list = gs_list[(gs_list["end"] - gs_list["start"]) / sampling_rate_hz >= self.min_gsd_duration_s]
 
-        self.gs_list_ = _unify_gs_df(gs_list.reset_index(drop=True).copy())
+        return _unify_gs_df(gs_list.reset_index(drop=True).copy())
 
-        return self
+    def _count_pa_peaks(
+        self,
+        data_windows: np.ndarray,
+        *,
+        sampling_rate_hz: float,
+    ) -> np.ndarray:
+        return self._find_peaks(
+            data_windows,
+            sampling_rate_hz=sampling_rate_hz,
+            step_detection_threshold=self.step_detection_thresholds[1],
+            max_allowed_steps_per_s=self.allowed_steps_per_s[1],
+            use_original_peak_detection=self.use_original_peak_detection,
+        )
 
     def _find_peaks(
         self,
@@ -411,6 +455,170 @@ class GsdIluz(BaseGsDetector):
             step_detection_threshold,
             # For the normal find peak version, we derive the min distance from the allowed steps per second
             as_samples(1 / max_allowed_steps_per_s, sampling_rate_hz),
+        )
+
+
+@_gsd_iluz_docfiller
+class GsdIluzAdaptiveGravity(GsdIluz):
+    """Sensor-frame variant of :class:`GsdIluz` with adaptive gravity tracking.
+
+    This variant uses Madgwick orientation tracking to estimate the vertical acceleration channel that the ILUZ core
+    expects as ``acc_is``. The PA channel is not rotated. It is selected directly from the raw sensor-frame
+    accelerometer column specified by ``expected_pa_axis``.
+
+    **Data Requirements:** Requires accelerometer and gyroscope data in either the sensor or body frame. For
+    sensor-frame data, the selected PA axis must already be aligned with the anatomical PA axis, while gravity may point
+    along any sensor-frame direction. For body-frame data, ``expected_pa_axis="pa"`` should usually be provided, but
+    any raw body-frame acceleration axis can be selected explicitly.
+
+    Parameters
+    ----------
+    expected_pa_axis
+        Axis expected to contain the PA acceleration signal. For sensor-frame data, one of ``"x"``, ``"y"``, or
+        ``"z"``. For body-frame data, one of ``"is"``, ``"ml"``, or ``"pa"``. Defaults to ``"z"``.
+    orientation_estimation
+        Orientation estimation algorithm used to track gravity and derive the vertical acceleration channel. The
+        default is ``MadgwickAHRS(initial_orientation=None)``, which estimates the initial orientation from the first
+        accelerometer sample.
+    %(pa_peak_aggregation)s
+    %(common_parameters)s
+
+    Other Parameters
+    ----------------
+    %(adaptive_other_parameters)s
+
+    Attributes
+    ----------
+    %(gs_list_)s
+    iluz_data_
+        The prepared two-column data passed into the shared ILUZ core. ``acc_is`` is the Madgwick-derived vertical
+        acceleration and ``acc_pa`` is the selected raw PA acceleration.
+    %(perf_)s
+    """
+
+    expected_pa_axis: Literal["x", "y", "z", "is", "ml", "pa"]
+    pa_peak_aggregation: Literal["positive", "mean", "max"]
+    orientation_estimation: BaseOrientationEstimation
+    iluz_data_: pd.DataFrame
+
+    @set_defaults(**{k: cf(v) for k, v in GsdIluz.PredefinedParameters.updated.items()})
+    def __init__(
+        self,
+        *,
+        expected_pa_axis: Literal["x", "y", "z", "is", "ml", "pa"] = "z",
+        pa_peak_aggregation: Literal["positive", "mean", "max"] = "positive",
+        orientation_estimation: BaseOrientationEstimation = cf(MadgwickAHRS(initial_orientation=None)),
+        pre_filter: BaseFilter,
+        window_length_s: float,
+        window_overlap: float,
+        std_activity_threshold: float,
+        mean_activity_threshold: float,
+        acc_v_standing_threshold: float,
+        step_detection_thresholds: tuple[float, float],
+        sin_template_freq_hz: float,
+        allowed_steps_per_s: tuple[float, float],
+        allowed_acc_v_change_per_window: float,
+        min_gsd_duration_s: float,
+        use_original_peak_detection: bool,
+    ) -> None:
+        super().__init__(
+            pre_filter=pre_filter,
+            window_length_s=window_length_s,
+            window_overlap=window_overlap,
+            std_activity_threshold=std_activity_threshold,
+            mean_activity_threshold=mean_activity_threshold,
+            acc_v_standing_threshold=acc_v_standing_threshold,
+            step_detection_thresholds=step_detection_thresholds,
+            sin_template_freq_hz=sin_template_freq_hz,
+            allowed_steps_per_s=allowed_steps_per_s,
+            allowed_acc_v_change_per_window=allowed_acc_v_change_per_window,
+            min_gsd_duration_s=min_gsd_duration_s,
+            use_original_peak_detection=use_original_peak_detection,
+        )
+        self.expected_pa_axis = expected_pa_axis
+        self.pa_peak_aggregation = pa_peak_aggregation
+        self.orientation_estimation = orientation_estimation
+
+    @timed_action_method
+    def detect(
+        self,
+        data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
+        **_: Unpack[dict[str, Any]],
+    ) -> Self:
+        """Detect gait sequences in sensor-frame data.
+
+        Parameters
+        ----------
+        data
+            The raw IMU data in either the sensor or body frame.
+        sampling_rate_hz
+            The sampling rate of the IMU data in Hz.
+
+        Returns
+        -------
+        self
+            The instance of the class with the ``gs_list_`` attribute set to the detected gait sequences.
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+
+        frame = get_frame_definition(data, ["sensor", "body"])
+        allowed_axes = _SENSOR_AXES if frame == "sensor" else _BODY_FRAME_AXES
+        if self.expected_pa_axis not in allowed_axes:
+            raise ValueError(
+                f"{frame.capitalize()}-frame data requires expected_pa_axis to be one of {list(allowed_axes)}. "
+                f'Got "{self.expected_pa_axis}".'
+            )
+        if self.pa_peak_aggregation not in ("positive", "mean", "max"):
+            raise ValueError(
+                f"pa_peak_aggregation must be one of ['positive', 'mean', 'max']. Got \"{self.pa_peak_aggregation}\"."
+            )
+
+        if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
+            self.iluz_data_ = pd.DataFrame(columns=_ILUZ_CORE_COLUMNS)
+            self.gs_list_ = _empty_gs_list()
+            return self
+
+        orientation_estimation = self.orientation_estimation.clone().estimate(data, sampling_rate_hz=sampling_rate_hz)
+        rotated_data = orientation_estimation.rotated_data_
+        vertical_column = "acc_gz" if frame == "sensor" else "acc_gis"
+        vertical_acc = rotated_data[vertical_column].to_numpy().copy()
+        del orientation_estimation, rotated_data
+
+        pa_column = f"acc_{self.expected_pa_axis}"
+
+        prepared_data = pd.DataFrame(
+            {
+                "acc_is": vertical_acc,
+                "acc_pa": data[pa_column].to_numpy(),
+            },
+            index=data.index,
+        )
+        self.iluz_data_ = prepared_data
+
+        self.gs_list_ = self._detect_from_prepared_data(prepared_data, sampling_rate_hz=sampling_rate_hz)
+        return self
+
+    def _count_pa_peaks(
+        self,
+        data_windows: np.ndarray,
+        *,
+        sampling_rate_hz: float,
+    ) -> np.ndarray:
+        positive_peak_count = super()._count_pa_peaks(data_windows, sampling_rate_hz=sampling_rate_hz)
+        if self.pa_peak_aggregation == "positive":
+            return positive_peak_count
+
+        negative_peak_count = super()._count_pa_peaks(-data_windows, sampling_rate_hz=sampling_rate_hz)
+        if self.pa_peak_aggregation == "mean":
+            return (positive_peak_count + negative_peak_count) / 2
+        if self.pa_peak_aggregation == "max":
+            return np.maximum(positive_peak_count, negative_peak_count)
+
+        raise ValueError(
+            f"pa_peak_aggregation must be one of ['positive', 'mean', 'max']. Got \"{self.pa_peak_aggregation}\"."
         )
 
 
@@ -582,3 +790,7 @@ def vec_find_n_peaks_original(signal: np.ndarray, threshold: float, distance: fl
     output = np.zeros(signal.shape[0], dtype=np.int32)
     _find_n_peaks_exact_matlab_replication(signal, threshold, distance, output)
     return output
+
+
+def _empty_gs_list() -> pd.DataFrame:
+    return _unify_gs_df(pd.DataFrame(columns=["start", "end"]))

@@ -86,9 +86,10 @@ first_gait_sequence_data = imu_data.iloc[
 #           Because it runs after gait sequence detection, only use it if you have no way to solve the
 #           orientation from prior mounting knowledge and if all algorithms before it are orientation-independent or
 #           explicitly support sensor-frame input.
-#           The most notable limitation is that the `GsdIluz` algorithm is not orientation-independent and hence can
-#           not be used in combination with a reorientation algorithm in the
-#           Mobilise-D pipeline.
+#           The standard `GsdIluz` requires aligned body-frame data. To enable per-GS reorientation in the healthy
+#           pipeline, use `GsdIluzAdaptiveGravity` as the gait sequence detector on sensor-frame data, with the known
+#           PA sensor axis supplied through `expected_pa_axis`. Use `pa_peak_aggregation="max"` and
+#           `ReorientationMethodDM(correction_mode="full")` when the PA direction may be reversed.
 from mobgap.re_orientation import ReorientationMethodDM
 
 first_gait_sequence_sensor_data = long_trial.data_ss.iloc[

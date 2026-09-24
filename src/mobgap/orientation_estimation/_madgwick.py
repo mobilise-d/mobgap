@@ -40,6 +40,9 @@ class MadgwickAHRS(BaseOrientationEstimation):
         In some cases, the algorithm will not be able to converge if the initial orientation is too far off and the
         orientation will slowly oscillate.
         If you pass a array, remember that the order of elements must be x, y, z, w.
+        If you pass ``None``, the initial orientation is estimated from the first accelerometer sample by aligning the
+        measured gravity direction with the global z-axis. This only resolves roll and pitch; the initial heading around
+        gravity remains arbitrary.
 
         .. warning:: This orientation needs to be provided based on the global coordinate system, which is rotated
            relative to the sensor frame defined in mobgap.
@@ -97,13 +100,13 @@ class MadgwickAHRS(BaseOrientationEstimation):
 
     """
 
-    initial_orientation: Union[np.ndarray, Rotation]
+    initial_orientation: Union[np.ndarray, Rotation, None]
     beta: float
 
     def __init__(
         self,
         beta: float = 0.2,
-        initial_orientation: Union[np.ndarray, Rotation] = cf(INITIAL_MOBILISED_ORIENTATION),
+        initial_orientation: Union[np.ndarray, Rotation, None] = cf(INITIAL_MOBILISED_ORIENTATION),
     ) -> None:
         self.initial_orientation = initial_orientation
         self.beta = beta
@@ -144,8 +147,12 @@ class MadgwickAHRS(BaseOrientationEstimation):
 
         initial_orientation = self.initial_orientation
 
-        if isinstance(initial_orientation, Rotation):
+        if initial_orientation is None:
+            initial_orientation = _initial_orientation_from_gravity(data[SF_ACC_COLS].iloc[0].to_numpy()).as_quat()
+        elif isinstance(initial_orientation, Rotation):
             initial_orientation = initial_orientation.as_quat()
+        else:
+            initial_orientation = initial_orientation.copy()
 
         gyro_data = np.deg2rad(data[SF_GYR_COLS].to_numpy())
         acc_data = data[SF_ACC_COLS].to_numpy()
@@ -160,3 +167,12 @@ class MadgwickAHRS(BaseOrientationEstimation):
 
         self.orientation_object_ = Rotation.from_quat(rots)
         return self
+
+
+def _initial_orientation_from_gravity(acc_sample: np.ndarray) -> Rotation:
+    gravity_norm = np.linalg.norm(acc_sample)
+    if gravity_norm == 0 or not np.isfinite(gravity_norm):
+        return Rotation.identity()
+    gravity_direction = acc_sample / gravity_norm
+    rotation, _ = Rotation.align_vectors(np.array([[0.0, 0.0, 1.0]]), gravity_direction[None, :])
+    return rotation
