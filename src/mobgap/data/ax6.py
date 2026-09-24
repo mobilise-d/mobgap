@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
@@ -120,7 +119,7 @@ def _load_cwa_data(
     return frame.loc[(frame.index >= start_time) & (frame.index < end_time)]
 
 
-class BaseAX6Dataset(BaseGaitDataset, ABC):
+class BaseAX6Dataset(BaseGaitDataset):
     """Read AX6 CWA files, with file discovery and splitting supplied by subclasses.
 
     Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
@@ -141,13 +140,13 @@ class BaseAX6Dataset(BaseGaitDataset, ABC):
         self.memory = memory
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
 
-    @abstractmethod
     def _get_file_paths(self) -> Sequence[Path]:
         """Return the CWA files represented by this dataset."""
+        raise NotImplementedError
 
-    @abstractmethod
     def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
         """Return the recording windows for one CWA file."""
+        raise NotImplementedError
 
     @property
     def _selected_file_path(self) -> Path:
