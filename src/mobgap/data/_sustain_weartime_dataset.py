@@ -77,10 +77,6 @@ def _normalize_additional_channels(
     return unique_channels
 
 
-def _available_additional_channels() -> tuple[AdditionalCwaChannel, ...]:
-    return ADDITIONAL_CWA_CHANNELS
-
-
 def _as_utc_timestamp(timestamp: Any) -> pd.Timestamp:
     timestamp = pd.Timestamp(timestamp)
     if timestamp.tzinfo is None:
@@ -434,8 +430,8 @@ class SustainWearTimeDataset(BaseGaitDataset):
         The full CWA header of the selected recording as returned by ``cwa_reader_rs``.
     cwa_timing_report_
         The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
-    available_additional_channels_
-        Additional CWA channels available for the selected recording.
+    supported_additional_channels_
+        Additional CWA channels supported by this loader. A selected recording may lack some of them.
     n_samples
         Number of samples in the selected recording, derived from CWA timing metadata without loading the full data.
     reference_nonwear_
@@ -542,9 +538,9 @@ class SustainWearTimeDataset(BaseGaitDataset):
         return dict(self._cached_load_cwa_timing_report(self.selected_data_file))
 
     @property
-    def available_additional_channels_(self) -> tuple[AdditionalCwaChannel, ...]:
-        self.assert_is_single(None, "available_additional_channels_")
-        return _available_additional_channels()
+    def supported_additional_channels_(self) -> tuple[AdditionalCwaChannel, ...]:
+        self.assert_is_single(None, "supported_additional_channels_")
+        return ADDITIONAL_CWA_CHANNELS
 
     @property
     def n_samples(self) -> int:
