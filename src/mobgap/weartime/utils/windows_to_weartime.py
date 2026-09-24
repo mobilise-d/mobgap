@@ -19,9 +19,6 @@ def remove_isolated_short_periods_from_intervals(
     It removes short interior wear intervals and then merges wear intervals separated by
     short interior non-wear gaps. Boundary periods are kept.
     """
-    if data_length < 0:
-        raise ValueError("`data_length` must be non-negative.")
-
     wear_intervals = np.asarray(wear_intervals, dtype=np.int64)
     if wear_intervals.size == 0:
         return np.empty((0, 2), dtype=np.int64)
@@ -48,9 +45,6 @@ def remove_short_wear_bouts_by_ratio_from_intervals(
     sampling_rate_hz: float = 100.0,
 ) -> np.ndarray:
     """Remove short wear bouts surrounded by disproportionately long non-wear periods from wear intervals."""
-    if data_length < 0:
-        raise ValueError("`data_length` must be non-negative.")
-
     wear_intervals = np.asarray(wear_intervals, dtype=np.int64)
     if wear_intervals.size == 0:
         return np.empty((0, 2), dtype=np.int64)

@@ -69,7 +69,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     window_size : int
         Micro window size in seconds (default: 5)
     overlap : float
-        Micro window overlap fraction, 0.0-1.0 (default: 0.5)
+        Micro window overlap fraction, from 0.0 up to but excluding 1.0 (default: 0.5)
     prob_thresh : float
         Probability threshold for macro-level non-wear decision (default: 0.4)
     gyr_ml_centroid_thresh_hz : float
