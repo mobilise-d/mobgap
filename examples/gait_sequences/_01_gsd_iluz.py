@@ -127,6 +127,19 @@ fig, ax = plot_gsd_outputs(
 fig.show()
 
 # %%
+# Adaptive gravity estimation on sensor-frame data
+# ------------------------------------------------
+# ``GsdIluzAdaptiveGravity`` estimates the vertical axis from acceleration and
+# gyroscope data. The PA axis must still be known. For this lower-back sensor,
+# sensor ``z`` points along PA, so we can pass the raw sensor-frame recording.
+from mobgap.gait_sequences import GsdIluzAdaptiveGravity
+
+adaptive_output = GsdIluzAdaptiveGravity(expected_pa_axis="z").detect(
+    short_trial.data_ss, sampling_rate_hz=short_trial.sampling_rate_hz
+)
+print("Adaptive-gravity output:\n\n", adaptive_output.gs_list_)
+
+# %%
 # Performance on a longer lab trial
 # ---------------------------------
 # Below we apply the algorithm to a lab trail that contains activities of daily living.
