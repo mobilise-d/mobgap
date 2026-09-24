@@ -134,6 +134,11 @@ def get_example_csv_data_path() -> Path:
     return _pooch_get_folder(LOCAL_EXAMPLE_PATH / "data_csv")
 
 
+def get_example_cwa_data_path() -> Path:
+    """Get the path to the small Open Movement example CWA recording."""
+    return _pooch_glob(LOCAL_EXAMPLE_PATH / "data/ax6", "example-610-steps.cwa")[0]
+
+
 @matlab_dataset_docfiller
 class LabExampleDataset(BaseGenericMobilisedDataset):
     """A dataset containing all lab example data provided with mobgap.
