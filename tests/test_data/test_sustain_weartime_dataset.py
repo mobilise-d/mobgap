@@ -376,7 +376,7 @@ def test_dataset_unsupported_additional_channel_raises(tmp_path):
         recording_id=HUMAN_RECORDING_ID
     )
 
-    assert datapoint.available_additional_channels_ == ("temperature", "light", "battery")
+    assert datapoint.supported_additional_channels_ == ("temperature", "light", "battery")
     with pytest.raises(ValueError, match="Unknown additional CWA channels"):
         datapoint.data_ss
 
