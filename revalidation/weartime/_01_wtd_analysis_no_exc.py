@@ -27,13 +27,22 @@ algorithms = {
     "WtdMegaritisSignal": ("WtdMegaritisSignal", "MobGap"),
 }
 
-results_base_path = Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/weartime_no_exc"
+results_base_path = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/weartime_no_exc"
+)
 condition_name = "sustain_weartime"
-index_cols = ["recording_type", "participant_id", "recording_id", "recording_day"]
+index_cols = [
+    "recording_type",
+    "participant_id",
+    "recording_id",
+    "recording_day",
+]
 
 
 def load_single_results(result_name: str) -> pd.DataFrame:
-    result_path = results_base_path / condition_name / result_name / "single_results.csv"
+    result_path = (
+        results_base_path / condition_name / result_name / "single_results.csv"
+    )
     if not result_path.exists():
         raise FileNotFoundError(
             f"Could not find generated wear-time results at {result_path}. "
@@ -41,12 +50,19 @@ def load_single_results(result_name: str) -> pd.DataFrame:
         )
 
     results = pd.read_csv(result_path)
-    available_index_cols = [column for column in index_cols if column in results.columns]
+    available_index_cols = [
+        column for column in index_cols if column in results.columns
+    ]
     return results.set_index(available_index_cols)
 
 
 def load_aggregated_results(result_name: str) -> pd.DataFrame:
-    result_path = results_base_path / condition_name / result_name / "aggregated_results.csv"
+    result_path = (
+        results_base_path
+        / condition_name
+        / result_name
+        / "aggregated_results.csv"
+    )
     if not result_path.exists():
         raise FileNotFoundError(
             f"Could not find generated wear-time results at {result_path}. "
@@ -57,19 +73,29 @@ def load_aggregated_results(result_name: str) -> pd.DataFrame:
 
 
 results = pd.concat(
-    {display_name: load_single_results(result_name) for result_name, display_name in algorithms.items()},
+    {
+        display_name: load_single_results(result_name)
+        for result_name, display_name in algorithms.items()
+    },
     names=["algo", "version"],
 ).reset_index()
 results = results.assign(
     algo_with_version=lambda df_: df_["algo"] + " (" + df_["version"] + ")",
     abs_weartime_error_min=lambda df_: df_["weartime_error_min"].abs(),
-    abs_waking_weartime_error_min=lambda df_: df_["waking_weartime_error_min"].abs(),
+    abs_waking_weartime_error_min=lambda df_: df_[
+        "waking_weartime_error_min"
+    ].abs(),
 )
 human_movement_results = results[results["recording_type"] == "human_movement"]
-simulated_nonwear_results = results[results["recording_type"] == "simulated_movements"]
+simulated_nonwear_results = results[
+    results["recording_type"] == "simulated_movements"
+]
 
 aggregated_results = pd.concat(
-    {display_name: load_aggregated_results(result_name) for result_name, display_name in algorithms.items()},
+    {
+        display_name: load_aggregated_results(result_name)
+        for result_name, display_name in algorithms.items()
+    },
     names=["algo", "version"],
 )
 
@@ -90,15 +116,24 @@ human_movement_summary_aggs = {
     "weartime_error_min_mean": ("weartime_error_min", "mean"),
     "weartime_error_min_median": ("weartime_error_min", "median"),
     "abs_weartime_error_min_mean": ("abs_weartime_error_min", "mean"),
-    "waking_reference_weartime_min_mean": ("waking_reference_weartime_min", "mean"),
-    "waking_detected_weartime_min_mean": ("waking_detected_weartime_min", "mean"),
+    "waking_reference_weartime_min_mean": (
+        "waking_reference_weartime_min",
+        "mean",
+    ),
+    "waking_detected_weartime_min_mean": (
+        "waking_detected_weartime_min",
+        "mean",
+    ),
     "waking_weartime_error_min_mean": ("waking_weartime_error_min", "mean"),
-    "abs_waking_weartime_error_min_mean": ("abs_waking_weartime_error_min", "mean"),
+    "abs_waking_weartime_error_min_mean": (
+        "abs_waking_weartime_error_min",
+        "mean",
+    ),
 }
 
-human_movement_summary_overall = human_movement_results.groupby(["algo", "version"]).agg(
-    **human_movement_summary_aggs
-)
+human_movement_summary_overall = human_movement_results.groupby(
+    ["algo", "version"]
+).agg(**human_movement_summary_aggs)
 human_movement_summary_overall
 
 # %%
@@ -106,9 +141,9 @@ human_movement_summary_overall
 # -------------------------------
 # For the human-movement recordings we inspect the full set of overlap and duration metrics. The dataset is evaluated
 # per day; this aggregation keeps the participant identity, then averages across the selected participant's days.
-human_movement_summary_by_participant = human_movement_results.groupby(["participant_id", "algo", "version"]).agg(
-    **human_movement_summary_aggs
-)
+human_movement_summary_by_participant = human_movement_results.groupby(
+    ["participant_id", "algo", "version"]
+).agg(**human_movement_summary_aggs)
 human_movement_summary_by_participant
 
 # %%
@@ -118,27 +153,36 @@ human_movement_summary_by_participant
 # relevant question is whether the algorithm detected any wear by accident.
 simulated_nonwear_summary_aggs = {
     "n_days": ("detected_weartime_min", "size"),
-    "n_days_with_detected_wear": ("detected_weartime_min", lambda series: (series > 0).sum()),
-    "detected_wear_day_fraction": ("detected_weartime_min", lambda series: (series > 0).mean()),
+    "n_days_with_detected_wear": (
+        "detected_weartime_min",
+        lambda series: (series > 0).sum(),
+    ),
+    "detected_wear_day_fraction": (
+        "detected_weartime_min",
+        lambda series: (series > 0).mean(),
+    ),
     "detected_weartime_min_total": ("detected_weartime_min", "sum"),
     "detected_weartime_min_mean": ("detected_weartime_min", "mean"),
     "detected_weartime_min_median": ("detected_weartime_min", "median"),
     "detected_weartime_min_max": ("detected_weartime_min", "max"),
-    "waking_detected_weartime_min_total": ("waking_detected_weartime_min", "sum"),
+    "waking_detected_weartime_min_total": (
+        "waking_detected_weartime_min",
+        "sum",
+    ),
     "waking_detected_weartime_min_max": ("waking_detected_weartime_min", "max"),
 }
 
-simulated_nonwear_summary_overall = simulated_nonwear_results.groupby(["algo", "version"]).agg(
-    **simulated_nonwear_summary_aggs
-)
+simulated_nonwear_summary_overall = simulated_nonwear_results.groupby(
+    ["algo", "version"]
+).agg(**simulated_nonwear_summary_aggs)
 simulated_nonwear_summary_overall
 
 # %%
 # Simulated non-wear: per participant
 # -----------------------------------
-simulated_nonwear_summary_by_participant = simulated_nonwear_results.groupby(["participant_id", "algo", "version"]).agg(
-    **simulated_nonwear_summary_aggs
-)
+simulated_nonwear_summary_by_participant = simulated_nonwear_results.groupby(
+    ["participant_id", "algo", "version"]
+).agg(**simulated_nonwear_summary_aggs)
 simulated_nonwear_summary_by_participant
 
 # %%
