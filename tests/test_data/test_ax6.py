@@ -53,6 +53,16 @@ def _split_first_ten_seconds(info: CwaRecordingInfo) -> pd.DataFrame:
     )
 
 
+def _split_named_for_file(info: CwaRecordingInfo) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "recording": [info.path.stem],
+            "start_time": [info.start_time],
+            "end_time": [info.start_time + pd.Timedelta(seconds=10)],
+        }
+    )
+
+
 class _DiscoveredFilesDataset(BaseAX6Dataset):
     def __init__(
         self, paths: list[Path], groupby_cols: list[str] | str | None = None, subset_index: pd.DataFrame | None = None
@@ -214,14 +224,41 @@ def test_multiple_files_keep_splits_distinct_and_load_the_selected_file(
         paths,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
-        splitter=_split_first_ten_seconds,
+        splitter=_split_named_for_file,
     )
 
     assert dataset.index["file_path"].tolist() == [str(path) for path in paths]
+    assert dataset.index["recording"].tolist() == ["first", "second"]
     selected = dataset.get_subset(file_path=str(paths[1]))
     assert len(selected.data_ss) == 1000
     assert reads == [str(paths[1])]
     assert pickle.loads(pickle.dumps(dataset)).clone().index.equals(dataset.index)
+
+
+def test_fixed_split_table_applies_to_each_file(tmp_path: Path) -> None:
+    """The same fixed windows appear once for each CWA file."""
+    paths = [tmp_path / "first.cwa", tmp_path / "second.cwa"]
+    for path in paths:
+        copyfile(EXAMPLE_CWA, path)
+    start = pd.Timestamp("2012-03-27T11:14:57.500Z")
+    splits = pd.DataFrame(
+        {
+            "recording": ["first_10s"],
+            "start_time": [start],
+            "end_time": [start + pd.Timedelta(seconds=10)],
+        }
+    )
+
+    dataset = AX6Dataset(
+        paths,
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        splitter=splits,
+    )
+
+    assert dataset.index["file_path"].tolist() == [str(path) for path in paths]
+    assert dataset.index["recording"].tolist() == ["first_10s", "first_10s"]
+    assert len(dataset.get_subset(file_path=str(paths[1])).data_ss) == 1000
 
 
 def test_base_dataset_can_use_subclass_file_discovery_and_splits(tmp_path: Path) -> None:

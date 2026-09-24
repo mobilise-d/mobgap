@@ -228,10 +228,10 @@ class AX6Dataset(BaseAX6Dataset):
         Metadata required by MobGap pipelines.
     splitter
         A DataFrame with ``start_time`` and ``end_time`` columns plus any
-        identifying columns, or a callable that receives
-        :class:`CwaRecordingInfo` and returns such a DataFrame.
-        The same DataFrame is applied to every file. ``None`` selects each
-        complete recording. Use
+        identifying columns, or a callable returning such a DataFrame.
+        A fixed DataFrame supplies the same splits for every file. A callable
+        runs separately for each file and receives that file's
+        :class:`CwaRecordingInfo`. ``None`` selects each complete recording. Use
         :func:`split_by_utc_day` or :func:`split_by_utc_hour` for UTC calendar
         intervals. Define custom callables at module level so joblib and process
         workers can serialize them.
