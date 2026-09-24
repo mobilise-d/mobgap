@@ -8,14 +8,13 @@ import pytest
 from pandas._testing import assert_frame_equal
 
 from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
-from mobgap.data import SustainWearTimeDataset
+from mobgap.data import SustainWearTimeDataset, get_example_cwa_data_path
 from mobgap.data import _sustain_weartime_dataset as sustain_dataset
 from mobgap.utils.misc import get_env_var
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
-HERE = Path(__file__).parent
-CWA_FIXTURE = HERE / "data" / "sustain_weartime" / "example-610-steps.cwa"
+CWA_FIXTURE = get_example_cwa_data_path()
 TIMING_WARNING_MATCH = "effective sampling rate waries considerable"
 HUMAN_RECORDING_ID = "human_movement_001_example_lowback"
 SIMULATED_RECORDING_ID = "simulated_movements_020_example_lowback"
