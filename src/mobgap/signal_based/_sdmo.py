@@ -6,10 +6,11 @@ import pandas as pd
 from numba import njit
 from scipy.fft import fft
 from scipy.ndimage import minimum_filter1d
-from scipy.signal import argrelextrema, correlate, detrend, find_peaks, medfilt, welch
+from scipy.signal import argrelextrema, correlate, find_peaks, medfilt, welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.data_transform import Resample
 from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 
 
@@ -148,20 +149,24 @@ class StrideLevelSDMO(BaseSDMOCalculator):
                 stacklevel=1,
             )
             return self
-        cv = 100 * stride_list[available_cols].mean() / stride_list[available_cols].std()
+        cv = 100 * stride_list[available_cols].std() / stride_list[available_cols].mean()
         self.signal_based_parameters_ = cv.to_frame().T.add_prefix("cv_")
         return self
 
 
 @base_sdmo_docfiller
 class RMS(BaseSDMOCalculator):
-    """Compute acceleration, gyroscope, total acceleration signal root-mean-square (RMS), and ratio metrics.
+    """Compute root-mean-square (RMS) parameters for acceleration and gyroscope signals.
 
-    Ratio between RMS of axes i to RMSAccTotal (i = is, ml or pa)
-    RMS ratio is based on the following article:
-    A gait abnormality measure based on root mean square of trunk acceleration
-    Masaki Sekine et al. Journal of NeuroEngineering and Rehabilitation 2013, 10:118
-    http://www.jneuroengrehab.com/content/10/1/118
+    Acceleration signals are mean-centered before calculating their per-axis RMS. The total acceleration RMS is the
+    Euclidean norm of the per-axis acceleration RMS values, and each acceleration ratio is the corresponding per-axis
+    RMS divided by that total. Gyroscope signals are not mean-centered and are reported as independent per-axis RMS
+    parameters; they do not contribute to the total acceleration RMS or acceleration ratios.
+
+    The acceleration RMS ratios follow:
+    A gait abnormality measure based on root mean square of trunk acceleration.
+    Masaki Sekine et al. Journal of NeuroEngineering and Rehabilitation 2013, 10:118.
+    https://doi.org/10.1186/1743-0003-10-118
 
     Other Parameters
     ----------------
@@ -187,18 +192,23 @@ class RMS(BaseSDMOCalculator):
         """
         self.data = data
         self.signal_based_parameters_ = pd.DataFrame()
-        if not any(data.columns.str.contains("acc")):
+        acc_columns = [column for column in data.columns if column.startswith("acc_")]
+        gyr_columns = [column for column in data.columns if column.startswith("gyr_")]
+        if not acc_columns and not gyr_columns:
             return self
-        # first remove DC of acc signals
-        data = data.copy()
-        data.loc[:, data.columns.str.contains("acc")] = detrend(data.filter(like="acc").to_numpy(), axis=0)
-        rms = (data.pow(2).mean() ** 0.5).add_prefix("rms_")
-        # total RMS
-        rms_total_acc = rms.pow(2).sum() ** 0.5
-        rms["rms_total_acc"] = rms_total_acc
-        # ratio rms
-        for key in rms.filter(like="rms_acc").index:
-            rms[f"rms_ratio_{key.replace('rms_', '')}"] = rms[key] / rms_total_acc if rms_total_acc != 0 else 0
+
+        signals = data[[*acc_columns, *gyr_columns]].copy()
+        # Remove the DC component of the acceleration signals.
+        if acc_columns:
+            signals.loc[:, acc_columns] = signals[acc_columns] - signals[acc_columns].mean()
+
+        rms = np.sqrt(signals.pow(2).mean()).add_prefix("rms_")
+        if acc_columns:
+            acc_rms_columns = [f"rms_{column}" for column in acc_columns]
+            rms_total_acc = np.linalg.norm(rms[acc_rms_columns])
+            rms["rms_total_acc"] = rms_total_acc
+            for column, rms_column in zip(acc_columns, acc_rms_columns):
+                rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else 0
         self.signal_based_parameters_ = rms.to_frame().T
         return self
 
@@ -622,11 +632,15 @@ class SampleEntropy(BaseSDMOCalculator):
         used for defining similarity between two sequences. Set to 0.15 as default in the original implementation.
     %(acc_columns_para)s
     num_samples_threshold
-        Threshold number of samples for calculating entropy. Default is 200 from [1].
+        Threshold number of samples for calculating entropy after resampling. Default is 200 from [1].
+    internal_sampling_rate_hz
+        Sampling rate in Hertz used internally to calculate the sample entropy. The input data is resampled to this
+        sampling rate before calculating the metric.
 
     Other Parameters
     ----------------
     %(data_param)s
+    %(sampling_rate_param)s
 
     Attributes
     ----------
@@ -642,40 +656,47 @@ class SampleEntropy(BaseSDMOCalculator):
         r: float = 0.15,
         acc_columns: Optional[list[str]] = None,
         num_samples_threshold: int = 200,
+        internal_sampling_rate_hz: float = 50.0,
     ) -> None:
         self.dim = dim
         self.r = r
         self.acc_columns = acc_columns
         self.num_samples_threshold = num_samples_threshold
+        self.internal_sampling_rate_hz = internal_sampling_rate_hz
 
     @timed_action_method
     @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]) -> Self:
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
         %(data_param)s
+        %(sampling_rate_param)s
 
         %(calculate_return)s
 
         """
         self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
         acc_columns = self.acc_columns
         if not data.columns.isin(acc_columns or []).any():
             return self
         dim = self.dim
         r = self.r
-        # input data is downsampled by half
-        accs = data[acc_columns].to_numpy()[::2]
-        num_samples = accs.size
-
+        num_samples = round(len(data) * self.internal_sampling_rate_hz / sampling_rate_hz)
         if num_samples <= self.num_samples_threshold:
             self.signal_based_parameters_ = pd.DataFrame(
                 [{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}]
             )
             return self
+
+        accs = (
+            Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
+            .transform(data[acc_columns], sampling_rate_hz=sampling_rate_hz)
+            .transformed_data_.to_numpy()
+        )
 
         se_results = {}
         for acc, col_name in zip(accs.T, acc_columns):
@@ -919,14 +940,12 @@ class SDRange(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class Jerk(BaseSDMOCalculator):
-    """Calculate jerk of acceleration and gyroscope signals in each principal direction, and log-normalised ratios.
+    """Calculate RMS jerk of acceleration signals in each principal direction.
 
     Jerk is defined as the third derivative of position with respect to time, so it is the second derivative
     of velocity and the first derivative of acceleration.
-    In addition to the jerk of signals, log-normalized ratio of the jerk in AP vs jerk in the IS axis and
-    jerk in ML vs jerk in the IS are calculated.
-
-    Jerk ratio formula was taken from the following article:
+    With acceleration in m/s², the returned RMS jerk is expressed in m/s³.
+    The definition follows the following article:
     Age associated changes in head jerk while walking reveal altered dynamic stability in older people.
     Matthew A. et al., Exp Brain Res (2014) 232:51-60. DOI: 10.1007/s00221-013-3719-6
 
@@ -934,13 +953,9 @@ class Jerk(BaseSDMOCalculator):
     Sensitivity of smoothness measures to movement duration, amplitude, and arrests.
     Hogan N. et al., Journal of motor behavior (2009) 41,6. DOI:10.3200/35-09-004-RC
 
-    Log-normalised ratios are commented out because they are not included in the Sustain project report.
-
     Parameters
     ----------
     %(acc_columns_para)s
-    gyr_columns
-        Name of the gyroscope signal columns for which parameters will be calculated.
 
     Other Parameters
     ----------------
@@ -957,10 +972,8 @@ class Jerk(BaseSDMOCalculator):
     def __init__(
         self,
         acc_columns: Optional[list[str]] = None,
-        gyr_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-        self.gyr_columns = gyr_columns
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -978,24 +991,70 @@ class Jerk(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        out = {}
-        dt = 1 / sampling_rate_hz
-        integral_duration = dt * data.size
-        if data.columns.isin(self.acc_columns or []).any():
-            acc_dot = np.gradient(data[self.acc_columns].to_numpy(), dt, axis=0)
-            jerk_acc = np.sqrt(np.trapezoid(acc_dot**2, axis=0) / integral_duration)
-            out = {
-                **{f"jerk_{col}": jerk_acc[i] for i, col in enumerate(self.acc_columns)},
-                # jerk acc ratio parameters are not reported in the sustain project report, so I commented them out
-                # "JerkAccRatio_pa_is": 10 * np.log10(jerk_acc[2] / jerk_acc[0]),
-                # "JerkAccRatio_ml_is": 10 * np.log10(jerk_acc[1] / jerk_acc[0]),
-            }
-        if data.columns.isin(self.gyr_columns or []).any():
-            gyr = data[self.gyr_columns].to_numpy().T
-            jerk_gyr = np.sqrt(np.trapezoid(gyr**2, axis=1) / integral_duration)
-            out.update(**{f"jerk_{col}": jerk_gyr[i] for i, col in enumerate(self.gyr_columns)})
+        acc_columns = [column for column in self.acc_columns or [] if column in data.columns]
+        jerk = _rms_derivative(data[acc_columns].to_numpy(), sampling_rate_hz)
+        out = {f"jerk_{column}": jerk[i] for i, column in enumerate(acc_columns)}
         self.signal_based_parameters_ = pd.DataFrame([out])
         return self
+
+
+@base_sdmo_docfiller
+class AngularAcceleration(BaseSDMOCalculator):
+    """Calculate RMS angular acceleration from gyroscope signals in each principal direction.
+
+    Angular acceleration is the first temporal derivative of angular velocity.
+    With angular velocity in deg/s, the returned RMS angular acceleration is expressed in deg/s².
+
+    Parameters
+    ----------
+    gyr_columns
+        Name of the gyroscope signal columns for which parameters will be calculated.
+
+    Other Parameters
+    ----------------
+    %(data_param)s
+    %(sampling_rate_param)s
+
+    Attributes
+    ----------
+    %(signal_based_parameters_)s
+    %(perf_)s
+
+    """
+
+    def __init__(self, gyr_columns: Optional[list[str]] = None) -> None:
+        self.gyr_columns = gyr_columns
+
+    @timed_action_method
+    @base_sdmo_docfiller
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+
+        %(calculate_return)s
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
+        gyr_columns = [column for column in self.gyr_columns or [] if column in data.columns]
+        angular_acceleration = _rms_derivative(data[gyr_columns].to_numpy(), sampling_rate_hz)
+        out = {f"angular_acceleration_{column}": angular_acceleration[i] for i, column in enumerate(gyr_columns)}
+        self.signal_based_parameters_ = pd.DataFrame([out])
+        return self
+
+
+def _rms_derivative(signal: np.ndarray, sampling_rate_hz: float) -> np.ndarray:
+    """Calculate the RMS of the first temporal derivative for each signal column."""
+    if len(signal) < 2:
+        return np.full(signal.shape[1], np.nan)
+    dt = 1 / sampling_rate_hz
+    derivative = np.gradient(signal, dt, axis=0)
+    duration = dt * (len(signal) - 1)
+    return np.sqrt(np.trapezoid(derivative**2, dx=dt, axis=0) / duration)
 
 
 @njit

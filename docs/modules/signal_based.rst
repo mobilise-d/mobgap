@@ -18,6 +18,7 @@ Algorithms
     HarmonicRatio
     SDRange
     Jerk
+    AngularAcceleration
     FrequencyAmplitudeWidthSlope
     RegularitySymmetry
     RMS

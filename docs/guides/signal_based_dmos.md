@@ -65,7 +65,7 @@ listed below.
 - `wb_30__jerk_acc_is__p10`
 - `wb_30__jerk_acc_is__median`
 - `wb_60__jerk_acc_is__p10`
-- `wb_30_60__jerk_gyr_is__p90`
+- `wb_30_60__angular_acceleration_gyr_is__p90`
 - `wb_30_60__range_acc_pa__std`
 - `wb_60__range_acc_pa__std`
 - `wb_30_60__range_acc_ml__std`

@@ -6,11 +6,15 @@
                 "type":"integer"
             },
             {
-                "name":"cv_length_m",
+                "name":"angular_acceleration_gyr_is",
                 "type":"number"
             },
             {
-                "name":"cv_duration_s",
+                "name":"angular_acceleration_gyr_ml",
+                "type":"number"
+            },
+            {
+                "name":"angular_acceleration_gyr_pa",
                 "type":"number"
             }
         ],
@@ -22,8 +26,9 @@
     "data":[
         {
             "index":0,
-            "cv_length_m":38.0132669,
-            "cv_duration_s":24.9090218786
+            "angular_acceleration_gyr_is":209.5001856783,
+            "angular_acceleration_gyr_ml":235.9230146703,
+            "angular_acceleration_gyr_pa":150.2743582472
         }
     ]
 }
