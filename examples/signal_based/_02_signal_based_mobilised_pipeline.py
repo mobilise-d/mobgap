@@ -35,7 +35,9 @@ reference_strides
 
 # %%
 # We may also use the turn data. We select the example data with turns.
-reference_turns = short_trial.reference_parameters_relative_to_wb_.turn_parameters
+reference_turns = (
+    short_trial.reference_parameters_relative_to_wb_.turn_parameters
+)
 reference_turns
 
 # %%
@@ -71,14 +73,13 @@ params = dict(
 
 from mobgap.signal_based import MobilisedSDMO
 
-sdmo_only_available = MobilisedSDMO(**dict(
+sdmo_only_available = MobilisedSDMO(
+    **dict(
         MobilisedSDMO.PredefinedParameters.default,
-    ))
-
-sdmo_only_available.calculate(
-    data=data_in_wb_bf,
-    **params
+    )
 )
+
+sdmo_only_available.calculate(data=data_in_wb_bf, **params)
 
 # %%
 # We get the signal-based parameters that can be calculated depending on the availability of the inputs.
@@ -102,12 +103,11 @@ reference_strides["cadence_spm"] = (
 params["stride_list"] = reference_strides
 
 
-sdmo_full_output = MobilisedSDMO(**dict(
+sdmo_full_output = MobilisedSDMO(
+    **dict(
         MobilisedSDMO.PredefinedParameters.default,
-    ))
-
-sdmo_full_output.calculate(
-    data=data_in_wb_bf,
-    **params
+    )
 )
+
+sdmo_full_output.calculate(data=data_in_wb_bf, **params)
 sdmo_full_output.signal_based_parameters_

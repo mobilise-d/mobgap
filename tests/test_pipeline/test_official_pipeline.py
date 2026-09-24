@@ -89,11 +89,27 @@ class TestFullPipelineRegression:
 
 
 class TestFullPipelineEdgeCases:
-    def test_impaired_pipeline_handles_no_detected_ics(self):
-        dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+    @pytest.fixture
+    def dataset(self):
+        return LabExampleDataset(reference_system="INDIP").get_subset(
             cohort="MS", participant_id="001", test="Test11", trial="Trial1"
         )
 
+    def test_pipeline_without_sdmo_calculation_exposes_none_results(self, dataset):
+        result = MobilisedPipelineImpaired(sdmo_calculation=None).run(dataset)
+
+        assert result.per_wb_signal_based_parameters_ is None
+        assert result.sdmo_calculation_ is None
+        assert result.sdmo_aggregation_ is None
+
+    def test_pipeline_without_sdmo_aggregation_keeps_per_wb_results(self, dataset):
+        result = MobilisedPipelineImpaired(sdmo_aggregation=None).run(dataset)
+
+        assert not result.per_wb_signal_based_parameters_.empty
+        assert result.sdmo_calculation_ is not None
+        assert result.sdmo_aggregation_ is None
+
+    def test_impaired_pipeline_handles_no_detected_ics(self, dataset):
         result = MobilisedPipelineImpaired(
             initial_contact_detection=_EmptyIcDetector(),
             laterality_classification=_PassthroughLrc(),
@@ -104,3 +120,6 @@ class TestFullPipelineEdgeCases:
         assert result.raw_per_stride_parameters_.empty
         assert result.per_stride_parameters_.empty
         assert result.per_wb_parameters_.empty
+        assert result.per_wb_signal_based_parameters_.empty
+        assert result.sdmo_calculation_ is None
+        assert result.sdmo_aggregation_ is None
