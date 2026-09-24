@@ -69,6 +69,20 @@ class TestGsdIluz:
 
 
 class TestGsdIluzAdaptiveGravity:
+    def test_short_input_clears_prepared_data(self):
+        short_data = pd.DataFrame(np.zeros((10, 6)), columns=SF_SENSOR_COLS)
+        long_data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
+        detector = GsdIluzAdaptiveGravity()
+
+        detector.detect(short_data, sampling_rate_hz=40.0)
+        assert detector.iluz_data_.empty
+        assert detector.iluz_data_.columns.to_list() == ["acc_is", "acc_pa"]
+
+        detector.detect(long_data, sampling_rate_hz=40.0)
+        assert len(detector.iluz_data_) == len(long_data)
+        detector.detect(short_data, sampling_rate_hz=40.0)
+        assert detector.iluz_data_.empty
+
     def test_sensor_frame_input_rejects_body_frame_axis(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=SF_SENSOR_COLS)
 

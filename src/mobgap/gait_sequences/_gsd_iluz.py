@@ -577,6 +577,7 @@ class GsdIluzAdaptiveGravity(GsdIluz):
             )
 
         if len(data) < as_samples(self.min_gsd_duration_s, sampling_rate_hz):
+            self.iluz_data_ = pd.DataFrame(columns=_ILUZ_CORE_COLUMNS)
             self.gs_list_ = _empty_gs_list()
             return self
 
