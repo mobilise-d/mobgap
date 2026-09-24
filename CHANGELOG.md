@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `GsdIluzAdaptiveGravity` for gait sequence detection when lower-back sensor mounting may be misoriented. It
+  estimates the vertical acceleration from accelerometer and gyroscope data and supports sign-independent PA peak
+  counting with `pa_peak_aggregation="max"`. Use it in place of `GsdIluz` when enabling per-gait-sequence automatic
+  reorientation in the healthy pipeline. The sensor axis aligned with PA must still be known.
+  (https://github.com/mobilise-d/mobgap/issues/238, https://github.com/mobilise-d/mobgap/pull/251)
+
 ### Changed
 
 - The minimum supported `tpcp` version is now 2.3.0. Environments pinned to an older version must upgrade `tpcp`
