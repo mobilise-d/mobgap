@@ -32,6 +32,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from mobgap.data.validation_results import ValidationResultLoader
 from mobgap.plotting import (
     calc_min_max_with_margin,
     make_square,
@@ -61,21 +62,26 @@ dmos = {
 # %%
 # Loading The Free-Living Results
 # -------------------------------
-# The standard validation result loader has fixed TVS index columns. The
-# mounting-error result files add ``orientation`` to that index, so we load the
-# local CSV files directly here.
-results_base_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
-    / "results/full_pipeline_mounting_error/free_living"
+# The loader keeps the extra ``orientation`` column as data.
+local_data_path = (
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results"
+    if int(get_env_var("MOBGAP_VALIDATION_USE_LOCAL_DATA", 0))
+    else None
+)
+loader = ValidationResultLoader(
+    "full_pipeline_mounting_error",
+    result_path=local_data_path,
+    version="main",
 )
 
 
 def load_mounting_error_results() -> pd.DataFrame:
     results = []
     for folder_name, algorithm_label in algorithms.items():
-        result_file = results_base_path / folder_name / "single_results.csv"
-        data = pd.read_csv(result_file).assign(
-            algorithm=algorithm_label,
+        data = (
+            loader.load_single_results(folder_name, "free_living")
+            .reset_index()
+            .assign(algorithm=algorithm_label)
         )
         results.append(data)
     return pd.concat(results, ignore_index=True)
