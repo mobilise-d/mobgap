@@ -76,7 +76,7 @@ pipelines = {
                     "healthy",
                     MobilisedPipelineHealthy(
                         gait_sequence_detection=GsdIluzAdaptiveGravity(
-                            expected_pa_axis="z"
+                            expected_pa_axis="z", pa_peak_aggregation="max"
                         ),
                         per_gs_reorientation=ReorientationMethodDM(
                             correction_mode="full"
