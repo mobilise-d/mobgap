@@ -28,14 +28,24 @@ Generic Loader Classes
    :template: class.rst
 
     GaitDatasetFromData
-    SingleRecordingDataset
 
 AX6 CWA recording
 -----------------
+Load raw AX6 CWA recordings with the optional ``ax6`` dependency.
 
-``SingleRecordingDataset`` reads one raw AX6 CWA file. Install the optional
-dependency with ``pip install mobgap[ax6]`` on Python 3.10 or newer. The index
-can select the full recording or individual UTC calendar days.
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    AX6Dataset
+
+.. autosummary::
+   :toctree: generated/data
+   :template: function.rst
+
+    split_at_frequency
+    split_by_utc_day
+    split_by_utc_hour
 
 
 Mobilise-D Matlab format
@@ -120,6 +130,7 @@ Load Functions
    :template: function.rst
 
     get_all_lab_example_data_paths
+    get_example_cwa_data_path
 
 
 Mobilise-D v1.0 Pipeline Result Loaders
@@ -150,6 +161,7 @@ Datatypes
    :template: namedtuple.rst
 
     MobilisedTestData
+    CwaRecordingInfo
 
 .. autosummary::
    :toctree: generated/data

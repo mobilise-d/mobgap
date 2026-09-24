@@ -6,6 +6,7 @@ from mobgap.data._example_data import (
     get_all_lab_example_data_paths,
     get_example_csv_data_path,
     get_example_cvs_dmo_data_path,
+    get_example_cwa_data_path,
 )
 from mobgap.data._mobilised_cvs_dmo_dataset import MobilisedCvsDmoDataset
 from mobgap.data._mobilised_matlab_loader import (
@@ -22,11 +23,13 @@ from mobgap.data._mobilised_matlab_loader import (
 from mobgap.data._mobilised_tvs_dataset import BaseTVSDataset, TVSFreeLivingDataset, TVSLabDataset
 from mobgap.data._mobilsed_weartime_loader import load_weartime_from_daily_mcroberts_report
 from mobgap.data._ms_project import MsProjectDataset
-from mobgap.data.ax6 import SingleRecordingDataset
+from mobgap.data.ax6 import AX6Dataset, CwaRecordingInfo, split_at_frequency, split_by_utc_day, split_by_utc_hour
 
 __all__ = [
+    "AX6Dataset",
     "BaseGenericMobilisedDataset",
     "BaseTVSDataset",
+    "CwaRecordingInfo",
     "GaitDatasetFromData",
     "GenericMobilisedDataset",
     "LabExampleDataset",
@@ -35,15 +38,18 @@ __all__ = [
     "MobilisedParticipantMetadata",
     "MobilisedTestData",
     "MsProjectDataset",
-    "SingleRecordingDataset",
     "TVSFreeLivingDataset",
     "TVSLabDataset",
     "get_all_lab_example_data_paths",
     "get_example_csv_data_path",
     "get_example_cvs_dmo_data_path",
+    "get_example_cwa_data_path",
     "load_mobilised_matlab_format",
     "load_mobilised_participant_metadata_file",
     "load_weartime_from_daily_mcroberts_report",
     "matlab_dataset_docfiller",
     "parse_reference_parameters",
+    "split_at_frequency",
+    "split_by_utc_day",
+    "split_by_utc_hour",
 ]
