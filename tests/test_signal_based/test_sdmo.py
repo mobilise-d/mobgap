@@ -9,7 +9,7 @@ from mobgap.data_transform import Resample
 from mobgap.signal_based import (
     RMS,
     AngularAcceleration,
-    FrequencyAmplitudeWidthSlope,
+    FrequencyAmplitudeWidth,
     HarmonicRatio,
     Jerk,
     RegularitySymmetry,
@@ -81,7 +81,7 @@ class TestMetaRegularitySymmetry(TestAlgorithmMixin):
 
 class TestMetaFrequencyAmplitudeWidthSlope(TestAlgorithmMixin):
     __test__ = True
-    ALGORITHM_CLASS = FrequencyAmplitudeWidthSlope
+    ALGORITHM_CLASS = FrequencyAmplitudeWidth
 
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
@@ -154,7 +154,7 @@ class TestMetaAngularAcceleration(TestAlgorithmMixin):
         StrideLevelSDMO(),
         RMS(),
         RegularitySymmetry(),
-        FrequencyAmplitudeWidthSlope(),
+        FrequencyAmplitudeWidth(),
         SampleEntropy(),
         HarmonicRatio(),
         SDRange(),
@@ -377,7 +377,7 @@ class TestRegularitySymmetry:
 
 class TestFrequencyAmplitudeWidthSlope:
     def test_pipe_data(self):
-        algo = FrequencyAmplitudeWidthSlope(acc_columns=["acc_is", "acc_ml", "acc_pa"])
+        algo = FrequencyAmplitudeWidth(acc_columns=["acc_is", "acc_ml", "acc_pa"])
         result = algo.calculate(pd.DataFrame(np.random.randn(200, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
         df = result.signal_based_parameters_
         expected_cols = [
