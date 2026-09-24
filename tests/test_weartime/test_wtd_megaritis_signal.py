@@ -44,6 +44,29 @@ class TestMetaWtdMegaritisSignal(TestAlgorithmMixin):
 
 
 class TestWtdMegaritisSignal:
+    def test_exactly_tiled_recording_has_no_extra_boundary_vote(self):
+        data = pd.DataFrame(np.zeros((750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+
+        assert result.diagnostics_["macro"]["start"].to_list() == [0, 150]
+        assert not result.diagnostics_["macro"]["is_boundary_window"].any()
+        assert result.diagnostics_["sample_votes"]["non_wear_votes"].max() == 2
+
+    def test_complete_macro_windows_use_their_own_micro_grid(self, monkeypatch):
+        data = pd.DataFrame(np.zeros((780, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        def classify_by_start(self, *, data, starts, window_samples, sampling_rate_hz):
+            return starts % 40 == 0
+
+        monkeypatch.setattr(WtdMegaritisSignal, "_classify_micro_windows_from_starts", classify_by_start)
+        result = WtdMegaritisSignal(window_min=1, step_min=0.15, window_size=5, overlap=0.6).detect(
+            data, sampling_rate_hz=10.0
+        )
+
+        assert result.diagnostics_["macro"]["start"].to_list() == [0, 90, 180]
+        assert result.diagnostics_["macro"]["n_non_wear"].to_list() == [14, 28, 14]
+
     def test_custom_waking_hours_window(self):
         rng = np.random.default_rng(123)
         data = pd.DataFrame(rng.normal(size=(2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
