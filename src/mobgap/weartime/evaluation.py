@@ -8,11 +8,7 @@ import pandas as pd
 from tpcp.validate import Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
-from mobgap.gait_sequences.evaluation import (
-    calculate_matched_gsd_performance_metrics,
-    categorize_intervals_per_sample,
-)
-from mobgap.utils.evaluation import count_samples_in_intervals
+from mobgap.gait_sequences.evaluation import calculate_matched_gsd_performance_metrics
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
 
@@ -32,6 +28,26 @@ def _only_start_end(intervals: pd.DataFrame, *, index_name: str = "wt_id") -> pd
     return intervals[["start", "end"]].astype({"start": "int64", "end": "int64"})
 
 
+def _categorize_weartime_samples(detected: pd.DataFrame, reference: pd.DataFrame, n_samples: int) -> pd.DataFrame:
+    """Categorize samples and return half-open runs of equal classification."""
+    labels = np.zeros(n_samples, dtype=np.uint8)
+    for start, end in detected[["start", "end"]].itertuples(index=False):
+        labels[start:end] |= 1
+    for start, end in reference[["start", "end"]].itertuples(index=False):
+        labels[start:end] |= 2
+
+    if n_samples == 0:
+        return pd.DataFrame(columns=["start", "end", "match_type"])
+    boundaries = np.r_[0, np.flatnonzero(labels[1:] != labels[:-1]) + 1, n_samples]
+    match_types = np.array(["tn", "fp", "fn", "tp"])[labels[boundaries[:-1]]]
+    return pd.DataFrame({"start": boundaries[:-1], "end": boundaries[1:], "match_type": match_types})
+
+
+def _gsd_metric_matches(matches: pd.DataFrame) -> pd.DataFrame:
+    """Adapt half-open wear-time runs to the inclusive GSD metric convention."""
+    return matches.assign(end=matches["end"] - 1)
+
+
 def _duration_metrics(
     *,
     reference_weartime: pd.DataFrame,
@@ -39,9 +55,7 @@ def _duration_metrics(
     sampling_rate_hz: float,
     prefix: str = "",
 ) -> dict[str, float]:
-    # Keep duration accounting aligned with the GSD evaluation helpers used for TP/FP/FN/TN. These helpers count both
-    # interval bounds for the reference intervals, so the reference minute values intentionally follow that convention.
-    reference_weartime_min = count_samples_in_intervals(reference_weartime) / (sampling_rate_hz * 60)
+    reference_weartime_min = (reference_weartime["end"] - reference_weartime["start"]).sum() / (sampling_rate_hz * 60)
     return {
         f"{prefix}reference_weartime_min": reference_weartime_min,
         f"{prefix}detected_weartime_min": detected_weartime_min,
@@ -61,9 +75,8 @@ def wtd_per_datapoint_score(
 ) -> dict[str, Any]:
     """Evaluate a wear-time detector on a single datapoint.
 
-    This scorer intentionally uses the existing gait-sequence interval helpers for interval matching and sample
-    counting. The confusion-matrix counts are returned in samples. Overall wear-time duration metrics are returned in
-    minutes as floats.
+    Intervals are half-open. Confusion-matrix counts are returned in samples; wear-time durations are returned in
+    minutes.
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Zero division", category=UserWarning)
@@ -77,11 +90,7 @@ def wtd_per_datapoint_score(
         sampling_rate_hz = datapoint.sampling_rate_hz
         waking_hours_min = _get_waking_hours_min(pipeline)
 
-        matches = categorize_intervals_per_sample(
-            gsd_list_detected=detected_weartime,
-            gsd_list_reference=reference_weartime,
-            n_overall_samples=len(data),
-        )
+        matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data))
 
         reference_waking_weartime = clip_intervals_to_waking_hours(
             reference_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours_min=waking_hours_min
@@ -90,7 +99,7 @@ def wtd_per_datapoint_score(
         detected_waking_weartime_min = pipeline.total_weartime_during_waking_min_
 
         return {
-            **calculate_matched_gsd_performance_metrics(matches, zero_division=zero_division),
+            **calculate_matched_gsd_performance_metrics(_gsd_metric_matches(matches), zero_division=zero_division),
             **_duration_metrics(
                 reference_weartime=reference_weartime,
                 detected_weartime_min=detected_weartime_min,
@@ -140,7 +149,9 @@ def wtd_final_agg(
             "Provide a custom scorer that can handle this case."
         )
 
-    combined_matched = {f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(matches).items()}
+    combined_matched = {
+        f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(_gsd_metric_matches(matches)).items()
+    }
     combined_duration = {
         f"combined__{k}": v
         for k, v in _duration_metrics(

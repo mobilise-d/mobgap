@@ -7,7 +7,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap.utils.conversions import to_body_frame
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df
-from mobgap.weartime.evaluation import wtd_per_datapoint_score
+from mobgap.weartime.evaluation import wtd_final_agg, wtd_per_datapoint_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 
@@ -102,7 +102,7 @@ def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():
     assert not hasattr(pipeline, "total_weartime_hours_during_waking_")
 
 
-def test_wtd_score_uses_gsd_sample_counts_and_minute_durations():
+def test_wtd_score_counts_half_open_samples_and_minute_durations():
     data = _sensor_frame_data(120)
     datapoint = DummyDatapoint(
         data=data,
@@ -115,15 +115,58 @@ def test_wtd_score_uses_gsd_sample_counts_and_minute_durations():
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
 
-    assert scores["tp_samples"] == 60
-    assert scores["fn_samples"] == 61
+    assert scores["tp_samples"] == 59
+    assert scores["fn_samples"] == 60
     assert scores["fp_samples"] == 0
-    assert scores["reference_weartime_min"] == pytest.approx(2.0)
+    assert scores["tn_samples"] == 1
+    assert sum(scores[f"{kind}_samples"] for kind in ("tp", "fp", "fn", "tn")) == len(data)
+    assert scores["reference_weartime_min"] == pytest.approx(119 / 60)
     assert scores["detected_weartime_min"] == pytest.approx(59 / 60)
-    assert scores["weartime_error_min"] == pytest.approx(59 / 60 - 2.0)
-    assert scores["waking_reference_weartime_min"] == pytest.approx(1.0)
+    assert scores["weartime_error_min"] == pytest.approx(-1.0)
+    assert scores["waking_reference_weartime_min"] == pytest.approx(59 / 60)
     assert scores["waking_detected_weartime_min"] == pytest.approx(0.5)
-    assert scores["waking_weartime_error_min"] == pytest.approx(-0.5)
+    assert scores["waking_weartime_error_min"] == pytest.approx(0.5 - 59 / 60)
     assert scores["runtime_s"] == 1.25
     assert_frame_equal(scores["detected"].get_value(), _intervals([(60, 119)]))
     assert_frame_equal(scores["reference"].get_value(), _intervals([(0, 119)], index_name="weartime_id"))
+
+
+def test_wtd_score_counts_all_nonwear_samples():
+    data = _sensor_frame_data(3)
+    datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([]), sampling_rate_hz=1.0)
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([]), waking_hours_min=(0, 1)))
+
+    scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
+
+    assert scores["tn_samples"] == 3
+    assert scores["tp_samples"] == scores["fp_samples"] == scores["fn_samples"] == 0
+    assert scores["reference_weartime_min"] == 0
+
+
+def test_wtd_score_combines_half_open_matches_across_datapoints():
+    first = DummyDatapoint(
+        data=_sensor_frame_data(3),
+        reference_weartime=_intervals([(0, 3)]),
+        sampling_rate_hz=1.0,
+    )
+    second = DummyDatapoint(
+        data=_sensor_frame_data(2),
+        reference_weartime=_intervals([]),
+        sampling_rate_hz=1.0,
+        group_label=GroupLabel("002", "rec_2"),
+    )
+    first_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(1, 2)]), waking_hours_min=(0, 1)))
+    second_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 1)]), waking_hours_min=(0, 1)))
+    scores = [
+        wtd_per_datapoint_score(first_pipeline, first, zero_division=0),
+        wtd_per_datapoint_score(second_pipeline, second, zero_division=0),
+    ]
+    single_results = {
+        key: [score[key].get_value() if hasattr(score[key], "get_value") else score[key] for score in scores]
+        for key in scores[0]
+    }
+
+    combined, _ = wtd_final_agg({}, single_results, first_pipeline, [first, second])
+
+    assert [combined[f"combined__{kind}_samples"] for kind in ("tp", "fp", "fn", "tn")] == [1, 1, 2, 1]
+    assert combined["combined__reference_weartime_min"] == pytest.approx(3 / 60)
