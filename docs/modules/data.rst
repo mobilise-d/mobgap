@@ -31,7 +31,8 @@ Generic Loader Classes
 
 AX6 CWA recording
 -----------------
-Load raw AX6 CWA recordings with the optional ``ax6`` dependency.
+Load raw AX6 CWA recordings with ``pip install mobgap[ax6]`` on Python 3.10
+or newer. The Rust CWA reader does not support Python 3.9.
 ``AX6Dataset`` accepts one path or a sequence of paths. Every index row has a
 ``file_path`` column. ``BaseAX6Dataset`` handles indexing and loading for
 subclasses that implement ``_get_file_paths`` and ``_get_splits_for_file``.

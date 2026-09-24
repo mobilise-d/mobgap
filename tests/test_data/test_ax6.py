@@ -21,6 +21,7 @@ from mobgap.data import (
     split_by_utc_day,
     split_by_utc_hour,
 )
+from mobgap.data import ax6 as ax6_module
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
@@ -233,6 +234,25 @@ def test_base_dataset_can_use_subclass_file_discovery_and_splits(tmp_path: Path)
 
     assert dataset.index["recording"].tolist() == ["first", "second"]
     assert len(dataset.get_subset(recording="second").data_ss) == 1000
+
+
+def test_missing_optional_reader_explains_python_requirement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The optional dependency error explains the supported Python version."""
+    path = tmp_path / "recording.cwa"
+    copyfile(EXAMPLE_CWA, path)
+
+    def missing_reader(_name: str) -> None:
+        raise ModuleNotFoundError("No module named 'cwa_reader_rs'", name="cwa_reader_rs")
+
+    monkeypatch.setattr(ax6_module, "import_module", missing_reader)
+    dataset = AX6Dataset(
+        path,
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+    )
+
+    with pytest.raises(ImportError, match=r"Python 3\.10 or newer.*mobgap\[ax6\]"):
+        _ = dataset.index
 
 
 def test_repeated_data_access_reuses_the_last_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

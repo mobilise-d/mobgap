@@ -28,6 +28,15 @@ _ADDITIONAL_COLUMNS = {
 }
 
 
+def _cwa_reader() -> Any:
+    try:
+        return import_module("cwa_reader_rs")
+    except ModuleNotFoundError as exc:
+        if exc.name != "cwa_reader_rs":
+            raise
+        raise ImportError("AX6 CWA loading requires Python 3.10 or newer and the mobgap[ax6] extra.") from exc
+
+
 class CwaRecordingInfo(NamedTuple):
     """Recording metadata passed to an AX6 splitter."""
 
@@ -70,7 +79,7 @@ def split_by_utc_hour(info: CwaRecordingInfo) -> pd.DataFrame:
 
 @lru_cache(maxsize=128)
 def _recording_info(path: Path, _file_identity: tuple[int, int]) -> tuple[dict, dict]:
-    reader = import_module("cwa_reader_rs")
+    reader = _cwa_reader()
 
     return reader.read_header(str(path)), reader.sampling_consistency_report(str(path))
 
@@ -90,7 +99,7 @@ def _load_cwa_data(
     start_time: pd.Timestamp,
     end_time: pd.Timestamp,
 ) -> pd.DataFrame:
-    reader = import_module("cwa_reader_rs")
+    reader = _cwa_reader()
     cut = None if start_s is None else reader.seconds(start_s, end_s)
     raw = reader.read_cwa_file(
         str(path),
