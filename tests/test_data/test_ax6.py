@@ -14,6 +14,7 @@ import pytest
 from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
 from mobgap.data import (
     AX6Dataset,
+    BaseAX6Dataset,
     CwaRecordingInfo,
     get_example_cwa_data_path,
     split_at_frequency,
@@ -51,11 +52,31 @@ def _split_first_ten_seconds(info: CwaRecordingInfo) -> pd.DataFrame:
     )
 
 
+class _DiscoveredFilesDataset(BaseAX6Dataset):
+    def __init__(
+        self, paths: list[Path], groupby_cols: list[str] | str | None = None, subset_index: pd.DataFrame | None = None
+    ) -> None:
+        self.paths = paths
+        self.participant_metadata = {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"}
+        self.recording_metadata = {"measurement_condition": "free_living"}
+        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+
+    def _get_file_paths(self) -> list[Path]:
+        return self.paths
+
+    def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
+        start = pd.Timestamp("2012-03-27T11:14:57.500Z")
+        return pd.DataFrame(
+            {"recording": [path.stem], "start_time": [start], "end_time": [start + pd.Timedelta(seconds=10)]}
+        )
+
+
 def test_reads_real_cwa_as_mobgap_sensor_data() -> None:
     """Load an AX6 fixture with the expected columns, time and units."""
     dataset = _dataset()
 
     assert dataset.index["recording"].tolist() == ["main"]
+    assert dataset.index["file_path"].tolist() == [str(EXAMPLE_CWA)]
     assert dataset.sampling_rate_hz == 100
     data = dataset.data["LowerBack"]
     assert data.columns.tolist() == SF_SENSOR_COLS
@@ -130,8 +151,26 @@ def test_dataframe_splitter_selects_a_recording_window() -> None:
     )
     dataset = _dataset(splitter=splits)
 
-    assert dataset.clone().index.equals(splits)
+    assert dataset.clone().index.drop(columns="file_path").equals(splits)
     assert len(dataset.get_subset(test="walk_1").data_ss) == 1000
+
+
+def test_single_file_metadata_is_available_with_multiple_windows() -> None:
+    """Header and timing metadata remain available before selecting a window."""
+    start = pd.Timestamp("2012-03-27T11:14:57.500Z")
+    splits = pd.DataFrame(
+        {
+            "recording": ["first", "second"],
+            "start_time": [start, start + pd.Timedelta(seconds=10)],
+            "end_time": [start + pd.Timedelta(seconds=10), start + pd.Timedelta(seconds=20)],
+        }
+    )
+    dataset = _dataset(splitter=splits)
+
+    assert len(dataset.index) == 2
+    assert dataset.cwa_header_["sample_rate_hz"] == 100
+    assert dataset.cwa_timing_report_["start_from_data"] is not None
+    assert dataset.sampling_rate_hz == 100
 
 
 def test_callable_splitter_receives_recording_info_and_survives_serialization() -> None:
@@ -152,6 +191,48 @@ def test_public_frequency_splitter_can_be_configured_with_partial() -> None:
 
     assert dataset.clone().index["recording"].tolist() == ["half_hour_1"]
     assert pickle.loads(pickle.dumps(dataset)).index.equals(dataset.index)
+
+
+def test_multiple_files_keep_splits_distinct_and_load_the_selected_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A multi-file dataset identifies and reads the selected file and window."""
+    paths = [tmp_path / "first.cwa", tmp_path / "second.cwa"]
+    for path in paths:
+        copyfile(EXAMPLE_CWA, path)
+
+    reads: list[str] = []
+    original_read = cwa_reader_rs.read_cwa_file
+
+    def record_path(path: str, **kwargs: object) -> dict:
+        reads.append(path)
+        return original_read(path, **kwargs)
+
+    monkeypatch.setattr(cwa_reader_rs, "read_cwa_file", record_path)
+    dataset = AX6Dataset(
+        paths,
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        splitter=_split_first_ten_seconds,
+    )
+
+    assert dataset.index["file_path"].tolist() == [str(path) for path in paths]
+    selected = dataset.get_subset(file_path=str(paths[1]))
+    assert len(selected.data_ss) == 1000
+    assert reads == [str(paths[1])]
+    assert pickle.loads(pickle.dumps(dataset)).clone().index.equals(dataset.index)
+
+
+def test_base_dataset_can_use_subclass_file_discovery_and_splits(tmp_path: Path) -> None:
+    """A subclass can supply files and windows without replacing the CWA loader."""
+    paths = [tmp_path / "first.cwa", tmp_path / "second.cwa"]
+    for path in paths:
+        copyfile(EXAMPLE_CWA, path)
+
+    dataset = _DiscoveredFilesDataset(paths)
+
+    assert dataset.index["recording"].tolist() == ["first", "second"]
+    assert len(dataset.get_subset(recording="second").data_ss) == 1000
 
 
 def test_repeated_data_access_reuses_the_last_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

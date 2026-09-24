@@ -1,7 +1,8 @@
-"""A dataset for one raw AX6 CWA recording."""
+"""Datasets for raw AX6 CWA recordings."""
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
@@ -110,8 +111,98 @@ def _load_cwa_data(
     return frame.loc[(frame.index >= start_time) & (frame.index < end_time)]
 
 
-class AX6Dataset(BaseGaitDataset):
-    """Load one AX6 CWA file as MobGap sensor-frame data.
+class BaseAX6Dataset(BaseGaitDataset, ABC):
+    """Read AX6 CWA files, with file discovery and splitting supplied by subclasses.
+
+    Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
+    The latter returns rows with ``start_time`` and ``end_time`` columns.
+    """
+
+    def __init__(
+        self,
+        *,
+        additional_sensors_enabled: Sequence[AdditionalChannel] = (),
+        sensor_name: str = "LowerBack",
+        memory: joblib.Memory = joblib.Memory(None),
+        groupby_cols: list[str] | str | None = None,
+        subset_index: pd.DataFrame | None = None,
+    ) -> None:
+        self.additional_sensors_enabled = additional_sensors_enabled
+        self.sensor_name = sensor_name
+        self.memory = memory
+        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+
+    @abstractmethod
+    def _get_file_paths(self) -> Sequence[Path]:
+        """Return the CWA files represented by this dataset."""
+
+    @abstractmethod
+    def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
+        """Return the recording windows for one CWA file."""
+
+    @property
+    def _selected_file_path(self) -> Path:
+        self.assert_is_single(["file_path"], "_selected_file_path")
+        return Path(self.index.iloc[0].file_path)
+
+    @property
+    def cwa_header_(self) -> dict:
+        """Metadata from the selected CWA file header."""
+        path = self._selected_file_path
+        return dict(_recording_info(path, _file_identity(path))[0])
+
+    @property
+    def cwa_timing_report_(self) -> dict:
+        """Timing derived from the selected CWA file's data packets."""
+        path = self._selected_file_path
+        return dict(_recording_info(path, _file_identity(path))[1])
+
+    @property
+    def sampling_rate_hz(self) -> float:
+        """Nominal sampling rate from the selected CWA file header."""
+        return float(self.cwa_header_["sample_rate_hz"])
+
+    def create_index(self) -> pd.DataFrame:
+        """Combine each file's recording windows into one dataset index."""
+        paths = tuple(map(Path, self._get_file_paths()))
+        splits = []
+        for path in paths:
+            file_splits = self._get_splits_for_file(path).copy()
+            file_splits.insert(0, "file_path", str(path))
+            splits.append(file_splits)
+        return pd.concat(splits, ignore_index=True)
+
+    @property
+    def data(self) -> IMU_DATA_DTYPE:
+        """The selected recording as a sensor-name-to-data mapping."""
+        return {self.sensor_name: self.data_ss}
+
+    @property
+    def data_ss(self) -> pd.DataFrame:
+        """The selected recording window in the MobGap sensor frame."""
+        self.assert_is_single(None, "data_ss")
+        channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
+        unknown = set(channels) - set(_ADDITIONAL_CHANNELS)
+        if unknown:
+            raise ValueError(f"Unknown CWA channels: {sorted(unknown)}")
+
+        row = self.index.iloc[0]
+        path = self._selected_file_path
+        timing = self.cwa_timing_report_
+        first_sample = pd.Timestamp(timing["start_from_data"]).tz_convert("UTC")
+        sampling_rate_hz = self.sampling_rate_hz
+        full_end = pd.Timestamp(timing["end_from_data"]).tz_convert("UTC") + pd.Timedelta(seconds=1 / sampling_rate_hz)
+        start_s = end_s = None
+        if row.start_time != first_sample or row.end_time != full_end:
+            start_s = (row.start_time - first_sample).total_seconds()
+            end_s = (row.end_time - first_sample).total_seconds()
+        return hybrid_cache(self.memory, 1)(_load_cwa_data)(
+            path, _file_identity(path), start_s, end_s, channels, sampling_rate_hz, row.start_time, row.end_time
+        )
+
+
+class AX6Dataset(BaseAX6Dataset):
+    """Load one or more AX6 CWA files as MobGap sensor-frame data.
 
     This class can also handle AX3 CWA recordings.
 
@@ -122,14 +213,16 @@ class AX6Dataset(BaseGaitDataset):
     Parameters
     ----------
     path
-        Path to one CWA file.
+        Path to one CWA file, or a sequence of paths. The index includes
+        ``file_path`` to identify each recording.
     participant_metadata, recording_metadata
         Metadata required by MobGap pipelines.
     splitter
         A DataFrame with ``start_time`` and ``end_time`` columns plus any
         identifying columns, or a callable that receives
         :class:`CwaRecordingInfo` and returns such a DataFrame.
-        ``None`` selects the complete recording. Use
+        The same DataFrame is applied to every file. ``None`` selects each
+        complete recording. Use
         :func:`split_by_utc_day` or :func:`split_by_utc_hour` for UTC calendar
         intervals. Define custom callables at module level so joblib and process
         workers can serialize them.
@@ -151,7 +244,7 @@ class AX6Dataset(BaseGaitDataset):
 
     def __init__(
         self,
-        path: str | Path,
+        path: str | Path | Sequence[str | Path],
         *,
         participant_metadata: ParticipantMetadata,
         recording_metadata: RecordingMetadata,
@@ -166,43 +259,31 @@ class AX6Dataset(BaseGaitDataset):
         self.participant_metadata = participant_metadata
         self.recording_metadata = recording_metadata
         self.splitter = splitter
-        self.additional_sensors_enabled = additional_sensors_enabled
-        self.sensor_name = sensor_name
-        self.memory = memory
-        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+        super().__init__(
+            additional_sensors_enabled=additional_sensors_enabled,
+            sensor_name=sensor_name,
+            memory=memory,
+            groupby_cols=groupby_cols,
+            subset_index=subset_index,
+        )
 
-    @property
-    def cwa_header_(self) -> dict:
-        """Metadata from the CWA file header."""
-        path = Path(self.path)
-        return dict(_recording_info(path, _file_identity(path))[0])
+    def _get_file_paths(self) -> Sequence[Path]:
+        return (Path(self.path),) if isinstance(self.path, (str, Path)) else tuple(map(Path, self.path))
 
-    @property
-    def cwa_timing_report_(self) -> dict:
-        """Timing derived from the CWA data packets."""
-        path = Path(self.path)
-        return dict(_recording_info(path, _file_identity(path))[1])
-
-    @property
-    def sampling_rate_hz(self) -> float:
-        """Nominal sampling rate from the CWA header."""
-        return float(self.cwa_header_["sample_rate_hz"])
-
-    def create_index(self) -> pd.DataFrame:
-        """Index the recording with the configured splitter."""
-        timing = self.cwa_timing_report_
+    def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
+        header, timing = _recording_info(path, _file_identity(path))
         if timing["start_from_data"] is None or timing["end_from_data"] is None:
-            raise ValueError(f"The CWA file has no data timestamps: {self.path}")
+            raise ValueError(f"The CWA file has no data timestamps: {path}")
 
         start = pd.Timestamp(timing["start_from_data"]).tz_convert("UTC")
         last_sample = pd.Timestamp(timing["end_from_data"]).tz_convert("UTC")
-        end = last_sample + pd.Timedelta(seconds=1 / self.sampling_rate_hz)
+        end = last_sample + pd.Timedelta(seconds=1 / float(header["sample_rate_hz"]))
         info = CwaRecordingInfo(
-            path=Path(self.path),
+            path=path,
             start_time=start,
             last_sample_time=last_sample,
             end_time=end,
-            cwa_header=self.cwa_header_,
+            cwa_header=dict(header),
             cwa_timing_report=timing,
             recording_metadata=self.recording_metadata,
         )
@@ -211,28 +292,3 @@ class AX6Dataset(BaseGaitDataset):
         if isinstance(self.splitter, pd.DataFrame):
             return self.splitter.copy()
         return self.splitter(info)
-
-    @property
-    def data(self) -> IMU_DATA_DTYPE:
-        """The selected recording as a sensor-name-to-data mapping."""
-        return {self.sensor_name: self.data_ss}
-
-    @property
-    def data_ss(self) -> pd.DataFrame:
-        """The selected recording window in the MobGap sensor frame."""
-        self.assert_is_single(None, "data_ss")
-        channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
-        unknown = set(channels) - set(_ADDITIONAL_CHANNELS)
-        if unknown:
-            raise ValueError(f"Unknown CWA channels: {sorted(unknown)}")
-
-        row = self.index.iloc[0]
-        start_s = end_s = None
-        if self.splitter is not None:
-            first_sample = pd.Timestamp(self.cwa_timing_report_["start_from_data"]).tz_convert("UTC")
-            start_s = (row.start_time - first_sample).total_seconds()
-            end_s = (row.end_time - first_sample).total_seconds()
-        path = Path(self.path)
-        return hybrid_cache(self.memory, 1)(_load_cwa_data)(
-            path, _file_identity(path), start_s, end_s, channels, self.sampling_rate_hz, row.start_time, row.end_time
-        )

@@ -32,12 +32,16 @@ Generic Loader Classes
 AX6 CWA recording
 -----------------
 Load raw AX6 CWA recordings with the optional ``ax6`` dependency.
+``AX6Dataset`` accepts one path or a sequence of paths. Every index row has a
+``file_path`` column. ``BaseAX6Dataset`` handles indexing and loading for
+subclasses that implement ``_get_file_paths`` and ``_get_splits_for_file``.
 
 .. autosummary::
    :toctree: generated/data
    :template: class.rst
 
     AX6Dataset
+    BaseAX6Dataset
 
 .. autosummary::
    :toctree: generated/data
