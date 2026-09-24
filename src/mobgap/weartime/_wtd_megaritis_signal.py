@@ -22,8 +22,10 @@ from typing_extensions import Self, Unpack
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
 from mobgap.weartime.utils._intervals import _validate_waking_hours_min, flags_to_intervals
-from mobgap.weartime.utils.ml_feature_extraction import remove_short_wear_bouts_by_ratio
-from mobgap.weartime.utils.windows_to_weartime import remove_isolated_short_periods
+from mobgap.weartime.utils.windows_to_weartime import (
+    remove_isolated_short_periods_from_intervals,
+    remove_short_wear_bouts_by_ratio_from_intervals,
+)
 
 
 def _window_starts(n_samples: int, window_samples: int, step_samples: int) -> np.ndarray:
@@ -270,14 +272,22 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         non_wear_votes = np.cumsum(non_wear_vote_diff[:-1])
         # Keep the original conservative tie-breaking behavior: equal votes are treated as wear.
         weartime_flags = (wear_votes >= non_wear_votes).astype(int)
+        weartime_intervals = flags_to_intervals(weartime_flags)
 
         # Stage 1 removes brief isolated periods caused by sensor noise, voting edge effects, or transient artifacts.
-        weartime_flags = remove_isolated_short_periods(
-            weartime_flags, min_period_sec=15.0, sampling_rate_hz=self.sampling_rate_hz
+        weartime_intervals = remove_isolated_short_periods_from_intervals(
+            weartime_intervals,
+            data_length=data_length,
+            min_period_sec=15.0,
+            sampling_rate_hz=self.sampling_rate_hz,
         )
         # Stage 2 removes short wear bouts that are likely device handling rather than sustained wear.
-        weartime_flags = remove_short_wear_bouts_by_ratio(
-            weartime_flags, max_bout_minutes=20.0, min_ratio=0.3, sampling_rate_hz=self.sampling_rate_hz
+        weartime_intervals = remove_short_wear_bouts_by_ratio_from_intervals(
+            weartime_intervals,
+            data_length=data_length,
+            max_bout_minutes=20.0,
+            min_ratio=0.3,
+            sampling_rate_hz=self.sampling_rate_hz,
         )
 
         self.diagnostics_["macro"] = pd.DataFrame(self.diagnostics_["macro"])
@@ -286,13 +296,10 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                 "wear_votes": wear_votes,
                 "non_wear_votes": non_wear_votes,
                 "vote_margin": wear_votes - non_wear_votes,
-                "final_flag": weartime_flags,
             }
         )
 
-        self.weartime_list_ = pd.DataFrame(flags_to_intervals(weartime_flags), columns=["start", "end"]).rename_axis(
-            index="wt_id"
-        )
+        self.weartime_list_ = pd.DataFrame(weartime_intervals, columns=["start", "end"]).rename_axis(index="wt_id")
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
 
