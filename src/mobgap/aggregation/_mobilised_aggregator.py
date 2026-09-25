@@ -5,7 +5,6 @@ from typing import Final, Self, Unpack
 
 import numpy as np
 import pandas as pd
-from pandas import option_context
 from tpcp import cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
 
@@ -333,16 +332,13 @@ class MobilisedAggregator(BaseAggregator):
             )
 
         if wb_dmos_mask is not None:
-            # We silent the warning about downcasting, as we correctly infer the types.
-            # This can be removed once we upgrade to pandas 3.0
-            with option_context("future.no_silent_downcasting", True):
-                wb_dmos_mask = (
-                    wb_dmos_mask.fillna(True)
-                    .infer_objects(copy=False)
-                    .reset_index()
-                    .set_index([*(groupby or []), self.unique_wb_id_column])
-                    .sort_index()
-                )
+            wb_dmos_mask = (
+                wb_dmos_mask.where(wb_dmos_mask.notna(), True)
+                .infer_objects()
+                .reset_index()
+                .set_index([*(groupby or []), self.unique_wb_id_column])
+                .sort_index()
+            )
 
             if not data_correct_index.index.equals(wb_dmos_mask.index):
                 raise ValueError(
