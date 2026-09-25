@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Input validation and frame conversion now accept acceleration-only or gyroscope-only IMU data when the selected
+  algorithms need only those channels. Algorithms validate the axes they use, allowing a configured acceleration-only
+  end-to-end pipeline. (https://github.com/mobilise-d/mobgap/issues/172,
+  https://github.com/mobilise-d/mobgap/issues/46)
 - The minimum supported `tpcp` version is now 2.3.0. Environments pinned to an older version must upgrade `tpcp`
   before updating mobgap. This does not change mobgap's public APIs, but warnings and exceptions produced during tpcp
   validation and optimization can now include structured fold, parameter, and datapoint context.
