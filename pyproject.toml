@@ -41,6 +41,9 @@ dependencies = [
 ax6 = [
     "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
 ]
+weartime = [
+    "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
+]
 
 [dependency-groups]
 dev = [
