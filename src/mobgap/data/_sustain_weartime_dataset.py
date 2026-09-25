@@ -258,6 +258,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     warn_thres_for_sampling_rate_deviations_hz
         Threshold in Hz used to warn when the effective sampling rate differs from the expected sampling rate. Set to
         ``None`` to disable the warning.
+    sensor_name
+        Sensor key used by ``data``. Defaults to ``"LowerBack"``.
     split_by_day
         If ``True``, the dataset index contains one row per calendar day spanned by a raw CWA recording. The
         ``recording_day`` column identifies the selected day and ``data_ss`` loads only the respective time window.
@@ -294,6 +296,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     additional_sensors_enabled: Sequence[AdditionalChannel]
     missing_reference_error_type: MissingReferenceErrorType
     warn_thres_for_sampling_rate_deviations_hz: float | None
+    sensor_name: str
     split_by_day: bool
     memory: joblib.Memory
 
@@ -304,6 +307,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
+        sensor_name: str = "LowerBack",
         split_by_day: bool = False,
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
@@ -315,7 +319,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         super().__init__(
             additional_sensors_enabled=additional_sensors_enabled,
             warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
-            sensor_name="LowerBack",
+            sensor_name=sensor_name,
             memory=memory,
             groupby_cols=groupby_cols,
             subset_index=subset_index,
