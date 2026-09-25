@@ -175,6 +175,26 @@ escience_pipeline_result_path_gsd = (
 # Define a universal pipeline object including the two pipelines (healthy and impaired)
 pipelines = {
     "Official_MobiliseD_Pipeline": MobilisedPipelineUniversal(),
+    # Experimental acceleration-based configuration. Turn detection is unavailable.
+    # This comparison uses the full TVS input; the approved Mobilise-D pipeline requires gyroscope data.
+    "Experimental_AccOnly_Pipeline": MobilisedPipelineUniversal(
+        pipelines=[
+            (
+                "healthy",
+                MobilisedPipelineHealthy(
+                    laterality_classification=LrcBenMansour(),
+                    turn_detection=None,
+                ),
+            ),
+            (
+                "impaired",
+                MobilisedPipelineImpaired(
+                    laterality_classification=LrcBenMansour(),
+                    turn_detection=None,
+                ),
+            ),
+        ]
+    ),
     "Official_MobiliseD_Pipeline__old_gs": MobilisedPipelineUniversal(
         pipelines=[
             (
@@ -215,22 +235,6 @@ pipelines = {
                     laterality_classification=LrcUllrich(
                         **LrcUllrich.PredefinedParameters.msproject_all_old
                     )
-                ),
-            ),
-        ]
-    ),
-    "Official_MobiliseD_Pipeline__mansour_lrc": MobilisedPipelineUniversal(
-        pipelines=[
-            (
-                "healthy",
-                MobilisedPipelineHealthy(
-                    laterality_classification=LrcBenMansour()
-                ),
-            ),
-            (
-                "impaired",
-                MobilisedPipelineImpaired(
-                    laterality_classification=LrcBenMansour()
                 ),
             ),
         ]

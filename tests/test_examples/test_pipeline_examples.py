@@ -51,6 +51,17 @@ def test_preconfigured_mobilise_pipeline(snapshot):
     snapshot.assert_match(pipeline_ha.per_wb_parameters_.drop(columns="rule_obj"), "ha_per_wb_parameters")
 
 
+def test_acceleration_only_pipeline_example():
+    from examples.pipeline._04_acceleration_only_pipeline import acc_only_pipeline, acc_only_recording
+
+    assert acc_only_recording.data_ss.columns.tolist() == ["acc_x", "acc_y", "acc_z"]
+    assert acc_only_pipeline.turn_detection is None
+    assert not acc_only_pipeline.per_wb_parameters_.empty
+    assert {"duration_s", "cadence_spm", "stride_length_m", "walking_speed_mps"}.issubset(
+        acc_only_pipeline.per_wb_parameters_.columns
+    )
+
+
 def test_dmo_evaluation_on_wb_level(snapshot):
     from examples.pipeline._03_dmo_evaluation_on_wb_level import (
         agg_results,
