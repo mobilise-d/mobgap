@@ -6,25 +6,19 @@ import re
 import warnings
 from math import ceil, floor
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import joblib
 import pandas as pd
 from tpcp.caching import hybrid_cache
 
-from mobgap.consts import GRAV_MS2, SF_ACC_COLS, SF_SENSOR_COLS
-from mobgap.data.base import IMU_DATA_DTYPE, BaseGaitDataset, ParticipantMetadata, RecordingMetadata
+from mobgap.data import ax6 as ax6_module
+from mobgap.data.ax6 import BaseAX6Dataset
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-try:
-    from cwa_reader_rs import read_cwa_file, read_header, sampling_consistency_report, seconds
-except ImportError:
-    read_cwa_file = None
-    read_header = None
-    sampling_consistency_report = None
-    seconds = None
+    from mobgap.data.base import ParticipantMetadata, RecordingMetadata
 
 PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
@@ -32,11 +26,6 @@ AdditionalCwaChannel = Literal["temperature", "light", "battery"]
 
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
 ADDITIONAL_CWA_CHANNELS: tuple[AdditionalCwaChannel, ...] = ("temperature", "light", "battery")
-ADDITIONAL_CWA_OUTPUT_COLUMNS: dict[AdditionalCwaChannel, tuple[str, ...]] = {
-    "temperature": ("temperature",),
-    "light": ("light",),
-    "battery": ("battery",),
-}
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
 SAMPLE_COUNT_TOL = 1e-6
 SAMPLING_RATE_DEVIATION_WARNING = (
@@ -44,17 +33,6 @@ SAMPLING_RATE_DEVIATION_WARNING = (
     "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
     "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
 )
-CWA_READER_IMPORT_ERROR = (
-    "The optional dependency `cwa_reader_rs` is required to load SUSTAIN wear-time CWA files. "
-    "Install MobGap with the optional wear-time dependencies before using `SustainWearTimeDataset`."
-)
-
-
-class _CwaRecording(NamedTuple):
-    data: pd.DataFrame
-    sampling_rate_hz: float
-    metadata: dict[str, Any]
-    timing_report: dict[str, Any]
 
 
 def _is_lowerback_name(name: str) -> bool:
@@ -117,20 +95,6 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
     return reference.sort_values(["participant_id", "device_off", "device_on"], ignore_index=True)
 
 
-def _read_cwa_header(file_path: PathLike) -> dict[str, Any]:
-    if read_header is None:
-        raise ImportError(CWA_READER_IMPORT_ERROR)
-
-    return dict(read_header(str(file_path)))
-
-
-def _read_cwa_timing_report(file_path: PathLike) -> dict[str, Any]:
-    if sampling_consistency_report is None:
-        raise ImportError(CWA_READER_IMPORT_ERROR)
-
-    return dict(sampling_consistency_report(str(file_path)))
-
-
 def _warn_if_effective_sampling_rate_deviates(
     timing_report: dict[str, Any],
     threshold_hz: float | None,
@@ -143,72 +107,6 @@ def _warn_if_effective_sampling_rate_deviates(
         return
     if abs(float(effective_sampling_rate_hz) - float(expected_sampling_rate_hz)) > threshold_hz:
         warnings.warn(SAMPLING_RATE_DEVIATION_WARNING, stacklevel=2)
-
-
-def _read_cwa_recording(
-    file_path: PathLike,
-    additional_channels: Sequence[AdditionalCwaChannel],
-    timing_report: dict[str, Any],
-    start_time_s: float | None = None,
-    end_time_s: float | None = None,
-) -> _CwaRecording:
-    if read_cwa_file is None:
-        raise ImportError(CWA_READER_IMPORT_ERROR)
-
-    additional_channels = _normalize_additional_channels(additional_channels)
-    metadata = _read_cwa_header(file_path)
-    sampling_rate_hz = float(timing_report.get("samplingrate_hz_from_header") or metadata["sample_rate_hz"])
-    cut = None if start_time_s is None and end_time_s is None else seconds(start_time_s, end_time_s)
-    raw_data = pd.DataFrame(
-        read_cwa_file(
-            str(file_path),
-            cut=cut,
-            include_magnetometer=False,
-            include_temperature="temperature" in additional_channels,
-            include_light="light" in additional_channels,
-            include_battery="battery" in additional_channels,
-            resample_hz=sampling_rate_hz,
-            resample_method="cubic",
-        )
-    )
-
-    if "timestamp" not in raw_data.columns:
-        raise ValueError(f"The CWA reader did not return a `timestamp` column for {file_path}.")
-
-    index = pd.DatetimeIndex(pd.to_datetime(raw_data.pop("timestamp").to_numpy(), unit="us", utc=True), name="time")
-    data = raw_data.rename(columns={"gyro_x": "gyr_x", "gyro_y": "gyr_y", "gyro_z": "gyr_z"})
-    data.index = index
-
-    missing_sensor_columns = set(SF_SENSOR_COLS) - set(data.columns)
-    if missing_sensor_columns:
-        raise ValueError(
-            "The CWA reader did not return all expected sensor-frame columns. "
-            f"Missing columns: {sorted(missing_sensor_columns)}."
-        )
-
-    additional_output_columns = [
-        column
-        for channel in ADDITIONAL_CWA_CHANNELS
-        if channel in additional_channels
-        for column in ADDITIONAL_CWA_OUTPUT_COLUMNS[channel]
-    ]
-    missing_additional_columns = set(additional_output_columns) - set(data.columns)
-    if missing_additional_columns:
-        raise ValueError(
-            "The CWA reader did not return all requested additional channel columns. "
-            f"Missing columns: {sorted(missing_additional_columns)}."
-        )
-
-    output_columns = [*SF_SENSOR_COLS, *additional_output_columns]
-    data = data[output_columns].copy()
-    data[SF_ACC_COLS] *= GRAV_MS2
-
-    return _CwaRecording(
-        data=data,
-        sampling_rate_hz=sampling_rate_hz,
-        metadata=metadata,
-        timing_report=timing_report,
-    )
 
 
 def _empty_reference_df(index_name: str, datetime_dtype: str = "datetime64[ns, UTC]") -> pd.DataFrame:
@@ -375,24 +273,13 @@ def _sample_count_from_time_bounds_s(start_time_s: float, end_time_s: float, sam
     return max(0, end_sample - start_sample)
 
 
-def _clip_data_to_recording_day(data: pd.DataFrame, recording_day: str | None) -> pd.DataFrame:
-    if recording_day is None or not isinstance(data.index, pd.DatetimeIndex):
-        return data
-
-    day_start = _as_utc_timestamp(recording_day)
-    day_start = day_start.tz_localize(None) if data.index.tz is None else day_start.tz_convert(data.index.tz)
-    day_end = day_start + pd.Timedelta(days=1)
-
-    return data.loc[(data.index >= day_start) & (data.index < day_end)]
-
-
-class SustainWearTimeDataset(BaseGaitDataset):
+class SustainWearTimeDataset(BaseAX6Dataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
-    The dataset index contains one row per raw CWA recording. The raw data is loaded lazily and returned in the MobGap
-    sensor frame. Reference intervals use MobGap's half-open sample convention: ``start`` is inclusive and ``end`` is
-    exclusive. ``start_dt`` and ``end_dt`` are derived from the snapped sample boundaries, not copied from the raw
-    reference file.
+    The dataset index contains one row per raw CWA recording, including its ``file_path``. The raw data is loaded lazily
+    and returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention:
+    ``start`` is inclusive and ``end`` is exclusive. ``start_dt`` and ``end_dt`` are derived from the snapped
+    sample boundaries, not copied from the raw reference file.
 
     Parameters
     ----------
@@ -412,7 +299,7 @@ class SustainWearTimeDataset(BaseGaitDataset):
         ``recording_day`` column identifies the selected day and ``data_ss`` loads only the respective time window.
         If ``False``, the index contains one row per raw CWA recording.
     memory
-        A joblib memory object used to cache CWA header, timing report, CWA data, and reference file loading.
+        A joblib memory object used to cache CWA data and reference file loading.
     groupby_cols
         Columns to group the data by. See :class:`~tpcp.Dataset` for details.
     subset_index
@@ -465,8 +352,13 @@ class SustainWearTimeDataset(BaseGaitDataset):
         self.missing_reference_error_type = missing_reference_error_type
         self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
         self.split_by_day = split_by_day
-        self.memory = memory
-        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+        super().__init__(
+            additional_sensors_enabled=additional_channels,
+            sensor_name="LowerBack",
+            memory=memory,
+            groupby_cols=groupby_cols,
+            subset_index=subset_index,
+        )
 
     @property
     def _human_movement_path(self) -> Path:
@@ -480,23 +372,14 @@ class SustainWearTimeDataset(BaseGaitDataset):
     def _reference_path(self) -> Path:
         return self._human_movement_path / "reference.json"
 
-    @property
-    def _additional_channels(self) -> tuple[AdditionalCwaChannel, ...]:
-        return _normalize_additional_channels(self.additional_channels)
+    def _get_additional_channels(self) -> tuple[AdditionalCwaChannel, ...]:
+        selected = _normalize_additional_channels(self.additional_channels)
+        return tuple(channel for channel in ADDITIONAL_CWA_CHANNELS if channel in selected)
 
     @property
     def selected_data_file(self) -> Path:
         self.assert_is_single(None, "selected_data_file")
-        row = self.index.iloc[0]
-        file_index = self._recording_file_index()
-        matches = file_index[
-            (file_index["recording_type"] == row["recording_type"])
-            & (file_index["participant_id"] == row["participant_id"])
-            & (file_index["recording_id"] == row["recording_id"])
-        ]
-        if len(matches) != 1:
-            raise RuntimeError(f"Could not uniquely resolve the selected CWA file for {self.group_label}.")
-        return Path(matches.iloc[0]["file_path"])
+        return self._selected_file_path
 
     @property
     def _selected_recording_day(self) -> str | None:
@@ -506,36 +389,18 @@ class SustainWearTimeDataset(BaseGaitDataset):
         return str(self.index.iloc[0]["recording_day"])
 
     @property
-    def data(self) -> IMU_DATA_DTYPE:
-        self.assert_is_single(None, "data")
-        return {"LowerBack": self.data_ss}
-
-    @property
     def data_ss(self) -> pd.DataFrame:
-        self.assert_is_single(None, "data_ss")
-        additional_channels = self._additional_channels
         timing_report = self.cwa_timing_report_
         _warn_if_effective_sampling_rate_deviates(timing_report, self.warn_thres_for_sampling_rate_deviations_hz)
-        start_time_s, end_time_s = _day_cut_seconds(self._selected_recording_day, timing_report, self.sampling_rate_hz)
-        data = self._cached_load_cwa_recording(
-            self.selected_data_file, additional_channels, timing_report, start_time_s, end_time_s
-        ).data
-        return _clip_data_to_recording_day(data, self._selected_recording_day)
+        return super().data_ss
 
-    @property
-    def sampling_rate_hz(self) -> float:
-        self.assert_is_single(None, "sampling_rate_hz")
-        return float(self.cwa_header_["sample_rate_hz"])
-
-    @property
-    def cwa_header_(self) -> dict[str, Any]:
-        self.assert_is_single(None, "cwa_header_")
-        return dict(self._cached_load_cwa_header(self.selected_data_file))
-
-    @property
-    def cwa_timing_report_(self) -> dict[str, Any]:
-        self.assert_is_single(None, "cwa_timing_report_")
-        return dict(self._cached_load_cwa_timing_report(self.selected_data_file))
+    def _selected_time_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
+        start, last_sample = _recording_start_end_from_timing_report(self.cwa_timing_report_)
+        end = last_sample + pd.to_timedelta(1 / self.sampling_rate_hz, unit="s")
+        if (recording_day := self._selected_recording_day) is None:
+            return start, end
+        day_start = _as_utc_timestamp(recording_day)
+        return max(start, day_start), min(end, day_start + pd.Timedelta(days=1))
 
     @property
     def supported_additional_channels_(self) -> tuple[AdditionalCwaChannel, ...]:
@@ -622,24 +487,6 @@ class SustainWearTimeDataset(BaseGaitDataset):
             index_name="weartime_id",
         )
 
-    def _cached_load_cwa_header(self, file_path: PathLike) -> dict[str, Any]:
-        return hybrid_cache(self.memory, 1)(_read_cwa_header)(file_path)
-
-    def _cached_load_cwa_timing_report(self, file_path: PathLike) -> dict[str, Any]:
-        return hybrid_cache(self.memory, 1)(_read_cwa_timing_report)(file_path)
-
-    def _cached_load_cwa_recording(
-        self,
-        file_path: PathLike,
-        additional_channels: Sequence[AdditionalCwaChannel],
-        timing_report: dict[str, Any],
-        start_time_s: float | None = None,
-        end_time_s: float | None = None,
-    ) -> _CwaRecording:
-        return hybrid_cache(self.memory, 1)(_read_cwa_recording)(
-            file_path, additional_channels, timing_report, start_time_s, end_time_s
-        )
-
     def _cached_load_reference_file(self) -> pd.DataFrame:
         return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path)
 
@@ -696,18 +543,24 @@ class SustainWearTimeDataset(BaseGaitDataset):
 
         return pd.DataFrame(rows).sort_values(["recording_type", "participant_id", "recording_id"], ignore_index=True)
 
-    def create_index(self) -> pd.DataFrame:
-        file_index = self._recording_file_index()
+    def _get_file_paths(self) -> list[Path]:
+        return self._recording_file_index()["file_path"].tolist()
+
+    def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
+        recording_type = "human_movement" if path.parent.parent == self._human_movement_path else "simulated_movements"
+        participant_id = path.parent.name
+        recording = {
+            "recording_type": recording_type,
+            "participant_id": participant_id,
+            "recording_id": f"{recording_type}_{participant_id}_{path.stem}",
+        }
         if not self.split_by_day:
-            return file_index.drop(columns=["file_path"]).astype("string")
+            return pd.DataFrame([recording]).astype("string")
 
-        rows: list[dict[str, Any]] = []
-        for row in file_index.to_dict("records"):
-            timing_report = self._cached_load_cwa_timing_report(row["file_path"])
-            for recording_day in _recording_days_from_timing_report(timing_report):
-                rows.append({**row, "recording_day": recording_day})
-
-        return pd.DataFrame(rows).drop(columns=["file_path"]).astype("string")
+        timing_report = ax6_module._recording_info(path, ax6_module._file_identity(path))[1]
+        return pd.DataFrame(
+            [{**recording, "recording_day": day} for day in _recording_days_from_timing_report(timing_report)]
+        ).astype("string")
 
 
 __all__ = ["SustainWearTimeDataset"]
