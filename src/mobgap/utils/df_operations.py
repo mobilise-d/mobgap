@@ -3,12 +3,11 @@
 import warnings
 from collections.abc import Hashable, Iterator, Sequence
 from functools import wraps
-from typing import Any, Callable, NamedTuple, Union
+from typing import Any, Callable, Literal, NamedTuple, Union, Unpack
 
 import numpy as np
 import pandas as pd
 from tpcp.misc import iter_with_warning_error_context
-from typing_extensions import Literal, Unpack
 
 
 def _get_group_with_empty_fallback(

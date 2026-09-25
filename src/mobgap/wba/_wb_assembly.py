@@ -2,13 +2,12 @@ import warnings
 from collections.abc import Hashable
 from itertools import count
 from types import MappingProxyType
-from typing import Final, Optional
+from typing import Final, Optional, Self
 
 import numpy as np
 import pandas as pd
 from tpcp import Algorithm, cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
-from typing_extensions import Self
 
 from mobgap.wba._wb_criteria import MaxBreakCriteria, NStridesCriteria
 from mobgap.wba._wb_criteria_base import BaseWbCriteria, EndOfList

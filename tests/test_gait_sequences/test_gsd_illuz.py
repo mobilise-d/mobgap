@@ -1,10 +1,11 @@
+from typing import Self
+
 import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal, assert_series_equal
 from scipy.spatial.transform import Rotation
 from tpcp.testing import TestAlgorithmMixin
-from typing_extensions import Self
 
 from mobgap.consts import BF_SENSOR_COLS, SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset

@@ -1,10 +1,9 @@
 """Base class for walking speed calculators."""
 
-from typing import Any, Optional
+from typing import Any, Optional, Self, Unpack
 
 import pandas as pd
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 

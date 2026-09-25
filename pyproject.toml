@@ -66,7 +66,6 @@ docs = [
     "sphinx-gallery>=0.18.0,<0.19",
     "memory-profiler>=0.61.0,<0.62",
     "matplotlib>=3.7.2,<4",
-    "toml>=0.10.2,<0.11",
     "pydata-sphinx-theme>=0.16.0,<0.17",
     "myst-parser>=2.0.0,<3",
     "ipykernel>=6.25.1,<7",

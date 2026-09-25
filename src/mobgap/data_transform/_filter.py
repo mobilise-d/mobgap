@@ -1,11 +1,10 @@
 from importlib.resources import files
-from typing import Any, ClassVar, Literal, Optional, Union
+from typing import Any, ClassVar, Literal, Optional, Self, Union, Unpack
 
 import numba
 import numpy as np
 import pandas as pd
 from scipy.signal import butter, firwin
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import inherit_docstring_from
 from mobgap.data_transform._utils import chain_transformers

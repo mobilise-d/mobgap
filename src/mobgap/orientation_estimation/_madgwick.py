@@ -1,10 +1,9 @@
-from typing import Any, Union
+from typing import Any, Self, Union, Unpack
 
 import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation
 from tpcp import cf
-from typing_extensions import Self, Unpack
 
 from mobgap._gaitmap.trajectory_reconstruction.orientation_methods._madgwick import _madgwick_update_series
 from mobgap.consts import INITIAL_MOBILISED_ORIENTATION, SF_ACC_COLS, SF_GYR_COLS

@@ -1,8 +1,7 @@
-from typing import Union
+from typing import Protocol, Self, Union
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Protocol, Self
 
 ArrayLike = Union[np.ndarray, pd.Series, pd.DataFrame]
 

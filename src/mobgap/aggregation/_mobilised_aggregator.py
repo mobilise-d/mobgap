@@ -1,14 +1,13 @@
 import typing
 import warnings
 from types import MappingProxyType
-from typing import Final
+from typing import Final, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from pandas import option_context
 from tpcp import cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
-from typing_extensions import Self, Unpack
 
 from mobgap.aggregation.base import BaseAggregator, base_aggregator_docfiller
 
