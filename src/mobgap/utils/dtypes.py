@@ -1,11 +1,10 @@
 """Helper to validate and convert common data types used in mobgap."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Callable, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Literal, Optional, TypeAlias, TypeVar, Union
 
 import numpy as np
 import pandas as pd
-from typing_extensions import TypeAlias
 
 from mobgap.consts import COLS_PER_FRAME
 

@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, Union
+from typing import Any, Self, Union, Unpack
 from unittest.mock import patch
 
 import numpy as np
@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
-from typing_extensions import Self, Unpack
 
 from mobgap.data import LabExampleDataset
 from mobgap.laterality import LrcMcCamley

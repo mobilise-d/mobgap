@@ -1,11 +1,10 @@
 """Base class for GSD detectors."""
 
 from collections.abc import Iterable
-from typing import Any, Union
+from typing import Any, Self, Union, Unpack
 
 import pandas as pd
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler

@@ -1,12 +1,11 @@
 import warnings
 from types import MappingProxyType
-from typing import Any, Final, Optional
+from typing import Any, Final, Optional, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from tpcp import cf
 from tpcp.misc import set_defaults
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter, HampelFilter
 from mobgap.data_transform.base import BaseFilter

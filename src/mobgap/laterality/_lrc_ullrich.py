@@ -4,7 +4,7 @@ from functools import cache
 from importlib.resources import files
 from itertools import chain, repeat
 from types import MappingProxyType
-from typing import Any, Final, Union
+from typing import Any, Final, Self, TypedDict, Union, Unpack
 
 import joblib
 import numpy as np
@@ -16,7 +16,6 @@ from sklearn.svm import SVC
 from sklearn.utils.validation import check_is_fitted
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
-from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter

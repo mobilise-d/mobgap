@@ -170,11 +170,10 @@ Note, the use of the `base_icd_docfiller`, which is used to interpolate common s
 Also review the actual implementation of the other algorithms for further inspiration and guidance.
 
 ```python
-from typing import Any
+from typing import Any, Self, Unpack
 
 import pandas as pd
 from tpcp import cf
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import EpflDedriftedGaitFilter
 from mobgap.data_transform.base import BaseFilter

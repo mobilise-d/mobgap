@@ -1,11 +1,10 @@
 import warnings
 from types import MappingProxyType
-from typing import Final, Literal, Optional
+from typing import Final, Literal, Optional, Self
 
 import pandas as pd
 from tpcp import Algorithm, cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
-from typing_extensions import Self
 
 from mobgap.wba._interval_criteria import (
     BaseIntervalCriteria,

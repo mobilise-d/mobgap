@@ -53,14 +53,13 @@ The basic things that a data-transform needs are:
 
 """
 
-from typing import Any
+from typing import Any, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from mobgap.data_transform.base import BaseTransformer
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
 
 
 class ShiftTransformer(BaseTransformer):

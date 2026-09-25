@@ -1,11 +1,10 @@
-from typing import Any
+from typing import Any, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from pywt import cwt
 from scipy.integrate import cumulative_trapezoid
 from tpcp import cf
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import EpflDedriftedGaitFilter, EpflGaitFilter, Resample
 from mobgap.data_transform.base import BaseFilter

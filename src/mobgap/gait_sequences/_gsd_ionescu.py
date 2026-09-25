@@ -1,12 +1,11 @@
 import warnings
-from typing import Any
+from typing import Any, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from intervaltree import IntervalTree
 from numba import njit
 from scipy.signal import find_peaks, hilbert
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import timed_action_method

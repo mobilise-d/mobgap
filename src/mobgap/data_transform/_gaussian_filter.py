@@ -1,7 +1,6 @@
-from typing import Any, Optional
+from typing import Any, Optional, Self, Unpack
 
 from scipy.ndimage import gaussian_filter1d
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform.base import BaseFilter, base_filter_docfiller
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array

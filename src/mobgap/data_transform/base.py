@@ -1,11 +1,10 @@
 """Base classes for all data transformers and filters."""
 
-from typing import Any, ClassVar, Literal, Optional, Union
+from typing import Any, ClassVar, Literal, Optional, Self, Union, Unpack
 
 import numpy as np
 from scipy.signal import filtfilt, lfilter, sosfilt, sosfiltfilt
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
