@@ -83,9 +83,7 @@ def rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "rel_error")
     result = (det - ref) / ref
-    with pd.option_context("future.no_silent_downcasting", True):
-        result = result.replace([np.inf, -np.inf], np.nan).infer_objects(copy=False)
-    return result
+    return result.replace([np.inf, -np.inf], np.nan).infer_objects()
 
 
 def abs_error(
@@ -146,9 +144,7 @@ def abs_rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "abs_rel_error")
     result = abs((det - ref) / ref)
-    with pd.option_context("future.no_silent_downcasting", True):
-        result = result.replace([np.inf, -np.inf], np.nan).infer_objects(copy=False)
-    return result
+    return result.replace([np.inf, -np.inf], np.nan).infer_objects()
 
 
 class ErrorTransformFuncs:
