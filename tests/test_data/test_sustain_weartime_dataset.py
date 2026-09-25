@@ -92,6 +92,16 @@ def test_index_creation(tmp_path):
     assert_frame_equal(dataset.index, expected_index)
 
 
+def test_sensor_name_is_configurable_and_survives_clone(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+
+    dataset = SustainWearTimeDataset(base_path, sensor_name="Waist").clone()
+    datapoint = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
+
+    assert datapoint.sensor_name == "Waist"
+    assert list(datapoint.data) == ["Waist"]
+
+
 def test_index_creation_detects_lb_abbreviation(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
     human_file = base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"
