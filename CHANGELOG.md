@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add an example and TVS evaluation for a potential acceleration-only full pipeline. This configuration remains
+  experimental and has not been properly validated; the TVS evaluation uses full IMU recordings.
+  (https://github.com/mobilise-d/mobgap/pull/256)
 - Add `mobgap.utils.rotations.flip_dataset` to apply one 90-degree-step rotation to all samples of a single-sensor
   dataset in the sensor or body frame. (https://github.com/mobilise-d/mobgap/issues/214)
 - Add `GsdIluzAdaptiveGravity` for gait sequence detection when lower-back sensor mounting may be misoriented. It
