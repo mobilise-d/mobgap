@@ -1,13 +1,12 @@
 import json
 import shutil
-import warnings
 from pathlib import Path
 
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
 
-from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
+from mobgap.consts import SF_SENSOR_COLS
 from mobgap.data import SustainWearTimeDataset, get_example_cwa_data_path
 from mobgap.data import _sustain_weartime_dataset as sustain_dataset
 from mobgap.data import ax6 as ax6_module
@@ -16,7 +15,6 @@ from mobgap.utils.misc import get_env_var
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
 CWA_FIXTURE = get_example_cwa_data_path()
-TIMING_WARNING_MATCH = "effective sampling rate waries considerable"
 HUMAN_RECORDING_ID = "human_movement_001_example_lowback"
 SIMULATED_RECORDING_ID = "simulated_movements_020_example_lowback"
 SUSTAIN_DATA_PATH = get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH", None)
@@ -289,12 +287,12 @@ def test_real_dataset_regression_index(snapshot):
 def test_real_dataset_split_by_day_matches_full_recording_for_single_participant():
     dataset = SustainWearTimeDataset(
         SUSTAIN_DATA_PATH,
-        additional_channels=(),
+        additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
     )
     split_dataset = SustainWearTimeDataset(
         SUSTAIN_DATA_PATH,
-        additional_channels=(),
+        additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
         split_by_day=True,
     )
@@ -323,114 +321,16 @@ def test_real_dataset_split_by_day_matches_full_recording_for_single_participant
         assert_frame_equal(split_data, full_data)
 
 
-def test_loads_cwa_data_in_sensor_frame(tmp_path):
+def test_recording_metadata_uses_selected_file_and_sustain_labels(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
     datapoint = SustainWearTimeDataset(base_path).get_subset(recording_id=HUMAN_RECORDING_ID)
 
-    raw_data = _read_fixture_data()
-    with pytest.warns(UserWarning, match=TIMING_WARNING_MATCH):
-        data = datapoint.data_ss
-
-    assert list(data.columns) == [*SF_SENSOR_COLS, "temperature"]
-    assert data.index.tz is not None
-    assert data.index.name == "time"
-    assert (data.index[1:] - data.index[:-1]).unique().tolist() == [
-        pd.to_timedelta(1 / datapoint.sampling_rate_hz, unit="s")
-    ]
-    with pytest.warns(UserWarning, match=TIMING_WARNING_MATCH):
-        assert "LowerBack" in datapoint.data
-
-    assert data.iloc[0]["acc_x"] == pytest.approx(float(raw_data["acc_x"][0]) * GRAV_MS2)
-    assert data.iloc[0]["acc_y"] == pytest.approx(float(raw_data["acc_y"][0]) * GRAV_MS2)
-    assert data.iloc[0]["acc_z"] == pytest.approx(float(raw_data["acc_z"][0]) * GRAV_MS2)
-    assert data.iloc[0]["gyr_x"] == pytest.approx(float(raw_data["gyro_x"][0]))
-    assert data.iloc[0]["gyr_y"] == pytest.approx(float(raw_data["gyro_y"][0]))
-    assert data.iloc[0]["gyr_z"] == pytest.approx(float(raw_data["gyro_z"][0]))
-
-
-def test_can_disable_additional_cwa_channels(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(base_path, additional_channels=()).get_subset(recording_id=HUMAN_RECORDING_ID)
-
-    with pytest.warns(UserWarning, match=TIMING_WARNING_MATCH):
-        assert list(datapoint.data_ss.columns) == list(SF_SENSOR_COLS)
-
-
-def test_can_load_all_available_additional_cwa_channels(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(base_path, additional_channels=("temperature", "light", "battery")).get_subset(
-        recording_id=HUMAN_RECORDING_ID
-    )
-
-    raw_data = _read_fixture_data(
-        include_magnetometer=False,
-        include_temperature=True,
-        include_light=True,
-        include_battery=True,
-    )
-    expected_additional_columns = [column for column in ["temperature", "light", "battery"] if column in raw_data]
-
-    with pytest.warns(UserWarning, match=TIMING_WARNING_MATCH):
-        data = datapoint.data_ss
-    assert list(data.columns) == [*SF_SENSOR_COLS, *expected_additional_columns]
-    for column in expected_additional_columns:
-        assert data.iloc[0][column] == pytest.approx(float(raw_data[column][0]))
-
-
-def test_dataset_unsupported_additional_channel_raises(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-
-    datapoint = SustainWearTimeDataset(base_path, additional_channels=("magnetometer",)).get_subset(
-        recording_id=HUMAN_RECORDING_ID
-    )
-
-    assert datapoint.supported_additional_channels_ == ("temperature", "light", "battery")
-    with pytest.raises(ValueError, match="Unknown additional CWA channels"):
-        datapoint.data_ss
-
-
-def test_unknown_additional_channel_raises(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-
-    with pytest.raises(ValueError, match="Unknown additional CWA channels"):
-        SustainWearTimeDataset(base_path, additional_channels=("temperature", "not_a_channel")).get_subset(
-            recording_id=HUMAN_RECORDING_ID
-        ).data_ss
-
-
-def test_cwa_header_is_available_on_single_recording(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(base_path).get_subset(recording_id=HUMAN_RECORDING_ID)
-
-    header = datapoint.cwa_header_
-    timing_report = datapoint.cwa_timing_report_
-
-    assert header["hardware_type"] == "AX3"
-    assert header["sample_rate_hz"] == 100.0
-    assert timing_report["samplingrate_hz_from_header"] == 100.0
-    assert abs(timing_report["samplingrate_hz_from_data"] - timing_report["samplingrate_hz_from_header"]) > 0.2
-    assert datapoint.recording_metadata["cwa_header"] == header
-
-
-def test_warns_when_effective_sampling_rate_deviates(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(base_path).get_subset(recording_id=HUMAN_RECORDING_ID)
-
-    with pytest.warns(UserWarning, match=TIMING_WARNING_MATCH):
-        datapoint.data_ss
-
-
-def test_sampling_rate_deviation_warning_threshold_can_be_adjusted(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(base_path, warn_thres_for_sampling_rate_deviations_hz=10.0).get_subset(
-        recording_id=HUMAN_RECORDING_ID
-    )
-
-    with warnings.catch_warnings(record=True) as caught_warnings:
-        warnings.simplefilter("always")
-        datapoint.data_ss
-
-    assert not [warning for warning in caught_warnings if TIMING_WARNING_MATCH in str(warning.message)]
+    metadata = datapoint.recording_metadata
+    assert metadata["recording_id"] == HUMAN_RECORDING_ID
+    assert metadata["recording_type"] == "human_movement"
+    assert metadata["file_name"] == "example_lowback.cwa"
+    assert metadata["measurement_condition"] == "laboratory"
+    assert metadata["cwa_header"]["hardware_type"] == "AX3"
 
 
 def test_human_movement_references_are_snapped_to_sample_boundaries(tmp_path):

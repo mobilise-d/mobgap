@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
@@ -25,6 +26,11 @@ _ADDITIONAL_COLUMNS = {
     "magnetometer": ("mag_x", "mag_y", "mag_z"),
     "temperature": ("temperature",),
 }
+_SAMPLING_RATE_DEVIATION_WARNING = (
+    "The expected number of samples/the effective sampling rate waries considerable from the expected values. "
+    "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
+    "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
+)
 
 
 def _cwa_reader() -> Any:
@@ -133,12 +139,14 @@ class BaseAX6Dataset(BaseGaitDataset):
         self,
         *,
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
+        warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
         subset_index: pd.DataFrame | None = None,
     ) -> None:
         self.additional_sensors_enabled = additional_sensors_enabled
+        self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
         self.sensor_name = sensor_name
         self.memory = memory
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -206,6 +214,16 @@ class BaseAX6Dataset(BaseGaitDataset):
         channels = self._get_additional_channels()
         path = self._selected_file_path
         timing = self.cwa_timing_report_
+        threshold = self.warn_thres_for_sampling_rate_deviations_hz
+        if threshold is not None:
+            expected_rate = timing.get("samplingrate_hz_from_header")
+            effective_rate = timing.get("samplingrate_hz_from_data")
+            if (
+                expected_rate is not None
+                and effective_rate is not None
+                and abs(float(effective_rate) - float(expected_rate)) > threshold
+            ):
+                warnings.warn(_SAMPLING_RATE_DEVIATION_WARNING, stacklevel=2)
         first_sample = pd.Timestamp(timing["start_from_data"]).tz_convert("UTC")
         sampling_rate_hz = self.sampling_rate_hz
         full_end = pd.Timestamp(timing["end_from_data"]).tz_convert("UTC") + pd.Timedelta(seconds=1 / sampling_rate_hz)
@@ -247,6 +265,9 @@ class AX6Dataset(BaseAX6Dataset):
         workers can serialize them.
     additional_sensors_enabled
         Extra CWA channels to return alongside acceleration and gyroscope data.
+    warn_thres_for_sampling_rate_deviations_hz
+        Warn when the effective and expected sampling rates differ by more than this many Hz. ``None`` disables
+        the warning.
     sensor_name
         Key used by ``data`` for this recording.
     memory
@@ -269,6 +290,7 @@ class AX6Dataset(BaseAX6Dataset):
         recording_metadata: RecordingMetadata,
         splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = None,
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
+        warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
@@ -280,6 +302,7 @@ class AX6Dataset(BaseAX6Dataset):
         self.splitter = splitter
         super().__init__(
             additional_sensors_enabled=additional_sensors_enabled,
+            warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
             sensor_name=sensor_name,
             memory=memory,
             groupby_cols=groupby_cols,

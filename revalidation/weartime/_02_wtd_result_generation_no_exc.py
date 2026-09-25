@@ -57,7 +57,7 @@ condition_name = "sustain_weartime"
 
 dataset_sustain_weartime = SustainWearTimeDataset(
     get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
-    additional_channels=(),
+    additional_sensors_enabled=(),
     split_by_day=True,
     memory=Memory(cache_dir),
 )
