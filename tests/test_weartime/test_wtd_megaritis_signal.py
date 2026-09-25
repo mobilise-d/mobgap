@@ -50,12 +50,38 @@ class TestWtdMegaritisSignal:
         result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
-        assert not result.diagnostics_["sample_votes"]["wear_votes"].any()
+        assert "sample_votes" not in result.diagnostics_
+
+    @pytest.mark.parametrize("column", ["acc_pa", "gyr_ml", "gyr_is"])
+    def test_nan_sensor_samples_are_rejected(self, column):
+        data = pd.DataFrame(np.zeros((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data.loc[100, column] = np.nan
+
+        with pytest.raises(ValueError, match="NaN"):
+            WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+
+    @pytest.mark.parametrize("column", ["acc_pa", "gyr_ml", "gyr_is"])
+    def test_missing_required_sensor_channels_are_rejected(self, column):
+        data = pd.DataFrame(np.zeros((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS).drop(columns=column)
+
+        with pytest.raises(ValueError, match=column):
+            WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+
+    def test_sample_vote_diagnostics_are_opt_in(self):
+        data = pd.DataFrame(np.zeros((750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, store_sample_votes=True).detect(
+            data, sampling_rate_hz=10.0
+        )
+
+        assert result.diagnostics_["sample_votes"]["non_wear_votes"].max() == 2
 
     def test_exactly_tiled_recording_has_no_extra_boundary_vote(self):
         data = pd.DataFrame(np.zeros((750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
-        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, store_sample_votes=True).detect(
+            data, sampling_rate_hz=10.0
+        )
 
         assert result.diagnostics_["macro"]["start"].to_list() == [0, 150]
         assert not result.diagnostics_["macro"]["is_boundary_window"].any()
