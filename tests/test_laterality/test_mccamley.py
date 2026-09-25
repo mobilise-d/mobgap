@@ -23,6 +23,21 @@ class TestMetaLrcMcCamley(TestAlgorithmMixin):
 
 
 class TestLrcMcCamley:
+    @pytest.mark.parametrize(
+        "axis,required_columns",
+        [("is", ["gyr_is"]), ("pa", ["gyr_pa"]), ("combined", ["gyr_is", "gyr_pa"])],
+    )
+    def test_required_gyroscope_columns_match_full_input(self, axis, required_columns):
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
+        data["gyr_is"] = np.sin(np.linspace(0, 2 * np.pi, 100))
+        data["gyr_pa"] = -data["gyr_is"]
+        ic_list = pd.DataFrame({"ic": [5, 15, 25]})
+
+        expected = LrcMcCamley(axis).predict(data, ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
+        actual = LrcMcCamley(axis).predict(data[required_columns], ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
+
+        assert_frame_equal(actual, expected)
+
     def test_empty_ic(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": []})

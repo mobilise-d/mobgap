@@ -175,7 +175,11 @@ class TdElGohary(BaseTurnDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        frame = get_frame_definition(data, ["body", "global_body"])
+        frame = get_frame_definition(
+            data,
+            ["body", "global_body"],
+            required_columns={"body": ["gyr_is"], "global_body": ["gyr_gis"]},
+        )
 
         if self.orientation_estimation is not None:
             if frame == "global_body":
