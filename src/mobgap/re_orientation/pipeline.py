@@ -8,10 +8,10 @@ from tpcp import OptimizableParameter, Pipeline
 from tpcp.misc import iter_with_warning_error_context
 from typing_extensions import Self
 
-from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.pipeline import iter_gs
 from mobgap.re_orientation.base import BaseReorientationCorrector
+from mobgap.utils.rotations import flip_dataset
 
 # Labels describe simulated mounting states: identity, rotations around PA, and PA-flipped variants.
 REORIENTATION_ROTATIONS = {
@@ -70,7 +70,7 @@ class ReorientationEmulationPipeline(Pipeline[BaseGaitDatasetWithReference]):
 
     This pipeline uses the reference walking bouts of a datapoint. For every walking bout,
     it creates one copy for each supported rough mounting orientation using
-    :func:`mobgap._gaitmap.utils.rotations.flip_dataset`, runs the wrapped algorithm, and
+    :func:`mobgap.utils.rotations.flip_dataset`, runs the wrapped algorithm, and
     stores the detected orientation class.
 
     Parameters

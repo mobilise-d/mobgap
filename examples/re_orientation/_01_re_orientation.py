@@ -24,9 +24,9 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
-from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data import LabExampleDataset
 from mobgap.re_orientation import ReorientationMethodDM
+from mobgap.utils.rotations import flip_dataset
 from scipy.spatial.transform import Rotation
 
 if TYPE_CHECKING:

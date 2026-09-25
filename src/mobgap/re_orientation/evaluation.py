@@ -10,7 +10,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from tpcp import DatasetWrapperMixin
 from tpcp.validate import Scorer, no_agg
 
-from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data.base import (
     IMU_DATA_DTYPE,
     BaseGaitDatasetWithReference,
@@ -25,6 +24,7 @@ from mobgap.re_orientation.pipeline import (
 )
 from mobgap.utils.conversions import to_body_frame, to_sensor_frame
 from mobgap.utils.dtypes import get_frame_definition
+from mobgap.utils.rotations import flip_dataset
 
 OrientationSpec = Optional[Union[Mapping[str, Rotation], Sequence[str]]]
 

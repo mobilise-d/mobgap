@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `mobgap.utils.rotations.flip_dataset` to apply one 90-degree-step rotation to all samples of a single-sensor
+  dataset in the sensor or body frame. (https://github.com/mobilise-d/mobgap/issues/214)
 - Add `GsdIluzAdaptiveGravity` for gait sequence detection when lower-back sensor mounting may be misoriented. It
   estimates the vertical acceleration from accelerometer and gyroscope data and supports sign-independent PA peak
   counting with `pa_peak_aggregation="max"`. Use it in place of `GsdIluz` when enabling per-gait-sequence automatic

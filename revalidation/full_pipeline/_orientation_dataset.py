@@ -5,7 +5,6 @@ from copy import copy
 from typing import Any, Optional, Union
 
 import pandas as pd
-from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data.base import (
     IMU_DATA_DTYPE,
     BaseGaitDatasetWithReference,
@@ -16,6 +15,7 @@ from mobgap.data.base import (
 from mobgap.re_orientation.pipeline import REORIENTATION_ROTATIONS
 from mobgap.utils.conversions import to_body_frame, to_sensor_frame
 from mobgap.utils.dtypes import get_frame_definition
+from mobgap.utils.rotations import flip_dataset
 from scipy.spatial.transform import Rotation
 
 OrientationSpec = Optional[Union[Mapping[str, Rotation], Sequence[str]]]
