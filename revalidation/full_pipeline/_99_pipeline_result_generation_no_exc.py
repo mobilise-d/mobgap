@@ -239,22 +239,6 @@ pipelines = {
             ),
         ]
     ),
-    "Official_MobiliseD_Pipeline__mansour_lrc": MobilisedPipelineUniversal(
-        pipelines=[
-            (
-                "healthy",
-                MobilisedPipelineHealthy(
-                    laterality_classification=LrcBenMansour()
-                ),
-            ),
-            (
-                "impaired",
-                MobilisedPipelineImpaired(
-                    laterality_classification=LrcBenMansour()
-                ),
-            ),
-        ]
-    ),
     "Official_MobiliseD_Pipeline__gsd_iluz_all": MobilisedPipelineUniversal(
         pipelines=[
             (

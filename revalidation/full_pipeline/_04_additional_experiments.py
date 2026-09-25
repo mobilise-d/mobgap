@@ -7,6 +7,10 @@ Additional Full Pipeline Experiments
 The following analysis tries to awnser the question how much specific components of the pipeline contribute to the
 improvements that we see in the new implementation of the full pipeline.
 
+The experimental acceleration-only configuration replaces gyroscope-based laterality classification and disables turn
+detection. This comparison uses the full TVS IMU recordings; it does not validate performance on recordings without
+gyroscope channels. The approved Mobilise-D pipeline still requires gyroscope data.
+
 .. note:: If you are interested in how these results are calculated, head over to the
     :ref:`processing page <pipeline_val_gen>`.
 
@@ -33,9 +37,9 @@ algorithms = {
         "Mobilise-D Pipeline",
         "MobGap (with old LRC)",
     ),
-    "Official_MobiliseD_Pipeline__mansour_lrc": (
-        "Mobilise-D Pipeline",
-        "MobGap (with BenMansour LRC)",
+    "Experimental_AccOnly_Pipeline": (
+        "Experimental pipeline",
+        "Acceleration-only algorithms (no turns)",
     ),
 }
 version_order = [version for _, version in algorithms.values()]
