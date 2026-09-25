@@ -7,8 +7,13 @@ Experimental acceleration-only pipeline
 
 .. warning:: This is not the approved Mobilise-D pipeline. The approved pipeline always requires gyroscope data.
 
-This example runs a custom pipeline on lower-back acceleration data. Turn detection is disabled, so turn results and
-turn-dependent outputs are unavailable.
+This example runs a custom pipeline on lower-back acceleration data using LrcBenMansour instead of the default
+left/right detector. It also disables turn detection.
+
+In this configuration, the pipeline uses only acceleration data and could run with a sensor that has no gyroscope,
+potentially reducing cost and battery use. Without turn detection and gyroscope data, the pipeline can calculate the main
+outcome metrics, but most secondary outcomes are unavailable. It therefore cannot produce the full set of Mobilise-D
+outputs.
 """
 
 # %%
