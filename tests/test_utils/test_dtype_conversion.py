@@ -3,7 +3,27 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal, assert_series_equal
 
-from mobgap.utils.dtypes import dflike_as_2d_array
+from mobgap.utils.dtypes import assert_is_sensor_data, dflike_as_2d_array, get_frame_definition
+
+
+def test_sensor_data_validation_accepts_only_required_columns():
+    data = pd.DataFrame({"acc_is": [1.0], "acc_pa": [2.0]})
+
+    assert_is_sensor_data(data, "body", required_columns=["acc_is", "acc_pa"])
+    with pytest.raises(AssertionError, match="missing"):
+        assert_is_sensor_data(data, "body")
+
+
+def test_frame_definition_can_use_frame_specific_required_columns():
+    data = pd.DataFrame({"gyr_gis": [1.0]})
+
+    frame = get_frame_definition(
+        data,
+        ["body", "global_body"],
+        required_columns={"body": ["gyr_is"], "global_body": ["gyr_gis"]},
+    )
+
+    assert frame == "global_body"
 
 
 class TestDflikeAs2dArray:

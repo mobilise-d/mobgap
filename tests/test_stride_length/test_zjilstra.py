@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
+from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.consts import BF_SENSOR_COLS, BGF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.pipeline import GsIterator
 from mobgap.stride_length import SlZijlstra
@@ -27,6 +28,32 @@ class TestMetaSlZijlstra(TestAlgorithmMixin):
 
 
 class TestSlZijlstra:
+    @pytest.mark.parametrize(
+        "all_columns,required_column",
+        [(BF_SENSOR_COLS, "acc_is"), (BGF_SENSOR_COLS, "acc_gis")],
+    )
+    def test_vertical_acceleration_only_matches_full_input(self, all_columns, required_column):
+        data = pd.DataFrame(np.zeros((100, 6)), columns=all_columns)
+        initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
+
+        expected = (
+            SlZijlstra()
+            .calculate(data=data, initial_contacts=initial_contacts, sensor_height_m=0.95, sampling_rate_hz=100.0)
+            .stride_length_per_sec_
+        )
+        actual = (
+            SlZijlstra()
+            .calculate(
+                data=data[[required_column]],
+                initial_contacts=initial_contacts,
+                sensor_height_m=0.95,
+                sampling_rate_hz=100.0,
+            )
+            .stride_length_per_sec_
+        )
+
+        assert_frame_equal(actual, expected)
+
     """Tests for SlZijlstra.
 
     We just test the happy path and some potential edgecases.

@@ -5,10 +5,11 @@ import pytest
 from tpcp.testing import TestAlgorithmMixin
 from typing_extensions import Self
 
-from mobgap.consts import BF_SENSOR_COLS, SF_SENSOR_COLS
+from mobgap.consts import BF_SENSOR_COLS, SF_ACC_COLS, SF_SENSOR_COLS
 from mobgap.data import GaitDatasetFromData, LabExampleDataset
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.initial_contacts.base import BaseIcDetector
+from mobgap.laterality import LrcBenMansour
 from mobgap.laterality.base import BaseLRClassifier
 from mobgap.pipeline import (
     GenericMobilisedPipeline,
@@ -189,6 +190,27 @@ class TestFullPipelineRegression:
 
 
 class TestFullPipelineEdgeCases:
+    def test_acceleration_only_pipeline_with_acceleration_based_algorithms(self) -> None:
+        example = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")
+        dataset = GaitDatasetFromData(
+            {"test": {"LowerBack": example.data_ss[SF_ACC_COLS]}},
+            example.sampling_rate_hz,
+            _participant_metadata={"test": example.participant_metadata},
+            _recording_metadata={"test": example.recording_metadata},
+        )[0]
+        pipeline = GenericMobilisedPipeline(
+            **(
+                GenericMobilisedPipeline.PredefinedParameters.regular_walking
+                | {"laterality_classification": LrcBenMansour(), "turn_detection": None}
+            )
+        )
+
+        result = pipeline.run(dataset)
+
+        assert not result.gs_list_.empty
+        assert not result.raw_ic_list_.empty
+        assert not result.raw_per_sec_parameters_.empty
+
     def test_without_per_gs_reorientation_gsd_receives_body_frame_data(self) -> None:
         pipeline = _minimal_pipeline().run(_sensor_frame_test_dataset())
 

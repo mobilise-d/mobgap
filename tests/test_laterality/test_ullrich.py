@@ -38,6 +38,16 @@ class TestLrcUllrich:
     def _select_model(self, request):
         self.model = request.param
 
+    def test_gyroscope_only_matches_full_input(self):
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
+        ic_list = pd.DataFrame({"ic": [10, 20, 40]})
+
+        expected = LrcUllrich(**self.model).predict(data, ic_list=ic_list, sampling_rate_hz=100.0)
+        actual = LrcUllrich(**self.model).predict(data[["gyr_is", "gyr_pa"]], ic_list=ic_list, sampling_rate_hz=100.0)
+
+        assert_frame_equal(actual.ic_lr_list_, expected.ic_lr_list_)
+        assert_frame_equal(actual.feature_matrix_, expected.feature_matrix_)
+
     def test_empty_data(self):
         test_params = self.model
         algo = LrcUllrich(**test_params)

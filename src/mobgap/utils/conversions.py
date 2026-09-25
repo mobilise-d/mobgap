@@ -1,7 +1,7 @@
 """Some basic conversion utilities."""
 
 from collections.abc import Sequence
-from typing import TypeVar, Union, overload
+from typing import Literal, TypeVar, Union, overload
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,7 @@ from mobgap.consts import COLS_PER_FRAME, GF_SENSOR_COLS, SF_SENSOR_COLS
 from mobgap.utils.dtypes import get_frame_definition
 
 T = TypeVar("T", float, int, Sequence[float], Sequence[int])
+_Frame = Literal["sensor", "body", "global", "global_body"]
 
 
 @overload
@@ -98,6 +99,19 @@ def transform_to_global_frame(data: pd.DataFrame, orientations: Rotation) -> pd.
     return rotated_data
 
 
+def _get_frame_for_conversion(data: pd.DataFrame, potential_frames: list[_Frame]) -> _Frame:
+    """Identify a frame from its present IMU columns, including partial datasets."""
+    try:
+        return get_frame_definition(data, potential_frames)
+    except AssertionError:
+        known_columns = set().union(*(COLS_PER_FRAME[frame] for frame in potential_frames))
+        present_columns = set(data.columns) & known_columns
+        for frame in potential_frames:
+            if present_columns and present_columns <= set(COLS_PER_FRAME[frame]):
+                return frame
+        raise
+
+
 def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
     """Rename the columns of the passed dataframe to match the body frame axis names.
 
@@ -108,7 +122,8 @@ def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
     In this case, the y-axis is inverted to match the body frame axis definitions and keep the coordinate system
     right-handed.
 
-    In both cases, we assume that the coordinate system definitions of the provided data matches the mobgap/Mobilise-D
+    The input may contain only acceleration, only gyroscope, or a subset of axes.
+    In all cases, we assume that the coordinate system definitions of the provided data match the mobgap/Mobilise-D
     guidelines.
 
     Parameters
@@ -122,7 +137,7 @@ def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
         The dataframe with the columns renamed to match the body frame axis names
 
     """
-    frame = get_frame_definition(data, ["sensor", "global"])
+    frame = _get_frame_for_conversion(data, ["sensor", "global"])
 
     conversions = {
         "sensor": dict(zip(COLS_PER_FRAME["sensor"], COLS_PER_FRAME["body"])),
@@ -135,10 +150,12 @@ def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
 
     out_cols = COLS_PER_FRAME["body"] if frame == "sensor" else COLS_PER_FRAME["global_body"]
 
-    renamed_df = data.rename(columns=conversions[frame])[out_cols]
+    renamed_df = data.rename(columns=conversions[frame])
+    renamed_df = renamed_df[[col for col in out_cols if col in renamed_df.columns]]
     if frame == "global":
-        renamed_df["acc_gml"] *= -1
-        renamed_df["gyr_gml"] *= -1
+        for col in ("acc_gml", "gyr_gml"):
+            if col in renamed_df:
+                renamed_df[col] *= -1
 
     return renamed_df
 
@@ -149,6 +166,7 @@ def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
     This will work for either data in the body frame or the global body frame.
     Data from the body frame will be converted in the sensor frame (is -> x, ml -> y, pa -> z).
     Data in the body-aligned global frame will be converted to the normal global frame (gis -> gz, -gml -> y, gpa -> x).
+    The input may contain only acceleration, only gyroscope, or a subset of axes.
 
     In both cases, we assume that the coordinate system definitions of the provided data matches the mobgap/Mobilise-D
     guidelines.
@@ -164,7 +182,7 @@ def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
         The dataframe with the columns renamed to match the normal global frame axis names
 
     """
-    frame = get_frame_definition(data, ["body", "global_body"])
+    frame = _get_frame_for_conversion(data, ["body", "global_body"])
 
     conversions = {
         "body": dict(zip(COLS_PER_FRAME["body"], COLS_PER_FRAME["sensor"])),
@@ -177,11 +195,13 @@ def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
 
     out_cols = COLS_PER_FRAME["global"] if frame == "global_body" else COLS_PER_FRAME["sensor"]
 
-    renamed_df = data.rename(columns=conversions[frame])[out_cols]
+    renamed_df = data.rename(columns=conversions[frame])
+    renamed_df = renamed_df[[col for col in out_cols if col in renamed_df.columns]]
 
     if frame == "global_body":
-        renamed_df["acc_gy"] *= -1
-        renamed_df["gyr_gy"] *= -1
+        for col in ("acc_gy", "gyr_gy"):
+            if col in renamed_df:
+                renamed_df[col] *= -1
 
     return renamed_df
 

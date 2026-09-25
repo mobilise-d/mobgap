@@ -4,7 +4,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.consts import BF_ACC_COLS, BF_SENSOR_COLS, SF_ACC_COLS, SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdAdaptiveIonescu
 from mobgap.gait_sequences._gsd_ionescu import GsdIonescu, find_intersections
@@ -76,6 +76,15 @@ class TestGsdIonescu:
         output_bf = self.algorithm().detect(to_body_frame(data), sampling_rate_hz=100.0).gs_list_
 
         assert_frame_equal(output_sf, output_bf)
+
+    @pytest.mark.parametrize("all_columns,acc_columns", [(SF_SENSOR_COLS, SF_ACC_COLS), (BF_SENSOR_COLS, BF_ACC_COLS)])
+    def test_acceleration_only_matches_full_input(self, all_columns, acc_columns):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=all_columns)
+
+        expected = self.algorithm().detect(data, sampling_rate_hz=40.0).gs_list_
+        actual = self.algorithm().detect(data[acc_columns], sampling_rate_hz=40.0).gs_list_
+
+        assert_frame_equal(actual, expected)
 
 
 class TestGsdAdaptiveIonescuRegression:

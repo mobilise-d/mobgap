@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Algorithms now specify and validate only the sensor channels they need. Algorithms that do not use gyroscope or
+  accelerometer data can now run when those channels are absent, including on acceleration-only data. Sensor and body
+  frame conversion also supports these partial inputs. (https://github.com/mobilise-d/mobgap/issues/172,
+  https://github.com/mobilise-d/mobgap/issues/46)
 - The minimum supported `tpcp` version is now 2.3.0. Environments pinned to an older version must upgrade `tpcp`
   before updating mobgap. This does not change mobgap's public APIs, but warnings and exceptions produced during tpcp
   validation and optimization can now include structured fold, parameter, and datapoint context.

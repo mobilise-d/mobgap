@@ -281,7 +281,7 @@ class GsdIluz(BaseGsDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
 
-        assert_is_sensor_data(data, frame="body")
+        assert_is_sensor_data(data, frame="body", required_columns=_ILUZ_CORE_COLUMNS)
 
         data = data[_ILUZ_CORE_COLUMNS]
 

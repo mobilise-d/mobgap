@@ -205,7 +205,7 @@ class LrcUllrich(BaseLRClassifier):
         self.ic_list = ic_list
         self.sampling_rate_hz = sampling_rate_hz
 
-        assert_is_sensor_data(data, frame="body")
+        assert_is_sensor_data(data, frame="body", required_columns=["gyr_is", "gyr_pa"])
 
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = (
@@ -346,7 +346,7 @@ class LrcUllrich(BaseLRClassifier):
         feature_df
             The DataFrame containing the extracted features.
         """
-        assert_is_sensor_data(data, frame="body")
+        assert_is_sensor_data(data, frame="body", required_columns=["gyr_is", "gyr_pa"])
 
         gyr = data[["gyr_is", "gyr_pa"]]
         gyr_filtered = self.smoothing_filter.clone().filter(gyr, sampling_rate_hz=sampling_rate_hz).filtered_data_

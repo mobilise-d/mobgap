@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import pytest
+from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.consts import BF_SENSOR_COLS, BGF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.pipeline import GsIterator
@@ -43,6 +44,18 @@ def create_turn_series(
 
 
 class TestTdElGohary:
+    @pytest.mark.parametrize("all_columns,required_column", [(BF_SENSOR_COLS, "gyr_is"), (BGF_SENSOR_COLS, "gyr_gis")])
+    def test_yaw_gyroscope_only_matches_full_input(self, all_columns, required_column):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=all_columns)
+        data[required_column] = np.sin(np.linspace(0, 20 * np.pi, 1000))
+        parameters = {"smoothing_filter": None, "min_peak_angle_velocity_dps": 0.8, "lower_threshold_velocity_dps": 0.1}
+
+        expected = TdElGohary(**parameters).detect(data, sampling_rate_hz=20.0)
+        actual = TdElGohary(**parameters).detect(data[[required_column]], sampling_rate_hz=20.0)
+
+        assert_frame_equal(actual.turn_list_, expected.turn_list_)
+        assert_frame_equal(actual.yaw_angle_, expected.yaw_angle_)
+
     def test_no_peaks(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         output = TdElGohary()

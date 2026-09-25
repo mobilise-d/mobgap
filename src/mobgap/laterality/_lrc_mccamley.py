@@ -99,7 +99,10 @@ class LrcMcCamley(BaseLRClassifier):
         self.data = data
         self.ic_list = ic_list
 
-        assert_is_sensor_data(data, frame="body")
+        if self.axis not in ("is", "pa", "combined"):
+            raise ValueError(f'Invalid axis configuration: {self.axis}. Allowed values are ["is", "pa", "combined"]')
+        required_columns = ["gyr_is", "gyr_pa"] if self.axis == "combined" else [f"gyr_{self.axis}"]
+        assert_is_sensor_data(data, frame="body", required_columns=required_columns)
 
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = (
@@ -116,11 +119,9 @@ class LrcMcCamley(BaseLRClassifier):
         elif self.axis == "pa":
             # roll is phase shifted compared to yaw -> invert the sign
             selected_data = data["gyr_pa"] * -1
-        elif self.axis == "combined":
+        else:
             # combine both signals to amplify the differences between left and right steps
             selected_data = data["gyr_pa"] * -1 + data["gyr_is"]
-        else:
-            raise ValueError(f'Invalid axis configuration: {self.axis}. Allowed values are ["is", "pa", "combined"]')
 
         # The use of the smoothing filter is an addition made by Ullrich et al. to the original McCamley algorithm.
         # Originally, simply the mean of the signal was subtracted from the signal
