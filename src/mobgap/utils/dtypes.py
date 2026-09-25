@@ -1,5 +1,6 @@
 """Helper to validate and convert common data types used in mobgap."""
 
+from collections.abc import Mapping, Sequence
 from typing import Any, Callable, Literal, Optional, TypeVar, Union
 
 import numpy as np
@@ -105,10 +106,15 @@ def dflike_as_2d_array(
     )
 
 
-def assert_is_sensor_data(data: pd.DataFrame, frame: Literal["sensor", "body", "global", "global_body"]) -> None:
+def assert_is_sensor_data(
+    data: pd.DataFrame,
+    frame: Literal["sensor", "body", "global", "global_body"],
+    *,
+    required_columns: Optional[Sequence[str]] = None,
+) -> None:
     """Check if the passed dataframe contains sensor frame data.
 
-    This is done by checking if the dataframe contains the columns defined in :obj:`~mobgap.consts.SF_SENSOR_COLS`.
+    By default, all acceleration and gyroscope columns of the frame are required.
 
     Parameters
     ----------
@@ -118,15 +124,17 @@ def assert_is_sensor_data(data: pd.DataFrame, frame: Literal["sensor", "body", "
         The frame to check for.
         Must be one of "sensor", "body", "global", or "global_body".
         Depending on the frame the dataframe must contain the corresponding columns.
+    required_columns
+        Columns required for this operation. If omitted, all columns of the frame are required.
 
     """
     if not isinstance(data, pd.DataFrame):
         raise AssertionError("The passed data is no valid imu data, as it is not a pandas dataframe.")  # noqa: TRY004
     try:
-        expected_cols = COLS_PER_FRAME[frame]
+        frame_cols = COLS_PER_FRAME[frame]
     except KeyError as e:
         raise ValueError(f"Unknown frame {frame}. Must be one of {list(COLS_PER_FRAME.keys())}.") from e
-    missing_cols = set(expected_cols) - set(data.columns)
+    missing_cols = set(frame_cols if required_columns is None else required_columns) - set(data.columns)
     if missing_cols:
         raise AssertionError(
             f"The passed data is no valid imu data in the {frame} frame, as it is missing the following columns: "
@@ -135,16 +143,23 @@ def assert_is_sensor_data(data: pd.DataFrame, frame: Literal["sensor", "body", "
 
 
 def get_frame_definition(
-    data: pd.DataFrame, potential_frames: list[Literal["sensor", "body", "global", "global_body"]]
+    data: pd.DataFrame,
+    potential_frames: list[Literal["sensor", "body", "global", "global_body"]],
+    *,
+    required_columns: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Literal["sensor", "body", "global", "global_body"]:
     """Check if the passed dataframe contains sensor frame data of one of the potential frames definitions.
 
     Returns the first frame definition that matches the columns of the dataframe or raises an AssertionError
-    if none of the potential frames match.
+    if none of the potential frames match. By default, a frame matches only if all its
+    acceleration and gyroscope columns are present. ``required_columns`` can specify
+    a smaller set for each potential frame.
     """
     for frame in potential_frames:
         try:
-            assert_is_sensor_data(data, frame)
+            assert_is_sensor_data(
+                data, frame, required_columns=None if required_columns is None else required_columns[frame]
+            )
         except AssertionError:
             continue
         return frame

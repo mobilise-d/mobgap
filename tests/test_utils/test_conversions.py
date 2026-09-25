@@ -9,6 +9,31 @@ from mobgap.utils.conversions import to_body_frame, to_normal_frame, to_sensor_f
 
 
 class TestToAndFromBodyFrame:
+    @pytest.mark.parametrize(
+        "source,expected",
+        [
+            ({"acc_x": [1.0], "acc_y": [2.0]}, {"acc_is": [1.0], "acc_ml": [2.0]}),
+            ({"gyr_z": [3.0]}, {"gyr_pa": [3.0]}),
+        ],
+    )
+    def test_partial_sensor_frame_roundtrip(self, source, expected):
+        data = pd.DataFrame(source)
+
+        body = to_body_frame(data)
+
+        assert_frame_equal(body, pd.DataFrame(expected))
+        assert_frame_equal(to_sensor_frame(body), data)
+
+    @pytest.mark.parametrize("sensor", ["acc", "gyr"])
+    def test_partial_global_frame_roundtrip(self, sensor):
+        data = pd.DataFrame({f"{sensor}_gy": [2.0], f"{sensor}_gz": [3.0]})
+        expected = pd.DataFrame({f"{sensor}_gis": [3.0], f"{sensor}_gml": [-2.0]})
+
+        body = to_body_frame(data)
+
+        assert_frame_equal(body, expected)
+        assert_frame_equal(to_normal_frame(body), data)
+
     @pytest.mark.parametrize("in_cols, out_cols", [(SF_SENSOR_COLS, BF_SENSOR_COLS), (GF_SENSOR_COLS, BGF_SENSOR_COLS)])
     def test_correct_cols(self, in_cols, out_cols):
         df = pd.DataFrame(np.random.random((100, 6)), columns=in_cols)
