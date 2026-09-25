@@ -13,7 +13,7 @@ import pandas as pd
 from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
-from mobgap.data.ax6 import BaseAX6Dataset
+from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -22,17 +22,9 @@ if TYPE_CHECKING:
 
 PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
-AdditionalCwaChannel = Literal["temperature", "light", "battery"]
-
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
-ADDITIONAL_CWA_CHANNELS: tuple[AdditionalCwaChannel, ...] = ("temperature", "light", "battery")
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
 SAMPLE_COUNT_TOL = 1e-6
-SAMPLING_RATE_DEVIATION_WARNING = (
-    "The expected number of samples/the effective sampling rate waries considerable from the expected values. "
-    "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
-    "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
-)
 
 
 def _is_lowerback_name(name: str) -> bool:
@@ -40,19 +32,6 @@ def _is_lowerback_name(name: str) -> bool:
     compact_name = name.replace("_", "").replace("-", "").replace(" ", "")
     tokens = {token for token in re.split(r"[\W_]+", name) if token}
     return "lowerback" in compact_name or "lowback" in compact_name or "lb" in tokens
-
-
-def _normalize_additional_channels(
-    additional_channels: Sequence[AdditionalCwaChannel],
-) -> tuple[AdditionalCwaChannel, ...]:
-    unique_channels = tuple(dict.fromkeys(additional_channels))
-    unknown_channels = set(unique_channels) - set(ADDITIONAL_CWA_CHANNELS)
-    if unknown_channels:
-        raise ValueError(
-            "Unknown additional CWA channels. "
-            f"Unknown: {sorted(unknown_channels)}. Available: {list(ADDITIONAL_CWA_CHANNELS)}."
-        )
-    return unique_channels
 
 
 def _as_utc_timestamp(timestamp: Any) -> pd.Timestamp:
@@ -93,20 +72,6 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
     )
 
     return reference.sort_values(["participant_id", "device_off", "device_on"], ignore_index=True)
-
-
-def _warn_if_effective_sampling_rate_deviates(
-    timing_report: dict[str, Any],
-    threshold_hz: float | None,
-) -> None:
-    if threshold_hz is None:
-        return
-    expected_sampling_rate_hz = timing_report.get("samplingrate_hz_from_header")
-    effective_sampling_rate_hz = timing_report.get("samplingrate_hz_from_data")
-    if expected_sampling_rate_hz is None or effective_sampling_rate_hz is None:
-        return
-    if abs(float(effective_sampling_rate_hz) - float(expected_sampling_rate_hz)) > threshold_hz:
-        warnings.warn(SAMPLING_RATE_DEVIATION_WARNING, stacklevel=2)
 
 
 def _empty_reference_df(index_name: str, datetime_dtype: str = "datetime64[ns, UTC]") -> pd.DataFrame:
@@ -276,8 +241,8 @@ def _sample_count_from_time_bounds_s(start_time_s: float, end_time_s: float, sam
 class SustainWearTimeDataset(BaseAX6Dataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
-    The dataset index contains one row per raw CWA recording, including its ``file_path``. The raw data is loaded lazily
-    and returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention:
+    The dataset index contains one row per recording or recording day, including its ``file_path``. The raw data is
+    loaded lazily and returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention:
     ``start`` is inclusive and ``end`` is exclusive. ``start_dt`` and ``end_dt`` are derived from the snapped
     sample boundaries, not copied from the raw reference file.
 
@@ -285,10 +250,9 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     ----------
     base_path
         The root folder containing ``weartime_part_a_all`` and ``weartime_part_b``.
-    additional_channels
-        Additional CWA channels to append to the core accelerometer and gyroscope data. Potential channels are
-        ``"temperature"``, ``"light"`` and ``"battery"``. The dataset validates that the selected recording actually
-        contains each requested channel.
+    additional_sensors_enabled
+        Additional CWA channels to append to the core accelerometer and gyroscope data. Supports
+        ``"temperature"``, ``"light"``, ``"battery"`` and ``"magnetometer"``.
     missing_reference_error_type
         How to handle missing part A reference rows for a selected recording.
     warn_thres_for_sampling_rate_deviations_hz
@@ -317,8 +281,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         The full CWA header of the selected recording as returned by ``cwa_reader_rs``.
     cwa_timing_report_
         The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
-    supported_additional_channels_
-        Additional CWA channels supported by this loader. A selected recording may lack some of them.
     n_samples
         Number of samples in the selected recording, derived from CWA timing metadata without loading the full data.
     reference_nonwear_
@@ -329,7 +291,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     """
 
     base_path: PathLike
-    additional_channels: Sequence[AdditionalCwaChannel]
+    additional_sensors_enabled: Sequence[AdditionalChannel]
     missing_reference_error_type: MissingReferenceErrorType
     warn_thres_for_sampling_rate_deviations_hz: float | None
     split_by_day: bool
@@ -339,7 +301,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         self,
         base_path: PathLike,
         *,
-        additional_channels: Sequence[AdditionalCwaChannel] = ("temperature",),
+        additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
         split_by_day: bool = False,
@@ -348,12 +310,11 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         subset_index: pd.DataFrame | None = None,
     ) -> None:
         self.base_path = base_path
-        self.additional_channels = additional_channels
         self.missing_reference_error_type = missing_reference_error_type
-        self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
         self.split_by_day = split_by_day
         super().__init__(
-            additional_sensors_enabled=additional_channels,
+            additional_sensors_enabled=additional_sensors_enabled,
+            warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
             sensor_name="LowerBack",
             memory=memory,
             groupby_cols=groupby_cols,
@@ -372,27 +333,12 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     def _reference_path(self) -> Path:
         return self._human_movement_path / "reference.json"
 
-    def _get_additional_channels(self) -> tuple[AdditionalCwaChannel, ...]:
-        selected = _normalize_additional_channels(self.additional_channels)
-        return tuple(channel for channel in ADDITIONAL_CWA_CHANNELS if channel in selected)
-
-    @property
-    def selected_data_file(self) -> Path:
-        self.assert_is_single(None, "selected_data_file")
-        return self._selected_file_path
-
     @property
     def _selected_recording_day(self) -> str | None:
         self.assert_is_single(None, "_selected_recording_day")
         if "recording_day" not in self.index.columns:
             return None
         return str(self.index.iloc[0]["recording_day"])
-
-    @property
-    def data_ss(self) -> pd.DataFrame:
-        timing_report = self.cwa_timing_report_
-        _warn_if_effective_sampling_rate_deviates(timing_report, self.warn_thres_for_sampling_rate_deviations_hz)
-        return super().data_ss
 
     def _selected_time_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
         start, last_sample = _recording_start_end_from_timing_report(self.cwa_timing_report_)
@@ -401,11 +347,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             return start, end
         day_start = _as_utc_timestamp(recording_day)
         return max(start, day_start), min(end, day_start + pd.Timedelta(days=1))
-
-    @property
-    def supported_additional_channels_(self) -> tuple[AdditionalCwaChannel, ...]:
-        self.assert_is_single(None, "supported_additional_channels_")
-        return ADDITIONAL_CWA_CHANNELS
 
     @property
     def n_samples(self) -> int:
@@ -424,7 +365,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             "measurement_condition": "laboratory",
             "recording_id": self.group_label.recording_id,
             "recording_type": self.group_label.recording_type,
-            "file_name": self.selected_data_file.name,
+            "file_name": self._selected_file_path.name,
             "hardware_type": metadata.get("hardware_type"),
             "device_id": metadata.get("device_id"),
             "logging_start_time": metadata.get("logging_start_time"),
@@ -513,38 +454,19 @@ class SustainWearTimeDataset(BaseAX6Dataset):
 
         return reference.sort_values(["device_off", "device_on"], ignore_index=True)
 
-    def _recording_file_index(self) -> pd.DataFrame:
-        rows = []
-
-        for recording_type, recording_path in (
-            ("human_movement", self._human_movement_path),
-            ("simulated_movements", self._simulated_movements_path),
-        ):
-            if not recording_path.exists():
-                continue
-            for file_path in sorted(recording_path.glob("*/*.cwa")):
-                if not _is_lowerback_name(file_path.name):
-                    continue
-                participant_id = file_path.parent.name
-                rows.append(
-                    {
-                        "recording_type": recording_type,
-                        "participant_id": participant_id,
-                        "recording_id": f"{recording_type}_{participant_id}_{file_path.stem}",
-                        "file_path": file_path,
-                    }
-                )
-
-        if not rows:
+    def _get_file_paths(self) -> list[Path]:
+        paths = [
+            path
+            for folder in (self._human_movement_path, self._simulated_movements_path)
+            for path in sorted(folder.glob("*/*.cwa"))
+            if _is_lowerback_name(path.name)
+        ]
+        if not paths:
             raise FileNotFoundError(
                 "Could not find any SUSTAIN wear-time lower-back CWA files below "
                 f"{self._human_movement_path} or {self._simulated_movements_path}."
             )
-
-        return pd.DataFrame(rows).sort_values(["recording_type", "participant_id", "recording_id"], ignore_index=True)
-
-    def _get_file_paths(self) -> list[Path]:
-        return self._recording_file_index()["file_path"].tolist()
+        return paths
 
     def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
         recording_type = "human_movement" if path.parent.parent == self._human_movement_path else "simulated_movements"

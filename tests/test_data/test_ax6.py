@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pickle
+import warnings
 from functools import partial
 from os import utime
 from shutil import copyfile
@@ -95,6 +96,33 @@ def test_reads_real_cwa_as_mobgap_sensor_data() -> None:
     assert data.index[0] == pd.Timestamp("2012-03-27T11:14:57.500Z")
     assert data.iloc[0]["acc_x"] == pytest.approx(-0.21875 * GRAV_MS2)
     assert data.iloc[0]["gyr_x"] == 0
+
+
+def test_additional_sensors_enabled_parameter_survives_clone() -> None:
+    """The shared channel parameter controls optional CWA columns."""
+    dataset = AX6Dataset(
+        EXAMPLE_CWA,
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        additional_sensors_enabled=("temperature", "magnetometer"),
+    )
+
+    assert dataset.clone().data_ss.columns.tolist() == [*SF_SENSOR_COLS, "temperature", "mag_x", "mag_y", "mag_z"]
+
+
+def test_sampling_rate_deviation_warning_threshold() -> None:
+    """The base loader owns the optional warning for CWA clock drift."""
+    options = {
+        "participant_metadata": {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        "recording_metadata": {"measurement_condition": "free_living"},
+    }
+    with pytest.warns(UserWarning, match="effective sampling rate waries considerable"):
+        AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=0.2, **options).data_ss
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=10.0, **options).data_ss
+    assert not [warning for warning in caught if "effective sampling rate" in str(warning.message)]
 
 
 def test_day_split_keeps_the_recording_in_one_utc_day() -> None:
