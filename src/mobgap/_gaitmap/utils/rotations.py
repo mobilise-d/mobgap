@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.transform import Rotation
 
-from mobgap.consts import BF_ACC_COLS, BF_GYR_COLS, SF_ACC_COLS, SF_GYR_COLS
-from mobgap.utils.dtypes import get_frame_definition
+from mobgap.consts import SF_ACC_COLS, SF_GYR_COLS
 
 
 def _rotate_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
@@ -86,85 +85,3 @@ def rotation_from_angle(axis: np.ndarray, angle: Union[float, np.ndarray]) -> Ro
     angle = np.atleast_2d(angle)
     axis = np.atleast_2d(axis)
     return Rotation.from_rotvec(np.squeeze(axis * angle.T))
-
-
-def _flip_sensor(data: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
-    """Flip (same as rotate, but only 90 deg rots allowed) the data of a single sensor.
-
-    Compared to normal rotations, this function can result in massive speedups!
-    """
-    data = data.copy()
-    if rotation is None:
-        return data
-
-    if rotation.single is False:
-        raise ValueError("Only single rotations are allowed!")
-
-    tol = 10e-9
-    rot_matrix = rotation.as_matrix().squeeze()
-    all_1 = np.allclose(np.abs(rot_matrix[~np.isclose(rot_matrix, 0, atol=tol)]).flatten(), 1, atol=tol)
-    if not all_1:
-        raise ValueError(
-            "Only 90 deg rotations are allowed (i.e. 1 and -1 in the rotation matrix)! "
-            f"The current matrix is:\n\n {rot_matrix}"
-        )
-
-    # Now that we know the rotation is valid, we round the values to make all further checks simpler
-    rot_matrix = np.round(rot_matrix)
-
-    orig_col_order = data.columns
-    frame = get_frame_definition(data, ["sensor", "body"])
-    cols_per_sensor = {
-        "sensor": {"acc": SF_ACC_COLS, "gyr": SF_GYR_COLS},
-        "body": {"acc": BF_ACC_COLS, "gyr": BF_GYR_COLS},
-    }[frame]
-
-    for sensor in ("acc", "gyr"):
-        cols = np.array(cols_per_sensor[sensor])
-        rename = {}
-        mirror = []
-        # We basically iterate over the rotation matrix and find which axis is transformed to which other axis.
-        # If the entry is -1, we also mirror the axis.
-        for col, row in zip(cols, rot_matrix):
-            old_index = cols[np.abs(row).astype(bool)][0]
-            rename[old_index] = col
-            if np.sum(row) == -1:
-                mirror.append(col)
-        # We use inplace here to make sure we honor the inplace passed to this function
-        data = data.rename(columns=rename)
-        data[mirror] *= -1
-    data = data[orig_col_order]
-    return data
-
-
-def flip_dataset(dataset: pd.DataFrame, rotation: Optional[Rotation]) -> pd.DataFrame:
-    """Flip datasets around axis data of a dataset.
-
-    This is equivalent to rotating the data, but only 90/180 deg rotations are allowed.
-    With this restriction, we don't need to actually rotate the data, but can just swap and flip the columns.
-
-    This method should be used, when roughly aligning the data to a reference frame, where you usually would only
-    apply 90 deg rotations based on the known rough orientation of the sensor.
-    If you need to apply arbitrary rotations, use `rotate_dataset` instead.
-
-    Parameters
-    ----------
-    dataset
-        Dataframe representing a single sensor in either sensor or body frame.
-    rotation
-        A single rotation.
-        The rotation must only contain 90 deg rotations (i.e. 1 and -1 in the rotation matrix).
-        If this is not the case, use :func:`rotate_dataset` instead.
-
-    Returns
-    -------
-    flipped dataset
-        This will always be a copy. The original dataframe will not be modified.
-
-
-    See Also
-    --------
-    gaitmap.utils.rotations.rotate_dataset: Freely rotate a dataset
-
-    """
-    return _flip_sensor(dataset, rotation)

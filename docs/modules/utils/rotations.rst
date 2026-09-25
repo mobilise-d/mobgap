@@ -14,4 +14,5 @@ Functions
    :toctree: ../generated/utils/rotations
    :template: function.rst
 
+    flip_dataset
     rotate_dataset_series

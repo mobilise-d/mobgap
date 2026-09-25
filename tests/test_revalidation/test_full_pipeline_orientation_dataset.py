@@ -3,12 +3,12 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.consts import SF_SENSOR_COLS
 from mobgap.data import GaitDatasetFromData
 from mobgap.data.base import ReferenceData
 from mobgap.re_orientation.pipeline import REORIENTATION_ROTATIONS
 from mobgap.utils.conversions import to_body_frame, to_sensor_frame
+from mobgap.utils.rotations import flip_dataset
 from revalidation.full_pipeline._orientation_dataset import MisorientedDataset
 
 

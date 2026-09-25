@@ -26,11 +26,11 @@ from scipy.spatial.transform import Rotation
 from tpcp import cf
 from typing_extensions import Self, Unpack
 
-from mobgap._gaitmap.utils.rotations import flip_dataset
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.re_orientation.base import BaseReorientationCorrector, base_reorientation_docfiller
 from mobgap.utils.conversions import to_body_frame
+from mobgap.utils.rotations import flip_dataset
 
 GravityAxis = Literal["x", "y"]
 GravityDirection = Literal["up", "down"]
