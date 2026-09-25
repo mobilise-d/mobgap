@@ -87,7 +87,8 @@ class MultiGroupBy:
 
     def _get_secondary_vals(self, name: Union[str, tuple[str, ...]]) -> list[pd.DataFrame]:
         return [
-            _get_group_with_empty_fallback(g, df, name) for g, df in zip(self.secondary_groupbys, self.secondary_dfs)
+            _get_group_with_empty_fallback(g, df, name)
+            for g, df in zip(self.secondary_groupbys, self.secondary_dfs, strict=True)
         ]
 
     def _normalize_group_name(self, name: Union[str, tuple[str, ...]]) -> Union[str, tuple[str, ...]]:
@@ -638,7 +639,7 @@ def _apply_manual_aggregations(  # noqa: C901
                         "The number of column names provided does not match the number of results returned by the "
                         "function."
                     )
-                for col_name, res in zip(agg.column_name, result):
+                for col_name, res in zip(agg.column_name, result, strict=True):
                     manual_aggregation_results.append(pd.Series([res], index=_construct_index_from_col_name(col_name)))
             else:
                 manual_aggregation_results.append(

@@ -90,7 +90,7 @@ def transform_to_global_frame(data: pd.DataFrame, orientations: Rotation) -> pd.
 
     # We know that the data is now in the global frame.
     # So we rename the columns to match the global frame axis names.
-    rotated_data = rotated_data.rename(columns=dict(zip(SF_SENSOR_COLS, GF_SENSOR_COLS)))
+    rotated_data = rotated_data.rename(columns=dict(zip(SF_SENSOR_COLS, GF_SENSOR_COLS, strict=True)))
 
     if frame == "body":
         # If the data was originally in the body frame, we want to have it in the body aligned global frame.
@@ -140,7 +140,7 @@ def to_body_frame(data: pd.DataFrame) -> pd.DataFrame:
     frame = _get_frame_for_conversion(data, ["sensor", "global"])
 
     conversions = {
-        "sensor": dict(zip(COLS_PER_FRAME["sensor"], COLS_PER_FRAME["body"])),
+        "sensor": dict(zip(COLS_PER_FRAME["sensor"], COLS_PER_FRAME["body"], strict=True)),
         "global": {
             f"{sensor}_g{axis}": f"{sensor}_g{axis_new}"
             for axis, axis_new in (("z", "is"), ("y", "ml"), ("x", "pa"))
@@ -185,7 +185,7 @@ def to_normal_frame(data: pd.DataFrame) -> pd.DataFrame:
     frame = _get_frame_for_conversion(data, ["body", "global_body"])
 
     conversions = {
-        "body": dict(zip(COLS_PER_FRAME["body"], COLS_PER_FRAME["sensor"])),
+        "body": dict(zip(COLS_PER_FRAME["body"], COLS_PER_FRAME["sensor"], strict=True)),
         "global_body": {
             f"{sensor}_g{axis}": f"{sensor}_g{axis_new}"
             for axis, axis_new in (("is", "z"), ("ml", "y"), ("pa", "x"))
