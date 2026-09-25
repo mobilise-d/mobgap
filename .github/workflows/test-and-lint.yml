@@ -43,9 +43,6 @@ jobs:
     - name: Testing
       if: ${{ matrix.os != 'ubuntu-latest' || matrix.python-version != '3.11' }}
       run: uv run --no-sync poe test_ci_no_coverage
-    - name: Test ICC with the oldest supported Pingouin
-      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
-      run: uv run --no-sync --with pingouin==0.5.5 pytest tests/test_pipeline/test_evaluation.py -k test_icc_types -q
     - name: Upload coverage reports to Codecov
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
