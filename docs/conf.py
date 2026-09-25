@@ -203,6 +203,7 @@ sphinx_gallery_conf = {
         [
             "../examples/data",
             "../examples/pipeline",
+            "../examples/weartime",
             "../examples/gait_sequences",
             "../examples/initial_contacts",
             "../examples/laterality",
