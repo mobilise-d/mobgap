@@ -83,9 +83,7 @@ def rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "rel_error")
     result = (det - ref) / ref
-    with pd.option_context("future.no_silent_downcasting", True):
-        result = result.replace([np.inf, -np.inf], np.nan).infer_objects(copy=False)
-    return result
+    return result.replace([np.inf, -np.inf], np.nan).infer_objects()
 
 
 def abs_error(
@@ -146,9 +144,7 @@ def abs_rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "abs_rel_error")
     result = abs((det - ref) / ref)
-    with pd.option_context("future.no_silent_downcasting", True):
-        result = result.replace([np.inf, -np.inf], np.nan).infer_objects(copy=False)
-    return result
+    return result.replace([np.inf, -np.inf], np.nan).infer_objects()
 
 
 class ErrorTransformFuncs:
@@ -253,11 +249,16 @@ def icc(
         .rename("value")
         .reset_index()
     )
-    icc, ci95 = (
-        intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
-        .set_index("Type")
-        .loc[icc_type.upper(), ["ICC", "CI95%"]]
-    )
+    result = intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
+    icc_name = {
+        "ICC1": "ICC(1,1)",
+        "ICC2": "ICC(A,1)",
+        "ICC3": "ICC(C,1)",
+        "ICC1K": "ICC(1,k)",
+        "ICC2K": "ICC(A,k)",
+        "ICC3K": "ICC(C,k)",
+    }[icc_type.upper()]
+    icc, ci95 = result.set_index("Type").loc[icc_name, ["ICC", "CI95"]]
     return float(icc), tuple(float(v) for v in ci95)
 
 

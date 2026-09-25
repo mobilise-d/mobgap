@@ -147,7 +147,6 @@ Within scripts or examples, the recommended way to access it is using the functi
 TODO: Update this section once we know how to handle example data
 ```python
 from mobgap.example_data import get_healthy_example_imu_data
-
 ```
 
 Within tests you can also use the pytest fixtures defined `tests/conftest.py`.
@@ -155,8 +154,8 @@ Within tests you can also use the pytest fixtures defined `tests/conftest.py`.
 ```python
 # Without import in any valid test file
 
-def test_myfunc(healthy_example_imu_data):
-    ...
+
+def test_myfunc(healthy_example_imu_data): ...
 ```
 
 #### Testing Examples
@@ -181,6 +180,7 @@ A simple regression test looks like this:
 
 ```python
 import pandas as pd
+
 
 def test_regression(snapshot):
     # Do my tests

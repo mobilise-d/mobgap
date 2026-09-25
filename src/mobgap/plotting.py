@@ -3,7 +3,7 @@
 Mostly meant to be used in the context of the revalidation of the mobgap algorithms.
 """
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Unpack
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +11,6 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import transforms
 from scipy import stats
-from typing_extensions import Unpack
 
 
 def blandaltman_stats(
@@ -192,7 +191,7 @@ def move_legend_outside(
         axs.get_legend().remove()
 
 
-def residual_plot(
+def residual_plot(  # noqa: PLR0917
     data: pd.DataFrame, reference: str, detected: str, hue: str, unit: str, ax: plt.Axes, legend: bool = True
 ) -> plt.Axes:
     """Create residual plots for method comparison using a Bland-Altman style analysis."""

@@ -126,6 +126,23 @@ class TestTransformationAggregationFunctions:
         assert_array_equal(ci_95, [np.nan, np.nan])
 
     @pytest.mark.parametrize(
+        ("icc_type", "expected_icc", "expected_ci"),
+        [
+            ("icc1", 0.976798, (0.84, 1.0)),
+            ("icc2", 0.976744, (0.81, 1.0)),
+            ("icc3", 0.972222, (0.76, 1.0)),
+            ("icc1k", 0.988263, (0.91, 1.0)),
+            ("icc2k", 0.988235, (0.90, 1.0)),
+            ("icc3k", 0.985915, (0.86, 1.0)),
+        ],
+    )
+    def test_icc_types(self, icc_type, expected_icc, expected_ci):
+        df = pd.DataFrame({"detected": [1, 2, 4, 7, 6], "reference": [1.5, 2.5, 3.5, 6.5, 5.5]})
+        actual_icc, actual_ci = icc(df, icc_type=icc_type)
+        assert actual_icc == pytest.approx(expected_icc, abs=1e-6)
+        assert_array_equal(actual_ci, expected_ci)
+
+    @pytest.mark.parametrize(
         "col_names", [["not_detected", "reference"], ["detected", "not_reference"], ["not_detected", "not_reference"]]
     )
     def test_icc_wrong_columns(self, col_names):

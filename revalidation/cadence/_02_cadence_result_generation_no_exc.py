@@ -32,7 +32,7 @@ The raw per second cadence and all performance metrics are saved to disk.
 # data from the matlab files, even though the dummy algorithm does not need it.
 import warnings
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Self, Unpack
 
 import numpy as np
 import pandas as pd
@@ -45,7 +45,6 @@ from mobgap.initial_contacts import IcdHKLeeImproved, IcdShinImproved
 from mobgap.pipeline import Region
 from mobgap.utils.conversions import as_samples
 from tpcp.caching import hybrid_cache
-from typing_extensions import Self, Unpack
 
 
 def _process_cad_sec(unparsed: str) -> list[float]:

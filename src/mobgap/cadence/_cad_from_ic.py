@@ -1,12 +1,11 @@
 import warnings
 from types import MappingProxyType
-from typing import Any, Final
+from typing import Any, Final, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from tpcp import cf
 from tpcp.misc import set_defaults
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap.cadence.base import BaseCadCalculator, base_cad_docfiller

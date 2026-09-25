@@ -1,10 +1,10 @@
 """Pipeline for running a stride length algorithm on a Gait Dataset."""
 
 import warnings
+from typing import Self
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.initial_contacts import refine_gs

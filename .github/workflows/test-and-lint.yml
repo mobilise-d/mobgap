@@ -18,19 +18,12 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         os: [ ubuntu-latest, windows-latest]
         exclude:
           # Test every supported Python on Ubuntu, plus the lowest and highest
-          # currently supported Python versions on Windows. PyWavelets 1.8 has
-          # no cp314 Windows wheels, and its source build currently fails in CI.
-          - python-version: "3.10"
-            os: windows-latest
-          - python-version: "3.11"
-            os: windows-latest
+          # currently supported Python versions on Windows.
           - python-version: "3.12"
-            os: windows-latest
-          - python-version: "3.14"
             os: windows-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,13 +38,13 @@ jobs:
     - name: Install the project
       run: uv sync --locked --no-dev --group test
     - name: Testing with coverage
-      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
       run: uv run --no-sync poe test_ci
     - name: Testing
-      if: ${{ matrix.os != 'ubuntu-latest' || matrix.python-version != '3.10' }}
+      if: ${{ matrix.os != 'ubuntu-latest' || matrix.python-version != '3.11' }}
       run: uv run --no-sync poe test_ci_no_coverage
     - name: Upload coverage reports to Codecov
-      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
+      if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
       uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
       with:
         disable_search: true
@@ -70,7 +63,7 @@ jobs:
       with:
         enable-cache: true
         cache-dependency-glob: "uv.lock"
-        python-version: "3.10"
+        python-version: "3.11"
     - name: Install the project
       run: uv sync --locked --no-dev --group lint
     - name: Linting

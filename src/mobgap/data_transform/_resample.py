@@ -1,11 +1,10 @@
 import warnings
-from typing import Any, Optional
+from typing import Any, Optional, Self, Unpack
 
 import pandas as pd
 from pandas.core.dtypes.common import is_datetime64_any_dtype, is_numeric_dtype
 from scipy import signal
 from tpcp import clone
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform.base import BaseTransformer
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array

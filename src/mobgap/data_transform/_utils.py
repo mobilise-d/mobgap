@@ -1,7 +1,6 @@
-from typing import Any
+from typing import Any, Unpack
 
 from tpcp.misc import iter_with_warning_error_context
-from typing_extensions import Unpack
 
 from mobgap.data_transform.base import BaseTransformer
 from mobgap.utils.dtypes import DfLikeT

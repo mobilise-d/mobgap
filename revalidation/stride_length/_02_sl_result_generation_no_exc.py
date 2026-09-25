@@ -32,7 +32,7 @@ The raw per second stride length and all performance metrics are saved to disk.
 # data from the matlab files, even though the dummy algorithm does not need it.
 import warnings
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Self, Unpack
 
 import numpy as np
 import pandas as pd
@@ -44,7 +44,6 @@ from mobgap.stride_length.evaluation import sl_score
 from mobgap.stride_length.pipeline import SlEmulationPipeline
 from mobgap.utils.conversions import as_samples
 from tpcp.caching import hybrid_cache
-from typing_extensions import Self, Unpack
 
 
 def _process_sl_sec(unparsed: str) -> list[float]:

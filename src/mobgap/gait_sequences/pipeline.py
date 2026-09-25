@@ -1,10 +1,9 @@
 """Helpful Pipelines to wrap the GSD algorithms for optimization and evaluation."""
 
-from typing import Any
+from typing import Any, Self, Unpack
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import invert_list_of_dicts
 from mobgap.data.base import BaseGaitDatasetWithReference

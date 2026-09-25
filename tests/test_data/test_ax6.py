@@ -273,8 +273,8 @@ def test_base_dataset_can_use_subclass_file_discovery_and_splits(tmp_path: Path)
     assert len(dataset.get_subset(recording="second").data_ss) == 1000
 
 
-def test_missing_optional_reader_explains_python_requirement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The optional dependency error explains the supported Python version."""
+def test_missing_optional_reader_explains_extra_requirement(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The optional dependency error explains how to install the reader."""
     path = tmp_path / "recording.cwa"
     copyfile(EXAMPLE_CWA, path)
 
@@ -288,7 +288,7 @@ def test_missing_optional_reader_explains_python_requirement(tmp_path: Path, mon
         recording_metadata={"measurement_condition": "free_living"},
     )
 
-    with pytest.raises(ImportError, match=r"Python 3\.10 or newer.*mobgap\[ax6\]"):
+    with pytest.raises(ImportError, match=r"mobgap\[ax6\]"):
         _ = dataset.index
 
 

@@ -1,10 +1,9 @@
 """Base class for aggregators."""
 
-from typing import Any
+from typing import Any, Self, Unpack
 
 import pandas as pd
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 

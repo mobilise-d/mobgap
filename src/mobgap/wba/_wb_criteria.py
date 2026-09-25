@@ -1,7 +1,6 @@
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import pandas as pd
-from typing_extensions import Literal
 
 from mobgap.wba._wb_criteria_base import (
     BaseWbCriteria,

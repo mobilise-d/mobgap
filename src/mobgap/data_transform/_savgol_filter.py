@@ -1,7 +1,6 @@
-from typing import Any, Optional
+from typing import Any, Optional, Self, Unpack
 
 from scipy.signal import savgol_filter
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform.base import BaseFilter, base_filter_docfiller
 from mobgap.utils.conversions import as_samples

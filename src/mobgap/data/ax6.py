@@ -33,7 +33,7 @@ def _cwa_reader() -> Any:
     except ModuleNotFoundError as exc:
         if exc.name != "cwa_reader_rs":
             raise
-        raise ImportError("AX6 CWA loading requires Python 3.10 or newer and the mobgap[ax6] extra.") from exc
+        raise ImportError("AX6 CWA loading requires the mobgap[ax6] extra.") from exc
 
 
 class CwaRecordingInfo(NamedTuple):
@@ -88,7 +88,7 @@ def _file_identity(path: Path) -> tuple[int, int]:
     return stat.st_size, stat.st_mtime_ns
 
 
-def _load_cwa_data(
+def _load_cwa_data(  # noqa: PLR0917
     path: Path,
     _file_identity: tuple[int, int],
     start_s: float | None,
@@ -214,8 +214,8 @@ class AX6Dataset(BaseAX6Dataset):
 
     This class can also handle AX3 CWA recordings.
 
-    Install the optional Rust reader with ``pip install mobgap[ax6]`` on Python
-    3.10 or newer. The ``splitter`` determines the index rows. Data is loaded
+    Install the optional Rust reader with ``pip install mobgap[ax6]``. The
+    ``splitter`` determines the index rows. Data is loaded
     only when ``data_ss`` is accessed and is resampled to the nominal header
     sampling rate.
 

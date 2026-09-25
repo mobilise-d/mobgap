@@ -15,21 +15,21 @@ authors = [
     { name = "Cameron Kirk", email = "Cameron.Kirk@newcastle.ac.uk" },
     { name = "Björn Eskofier", email = "bjoern.eskofier@fau.de" },
 ]
-requires-python = ">=3.9,<3.15"
+requires-python = ">=3.11,<3.15"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
     "tpcp>=2.3.0",
-    "pandas>=2.2.0",
+    "pandas>=3.0.0",
     "scipy>=1.11.2",
     "numpy>=1.25.2",
     "scikit-learn>=1.6.1",
     "joblib>=1.3.2",
     "openpyxl>=3.1.2",
     "intervaltree>=3.1.0",
-    "pywavelets>=1.5.0,<1.9",
+    "pywavelets>=1.9.0",
     "pooch>=1.8.1",
-    "pingouin>=0.5.5",
+    "pingouin>=0.6.1",
     # Forcing this, as I had issues with older statsmodel versions
     "statsmodels>=0.14.3",
     "numba>=0.60.0",
@@ -39,7 +39,7 @@ dependencies = [
 
 [project.optional-dependencies]
 ax6 = [
-    "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
+    "cwa-reader-rs>=0.2.0,<0.3",
 ]
 
 [dependency-groups]
@@ -50,7 +50,7 @@ dev = [
 ]
 test = [
     "poethepoet>=0.22.0,<0.23",
-    "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
+    "cwa-reader-rs>=0.2.0,<0.3",
     "pytest>=7.4.0,<8",
     "pytest-cov>=4.1.0,<5",
     "pytest-xdist>=3.8.0,<4",
@@ -66,7 +66,6 @@ docs = [
     "sphinx-gallery>=0.18.0,<0.19",
     "memory-profiler>=0.61.0,<0.62",
     "matplotlib>=3.7.2,<4",
-    "toml>=0.10.2,<0.11",
     "pydata-sphinx-theme>=0.16.0,<0.17",
     "myst-parser>=2.0.0,<3",
     "ipykernel>=6.25.1,<7",

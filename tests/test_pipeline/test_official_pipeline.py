@@ -1,9 +1,8 @@
-from typing import Any
+from typing import Any, Self
 
 import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
-from typing_extensions import Self
 
 from mobgap.consts import BF_SENSOR_COLS, SF_ACC_COLS, SF_SENSOR_COLS
 from mobgap.data import GaitDatasetFromData, LabExampleDataset

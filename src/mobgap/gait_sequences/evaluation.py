@@ -1,7 +1,7 @@
 """Class to validate gait sequence detection results."""
 
 import warnings
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, Unpack
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,6 @@ from intervaltree import IntervalTree
 from intervaltree.interval import Interval
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from typing_extensions import Unpack
 
 from mobgap.gait_sequences._evaluation_scorer import (
     gsd_final_agg,
