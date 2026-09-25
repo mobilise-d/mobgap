@@ -1382,7 +1382,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.25.2" },
     { name = "openpyxl", specifier = ">=3.1.2" },
     { name = "pandas", specifier = ">=2.2.0" },
-    { name = "pingouin", specifier = ">=0.5.5" },
+    { name = "pingouin", specifier = ">=0.6.1" },
     { name = "pooch", specifier = ">=1.8.1" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "pywavelets", specifier = ">=1.9.0" },
