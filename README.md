@@ -29,7 +29,7 @@ analysis.
 
 ## Installation
 
-First install a supported Python version (3.9 or higher) and then install the package using pip.
+First install a supported Python version (3.11 or higher) and then install the package using pip.
 
 > [!WARNING]
 > Python 3.14 is supported, but our current `pywavelets<1.9` pin resolves to `pywavelets 1.8.x`, which has no pre-built

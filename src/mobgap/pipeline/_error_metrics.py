@@ -253,11 +253,24 @@ def icc(
         .rename("value")
         .reset_index()
     )
-    icc, ci95 = (
-        intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
-        .set_index("Type")
-        .loc[icc_type.upper(), ["ICC", "CI95%"]]
-    )
+    result = intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
+    # Pingouin 0.6 renamed the confidence interval column and ICC type labels.
+    if "CI95" in result.columns:
+        icc_name = {
+            "ICC1": "ICC(1,1)",
+            "ICC2": "ICC(A,1)",
+            "ICC3": "ICC(C,1)",
+            "ICC1K": "ICC(1,k)",
+            "ICC2K": "ICC(A,k)",
+            "ICC3K": "ICC(C,k)",
+        }[icc_type.upper()]
+        ci_column = "CI95"
+    else:
+        icc_name = icc_type.upper()
+        if icc_name.endswith("K"):
+            icc_name = icc_name[:-1] + "k"
+        ci_column = "CI95%"
+    icc, ci95 = result.set_index("Type").loc[icc_name, ["ICC", ci_column]]
     return float(icc), tuple(float(v) for v in ci95)
 
 
