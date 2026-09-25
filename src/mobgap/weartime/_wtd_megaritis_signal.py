@@ -109,6 +109,9 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     Notes
     -----
+    The algorithm parameters were selected by hyperparameter tuning on a single dataset. They may need adjustment for
+    other sensor systems or applications.
+
     **Algorithm Workflow**
 
     1. Sliding macro windows are defined over the input data
