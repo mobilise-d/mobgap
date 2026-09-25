@@ -203,7 +203,7 @@ def pairwise_tests(
     return (
         result.query("A == @reference_group_key")
         .copy()
-        .rename(columns={"p-unc": "p", "B": "version"})[["version", "T", "p"]]
+        .rename(columns={"p-unc": "p", "p_unc": "p", "B": "version"})[["version", "T", "p"]]
         .set_index("version")
         .reindex(order)
         .apply(lambda row: row.to_dict(), axis=1)
