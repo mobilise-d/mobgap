@@ -131,11 +131,15 @@ class IcdHKLeeImproved(BaseIcDetector):
             raise ValueError('Invalid axis. Choose ["is", "ml", "pa", "norm"].')
 
         if self.axis != "norm":
-            assert_is_sensor_data(data, "body")
+            assert_is_sensor_data(data, "body", required_columns=[f"acc_{self.axis}"])
             signal = data[f"acc_{self.axis}"].to_numpy()
         else:
             # In case of norm, we support either body frame or sensor frame input.
-            frame = get_frame_definition(data, ["sensor", "body"])
+            frame = get_frame_definition(
+                data,
+                ["sensor", "body"],
+                required_columns={"sensor": SF_ACC_COLS, "body": BF_ACC_COLS},
+            )
             axis = SF_ACC_COLS if frame == "sensor" else BF_ACC_COLS
             signal = norm(data[axis].to_numpy(), axis=1)
 

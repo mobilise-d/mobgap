@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 import pytest
+from pandas.testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.consts import BF_ACC_COLS, BF_SENSOR_COLS, SF_ACC_COLS, SF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
 from mobgap.initial_contacts._hklee_algo_improved import IcdHKLeeImproved
 from mobgap.pipeline import GsIterator
@@ -23,6 +24,22 @@ class TestMetaHKLeeImproved(TestAlgorithmMixin):
 
 
 class TestHKLeeImproved:
+    @pytest.mark.parametrize(
+        "axis,all_columns,required_columns",
+        [
+            ("is", BF_SENSOR_COLS, ["acc_is"]),
+            ("norm", BF_SENSOR_COLS, BF_ACC_COLS),
+            ("norm", SF_SENSOR_COLS, SF_ACC_COLS),
+        ],
+    )
+    def test_required_acceleration_only_matches_full_input(self, axis, all_columns, required_columns):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=all_columns)
+
+        expected = IcdHKLeeImproved(axis=axis).detect(data, sampling_rate_hz=120.0).ic_list_
+        actual = IcdHKLeeImproved(axis=axis).detect(data[required_columns], sampling_rate_hz=120.0).ic_list_
+
+        assert_frame_equal(actual, expected)
+
     def test_invalid_axis_parameter(self):
         with pytest.raises(ValueError):
             IcdHKLeeImproved(axis="invalid").detect(pd.DataFrame(), sampling_rate_hz=100)

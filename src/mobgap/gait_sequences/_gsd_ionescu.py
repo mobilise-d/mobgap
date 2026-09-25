@@ -100,7 +100,11 @@ class _BaseGsdIonescu(BaseGsDetector):
         self.sampling_rate_hz = sampling_rate_hz
 
         # As we work on the norm, we support both coordinate system definitions.
-        frame = get_frame_definition(data, ["sensor", "body"])
+        frame = get_frame_definition(
+            data,
+            ["sensor", "body"],
+            required_columns={"sensor": SF_ACC_COLS, "body": BF_ACC_COLS},
+        )
 
         acc_axis = SF_ACC_COLS if frame == "sensor" else BF_ACC_COLS
 

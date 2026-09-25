@@ -23,6 +23,16 @@ class TestMetaLrcBenMansour(TestAlgorithmMixin):
 
 
 class TestLrcBenMansour:
+    def test_acceleration_only_matches_full_input(self):
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
+        data["acc_ml"] = np.sin(np.linspace(0, 4 * np.pi, 100))
+        ic_list = pd.DataFrame({"ic": [20, 50, 70]})
+
+        expected = LrcBenMansour().predict(data, ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
+        actual = LrcBenMansour().predict(data[["acc_ml"]], ic_list=ic_list, sampling_rate_hz=10.0).ic_lr_list_
+
+        assert_frame_equal(actual, expected)
+
     def test_empty_ic(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         ic_list = pd.DataFrame({"ic": []})

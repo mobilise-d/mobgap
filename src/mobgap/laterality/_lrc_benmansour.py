@@ -86,7 +86,7 @@ class LrcBenMansour(BaseLRClassifier):
         self.data = data
         self.ic_list = ic_list
 
-        assert_is_sensor_data(data, frame="body")
+        assert_is_sensor_data(data, frame="body", required_columns=["acc_ml"])
 
         if data.empty or ic_list.empty:
             self.ic_lr_list_ = (

@@ -59,6 +59,14 @@ class TestGsdIluz:
 
         assert_frame_equal(output, pd.DataFrame(columns=["start", "end", "gs_id"]).astype("int64").set_index("gs_id"))
 
+    def test_acceleration_only_matches_full_input(self):
+        data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
+
+        expected = GsdIluz().detect(data, sampling_rate_hz=40.0).gs_list_
+        actual = GsdIluz().detect(data[["acc_is", "acc_pa"]], sampling_rate_hz=40.0).gs_list_
+
+        assert_frame_equal(actual, expected)
+
     def test_single_gsd(self):
         data = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2").data_ss
 

@@ -238,7 +238,11 @@ class SlZijlstra(BaseSlCalculator):
                 stacklevel=1,
             )
 
-        frame = get_frame_definition(data, ["body", "global_body"])
+        frame = get_frame_definition(
+            data,
+            ["body", "global_body"],
+            required_columns={"body": ["acc_is"], "global_body": ["acc_gis"]},
+        )
 
         # 1. Sensor alignment (optional): Madgwick complementary filter
         if self.orientation_method is not None:
@@ -255,7 +259,7 @@ class SlZijlstra(BaseSlCalculator):
             )
             vacc = rotated_data[["acc_gis"]]  # consider acceleration
         else:
-            vacc = data[["acc_is"]]
+            vacc = data[["acc_gis" if frame == "global_body" else "acc_is"]]
 
         duration = data.shape[0] / sampling_rate_hz
         sec_centers = np.arange(0, duration) + 0.5
