@@ -15,7 +15,7 @@ authors = [
     { name = "Cameron Kirk", email = "Cameron.Kirk@newcastle.ac.uk" },
     { name = "Björn Eskofier", email = "bjoern.eskofier@fau.de" },
 ]
-requires-python = ">=3.9,<3.15"
+requires-python = ">=3.11,<3.15"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
@@ -39,7 +39,7 @@ dependencies = [
 
 [project.optional-dependencies]
 ax6 = [
-    "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
+    "cwa-reader-rs>=0.2.0,<0.3",
 ]
 
 [dependency-groups]
@@ -50,7 +50,7 @@ dev = [
 ]
 test = [
     "poethepoet>=0.22.0,<0.23",
-    "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
+    "cwa-reader-rs>=0.2.0,<0.3",
     "pytest>=7.4.0,<8",
     "pytest-cov>=4.1.0,<5",
     "pytest-xdist>=3.8.0,<4",

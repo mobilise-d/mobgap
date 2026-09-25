@@ -192,7 +192,7 @@ def move_legend_outside(
         axs.get_legend().remove()
 
 
-def residual_plot(
+def residual_plot(  # noqa: PLR0917
     data: pd.DataFrame, reference: str, detected: str, hue: str, unit: str, ax: plt.Axes, legend: bool = True
 ) -> plt.Axes:
     """Create residual plots for method comparison using a Bland-Altman style analysis."""

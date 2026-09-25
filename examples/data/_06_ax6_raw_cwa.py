@@ -5,8 +5,8 @@ Load and split a raw CWA recording
 
 ``AX6Dataset`` reads CWA files directly through the Rust reader
 ``cwa_reader_rs``.
-This avoids converting recordings to CSV. On Python 3.10 or newer, install
-the optional reader with ``pip install mobgap[ax6]``.
+This avoids converting recordings to CSV. Install the optional reader with
+``pip install mobgap[ax6]``.
 
 The reader can load a selected time window without reading the full recording.
 Pass the dataset a DataFrame with full UTC ``start_time`` and ``end_time``

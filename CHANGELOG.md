@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This can change cadence and stride-length results. To reproduce the previous behavior, pass
   `step_time_smoothing=HampelFilter(2, 3.0)` or `step_length_smoothing=HampelFilter(2, 3.0)` to the corresponding
   algorithm. Direct uses of `HampelFilter` retain the old default. (https://github.com/mobilise-d/mobgap/issues/101)
+- **Breaking:** mobgap now requires Python 3.11 or newer. Users on Python 3.9 or 3.10 must upgrade Python before
+  installing this release.
 - Algorithms now specify and validate only the sensor channels they need. Algorithms that do not use gyroscope or
   accelerometer data can now run when those channels are absent, including on acceleration-only data. Sensor and body
   frame conversion also supports these partial inputs. (https://github.com/mobilise-d/mobgap/issues/172,
