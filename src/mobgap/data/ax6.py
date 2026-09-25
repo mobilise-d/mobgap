@@ -125,7 +125,8 @@ class BaseAX6Dataset(BaseGaitDataset):
     """Read AX6 CWA files, with file discovery and splitting supplied by subclasses.
 
     Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
-    The latter returns rows with ``start_time`` and ``end_time`` columns.
+    The default index and time selection use ``start_time`` and ``end_time`` columns. Subclasses with different
+    index columns can override :meth:`_selected_time_bounds`.
     """
 
     def __init__(

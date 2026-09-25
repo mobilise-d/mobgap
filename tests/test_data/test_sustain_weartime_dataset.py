@@ -10,6 +10,7 @@ from pandas._testing import assert_frame_equal
 from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
 from mobgap.data import SustainWearTimeDataset, get_example_cwa_data_path
 from mobgap.data import _sustain_weartime_dataset as sustain_dataset
+from mobgap.data import ax6 as ax6_module
 from mobgap.utils.misc import get_env_var
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
@@ -77,17 +78,19 @@ def test_index_creation(tmp_path):
     expected_index = pd.DataFrame(
         [
             {
+                "file_path": str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
                 "recording_type": "human_movement",
                 "participant_id": "001",
                 "recording_id": HUMAN_RECORDING_ID,
             },
             {
+                "file_path": str(base_path / "weartime_part_b" / "020" / "example_lowback.cwa"),
                 "recording_type": "simulated_movements",
                 "participant_id": "020",
                 "recording_id": SIMULATED_RECORDING_ID,
             },
         ]
-    ).astype("string")
+    ).astype({"recording_type": "string", "participant_id": "string", "recording_id": "string"})
     assert_frame_equal(dataset.index, expected_index)
 
 
@@ -99,6 +102,7 @@ def test_index_creation_detects_lb_abbreviation(tmp_path):
     dataset = SustainWearTimeDataset(base_path)
 
     expected_human_row = {
+        "file_path": str(human_file.with_name("example_lb.cwa")),
         "recording_type": "human_movement",
         "participant_id": "001",
         "recording_id": "human_movement_001_example_lb",
@@ -129,23 +133,25 @@ def test_non_lowerback_reference_rows_are_filtered_before_timestamp_parsing(tmp_
 def test_split_by_day_index_creation(tmp_path, monkeypatch):
     base_path = _create_sustain_layout(tmp_path)
 
-    def fake_read_cwa_timing_report(file_path):
-        participant_id = Path(file_path).parent.name
+    def fake_recording_info(file_path, _identity):
+        participant_id = file_path.parent.name
         if participant_id == "001":
-            return {
+            timing = {
                 "start_from_data": "2020-01-01T23:59:58+00:00",
                 "end_from_data": "2020-01-03T00:00:01+00:00",
                 "samplingrate_hz_from_header": 100.0,
                 "samplingrate_hz_from_data": 100.0,
             }
-        return {
-            "start_from_data": "2020-02-01T00:00:00+00:00",
-            "end_from_data": "2020-02-01T12:00:00+00:00",
-            "samplingrate_hz_from_header": 100.0,
-            "samplingrate_hz_from_data": 100.0,
-        }
+        else:
+            timing = {
+                "start_from_data": "2020-02-01T00:00:00+00:00",
+                "end_from_data": "2020-02-01T12:00:00+00:00",
+                "samplingrate_hz_from_header": 100.0,
+                "samplingrate_hz_from_data": 100.0,
+            }
+        return {"sample_rate_hz": 100.0}, timing
 
-    monkeypatch.setattr(sustain_dataset, "_read_cwa_timing_report", fake_read_cwa_timing_report)
+    monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
 
     dataset = SustainWearTimeDataset(base_path, split_by_day=True)
 
@@ -177,7 +183,13 @@ def test_split_by_day_index_creation(tmp_path, monkeypatch):
             },
         ]
     ).astype("string")
-    assert_frame_equal(dataset.index, expected_index)
+    assert_frame_equal(dataset.index.drop(columns="file_path"), expected_index)
+    assert dataset.index["file_path"].tolist() == [
+        str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
+        str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
+        str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
+        str(base_path / "weartime_part_b" / "020" / "example_lowback.cwa"),
+    ]
 
 
 def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch):
@@ -190,20 +202,20 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
     }
     cuts = []
 
-    def fake_read_cwa_timing_report(file_path):
-        return timing_report
+    def fake_recording_info(_file_path, _identity):
+        return {"sample_rate_hz": 100.0}, timing_report
 
-    def fake_read_cwa_recording(file_path, additional_channels, timing_report, start_time_s=None, end_time_s=None):
-        cuts.append((start_time_s, end_time_s))
+    def fake_load_cwa_data(_path, _identity, start_s, end_s, _channels, _rate, start_time, end_time):
+        cuts.append((start_s, end_s))
         data = pd.DataFrame(
             [[0.0] * (len(SF_SENSOR_COLS) + 1), [1.0] * (len(SF_SENSOR_COLS) + 1)],
             columns=[*SF_SENSOR_COLS, "temperature"],
             index=pd.DatetimeIndex(["2020-01-02T23:59:59Z", "2020-01-03T00:00:00Z"], name="time"),
         )
-        return sustain_dataset._CwaRecording(data, 100.0, {}, timing_report)
+        return data.loc[(data.index >= start_time) & (data.index < end_time)]
 
-    monkeypatch.setattr(sustain_dataset, "_read_cwa_timing_report", fake_read_cwa_timing_report)
-    monkeypatch.setattr(sustain_dataset, "_read_cwa_recording", fake_read_cwa_recording)
+    monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
+    monkeypatch.setattr(ax6_module, "_load_cwa_data", fake_load_cwa_data)
 
     datapoint = SustainWearTimeDataset(
         base_path, split_by_day=True, warn_thres_for_sampling_rate_deviations_hz=None
@@ -234,23 +246,19 @@ def test_split_by_day_n_samples_matches_loaded_recording_length(tmp_path, monkey
         "samplingrate_hz_from_data": 1.0,
     }
 
-    def fake_read_cwa_header(file_path):
-        return {"sample_rate_hz": 1.0}
+    def fake_recording_info(_file_path, _identity):
+        return {"sample_rate_hz": 1.0}, timing_report
 
-    def fake_read_cwa_timing_report(file_path):
-        return timing_report
-
-    def fake_read_cwa_recording(file_path, additional_channels, timing_report, start_time_s=None, end_time_s=None):
+    def fake_load_cwa_data(_path, _identity, _start_s, _end_s, _channels, _rate, start_time, end_time):
         data = pd.DataFrame(
             [[0.0] * (len(SF_SENSOR_COLS) + 1), [1.0] * (len(SF_SENSOR_COLS) + 1)],
             columns=[*SF_SENSOR_COLS, "temperature"],
             index=pd.DatetimeIndex(["2020-01-02T00:00:00Z", "2020-01-02T00:00:01Z"], name="time"),
         )
-        return sustain_dataset._CwaRecording(data, 1.0, {}, timing_report)
+        return data.loc[(data.index >= start_time) & (data.index < end_time)]
 
-    monkeypatch.setattr(sustain_dataset, "_read_cwa_header", fake_read_cwa_header)
-    monkeypatch.setattr(sustain_dataset, "_read_cwa_timing_report", fake_read_cwa_timing_report)
-    monkeypatch.setattr(sustain_dataset, "_read_cwa_recording", fake_read_cwa_recording)
+    monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
+    monkeypatch.setattr(ax6_module, "_load_cwa_data", fake_load_cwa_data)
 
     datapoint = SustainWearTimeDataset(
         base_path, split_by_day=True, warn_thres_for_sampling_rate_deviations_hz=None
@@ -273,8 +281,8 @@ def test_real_dataset_regression_index(snapshot):
     dataset = SustainWearTimeDataset(SUSTAIN_DATA_PATH)
     split_dataset = SustainWearTimeDataset(SUSTAIN_DATA_PATH, split_by_day=True)
 
-    snapshot.assert_match(dataset.index, "recording")
-    snapshot.assert_match(split_dataset.index, "split_by_day")
+    snapshot.assert_match(dataset.index.drop(columns="file_path"), "recording")
+    snapshot.assert_match(split_dataset.index.drop(columns="file_path"), "split_by_day")
 
 
 @requires_sustain_data
