@@ -59,6 +59,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     Natural body movements show characteristic low-frequency rotational patterns (<15-17 Hz).
     Movement variability captures continuous micro-movements during wear, discriminating wear
     from non-wear independently of activity intensity.
+    Input data must contain the body-frame channels ``acc_pa``, ``gyr_ml`` and ``gyr_is``.
 
     Parameters
     ----------
@@ -88,6 +89,9 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     feature_batch_size : int
         Number of 5-second windows processed together during feature extraction. Larger batches reduce overhead, while
         smaller batches reduce peak memory use.
+    store_sample_votes : bool
+        Store per-sample vote counts in ``diagnostics_["sample_votes"]``. Disabled by default. Enable only when the
+        individual votes are needed, as the DataFrame uses substantial memory for full-day recordings.
 
     Other Parameters
     ----------------
@@ -101,7 +105,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     %(total_weartime_during_waking_min_)s
     %(perf_)s
     diagnostics_ : dict
-        Diagnostic information with 'macro' and 'sample_votes' keys
+        Macro-window diagnostics and, when requested, per-sample votes.
 
     Notes
     -----
@@ -157,6 +161,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         min_features_required: int = 2,
         waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
         feature_batch_size: int = 4096,
+        store_sample_votes: bool = False,
     ) -> None:
         self.window_min = window_min
         self.step_min = step_min
@@ -170,6 +175,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.min_features_required = min_features_required
         self.waking_hours_min = waking_hours_min
         self.feature_batch_size = feature_batch_size
+        self.store_sample_votes = store_sample_votes
 
     @timed_action_method
     @base_weartime_docfiller
@@ -202,12 +208,20 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             Diagnostic information containing:
 
             - 'macro': DataFrame with per-macro-window statistics
-            - 'sample_votes': DataFrame with per-sample vote distributions
+            - 'sample_votes': DataFrame with per-sample vote distributions, if ``store_sample_votes=True``
         """
+        missing_columns = {"acc_pa", "gyr_ml", "gyr_is"} - set(data.columns)
+        if missing_columns:
+            raise ValueError(f"Missing required body-frame channels: {sorted(missing_columns)}")
+
+        sensor_data = data.filter(regex=r"^(acc|gyr)_")
+        if sensor_data.isna().to_numpy().any():
+            raise ValueError("Accelerometer and gyroscope data must not contain NaN values.")
+
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         data_length = len(data)
-        self.diagnostics_ = {"macro": [], "sample_votes": pd.DataFrame()}
+        self.diagnostics_ = {"macro": []}
         _validate_waking_hours_min(self.waking_hours_min)
 
         window_samples = int(self.window_min * 60 * self.sampling_rate_hz)
@@ -292,13 +306,14 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
         self.diagnostics_["macro"].sort(key=lambda row: row["start"])
         self.diagnostics_["macro"] = pd.DataFrame(self.diagnostics_["macro"])
-        self.diagnostics_["sample_votes"] = pd.DataFrame(
-            {
-                "wear_votes": wear_votes,
-                "non_wear_votes": non_wear_votes,
-                "vote_margin": wear_votes - non_wear_votes,
-            }
-        )
+        if self.store_sample_votes:
+            self.diagnostics_["sample_votes"] = pd.DataFrame(
+                {
+                    "wear_votes": wear_votes,
+                    "non_wear_votes": non_wear_votes,
+                    "vote_margin": wear_votes - non_wear_votes,
+                }
+            )
 
         self.weartime_list_ = pd.DataFrame(weartime_intervals, columns=["start", "end"]).rename_axis(index="wt_id")
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
@@ -407,13 +422,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     ) -> np.ndarray:
         wear_flags = np.empty(len(starts), dtype=bool)
         if len(starts) == 0:
-            return wear_flags
-
-        required_columns = {"acc_pa", "gyr_ml", "gyr_is"}
-        if not required_columns.issubset(data.columns):
-            # Missing channels are treated as inconclusive and therefore as wear, matching the original conservative
-            # handling of missing feature values.
-            wear_flags[:] = True
             return wear_flags
 
         acc_pa = data["acc_pa"].to_numpy(copy=False)
