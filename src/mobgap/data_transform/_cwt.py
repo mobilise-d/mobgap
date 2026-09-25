@@ -90,7 +90,8 @@ class CwtFilter(BaseFilter):
         array_2d, index, transformation_function = dflike_as_2d_array(data)
 
         # Apply Continuous Wavelet Transform
-        output, _ = cwt(array_2d, [self.scale_], wavelet=self.wavelet, axis=0)
+        # PyWavelets 1.9 raised the default precision to 12; keep the validated output at 10.
+        output, _ = cwt(array_2d, [self.scale_], wavelet=self.wavelet, axis=0, precision=10)
 
         self.transformed_data_ = transformation_function(output[0], index)
         return self

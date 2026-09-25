@@ -22,11 +22,8 @@ jobs:
         os: [ ubuntu-latest, windows-latest]
         exclude:
           # Test every supported Python on Ubuntu, plus the lowest and highest
-          # currently supported Python versions on Windows. PyWavelets 1.8 has
-          # no cp314 Windows wheels, and its source build currently fails in CI.
+          # currently supported Python versions on Windows.
           - python-version: "3.12"
-            os: windows-latest
-          - python-version: "3.14"
             os: windows-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
