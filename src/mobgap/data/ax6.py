@@ -33,7 +33,9 @@ def _cwa_reader() -> Any:
     except ModuleNotFoundError as exc:
         if exc.name != "cwa_reader_rs":
             raise
-        raise ImportError("AX6 CWA loading requires Python 3.10 or newer and the mobgap[ax6] extra.") from exc
+        raise ImportError(
+            "AX6 CWA loading requires Python 3.10 or newer and the mobgap[ax6] or mobgap[weartime] extra."
+        ) from exc
 
 
 class CwaRecordingInfo(NamedTuple):
@@ -153,6 +155,17 @@ class BaseAX6Dataset(BaseGaitDataset):
         self.assert_is_single(["file_path"], "_selected_file_path")
         return Path(self.index.iloc[0].file_path)
 
+    def _selected_time_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
+        row = self.index.iloc[0]
+        return row.start_time, row.end_time
+
+    def _get_additional_channels(self) -> tuple[AdditionalChannel, ...]:
+        channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
+        unknown = set(channels) - set(_ADDITIONAL_CHANNELS)
+        if unknown:
+            raise ValueError(f"Unknown CWA channels: {sorted(unknown)}")
+        return channels
+
     @property
     def cwa_header_(self) -> dict:
         """Metadata from the selected CWA file header."""
@@ -189,23 +202,19 @@ class BaseAX6Dataset(BaseGaitDataset):
     def data_ss(self) -> pd.DataFrame:
         """The selected recording window in the MobGap sensor frame."""
         self.assert_is_single(None, "data_ss")
-        channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
-        unknown = set(channels) - set(_ADDITIONAL_CHANNELS)
-        if unknown:
-            raise ValueError(f"Unknown CWA channels: {sorted(unknown)}")
-
-        row = self.index.iloc[0]
+        channels = self._get_additional_channels()
         path = self._selected_file_path
         timing = self.cwa_timing_report_
         first_sample = pd.Timestamp(timing["start_from_data"]).tz_convert("UTC")
         sampling_rate_hz = self.sampling_rate_hz
         full_end = pd.Timestamp(timing["end_from_data"]).tz_convert("UTC") + pd.Timedelta(seconds=1 / sampling_rate_hz)
+        start_time, end_time = self._selected_time_bounds()
         start_s = end_s = None
-        if row.start_time != first_sample or row.end_time != full_end:
-            start_s = (row.start_time - first_sample).total_seconds()
-            end_s = (row.end_time - first_sample).total_seconds()
+        if start_time != first_sample or end_time != full_end:
+            start_s = (start_time - first_sample).total_seconds()
+            end_s = (end_time - first_sample).total_seconds()
         return hybrid_cache(self.memory, 1)(_load_cwa_data)(
-            path, _file_identity(path), start_s, end_s, channels, sampling_rate_hz, row.start_time, row.end_time
+            path, _file_identity(path), start_s, end_s, channels, sampling_rate_hz, start_time, end_time
         )
 
 
