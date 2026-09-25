@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** mobgap now requires Python 3.11 or newer. Users on Python 3.9 or 3.10 must upgrade Python before
   installing this release.
+- **Breaking:** mobgap now requires pandas 3.0 or newer. Users with pandas 2.x pinned must upgrade pandas before
+  installing this release.
 - **Breaking:** mobgap now requires Pingouin 0.6.1 or newer. Users with Pingouin 0.5.x or 0.6.0 pinned must upgrade
   Pingouin before installing this release.
 - Algorithms now specify and validate only the sensor channels they need. Algorithms that do not use gyroscope or
