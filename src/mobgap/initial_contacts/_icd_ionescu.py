@@ -120,11 +120,13 @@ class IcdIonescu(BaseIcDetector):
         # 3. CUMULATIVE INTEGRAL
         acc_is_lp_int = cumulative_trapezoid(acc_is_40_bpf_rmzp, initial=0) / self._INTERNAL_FILTER_SAMPLING_RATE_HZ
         # 4. CONTINUOUS WAVELET TRANSFORM (CWT)
+        # PyWavelets 1.9 raised the default precision to 12; keep the validated output at 10.
         acc_is_lp_int_cwt, _ = cwt(
             acc_is_lp_int.squeeze(),
             [self.cwt_width],
             "gaus2",
             sampling_period=1 / self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            precision=10,
         )
         acc_is_lp_int_cwt = acc_is_lp_int_cwt.squeeze()
         # Remove the mean from accVLPIntCwt
