@@ -154,7 +154,7 @@ def main() -> None:
         cv_iterator=splitter,
         cv_params={
             "n_jobs": args.cv_n_jobs,
-            "return_train_score": True,
+            "return_train_score": False,
             "progress_bar": True,
         },
     )
@@ -172,7 +172,7 @@ def main() -> None:
         "numpy_version": np.__version__,
         "n_jobs": args.n_jobs,
         "cv_n_jobs": args.cv_n_jobs,
-        "return_train_score": True,
+        "return_train_score": False,
         "hyperparameters": {
             "model_type": "XGBoost",
             "version": "lightweight",
