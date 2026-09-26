@@ -8,6 +8,7 @@ from mobgap.weartime._keras_weartime_model import (
 )
 from mobgap.weartime._wtd_megaritis_cnn import WtdMegaritisCNN
 from mobgap.weartime._wtd_megaritis_signal import WtdMegaritisSignal
+from mobgap.weartime._wtd_megaritis_xgboost import WtdMegaritisXGBoost
 from mobgap.weartime.base import TrainingData
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "TrainingData",
     "WtdMegaritisCNN",
     "WtdMegaritisSignal",
+    "WtdMegaritisXGBoost",
     "load_keras_weartime_model",
 ]
