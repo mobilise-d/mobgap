@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 import pandas as pd
 import pytest
+from joblib import Memory
 from numpy.testing import assert_allclose, assert_array_equal
 from pandas.testing import assert_frame_equal
 from scipy.signal import welch
@@ -31,6 +32,7 @@ from mobgap.weartime.utils.feature_extraction import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
 
 
 class _FixedProbabilityClassifier:
@@ -338,6 +340,34 @@ class TestWtdMegaritisXGBoost:
         assert_array_equal(clf.fit_features_["window_start"].to_numpy(), np.array([0.0, 20.0, 40.0]))
         assert_array_equal(clf.fit_labels_, np.array([1, 1, 0], dtype=np.int32))
         assert clf.fit_kwargs_ == {"sample_weight": "ok"}
+
+    def test_self_optimize_reuses_full_recording_features(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Repeated fits reuse the recording's features while retaining the training labels."""
+        calls: list[dict[str, float]] = []
+        _patch_simple_features(monkeypatch, calls)
+        data = _sensor_data(60)
+        memory = Memory(tmp_path, verbose=0)
+
+        for intervals, expected_labels in [
+            ([(0, 40)], [1, 1, 0]),
+            ([(20, 60)], [0, 1, 1]),
+        ]:
+            clf = _TrainableProbabilityClassifier()
+            model = WtdMegaritisXGBoost(
+                clf=clf,
+                feature_names=("window_start",),
+                window_sec=20.0,
+                overlap=0.0,
+                window_batch_size=2,
+                feature_memory=memory,
+                trained_sampling_rate_hz=None,
+            ).self_optimize([(data, _weartime_list(intervals))], sampling_rate_hz=1.0, recording_sample_counts=(60,))
+            assert_array_equal(clf.fit_labels_, np.array(expected_labels, dtype=np.int32))
+            model.detect(data, sampling_rate_hz=1.0)
+
+        assert len(calls) == 2
 
     def test_self_optimize_rejects_mismatching_recording_sample_counts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Keep preallocated training arrays aligned with the lazy records."""

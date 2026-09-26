@@ -25,7 +25,7 @@ from typing import Any, Callable, Final, Literal, Optional, Protocol, TypeVar
 
 import numpy as np
 import pandas as pd
-from joblib import Parallel, delayed
+from joblib import Memory, Parallel, delayed
 from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
@@ -211,26 +211,19 @@ def _extract_feature_batch(
     )
 
 
-def _iter_training_recording_feature_batches(
+def _iter_recording_feature_batches(
     data: pd.DataFrame,
-    reference_weartime: pd.DataFrame,
     *,
     sampling_rate_hz: float,
     window_samples: int,
     step_samples: int,
-    window_sec: float,
     window_batch_size: int,
     version: Literal["full", "lightweight"],
     sensor_cols: tuple[str, ...],
     feature_names: tuple[str, ...],
-) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+) -> Iterator[np.ndarray]:
     window_start_end_ = window_start_end(len(data), window_samples, step_samples)
-    if len(window_start_end_) == 0:
-        return
-
     dt = 1.0 / sampling_rate_hz
-    reference_centers = window_start_end_[:, 0] + int((window_sec * sampling_rate_hz) // 2)
-
     for batch_start in range(0, len(window_start_end_), window_batch_size):
         batch_start_end = window_start_end_[batch_start : batch_start + window_batch_size]
         features = _extract_feature_batch(
@@ -242,15 +235,74 @@ def _iter_training_recording_feature_batches(
             dt=dt,
             feature_names=feature_names,
         )
-        batch_end = batch_start + len(batch_start_end)
-        labels = labels_from_interval_centers(reference_centers[batch_start:batch_end], reference_weartime)
-        yield features.to_numpy(dtype=np.float32, copy=False), labels
+        yield features.to_numpy(dtype=np.float32, copy=False)
 
 
-def _extract_training_recording_feature_batches(
+def _extract_recording_feature_batches(
+    data: pd.DataFrame,
+    *,
+    sampling_rate_hz: float,
+    window_samples: int,
+    step_samples: int,
+    window_batch_size: int,
+    version: Literal["full", "lightweight"],
+    sensor_cols: tuple[str, ...],
+    feature_names: tuple[str, ...],
+) -> list[np.ndarray]:
+    return list(
+        _iter_recording_feature_batches(
+            data,
+            sampling_rate_hz=sampling_rate_hz,
+            window_samples=window_samples,
+            step_samples=step_samples,
+            window_batch_size=window_batch_size,
+            version=version,
+            sensor_cols=sensor_cols,
+            feature_names=feature_names,
+        )
+    )
+
+
+def _iter_training_recording_feature_batches(
     data: pd.DataFrame,
     reference_weartime: pd.DataFrame,
     *,
+    feature_memory: Memory,
+    sampling_rate_hz: float,
+    window_samples: int,
+    step_samples: int,
+    window_sec: float,
+    window_batch_size: int,
+    version: Literal["full", "lightweight"],
+    sensor_cols: tuple[str, ...],
+    feature_names: tuple[str, ...],
+) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+    window_start_end_ = window_start_end(len(data), window_samples, step_samples)
+    feature_kwargs = {
+        "sampling_rate_hz": sampling_rate_hz,
+        "window_samples": window_samples,
+        "step_samples": step_samples,
+        "window_batch_size": window_batch_size,
+        "version": version,
+        "sensor_cols": sensor_cols,
+        "feature_names": feature_names,
+    }
+    if feature_memory.location is None:
+        feature_batches = _iter_recording_feature_batches(data, **feature_kwargs)
+    else:
+        feature_batches = iter(feature_memory.cache(_extract_recording_feature_batches)(data, **feature_kwargs))
+    reference_centers = window_start_end_[:, 0] + int((window_sec * sampling_rate_hz) // 2)
+    for batch_start, features in zip(range(0, len(window_start_end_), window_batch_size), feature_batches):
+        batch_end = batch_start + len(features)
+        labels = labels_from_interval_centers(reference_centers[batch_start:batch_end], reference_weartime)
+        yield features, labels
+
+
+def _extract_training_data_recording_features(
+    training_data: Any,
+    datapoint_index: int,
+    *,
+    feature_memory: Memory,
     sampling_rate_hz: float,
     window_samples: int,
     step_samples: int,
@@ -260,10 +312,12 @@ def _extract_training_recording_feature_batches(
     sensor_cols: tuple[str, ...],
     feature_names: tuple[str, ...],
 ) -> list[tuple[np.ndarray, np.ndarray]]:
+    data, reference_weartime = training_data.load_recording(datapoint_index)
     return list(
         _iter_training_recording_feature_batches(
             data,
             reference_weartime,
+            feature_memory=feature_memory,
             sampling_rate_hz=sampling_rate_hz,
             window_samples=window_samples,
             step_samples=step_samples,
@@ -276,37 +330,10 @@ def _extract_training_recording_feature_batches(
     )
 
 
-def _extract_training_data_recording_features(
-    training_data: Any,
-    datapoint_index: int,
-    *,
-    sampling_rate_hz: float,
-    window_samples: int,
-    step_samples: int,
-    window_sec: float,
-    window_batch_size: int,
-    version: Literal["full", "lightweight"],
-    sensor_cols: tuple[str, ...],
-    feature_names: tuple[str, ...],
-) -> list[tuple[np.ndarray, np.ndarray]]:
-    data, reference_weartime = training_data.load_recording(datapoint_index)
-    return _extract_training_recording_feature_batches(
-        data,
-        reference_weartime,
-        sampling_rate_hz=sampling_rate_hz,
-        window_samples=window_samples,
-        step_samples=step_samples,
-        window_sec=window_sec,
-        window_batch_size=window_batch_size,
-        version=version,
-        sensor_cols=sensor_cols,
-        feature_names=feature_names,
-    )
-
-
 def _iter_training_feature_results(
     training_data: TrainingData,
     *,
+    feature_memory: Memory,
     n_jobs: int,
     sampling_rate_hz: float,
     window_samples: int,
@@ -328,6 +355,7 @@ def _iter_training_feature_results(
             delayed(_extract_training_data_recording_features)(
                 training_data,
                 datapoint_index,
+                feature_memory=feature_memory,
                 sampling_rate_hz=sampling_rate_hz,
                 window_samples=window_samples,
                 step_samples=step_samples,
@@ -347,6 +375,7 @@ def _iter_training_feature_results(
         yield from _iter_training_recording_feature_batches(
             data,
             reference_weartime,
+            feature_memory=feature_memory,
             sampling_rate_hz=sampling_rate_hz,
             window_samples=window_samples,
             step_samples=step_samples,
@@ -391,6 +420,9 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         Number of process workers used to extract dataset-backed training datapoints in ``self_optimize``. ``1``
         disables parallel training feature extraction; ``-1`` uses all available workers. Parallelism is only over
         indexed datapoints; generic training iterables without indexed loading still run sequentially.
+    feature_memory
+        Optional joblib cache for complete recording-level feature batches shared by training and detection. Disabled
+        by default. Cache entries use float32 features; feature calculations retain their original precision.
     waking_hours_min
         Waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)`` in minutes since
         midnight.
@@ -504,6 +536,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         prediction_threshold: float = 0.5,
         window_batch_size: int = 4096,
         n_jobs: int = 1,
+        feature_memory: Memory = Memory(None),
         waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
         trained_sampling_rate_hz: Optional[float] = 100.0,  # noqa: UP045 - tpcp 2.1 resolves annotations.
         allow_sampling_rate_mismatch: bool = False,
@@ -517,6 +550,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self.prediction_threshold = prediction_threshold
         self.window_batch_size = window_batch_size
         self.n_jobs = n_jobs
+        self.feature_memory = feature_memory
         self.waking_hours_min = waking_hours_min
         self.trained_sampling_rate_hz = trained_sampling_rate_hz
         self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
@@ -641,6 +675,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         for recording_features, recording_labels in _iter_training_feature_results(
             training_data,
+            feature_memory=self.feature_memory,
             n_jobs=self.n_jobs,
             sampling_rate_hz=sampling_rate_hz,
             window_samples=window_samples,
@@ -743,6 +778,27 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
                 reference_centers[batch_start : batch_start + batch_length],
                 reference_weartime,
             )
+
+        if self.feature_memory.location is not None:
+            window_samples, step_samples = self._window_parameters(sampling_rate_hz)
+            feature_batches = self.feature_memory.cache(_extract_recording_feature_batches)(
+                data,
+                sampling_rate_hz=sampling_rate_hz,
+                window_samples=window_samples,
+                step_samples=step_samples,
+                window_batch_size=self.window_batch_size,
+                version=self.version,
+                sensor_cols=sensor_cols,
+                feature_names=tuple(feature_names),
+            )
+            for batch_start, feature_values in zip(
+                range(0, len(window_start_end_), self.window_batch_size), feature_batches
+            ):
+                yield (
+                    pd.DataFrame(feature_values, columns=feature_names),
+                    _labels_for_batch(batch_start, len(feature_values)),
+                )
+            return
 
         for batch_start in range(0, len(window_start_end_), self.window_batch_size):
             batch_start_end = window_start_end_[batch_start : batch_start + self.window_batch_size]
