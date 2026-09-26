@@ -26,6 +26,7 @@ from typing import Any, Callable, Final, Literal, Optional, Protocol, TypeVar
 import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
+from joblib import hash as joblib_hash
 from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
@@ -242,6 +243,7 @@ def _iter_recording_feature_batches(
 def _extract_recording_feature_batches(
     data: pd.DataFrame,
     *,
+    data_cache_key: str,  # noqa: ARG001 - joblib includes this key while omitting the large recording.
     sampling_rate_hz: float,
     window_samples: int,
     step_samples: int,
@@ -261,6 +263,33 @@ def _extract_recording_feature_batches(
             sensor_cols=sensor_cols,
             feature_names=feature_names,
         )
+    )
+
+
+def _sensor_data_cache_key(data: pd.DataFrame, sensor_cols: tuple[str, ...]) -> str:
+    """Hash the sensor values read by the extractor without hashing unrelated DataFrame metadata."""
+    hasher = import_module("xxhash").xxh3_128()
+    hasher.update(b"mobgap-recording-sensors-v1")
+    hasher.update(pickle.dumps((len(data), sensor_cols), protocol=5))
+    for column in sensor_cols:
+        values = data[column].to_numpy(copy=False)
+        hasher.update(pickle.dumps((column, values.dtype.str), protocol=5))
+        if values.dtype.hasobject:
+            hasher.update(joblib_hash(data[column]).encode())
+        else:
+            hasher.update(memoryview(np.ascontiguousarray(values)).cast("B"))
+    return hasher.hexdigest()
+
+
+def _cached_recording_feature_batches(
+    data: pd.DataFrame, *, feature_memory: Memory, feature_kwargs: dict[str, Any]
+) -> list[np.ndarray]:
+    """Use a keyed, disk-only variant of tpcp's hybrid cache for full recordings."""
+    sensor_cols = feature_kwargs["sensor_cols"]
+    return feature_memory.cache(_extract_recording_feature_batches, ignore=["data"])(
+        data,
+        data_cache_key=_sensor_data_cache_key(data, sensor_cols),
+        **feature_kwargs,
     )
 
 
@@ -291,7 +320,9 @@ def _iter_training_recording_feature_batches(
     if feature_memory.location is None:
         feature_batches = _iter_recording_feature_batches(data, **feature_kwargs)
     else:
-        feature_batches = iter(feature_memory.cache(_extract_recording_feature_batches)(data, **feature_kwargs))
+        feature_batches = iter(
+            _cached_recording_feature_batches(data, feature_memory=feature_memory, feature_kwargs=feature_kwargs)
+        )
     reference_centers = window_start_end_[:, 0] + int((window_sec * sampling_rate_hz) // 2)
     for batch_start, features in zip(range(0, len(window_start_end_), window_batch_size), feature_batches):
         batch_end = batch_start + len(features)
@@ -782,15 +813,18 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         if self.feature_memory.location is not None:
             window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-            feature_batches = self.feature_memory.cache(_extract_recording_feature_batches)(
+            feature_batches = _cached_recording_feature_batches(
                 data,
-                sampling_rate_hz=sampling_rate_hz,
-                window_samples=window_samples,
-                step_samples=step_samples,
-                window_batch_size=self.window_batch_size,
-                version=self.version,
-                sensor_cols=sensor_cols,
-                feature_names=tuple(feature_names),
+                feature_memory=self.feature_memory,
+                feature_kwargs={
+                    "sampling_rate_hz": sampling_rate_hz,
+                    "window_samples": window_samples,
+                    "step_samples": step_samples,
+                    "window_batch_size": self.window_batch_size,
+                    "version": self.version,
+                    "sensor_cols": sensor_cols,
+                    "feature_names": tuple(feature_names),
+                },
             )
             for batch_start, feature_values in zip(
                 range(0, len(window_start_end_), self.window_batch_size), feature_batches
