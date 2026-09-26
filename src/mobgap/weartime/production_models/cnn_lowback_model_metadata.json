@@ -1,0 +1,32 @@
+{
+  "model_type": "CNN_1D",
+  "version": "fullfeatures",
+  "training_date": "2026-05-18T17:59:11.636139",
+  "n_samples": 6465361,
+  "input_shape": [
+    500,
+    6
+  ],
+  "hyperparameters": {
+    "num_conv_layers": 3,
+    "filters": [
+      32,
+      64,
+      128
+    ],
+    "kernel_size": 9,
+    "pool_size": 2,
+    "dropout_rate": 0.3,
+    "dense_units": 64,
+    "learning_rate": 0.001,
+    "batch_size": 1024,
+    "epochs": 60
+  },
+  "class_distribution": {
+    "0": 3933435,
+    "1": 2531926
+  },
+  "training_time_seconds": 76800,
+  "tensorflow_version": "2.18.0",
+  "notes": "Trained on all 26 subjects for production deployment"
+}
