@@ -44,6 +44,8 @@ ax6 = [
 weartime = [
     "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
     "tensorflow>=2.18,<2.19 ; python_full_version < '3.13'",
+    "pyentrp>=2.1.0",
+    "xgboost>=1.7.5,<2.0",
 ]
 
 [dependency-groups]
