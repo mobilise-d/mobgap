@@ -1,7 +1,7 @@
 """Run daily aggregate participant-grouped evaluation for the SUSTAIN wear-time XGBoost model.
 
 This mirrors ``loso_daily_cnn.py``: the dataset is split by recording day, while CV groups by participant so every fold
-holds out all days of a fixed number of participants.
+holds out all days of one participant.
 """
 
 from __future__ import annotations
@@ -20,10 +20,11 @@ from loso_daily_cnn import (
     DEFAULT_OUTPUT_DIR,
     _fold_metadata,
     _make_dataset,
-    _make_participant_group_splitter,
     _write_results,
 )
+from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import Optimize
+from tpcp.validate import DatasetSplitter
 
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.weartime import WtdMegaritisXGBoost
@@ -96,13 +97,6 @@ def _parse_args() -> argparse.Namespace:
         help="Number of XGBoost feature windows processed together.",
     )
     parser.add_argument(
-        "--test-participants-per-fold",
-        type=int,
-        default=1,
-        help="Number of complete participants held out in each test fold. The number of selected participants must "
-        "be divisible by this value.",
-    )
-    parser.add_argument(
         "--n-jobs",
         type=int,
         default=1,
@@ -136,16 +130,11 @@ def main() -> None:
     run_name = args.run_name or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
     dataset = _make_dataset(args)
-    splitter = _make_participant_group_splitter(args.test_participants_per_fold)
-    fold_metadata = _fold_metadata(
-        dataset,
-        splitter,
-        test_participants_per_fold=args.test_participants_per_fold,
-    )
+    splitter = DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
+    fold_metadata = _fold_metadata(dataset, splitter)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
-    LOGGER.info("Test participants per fold: %s", args.test_participants_per_fold)
     LOGGER.info("Participant-grouped CV folds: %s", len(fold_metadata))
     LOGGER.info("XGBoost datapoint feature workers: %s", args.n_jobs)
     LOGGER.info("CV fold workers: %s", args.cv_n_jobs)
@@ -183,7 +172,6 @@ def main() -> None:
         "numpy_version": np.__version__,
         "n_jobs": args.n_jobs,
         "cv_n_jobs": args.cv_n_jobs,
-        "test_participants_per_fold": args.test_participants_per_fold,
         "return_train_score": True,
         "hyperparameters": {
             "model_type": "XGBoost",
