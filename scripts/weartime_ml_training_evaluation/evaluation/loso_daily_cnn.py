@@ -1,7 +1,7 @@
 """Run daily aggregate participant-grouped evaluation for the SUSTAIN wear-time CNN.
 
 The evaluation dataset is split by recording day, but the cross-validation groups by participant. This means every
-fold holds out all days of a fixed number of human participants and trains on all days from all other human
+fold holds out all days of one human participant and trains on all days from all other human
 participants.
 
 The script intentionally uses the standard :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` and
@@ -17,12 +17,12 @@ import time
 from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import BaseCrossValidator
+from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import Optimize
 from tpcp.validate import DatasetSplitter
 
@@ -36,54 +36,6 @@ from mobgap.weartime.pipeline import WtdEmulationPipeline
 LOGGER = logging.getLogger(__name__)
 DEFAULT_OUTPUT_DIR = Path(".cache") / "weartime_loso_runs"
 DEFAULT_CACHE_DIR = Path(".cache") / "mobgap"
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-
-class FixedSizeTestGroupKFold(BaseCrossValidator):
-    """Group CV splitter with a fixed number of complete groups in each test fold."""
-
-    def __init__(self, *, test_groups_per_fold: int) -> None:
-        self.test_groups_per_fold = test_groups_per_fold
-
-    def split(self, x: Any, y: Any = None, groups: Any = None) -> Iterator[tuple[list[int], list[int]]]:
-        """Yield train/test indices with complete groups assigned to each test fold."""
-        del y
-        if groups is None:
-            raise ValueError("FixedSizeTestGroupKFold requires group labels.")
-
-        group_labels = np.asarray(groups)
-        all_indices = np.arange(len(group_labels))
-        unique_groups = pd.unique(group_labels)
-        n_splits = self.get_n_splits(x, groups=group_labels)
-        for fold_index in range(n_splits):
-            start = fold_index * self.test_groups_per_fold
-            test_groups = unique_groups[start : start + self.test_groups_per_fold]
-            test_mask = np.isin(group_labels, test_groups)
-            yield all_indices[~test_mask].tolist(), all_indices[test_mask].tolist()
-
-    def get_n_splits(self, x: Any = None, y: Any = None, groups: Any = None) -> int:
-        """Return the dynamically derived number of folds."""
-        del x, y
-        if groups is None:
-            raise ValueError("FixedSizeTestGroupKFold requires group labels.")
-
-        n_test_groups = int(self.test_groups_per_fold)
-        if n_test_groups <= 0:
-            raise ValueError("`test_groups_per_fold` must be positive.")
-
-        n_groups = len(pd.unique(groups))
-        if n_groups < n_test_groups:
-            raise ValueError(
-                f"Cannot create folds with {n_test_groups} test groups from only {n_groups} available groups."
-            )
-        if n_groups % n_test_groups != 0:
-            raise ValueError(
-                f"The number of groups ({n_groups}) must be divisible by test_groups_per_fold "
-                f"({n_test_groups}) so every test fold contains exactly {n_test_groups} groups."
-            )
-        return n_groups // n_test_groups
 
 
 def _path_from_env_or_arg(value: str | None, env_var: str, *, fallback: Path | None = None) -> Path:
@@ -139,25 +91,12 @@ def _make_dataset(args: argparse.Namespace) -> SustainWearTimeDataset:
     return dataset
 
 
-def _make_participant_group_splitter(test_participants_per_fold: int) -> DatasetSplitter:
-    return DatasetSplitter(
-        base_splitter=FixedSizeTestGroupKFold(test_groups_per_fold=test_participants_per_fold),
-        groupby="participant_id",
-    )
-
-
-def _fold_metadata(
-    dataset: SustainWearTimeDataset, splitter: DatasetSplitter, *, test_participants_per_fold: int
-) -> pd.DataFrame:
+def _fold_metadata(dataset: SustainWearTimeDataset, splitter: DatasetSplitter) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for fold, (train_idx, test_idx) in enumerate(splitter.split(dataset)):
         train_index = dataset.index.iloc[train_idx]
         test_index = dataset.index.iloc[test_idx]
         test_participants = sorted(test_index["participant_id"].unique())
-        if len(test_participants) != test_participants_per_fold:
-            raise RuntimeError(
-                f"Fold {fold} expected {test_participants_per_fold} held-out participants, got {test_participants}."
-            )
         train_participants = sorted(train_index["participant_id"].unique())
         rows.append(
             {
@@ -296,13 +235,6 @@ def _parse_args() -> argparse.Namespace:
         help="Standardize windows in the Keras model instead of in the Python window generator.",
     )
     parser.add_argument("--fit-verbose", type=int, default=1, help="Keras fit verbosity.")
-    parser.add_argument(
-        "--test-participants-per-fold",
-        type=int,
-        default=1,
-        help="Number of complete participants held out in each test fold. The number of selected participants must "
-        "be divisible by this value.",
-    )
     parser.add_argument("--n-jobs", type=int, default=1, help="Number of CV folds to evaluate in parallel.")
     parser.add_argument(
         "--dry-run",
@@ -326,16 +258,11 @@ def main() -> None:
     run_name = args.run_name or f"loso_daily_cnn_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
     dataset = _make_dataset(args)
-    splitter = _make_participant_group_splitter(args.test_participants_per_fold)
-    fold_metadata = _fold_metadata(
-        dataset,
-        splitter,
-        test_participants_per_fold=args.test_participants_per_fold,
-    )
+    splitter = DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
+    fold_metadata = _fold_metadata(dataset, splitter)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
-    LOGGER.info("Test participants per fold: %s", args.test_participants_per_fold)
     LOGGER.info("Participant-grouped CV folds: %s", len(fold_metadata))
     LOGGER.info("Output directory: %s", output_dir)
 
@@ -376,7 +303,6 @@ def main() -> None:
         "tensorflow_version": tf_metadata["tensorflow_version"],
         "gpu_devices": tf_metadata["gpu_devices"],
         "n_jobs": n_jobs,
-        "test_participants_per_fold": args.test_participants_per_fold,
         "return_train_score": True,
         "hyperparameters": {
             "model_type": "CNN_1D",
