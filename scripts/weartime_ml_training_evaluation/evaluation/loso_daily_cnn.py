@@ -154,25 +154,14 @@ def _write_results(
     fold_results = evaluation.get_aggregated_results_as_df(group="test")
     daily_results = evaluation.get_single_results_as_df(group="test")
     raw_results = evaluation.get_raw_results(group="test")
-    train_fold_results = evaluation.get_aggregated_results_as_df(group="train")
-    train_daily_results = evaluation.get_single_results_as_df(group="train")
-    train_raw_results = evaluation.get_raw_results(group="train")
-
     fold_results = fold_results.join(fold_metadata.set_index("fold"), how="left")
-    train_fold_results = train_fold_results.join(fold_metadata.set_index("fold"), how="left")
     fold_results.to_csv(output_dir / "fold_results.csv")
     daily_results.to_csv(output_dir / "daily_results.csv")
-    train_fold_results.to_csv(output_dir / "train_fold_results.csv")
-    train_daily_results.to_csv(output_dir / "train_daily_results.csv")
     fold_metadata.to_csv(output_dir / "fold_metadata.csv", index=False)
 
     for name, value in raw_results.items():
         if isinstance(value, pd.DataFrame):
             value.to_csv(output_dir / f"raw_{name}.csv")
-    for name, value in train_raw_results.items():
-        if isinstance(value, pd.DataFrame):
-            value.to_csv(output_dir / f"raw_train_{name}.csv")
-
     dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
 
     summary = {
@@ -182,9 +171,23 @@ def _write_results(
         "n_folds": len(fold_metadata),
         "fold_metric_summary": _numeric_summary(fold_results),
         "daily_metric_summary": _numeric_summary(daily_results.reset_index(drop=True)),
-        "train_fold_metric_summary": _numeric_summary(train_fold_results),
-        "train_daily_metric_summary": _numeric_summary(train_daily_results.reset_index(drop=True)),
     }
+    if run_metadata["return_train_score"]:
+        train_fold_results = evaluation.get_aggregated_results_as_df(group="train")
+        train_daily_results = evaluation.get_single_results_as_df(group="train")
+        train_fold_results = train_fold_results.join(fold_metadata.set_index("fold"), how="left")
+        train_fold_results.to_csv(output_dir / "train_fold_results.csv")
+        train_daily_results.to_csv(output_dir / "train_daily_results.csv")
+        for name, value in evaluation.get_raw_results(group="train").items():
+            if isinstance(value, pd.DataFrame):
+                value.to_csv(output_dir / f"raw_train_{name}.csv")
+        summary["train_fold_metric_summary"] = _numeric_summary(train_fold_results)
+        summary["train_daily_metric_summary"] = _numeric_summary(train_daily_results.reset_index(drop=True))
+    else:
+        for filename in ("train_fold_results.csv", "train_daily_results.csv"):
+            (output_dir / filename).unlink(missing_ok=True)
+        for path in output_dir.glob("raw_train_*.csv"):
+            path.unlink()
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
 
