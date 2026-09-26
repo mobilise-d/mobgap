@@ -1,7 +1,7 @@
 """Run daily aggregate participant-grouped evaluation for the SUSTAIN wear-time XGBoost model.
 
 This mirrors ``loso_daily_cnn.py``: the dataset is split by recording day, while CV groups by participant so every fold
-holds out all days of one participant.
+holds out all days of one human participant. Two part B recordings are added to each training fold.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import argparse
 import logging
 import time
 from datetime import datetime, timedelta
+from functools import partial
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -20,8 +21,11 @@ from loso_daily_cnn import (
     DEFAULT_CACHE_DIR,
     DEFAULT_OUTPUT_DIR,
     _fold_metadata,
+    _inject_training_only_days,
+    _make_base_dataset,
     _make_dataset,
     _path_from_env_or_arg,
+    _select_training_only_index,
     _write_results,
 )
 from sklearn.model_selection import LeaveOneGroupOut
@@ -85,6 +89,11 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--run-name", help="Artifact folder name. Defaults to loso_daily_xgboost_<timestamp>.")
     parser.add_argument(
+        "--part-b-recording-id",
+        action="append",
+        help="Part B recording to add to every training fold. Pass twice; defaults to the first two sorted IDs.",
+    )
+    parser.add_argument(
         "--participant-id",
         action="append",
         help="Restrict evaluation to one participant. Can be passed multiple times; mainly useful for smoke tests.",
@@ -134,13 +143,18 @@ def main() -> None:
 
     run_name = args.run_name or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
-    dataset = _make_dataset(args)
+    base_dataset = _make_base_dataset(args)
+    dataset = _make_dataset(args, base_dataset)
+    training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
     splitter = DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
-    fold_metadata = _fold_metadata(dataset, splitter)
+    fold_metadata = _fold_metadata(dataset, splitter, training_only_index)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
     LOGGER.info("Participant-grouped CV folds: %s", len(fold_metadata))
+    LOGGER.info(
+        "Part B recordings added to every training fold: %s", sorted(training_only_index["recording_id"].unique())
+    )
     LOGGER.info("XGBoost datapoint feature workers: %s", args.n_jobs)
     LOGGER.info("CV fold workers: %s", args.cv_n_jobs)
     LOGGER.info("Output directory: %s", output_dir)
@@ -148,8 +162,9 @@ def main() -> None:
     if args.dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
         dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
+        training_only_index.to_csv(output_dir / "training_only_index.csv", index=False)
         fold_metadata.to_csv(output_dir / "fold_metadata.csv", index=False)
-        LOGGER.info("Dry run complete. Wrote fold metadata and dataset index.")
+        LOGGER.info("Dry run complete. Wrote fold metadata and human and part B dataset indices.")
         return
 
     cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
@@ -164,7 +179,9 @@ def main() -> None:
             "progress_bar": True,
         },
     )
-    optimizer = Optimize(pipeline)
+    optimizer = Optimize(
+        pipeline, train_dataset_transform=partial(_inject_training_only_days, training_only_index=training_only_index)
+    )
 
     total_start = time.time()
     evaluation.run(optimizer)
@@ -191,6 +208,7 @@ def main() -> None:
     _write_results(
         evaluation=evaluation,
         dataset=dataset,
+        training_only_index=training_only_index,
         fold_metadata=fold_metadata,
         output_dir=output_dir,
         run_metadata=run_metadata,

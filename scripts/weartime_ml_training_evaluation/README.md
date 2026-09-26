@@ -23,6 +23,12 @@ windows). They cache one float32 feature result per selected recording or day
 under `--cache-dir/xgboost_features`, shared between training and evaluation
 scoring. XGBoost daily evaluation scores held-out days only.
 
+Both daily evaluation scripts add the same two part B recordings to the training
+dataset in every fold. Test folds still contain only part A human recordings.
+By default, the scripts choose the first two part B recording IDs in sorted
+order. Pass `--part-b-recording-id` twice to select different recordings. The
+output includes `training_only_index.csv` with every included day.
+
 CNN training saves a `.keras` artifact. Load it in a fresh Python process with
 `mobgap.weartime.load_keras_weartime_model(path)` so the optional model-side
 standardization layer is registered before deserialization.
