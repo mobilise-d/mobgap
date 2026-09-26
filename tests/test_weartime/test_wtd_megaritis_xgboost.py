@@ -348,11 +348,16 @@ class TestWtdMegaritisXGBoost:
         calls: list[dict[str, float]] = []
         _patch_simple_features(monkeypatch, calls)
         data = _sensor_data(60)
+        reindexed_data = data.copy()
+        reindexed_data.index = np.arange(60) + 1000
+        changed_data = data.copy()
+        changed_data.loc[0, "acc_pa"] = 2.0
         memory = Memory(tmp_path, verbose=0)
 
-        for intervals, expected_labels in [
-            ([(0, 40)], [1, 1, 0]),
-            ([(20, 60)], [0, 1, 1]),
+        for recording, intervals, expected_labels, expected_extractions in [
+            (data, [(0, 40)], [1, 1, 0], 2),
+            (reindexed_data, [(20, 60)], [0, 1, 1], 2),
+            (changed_data, [(0, 40)], [1, 1, 0], 4),
         ]:
             clf = _TrainableProbabilityClassifier()
             model = WtdMegaritisXGBoost(
@@ -363,11 +368,12 @@ class TestWtdMegaritisXGBoost:
                 window_batch_size=2,
                 feature_memory=memory,
                 trained_sampling_rate_hz=None,
-            ).self_optimize([(data, _weartime_list(intervals))], sampling_rate_hz=1.0, recording_sample_counts=(60,))
+            ).self_optimize(
+                [(recording, _weartime_list(intervals))], sampling_rate_hz=1.0, recording_sample_counts=(60,)
+            )
             assert_array_equal(clf.fit_labels_, np.array(expected_labels, dtype=np.int32))
-            model.detect(data, sampling_rate_hz=1.0)
-
-        assert len(calls) == 2
+            model.detect(recording, sampling_rate_hz=1.0)
+            assert len(calls) == expected_extractions
 
     def test_self_optimize_rejects_mismatching_recording_sample_counts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Keep preallocated training arrays aligned with the lazy records."""
