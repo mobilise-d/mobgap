@@ -18,6 +18,11 @@ Run each script with `--help` for its data selection, model, and output
 options. The daily evaluation scripts support `--dry-run` to write the dataset
 index and fold plan without fitting models.
 
+The XGBoost scripts accept `--overlap` (default `0.75`; `0` uses non-overlapping
+windows). They cache one float32 feature result per selected recording or day
+under `--cache-dir/xgboost_features`, shared between training and evaluation
+scoring. XGBoost daily evaluation scores held-out days only.
+
 CNN training saves a `.keras` artifact. Load it in a fresh Python process with
 `mobgap.weartime.load_keras_weartime_model(path)` so the optional model-side
 standardization layer is registered before deserialization.

@@ -142,6 +142,7 @@ def _parse_args() -> argparse.Namespace:
         default=8192,
         help="Number of windows feature-extracted before filling the training matrix.",
     )
+    parser.add_argument("--overlap", type=float, default=0.75, help="Fractional overlap of XGBoost windows.")
     parser.add_argument(
         "--n-jobs",
         type=int,
@@ -185,6 +186,8 @@ def main() -> None:
         **_untrained_config(args.version),
         window_batch_size=args.window_batch_size,
         n_jobs=args.n_jobs,
+        overlap=args.overlap,
+        feature_memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
     )
     training_window_metadata = _training_window_metadata(dataset, detector)
 
@@ -228,6 +231,7 @@ def main() -> None:
         "n_windows": int(training_window_metadata["total_windows"]),
         "window_samples": int(training_window_metadata["window_samples"]),
         "step_samples": int(training_window_metadata["step_samples"]),
+        "overlap": float(args.overlap),
         "window_batch_size": int(args.window_batch_size),
         "n_jobs": int(args.n_jobs),
         "sampling_rate_hz": float(training_window_metadata["sampling_rate_hz"]),
