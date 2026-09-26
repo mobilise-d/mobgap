@@ -14,12 +14,14 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any
 
+import joblib
 import numpy as np
 from loso_daily_cnn import (
     DEFAULT_CACHE_DIR,
     DEFAULT_OUTPUT_DIR,
     _fold_metadata,
     _make_dataset,
+    _path_from_env_or_arg,
     _write_results,
 )
 from sklearn.model_selection import LeaveOneGroupOut
@@ -54,12 +56,14 @@ def _classifier_params(clf: Any) -> dict[str, Any]:
     return params
 
 
-def _make_pipeline(args: argparse.Namespace) -> WtdEmulationPipeline:
+def _make_pipeline(args: argparse.Namespace, cache_dir: Path) -> WtdEmulationPipeline:
     return WtdEmulationPipeline(
         WtdMegaritisXGBoost(
             **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
             window_batch_size=args.window_batch_size,
             n_jobs=args.n_jobs,
+            overlap=args.overlap,
+            feature_memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
         )
     )
 
@@ -96,6 +100,7 @@ def _parse_args() -> argparse.Namespace:
         default=8192,
         help="Number of XGBoost feature windows processed together.",
     )
+    parser.add_argument("--overlap", type=float, default=0.75, help="Fractional overlap of XGBoost windows.")
     parser.add_argument(
         "--n-jobs",
         type=int,
@@ -147,7 +152,8 @@ def main() -> None:
         LOGGER.info("Dry run complete. Wrote fold metadata and dataset index.")
         return
 
-    pipeline = _make_pipeline(args)
+    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
+    pipeline = _make_pipeline(args, cache_dir)
     evaluation = EvaluationCV(
         dataset=dataset,
         scoring=wtd_score,
