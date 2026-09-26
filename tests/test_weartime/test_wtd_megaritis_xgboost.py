@@ -457,6 +457,19 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         assert list(lightweight.columns) == FEATURE_ORDER_90PCT
         assert_allclose(lightweight.to_numpy(), full_subset.to_numpy(), rtol=1e-10, atol=1e-10)
 
+    def test_batched_features_match_for_integer_array_and_dataframe(self) -> None:
+        """Array input uses the same floating-point feature calculations as a DataFrame."""
+        rng = np.random.default_rng(42)
+        values = rng.integers(900, 1100, size=(625, len(BF_SENSOR_COLS)), dtype=np.int16)
+        data = pd.DataFrame(values, columns=BF_SENSOR_COLS)
+        windows = np.array([[0, 500], [125, 625]])
+        feature_names = ("acc_norm_rms", "gyr_pa_rms")
+
+        from_dataframe = extract_features_batched(data, windows, feature_names=feature_names)
+        from_array = extract_features_batched(values, windows, feature_names=feature_names)
+
+        assert_allclose(from_array.to_numpy(), from_dataframe.to_numpy(), rtol=1e-12, atol=1e-12)
+
     def test_batched_full_features_cover_full_feature_order(self) -> None:
         """Extract every full-model feature without falling back to scalar feature calculators."""
         rng = np.random.default_rng(1234)

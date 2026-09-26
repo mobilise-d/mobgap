@@ -190,7 +190,7 @@ def _validate_model_sampling_rate(
 
 
 def _extract_feature_batch(
-    data: pd.DataFrame,
+    data: np.ndarray,
     batch_start_end: np.ndarray,
     *,
     version: Literal["full", "lightweight"],
@@ -224,10 +224,11 @@ def _iter_recording_feature_batches(
 ) -> Iterator[np.ndarray]:
     window_start_end_ = window_start_end(len(data), window_samples, step_samples)
     dt = 1.0 / sampling_rate_hz
+    sensor_data = data.loc[:, list(sensor_cols)].to_numpy(dtype=float, copy=False)
     for batch_start in range(0, len(window_start_end_), window_batch_size):
         batch_start_end = window_start_end_[batch_start : batch_start + window_batch_size]
         features = _extract_feature_batch(
-            data,
+            sensor_data,
             batch_start_end,
             version=version,
             sensor_cols=sensor_cols,
@@ -800,10 +801,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
                 )
             return
 
+        sensor_data = data.loc[:, list(sensor_cols)].to_numpy(dtype=float, copy=False)
         for batch_start in range(0, len(window_start_end_), self.window_batch_size):
             batch_start_end = window_start_end_[batch_start : batch_start + self.window_batch_size]
             features = _extract_feature_batch(
-                data,
+                sensor_data,
                 batch_start_end,
                 version=self.version,
                 sensor_cols=sensor_cols,
