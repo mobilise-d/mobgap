@@ -1,7 +1,9 @@
 """Utility functions for IMU feature extraction from windowed data."""
 
+from __future__ import annotations
+
 import warnings
-from collections.abc import Sequence
+from collections.abc import Sequence  # noqa: TC003 - Keep annotations available for runtime inspection.
 from functools import lru_cache
 from math import log2
 
@@ -729,8 +731,35 @@ FEATURE_ORDER_90PCT = [
 ]
 
 
+def _windowed_sensor_arrays(
+    data: pd.DataFrame | np.ndarray,
+    starts: np.ndarray,
+    window_samples: int,
+    acc_axes: tuple[str, str, str],
+    gyr_axes: tuple[str, str, str],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build window views from six columns ordered as acceleration, then gyroscope."""
+    if isinstance(data, pd.DataFrame):
+        sensor_values = data.loc[:, [*acc_axes, *gyr_axes]].to_numpy(dtype=float, copy=False)
+    else:
+        sensor_values = np.asarray(data, dtype=float)
+
+    step = int(starts[1] - starts[0]) if len(starts) > 1 else 1
+    if (
+        starts[0] >= 0
+        and starts[-1] + window_samples <= len(sensor_values)
+        and step > 0
+        and np.all(np.diff(starts) == step)
+    ):
+        windows = np.lib.stride_tricks.sliding_window_view(sensor_values, window_samples, axis=0)
+        windows = windows[starts[0] : starts[-1] + 1 : step].transpose(0, 2, 1)
+    else:
+        windows = sensor_values[starts[:, None] + np.arange(window_samples)]
+    return windows[:, :, :3], windows[:, :, 3:]
+
+
 def extract_features_90pct_batched(  # noqa: PLR0915
-    df: pd.DataFrame,
+    df: pd.DataFrame | np.ndarray,
     window_start_end: np.ndarray,
     acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
     gyr_axes: tuple[str, str, str] = ("gyr_is", "gyr_ml", "gyr_pa"),
@@ -758,10 +787,7 @@ def extract_features_90pct_batched(  # noqa: PLR0915
             stacklevel=2,
         )
 
-    offsets = np.arange(window_samples, dtype=np.int64)
-    window_indices = starts[:, None] + offsets
-    acc_data = df[list(acc_axes)].to_numpy(dtype=float, copy=False)[window_indices]
-    gyr_data = df[list(gyr_axes)].to_numpy(dtype=float, copy=False)[window_indices]
+    acc_data, gyr_data = _windowed_sensor_arrays(df, starts, window_samples, acc_axes, gyr_axes)
 
     acc_is = acc_data[:, :, 0]
     acc_ml = acc_data[:, :, 1]
@@ -930,7 +956,7 @@ def _batched_psd_features(
 
 
 def extract_full_features_batched(  # noqa: PLR0915
-    df: pd.DataFrame,
+    df: pd.DataFrame | np.ndarray,
     window_start_end: np.ndarray,
     acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
     gyr_axes: tuple[str, str, str] = ("gyr_is", "gyr_ml", "gyr_pa"),
@@ -960,10 +986,7 @@ def extract_full_features_batched(  # noqa: PLR0915
             stacklevel=2,
         )
 
-    offsets = np.arange(window_samples, dtype=np.int64)
-    window_indices = starts[:, None] + offsets
-    acc_data = df[list(acc_axes)].to_numpy(dtype=float, copy=False)[window_indices]
-    gyr_data = df[list(gyr_axes)].to_numpy(dtype=float, copy=False)[window_indices]
+    acc_data, gyr_data = _windowed_sensor_arrays(df, starts, window_samples, acc_axes, gyr_axes)
 
     acc_is = acc_data[:, :, 0]
     acc_ml = acc_data[:, :, 1]
@@ -1115,7 +1138,7 @@ def extract_full_features_batched(  # noqa: PLR0915
 
 
 def extract_features_batched(
-    df: pd.DataFrame,
+    df: pd.DataFrame | np.ndarray,
     window_start_end: np.ndarray,
     acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
     gyr_axes: tuple[str, str, str] = ("gyr_is", "gyr_ml", "gyr_pa"),
