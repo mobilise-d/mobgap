@@ -2,7 +2,7 @@
 
 The evaluation dataset is split by recording day, but the cross-validation groups by participant. This means every
 fold holds out all days of one human participant and trains on all days from all other human
-participants.
+participants, plus two part B recordings added through TPCP's training dataset transform.
 
 The script intentionally uses the standard :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` and
 :data:`~mobgap.weartime.evaluation.wtd_score` scorer so that metrics match the rest of the wear-time evaluation code.
@@ -15,6 +15,7 @@ import json
 import logging
 import time
 from datetime import datetime, timedelta
+from functools import partial
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -68,16 +69,20 @@ def _resolve_n_jobs(requested_n_jobs: int, tf_metadata: dict[str, Any]) -> int:
     return requested_n_jobs
 
 
-def _make_dataset(args: argparse.Namespace) -> SustainWearTimeDataset:
+def _make_base_dataset(args: argparse.Namespace) -> SustainWearTimeDataset:
     dataset_path = _path_from_env_or_arg(args.dataset_path, "MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")
     cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
-    dataset = SustainWearTimeDataset(
+    return SustainWearTimeDataset(
         dataset_path,
         additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
         split_by_day=True,
         memory=joblib.Memory(cache_dir, verbose=0),
-    ).get_subset(recording_type="human_movement")
+    )
+
+
+def _make_dataset(args: argparse.Namespace, base_dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
+    dataset = base_dataset.get_subset(recording_type="human_movement")
 
     if args.participant_id:
         subset_index = dataset.index[dataset.index["participant_id"].isin(args.participant_id)]
@@ -91,22 +96,44 @@ def _make_dataset(args: argparse.Namespace) -> SustainWearTimeDataset:
     return dataset
 
 
-def _fold_metadata(dataset: SustainWearTimeDataset, splitter: DatasetSplitter) -> pd.DataFrame:
+def _select_training_only_index(base_dataset: SustainWearTimeDataset, recording_ids: list[str] | None) -> pd.DataFrame:
+    part_b_index = base_dataset.get_subset(recording_type="simulated_movements").index
+    available_ids = sorted(part_b_index["recording_id"].unique())
+    selected_ids = available_ids[:2] if recording_ids is None else recording_ids
+    if len(selected_ids) != 2 or len(set(selected_ids)) != 2 or not set(selected_ids).issubset(available_ids):
+        raise ValueError("Select exactly two distinct part B recording IDs present in the dataset.")
+    return part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
+
+
+def _inject_training_only_days(
+    train_dataset: SustainWearTimeDataset, training_only_index: pd.DataFrame
+) -> SustainWearTimeDataset:
+    # Evil hacky hack: get_subset(index=...) accepts rows outside this fold's subset, so inject the same part B days
+    # into every optimizer training set while keeping the evaluation dataset and all test folds human-only.
+    combined_index = pd.concat([train_dataset.index, training_only_index], ignore_index=True)
+    return train_dataset.get_subset(index=combined_index)
+
+
+def _fold_metadata(
+    dataset: SustainWearTimeDataset, splitter: DatasetSplitter, training_only_index: pd.DataFrame
+) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for fold, (train_idx, test_idx) in enumerate(splitter.split(dataset)):
         train_index = dataset.index.iloc[train_idx]
         test_index = dataset.index.iloc[test_idx]
         test_participants = sorted(test_index["participant_id"].unique())
-        train_participants = sorted(train_index["participant_id"].unique())
+        train_participants = sorted(pd.concat([train_index, training_only_index])["participant_id"].unique())
         rows.append(
             {
                 "fold": fold,
                 "held_out_participant_ids": ",".join(str(participant_id) for participant_id in test_participants),
-                "n_train_days": len(train_index),
+                "n_train_days": len(train_index) + len(training_only_index),
+                "n_training_only_days": len(training_only_index),
                 "n_test_days": len(test_index),
                 "n_train_participants": len(train_participants),
                 "n_test_participants": len(test_participants),
                 "train_participant_ids": ",".join(str(participant_id) for participant_id in train_participants),
+                "training_only_recording_ids": ",".join(sorted(training_only_index["recording_id"].unique())),
                 "test_recording_ids": ",".join(sorted(test_index["recording_id"].unique())),
                 "test_recording_days": ",".join(str(day) for day in sorted(test_index["recording_day"].unique())),
             }
@@ -145,6 +172,7 @@ def _write_results(
     *,
     evaluation: EvaluationCV,
     dataset: SustainWearTimeDataset,
+    training_only_index: pd.DataFrame,
     fold_metadata: pd.DataFrame,
     output_dir: Path,
     run_metadata: dict[str, Any],
@@ -163,11 +191,14 @@ def _write_results(
         if isinstance(value, pd.DataFrame):
             value.to_csv(output_dir / f"raw_{name}.csv")
     dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
+    training_only_index.to_csv(output_dir / "training_only_index.csv", index=False)
 
     summary = {
         **run_metadata,
         "n_days": len(dataset.index),
         "n_participants": int(dataset.index["participant_id"].nunique()),
+        "n_training_only_days": len(training_only_index),
+        "training_only_recording_ids": sorted(training_only_index["recording_id"].unique()),
         "n_folds": len(fold_metadata),
         "fold_metric_summary": _numeric_summary(fold_results),
         "daily_metric_summary": _numeric_summary(daily_results.reset_index(drop=True)),
@@ -207,6 +238,11 @@ def _parse_args() -> argparse.Namespace:
         help=f"Directory for LOSO result artifacts. Default: {DEFAULT_OUTPUT_DIR}",
     )
     parser.add_argument("--run-name", help="Artifact folder name. Defaults to loso_daily_cnn_<timestamp>.")
+    parser.add_argument(
+        "--part-b-recording-id",
+        action="append",
+        help="Part B recording to add to every training fold. Pass twice; defaults to the first two sorted IDs.",
+    )
     parser.add_argument(
         "--participant-id",
         action="append",
@@ -260,20 +296,26 @@ def main() -> None:
 
     run_name = args.run_name or f"loso_daily_cnn_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
-    dataset = _make_dataset(args)
+    base_dataset = _make_base_dataset(args)
+    dataset = _make_dataset(args, base_dataset)
+    training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
     splitter = DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
-    fold_metadata = _fold_metadata(dataset, splitter)
+    fold_metadata = _fold_metadata(dataset, splitter, training_only_index)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
     LOGGER.info("Participant-grouped CV folds: %s", len(fold_metadata))
+    LOGGER.info(
+        "Part B recordings added to every training fold: %s", sorted(training_only_index["recording_id"].unique())
+    )
     LOGGER.info("Output directory: %s", output_dir)
 
     if args.dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
         dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
+        training_only_index.to_csv(output_dir / "training_only_index.csv", index=False)
         fold_metadata.to_csv(output_dir / "fold_metadata.csv", index=False)
-        LOGGER.info("Dry run complete. Wrote fold metadata and dataset index.")
+        LOGGER.info("Dry run complete. Wrote fold metadata and human and part B dataset indices.")
         return
 
     tf_metadata = _configure_tensorflow()
@@ -292,7 +334,9 @@ def main() -> None:
             "progress_bar": True,
         },
     )
-    optimizer = Optimize(pipeline)
+    optimizer = Optimize(
+        pipeline, train_dataset_transform=partial(_inject_training_only_days, training_only_index=training_only_index)
+    )
 
     total_start = time.time()
     evaluation.run(optimizer)
@@ -327,6 +371,7 @@ def main() -> None:
     _write_results(
         evaluation=evaluation,
         dataset=dataset,
+        training_only_index=training_only_index,
         fold_metadata=fold_metadata,
         output_dir=output_dir,
         run_metadata=run_metadata,
