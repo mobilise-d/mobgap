@@ -244,7 +244,7 @@ def _iter_training_recording_feature_batches(
         )
         batch_end = batch_start + len(batch_start_end)
         labels = labels_from_interval_centers(reference_centers[batch_start:batch_end], reference_weartime)
-        yield features.to_numpy(dtype=np.float64, copy=False), labels
+        yield features.to_numpy(dtype=np.float32, copy=False), labels
 
 
 def _extract_training_recording_feature_batches(
@@ -626,7 +626,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         feature_names = tuple(self.feature_names or self._feature_names_by_version[self.version])
         sensor_cols = tuple(self.sensor_cols)
-        feature_values = np.empty((total_windows, len(feature_names)), dtype=np.float64)
+        feature_values = np.empty((total_windows, len(feature_names)), dtype=np.float32)
         all_labels = np.empty(total_windows, dtype=np.int32)
         write_index = 0
 
