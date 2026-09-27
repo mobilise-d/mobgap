@@ -21,7 +21,14 @@ index and fold plan without fitting models.
 The XGBoost scripts accept `--overlap` (default `0.75`; `0` uses non-overlapping
 windows). They cache one float32 feature result per selected recording or day
 under `--cache-dir/xgboost_features`, shared between training and evaluation
-scoring. XGBoost daily evaluation scores held-out days only.
+scoring. XGBoost daily evaluation scores held-out days only. It runs a separate
+Optuna search in every outer participant fold. Each trial uses participant-grouped
+inner cross-validation and samples 40% of each inner training fold's human day
+rows. The selected part B days remain in every training fit. The best
+parameters are refit on every outer training day plus all selected part B days
+before scoring the held-out participant. Use `--n-trials`, `--inner-folds`,
+`--search-train-fraction`, and `--search-seed` to adjust the search.
+`optuna_best_by_fold.csv` and `optuna_trials.csv` record the search results.
 
 Both daily evaluation scripts add the same two part B recordings to the training
 dataset in every fold. Test folds still contain only part A human recordings.
