@@ -235,6 +235,13 @@ class TestFirFilter:
 
 
 class TestHampelFilter:
+    def test_absolute_deviation_floor_preserves_small_changes_with_zero_mad(self):
+        data = np.array([0.5, 0.5, 0.56, 0.5, 0.5, 0.6, 0.5, 0.5])
+
+        filtered = HampelFilter(2, 3.0, min_abs_deviation=0.075).filter(data).filtered_data_
+
+        assert_array_almost_equal(filtered, [0.5, 0.5, 0.56, 0.5, 0.5, 0.5, 0.5, 0.5])
+
     def test_matlab_equivalent(self):
         mat_data = scipy.io.loadmat(HERE / "hampel_filter_test_data/matlab_hampel_test_data.mat")
         data = mat_data["data"].flatten()

@@ -115,8 +115,8 @@
             "n_raw_initial_contacts":17,
             "stride_duration_s":1.1446666667,
             "cadence_spm":99.9225416085,
-            "stride_length_m":0.7861435878,
-            "walking_speed_mps":0.6585686178
+            "stride_length_m":0.7828408053,
+            "walking_speed_mps":0.6522561642
         },
         {
             "wb_id":5,
