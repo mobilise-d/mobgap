@@ -1,7 +1,7 @@
 """Base class for weartime detectors."""
 
 from collections.abc import Iterable
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 from tpcp import Algorithm
@@ -10,6 +10,8 @@ from typing_extensions import Self, Unpack
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
+
+TrainingData = Iterable[tuple[pd.DataFrame, pd.DataFrame]]
 
 base_weartime_docfiller = make_filldoc(
     {
@@ -58,18 +60,14 @@ self
     weartime periods and total weartime values.
 """,
         "self_optimize_paras": """
-data_sequences
-    A sequence/iterable/list of dataframes, each containing the raw IMU data of a single sensor.
-    This could be individual trials or data from different participants.
-    The optimization will be performed over all sequences combined.
-ref_weartime_list_per_sequence
-    A sequence/iterable/list of weartime-lists, each containing the reference weartime periods for the respective
-    data sequence.
-    They are used as ground-truth to validate the output of the algorithm during optimization.
+training_data
+    A re-iterable sequence of ``(data, reference_weartime)`` tuples. Each tuple contains the raw IMU data of a single
+    sensor and the reference wear-time periods for that recording.
+    This can be a lazy dataset-backed iterator so recordings are loaded only while training consumes them.
+    The optimization is performed over all recordings combined.
 sampling_rate_hz
     The sampling rate of the IMU data in Hz.
-    This can either be a single float, in case all sequences have the same sampling rate, or a sequence of
-    floats, in case the sampling rate differs between the sequences.
+    All recordings passed to one training call must use this sampling rate.
 """,
         "self_optimize_return": """
 Returns
@@ -203,11 +201,9 @@ class BaseWeartimeDetector(Algorithm):
     @base_weartime_docfiller
     def self_optimize(
         self,
-        data_sequences: Iterable[pd.DataFrame],
-        ref_weartime_list_per_sequence: Iterable[pd.DataFrame],
+        training_data: TrainingData,
         *,
-        sampling_rate_hz: Union[float, Iterable[float]],
-        **kwargs: Unpack[dict[str, Any]],
+        sampling_rate_hz: float,
     ) -> Self:
         """Optimize the internal parameters of the algorithm.
 
@@ -269,4 +265,10 @@ def _unify_weartime_df(df: pd.DataFrame, expected_id_name: str = "wt_id") -> pd.
     return df.astype(weartime_df_dtypes)[list(weartime_df_dtypes.keys())].set_index(expected_id_name)
 
 
-__all__ = ["BaseWeartimeDetector", "_unify_weartime_df", "base_weartime_docfiller", "get_weartime_df_dtypes"]
+__all__ = [
+    "BaseWeartimeDetector",
+    "TrainingData",
+    "_unify_weartime_df",
+    "base_weartime_docfiller",
+    "get_weartime_df_dtypes",
+]
