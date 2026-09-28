@@ -7,9 +7,9 @@ Revalidation of the wear-time detection algorithms
 .. note:: This script creates unpublished local validation results for the SUSTAIN wear-time dataset. The generated
     result files are not part of the published validation-result package at this time.
 
-This script runs the wear-time detector on the SUSTAIN wear-time dataset using daily datapoints. The daily split is
-important because the expected deployment mode is to apply the detector to one day at a time and because waking-hours
-metrics are only well-defined for single-day datapoints.
+This script runs the wear-time detector on the SUSTAIN wear-time dataset using daily datapoints with at least eight
+hours of recorded data. The daily split is important because the expected deployment mode is to apply the detector to
+one day at a time and because waking-hours metrics are only well-defined for single-day datapoints.
 
 Performance metrics are calculated on a per-day basis and aggregated over the full dataset. The raw detected
 wear-time intervals, reference wear-time intervals, waking-hours reference intervals, and interval-overlap matches are
@@ -28,6 +28,7 @@ saved together with the single and aggregated score tables.
 # We use the :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` to run the wear-time detector. The pipeline
 # handles dataset metadata and the sensor-frame to body-frame conversion expected by the current signal-based
 # detector.
+from functools import partial
 from pathlib import Path
 
 from mobgap.weartime import WtdMegaritisSignal
@@ -44,21 +45,23 @@ pipelines = {
 # file in the root of the repository with the following content. You need the path to the root folder of the SUSTAIN
 # wear-time dataset `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` and the path where revalidation results should be stored
 # `MOBGAP_VALIDATION_DATA_PATH`. The path to the cache directory `MOBGAP_CACHE_DIR_PATH` is optional.
+import pandas as pd
 from joblib import Memory, Parallel, delayed
 from mobgap import PROJECT_ROOT
-from mobgap.data import SustainWearTimeDataset
+from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.misc import get_env_var
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 results_base_path = (
-    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH")) / "results/weartime_no_exc"
+    Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
+    / "results/weartime_no_exc_min8h"
 )
 condition_name = "sustain_weartime"
 
 dataset_sustain_weartime = SustainWearTimeDataset(
     get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
     additional_sensors_enabled=(),
-    split_by_day=True,
+    splitter=partial(split_by_utc_day, min_duration=pd.Timedelta(hours=8)),
     memory=Memory(cache_dir),
 )
 
@@ -72,7 +75,6 @@ dataset_sustain_weartime = SustainWearTimeDataset(
 import json
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 from mobgap.utils.evaluation import Evaluation
 from mobgap.weartime.evaluation import wtd_score

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import warnings
+from functools import partial
 from math import ceil, floor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Union
@@ -13,10 +14,10 @@ import pandas as pd
 from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
-from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset
+from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, split_by_utc_day
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from mobgap.data.base import ParticipantMetadata, RecordingMetadata
 
@@ -25,6 +26,7 @@ MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
 SAMPLE_COUNT_TOL = 1e-6
+_DEFAULT_DAILY_SPLITTER = partial(split_by_utc_day, min_duration=pd.Timedelta(hours=8))
 
 
 def _is_lowerback_name(name: str) -> bool:
@@ -188,50 +190,6 @@ def _recording_start_end_from_timing_report(timing_report: dict[str, Any]) -> tu
     return start, end
 
 
-def _recording_days_from_timing_report(timing_report: dict[str, Any]) -> list[str]:
-    start, end = _recording_start_end_from_timing_report(timing_report)
-    days = pd.date_range(start.normalize(), end.normalize(), freq="D")
-    return [day.date().isoformat() for day in days]
-
-
-def _day_cut_seconds(
-    recording_day: str | None, timing_report: dict[str, Any], sampling_rate_hz: float
-) -> tuple[float | None, float | None]:
-    if recording_day is None:
-        return None, None
-
-    recording_start, recording_end = _recording_start_end_from_timing_report(timing_report)
-    recording_end_exclusive = recording_end + pd.to_timedelta(1 / sampling_rate_hz, unit="s")
-    day_start = _as_utc_timestamp(recording_day)
-    day_end = day_start + pd.Timedelta(days=1)
-
-    start = max(day_start, recording_start)
-    end = min(day_end, recording_end_exclusive)
-    if end <= start:
-        raise ValueError(f"The selected day {recording_day} does not overlap the selected CWA recording.")
-
-    start_time_s = None if start <= recording_start else (start - recording_start).total_seconds()
-    end_time_s = None if end >= recording_end_exclusive else (end - recording_start).total_seconds()
-    return start_time_s, end_time_s
-
-
-def _recording_sample_count_from_timing_report(
-    timing_report: dict[str, Any], sampling_rate_hz: float, recording_day: str | None
-) -> int:
-    duration_s = timing_report.get("duration_s_from_data")
-    if duration_s is None:
-        raise ValueError("The CWA timing report does not contain `duration_s_from_data`.")
-
-    recording_duration_exclusive_s = float(duration_s) + 1 / sampling_rate_hz
-    if recording_day is None:
-        return max(0, floor(recording_duration_exclusive_s * sampling_rate_hz + 1e-9))
-
-    start_time_s, end_time_s = _day_cut_seconds(recording_day, timing_report, sampling_rate_hz)
-    start_time_s = 0.0 if start_time_s is None else start_time_s
-    end_time_s = recording_duration_exclusive_s if end_time_s is None else end_time_s
-    return _sample_count_from_time_bounds_s(start_time_s, end_time_s, sampling_rate_hz)
-
-
 def _sample_count_from_time_bounds_s(start_time_s: float, end_time_s: float, sampling_rate_hz: float) -> int:
     start_sample = ceil(start_time_s * sampling_rate_hz - SAMPLE_COUNT_TOL)
     end_sample = ceil(end_time_s * sampling_rate_hz - SAMPLE_COUNT_TOL)
@@ -241,10 +199,10 @@ def _sample_count_from_time_bounds_s(start_time_s: float, end_time_s: float, sam
 class SustainWearTimeDataset(BaseAX6Dataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
-    The dataset index contains one row per recording or recording day, including its ``file_path``. The raw data is
-    loaded lazily and returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention:
-    ``start`` is inclusive and ``end`` is exclusive. ``start_dt`` and ``end_dt`` are derived from the snapped
-    sample boundaries, not copied from the raw reference file.
+    The dataset index contains one row per selected time window, including ``file_path``, ``start_time`` and
+    ``end_time``. ``recording_day`` is the UTC date at the start of the window. The raw data is loaded lazily and
+    returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention: ``start`` is
+    inclusive and ``end`` is exclusive. ``start_dt`` and ``end_dt`` come from snapped sample boundaries.
 
     Parameters
     ----------
@@ -260,10 +218,12 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         ``None`` to disable the warning.
     sensor_name
         Sensor key used by ``data``. Defaults to ``"LowerBack"``.
-    split_by_day
-        If ``True``, the dataset index contains one row per calendar day spanned by a raw CWA recording. The
-        ``recording_day`` column identifies the selected day and ``data_ss`` loads only the respective time window.
-        If ``False``, the index contains one row per raw CWA recording.
+    splitter
+        A DataFrame of windows or a callable receiving one file's :class:`~mobgap.data.CwaRecordingInfo` and
+        returning a DataFrame of windows. By default, the dataset selects UTC days with at least eight hours of
+        recorded data. Set to ``None`` to use each complete recording. Use :func:`~mobgap.data.split_by_utc_day` or
+        :func:`~mobgap.data.split_by_utc_hour` for other calendar splits; both accept ``min_duration`` through
+        :func:`functools.partial`.
     memory
         A joblib memory object used to cache CWA data and reference file loading.
     groupby_cols
@@ -284,7 +244,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     cwa_timing_report_
         The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
     n_samples
-        Number of samples in the selected recording, derived from CWA timing metadata without loading the full data.
+        Number of samples in the selected window, derived from CWA timing metadata without loading the full data.
     reference_nonwear_
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
@@ -297,7 +257,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     missing_reference_error_type: MissingReferenceErrorType
     warn_thres_for_sampling_rate_deviations_hz: float | None
     sensor_name: str
-    split_by_day: bool
+    splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None
     memory: joblib.Memory
 
     def __init__(
@@ -308,14 +268,14 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
         sensor_name: str = "LowerBack",
-        split_by_day: bool = False,
+        splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = _DEFAULT_DAILY_SPLITTER,
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
         subset_index: pd.DataFrame | None = None,
     ) -> None:
         self.base_path = base_path
         self.missing_reference_error_type = missing_reference_error_type
-        self.split_by_day = split_by_day
+        self.splitter = splitter
         super().__init__(
             additional_sensors_enabled=additional_sensors_enabled,
             warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
@@ -338,27 +298,22 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         return self._human_movement_path / "reference.json"
 
     @property
-    def _selected_recording_day(self) -> str | None:
-        self.assert_is_single(None, "_selected_recording_day")
-        if "recording_day" not in self.index.columns:
-            return None
-        return str(self.index.iloc[0]["recording_day"])
-
-    def _selected_time_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
-        start, last_sample = _recording_start_end_from_timing_report(self.cwa_timing_report_)
-        end = last_sample + pd.to_timedelta(1 / self.sampling_rate_hz, unit="s")
-        if (recording_day := self._selected_recording_day) is None:
-            return start, end
-        day_start = _as_utc_timestamp(recording_day)
-        return max(start, day_start), min(end, day_start + pd.Timedelta(days=1))
-
-    @property
     def n_samples(self) -> int:
         self.assert_is_single(None, "n_samples")
-        return _recording_sample_count_from_timing_report(
-            self.cwa_timing_report_,
-            self.sampling_rate_hz,
-            self._selected_recording_day,
+        timing_report = self.cwa_timing_report_
+        sampling_rate_hz = self.sampling_rate_hz
+        recording_start, last_sample = _recording_start_end_from_timing_report(timing_report)
+        recording_end = last_sample + pd.to_timedelta(1 / sampling_rate_hz, unit="s")
+        start, end = self._selected_time_bounds()
+        if start == recording_start and end == recording_end:
+            return max(
+                0,
+                floor((float(timing_report["duration_s_from_data"]) + 1 / sampling_rate_hz) * sampling_rate_hz + 1e-9),
+            )
+        return _sample_count_from_time_bounds_s(
+            (start - recording_start).total_seconds(),
+            (end - recording_start).total_seconds(),
+            sampling_rate_hz,
         )
 
     @property
@@ -376,8 +331,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             "logging_end_time": metadata.get("logging_end_time"),
             "cwa_header": metadata,
         }
-        if (recording_day := self._selected_recording_day) is not None:
-            recording_metadata["recording_day"] = recording_day
+        recording_metadata["recording_day"] = str(self.index.iloc[0]["recording_day"])
         return recording_metadata
 
     @property
@@ -475,18 +429,44 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     def _get_splits_for_file(self, path: Path) -> pd.DataFrame:
         recording_type = "human_movement" if path.parent.parent == self._human_movement_path else "simulated_movements"
         participant_id = path.parent.name
-        recording = {
-            "recording_type": recording_type,
-            "participant_id": participant_id,
-            "recording_id": f"{recording_type}_{participant_id}_{path.stem}",
-        }
-        if not self.split_by_day:
-            return pd.DataFrame([recording]).astype("string")
-
-        timing_report = ax6_module._recording_info(path, ax6_module._file_identity(path))[1]
-        return pd.DataFrame(
-            [{**recording, "recording_day": day} for day in _recording_days_from_timing_report(timing_report)]
-        ).astype("string")
+        recording_id = f"{recording_type}_{participant_id}_{path.stem}"
+        header, timing_report = ax6_module._recording_info(path, ax6_module._file_identity(path))
+        start, last_sample = _recording_start_end_from_timing_report(timing_report)
+        end = last_sample + pd.to_timedelta(1 / float(header["sample_rate_hz"]), unit="s")
+        info = CwaRecordingInfo(
+            path=path,
+            start_time=start,
+            last_sample_time=last_sample,
+            end_time=end,
+            cwa_header=dict(header),
+            cwa_timing_report=timing_report,
+            recording_metadata={
+                "measurement_condition": "laboratory",
+                "recording_id": recording_id,
+                "recording_type": recording_type,
+                "participant_id": participant_id,
+                "file_name": path.name,
+            },
+        )
+        if self.splitter is None:
+            splits = pd.DataFrame({"recording": ["main"], "start_time": [start], "end_time": [end]})
+        elif isinstance(self.splitter, pd.DataFrame):
+            splits = self.splitter.copy()
+        else:
+            splits = self.splitter(info)
+        return splits.assign(
+            recording_type=recording_type,
+            participant_id=participant_id,
+            recording_id=recording_id,
+            recording_day=lambda df_: df_["start_time"].dt.strftime("%Y-%m-%d"),
+        ).astype(
+            {
+                "recording_type": "string",
+                "participant_id": "string",
+                "recording_id": "string",
+                "recording_day": "string",
+            }
+        )
 
 
 __all__ = ["SustainWearTimeDataset"]
