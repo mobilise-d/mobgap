@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Per-second cadence and stride-length values now retain their magnitude when mapped to regions at fractional sampling
+  rates. Previously, rounded second boundaries could make a constant value appear too high or too low.
+  This is unlikely to change existing results, since it matters when non-integer sampling rates make rounded second
+  intervals uneven; the 100 Hz TVS revalidation results were unchanged.
+  (https://github.com/mobilise-d/mobgap/pull/264)
 - Missing per-second cadence or stride-length values no longer erase estimates for later, nonoverlapping strides.
   Strides that overlap a missing interval remain NaN. (https://github.com/mobilise-d/mobgap/issues/203,
   https://github.com/mobilise-d/mobgap/pull/261)
