@@ -31,13 +31,12 @@ The raw detected initial contacts and all performance metrics are saved to disk.
 # Note, that this is not the most efficient way to do this, as we need to open the file repeatedly and also reload the
 # data from the matlab files, even though the dummy algorithm does not need it.
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Self, Unpack
 
 import pandas as pd
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.pipeline import Region
 from tpcp.caching import hybrid_cache
-from typing_extensions import Self, Unpack
 
 
 def load_old_icd_results(result_file_path: Path) -> pd.DataFrame:

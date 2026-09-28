@@ -1,13 +1,12 @@
 import warnings
 from types import MappingProxyType
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from numba import float32, float64, guvectorize, int32
 from tpcp import cf
 from tpcp.misc import classproperty, set_defaults
-from typing_extensions import Self, Unpack
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import timed_action_method

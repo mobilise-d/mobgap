@@ -1,14 +1,13 @@
 import json
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Generic, Literal, Optional, TypeVar, Union
+from typing import Any, Generic, Literal, Optional, Self, TypeVar, Union
 
 import pandas as pd
 from sklearn.model_selection import BaseCrossValidator
 from tpcp import Algorithm, Pipeline
 from tpcp.optimize import BaseOptimize
 from tpcp.validate import DatasetSplitter, ScorerTypes, cross_validate, validate
-from typing_extensions import Self
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import MeasureTimeResults, measure_time, timer_doc_filler

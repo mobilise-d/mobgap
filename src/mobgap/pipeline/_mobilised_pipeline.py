@@ -1,12 +1,11 @@
 import warnings
 from itertools import combinations
 from types import MappingProxyType
-from typing import Any, Final, Generic, Optional
+from typing import Any, Final, Generic, Optional, Self
 
 import pandas as pd
 from tpcp import cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
-from typing_extensions import Self
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds

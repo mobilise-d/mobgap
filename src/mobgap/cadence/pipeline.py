@@ -1,10 +1,10 @@
 """Pipeline for running a cadence estimation algorithm on a Gait Dataset."""
 
 import warnings
+from typing import Self
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from typing_extensions import Self
 
 from mobgap.cadence.base import BaseCadCalculator
 from mobgap.data.base import BaseGaitDatasetWithReference

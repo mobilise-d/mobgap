@@ -1,12 +1,12 @@
 """Helpful pipelines to evaluate reorientation algorithms."""
 
 from collections.abc import Hashable
+from typing import Self
 
 import pandas as pd
 from scipy.spatial.transform import Rotation
 from tpcp import OptimizableParameter, Pipeline
 from tpcp.misc import iter_with_warning_error_context
-from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDatasetWithReference
 from mobgap.pipeline import iter_gs

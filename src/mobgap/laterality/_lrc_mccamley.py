@@ -1,9 +1,8 @@
-from typing import Any, Literal
+from typing import Any, Literal, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from tpcp import cf
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
