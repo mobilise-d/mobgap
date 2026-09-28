@@ -37,36 +37,6 @@ DEFAULT_OUTPUT_DIR = Path(".cache") / "weartime_loso_runs"
 DEFAULT_CACHE_DIR = Path(".cache") / "mobgap"
 
 
-def _path_from_env_or_arg(value: str | None, env_var: str, *, fallback: Path | None = None) -> Path:
-    if value is not None:
-        return Path(value).expanduser()
-    env_value = get_env_var(env_var, default=None) if fallback is not None else get_env_var(env_var)
-    if env_value is not None:
-        return Path(env_value).expanduser()
-    return fallback
-
-
-def _configure_tensorflow() -> dict[str, Any]:
-    tf = import_module("tensorflow")
-    gpus = tf.config.list_physical_devices("GPU")
-    for gpu in gpus:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    return {
-        "tensorflow_version": tf.__version__,
-        "gpu_devices": [str(gpu) for gpu in gpus],
-    }
-
-
-def _resolve_n_jobs(requested_n_jobs: int, tf_metadata: dict[str, Any]) -> int:
-    if tf_metadata["gpu_devices"] and requested_n_jobs != 1:
-        LOGGER.warning(
-            "GPU devices are available, so LOSO folds must run sequentially. Overriding --n-jobs=%s to 1.",
-            requested_n_jobs,
-        )
-        return 1
-    return requested_n_jobs
-
-
 def _fold_metadata(
     dataset: SustainWearTimeDataset, splitter: CombinedSplitter, training_only_index: pd.DataFrame
 ) -> pd.DataFrame:
@@ -229,15 +199,15 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one place.
     """Run the LOSO evaluation."""
     args = _parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
 
     run_name = args.run_name or f"loso_daily_cnn_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
-    dataset_path = _path_from_env_or_arg(args.dataset_path, "MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")
-    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
+    dataset_path = Path(args.dataset_path or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser()
+    cache_dir = Path(args.cache_dir or get_env_var("MOBGAP_CACHE_DIR_PATH", str(DEFAULT_CACHE_DIR))).expanduser()
     base_dataset = SustainWearTimeDataset(
         dataset_path,
         additional_sensors_enabled=(),
@@ -292,8 +262,17 @@ def main() -> None:
         LOGGER.info("Dry run complete. Wrote fold metadata and human and part B dataset indices.")
         return
 
-    tf_metadata = _configure_tensorflow()
-    n_jobs = _resolve_n_jobs(args.n_jobs, tf_metadata)
+    tf = import_module("tensorflow")
+    gpus = tf.config.list_physical_devices("GPU")
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    tf_metadata = {"tensorflow_version": tf.__version__, "gpu_devices": [str(gpu) for gpu in gpus]}
+    n_jobs = args.n_jobs
+    if gpus and n_jobs != 1:
+        LOGGER.warning(
+            "GPU devices are available, so LOSO folds must run sequentially. Overriding --n-jobs=%s to 1.", n_jobs
+        )
+        n_jobs = 1
     LOGGER.info("TensorFlow %s", tf_metadata["tensorflow_version"])
     LOGGER.info("GPU devices: %s", tf_metadata["gpu_devices"] or "none")
 
