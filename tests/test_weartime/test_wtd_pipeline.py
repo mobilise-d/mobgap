@@ -170,3 +170,16 @@ def test_wtd_score_combines_half_open_matches_across_datapoints():
 
     assert [combined[f"combined__{kind}_samples"] for kind in ("tp", "fp", "fn", "tn")] == [1, 1, 2, 1]
     assert combined["combined__reference_weartime_min"] == pytest.approx(3 / 60)
+
+
+@pytest.mark.parametrize("waking_hours_min, expected_minutes", [((7 * 60, 22 * 60), 0), ((5, 20), 5)])
+def test_short_recording_clips_detected_and_reference_waking_time(waking_hours_min, expected_minutes):
+    intervals = _intervals([(0, 600)])
+    datapoint = DummyDatapoint(data=_sensor_frame_data(600), reference_weartime=intervals, sampling_rate_hz=1.0)
+    pipeline = WtdEmulationPipeline(DummyWtd(intervals, waking_hours_min=waking_hours_min))
+
+    scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
+
+    assert scores["waking_detected_weartime_min"] == expected_minutes
+    assert scores["waking_reference_weartime_min"] == expected_minutes
+    assert scores["waking_weartime_error_min"] == 0

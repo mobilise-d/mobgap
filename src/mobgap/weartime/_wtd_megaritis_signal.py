@@ -138,13 +138,10 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     extracted from the post-processed sample-level predictions by filtering wear-time to the
     configured waking-hours window.
 
-    The pipeline is designed for daily recordings (midnight-to-midnight, ~24 hours).
-    For recordings shorter than the configured waking-hours end, the algorithm issues a warning and uses
-    ``total_weartime_min_`` as a fallback for ``total_weartime_during_waking_min_``. For recordings longer than
-    one day, accessing ``total_weartime_during_waking_min_`` raises an error because the recording must be segmented
-    per day before a single daily waking-hours window can be applied.
-    Waking hours are identified using sample indices derived from minutes since midnight rather than timestamps,
-    ensuring compatibility with devices that may not provide timestamp metadata.
+    Recordings must be segmented per day. When the data has a ``DatetimeIndex``, its timestamps define the waking-hours
+    window. Otherwise, sample zero is assumed to be midnight. Partial days contribute only wear-time within the
+    configured window. Accessing ``total_weartime_during_waking_min_`` raises an error for recordings longer than
+    24 hours or timestamped recordings that cross midnight.
     """
 
     diagnostics_: dict[str, Union[pd.DataFrame, list]]

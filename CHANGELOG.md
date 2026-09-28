@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wear-time waking-hours totals now count only intervals within the configured window, including for short recordings
+  without timestamps. The fallback to total wear-time has been removed; sample zero is assumed to be midnight.
+
 - Per-second cadence and stride-length values now retain their magnitude when mapped to regions at fractional sampling
   rates. Previously, rounded second boundaries could make a constant value appear too high or too low.
   This is unlikely to change existing results, since it matters when non-integer sampling rates make rounded second

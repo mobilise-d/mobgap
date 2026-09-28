@@ -1,6 +1,5 @@
 """Base class for weartime detectors."""
 
-import warnings
 from collections.abc import Iterable
 from typing import Any, Union
 
@@ -38,7 +37,7 @@ total_weartime_min_
         "total_weartime_during_waking_min_": """
 total_weartime_during_waking_min_
     Total wear-time during the configured waking-hours window in minutes.
-    For recordings that do not cover the full configured window, this can fall back to ``total_weartime_min_``.
+    Only wear-time within the intersection of the recording and the configured window is counted.
     For recordings longer than one day, algorithms should raise an error instead of applying a single daily window.
 """,
         "detect_short": """
@@ -123,9 +122,8 @@ class BaseWeartimeDetector(Algorithm):
     during waking hours per valid day. Algorithms may expose a configurable waking-hours window; the current default is
     07:00-22:00.
 
-    The waking hours calculation assumes recordings are segmented per day (midnight-to-midnight).
-    For recordings shorter than the configured waking-hours end, algorithms issue a warning and use
-    ``total_weartime_min_`` as a fallback for ``total_weartime_during_waking_min_``.
+    Recordings must be segmented per day. A ``DatetimeIndex`` supplies the time of day; otherwise, sample zero
+    is assumed to be midnight. Only wear-time within the configured window is counted, even for partial days.
     For recordings longer than one day, algorithms should raise an error instead of applying a single daily window to
     multi-day data.
 
@@ -180,15 +178,6 @@ class BaseWeartimeDetector(Algorithm):
                 "Cannot calculate weartime during waking hours for recordings longer than one day. "
                 "Segment the recording into individual days before applying a daily waking-hours window."
             )
-
-        waking_end_sample = int(waking_hours_min[1] * 60 * sampling_rate_hz)
-        if not isinstance(data.index, pd.DatetimeIndex) and data_length < waking_end_sample:
-            warnings.warn(
-                f"Recording duration ({recording_hours:.1f}h) is shorter than the configured waking-hours window. "
-                "Using total_weartime_min_ for total_weartime_during_waking_min_.",
-                stacklevel=2,
-            )
-            return self.total_weartime_min_
 
         weartime_waking = clip_intervals_to_waking_hours(
             self.weartime_list_,
