@@ -401,3 +401,16 @@ def test_simulated_movements_are_all_nonwear(tmp_path):
 
     assert list(weartime.columns) == ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
     assert weartime.empty
+
+
+@pytest.mark.parametrize("recording_id", [HUMAN_RECORDING_ID, SIMULATED_RECORDING_ID])
+def test_grouping_preserves_selected_recording_metadata_and_references(tmp_path, recording_id):
+    base_path = _create_sustain_layout(tmp_path)
+    datapoint = SustainWearTimeDataset(
+        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
+    ).get_subset(recording_id=recording_id)
+    grouped = datapoint.groupby("recording_id")
+
+    assert grouped.recording_metadata == datapoint.recording_metadata
+    assert_frame_equal(grouped.reference_nonwear_, datapoint.reference_nonwear_)
+    assert_frame_equal(grouped.reference_weartime_, datapoint.reference_weartime_)

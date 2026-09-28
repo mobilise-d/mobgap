@@ -289,10 +289,11 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     def recording_metadata(self) -> RecordingMetadata:
         self.assert_is_single(None, "recording_metadata")
         metadata = self.cwa_header_
+        row = self.index_as_tuples()[0]
         recording_metadata = {
             "measurement_condition": "laboratory",
-            "recording_id": self.group_label.recording_id,
-            "recording_type": self.group_label.recording_type,
+            "recording_id": row.recording_id,
+            "recording_type": row.recording_type,
             "file_name": self._selected_file_path.name,
             "hardware_type": metadata.get("hardware_type"),
             "device_id": metadata.get("device_id"),
@@ -300,7 +301,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             "logging_end_time": metadata.get("logging_end_time"),
             "cwa_header": metadata,
         }
-        recording_metadata["recording_day"] = str(self.index.iloc[0]["recording_day"])
+        recording_metadata["recording_day"] = str(row.recording_day)
         return recording_metadata
 
     @property
@@ -312,7 +313,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     def reference_nonwear_(self) -> pd.DataFrame:
         self.assert_is_single(None, "reference_nonwear_")
         data = self.data_ss
-        if self.group_label.recording_type == "simulated_movements":
+        if self.index_as_tuples()[0].recording_type == "simulated_movements":
             intervals = pd.DataFrame({"start": [0], "end": [len(data)]})
             return _format_reference_df(
                 intervals,
@@ -357,13 +358,14 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path)
 
     def _raw_reference_for_selected_recording(self) -> pd.DataFrame:
+        participant_id = self.index_as_tuples()[0].participant_id
         reference = self._cached_load_reference_file()
         reference = reference[
-            (reference["participant_id"] == self.group_label.participant_id) & (reference["wear_status"] == "non_wear")
+            (reference["participant_id"] == participant_id) & (reference["wear_status"] == "non_wear")
         ]
 
         if reference.empty:
-            msg = f"Could not find non-wear reference rows for participant={self.group_label.participant_id}."
+            msg = f"Could not find non-wear reference rows for participant={participant_id}."
             if self.missing_reference_error_type == "raise":
                 raise ValueError(msg)
             if self.missing_reference_error_type == "warn":
@@ -373,7 +375,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         if invalid_timestamp_rows.any():
             raise ValueError(
                 "The SUSTAIN wear-time reference file contains missing `device_off` timestamps for "
-                f"participant={self.group_label.participant_id}. Missing `device_on` timestamps are supported and "
+                f"participant={participant_id}. Missing `device_on` timestamps are supported and "
                 "treated as open non-wear intervals until the end of the selected recording data."
             )
 
