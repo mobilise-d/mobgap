@@ -15,8 +15,8 @@ supported Python version below 3.13. Supply `--dataset-path` or set
 | XGBoost | `training/train_xgboost.py` | `evaluation/loso_daily_xgboost.py` |
 
 Run each script with `--help` for its data selection, model, and output
-options. The daily evaluation scripts support `--dry-run` to write the dataset
-index and fold plan without fitting models.
+options. The daily evaluation scripts support `--dry-run` to write the fold
+plan without fitting models.
 
 The XGBoost scripts accept `--overlap` (default `0.75`; `0` uses non-overlapping
 windows). They cache one float32 feature result per selected recording or day
@@ -39,7 +39,8 @@ Both daily evaluation scripts use TPCP's `CombinedSplitter` and `NoSplit` to put
 the same two part B recordings in training for every fold. Test folds contain
 only part A human recordings. By default, the scripts choose the first two part B recording IDs in sorted
 order. Pass `--part-b-recording-id` twice to select different recordings. The
-output includes `training_only_index.csv` with every included day.
+splitter applies both the human participant selection and the fixed part B training selection.
+The dry run writes the fold plan to `fold_metadata.csv`.
 
 CNN training saves a `.keras` artifact. Load it in a fresh Python process with
 `mobgap.weartime.load_keras_weartime_model(path)` so the optional model-side
