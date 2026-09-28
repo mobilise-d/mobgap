@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import warnings
 from functools import partial
-from math import ceil, floor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Union
 
@@ -25,7 +24,6 @@ PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
-SAMPLE_COUNT_TOL = 1e-6
 _DEFAULT_DAILY_SPLITTER = partial(split_by_utc_day, min_duration=pd.Timedelta(hours=8))
 
 
@@ -188,12 +186,6 @@ def _recording_start_end_from_timing_report(timing_report: dict[str, Any]) -> tu
     return start, end
 
 
-def _sample_count_from_time_bounds_s(start_time_s: float, end_time_s: float, sampling_rate_hz: float) -> int:
-    start_sample = ceil(start_time_s * sampling_rate_hz - SAMPLE_COUNT_TOL)
-    end_sample = ceil(end_time_s * sampling_rate_hz - SAMPLE_COUNT_TOL)
-    return max(0, end_sample - start_sample)
-
-
 class SustainWearTimeDataset(BaseAX6Dataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
@@ -241,8 +233,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         The full CWA header of the selected recording as returned by ``cwa_reader_rs``.
     cwa_timing_report_
         The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
-    n_samples
-        Number of samples in the selected window, derived from CWA timing metadata without loading the full data.
     reference_nonwear_
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
@@ -294,25 +284,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     @property
     def _reference_path(self) -> Path:
         return self._human_movement_path / "reference.json"
-
-    @property
-    def n_samples(self) -> int:
-        self.assert_is_single(None, "n_samples")
-        timing_report = self.cwa_timing_report_
-        sampling_rate_hz = self.sampling_rate_hz
-        recording_start, last_sample = _recording_start_end_from_timing_report(timing_report)
-        recording_end = last_sample + pd.to_timedelta(1 / sampling_rate_hz, unit="s")
-        start, end = self._selected_time_bounds()
-        if start == recording_start and end == recording_end:
-            return max(
-                0,
-                floor((float(timing_report["duration_s_from_data"]) + 1 / sampling_rate_hz) * sampling_rate_hz + 1e-9),
-            )
-        return _sample_count_from_time_bounds_s(
-            (start - recording_start).total_seconds(),
-            (end - recording_start).total_seconds(),
-            sampling_rate_hz,
-        )
 
     @property
     def recording_metadata(self) -> RecordingMetadata:
