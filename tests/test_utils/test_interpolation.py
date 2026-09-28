@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from numpy.testing import assert_equal
+from numpy.testing import assert_allclose, assert_equal
 from pandas._testing import assert_series_equal
 
 from mobgap.utils.interpolation import interval_mean, naive_sec_paras_to_regions
@@ -110,6 +110,16 @@ class TestNaiveSecParasToRegions:
         result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=12.5)
 
         assert np.isfinite(result.loc[0, "cadence_spm"])
+
+    def test_fractional_sampling_rate_preserves_constant_values(self):
+        sec_paras = pd.DataFrame({"sec_center_samples": [6, 19, 31, 44], "cadence_spm": [60.0] * 4}).set_index(
+            "sec_center_samples"
+        )
+        region_list = pd.DataFrame({"start": [13, 26], "end": [25, 37]})
+
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=12.5)
+
+        assert_allclose(result["cadence_spm"], [60.0, 60.0])
 
     def test_empty_inputs(self):
         region_list = pd.DataFrame(columns=["start", "end"])
