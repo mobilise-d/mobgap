@@ -34,7 +34,7 @@ from optuna import Study, Trial
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
 from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
-from tpcp.validate import DatasetSplitter, cross_validate
+from tpcp.validate import BaseDatasetSplitter, DatasetSplitter, cross_validate
 
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.weartime import WtdMegaritisXGBoost
@@ -71,9 +71,9 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
     def __init__(
         self,
         pipeline: WtdEmulationPipeline,
+        inner_splitter: BaseDatasetSplitter,
         *,
         n_trials: int = 20,
-        inner_folds: int = 5,
         train_fraction: float = 0.4,
         random_seed: int = 42,
         get_study_params: Callable[[int], dict[str, Any]] = _study_params,
@@ -85,7 +85,7 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
         show_progress_bar: bool = False,
         return_optimized: bool = True,
     ) -> None:
-        self.inner_folds = inner_folds
+        self.inner_splitter = inner_splitter
         self.train_fraction = train_fraction
         super().__init__(
             pipeline,
@@ -114,10 +114,6 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
                 "algo__clf__min_child_weight": trial.suggest_categorical("algo__clf__min_child_weight", [1, 3]),
             }
             pipeline.set_params(**params)
-            inner_cv = _combined_splitter(
-                DatasetSplitter(GroupKFold(n_splits=self.inner_folds), groupby="participant_id"),
-                self.inner_folds,
-            )
             inner_optimizer = Optimize(
                 pipeline,
                 train_dataset_transform=partial(
@@ -130,7 +126,7 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
                 inner_optimizer,
                 dataset,
                 scoring=wtd_score,
-                cv=inner_cv,
+                cv=self.inner_splitter,
                 n_jobs=1,
                 return_train_score=False,
                 progress_bar=False,
@@ -276,11 +272,11 @@ def main() -> None:
     training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
     evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
     evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
-    splitter = _combined_splitter(
+    outer_splitter = _combined_splitter(
         DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
         dataset.index["participant_id"].nunique(),
     )
-    fold_metadata = _fold_metadata(evaluation_dataset, splitter, training_only_index)
+    fold_metadata = _fold_metadata(evaluation_dataset, outer_splitter, training_only_index)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
@@ -310,10 +306,15 @@ def main() -> None:
 
     cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
     pipeline = _make_pipeline(args, cache_dir)
+    # The outer split decides which part B days enter training; inner CV only keeps those days out of validation.
+    inner_splitter = _combined_splitter(
+        DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id"),
+        args.inner_folds,
+    )
     evaluation = EvaluationCV(
         dataset=evaluation_dataset,
         scoring=wtd_score,
-        cv_iterator=splitter,
+        cv_iterator=outer_splitter,
         cv_params={
             "n_jobs": args.cv_n_jobs,
             "return_train_score": False,
@@ -323,8 +324,8 @@ def main() -> None:
     )
     optimizer = XGBoostOptunaOptimize(
         pipeline,
+        inner_splitter,
         n_trials=args.n_trials,
-        inner_folds=args.inner_folds,
         train_fraction=args.search_train_fraction,
         random_seed=args.search_seed,
     )
