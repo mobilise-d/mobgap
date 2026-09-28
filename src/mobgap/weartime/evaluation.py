@@ -11,21 +11,7 @@ from mobgap.data.base import BaseGaitDataset
 from mobgap.gait_sequences.evaluation import calculate_matched_gsd_performance_metrics
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
-
-
-def _empty_weartime_df(index_name: str = "wt_id") -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "start": pd.Series(dtype="int64"),
-            "end": pd.Series(dtype="int64"),
-        }
-    ).rename_axis(index_name)
-
-
-def _only_start_end(intervals: pd.DataFrame, *, index_name: str = "wt_id") -> pd.DataFrame:
-    if intervals.empty:
-        return _empty_weartime_df(index_name)
-    return intervals[["start", "end"]].astype({"start": "int64", "end": "int64"})
+from mobgap.weartime.utils._intervals import _only_start_end
 
 
 def _categorize_weartime_samples(detected: pd.DataFrame, reference: pd.DataFrame, n_samples: int) -> pd.DataFrame:
@@ -63,10 +49,6 @@ def _duration_metrics(
     }
 
 
-def _get_waking_hours_min(pipeline: WtdEmulationPipeline) -> tuple[int, int]:
-    return pipeline.algo_.waking_hours_min
-
-
 def wtd_per_datapoint_score(
     pipeline: WtdEmulationPipeline,
     datapoint: BaseGaitDataset,
@@ -88,7 +70,7 @@ def wtd_per_datapoint_score(
         reference_weartime = _only_start_end(datapoint.reference_weartime_, index_name="weartime_id")
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
-        waking_hours_min = _get_waking_hours_min(pipeline)
+        waking_hours_min = pipeline.algo_.waking_hours_min
 
         matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data))
 
