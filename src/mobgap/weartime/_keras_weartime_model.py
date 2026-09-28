@@ -18,6 +18,12 @@ from tpcp.misc import classproperty
 from typing_extensions import Self
 
 from mobgap.consts import BF_SENSOR_COLS
+from mobgap.weartime.utils.ml_feature_extraction import (
+    labels_from_interval_arrays,
+    reference_weartime_interval_arrays,
+    window_count_from_sample_count,
+    window_start_end,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -62,21 +68,6 @@ def _validate_model_sampling_rate(
         )
 
 
-def _window_start_end(n_samples: int, window_samples: int, step_samples: int) -> np.ndarray:
-    if n_samples < window_samples:
-        return np.empty((0, 2), dtype=np.int64)
-    starts = np.arange(0, n_samples - window_samples + 1, step_samples, dtype=np.int64)
-    return np.column_stack([starts, starts + window_samples])
-
-
-def _window_count_from_sample_count(n_samples: int, window_samples: int, step_samples: int) -> int:
-    if n_samples < 0:
-        raise ValueError("Recording sample counts must be non-negative.")
-    if n_samples < window_samples:
-        return 0
-    return (n_samples - window_samples) // step_samples + 1
-
-
 def _steps_per_epoch_from_recording_sample_counts(
     recording_sample_counts: RecordingSampleCounts,
     *,
@@ -88,7 +79,7 @@ def _steps_per_epoch_from_recording_sample_counts(
         raise ValueError("`batch_size` must be positive.")
 
     total_windows = sum(
-        _window_count_from_sample_count(int(sample_count), window_samples, step_samples)
+        window_count_from_sample_count(int(sample_count), window_samples, step_samples)
         for sample_count in recording_sample_counts
     )
     if total_windows <= 0:
@@ -149,33 +140,6 @@ def _stepped_window_view(sensor_data: np.ndarray, window_samples: int, step_samp
         )
     window_view.setflags(write=False)
     return window_view
-
-
-def _reference_weartime_interval_arrays(reference_weartime: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    if len(reference_weartime) == 0:
-        empty = np.empty(0, dtype=np.int64)
-        return empty, empty
-
-    intervals = reference_weartime[["start", "end"]].to_numpy(dtype=np.int64, copy=False)
-    intervals = intervals[np.argsort(intervals[:, 0], kind="stable")]
-    return intervals[:, 0], intervals[:, 1]
-
-
-def _labels_from_interval_arrays(
-    centers: np.ndarray, interval_starts: np.ndarray, interval_ends: np.ndarray
-) -> np.ndarray:
-    if len(interval_starts) == 0:
-        return np.zeros(len(centers), dtype=np.int32)
-
-    interval_indices = np.searchsorted(interval_starts, centers, side="right") - 1
-    labels = np.zeros(len(centers), dtype=np.int32)
-    valid = interval_indices >= 0
-    labels[valid] = centers[valid] < interval_ends[interval_indices[valid]]
-    return labels
-
-
-def _labels_from_interval_centers(centers: np.ndarray, reference_weartime: pd.DataFrame) -> np.ndarray:
-    return _labels_from_interval_arrays(centers, *_reference_weartime_interval_arrays(reference_weartime))
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -256,10 +220,10 @@ class BaseKerasWeartimeModel(Algorithm):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.window_samples_, self.step_samples_ = self._window_parameters(sampling_rate_hz)
-        self.window_start_end_ = _window_start_end(len(data), self.window_samples_, self.step_samples_)
+        self.window_start_end_ = window_start_end(len(data), self.window_samples_, self.step_samples_)
 
         probability_batches: list[np.ndarray] = []
-        for batch_index, (windows, _) in enumerate(self._iter_window_batches(data, sampling_rate_hz)):
+        for batch_index, windows in enumerate(self._iter_window_batches(data, sampling_rate_hz)):
             _LOGGER.debug(
                 "Predicting Keras wear-time window batch %s: n_windows=%s, rss_mb=%s",
                 batch_index,
@@ -363,19 +327,18 @@ class BaseKerasWeartimeModel(Algorithm):
         self,
         data: pd.DataFrame,
         sampling_rate_hz: float,
-        reference_weartime: pd.DataFrame | None = None,
         recording_index: int | None = None,
-    ) -> Iterator[tuple[np.ndarray, np.ndarray | None]]:
+    ) -> Iterator[np.ndarray]:
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-        window_start_end = _window_start_end(len(data), window_samples, step_samples)
+        n_windows = window_count_from_sample_count(len(data), window_samples, step_samples)
         _LOGGER.debug(
             "Preparing Keras wear-time windows for recording %s: n_samples=%s, n_windows=%s, rss_mb=%s",
             recording_index,
             len(data),
-            len(window_start_end),
+            n_windows,
             _rss_mb(),
         )
-        if len(window_start_end) == 0:
+        if n_windows == 0:
             return
 
         sensor_data = (
@@ -384,26 +347,16 @@ class BaseKerasWeartimeModel(Algorithm):
             else data[list(self.sensor_cols)].to_numpy(copy=False)
         )
         sensor_data = _as_model_input_sensor_array(sensor_data)
-        window_view = _stepped_window_view(sensor_data, window_samples, step_samples, len(window_start_end))
-        reference_interval_arrays = (
-            _reference_weartime_interval_arrays(reference_weartime) if reference_weartime is not None else None
-        )
+        window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
 
-        for batch_index, batch_start in enumerate(range(0, len(window_start_end), self.window_batch_size)):
-            batch_start_end = window_start_end[batch_start : batch_start + self.window_batch_size]
-            starts = batch_start_end[:, 0]
-            batch_window_view = window_view[batch_start : batch_start + len(batch_start_end)]
+        for batch_index, batch_start in enumerate(range(0, n_windows, self.window_batch_size)):
+            batch_window_view = window_view[batch_start : batch_start + self.window_batch_size]
             if self.standardize_in_model and batch_window_view.flags.c_contiguous:
                 windows = batch_window_view
             else:
                 windows = np.array(batch_window_view, dtype=np.float32, order="C")
             if not self.standardize_in_model:
                 windows = _standardize_windows(windows)
-            labels = (
-                _labels_from_interval_arrays(starts + window_samples // 2, *reference_interval_arrays)
-                if reference_interval_arrays is not None
-                else None
-            )
             _LOGGER.debug(
                 "Yielding Keras wear-time window batch %s for recording %s: start_window=%s, n_windows=%s, rss_mb=%s",
                 batch_index,
@@ -412,11 +365,12 @@ class BaseKerasWeartimeModel(Algorithm):
                 len(windows),
                 _rss_mb(),
             )
-            yield windows, labels
+            yield windows
 
     def _iter_training_window_batches(
         self, training_data: TrainingData, sampling_rate_hz: float
     ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+        window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         for recording_index, (data, reference_weartime) in enumerate(training_data):
             _LOGGER.debug(
                 "Loaded Keras wear-time training recording %s: n_samples=%s, n_reference_intervals=%s, rss_mb=%s",
@@ -425,14 +379,13 @@ class BaseKerasWeartimeModel(Algorithm):
                 len(reference_weartime),
                 _rss_mb(),
             )
-            for windows, labels in self._iter_window_batches(
-                data,
-                sampling_rate_hz,
-                reference_weartime=reference_weartime,
-                recording_index=recording_index,
+            reference_interval_arrays = reference_weartime_interval_arrays(reference_weartime)
+            for batch_index, windows in enumerate(
+                self._iter_window_batches(data, sampling_rate_hz, recording_index=recording_index)
             ):
-                if labels is not None:
-                    yield windows, labels
+                batch_start = batch_index * self.window_batch_size
+                centers = np.arange(batch_start, batch_start + len(windows)) * step_samples + window_samples // 2
+                yield windows, labels_from_interval_arrays(centers, *reference_interval_arrays)
 
     def _make_tf_dataset(
         self,
