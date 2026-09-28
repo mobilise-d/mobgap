@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import logging
 from datetime import datetime
-from importlib import import_module
+from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -21,7 +21,6 @@ from loso_daily_cnn import (
     DEFAULT_CACHE_DIR,
     DEFAULT_OUTPUT_DIR,
     _fold_metadata,
-    _path_from_env_or_arg,
     _write_results,
 )
 from optuna import Study, Trial
@@ -32,6 +31,7 @@ from tpcp.validate import BaseDatasetSplitter, CombinedSplitter, DatasetSplitter
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV
+from mobgap.utils.misc import get_env_var
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
@@ -138,26 +138,6 @@ def _write_search_results(evaluation: EvaluationCV, output_dir: Path) -> None:
     pd.concat(trial_frames, ignore_index=True).to_csv(output_dir / "optuna_trials.csv", index=False)
 
 
-def _xgboost_version() -> str | None:
-    try:
-        xgboost = import_module("xgboost")
-    except ImportError:
-        return None
-    return xgboost.__version__
-
-
-def _classifier_params(clf: Any) -> dict[str, Any]:
-    get_params = getattr(clf, "get_params", None)
-    if get_params is None:
-        return {}
-    params = {}
-    for key, value in get_params().items():
-        if not isinstance(value, (str, int, float, bool, type(None))):
-            continue
-        params[key] = None if isinstance(value, float) and not np.isfinite(value) else value
-    return params
-
-
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -238,8 +218,8 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
 
     run_name = args.run_name or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
-    dataset_path = _path_from_env_or_arg(args.dataset_path, "MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")
-    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
+    dataset_path = Path(args.dataset_path or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser()
+    cache_dir = Path(args.cache_dir or get_env_var("MOBGAP_CACHE_DIR_PATH", str(DEFAULT_CACHE_DIR))).expanduser()
     base_dataset = SustainWearTimeDataset(
         dataset_path,
         additional_sensors_enabled=(),
@@ -338,7 +318,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
 
     run_metadata = {
         "run_name": run_name,
-        "xgboost_version": _xgboost_version(),
+        "xgboost_version": version("xgboost"),
         "numpy_version": np.__version__,
         "n_jobs": args.n_jobs,
         "cv_n_jobs": args.cv_n_jobs,
@@ -357,7 +337,6 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
             "window_batch_size": args.window_batch_size,
             "overlap": pipeline.algo.overlap,
             "window_sec": pipeline.algo.window_sec,
-            "classifier": _classifier_params(pipeline.algo.clf),
         },
     }
     _write_results(
