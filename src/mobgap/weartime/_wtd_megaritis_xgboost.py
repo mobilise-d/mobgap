@@ -27,7 +27,6 @@ import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
 from joblib import hash as joblib_hash
-from sklearn.exceptions import NotFittedError
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from tpcp.misc import classproperty
@@ -109,69 +108,6 @@ def _new_xgboost_classifier() -> _SklearnWearTimeClassifier:
         min_child_weight=3,
         random_state=42,
     )
-
-
-def _wear_probabilities(clf: _SklearnWearTimeClassifier, features: pd.DataFrame) -> np.ndarray:
-    probabilities = np.asarray(clf.predict_proba(features))
-    classes = getattr(clf, "classes_", None)
-    if classes is not None and not np.any(np.asarray(classes) == 1):
-        return np.zeros(len(features), dtype=np.float32)
-    if probabilities.ndim == 1:
-        return probabilities.astype(np.float32, copy=False)
-
-    wear_class_indices = np.flatnonzero(np.asarray(classes) == 1) if classes is not None else []
-    wear_class_index = int(wear_class_indices[0]) if len(wear_class_indices) else probabilities.shape[1] - 1
-    return probabilities[:, wear_class_index].astype(np.float32, copy=False)
-
-
-def _classifier_fitted_state(clf: _SklearnWearTimeClassifier) -> bool | None:  # noqa: C901
-    try:
-        check_is_fitted(clf)
-    except NotFittedError:
-        fitted_state = False
-    except (AttributeError, TypeError):
-        fitted_state = None
-    else:
-        fitted_state = True
-
-    if fitted_state is not None:
-        return fitted_state
-
-    for attr_name in ("classes_", "is_fitted_"):
-        try:
-            getattr(clf, attr_name)
-        except (AttributeError, NotFittedError):
-            continue
-        return True
-
-    get_booster = getattr(clf, "get_booster", None)
-    if not callable(get_booster):
-        return None
-
-    booster_state = None
-    try:
-        get_booster()
-    except Exception as exc:  # noqa: BLE001 - XGBoost raises its own compatibility-dependent errors here.
-        if isinstance(exc, NotFittedError) or "need to call fit" in str(exc):
-            booster_state = False
-    else:
-        booster_state = True
-
-    return booster_state
-
-
-def _check_classifier_is_unfitted(clf: _SklearnWearTimeClassifier) -> None:
-    fitted_state = _classifier_fitted_state(clf)
-    if fitted_state is not True:
-        return
-    raise RuntimeError("Classifier is already fitted. Initialize the detector with an untrained classifier first.")
-
-
-def _check_classifier_is_fitted(clf: _SklearnWearTimeClassifier) -> None:
-    fitted_state = _classifier_fitted_state(clf)
-    if fitted_state is not False:
-        return
-    raise RuntimeError("Classifier is not fitted. Call self_optimize before calling detect.")
 
 
 def _validate_model_sampling_rate(
@@ -431,9 +367,9 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     Parameters
     ----------
     clf
-        Fitted or trainable sklearn-compatible classifier exposing ``fit`` and ``predict_proba``. If ``None``,
-        ``detect`` lazily loads the packaged pretrained model selected by ``version`` and ``self_optimize`` creates a
-        new ``xgboost.XGBClassifier`` with the production hyperparameters.
+        Fitted or trainable sklearn classifier exposing ``fit`` and binary ``predict_proba`` with classes ``[0, 1]``.
+        If ``None``, ``detect`` lazily loads the packaged pretrained model selected by ``version`` and
+        ``self_optimize`` creates a new ``xgboost.XGBClassifier`` with the production hyperparameters.
     feature_names
         Feature order expected by ``clf``. If ``None``, the original production order for ``version`` is used.
     version
@@ -598,7 +534,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         assert_is_sensor_data(data, frame="body")
 
         clf, feature_names, trained_sampling_rate_hz = self._classifier_and_feature_names()
-        _check_classifier_is_fitted(clf)
+        check_is_fitted(clf)
         _validate_model_sampling_rate(
             trained_sampling_rate_hz=trained_sampling_rate_hz,
             sampling_rate_hz=sampling_rate_hz,
@@ -618,7 +554,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             feature_names=feature_names,
         ):
             feature_batches.append(features)
-            probability_batches.append(_wear_probabilities(clf, features))
+            probability_batches.append(clf.predict_proba(features)[:, 1].astype(np.float32, copy=False))
 
         self.feature_matrix_ = (
             pd.concat(feature_batches, axis=0, ignore_index=True)
@@ -674,9 +610,8 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         recording_sample_counts: RecordingSampleCounts,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
-        """Fit the configured sklearn-compatible classifier from lazy recording-level training data."""
+        """Fit the configured classifier from lazy recording-level training data."""
         clf = self.clf or _new_xgboost_classifier()
-        _check_classifier_is_unfitted(clf)
 
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         total_windows = sum(

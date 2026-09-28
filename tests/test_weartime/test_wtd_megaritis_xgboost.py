@@ -11,8 +11,8 @@ from joblib import Memory
 from numpy.testing import assert_allclose, assert_array_equal
 from pandas.testing import assert_frame_equal
 from scipy.signal import welch
-from sklearn.dummy import DummyClassifier
-from sklearn.exceptions import NotFittedError
+from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_is_fitted
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-class _FixedProbabilityClassifier:
+class _FixedProbabilityClassifier(BaseEstimator):
     """Small sklearn-style classifier double returning fixed wear probabilities."""
 
     batch_sizes: ClassVar[list[int]] = []
@@ -45,6 +45,9 @@ class _FixedProbabilityClassifier:
         self.classes_ = np.array([0, 1])
         self.is_fitted_ = True
 
+    def fit(self, _features: pd.DataFrame, _labels: np.ndarray) -> _FixedProbabilityClassifier:
+        return self
+
     def predict_proba(self, features: pd.DataFrame) -> np.ndarray:
         start = sum(type(self).batch_sizes)
         end = start + len(features)
@@ -53,33 +56,13 @@ class _FixedProbabilityClassifier:
         return np.column_stack([1 - wear_probabilities, wear_probabilities])
 
 
-class _TrainableProbabilityClassifier:
+class _TrainableProbabilityClassifier(BaseEstimator):
     """Small sklearn-style classifier double that records fit inputs."""
 
     def fit(self, features: pd.DataFrame, labels: np.ndarray, **kwargs: object) -> _TrainableProbabilityClassifier:
         self.fit_features_ = features.copy()
         self.fit_labels_ = labels.copy()
         self.fit_kwargs_ = kwargs
-        self.classes_ = np.array([0, 1])
-        return self
-
-    def predict_proba(self, features: pd.DataFrame) -> np.ndarray:
-        wear_probabilities = np.ones(len(features), dtype=np.float32)
-        return np.column_stack([1 - wear_probabilities, wear_probabilities])
-
-
-class _BrokenTagsUnfittedClassifier:
-    """Classifier double matching the XGBoost 1.7/sklearn 1.6 fitted-check failure."""
-
-    def __sklearn_tags__(self) -> None:
-        raise AttributeError("'super' object has no attribute '__sklearn_tags__'")
-
-    def get_booster(self) -> None:
-        raise NotFittedError("need to call fit or load_model beforehand")
-
-    def fit(self, features: pd.DataFrame, labels: np.ndarray, **_: object) -> _BrokenTagsUnfittedClassifier:
-        self.fit_features_ = features.copy()
-        self.fit_labels_ = labels.copy()
         self.classes_ = np.array([0, 1])
         return self
 
@@ -229,23 +212,6 @@ class TestWtdMegaritisXGBoost:
         assert result.feature_matrix_.empty
         assert result.window_predictions_.size == 0
         assert result.total_weartime_min_ == 0
-
-    def test_self_optimize_handles_xgboost_sklearn_tag_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Train XGBoost-like estimators whose sklearn fitted check fails before fitting."""
-        _patch_simple_features(monkeypatch)
-        clf = _BrokenTagsUnfittedClassifier()
-        training_data = [(_sensor_data(20), _weartime_list([(0, 20)]))]
-
-        result = WtdMegaritisXGBoost(
-            clf=clf,
-            feature_names=("window_start",),
-            window_sec=20.0,
-            overlap=0.0,
-            trained_sampling_rate_hz=None,
-        ).self_optimize(training_data, sampling_rate_hz=1.0, recording_sample_counts=(20,))
-
-        assert result.clf is clf
-        assert_array_equal(clf.fit_labels_, np.array([1], dtype=np.int32))
 
     def test_sampling_rate_is_passed_to_feature_extraction(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Use the runtime sampling rate for spectral and jerk features."""
@@ -422,21 +388,25 @@ class TestWtdMegaritisXGBoost:
         """Keep the production model artifacts available as package resources."""
         assert xgb_module.files("mobgap.weartime.production_models").joinpath(filename).is_file()
 
+    @pytest.mark.parametrize(
+        ("version", "expected_wear_probability"),
+        [("lightweight", 0.0011219463), ("full", 0.0079961754)],
+    )
+    def test_packaged_classifier_loads_and_predicts(self, version: str, expected_wear_probability: float) -> None:
+        """Keep the bundled classifiers usable with the supported XGBoost version."""
+        pytest.importorskip("xgboost")
+        config = getattr(WtdMegaritisXGBoost.PredefinedParameters, version)
+        clf = config["clf"]
+        check_is_fitted(clf)
+
+        features = pd.DataFrame(
+            np.zeros((1, len(config["feature_names"])), dtype=np.float32), columns=config["feature_names"]
+        )
+        assert_allclose(clf.predict_proba(features)[0, 1], expected_wear_probability, rtol=1e-5)
+
 
 class TestWtdMegaritisXGBoostFeatureExtraction:
-    """Verify classifier probability mapping and extracted feature contracts."""
-
-    @pytest.mark.parametrize("class_label", [0, 1])
-    def test_single_class_classifier_maps_wear_probability(self, class_label: int) -> None:
-        """Map one-class sklearn probabilities to the wear label."""
-        features = pd.DataFrame({"feature": [0.0, 1.0]})
-        clf = DummyClassifier(strategy="most_frequent").fit(features, [class_label, class_label])
-
-        probabilities = xgb_module._wear_probabilities(clf, features)
-
-        assert_array_equal(probabilities, np.full(2, class_label, dtype=np.float32))
-
-    """Tests for feature extraction helpers around optional dependencies."""
+    """Verify extracted feature contracts."""
 
     def test_pretrained_feature_names_are_available_without_xgboost(self) -> None:
         """Load feature-order resources without importing the optional model package."""
