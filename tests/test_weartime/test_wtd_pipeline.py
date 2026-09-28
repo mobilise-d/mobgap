@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any, NamedTuple, Optional
 
 import pandas as pd
@@ -66,6 +67,18 @@ class DummyWtd(BaseWeartimeDetector):
         return super().total_weartime_during_waking_min_
 
 
+class DummyOptimizableWtd(DummyWtd):
+    def self_optimize(
+        self,
+        training_data: Iterable[tuple[pd.DataFrame, pd.DataFrame]],
+        *,
+        sampling_rate_hz: float,
+    ) -> BaseWeartimeDetector:
+        self.training_records = list(training_data)
+        self.optimize_sampling_rate_hz = sampling_rate_hz
+        return DummyWtd(self.weartime_list, waking_hours_min=self.waking_hours_min)
+
+
 def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:
     return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index_name)
 
@@ -100,6 +113,30 @@ def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():
     assert not hasattr(pipeline, "total_weartime_minutes_")
     assert not hasattr(pipeline, "total_weartime_hours_")
     assert not hasattr(pipeline, "total_weartime_hours_during_waking_")
+
+
+def test_wtd_emulation_pipeline_optimizes_with_paired_training_records():
+    datapoints = [
+        DummyDatapoint(
+            data=_sensor_frame_data(3),
+            reference_weartime=_intervals([(0, 3)]),
+            sampling_rate_hz=10.0,
+        ),
+        DummyDatapoint(
+            data=_sensor_frame_data(4),
+            reference_weartime=_intervals([(1, 4)]),
+            sampling_rate_hz=10.0,
+            group_label=GroupLabel("002", "rec_2"),
+        ),
+    ]
+
+    algo = DummyOptimizableWtd(_intervals([]))
+    pipeline = WtdEmulationPipeline(algo).self_optimize(datapoints)
+
+    assert pipeline.algo is not algo
+    assert algo.optimize_sampling_rate_hz == 10.0
+    assert_frame_equal(algo.training_records[0][0], to_body_frame(datapoints[0].data_ss))
+    assert_frame_equal(algo.training_records[0][1], datapoints[0].reference_weartime_)
 
 
 def test_wtd_score_counts_half_open_samples_and_minute_durations():
