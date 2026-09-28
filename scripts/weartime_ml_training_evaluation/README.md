@@ -40,6 +40,7 @@ the same sampled part B recordings in training for every fold. Test folds contai
 only part A human recordings. By default, the scripts sample two part B recordings
 with seed 42; `--part-b-recording-count` changes the count. The splitter applies
 both the human participant selection and the fixed part B training selection.
+`NoSplit` takes its fold count from the human participant splitter.
 The dry run writes the fold plan to `fold_metadata.csv`.
 
 CNN training saves a `.keras` artifact. Load it in a fresh Python process with
