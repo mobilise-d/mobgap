@@ -1,10 +1,10 @@
 """Helpful Pipelines to wrap the ICD algorithms for optimization and evaluation."""
 
 import warnings
+from typing import Self
 
 import pandas as pd
 from tpcp import OptimizableParameter, OptimizablePipeline
-from typing_extensions import Self
 
 from mobgap._utils_internal.misc import MeasureTimeResults, timed_action_method
 from mobgap.data.base import BaseGaitDatasetWithReference

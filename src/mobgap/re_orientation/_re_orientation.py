@@ -17,14 +17,13 @@ Two correction modes:
 
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from scipy import signal
 from scipy.spatial.transform import Rotation
 from tpcp import cf
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import FirFilter
 from mobgap.data_transform.base import BaseFilter

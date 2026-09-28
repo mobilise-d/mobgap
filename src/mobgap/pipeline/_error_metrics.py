@@ -83,9 +83,7 @@ def rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "rel_error")
     result = (det - ref) / ref
-    with pd.option_context("future.no_silent_downcasting", True):
-        result = result.replace([np.inf, -np.inf], np.nan).infer_objects(copy=False)
-    return result
+    return result.replace([np.inf, -np.inf], np.nan).infer_objects()
 
 
 def abs_error(
@@ -146,9 +144,7 @@ def abs_rel_error(
     # inform about zero division if it occurs
     _handle_zero_division(ref, zero_division_hint, "abs_rel_error")
     result = abs((det - ref) / ref)
-    with pd.option_context("future.no_silent_downcasting", True):
-        result = result.replace([np.inf, -np.inf], np.nan).infer_objects(copy=False)
-    return result
+    return result.replace([np.inf, -np.inf], np.nan).infer_objects()
 
 
 class ErrorTransformFuncs:
@@ -208,7 +204,7 @@ def icc(
     reference_col_name: str = "reference",
     detected_col_name: str = "detected",
     *,
-    icc_type: str = "icc2",
+    icc_type: str = "ICC(A,1)",
     nan_policy: Literal["raise", "omit"] = "raise",
 ) -> tuple[float, tuple[float, float]]:
     """
@@ -223,16 +219,17 @@ def icc(
     detected_col_name
         The identifier of the column containing the detected values.
     icc_type
-        The type of the ICC. Can be one of "icc1", "icc2", "icc3", "icc1k", "icc2k", "icc3k".
+        The type of the ICC. Can be one of "ICC(1,1)", "ICC(A,1)", "ICC(C,1)", "ICC(1,k)",
+        "ICC(A,k)", or "ICC(C,k)".
         See the documentation of the `pingouin.intraclass_corr` function for more information.
-        Default is "icc2", often also referred to as ICC(2,1).
+        Default is "ICC(A,1)", often also referred to as ICC(2,1).
     nan_policy
         How to handle NaN values. Can be one of "raise" (error is raised), or "omit" (NaN values are ignored).
         Default is "raise".
 
     Notes
     -----
-    Note, that in case of ICC2, the confidence interval is reported as [np.nan, np.nan] if the ICC is 1 or 0 (aka
+    Note, that in case of ICC(A,1), the confidence interval is reported as [np.nan, np.nan] if the ICC is 1 or 0 (aka
     perfect agreement or disagreement) as the confidence interval is not defined in this case.
     Other implementations might return [1, 1] in this case.
 
@@ -253,11 +250,8 @@ def icc(
         .rename("value")
         .reset_index()
     )
-    icc, ci95 = (
-        intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
-        .set_index("Type")
-        .loc[icc_type.upper(), ["ICC", "CI95%"]]
-    )
+    result = intraclass_corr(data=df, targets="targets", raters="rater", ratings="value", nan_policy=nan_policy)
+    icc, ci95 = result.set_index("Type").loc[icc_type, ["ICC", "CI95"]]
     return float(icc), tuple(float(v) for v in ci95)
 
 

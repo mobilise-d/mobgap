@@ -1,10 +1,9 @@
 from collections.abc import Sequence
 from importlib.resources import files
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Literal
 
 from mobgap.consts import GRAV_MS2
 

@@ -1,9 +1,8 @@
 import warnings
 from collections.abc import Sequence
-from typing import Any, Optional, Union
+from typing import Any, Optional, Self, Union, Unpack
 
 import numpy as np
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform.base import BaseTransformer, base_transformer_docfiller
 from mobgap.utils.conversions import as_samples

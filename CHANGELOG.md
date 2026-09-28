@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This can change cadence and stride-length results. To reproduce the previous behavior, pass
   `step_time_smoothing=HampelFilter(2, 3.0)` or `step_length_smoothing=HampelFilter(2, 3.0)` to the corresponding
   algorithm. Direct uses of `HampelFilter` retain the old default. (https://github.com/mobilise-d/mobgap/issues/101)
+- **Breaking:** mobgap now requires Python 3.11 or newer. Users on Python 3.9 or 3.10 must upgrade Python before
+  installing this release.
+- **Breaking:** mobgap now requires pandas 3.0 or newer. Users with pandas 2.x pinned must upgrade pandas before
+  installing this release.
+- **Breaking:** mobgap now requires Pingouin 0.6.1 or newer. Users with Pingouin 0.5.x or 0.6.0 pinned must upgrade
+  Pingouin before installing this release.
+- **Breaking:** `mobgap.pipeline.icc` now accepts Pingouin's ICC type labels directly. Replace `icc1`, `icc2`, `icc3`,
+  `icc1k`, `icc2k`, and `icc3k` with `ICC(1,1)`, `ICC(A,1)`, `ICC(C,1)`, `ICC(1,k)`, `ICC(A,k)`, and `ICC(C,k)`,
+  respectively. The default remains the same ICC calculation (`ICC(A,1)`).
 - Algorithms now specify and validate only the sensor channels they need. Algorithms that do not use gyroscope or
   accelerometer data can now run when those channels are absent, including on acceleration-only data. Sensor and body
   frame conversion also supports these partial inputs. (https://github.com/mobilise-d/mobgap/issues/172,

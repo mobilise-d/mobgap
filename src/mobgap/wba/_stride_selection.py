@@ -1,11 +1,10 @@
 import warnings
 from types import MappingProxyType
-from typing import Final, Literal, Optional
+from typing import Final, Literal, Optional, Self
 
 import pandas as pd
 from tpcp import Algorithm, cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
-from typing_extensions import Self
 
 from mobgap.wba._interval_criteria import (
     BaseIntervalCriteria,
@@ -186,8 +185,7 @@ class StrideSelection(Algorithm):
         self.check_results_ = pd.concat(rule_results, axis=1)
 
         def _get_rule_obj(rule_names: pd.Series) -> pd.Series:
-            with pd.option_context("future.no_silent_downcasting", True):
-                return rule_names.replace(rules_as_dict).infer_objects(copy=False)
+            return rule_names.map(rules_as_dict)
 
         # find first rule that fails:
         # idxmin will return the first False, but will always return a rule, even if everything is True

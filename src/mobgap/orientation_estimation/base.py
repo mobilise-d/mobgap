@@ -1,11 +1,10 @@
 """Base classes for the orientation estimation methods that can be used to estimate the orientation of an IMU."""
 
-from typing import Any
+from typing import Any, Self, Unpack
 
 import pandas as pd
 from scipy.spatial.transform import Rotation
 from tpcp import Algorithm
-from typing_extensions import Self, Unpack
 
 from mobgap.utils.conversions import transform_to_global_frame
 

@@ -1,11 +1,10 @@
-from typing import Any, Optional
+from typing import Any, Optional, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from scipy.integrate import cumulative_trapezoid
 from scipy.signal import find_peaks
 from tpcp import cf
-from typing_extensions import Self, Unpack
 
 from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter

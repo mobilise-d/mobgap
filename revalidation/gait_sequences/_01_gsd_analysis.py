@@ -200,7 +200,7 @@ custom_aggs = [
             A.icc,
             reference_col_name="reference_gs_duration_s",
             detected_col_name="detected_gs_duration_s",
-            icc_type="icc2",
+            icc_type="ICC(A,1)",
         ),
         column_name=[("icc", "gs_duration_s"), ("icc_ci", "gs_duration_s")],
     ),

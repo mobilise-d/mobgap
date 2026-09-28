@@ -17,7 +17,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import toml
+import tomllib
 from sphinx_gallery.sorting import ExplicitOrder, FileNameSortKey
 
 HERE = Path(__file__)
@@ -54,7 +54,8 @@ def convert_github_md_admonitions(text):
 
 URL = "https://github.com/mobilise-d/mobgap/"
 # Info from poetry config:
-info = toml.load("../pyproject.toml")["project"]
+with (HERE.parent.parent / "pyproject.toml").open("rb") as pyproject_file:
+    info = tomllib.load(pyproject_file)["project"]
 
 project = info["name"]
 author = ", ".join(f"{author['name']} <{author['email']}>" for author in info["authors"])

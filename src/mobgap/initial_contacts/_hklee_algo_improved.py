@@ -1,10 +1,9 @@
-from typing import Any, Literal
+from typing import Any, Literal, Self, Unpack
 
 import numpy as np
 import pandas as pd
 from numpy.linalg import norm
 from scipy.ndimage import grey_closing, grey_opening
-from typing_extensions import Self, Unpack
 
 from mobgap.consts import BF_ACC_COLS, SF_ACC_COLS
 from mobgap.data_transform import (
