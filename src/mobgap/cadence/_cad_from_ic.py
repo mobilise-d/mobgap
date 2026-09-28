@@ -29,6 +29,8 @@ ic2cad_docfiller = make_filldoc(
     the gap is smaller than the specified maximum interpolation gap.
     Regions without initial contacts that are larger than the specified maximum interpolation gap or at the very start
     or end of the recording are filled with NaNs.
+    When per-second cadence is mapped to strides, a remaining NaN makes only strides overlapping that second NaN.
+    Later strides with valid cadence are still usable.
 
     For more details see the Notes section.
     """,
