@@ -76,14 +76,14 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
     return reference.sort_values(["participant_id", "device_off", "device_on"], ignore_index=True)
 
 
-def _empty_reference_df(index_name: str, datetime_dtype: str = "datetime64[ns, UTC]") -> pd.DataFrame:
+def _empty_reference_df(index_name: str) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "start": pd.Series(dtype="int64"),
             "end": pd.Series(dtype="int64"),
             "duration": pd.Series(dtype="int64"),
-            "start_dt": pd.Series(dtype=datetime_dtype),
-            "end_dt": pd.Series(dtype=datetime_dtype),
+            "start_dt": pd.Series(dtype="datetime64[ns, UTC]"),
+            "end_dt": pd.Series(dtype="datetime64[ns, UTC]"),
             "duration_s": pd.Series(dtype="float64"),
         }
     ).rename_axis(index_name)
@@ -92,8 +92,6 @@ def _empty_reference_df(index_name: str, datetime_dtype: str = "datetime64[ns, U
 def _sample_boundary_timestamp(
     data_index: pd.DatetimeIndex, sample_boundary: int, sampling_rate_hz: float
 ) -> pd.Timestamp:
-    if len(data_index) == 0:
-        return pd.NaT
     if sample_boundary >= len(data_index):
         return data_index[-1] + pd.to_timedelta(1 / sampling_rate_hz, unit="s")
     return data_index[sample_boundary]
@@ -163,7 +161,7 @@ def _complement_intervals(intervals: pd.DataFrame, data_length: int) -> pd.DataF
 
     complement: list[tuple[int, int]] = []
     current_start = 0
-    for start, end in _merge_intervals(intervals)[["start", "end"]].itertuples(index=False):
+    for start, end in intervals[["start", "end"]].itertuples(index=False):
         if start > current_start:
             complement.append((current_start, int(start)))
         current_start = max(current_start, int(end))
@@ -178,7 +176,7 @@ def _recording_start_end_from_timing_report(timing_report: dict[str, Any]) -> tu
     if start is None or end is None:
         raise ValueError(
             "The CWA timing report does not contain `start_from_data` and `end_from_data`. "
-            "These fields are required to split SUSTAIN wear-time recordings by day."
+            "These fields are required to split SUSTAIN wear-time recordings."
         )
 
     start = _as_utc_timestamp(start)
@@ -365,8 +363,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
                 ],
             }
         )
-        intervals["start"] = intervals["start"].clip(0, len(data))
-        intervals["end"] = intervals["end"].clip(0, len(data))
         return _format_reference_df(
             intervals,
             data_index=data.index,
@@ -410,7 +406,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
                 "treated as open non-wear intervals until the end of the selected recording data."
             )
 
-        return reference.sort_values(["device_off", "device_on"], ignore_index=True)
+        return reference
 
     def _get_file_paths(self) -> list[Path]:
         paths = [
