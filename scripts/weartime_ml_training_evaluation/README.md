@@ -27,7 +27,8 @@ invalidates entries created with the default hash.
 XGBoost daily evaluation scores held-out days only. It runs a separate
 Optuna search in every outer participant fold. Each trial uses participant-grouped
 inner cross-validation and samples 40% of each inner training fold's human day
-rows. The selected part B days remain in every training fit. The best
+rows. The LOSO script supplies the composed inner splitter to the Optuna optimizer.
+The selected part B days remain in every training fit. The best
 parameters are refit on every outer training day plus all selected part B days
 before scoring the held-out participant. Use `--n-trials`, `--inner-folds`,
 `--search-train-fraction`, and `--search-seed` to adjust the search.
