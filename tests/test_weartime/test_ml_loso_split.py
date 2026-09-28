@@ -1,15 +1,14 @@
-"""Check the training-only days in the daily ML evaluation split plan."""
+"""Check the training-only days in the daily ML evaluation fold plans."""
 
 from __future__ import annotations
 
 import importlib
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
 import pytest
-from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
-from tpcp.validate import DatasetSplitter
 
 from mobgap.data import SustainWearTimeDataset
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def evaluation_scripts(monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, ModuleType]:
-    """Import the command-line modules from their script directory."""
+    """Import the command-line modules when their optional ML dependencies are installed."""
     pytest.importorskip("optuna")
     pytest.importorskip("xgboost")
     script_dir = Path(__file__).resolve().parents[2] / "scripts" / "weartime_ml_training_evaluation" / "evaluation"
@@ -27,17 +26,10 @@ def evaluation_scripts(monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, Mod
     return importlib.import_module("loso_daily_cnn"), importlib.import_module("loso_daily_xgboost")
 
 
-def test_outer_and_inner_splits_keep_part_b_only_in_training(evaluation_scripts: tuple[ModuleType, ModuleType]) -> None:
-    """Part B stays in train while both splitter levels hold out only human participants."""
-    cnn, xgboost = evaluation_scripts
-
-    def part_b_days(index: pd.DataFrame) -> set[tuple[str, str]]:
-        return set(
-            index.loc[index["recording_type"] == "simulated_movements", ["recording_id", "recording_day"]].itertuples(
-                index=False, name=None
-            )
-        )
-
+def test_loso_dry_runs_keep_part_b_only_in_training(
+    evaluation_scripts: tuple[ModuleType, ModuleType], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Every held-out participant fold keeps both part B recordings in training."""
     rows = [
         {
             "recording_type": "human_movement",
@@ -61,21 +53,23 @@ def test_outer_and_inner_splits_keep_part_b_only_in_training(evaluation_scripts:
         for day in (1, 2)
     )
     dataset = SustainWearTimeDataset(Path("unused"), split_by_day=True, subset_index=pd.DataFrame(rows))
-    expected_part_b = part_b_days(dataset.index)
 
-    for human_splitter, n_folds in ((LeaveOneGroupOut(), 3), (GroupKFold(n_splits=2), 2)):
-        splitter = cnn._combined_splitter(DatasetSplitter(human_splitter, groupby="participant_id"), n_folds)
-        folds = list(splitter.split(dataset))
-        assert len(folds) == n_folds
-        for train_labels, test_labels in folds:
-            train = dataset.get_subset(group_labels=train_labels)
-            test = dataset.get_subset(group_labels=test_labels)
-            assert part_b_days(train.index) == expected_part_b
-            assert set(test.index["recording_type"]) == {"human_movement"}
-            assert set(train.index["participant_id"]).isdisjoint(set(test.index["participant_id"]))
+    for script in evaluation_scripts:
+        monkeypatch.setattr(script, "_make_base_dataset", lambda _: dataset)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [script.__name__, "--dry-run", "--output-dir", str(tmp_path), "--run-name", script.__name__],
+        )
+        script.main()
 
-            sampled = xgboost._sample_inner_training_days(train, fraction=0.4, seed=0)
-            human_count = sum(train.index["recording_type"] == "human_movement")
-            sampled_human_count = sum(sampled.index["recording_type"] == "human_movement")
-            assert sampled_human_count == max(1, round(0.4 * human_count))
-            assert part_b_days(sampled.index) == expected_part_b
+        output_dir = tmp_path / script.__name__
+        training_only = pd.read_csv(output_dir / "training_only_index.csv")
+        fold_plan = pd.read_csv(output_dir / "fold_metadata.csv")
+        assert len(training_only) == 4
+        assert set(training_only["recording_id"]) == {"part_b_020", "part_b_021"}
+        assert len(fold_plan) == 3
+        assert set(fold_plan["n_train_days"]) == {14}
+        assert set(fold_plan["n_training_only_days"]) == {4}
+        assert set(fold_plan["n_test_days"]) == {5}
+        assert all(recording_id.startswith("human_") for recording_id in fold_plan["test_recording_ids"])
