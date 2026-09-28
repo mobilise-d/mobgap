@@ -1,7 +1,7 @@
 """Train the Megaritis CNN wear-time model through the dataset-backed emulation pipeline.
 
 The script trains directly from raw SUSTAIN CWA recordings. It uses
-``WtdEmulationPipeline.self_optimize`` so data loading stays lazy: the pipeline reads sampling-rate and ``n_samples``
+``WtdEmulationPipeline.self_optimize`` so data loading stays lazy: the pipeline reads sampling-rate
 metadata first, then the low-level Keras model loads one recording at a time while TensorFlow consumes the windows.
 """
 
@@ -23,7 +23,6 @@ import numpy as np
 from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
 from mobgap.weartime import MegaritisCnnWeartimeModel, WtdMegaritisCNN
-from mobgap.weartime._keras_weartime_model import _steps_per_epoch_from_recording_sample_counts
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 LOGGER = logging.getLogger(__name__)
@@ -76,35 +75,6 @@ def _final_metric(history: dict[str, list[float]], key: str) -> float | None:
     if not values:
         return None
     return float(values[-1])
-
-
-def _training_window_metadata(
-    dataset: SustainWearTimeDataset,
-    model: MegaritisCnnWeartimeModel,
-    *,
-    batch_size: int,
-) -> dict[str, Any]:
-    sampling_rates = [float(datapoint.sampling_rate_hz) for datapoint in dataset]
-    sampling_rate_hz = sampling_rates[0]
-    if not all(np.isclose(sampling_rate, sampling_rate_hz) for sampling_rate in sampling_rates):
-        raise ValueError("All selected recordings must use the same sampling rate.")
-
-    recording_sample_counts = tuple(int(datapoint.n_samples) for datapoint in dataset)
-    window_samples, step_samples = model._window_parameters(sampling_rate_hz)
-    total_windows, steps_per_epoch = _steps_per_epoch_from_recording_sample_counts(
-        recording_sample_counts,
-        window_samples=window_samples,
-        step_samples=step_samples,
-        batch_size=batch_size,
-    )
-    return {
-        "sampling_rate_hz": sampling_rate_hz,
-        "recording_sample_counts": recording_sample_counts,
-        "window_samples": window_samples,
-        "step_samples": step_samples,
-        "total_windows": total_windows,
-        "steps_per_epoch": steps_per_epoch,
-    }
 
 
 def _parse_args() -> argparse.Namespace:
@@ -204,13 +174,6 @@ def main() -> None:
         shuffle_buffer_size=args.shuffle_buffer_size,
         standardize_in_model=args.standardize_in_model,
     )
-    training_window_metadata = _training_window_metadata(
-        dataset,
-        low_level_model,
-        batch_size=args.batch_size,
-    )
-    LOGGER.info("Training windows: %s", f"{training_window_metadata['total_windows']:,}")
-    LOGGER.info("Steps per epoch: %s", training_window_metadata["steps_per_epoch"])
 
     pipeline = WtdEmulationPipeline(WtdMegaritisCNN(model=low_level_model))
 
@@ -221,6 +184,7 @@ def main() -> None:
     trained_model = pipeline.algo.model
     if trained_model is None or trained_model._model is None:
         raise RuntimeError("Training finished without a trained Keras model.")
+    window_samples, _ = trained_model._window_parameters(trained_model._trained_sampling_rate_hz)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     model_path = output_dir / f"{run_name}.keras"
@@ -238,10 +202,7 @@ def main() -> None:
         "recording_type": args.recording_type,
         "n_recordings": len(dataset.index),
         "n_participants": int(dataset.index["participant_id"].nunique()),
-        "n_recording_samples": int(sum(training_window_metadata["recording_sample_counts"])),
-        "n_windows": int(training_window_metadata["total_windows"]),
-        "steps_per_epoch": int(training_window_metadata["steps_per_epoch"]),
-        "input_shape": [int(training_window_metadata["window_samples"]), len(trained_model.sensor_cols)],
+        "input_shape": [int(window_samples), len(trained_model.sensor_cols)],
         "hyperparameters": {
             "num_conv_layers": 3,
             "filters": list(trained_model.filters),

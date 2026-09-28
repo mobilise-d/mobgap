@@ -6,7 +6,6 @@ import logging
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
-from math import ceil
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -28,7 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from os import PathLike
 
-    from mobgap.weartime.base import RecordingSampleCounts, TrainingData
+    from mobgap.weartime.base import TrainingData
 
 _LOGGER = logging.getLogger(__name__)
 _MODEL_STANDARDIZATION_LAYER_NAME = "per_window_standardization"
@@ -56,25 +55,6 @@ def _validate_model_sampling_rate(
             f"{trained_sampling_rate_hz} Hz, but inference received {sampling_rate_hz} Hz. "
             "Pass a model trained at the target sampling rate or set `allow_sampling_rate_mismatch=True`."
         )
-
-
-def _steps_per_epoch_from_recording_sample_counts(
-    recording_sample_counts: RecordingSampleCounts,
-    *,
-    window_samples: int,
-    step_samples: int,
-    batch_size: int,
-) -> tuple[int, int]:
-    if batch_size <= 0:
-        raise ValueError("`batch_size` must be positive.")
-
-    total_windows = sum(
-        window_count_from_sample_count(int(sample_count), window_samples, step_samples)
-        for sample_count in recording_sample_counts
-    )
-    if total_windows <= 0:
-        raise ValueError("The training recordings do not contain any full model windows.")
-    return total_windows, ceil(total_windows / batch_size)
 
 
 def _standardize_windows(windows: np.ndarray) -> np.ndarray:
@@ -237,7 +217,6 @@ class BaseKerasWeartimeModel(Algorithm):
         training_data: TrainingData,
         *,
         sampling_rate_hz: float,
-        recording_sample_counts: RecordingSampleCounts,
     ) -> Self:
         """Train the internal Keras model from lazy recording-level training data."""
         if self._model is not None:
@@ -250,33 +229,19 @@ class BaseKerasWeartimeModel(Algorithm):
                 "Pass a lazy dataset wrapper whose `__iter__` creates a fresh recording iterator."
             )
 
-        window_samples, step_samples = self._window_parameters(sampling_rate_hz)
+        window_samples, _ = self._window_parameters(sampling_rate_hz)
         batch_size = int(self.batch_size)
-        recording_sample_counts = tuple(int(sample_count) for sample_count in recording_sample_counts)
-        total_windows, steps_per_epoch = _steps_per_epoch_from_recording_sample_counts(
-            recording_sample_counts,
-            window_samples=window_samples,
-            step_samples=step_samples,
-            batch_size=batch_size,
-        )
         self._trained_sampling_rate_hz = float(sampling_rate_hz)
         self._model = self._create_model((window_samples, len(self.sensor_cols)))
-        fit_parameters: dict[str, Any] = {
-            "epochs": epochs,
-            "verbose": self.fit_verbose,
-            "steps_per_epoch": steps_per_epoch,
-        }
 
         _LOGGER.debug(
             "Starting Keras wear-time model training: sampling_rate_hz=%s, epochs=%s, batch_size=%s, "
-            "window_batch_size=%s, shuffle_buffer_size=%s, total_windows=%s, steps_per_epoch=%s, rss_mb=%s",
+            "window_batch_size=%s, shuffle_buffer_size=%s, rss_mb=%s",
             sampling_rate_hz,
-            fit_parameters["epochs"],
+            epochs,
             batch_size,
             self.window_batch_size,
             self.shuffle_buffer_size,
-            total_windows,
-            steps_per_epoch,
             _rss_mb(),
         )
 
@@ -287,7 +252,8 @@ class BaseKerasWeartimeModel(Algorithm):
                 batch_size=batch_size,
                 window_samples=window_samples,
             ),
-            **fit_parameters,
+            epochs=epochs,
+            verbose=self.fit_verbose,
         )
         return self
 
@@ -397,10 +363,7 @@ class BaseKerasWeartimeModel(Algorithm):
         dataset = dataset.unbatch()
         if self.shuffle_buffer_size > 0:
             dataset = dataset.shuffle(self.shuffle_buffer_size, reshuffle_each_iteration=True)
-        # Keras keeps consuming the same dataset iterator across epoch boundaries when ``steps_per_epoch`` is set.
-        # Repeat after batching so every epoch is one full pass through the same batch sequence, including a final
-        # partial batch if the number of windows is not divisible by ``batch_size``.
-        return dataset.batch(batch_size).repeat().prefetch(tf.data.AUTOTUNE)
+        return dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
 
 class MegaritisCnnWeartimeModel(BaseKerasWeartimeModel):

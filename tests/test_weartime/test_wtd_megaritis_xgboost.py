@@ -280,7 +280,7 @@ class TestWtdMegaritisXGBoost:
             window_batch_size=1,
             n_jobs=2,
             trained_sampling_rate_hz=None,
-        ).self_optimize(training_data, sampling_rate_hz=1.0, recording_sample_counts=(40, 40))
+        ).self_optimize(training_data, sampling_rate_hz=1.0)
 
         assert result.clf is clf
         assert_allclose(clf.fit_features_["acc_pa_mean"].to_numpy(), np.array([1.0, 2.0, 3.0, 4.0]))
@@ -298,7 +298,7 @@ class TestWtdMegaritisXGBoost:
             window_sec=20.0,
             overlap=0.0,
             trained_sampling_rate_hz=None,
-        ).self_optimize(training_data, sampling_rate_hz=1.0, recording_sample_counts=(60,), sample_weight="ok")
+        ).self_optimize(training_data, sampling_rate_hz=1.0, sample_weight="ok")
 
         assert result.clf is clf
         assert result.trained_sampling_rate_hz == 1.0
@@ -332,26 +332,10 @@ class TestWtdMegaritisXGBoost:
                 window_batch_size=2,
                 memory=memory,
                 trained_sampling_rate_hz=None,
-            ).self_optimize(
-                [(recording, _weartime_list(intervals))], sampling_rate_hz=1.0, recording_sample_counts=(60,)
-            )
+            ).self_optimize([(recording, _weartime_list(intervals))], sampling_rate_hz=1.0)
             assert_array_equal(clf.fit_labels_, np.array(expected_labels, dtype=np.int32))
             model.detect(recording, sampling_rate_hz=1.0)
             assert len(calls) == expected_extractions
-
-    def test_self_optimize_rejects_mismatching_recording_sample_counts(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Keep preallocated training arrays aligned with the lazy records."""
-        _patch_simple_features(monkeypatch)
-        training_data = [(_sensor_data(60), _weartime_list([(0, 40)]))]
-
-        with pytest.raises(ValueError, match="recording_sample_counts"):
-            WtdMegaritisXGBoost(
-                clf=_TrainableProbabilityClassifier(),
-                feature_names=("window_start",),
-                window_sec=20.0,
-                overlap=0.0,
-                trained_sampling_rate_hz=None,
-            ).self_optimize(training_data, sampling_rate_hz=1.0, recording_sample_counts=(40,))
 
     def test_does_not_expose_duplicate_total_weartime_units(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Expose only the common base-class wear-time summary metrics."""
