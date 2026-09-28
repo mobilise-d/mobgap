@@ -54,32 +54,33 @@ class CwaRecordingInfo(NamedTuple):
     recording_metadata: RecordingMetadata
 
 
-def split_at_frequency(info: CwaRecordingInfo, frequency: str, label: str = "window") -> pd.DataFrame:
+def split_at_frequency(
+    info: CwaRecordingInfo, frequency: str, label: str = "window", *, min_duration: pd.Timedelta | None = None
+) -> pd.DataFrame:
     """Split a CWA recording at UTC boundaries of a fixed pandas frequency.
 
     Use ``functools.partial(split_at_frequency, frequency="30min")`` as a
     dataset splitter. Rows use half-open time windows and names such as
-    ``window_1``. The optional ``label`` changes that prefix.
+    ``window_1``. The optional ``label`` changes that prefix. Set
+    ``min_duration`` to omit windows with less recorded time than the threshold.
     """
     first_boundary = info.start_time.floor(frequency) + pd.tseries.frequencies.to_offset(frequency)
     boundaries = [info.start_time, *pd.date_range(first_boundary, info.last_sample_time, freq=frequency), info.end_time]
-    return pd.DataFrame(
-        {
-            "recording": [f"{label}_{i + 1}" for i in range(len(boundaries) - 1)],
-            "start_time": boundaries[:-1],
-            "end_time": boundaries[1:],
-        }
-    )
+    splits = pd.DataFrame({"start_time": boundaries[:-1], "end_time": boundaries[1:]})
+    if min_duration is not None:
+        splits = splits.loc[lambda df_: df_["end_time"] - df_["start_time"] >= min_duration].reset_index(drop=True)
+    splits.insert(0, "recording", [f"{label}_{i + 1}" for i in range(len(splits))])
+    return splits
 
 
-def split_by_utc_day(info: CwaRecordingInfo) -> pd.DataFrame:
-    """Split a CWA recording into half-open UTC calendar days."""
-    return split_at_frequency(info, "D", "day")
+def split_by_utc_day(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | None = None) -> pd.DataFrame:
+    """Split a CWA recording into half-open UTC calendar days, optionally omitting short days."""
+    return split_at_frequency(info, "D", "day", min_duration=min_duration)
 
 
-def split_by_utc_hour(info: CwaRecordingInfo) -> pd.DataFrame:
-    """Split a CWA recording into half-open UTC clock hours."""
-    return split_at_frequency(info, "h", "hour")
+def split_by_utc_hour(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | None = None) -> pd.DataFrame:
+    """Split a CWA recording into half-open UTC clock hours, optionally omitting short hours."""
+    return split_at_frequency(info, "h", "hour", min_duration=min_duration)
 
 
 @lru_cache(maxsize=128)
