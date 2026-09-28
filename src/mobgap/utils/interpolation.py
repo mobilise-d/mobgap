@@ -196,9 +196,10 @@ def naive_sec_paras_to_regions(
     sec_values = np.pad(sec_values, ((1, 0), (0, 0)), mode="edge")
     sec_index = np.pad(sec_index, (1, 0), mode="constant", constant_values=(sec_index[0] - sampling_rate_hz))
     valid_values = ~np.isnan(sec_values)
+    interval_widths = np.diff(sec_index, prepend=sec_index[0] - sampling_rate_hz)
     inter_vals = interp1d(
         sec_index,
-        np.cumsum(np.where(valid_values, sec_values, 0), axis=0) * sampling_rate_hz,
+        np.cumsum(np.where(valid_values, sec_values, 0) * interval_widths[:, None], axis=0),
         axis=0,
     )(region_start_end)
     missing_duration_per_interval = np.diff(sec_index)[:, None] * ~valid_values[1:]
