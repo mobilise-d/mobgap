@@ -1,13 +1,12 @@
 """Train the Megaritis XGBoost wear-time model through the dataset-backed emulation pipeline.
 
 The script trains directly from raw SUSTAIN CWA recordings. It uses
-``WtdEmulationPipeline.self_optimize`` so raw data loading stays lazy: the pipeline reads sampling-rate and
-``n_samples`` metadata first, then the XGBoost detector loads one dataset datapoint at a time while extracting window
-features. By default, raw recordings are split into daily datapoints to enable datapoint-level parallel feature
-extraction.
+``WtdEmulationPipeline.self_optimize`` so raw data loading stays lazy: the XGBoost detector loads one dataset
+datapoint at a time while extracting window features. By default, raw recordings are split into daily datapoints
+to enable datapoint-level parallel feature extraction.
 
 The final sklearn-style classifier still needs the full extracted feature matrix in memory for ``fit``. The detector
-preallocates that matrix from the dataset sample counts to avoid retaining per-batch DataFrames.
+combines the recording-level feature arrays after extraction.
 """
 
 from __future__ import annotations
@@ -30,7 +29,6 @@ from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.pipeline import WtdEmulationPipeline
-from mobgap.weartime.utils.ml_feature_extraction import window_count_from_sample_count
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_OUTPUT_DIR = Path(".cache") / "weartime_training_runs"
@@ -58,27 +56,6 @@ def _path_from_env_or_arg(value: str | None, env_var: str, *, fallback: Path | N
 
 def _dataset_index_for_metadata(dataset: SustainWearTimeDataset) -> list[dict[str, str]]:
     return [{column: str(value) for column, value in row.items()} for row in dataset.index.to_dict(orient="records")]
-
-
-def _training_window_metadata(dataset: SustainWearTimeDataset, detector: WtdMegaritisXGBoost) -> dict[str, Any]:
-    sampling_rates = [float(datapoint.sampling_rate_hz) for datapoint in dataset]
-    sampling_rate_hz = sampling_rates[0]
-    if not all(np.isclose(sampling_rate, sampling_rate_hz) for sampling_rate in sampling_rates):
-        raise ValueError("All selected recordings must use the same sampling rate.")
-
-    recording_sample_counts = tuple(int(datapoint.n_samples) for datapoint in dataset)
-    window_samples, step_samples = detector._window_parameters(sampling_rate_hz)
-    total_windows = sum(
-        window_count_from_sample_count(sample_count, window_samples, step_samples)
-        for sample_count in recording_sample_counts
-    )
-    return {
-        "sampling_rate_hz": sampling_rate_hz,
-        "recording_sample_counts": recording_sample_counts,
-        "window_samples": window_samples,
-        "step_samples": step_samples,
-        "total_windows": total_windows,
-    }
 
 
 def _untrained_config(version: Literal["full", "lightweight"]) -> dict[str, Any]:
@@ -189,13 +166,11 @@ def main() -> None:
         overlap=args.overlap,
         memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
     )
-    training_window_metadata = _training_window_metadata(dataset, detector)
 
     LOGGER.info("Training datapoints: %s", len(dataset.index))
     LOGGER.info("Raw recordings: %s", dataset.index["recording_id"].nunique())
     LOGGER.info("Participants: %s", dataset.index["participant_id"].nunique())
     LOGGER.info("Feature version: %s", args.version)
-    LOGGER.info("Training windows: %s", f"{training_window_metadata['total_windows']:,}")
     LOGGER.info("Output run name: %s", run_name)
 
     pipeline = WtdEmulationPipeline(detector)
@@ -207,6 +182,7 @@ def main() -> None:
     trained_detector = pipeline.algo
     if trained_detector.clf is None or trained_detector.feature_names is None:
         raise RuntimeError("Training finished without a trained XGBoost classifier.")
+    window_samples, step_samples = trained_detector._window_parameters(trained_detector.trained_sampling_rate_hz)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     model_path = output_dir / f"{run_name}_model.pkl"
@@ -227,14 +203,12 @@ def main() -> None:
         "n_datapoints": len(dataset.index),
         "n_recordings": int(dataset.index["recording_id"].nunique()),
         "n_participants": int(dataset.index["participant_id"].nunique()),
-        "n_recording_samples": int(sum(training_window_metadata["recording_sample_counts"])),
-        "n_windows": int(training_window_metadata["total_windows"]),
-        "window_samples": int(training_window_metadata["window_samples"]),
-        "step_samples": int(training_window_metadata["step_samples"]),
+        "window_samples": int(window_samples),
+        "step_samples": int(step_samples),
         "overlap": float(args.overlap),
         "window_batch_size": int(args.window_batch_size),
         "n_jobs": int(args.n_jobs),
-        "sampling_rate_hz": float(training_window_metadata["sampling_rate_hz"]),
+        "sampling_rate_hz": float(trained_detector.trained_sampling_rate_hz),
         "feature_names": list(trained_detector.feature_names),
         "hyperparameters": _classifier_params(trained_detector.clf),
         "training_time_seconds": int(total_time),

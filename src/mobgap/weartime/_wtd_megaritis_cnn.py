@@ -23,7 +23,6 @@ from typing_extensions import Self, Unpack
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
-    RecordingSampleCounts,
     TrainingData,
     _unify_weartime_df,
     base_weartime_docfiller,
@@ -191,7 +190,6 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         training_data: TrainingData,
         *,
         sampling_rate_hz: float,
-        recording_sample_counts: RecordingSampleCounts,
     ) -> Self:
         """Train the low-level Keras window model from lazy ``(data, reference_weartime)`` records."""
         model = self.model
@@ -200,6 +198,5 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self.model = model.self_optimize(
             training_data,
             sampling_rate_hz=sampling_rate_hz,
-            recording_sample_counts=recording_sample_counts,
         )
         return self
