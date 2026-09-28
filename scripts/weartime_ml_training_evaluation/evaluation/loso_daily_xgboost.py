@@ -22,8 +22,8 @@ import pandas as pd
 from loso_daily_cnn import (
     DEFAULT_CACHE_DIR,
     DEFAULT_OUTPUT_DIR,
+    _combined_splitter,
     _fold_metadata,
-    _inject_training_only_days,
     _make_base_dataset,
     _make_dataset,
     _path_from_env_or_arg,
@@ -56,13 +56,13 @@ def _study_params(seed: int) -> dict[str, Any]:
 
 
 def _sample_inner_training_days(
-    train_dataset: SustainWearTimeDataset, *, training_only_index: pd.DataFrame, fraction: float, seed: int
+    train_dataset: SustainWearTimeDataset, *, fraction: float, seed: int
 ) -> SustainWearTimeDataset:
-    n_days = max(1, round(len(train_dataset.index) * fraction))
-    sampled_index = train_dataset.index.sample(n=n_days, random_state=seed)
-    sampled_human_days = train_dataset.get_subset(index=sampled_index)
-    # Evil hacky hack: keep the same two part B recordings in every inner training fold.
-    return _inject_training_only_days(sampled_human_days, training_only_index)
+    human_index = train_dataset.get_subset(recording_type="human_movement").index
+    n_days = max(1, round(len(human_index) * fraction))
+    sampled_human_index = human_index.sample(n=n_days, random_state=seed)
+    training_only_index = train_dataset.get_subset(recording_type="simulated_movements").index
+    return train_dataset.get_subset(index=pd.concat([sampled_human_index, training_only_index], ignore_index=True))
 
 
 class XGBoostOptunaOptimize(CustomOptunaOptimize):
@@ -71,7 +71,6 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
     def __init__(
         self,
         pipeline: WtdEmulationPipeline,
-        training_only_index: pd.DataFrame,
         *,
         n_trials: int = 20,
         inner_folds: int = 5,
@@ -86,7 +85,6 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
         show_progress_bar: bool = False,
         return_optimized: bool = True,
     ) -> None:
-        self.training_only_index = training_only_index
         self.inner_folds = inner_folds
         self.train_fraction = train_fraction
         super().__init__(
@@ -116,12 +114,14 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
                 "algo__clf__min_child_weight": trial.suggest_categorical("algo__clf__min_child_weight", [1, 3]),
             }
             pipeline.set_params(**params)
-            inner_cv = DatasetSplitter(GroupKFold(n_splits=self.inner_folds), groupby="participant_id")
+            inner_cv = _combined_splitter(
+                DatasetSplitter(GroupKFold(n_splits=self.inner_folds), groupby="participant_id"),
+                self.inner_folds,
+            )
             inner_optimizer = Optimize(
                 pipeline,
                 train_dataset_transform=partial(
                     _sample_inner_training_days,
-                    training_only_index=self.training_only_index,
                     fraction=self.train_fraction,
                     seed=self.random_seed,
                 ),
@@ -142,18 +142,9 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
     def return_optimized_pipeline(
         self, pipeline: WtdEmulationPipeline, dataset: SustainWearTimeDataset, study: Study
     ) -> WtdEmulationPipeline:
-        """Refit the winning parameters with every outer training day and selected part B day."""
+        """Refit the winning parameters with every outer training day."""
         pipeline.set_params(**study.best_params)
-        return (
-            Optimize(
-                pipeline,
-                train_dataset_transform=partial(
-                    _inject_training_only_days, training_only_index=self.training_only_index
-                ),
-            )
-            .optimize(dataset)
-            .optimized_pipeline_
-        )
+        return Optimize(pipeline).optimize(dataset).optimized_pipeline_
 
 
 def _write_search_results(evaluation: EvaluationCV, output_dir: Path) -> None:
@@ -283,8 +274,13 @@ def main() -> None:
     base_dataset = _make_base_dataset(args)
     dataset = _make_dataset(args, base_dataset)
     training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
-    splitter = DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
-    fold_metadata = _fold_metadata(dataset, splitter, training_only_index)
+    evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
+    evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
+    splitter = _combined_splitter(
+        DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
+        dataset.index["participant_id"].nunique(),
+    )
+    fold_metadata = _fold_metadata(evaluation_dataset, splitter, training_only_index)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
@@ -315,7 +311,7 @@ def main() -> None:
     cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
     pipeline = _make_pipeline(args, cache_dir)
     evaluation = EvaluationCV(
-        dataset=dataset,
+        dataset=evaluation_dataset,
         scoring=wtd_score,
         cv_iterator=splitter,
         cv_params={
@@ -327,7 +323,6 @@ def main() -> None:
     )
     optimizer = XGBoostOptunaOptimize(
         pipeline,
-        training_only_index,
         n_trials=args.n_trials,
         inner_folds=args.inner_folds,
         train_fraction=args.search_train_fraction,
