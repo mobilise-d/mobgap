@@ -136,6 +136,33 @@ def test_day_split_keeps_the_recording_in_one_utc_day() -> None:
     assert len(data) == 72472
 
 
+@pytest.mark.parametrize(
+    ("splitter", "expected_start", "expected_end"),
+    [
+        (split_by_utc_day, "2026-09-25T00:00:00Z", "2026-09-25T01:30:00Z"),
+        (split_by_utc_hour, "2026-09-25T00:00:00Z", "2026-09-25T01:00:00Z"),
+    ],
+)
+def test_calendar_splitter_omits_windows_shorter_than_min_duration(
+    splitter: Callable[..., pd.DataFrame], expected_start: str, expected_end: str
+) -> None:
+    """A partial calendar window shorter than the requested duration is omitted."""
+    info = CwaRecordingInfo(
+        path=EXAMPLE_CWA,
+        start_time=pd.Timestamp("2026-09-24T23:30:00Z"),
+        last_sample_time=pd.Timestamp("2026-09-25T01:29:59.990Z"),
+        end_time=pd.Timestamp("2026-09-25T01:30:00Z"),
+        cwa_header={"sample_rate_hz": 100.0},
+        cwa_timing_report={},
+        recording_metadata={},
+    )
+
+    splits = splitter(info, min_duration=pd.Timedelta(hours=1))
+
+    assert splits.start_time.tolist() == [pd.Timestamp(expected_start)]
+    assert splits.end_time.tolist() == [pd.Timestamp(expected_end)]
+
+
 @pytest.mark.parametrize(("splitter", "label"), [(split_by_utc_day, "day"), (split_by_utc_hour, "hour")])
 def test_calendar_split_cuts_at_utc_midnight(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, splitter: Callable[[CwaRecordingInfo], pd.DataFrame], label: str
