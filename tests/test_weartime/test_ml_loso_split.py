@@ -180,3 +180,23 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     sampled = sample_human_days(human_training_days)
     assert set(sampled.index["recording_type"]) == {"human_movement"}
     assert len(sampled.index) == max(1, round(0.4 * len(human_training_days.index)))
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["loso_daily_xgboost", "--dataset-path", "unused", "--inner-folds", "2", "--part-b-day-count", "3"],
+    )
+    xgboost.main()
+    part_b_days_by_fold = [
+        evaluation_dataset.get_subset(group_labels=train_labels).get_subset(recording_type="simulated_movements").index
+        for train_labels, _ in captured_splitters["outer"].split(evaluation_dataset)
+    ]
+    assert len(part_b_days_by_fold) == 3
+    assert all(len(days) == 3 for days in part_b_days_by_fold)
+    assert set(part_b_days_by_fold[0][["recording_id", "recording_day"]].itertuples(index=False, name=None)) == {
+        ("part_b_020", "2020-02-01"),
+        ("part_b_020", "2020-02-02"),
+        ("part_b_022", "2020-02-02"),
+    }
+    for days in part_b_days_by_fold[1:]:
+        pd.testing.assert_frame_equal(days, part_b_days_by_fold[0])
