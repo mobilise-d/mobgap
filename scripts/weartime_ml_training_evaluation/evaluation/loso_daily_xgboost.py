@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-import time
-from datetime import datetime, timedelta
-from functools import partial
+from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
@@ -23,10 +21,7 @@ from loso_daily_cnn import (
     DEFAULT_CACHE_DIR,
     DEFAULT_OUTPUT_DIR,
     _fold_metadata,
-    _make_base_dataset,
-    _make_dataset,
     _path_from_env_or_arg,
-    _select_training_only_index,
     _write_results,
 )
 from optuna import Study, Trial
@@ -35,6 +30,7 @@ from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
 from tpcp.validate import BaseDatasetSplitter, CombinedSplitter, DatasetSplitter, NoSplit, cross_validate
 
+from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.evaluation import wtd_score
@@ -47,21 +43,9 @@ if TYPE_CHECKING:
 
     from optuna.trial import FrozenTrial
 
-    from mobgap.data import SustainWearTimeDataset
-
 
 def _study_params(seed: int) -> dict[str, Any]:
     return {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)}
-
-
-def _sample_inner_training_days(
-    train_dataset: SustainWearTimeDataset, *, fraction: float, seed: int
-) -> SustainWearTimeDataset:
-    human_index = train_dataset.get_subset(recording_type="human_movement").index
-    n_days = max(1, round(len(human_index) * fraction))
-    sampled_human_index = human_index.sample(n=n_days, random_state=seed)
-    training_only_index = train_dataset.get_subset(recording_type="simulated_movements").index
-    return train_dataset.get_subset(index=pd.concat([sampled_human_index, training_only_index], ignore_index=True))
 
 
 class XGBoostOptunaOptimize(CustomOptunaOptimize):
@@ -115,15 +99,15 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
             pipeline.set_params(**params)
             inner_optimizer = Optimize(
                 pipeline,
-                train_dataset_transform=partial(
-                    _sample_inner_training_days,
-                    fraction=self.train_fraction,
-                    seed=self.random_seed,
+                train_dataset_transform=lambda train_days: train_days.get_subset(
+                    index=train_days.index.sample(
+                        n=max(1, round(len(train_days.index) * self.train_fraction)), random_state=self.random_seed
+                    )
                 ),
             )
             scores = cross_validate(
                 inner_optimizer,
-                dataset,
+                dataset.get_subset(recording_type="human_movement"),
                 scoring=wtd_score,
                 cv=self.inner_splitter,
                 n_jobs=1,
@@ -174,18 +158,6 @@ def _classifier_params(clf: Any) -> dict[str, Any]:
     return params
 
 
-def _make_pipeline(args: argparse.Namespace, cache_dir: Path) -> WtdEmulationPipeline:
-    return WtdEmulationPipeline(
-        WtdMegaritisXGBoost(
-            **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
-            window_batch_size=args.window_batch_size,
-            n_jobs=args.n_jobs,
-            overlap=args.overlap,
-            feature_memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
-        )
-    )
-
-
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -230,7 +202,7 @@ def _parse_args() -> argparse.Namespace:
         "--search-train-fraction",
         type=float,
         default=0.4,
-        help="Fraction of human inner training days sampled for each trial; all selected part B days stay included.",
+        help="Fraction of human inner training days sampled for each Optuna trial; part B is excluded from search.",
     )
     parser.add_argument("--search-seed", type=int, default=42, help="Seed for Optuna and inner training-day sampling.")
     parser.add_argument(
@@ -259,16 +231,37 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one place.
     """Run the XGBoost LOSO evaluation."""
     args = _parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
 
     run_name = args.run_name or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
-    base_dataset = _make_base_dataset(args)
-    dataset = _make_dataset(args, base_dataset)
-    training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
+    dataset_path = _path_from_env_or_arg(args.dataset_path, "MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")
+    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
+    base_dataset = SustainWearTimeDataset(
+        dataset_path,
+        additional_sensors_enabled=(),
+        warn_thres_for_sampling_rate_deviations_hz=None,
+        split_by_day=True,
+        memory=joblib.Memory(cache_dir, verbose=0),
+    )
+    dataset = base_dataset.get_subset(recording_type="human_movement")
+    if args.participant_id:
+        dataset = dataset.get_subset(index=dataset.index[dataset.index["participant_id"].isin(args.participant_id)])
+    if args.max_participants is not None:
+        selected_participants = dataset.index["participant_id"].drop_duplicates().iloc[: args.max_participants]
+        dataset = dataset.get_subset(index=dataset.index[dataset.index["participant_id"].isin(selected_participants)])
+    if len(dataset.index) == 0:
+        raise ValueError("The selected SUSTAIN human split-by-day subset is empty.")
+
+    part_b_index = base_dataset.get_subset(recording_type="simulated_movements").index
+    available_ids = sorted(part_b_index["recording_id"].unique())
+    selected_ids = available_ids[:2] if args.part_b_recording_id is None else args.part_b_recording_id
+    if len(selected_ids) != 2 or len(set(selected_ids)) != 2 or not set(selected_ids).issubset(available_ids):
+        raise ValueError("Select exactly two distinct part B recording IDs present in the dataset.")
+    training_only_index = part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
     evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
     evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
     outer_splitter = CombinedSplitter(
@@ -311,21 +304,17 @@ def main() -> None:
     if args.inner_folds < 2 or args.inner_folds > dataset.index["participant_id"].nunique() - 1:
         raise ValueError("--inner-folds must be between 2 and the number of outer training participants.")
 
-    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
-    pipeline = _make_pipeline(args, cache_dir)
-    # The outer split decides which part B days enter training; inner CV only keeps those days out of validation.
-    inner_splitter = CombinedSplitter(
-        parts=[
-            (
-                lambda days: days.get_subset(recording_type="human_movement"),
-                DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id"),
-            ),
-            (
-                lambda days: days.get_subset(recording_type="simulated_movements"),
-                NoSplit(args.inner_folds, train=lambda days: days),
-            ),
-        ]
+    pipeline = WtdEmulationPipeline(
+        WtdMegaritisXGBoost(
+            **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
+            window_batch_size=args.window_batch_size,
+            n_jobs=args.n_jobs,
+            overlap=args.overlap,
+            feature_memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
+        )
     )
+    # Only the outer split includes part B; Optuna searches human movement days exclusively.
+    inner_splitter = DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id")
     evaluation = EvaluationCV(
         dataset=evaluation_dataset,
         scoring=wtd_score,
@@ -345,14 +334,10 @@ def main() -> None:
         random_seed=args.search_seed,
     )
 
-    total_start = time.time()
     evaluation.run(optimizer)
-    total_time = time.time() - total_start
 
     run_metadata = {
         "run_name": run_name,
-        "training_date": datetime.now().isoformat(),
-        "total_runtime_seconds": int(total_time),
         "xgboost_version": _xgboost_version(),
         "numpy_version": np.__version__,
         "n_jobs": args.n_jobs,
@@ -385,7 +370,6 @@ def main() -> None:
     )
     _write_search_results(evaluation, output_dir)
 
-    LOGGER.info("LOSO XGBoost evaluation complete in %s", timedelta(seconds=int(total_time)))
     LOGGER.info("Results written to %s", output_dir)
 
 
