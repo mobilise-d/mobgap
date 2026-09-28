@@ -225,7 +225,7 @@ def main() -> None:
             (
                 lambda days: days.get_subset(recording_type="simulated_movements"),
                 NoSplit(
-                    select_human_days(base_dataset).index["participant_id"].nunique(),
+                    None,
                     train=lambda days: days.get_subset(
                         recording_id=days.index["recording_id"]
                         .drop_duplicates()
