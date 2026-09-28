@@ -27,7 +27,7 @@ import joblib
 import numpy as np
 
 from mobgap import PROJECT_ROOT
-from mobgap.data import SustainWearTimeDataset
+from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils.ml_feature_extraction import window_count_from_sample_count
@@ -173,7 +173,7 @@ def main() -> None:
         dataset_path,
         additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
-        split_by_day=args.split_by_day,
+        splitter=split_by_utc_day if args.split_by_day else None,
         memory=joblib.Memory(cache_dir, verbose=0),
     ).get_subset(recording_type=args.recording_type)
     if args.participant_id:

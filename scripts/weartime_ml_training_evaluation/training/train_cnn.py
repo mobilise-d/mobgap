@@ -183,6 +183,7 @@ def main() -> None:
         dataset_path,
         additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
+        splitter=None,
         memory=joblib.Memory(cache_dir, verbose=0),
     ).get_subset(recording_type=args.recording_type)
     if args.participant_id:

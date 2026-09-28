@@ -29,7 +29,7 @@ from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
 from tpcp.optimize import Optimize
 from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit, cross_validate
 
-from mobgap.data import SustainWearTimeDataset
+from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.utils.misc import get_env_var
 from mobgap.weartime import WtdMegaritisXGBoost
@@ -143,7 +143,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
         dataset_path,
         additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
-        split_by_day=True,
+        splitter=split_by_utc_day,
         memory=joblib.Memory(cache_dir, verbose=0),
     )
     dataset = base_dataset.get_subset(recording_type="human_movement")
