@@ -758,7 +758,7 @@ def _windowed_sensor_arrays(
     return windows[:, :, :3], windows[:, :, 3:]
 
 
-def extract_features_90pct_batched(  # noqa: PLR0915
+def extract_features_90pct_batched(  # noqa: PLR0915, PLR0917 - Preserve the established feature extraction API.
     df: pd.DataFrame | np.ndarray,
     window_start_end: np.ndarray,
     acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
@@ -955,7 +955,7 @@ def _batched_psd_features(
     }
 
 
-def extract_full_features_batched(  # noqa: PLR0915
+def extract_full_features_batched(  # noqa: PLR0915, PLR0917 - Preserve the established feature extraction API.
     df: pd.DataFrame | np.ndarray,
     window_start_end: np.ndarray,
     acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
@@ -1137,7 +1137,7 @@ def extract_full_features_batched(  # noqa: PLR0915
     return pd.DataFrame({feature_name: features[feature_name] for feature_name in feature_names})
 
 
-def extract_features_batched(
+def extract_features_batched(  # noqa: PLR0917 - Preserve the established feature extraction API.
     df: pd.DataFrame | np.ndarray,
     window_start_end: np.ndarray,
     acc_axes: tuple[str, str, str] = ("acc_is", "acc_ml", "acc_pa"),
