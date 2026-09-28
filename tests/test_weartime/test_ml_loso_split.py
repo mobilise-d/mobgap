@@ -54,7 +54,7 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
             "recording_day": f"2020-02-{day:02d}",
             "file_path": f"part_b_{participant}.cwa",
         }
-        for participant in ("020", "021", "022")
+        for participant in ("020", "021", "022", "023")
         for day in (1, 2)
     )
     dataset = SustainWearTimeDataset(Path("unused"), splitter=split_by_utc_day, subset_index=pd.DataFrame(rows))
@@ -102,11 +102,14 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
                 "003",
                 "--max-participants",
                 "2",
+                "--part-b-recording-count",
+                "1",
             ],
         )
         script.main()
         selected_folds = pd.read_csv(tmp_path / f"{script.__name__}_selected" / "fold_metadata.csv")
         assert set(selected_folds["held_out_participant_ids"].astype(str).str.zfill(3)) == {"002", "003"}
+        assert set(selected_folds["n_train_days"]) == {7}
 
     xgboost = evaluation_scripts[1]
     captured_splitters: dict[str, BaseDatasetSplitter] = {}
@@ -130,7 +133,7 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         outer_train = evaluation_dataset.get_subset(group_labels=outer_train_labels)
         part_b_train = outer_train.get_subset(recording_type="simulated_movements").index
         assert len(part_b_train) == 4
-        assert set(part_b_train["recording_id"]) == {"part_b_020", "part_b_021"}
+        assert set(part_b_train["recording_id"]) == {"part_b_021", "part_b_023"}
 
     captured_inner: dict[str, object] = {}
 
