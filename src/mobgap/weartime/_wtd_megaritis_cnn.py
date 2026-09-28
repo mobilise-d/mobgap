@@ -14,8 +14,7 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional
 
 import pandas as pd
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
@@ -38,16 +37,6 @@ from mobgap.weartime.utils.windows_to_weartime import (
 
 if TYPE_CHECKING:
     from mobgap.weartime._keras_weartime_model import BaseKerasWeartimeModel
-
-_C = TypeVar("_C", bound=Callable[..., Any])
-
-
-def _make_action_safe(action_method: _C) -> _C:
-    """Apply tpcp action checks while staying compatible with tpcp 2.1's test mixin."""
-    safe_action_method = make_action_safe(action_method)
-    with suppress(AttributeError):
-        delattr(safe_action_method, "__tpcp_action_method")
-    return safe_action_method
 
 
 @base_weartime_docfiller
@@ -125,7 +114,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self.model = model
         self.waking_hours_min = waking_hours_min
 
-    @_make_action_safe
+    @make_action_safe
     @timed_action_method
     @base_weartime_docfiller
     def detect(

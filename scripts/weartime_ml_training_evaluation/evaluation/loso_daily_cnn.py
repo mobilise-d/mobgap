@@ -2,7 +2,7 @@
 
 The evaluation dataset is split by recording day, but the cross-validation groups by participant. This means every
 fold holds out all days of one human participant and trains on all days from all other human
-participants, plus two part B recordings added through TPCP's training dataset transform.
+participants, plus the same two part B recordings assigned to training by a combined splitter.
 
 The script intentionally uses the standard :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` and
 :data:`~mobgap.weartime.evaluation.wtd_score` scorer so that metrics match the rest of the wear-time evaluation code.
@@ -15,7 +15,6 @@ import json
 import logging
 import time
 from datetime import datetime, timedelta
-from functools import partial
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -25,7 +24,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import Optimize
-from tpcp.validate import DatasetSplitter
+from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV
@@ -105,29 +104,41 @@ def _select_training_only_index(base_dataset: SustainWearTimeDataset, recording_
     return part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
 
 
-def _inject_training_only_days(
-    train_dataset: SustainWearTimeDataset, training_only_index: pd.DataFrame
-) -> SustainWearTimeDataset:
-    # Evil hacky hack: get_subset(index=...) accepts rows outside this fold's subset, so inject the same part B days
-    # into every optimizer training set while keeping the evaluation dataset and all test folds human-only.
-    combined_index = pd.concat([train_dataset.index, training_only_index], ignore_index=True)
-    return train_dataset.get_subset(index=combined_index)
+def _human_days(dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
+    return dataset.get_subset(recording_type="human_movement")
+
+
+def _training_only_days(dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
+    return dataset.get_subset(recording_type="simulated_movements")
+
+
+def _all_days(dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
+    return dataset
+
+
+def _combined_splitter(human_splitter: DatasetSplitter, n_folds: int) -> CombinedSplitter:
+    return CombinedSplitter(
+        parts=[
+            (_human_days, human_splitter),
+            (_training_only_days, NoSplit(n_folds, train=_all_days)),
+        ]
+    )
 
 
 def _fold_metadata(
-    dataset: SustainWearTimeDataset, splitter: DatasetSplitter, training_only_index: pd.DataFrame
+    dataset: SustainWearTimeDataset, splitter: CombinedSplitter, training_only_index: pd.DataFrame
 ) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
-    for fold, (train_idx, test_idx) in enumerate(splitter.split(dataset)):
-        train_index = dataset.index.iloc[train_idx]
-        test_index = dataset.index.iloc[test_idx]
+    for fold, (train_labels, test_labels) in enumerate(splitter.split(dataset)):
+        train_index = dataset.get_subset(group_labels=train_labels).index
+        test_index = dataset.get_subset(group_labels=test_labels).index
         test_participants = sorted(test_index["participant_id"].unique())
-        train_participants = sorted(pd.concat([train_index, training_only_index])["participant_id"].unique())
+        train_participants = sorted(train_index["participant_id"].unique())
         rows.append(
             {
                 "fold": fold,
                 "held_out_participant_ids": ",".join(str(participant_id) for participant_id in test_participants),
-                "n_train_days": len(train_index) + len(training_only_index),
+                "n_train_days": len(train_index),
                 "n_training_only_days": len(training_only_index),
                 "n_test_days": len(test_index),
                 "n_train_participants": len(train_participants),
@@ -299,8 +310,13 @@ def main() -> None:
     base_dataset = _make_base_dataset(args)
     dataset = _make_dataset(args, base_dataset)
     training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
-    splitter = DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
-    fold_metadata = _fold_metadata(dataset, splitter, training_only_index)
+    evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
+    evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
+    splitter = _combined_splitter(
+        DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
+        dataset.index["participant_id"].nunique(),
+    )
+    fold_metadata = _fold_metadata(evaluation_dataset, splitter, training_only_index)
 
     LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
     LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
@@ -325,7 +341,7 @@ def main() -> None:
 
     pipeline = _make_pipeline(args)
     evaluation = EvaluationCV(
-        dataset=dataset,
+        dataset=evaluation_dataset,
         scoring=wtd_score,
         cv_iterator=splitter,
         cv_params={
@@ -334,9 +350,7 @@ def main() -> None:
             "progress_bar": True,
         },
     )
-    optimizer = Optimize(
-        pipeline, train_dataset_transform=partial(_inject_training_only_days, training_only_index=training_only_index)
-    )
+    optimizer = Optimize(pipeline)
 
     total_start = time.time()
     evaluation.run(optimizer)
