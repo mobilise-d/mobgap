@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counting with `pa_peak_aggregation="max"`. Use it in place of `GsdIluz` when enabling per-gait-sequence automatic
   reorientation in the healthy pipeline. The sensor axis aligned with PA must still be known.
   (https://github.com/mobilise-d/mobgap/issues/238, https://github.com/mobilise-d/mobgap/pull/251)
+- Wear-time detection as a new algorithm category, including `mobgap.weartime.base.BaseWeartimeDetector` and
+  the signal-based `WtdMegaritisSignal` algorithm.
+- `WtdEmulationPipeline` for running wear-time algorithms on datasets, with scoring and evaluation helpers.
+  (https://github.com/mobilise-d/mobgap/pull/253)
 
 ### Changed
 
