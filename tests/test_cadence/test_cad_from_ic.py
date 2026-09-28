@@ -7,6 +7,7 @@ from tpcp.testing import TestAlgorithmMixin
 from mobgap.cadence import CadFromIc, CadFromIcDetector
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
+from mobgap.data_transform import HampelFilter
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.pipeline import GsIterator
 
@@ -45,6 +46,26 @@ class TestMetaCadFromIcDetector(TestAlgorithmMixin):
 
 
 class TestCadFromIc:
+    def test_small_step_time_change_survives_default_smoothing(self):
+        sampling_rate_hz = 40.0
+        initial_contacts = pd.DataFrame({"ic": [0, 20, 40, 62, 82, 102, 122, 142, 162]})
+        data = pd.DataFrame(np.zeros((163, 6)), columns=BF_SENSOR_COLS)
+
+        cadence = (
+            CadFromIc()
+            .calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
+            .cadence_per_sec_["cadence_spm"]
+        )
+
+        assert cadence.iloc[1] == pytest.approx(60 / 0.525)
+
+        previous_cadence = (
+            CadFromIc(step_time_smoothing=HampelFilter(2, 3.0))
+            .calculate(data, initial_contacts=initial_contacts, sampling_rate_hz=sampling_rate_hz)
+            .cadence_per_sec_["cadence_spm"]
+        )
+        assert previous_cadence.iloc[1] == pytest.approx(120.0)
+
     @pytest.mark.parametrize("sampling_rate_hz", [10.0, 20.0, 40.0])
     @pytest.mark.parametrize("fixed_step_size", [5, 10, 20])
     def test_naive(self, sampling_rate_hz, fixed_step_size):

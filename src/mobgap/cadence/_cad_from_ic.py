@@ -82,6 +82,7 @@ ic2cad_docfiller = make_filldoc(
         The filter is applied twice, once to the raw step time and a second time on the interpolated step time values
         per second.
         We recommend to use a Hampel filter for this.
+        The default Hampel filter only replaces values more than 0.075 s from the local median.
     max_interpolation_gap_s
         The maximum gap in seconds that is interpolated.
         If the gap is larger than this value, the second is filled with NaNs.
@@ -161,7 +162,10 @@ class CadFromIc(BaseCadCalculator):
     max_interpolation_gap_s: int
 
     def __init__(
-        self, *, step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)), max_interpolation_gap_s: int = 3
+        self,
+        *,
+        step_time_smoothing: BaseFilter = cf(HampelFilter(2, 3.0, min_abs_deviation=0.075)),
+        max_interpolation_gap_s: int = 3,
     ) -> None:
         self.max_interpolation_gap_s = max_interpolation_gap_s
         self.step_time_smoothing = step_time_smoothing
@@ -289,7 +293,7 @@ class CadFromIcDetector(CadFromIc):
 
         _base_paras: Final = MappingProxyType(
             {
-                "step_time_smoothing": HampelFilter(2, 3.0),
+                "step_time_smoothing": HampelFilter(2, 3.0, min_abs_deviation=0.075),
                 "max_interpolation_gap_s": 3,
                 "silence_ic_warning": False,
             }

@@ -39,7 +39,7 @@
         {
             "wb_id":0,
             "sec_center_samples":982,
-            "cadence_spm":106.1946902655
+            "cadence_spm":111.1111111111
         },
         {
             "wb_id":1,
@@ -204,7 +204,7 @@
         {
             "wb_id":4,
             "sec_center_samples":9901,
-            "cadence_spm":88.2352941176
+            "cadence_spm":95.2380952381
         },
         {
             "wb_id":5,

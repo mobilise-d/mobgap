@@ -225,7 +225,7 @@ class FirFilter(ScipyFilter):
 
 
 @numba.jit(nopython=True, cache=True)
-def _hampel_filter_numba(data: np.ndarray, k: int, n_sigma: float = 3.0) -> np.ndarray:
+def _hampel_filter_numba(data: np.ndarray, k: int, n_sigma: float = 3.0, min_abs_deviation: float = 0.0) -> np.ndarray:
     """Hampel filter implementation using Numba for performance optimization."""
     n = len(data)
     filtered_data = data.copy()
@@ -244,7 +244,7 @@ def _hampel_filter_numba(data: np.ndarray, k: int, n_sigma: float = 3.0) -> np.n
         sigma = gaussian_scale_factor * mad  # Scale MAD to estimate standard deviation
 
         # Check if the data point is an outlier
-        if np.abs(data[i] - median) > n_sigma * sigma:
+        if np.abs(data[i] - median) > max(n_sigma * sigma, min_abs_deviation):
             filtered_data[i] = median
 
     return filtered_data
@@ -261,6 +261,9 @@ class HampelFilter(BaseFilter):
         The effective window size is ``2 * half_window_size + 1`` (see ``window_size_``).
     n_sigmas
         The number of standard deviations to use for the outlier detection.
+    min_abs_deviation
+        Minimum absolute distance from the local median required to replace a value, in the units of the input data.
+        Defaults to 0, which preserves the original Hampel behavior.
 
     Other Parameters
     ----------------
@@ -276,10 +279,12 @@ class HampelFilter(BaseFilter):
 
     half_window_size: int
     n_sigmas: float
+    min_abs_deviation: float
 
-    def __init__(self, half_window_size: int, n_sigmas: float = 3.0) -> None:
+    def __init__(self, half_window_size: int, n_sigmas: float = 3.0, min_abs_deviation: float = 0.0) -> None:
         self.half_window_size = half_window_size
         self.n_sigmas = n_sigmas
+        self.min_abs_deviation = min_abs_deviation
 
     @property
     def window_size_(self) -> int:
@@ -311,7 +316,9 @@ class HampelFilter(BaseFilter):
         if data.shape[1] != 1:
             raise ValueError("The Hampel filter only supports 1-dimensional data.")
 
-        transformed_data = _hampel_filter_numba(data.flatten(), self.half_window_size, self.n_sigmas)
+        transformed_data = _hampel_filter_numba(
+            data.flatten(), self.half_window_size, self.n_sigmas, self.min_abs_deviation
+        )
 
         self.transformed_data_ = transformation_func(transformed_data, index)
         return self

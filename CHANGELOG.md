@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** The default Hampel smoothing in `CadFromIc`, `CadFromIcDetector`, and `SlZijlstra` now preserves
+  deviations of up to 0.075 s in step time and 0.05 m in step length (0.10 m in reported stride length), respectively.
+  This can change cadence and stride-length results. To reproduce the previous behavior, pass
+  `step_time_smoothing=HampelFilter(2, 3.0)` or `step_length_smoothing=HampelFilter(2, 3.0)` to the corresponding
+  algorithm. Direct uses of `HampelFilter` retain the old default. (https://github.com/mobilise-d/mobgap/issues/101)
 - Algorithms now specify and validate only the sensor channels they need. Algorithms that do not use gyroscope or
   accelerometer data can now run when those channels are absent, including on acceleration-only data. Sensor and body
   frame conversion also supports these partial inputs. (https://github.com/mobilise-d/mobgap/issues/172,

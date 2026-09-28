@@ -83,12 +83,12 @@
         {
             "index":4,
             "wb_id":4,
-            "cadence_spm_detected":104.407652733,
+            "cadence_spm_detected":103.3300665261,
             "cadence_spm_reference":87.9157740591,
-            "cadence_spm_error":16.4918786739,
-            "cadence_spm_abs_error":16.4918786739,
-            "cadence_spm_rel_error":0.1875872544,
-            "cadence_spm_abs_rel_error":0.1875872544
+            "cadence_spm_error":15.414292467,
+            "cadence_spm_abs_error":15.414292467,
+            "cadence_spm_rel_error":0.1753302252,
+            "cadence_spm_abs_rel_error":0.1753302252
         },
         {
             "index":5,

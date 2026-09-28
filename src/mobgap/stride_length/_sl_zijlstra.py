@@ -51,6 +51,8 @@ class SlZijlstra(BaseSlCalculator):
         The filter is applied twice, once to the raw step length and a second time on the interpolated step length
         values per second.
         We recommend to use a Hampel filter for this.
+        The default Hampel filter has a 0.05 m dead zone in step length, equivalent to 0.10 m in the reported
+        stride length.
     max_interpolation_gap_s
         The maximum gap in seconds that is interpolated.
         If the gap is larger than this value, the second is filled with NaNs.
@@ -188,7 +190,7 @@ class SlZijlstra(BaseSlCalculator):
         orientation_method: Optional[BaseOrientationEstimation] = None,
         acc_smoothing: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=0.1, filter_type="highpass")),
         speed_smoothing: BaseFilter = cf(ButterworthFilter(order=4, cutoff_freq_hz=1, filter_type="highpass")),
-        step_length_smoothing: BaseFilter = cf(HampelFilter(2, 3.0)),
+        step_length_smoothing: BaseFilter = cf(HampelFilter(2, 3.0, min_abs_deviation=0.10 / 2)),
         max_interpolation_gap_s: float = 3,
         step_length_scaling_factor: float,
     ) -> None:

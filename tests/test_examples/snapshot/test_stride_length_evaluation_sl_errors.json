@@ -43,10 +43,10 @@
         {
             "index":1,
             "wb_id":1,
-            "stride_length_m_error":0.2228651212,
-            "stride_length_m_abs_error":0.2228651212,
-            "stride_length_m_rel_error":0.4605384159,
-            "stride_length_m_abs_rel_error":0.4605384159
+            "stride_length_m_error":0.2199116937,
+            "stride_length_m_abs_error":0.2199116937,
+            "stride_length_m_rel_error":0.4544353218,
+            "stride_length_m_abs_rel_error":0.4544353218
         },
         {
             "index":2,
@@ -75,10 +75,10 @@
         {
             "index":5,
             "wb_id":5,
-            "stride_length_m_error":0.2718529042,
-            "stride_length_m_abs_error":0.2718529042,
-            "stride_length_m_rel_error":0.4535719719,
-            "stride_length_m_abs_rel_error":0.4535719719
+            "stride_length_m_error":0.265103645,
+            "stride_length_m_abs_error":0.265103645,
+            "stride_length_m_rel_error":0.4423111954,
+            "stride_length_m_abs_rel_error":0.4423111954
         }
     ]
 }

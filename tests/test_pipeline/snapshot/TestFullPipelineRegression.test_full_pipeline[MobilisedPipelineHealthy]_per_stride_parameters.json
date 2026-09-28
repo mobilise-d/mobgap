@@ -1241,8 +1241,8 @@
             "lr_label":"right",
             "stride_duration_s":1.23,
             "cadence_spm":85.3510081054,
-            "stride_length_m":0.9928559641,
-            "walking_speed_mps":0.7058867741
+            "stride_length_m":1.0024510415,
+            "walking_speed_mps":0.7121173439
         },
         {
             "wb_id":4,
@@ -1253,8 +1253,8 @@
             "lr_label":"left",
             "stride_duration_s":1.4,
             "cadence_spm":80.4149572761,
-            "stride_length_m":0.9962758935,
-            "walking_speed_mps":0.6675881824
+            "stride_length_m":1.0526917855,
+            "walking_speed_mps":0.7042218785
         },
         {
             "wb_id":4,
@@ -1265,8 +1265,8 @@
             "lr_label":"right",
             "stride_duration_s":2.67,
             "cadence_spm":109.6600029184,
-            "stride_length_m":0.9974736986,
-            "walking_speed_mps":0.9115247392
+            "stride_length_m":0.9942244899,
+            "walking_speed_mps":0.8965349028
         },
         {
             "wb_id":4,
@@ -1277,8 +1277,8 @@
             "lr_label":"left",
             "stride_duration_s":0.83,
             "cadence_spm":117.6263495541,
-            "stride_length_m":0.9974736986,
-            "walking_speed_mps":0.9777432496
+            "stride_length_m":0.9377647829,
+            "walking_speed_mps":0.909968038
         },
         {
             "wb_id":4,
@@ -1289,8 +1289,8 @@
             "lr_label":"left",
             "stride_duration_s":0.5,
             "cadence_spm":125.0,
-            "stride_length_m":0.9974736986,
-            "walking_speed_mps":1.0390351027
+            "stride_length_m":0.9448791169,
+            "walking_speed_mps":0.9842490802
         },
         {
             "wb_id":5,
