@@ -76,13 +76,13 @@ def test_index_creation(tmp_path):
     expected_index = pd.DataFrame(
         [
             {
-                "file_path": str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
+                "file_path": "weartime_part_a_all/001/example_lowback.cwa",
                 "recording_type": "human_movement",
                 "participant_id": "001",
                 "recording_id": HUMAN_RECORDING_ID,
             },
             {
-                "file_path": str(base_path / "weartime_part_b" / "020" / "example_lowback.cwa"),
+                "file_path": "weartime_part_b/020/example_lowback.cwa",
                 "recording_type": "simulated_movements",
                 "participant_id": "020",
                 "recording_id": SIMULATED_RECORDING_ID,
@@ -112,7 +112,7 @@ def test_index_creation_detects_lb_abbreviation(tmp_path):
     dataset = SustainWearTimeDataset(base_path, splitter=None)
 
     expected_human_row = {
-        "file_path": str(human_file.with_name("example_lb.cwa")),
+        "file_path": "weartime_part_a_all/001/example_lb.cwa",
         "recording_type": "human_movement",
         "participant_id": "001",
         "recording_id": "human_movement_001_example_lb",
@@ -195,11 +195,25 @@ def test_split_by_day_index_creation(tmp_path, monkeypatch):
     ).astype("string")
     assert_frame_equal(dataset.index[expected_index.columns], expected_index)
     assert dataset.index["file_path"].tolist() == [
-        str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
-        str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
-        str(base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"),
-        str(base_path / "weartime_part_b" / "020" / "example_lowback.cwa"),
+        "weartime_part_a_all/001/example_lowback.cwa",
+        "weartime_part_a_all/001/example_lowback.cwa",
+        "weartime_part_a_all/001/example_lowback.cwa",
+        "weartime_part_b/020/example_lowback.cwa",
     ]
+
+
+def test_index_and_data_survive_moving_the_dataset_root(tmp_path):
+    original_root = _create_sustain_layout(tmp_path / "original")
+    original_index = SustainWearTimeDataset(original_root, splitter=None).index
+    relocated_root = tmp_path / "relocated" / "Wear-time"
+    relocated_root.parent.mkdir()
+    original_root.rename(relocated_root)
+
+    relocated = SustainWearTimeDataset(relocated_root, splitter=None)
+
+    assert_frame_equal(relocated.index, original_index)
+    datapoint = relocated.get_subset(file_path="weartime_part_a_all/001/example_lowback.cwa")
+    assert len(datapoint.data_ss) == 72472
 
 
 def test_configured_daily_splitter_omits_short_days(tmp_path, monkeypatch):
@@ -277,6 +291,7 @@ def test_real_dataset_index_smoke():
 
     assert not index.empty
     assert {"file_path", "recording", "start_time", "end_time", "recording_day"}.issubset(index.columns)
+    assert not index["file_path"].map(lambda path: Path(path).is_absolute()).any()
     assert ((index["end_time"] - index["start_time"]) >= pd.Timedelta(hours=8)).all()
 
 
