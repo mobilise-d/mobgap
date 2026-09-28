@@ -480,20 +480,22 @@ def save_evaluation_results(
     else:
         raise ValueError("raw_results must be a list of keys or True or False")
     for k, v in raw_results_vals.items():
-        v.to_csv(folder / f"raw_{k}.csv")
+        v.to_csv(folder / f"raw_{k}.csv", lineterminator="\n")
 
     # Save aggregated results
     # Transposing for better readability
     eval_obj.get_aggregated_results_as_df().drop(columns="runtime_s", errors="ignore").T.to_csv(
-        folder / "aggregated_results.csv"
+        folder / "aggregated_results.csv", lineterminator="\n"
     )
     # Save single results
-    eval_obj.get_single_results_as_df().drop(columns="runtime_s", errors="ignore").to_csv(folder / "single_results.csv")
+    eval_obj.get_single_results_as_df().drop(columns="runtime_s", errors="ignore").to_csv(
+        folder / "single_results.csv", lineterminator="\n"
+    )
 
     # Save timings
     if include_non_stable_results:
         timing_result = eval_obj.perf_
-        with (folder / "timings.json").open("w") as f:
+        with (folder / "timings.json").open("w", newline="\n") as f:
             json.dump(timing_result, f, indent=2)
 
 
