@@ -36,7 +36,6 @@ from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.dtypes import assert_is_sensor_data
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
-    RecordingSampleCounts,
     TrainingData,
     _unify_weartime_df,
     base_weartime_docfiller,
@@ -49,7 +48,6 @@ from mobgap.weartime.utils.feature_extraction import (
 )
 from mobgap.weartime.utils.ml_feature_extraction import (
     labels_from_interval_centers,
-    window_count_from_sample_count,
     window_start_end,
 )
 from mobgap.weartime.utils.windows_to_weartime import (
@@ -474,19 +472,12 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         training_data: TrainingData,
         *,
         sampling_rate_hz: float,
-        recording_sample_counts: RecordingSampleCounts,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """Fit the configured classifier from lazy recording-level training data."""
         clf = self.clf or _new_xgboost_classifier()
 
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-        total_windows = sum(
-            window_count_from_sample_count(int(sample_count), window_samples, step_samples)
-            for sample_count in recording_sample_counts
-        )
-        if total_windows <= 0:
-            raise ValueError("The training recordings do not contain any full XGBoost model windows.")
         if self.window_batch_size <= 0:
             raise ValueError("`window_batch_size` must be a positive integer.")
         if self.n_jobs == 0 or self.n_jobs < -1:
@@ -494,9 +485,8 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         feature_names = tuple(self.feature_names or self._feature_names_by_version[self.version])
         sensor_cols = tuple(self.sensor_cols)
-        feature_values = np.empty((total_windows, len(feature_names)), dtype=np.float32)
-        all_labels = np.empty(total_windows, dtype=np.int32)
-        write_index = 0
+        feature_batches = []
+        label_batches = []
 
         for recording_features, recording_labels in _iter_training_feature_results(
             training_data,
@@ -511,18 +501,14 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             sensor_cols=sensor_cols,
             feature_names=feature_names,
         ):
-            recording_end = write_index + len(recording_features)
-            if recording_end > total_windows:
-                raise ValueError("`recording_sample_counts` does not match the yielded training data.")
-            feature_values[write_index:recording_end] = recording_features
-            all_labels[write_index:recording_end] = recording_labels
-            write_index = recording_end
+            feature_batches.append(recording_features)
+            label_batches.append(recording_labels)
 
-        if write_index == 0:
+        if not feature_batches or not any(len(batch) for batch in feature_batches):
             raise ValueError("The training data did not yield any XGBoost feature windows.")
-        if write_index != total_windows:
-            raise ValueError("`recording_sample_counts` does not match the yielded training data.")
 
+        feature_values = feature_batches[0] if len(feature_batches) == 1 else np.concatenate(feature_batches)
+        all_labels = label_batches[0] if len(label_batches) == 1 else np.concatenate(label_batches)
         all_features = pd.DataFrame(feature_values, columns=feature_names, copy=False)
         clf.fit(all_features, all_labels, **kwargs)
 

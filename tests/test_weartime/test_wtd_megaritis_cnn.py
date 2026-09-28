@@ -50,18 +50,15 @@ class _SelfOptimizeRecorder(MegaritisCnnWeartimeModel):
         self.returned_model = returned_model
         self.optimize_training_data = None
         self.optimize_sampling_rate_hz = None
-        self.optimize_recording_sample_counts = None
 
     def self_optimize(
         self,
         training_data: list[tuple[pd.DataFrame, pd.DataFrame]],
         *,
         sampling_rate_hz: float,
-        recording_sample_counts: tuple[int, ...],
     ) -> MegaritisCnnWeartimeModel:
         self.optimize_training_data = training_data
         self.optimize_sampling_rate_hz = sampling_rate_hz
-        self.optimize_recording_sample_counts = recording_sample_counts
         return self.returned_model or self
 
 
@@ -154,7 +151,7 @@ class TestMegaritisCnnWeartimeModel:
         model = MegaritisCnnWeartimeModel(_model=_FixedPredictionModel([0]), _trained_sampling_rate_hz=1.0)
 
         with pytest.raises(RuntimeError, match="already trained or loaded"):
-            model.self_optimize([], sampling_rate_hz=1.0, recording_sample_counts=())
+            model.self_optimize([], sampling_rate_hz=1.0)
 
     def test_self_optimize_rejects_one_shot_iterators_for_multi_epoch_training(self) -> None:
         """Require re-iterable lazy training data for multi-epoch fitting."""
@@ -164,20 +161,7 @@ class TestMegaritisCnnWeartimeModel:
             MegaritisCnnWeartimeModel(epochs=2).self_optimize(
                 training_data,
                 sampling_rate_hz=1.0,
-                recording_sample_counts=(60,),
             )
-
-    def test_steps_per_epoch_uses_per_recording_sample_counts(self) -> None:
-        """Calculate epoch length without treating separate recordings as one continuous signal."""
-        total_windows, steps_per_epoch = keras_model_module._steps_per_epoch_from_recording_sample_counts(
-            (25, 35),
-            window_samples=10,
-            step_samples=10,
-            batch_size=4,
-        )
-
-        assert total_windows == 5
-        assert steps_per_epoch == 2
 
     def test_standardize_windows_matches_mean_std_formula(self) -> None:
         """Standardize windows without changing the numerical result."""
@@ -348,8 +332,8 @@ class TestMegaritisCnnWeartimeModel:
             np.array([1, 0, 1, 1, 0, 0, 1, 0, 0, 1], dtype=np.int32),
         )
 
-    def test_training_dataset_repeats_after_batching(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Keep Keras multi-epoch training from exhausting the dataset between epochs."""
+    def test_training_dataset_is_finite(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Let Keras finish each epoch at the end of the actual windows."""
 
         class _FakeDataset:
             last: _FakeDataset | None = None
@@ -374,10 +358,6 @@ class TestMegaritisCnnWeartimeModel:
 
             def batch(self, batch_size: int) -> _FakeDataset:
                 self.operations.append(("batch", batch_size))
-                return self
-
-            def repeat(self) -> _FakeDataset:
-                self.operations.append("repeat")
                 return self
 
             def prefetch(self, buffer_size: object) -> _FakeDataset:
@@ -414,7 +394,6 @@ class TestMegaritisCnnWeartimeModel:
             "unbatch",
             ("shuffle", 32, True),
             ("batch", 4),
-            "repeat",
             ("prefetch", "autotune"),
         ]
 
@@ -432,7 +411,7 @@ class TestWtdMegaritisCNN:
         training_data = [(_sensor_data(60), _weartime_list([(0, 60)]))]
 
         with pytest.raises(RuntimeError, match="Pass an untrained Keras wear-time `model`"):
-            WtdMegaritisCNN().self_optimize(training_data, sampling_rate_hz=1.0, recording_sample_counts=(60,))
+            WtdMegaritisCNN().self_optimize(training_data, sampling_rate_hz=1.0)
 
     def test_self_optimize_delegates_to_configured_window_model(self) -> None:
         """Delegate training to the low-level Keras model instance."""
@@ -443,12 +422,10 @@ class TestWtdMegaritisCNN:
         result = WtdMegaritisCNN(model=model).self_optimize(
             training_data,
             sampling_rate_hz=1.0,
-            recording_sample_counts=(60,),
         )
 
         assert model.optimize_training_data is training_data
         assert model.optimize_sampling_rate_hz == 1.0
-        assert model.optimize_recording_sample_counts == (60,)
         assert result.model is returned_model
 
     def test_fixed_window_predictions_regression(self) -> None:
