@@ -187,7 +187,7 @@ def main() -> None:
         window_batch_size=args.window_batch_size,
         n_jobs=args.n_jobs,
         overlap=args.overlap,
-        feature_memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
+        memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
     )
     training_window_metadata = _training_window_metadata(dataset, detector)
 
