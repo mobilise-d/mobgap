@@ -145,8 +145,8 @@ def naive_sec_paras_to_regions(
     """Map per-second parameters to regions.
 
     This will map the per-second parameters to the regions specified in the region list.
-    The per-second parameters are then "gap-filled" by linear interpolation.
-    The final per-second parameter is then smoothed again.
+    Each per-second value is treated as constant within its second. A region overlapping a NaN second receives NaN
+    for that parameter. Valid regions after a missing second are unaffected.
 
     Parameters
     ----------
@@ -195,15 +195,27 @@ def naive_sec_paras_to_regions(
     # Hence, we pad the left edge.
     sec_values = np.pad(sec_values, ((1, 0), (0, 0)), mode="edge")
     sec_index = np.pad(sec_index, (1, 0), mode="constant", constant_values=(sec_index[0] - sampling_rate_hz))
+    valid_values = ~np.isnan(sec_values)
     inter_vals = interp1d(
         sec_index,
-        np.cumsum(sec_values, axis=0) * sampling_rate_hz,
+        np.cumsum(np.where(valid_values, sec_values, 0), axis=0) * sampling_rate_hz,
+        axis=0,
+    )(region_start_end)
+    missing_duration_per_interval = np.diff(sec_index)[:, None] * ~valid_values[1:]
+    cumulative_missing_duration = np.vstack(
+        [np.zeros(sec_values.shape[1]), np.cumsum(missing_duration_per_interval, axis=0)]
+    )
+    missing_duration = interp1d(
+        sec_index,
+        cumulative_missing_duration,
         axis=0,
     )(region_start_end)
     # This gives us the values for all start and end values. The shape is (2, n_regions, n_columns)
     # We can now calculate the mean per region by subtracting the values at the start from the values at the end and
     # dividing by the duration of the region.
-    mean_per_region = np.diff(inter_vals, axis=0)[0] / np.diff(region_start_end, axis=0)[0][:, None]
+    region_duration = np.diff(region_start_end, axis=0)[0][:, None]
+    mean_per_region = np.diff(inter_vals, axis=0)[0] / region_duration
+    mean_per_region[~np.isclose(np.diff(missing_duration, axis=0)[0], 0, rtol=0, atol=1e-8)] = np.nan
 
     mean_per_region = pd.DataFrame(mean_per_region, columns=sec_paras.columns, index=region_list.index).astype(
         sec_paras.dtypes

@@ -88,6 +88,29 @@ class TestIntervalMean:
 
 
 class TestNaiveSecParasToRegions:
+    def test_missing_seconds_only_affect_overlapping_regions(self):
+        region_list = pd.DataFrame({"start": [0, 10, 15, 20, 30], "end": [10, 20, 25, 30, 40]})
+        sec_paras = pd.DataFrame(
+            {
+                "sec_center_samples": [5, 15, 25, 35],
+                "cadence_spm": [np.nan, 60.0, np.nan, 70.0],
+            }
+        ).set_index("sec_center_samples")
+
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=10)
+
+        assert_equal(result["cadence_spm"].to_numpy(), [np.nan, 60.0, np.nan, np.nan, 70.0])
+
+    def test_fractional_sampling_rate_keeps_valid_region_finite(self):
+        region_list = pd.DataFrame({"start": [13], "end": [25]})
+        sec_paras = pd.DataFrame({"sec_center_samples": [6, 19, 31, 44], "cadence_spm": [60.0] * 4}).set_index(
+            "sec_center_samples"
+        )
+
+        result = naive_sec_paras_to_regions(region_list, sec_paras, sampling_rate_hz=12.5)
+
+        assert np.isfinite(result.loc[0, "cadence_spm"])
+
     def test_empty_inputs(self):
         region_list = pd.DataFrame(columns=["start", "end"])
         sec_paras = pd.DataFrame(columns=["sec_center_samples", "value"]).set_index("sec_center_samples")
