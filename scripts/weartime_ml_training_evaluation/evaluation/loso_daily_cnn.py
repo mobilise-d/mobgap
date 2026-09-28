@@ -13,8 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import Any
@@ -68,42 +67,6 @@ def _resolve_n_jobs(requested_n_jobs: int, tf_metadata: dict[str, Any]) -> int:
     return requested_n_jobs
 
 
-def _make_base_dataset(args: argparse.Namespace) -> SustainWearTimeDataset:
-    dataset_path = _path_from_env_or_arg(args.dataset_path, "MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")
-    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
-    return SustainWearTimeDataset(
-        dataset_path,
-        additional_sensors_enabled=(),
-        warn_thres_for_sampling_rate_deviations_hz=None,
-        split_by_day=True,
-        memory=joblib.Memory(cache_dir, verbose=0),
-    )
-
-
-def _make_dataset(args: argparse.Namespace, base_dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
-    dataset = base_dataset.get_subset(recording_type="human_movement")
-
-    if args.participant_id:
-        subset_index = dataset.index[dataset.index["participant_id"].isin(args.participant_id)]
-        dataset = dataset.get_subset(index=subset_index)
-    if args.max_participants is not None:
-        selected_participants = dataset.index["participant_id"].drop_duplicates().iloc[: args.max_participants]
-        subset_index = dataset.index[dataset.index["participant_id"].isin(selected_participants)]
-        dataset = dataset.get_subset(index=subset_index)
-    if len(dataset.index) == 0:
-        raise ValueError("The selected SUSTAIN human split-by-day subset is empty.")
-    return dataset
-
-
-def _select_training_only_index(base_dataset: SustainWearTimeDataset, recording_ids: list[str] | None) -> pd.DataFrame:
-    part_b_index = base_dataset.get_subset(recording_type="simulated_movements").index
-    available_ids = sorted(part_b_index["recording_id"].unique())
-    selected_ids = available_ids[:2] if recording_ids is None else recording_ids
-    if len(selected_ids) != 2 or len(set(selected_ids)) != 2 or not set(selected_ids).issubset(available_ids):
-        raise ValueError("Select exactly two distinct part B recording IDs present in the dataset.")
-    return part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
-
-
 def _fold_metadata(
     dataset: SustainWearTimeDataset, splitter: CombinedSplitter, training_only_index: pd.DataFrame
 ) -> pd.DataFrame:
@@ -129,20 +92,6 @@ def _fold_metadata(
             }
         )
     return pd.DataFrame(rows)
-
-
-def _make_pipeline(args: argparse.Namespace) -> WtdEmulationPipeline:
-    window_batch_size = args.window_batch_size or args.batch_size
-    low_level_model = MegaritisCnnWeartimeModel(
-        batch_size=args.batch_size,
-        epochs=args.epochs,
-        fit_verbose=args.fit_verbose,
-        window_batch_size=window_batch_size,
-        shuffle_buffer_size=args.shuffle_buffer_size,
-        standardize_in_model=args.standardize_in_model,
-        overlap=args.overlap,
-    )
-    return WtdEmulationPipeline(WtdMegaritisCNN(model=low_level_model))
 
 
 def _numeric_summary(frame: pd.DataFrame) -> dict[str, dict[str, float]]:
@@ -210,6 +159,7 @@ def _write_results(
         for path in output_dir.glob("raw_train_*.csv"):
             path.unlink()
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    (output_dir / "timings.json").write_text(json.dumps(evaluation.perf_, indent=2) + "\n")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -286,9 +236,30 @@ def main() -> None:
 
     run_name = args.run_name or f"loso_daily_cnn_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
-    base_dataset = _make_base_dataset(args)
-    dataset = _make_dataset(args, base_dataset)
-    training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
+    dataset_path = _path_from_env_or_arg(args.dataset_path, "MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")
+    cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
+    base_dataset = SustainWearTimeDataset(
+        dataset_path,
+        additional_sensors_enabled=(),
+        warn_thres_for_sampling_rate_deviations_hz=None,
+        split_by_day=True,
+        memory=joblib.Memory(cache_dir, verbose=0),
+    )
+    dataset = base_dataset.get_subset(recording_type="human_movement")
+    if args.participant_id:
+        dataset = dataset.get_subset(index=dataset.index[dataset.index["participant_id"].isin(args.participant_id)])
+    if args.max_participants is not None:
+        selected_participants = dataset.index["participant_id"].drop_duplicates().iloc[: args.max_participants]
+        dataset = dataset.get_subset(index=dataset.index[dataset.index["participant_id"].isin(selected_participants)])
+    if len(dataset.index) == 0:
+        raise ValueError("The selected SUSTAIN human split-by-day subset is empty.")
+
+    part_b_index = base_dataset.get_subset(recording_type="simulated_movements").index
+    available_ids = sorted(part_b_index["recording_id"].unique())
+    selected_ids = available_ids[:2] if args.part_b_recording_id is None else args.part_b_recording_id
+    if len(selected_ids) != 2 or len(set(selected_ids)) != 2 or not set(selected_ids).issubset(available_ids):
+        raise ValueError("Select exactly two distinct part B recording IDs present in the dataset.")
+    training_only_index = part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
     evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
     evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
     splitter = CombinedSplitter(
@@ -326,7 +297,19 @@ def main() -> None:
     LOGGER.info("TensorFlow %s", tf_metadata["tensorflow_version"])
     LOGGER.info("GPU devices: %s", tf_metadata["gpu_devices"] or "none")
 
-    pipeline = _make_pipeline(args)
+    pipeline = WtdEmulationPipeline(
+        WtdMegaritisCNN(
+            model=MegaritisCnnWeartimeModel(
+                batch_size=args.batch_size,
+                epochs=args.epochs,
+                fit_verbose=args.fit_verbose,
+                window_batch_size=args.window_batch_size or args.batch_size,
+                shuffle_buffer_size=args.shuffle_buffer_size,
+                standardize_in_model=args.standardize_in_model,
+                overlap=args.overlap,
+            )
+        )
+    )
     evaluation = EvaluationCV(
         dataset=evaluation_dataset,
         scoring=wtd_score,
@@ -339,15 +322,11 @@ def main() -> None:
     )
     optimizer = Optimize(pipeline)
 
-    total_start = time.time()
     evaluation.run(optimizer)
-    total_time = time.time() - total_start
 
     window_model = pipeline.algo.model
     run_metadata = {
         "run_name": run_name,
-        "training_date": datetime.now().isoformat(),
-        "total_runtime_seconds": int(total_time),
         "tensorflow_version": tf_metadata["tensorflow_version"],
         "gpu_devices": tf_metadata["gpu_devices"],
         "n_jobs": n_jobs,
@@ -378,7 +357,6 @@ def main() -> None:
         run_metadata=run_metadata,
     )
 
-    LOGGER.info("LOSO evaluation complete in %s", timedelta(seconds=int(total_time)))
     LOGGER.info("Results written to %s", output_dir)
 
 
