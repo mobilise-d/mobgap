@@ -227,7 +227,7 @@ custom_aggs_combined = [
             A.icc,
             reference_col_name="walking_speed_mps__reference",
             detected_col_name="walking_speed_mps__detected",
-            icc_type="icc2",
+            icc_type="ICC(A,1)",
             # For the lab data, some trials have no results for the old algorithms.
             nan_policy="omit",
         ),

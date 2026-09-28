@@ -100,10 +100,10 @@ class TestTransformationAggregationFunctions:
         assert_array_equal(loa(df_loa), [-1.96, 1.96])
 
         df_icc = pd.DataFrame([[0, 1], [0, 1], [0, 1]], columns=["detected", "reference"])
-        icc_val, ci_95 = icc(df_icc, icc_type="icc1")
+        icc_val, ci_95 = icc(df_icc, icc_type="ICC(1,1)")
         assert icc_val == -1
         assert_array_equal(ci_95, [-1, -1])
-        # Example for icc2
+        # Example for ICC(A,1)
         df_perfect = pd.DataFrame({"detected": [1, 2, 3, 4], "reference": [1, 2, 3, 4]})
         icc_val, ci_95 = icc(df_perfect)
         assert round(icc_val, 3) == 1.0
@@ -128,12 +128,12 @@ class TestTransformationAggregationFunctions:
     @pytest.mark.parametrize(
         ("icc_type", "expected_icc", "expected_ci"),
         [
-            ("icc1", 0.976798, (0.84, 1.0)),
-            ("icc2", 0.976744, (0.81, 1.0)),
-            ("icc3", 0.972222, (0.76, 1.0)),
-            ("icc1k", 0.988263, (0.91, 1.0)),
-            ("icc2k", 0.988235, (0.90, 1.0)),
-            ("icc3k", 0.985915, (0.86, 1.0)),
+            ("ICC(1,1)", 0.976798, (0.84, 1.0)),
+            ("ICC(A,1)", 0.976744, (0.81, 1.0)),
+            ("ICC(C,1)", 0.972222, (0.76, 1.0)),
+            ("ICC(1,k)", 0.988263, (0.91, 1.0)),
+            ("ICC(A,k)", 0.988235, (0.90, 1.0)),
+            ("ICC(C,k)", 0.985915, (0.86, 1.0)),
         ],
     )
     def test_icc_types(self, icc_type, expected_icc, expected_ci):

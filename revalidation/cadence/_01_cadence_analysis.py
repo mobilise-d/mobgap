@@ -156,7 +156,7 @@ custom_aggs = [
             A.icc,
             reference_col_name="wb__reference",
             detected_col_name="wb__detected",
-            icc_type="icc2",
+            icc_type="ICC(A,1)",
             # For the lab data, some trials have no results for the Original algorithms.
             nan_policy="omit",
         ),
