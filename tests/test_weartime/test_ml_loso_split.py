@@ -12,7 +12,7 @@ import pytest
 from tpcp.optimize import Optimize
 from tpcp.validate import CombinedSplitter
 
-from mobgap.data import SustainWearTimeDataset
+from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         for participant in ("020", "021")
         for day in (1, 2)
     )
-    dataset = SustainWearTimeDataset(Path("unused"), split_by_day=True, subset_index=pd.DataFrame(rows))
+    dataset = SustainWearTimeDataset(Path("unused"), splitter=split_by_utc_day, subset_index=pd.DataFrame(rows))
 
     for script in evaluation_scripts:
         monkeypatch.setattr(script, "SustainWearTimeDataset", lambda *_, **__: dataset)
