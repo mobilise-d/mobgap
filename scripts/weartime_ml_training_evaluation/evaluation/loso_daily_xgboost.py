@@ -218,6 +218,8 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
 
     run_name = args.run_name or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
+
+    # Select the human days to evaluate.
     dataset_path = Path(args.dataset_path or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser()
     cache_dir = Path(args.cache_dir or get_env_var("MOBGAP_CACHE_DIR_PATH", str(DEFAULT_CACHE_DIR))).expanduser()
     base_dataset = SustainWearTimeDataset(
@@ -236,6 +238,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
     if len(dataset.index) == 0:
         raise ValueError("The selected SUSTAIN human split-by-day subset is empty.")
 
+    # Add the same two Part B recordings to every outer training fold.
     part_b_index = base_dataset.get_subset(recording_type="simulated_movements").index
     available_ids = sorted(part_b_index["recording_id"].unique())
     selected_ids = available_ids[:2] if args.part_b_recording_id is None else args.part_b_recording_id
@@ -244,6 +247,8 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
     training_only_index = part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
     evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
     evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
+
+    # Hold out one human participant per outer fold; keep Part B out of test folds.
     outer_splitter = CombinedSplitter(
         parts=[
             (
@@ -269,6 +274,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
     LOGGER.info("Optuna trials per outer fold: %s", args.n_trials)
     LOGGER.info("Output directory: %s", output_dir)
 
+    # Preview the outer fold plan without fitting a model.
     if args.dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
         dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
@@ -277,6 +283,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
         LOGGER.info("Dry run complete. Wrote fold metadata and human and part B dataset indices.")
         return
 
+    # Check settings that are only needed for Optuna training.
     if not 0 < args.search_train_fraction <= 1:
         raise ValueError("--search-train-fraction must be in (0, 1].")
     if args.n_trials < 1:
@@ -284,6 +291,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
     if args.inner_folds < 2 or args.inner_folds > dataset.index["participant_id"].nunique() - 1:
         raise ValueError("--inner-folds must be between 2 and the number of outer training participants.")
 
+    # Configure XGBoost with cached recording features.
     pipeline = WtdEmulationPipeline(
         WtdMegaritisXGBoost(
             **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
@@ -293,7 +301,8 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
             memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
         )
     )
-    # The inner splitter selects only human days from each outer training fold.
+
+    # Search human-only inner folds, then refit on the full outer training fold.
     inner_splitter = CombinedSplitter(
         parts=[
             (
@@ -323,6 +332,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
 
     evaluation.run(optimizer)
 
+    # Write fold metrics, search results, and evaluator timings.
     run_metadata = {
         "run_name": run_name,
         "xgboost_version": version("xgboost"),
