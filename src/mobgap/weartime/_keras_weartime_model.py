@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import logging
-from contextlib import suppress
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
 from math import ceil
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import pandas as pd  # noqa: TC002 - tpcp 2.1 resolves class annotations at runtime.
@@ -32,16 +31,7 @@ if TYPE_CHECKING:
     from mobgap.weartime.base import RecordingSampleCounts, TrainingData
 
 _LOGGER = logging.getLogger(__name__)
-_C = TypeVar("_C", bound=Callable[..., Any])
 _MODEL_STANDARDIZATION_LAYER_NAME = "per_window_standardization"
-
-
-def _make_action_safe(action_method: _C) -> _C:
-    """Apply tpcp action checks while staying compatible with tpcp 2.1's test mixin."""
-    safe_action_method = make_action_safe(action_method)
-    with suppress(AttributeError):
-        delattr(safe_action_method, "__tpcp_action_method")
-    return safe_action_method
 
 
 def _rss_mb() -> float | None:
@@ -205,7 +195,7 @@ class BaseKerasWeartimeModel(Algorithm):
         self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
         self.standardize_in_model = standardize_in_model
 
-    @_make_action_safe
+    @make_action_safe
     def run(self, data: pd.DataFrame, *, sampling_rate_hz: float) -> Self:
         """Classify all model windows in a single recording."""
         if self._model is None:

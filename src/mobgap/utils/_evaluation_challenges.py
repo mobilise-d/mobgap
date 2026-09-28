@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.model_selection import BaseCrossValidator
 from tpcp import Algorithm, Pipeline
 from tpcp.optimize import BaseOptimize
-from tpcp.validate import DatasetSplitter, ScorerTypes, cross_validate, validate
+from tpcp.validate import BaseDatasetSplitter, ScorerTypes, cross_validate, validate
 
 from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import MeasureTimeResults, measure_time, timer_doc_filler
@@ -224,7 +224,7 @@ class EvaluationCV(Algorithm, Generic[T]):
     %(common_paras)s
     cv_iterator
         A valid cv_iterator.
-        For complex CVs (e.g. stratified/grouped) this should be a :class:`~tpcp.validate.DatasetSplitter` instance.
+        For complex CVs (e.g. stratified/grouped) this should be a :class:`~tpcp.validate.BaseDatasetSplitter` instance.
         For more information see :func:`~tpcp.validate.cross_validate`.
     cv_params
         Dictionary with further parameters that are directly passed to :func:`~tpcp.validate.cross_validate`.
@@ -250,7 +250,7 @@ class EvaluationCV(Algorithm, Generic[T]):
     _action_methods = "run"
 
     dataset: BaseGaitDatasetWithReference
-    cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]]
+    cv_iterator: Optional[Union[BaseDatasetSplitter, int, BaseCrossValidator, Iterator]]
     cv_params: Optional[dict]
     scoring: ScorerTypes[T, BaseGaitDatasetWithReference]
 
@@ -263,7 +263,7 @@ class EvaluationCV(Algorithm, Generic[T]):
         self,
         dataset: BaseGaitDatasetWithReference,
         scoring: ScorerTypes[T, BaseGaitDatasetWithReference],
-        cv_iterator: Optional[Union[DatasetSplitter, int, BaseCrossValidator, Iterator]],
+        cv_iterator: Optional[Union[BaseDatasetSplitter, int, BaseCrossValidator, Iterator]],
         *,
         cv_params: Optional[dict] = None,
     ) -> None:

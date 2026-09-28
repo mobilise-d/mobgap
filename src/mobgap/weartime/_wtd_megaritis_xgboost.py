@@ -16,12 +16,11 @@ from __future__ import annotations
 
 import pickle
 from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves algorithm annotations at runtime.
-from contextlib import suppress
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
 from types import MappingProxyType
-from typing import Any, Callable, Final, Literal, Optional, Protocol, TypeVar
+from typing import Any, Final, Literal, Optional, Protocol
 
 import numpy as np
 import pandas as pd
@@ -59,21 +58,11 @@ from mobgap.weartime.utils.windows_to_weartime import (
     remove_isolated_short_periods_from_intervals,
 )
 
-_C = TypeVar("_C", bound=Callable[..., Any])
-
 
 class _SklearnWearTimeClassifier(Protocol):
     def fit(self, X: pd.DataFrame, y: np.ndarray, **kwargs: Any) -> Self: ...  # noqa: N803
 
     def predict_proba(self, X: pd.DataFrame, **kwargs: Any) -> np.ndarray: ...  # noqa: N803
-
-
-def _make_action_safe(action_method: _C) -> _C:
-    """Apply tpcp action checks while staying compatible with tpcp 2.1's test mixin."""
-    safe_action_method = make_action_safe(action_method)
-    with suppress(AttributeError):
-        delattr(safe_action_method, "__tpcp_action_method")
-    return safe_action_method
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -178,7 +167,7 @@ def _recording_feature_batches(
 ) -> list[np.ndarray]:
     extract = _extract_recording_feature_batches
     if feature_memory.location is not None:
-        extract = hybrid_cache(feature_memory, False)(extract)
+        extract = hybrid_cache(feature_memory, False, fast_inaccurate_hashing=True)(extract)
     return extract(data, **feature_kwargs)
 
 
@@ -401,7 +390,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self.trained_sampling_rate_hz = trained_sampling_rate_hz
         self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
 
-    @_make_action_safe
+    @make_action_safe
     @timed_action_method
     @base_weartime_docfiller
     def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_: Unpack[dict[str, Any]]) -> Self:
