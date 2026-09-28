@@ -309,9 +309,7 @@ class TestMegaritisCnnWeartimeModel:
         )
 
         assert len(result) == 1
-        assert_array_equal(
-            result[0][0], data.to_numpy(dtype=np.float32, copy=False).reshape(3, 20, len(BF_SENSOR_COLS))
-        )
+        assert_array_equal(result[0], data.to_numpy(dtype=np.float32, copy=False).reshape(3, 20, len(BF_SENSOR_COLS)))
 
     def test_non_overlapping_model_standardization_reuses_window_view(self) -> None:
         """Avoid an extra batch copy for contiguous non-overlapping windows."""
@@ -327,11 +325,28 @@ class TestMegaritisCnnWeartimeModel:
             )
         )
 
-        windows = result[0][0]
+        windows = result[0]
         assert_array_equal(windows, data.to_numpy(dtype=np.float32, copy=False).reshape(3, 20, len(BF_SENSOR_COLS)))
         assert windows.flags.c_contiguous
         assert not windows.flags.writeable
         assert not windows.flags.owndata
+
+    def test_training_batches_align_labels_across_recordings(self) -> None:
+        """Label partial batches by their window centers and restart offsets for each recording."""
+        model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2)
+        records = [
+            (_sensor_data(60), _weartime_list([(30, 50), (0, 20)])),
+            (_sensor_data(10), _weartime_list([])),
+            (_sensor_data(60), _weartime_list([(20, 30), (50, 60)])),
+        ]
+
+        batches = list(model._iter_training_window_batches(records, sampling_rate_hz=1.0))
+
+        assert [len(windows) for windows, _ in batches] == [2, 2, 1, 2, 2, 1]
+        assert_array_equal(
+            np.concatenate([labels for _, labels in batches]),
+            np.array([1, 0, 1, 1, 0, 0, 1, 0, 0, 1], dtype=np.int32),
+        )
 
     def test_training_dataset_repeats_after_batching(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Keep Keras multi-epoch training from exhausting the dataset between epochs."""
