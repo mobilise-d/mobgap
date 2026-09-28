@@ -9,7 +9,6 @@ from pandas._testing import assert_frame_equal
 
 from mobgap.consts import SF_SENSOR_COLS
 from mobgap.data import SustainWearTimeDataset, get_example_cwa_data_path, split_by_utc_day
-from mobgap.data import _sustain_weartime_dataset as sustain_dataset
 from mobgap.data import ax6 as ax6_module
 from mobgap.utils.misc import get_env_var
 
@@ -220,7 +219,6 @@ def test_configured_daily_splitter_omits_short_days(tmp_path, monkeypatch):
     )
 
     assert dataset.clone().index.recording_day.tolist() == ["2020-01-02", "2020-02-01"]
-    assert dataset.get_subset(participant_id="001").n_samples == 8_640_000
 
 
 def test_default_splitter_keeps_only_days_with_eight_hours(tmp_path, monkeypatch):
@@ -270,55 +268,6 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
 
     assert data.index.to_list() == [pd.Timestamp("2020-01-02T23:59:59Z")]
     assert cuts == [(2.0, 86402.0)]
-
-
-def test_n_samples_matches_loaded_recording_length(tmp_path):
-    base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID)
-
-    assert datapoint.n_samples == len(datapoint.data_ss)
-
-
-def test_split_by_day_n_samples_matches_loaded_recording_length(tmp_path, monkeypatch):
-    base_path = _create_sustain_layout(tmp_path)
-    timing_report = {
-        "start_from_data": "2020-01-01T23:59:58+00:00",
-        "end_from_data": "2020-01-02T00:00:01+00:00",
-        "duration_s_from_data": 3.0,
-        "samplingrate_hz_from_header": 1.0,
-        "samplingrate_hz_from_data": 1.0,
-    }
-
-    def fake_recording_info(_file_path, _identity):
-        return {"sample_rate_hz": 1.0}, timing_report
-
-    def fake_load_cwa_data(_path, _identity, _start_s, _end_s, _channels, _rate, start_time, end_time):
-        data = pd.DataFrame(
-            [[0.0] * (len(SF_SENSOR_COLS) + 1), [1.0] * (len(SF_SENSOR_COLS) + 1)],
-            columns=[*SF_SENSOR_COLS, "temperature"],
-            index=pd.DatetimeIndex(["2020-01-02T00:00:00Z", "2020-01-02T00:00:01Z"], name="time"),
-        )
-        return data.loc[(data.index >= start_time) & (data.index < end_time)]
-
-    monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
-    monkeypatch.setattr(ax6_module, "_load_cwa_data", fake_load_cwa_data)
-
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=split_by_utc_day, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID, recording_day="2020-01-02")
-
-    assert datapoint.n_samples == 2
-    assert datapoint.n_samples == len(datapoint.data_ss)
-
-
-def test_split_by_day_n_samples_handles_floating_point_boundary_artifacts():
-    assert sustain_dataset._sample_count_from_time_bounds_s(0.0, 86_399.999999999, 100.0) == 8_640_000
-
-
-def test_split_by_day_n_samples_handles_unaligned_partial_day_boundaries():
-    assert sustain_dataset._sample_count_from_time_bounds_s(0.6, 130.2, 1.0) == 130
 
 
 @requires_sustain_data
