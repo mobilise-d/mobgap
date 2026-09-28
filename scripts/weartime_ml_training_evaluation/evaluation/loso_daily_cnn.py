@@ -136,9 +136,10 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--run-name", help="Artifact folder name. Defaults to loso_daily_cnn_<timestamp>.")
     parser.add_argument(
-        "--part-b-recording-id",
-        action="append",
-        help="Part B recording to add to every training fold. Pass twice; defaults to the first two sorted IDs.",
+        "--part-b-recording-count",
+        type=int,
+        default=2,
+        help="Number of Part B recordings sampled for every training fold. Default: 2; zero disables sampling.",
     )
     parser.add_argument(
         "--participant-id",
@@ -214,13 +215,7 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Add the same two Part B recordings to every training fold.
-    available_ids = sorted(base_dataset.get_subset(recording_type="simulated_movements").index["recording_id"].unique())
-    selected_ids = available_ids[:2] if args.part_b_recording_id is None else args.part_b_recording_id
-    if len(selected_ids) != 2 or len(set(selected_ids)) != 2 or not set(selected_ids).issubset(available_ids):
-        raise ValueError("Select exactly two distinct part B recording IDs present in the dataset.")
-
-    # Hold out one human participant per fold; keep Part B out of test folds.
+    # Hold out one human participant per fold; sample Part B recordings for training with a fixed seed.
     splitter = CombinedSplitter(
         parts=[
             (
@@ -231,7 +226,12 @@ def main() -> None:
                 lambda days: days.get_subset(recording_type="simulated_movements"),
                 NoSplit(
                     select_human_days(base_dataset).index["participant_id"].nunique(),
-                    train=lambda days: days.get_subset(recording_id=selected_ids),
+                    train=lambda days: days.get_subset(
+                        recording_id=days.index["recording_id"]
+                        .drop_duplicates()
+                        .sample(n=args.part_b_recording_count, random_state=42)
+                        .tolist()
+                    ),
                 ),
             ),
         ]
