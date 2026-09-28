@@ -1,7 +1,7 @@
 """Run daily aggregate participant-grouped evaluation for the SUSTAIN wear-time XGBoost model.
 
 This mirrors ``loso_daily_cnn.py``: the dataset is split by recording day, while CV groups by participant so every fold
-holds out all days of one human participant. Two part B recordings are added to each training fold.
+holds out all days of one human participant. Part B data are added to each training fold.
 """
 
 from __future__ import annotations
@@ -76,6 +76,11 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=2,
         help="Number of Part B recordings sampled for every training fold. Default: 2; zero disables sampling.",
+    )
+    parser.add_argument(
+        "--part-b-day-count",
+        type=int,
+        help="Sample this many Part B days for every training fold instead of whole recordings.",
     )
     parser.add_argument(
         "--participant-id",
@@ -157,7 +162,7 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant per outer fold; sample Part B recordings for training with a fixed seed.
+    # Hold out one human participant per outer fold; use the same seeded Part B sample in every training fold.
     outer_splitter = CombinedSplitter(
         parts=[
             (
@@ -168,11 +173,15 @@ def main() -> None:
                 lambda days: days.get_subset(recording_type="simulated_movements"),
                 NoSplit(
                     None,
-                    train=lambda days: days.get_subset(
-                        recording_id=days.index["recording_id"]
-                        .drop_duplicates()
-                        .sample(n=args.part_b_recording_count, random_state=42)
-                        .tolist()
+                    train=lambda days: (
+                        days.get_subset(index=days.index.sample(n=args.part_b_day_count, random_state=42))
+                        if args.part_b_day_count is not None
+                        else days.get_subset(
+                            recording_id=days.index["recording_id"]
+                            .drop_duplicates()
+                            .sample(n=args.part_b_recording_count, random_state=42)
+                            .tolist()
+                        )
                     ),
                 ),
             ),
