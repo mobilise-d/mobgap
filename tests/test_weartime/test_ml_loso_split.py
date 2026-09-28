@@ -9,11 +9,16 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 import pytest
+from tpcp.optimize import Optimize
+from tpcp.validate import DatasetSplitter
 
 from mobgap.data import SustainWearTimeDataset
+from mobgap.utils.evaluation import EvaluationCV
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+    from tpcp.validate import BaseDatasetSplitter
 
 
 @pytest.fixture
@@ -26,10 +31,10 @@ def evaluation_scripts(monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, Mod
     return importlib.import_module("loso_daily_cnn"), importlib.import_module("loso_daily_xgboost")
 
 
-def test_loso_dry_runs_keep_part_b_only_in_training(
+def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cover the complete nested split flow.
     evaluation_scripts: tuple[ModuleType, ModuleType], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Every held-out participant fold keeps both part B recordings in training."""
+    """Outer training includes part B while inner search uses human recordings only."""
     rows = [
         {
             "recording_type": "human_movement",
@@ -55,11 +60,20 @@ def test_loso_dry_runs_keep_part_b_only_in_training(
     dataset = SustainWearTimeDataset(Path("unused"), split_by_day=True, subset_index=pd.DataFrame(rows))
 
     for script in evaluation_scripts:
-        monkeypatch.setattr(script, "_make_base_dataset", lambda _: dataset)
+        monkeypatch.setattr(script, "SustainWearTimeDataset", lambda *_, **__: dataset)
         monkeypatch.setattr(
             sys,
             "argv",
-            [script.__name__, "--dry-run", "--output-dir", str(tmp_path), "--run-name", script.__name__],
+            [
+                script.__name__,
+                "--dataset-path",
+                "unused",
+                "--dry-run",
+                "--output-dir",
+                str(tmp_path),
+                "--run-name",
+                script.__name__,
+            ],
         )
         script.main()
 
@@ -73,3 +87,58 @@ def test_loso_dry_runs_keep_part_b_only_in_training(
         assert set(fold_plan["n_training_only_days"]) == {4}
         assert set(fold_plan["n_test_days"]) == {5}
         assert all(recording_id.startswith("human_") for recording_id in fold_plan["test_recording_ids"])
+
+    xgboost = evaluation_scripts[1]
+    captured_splitters: dict[str, BaseDatasetSplitter] = {}
+    captured_wrappers: list[object] = []
+
+    def capture_run(evaluation: EvaluationCV, optimizer: xgboost.XGBoostOptunaOptimize) -> EvaluationCV:
+        captured_splitters["outer"] = evaluation.cv_iterator
+        captured_splitters["inner"] = optimizer.inner_splitter
+        captured_wrappers.append(optimizer)
+        return evaluation
+
+    monkeypatch.setattr(EvaluationCV, "run", capture_run)
+    monkeypatch.setattr(xgboost, "_write_results", lambda **_: None)
+    monkeypatch.setattr(xgboost, "_write_search_results", lambda *_: None)
+    monkeypatch.setattr(sys, "argv", ["loso_daily_xgboost", "--dataset-path", "unused", "--inner-folds", "2"])
+    xgboost.main()
+
+    for outer_train_labels, _ in captured_splitters["outer"].split(dataset):
+        outer_train = dataset.get_subset(group_labels=outer_train_labels)
+        assert len(outer_train.get_subset(recording_type="simulated_movements").index) == 4
+        human_days = outer_train.get_subset(recording_type="human_movement")
+        for inner_train_labels, inner_test_labels in captured_splitters["inner"].split(human_days):
+            inner_train = human_days.get_subset(group_labels=inner_train_labels)
+            inner_test = human_days.get_subset(group_labels=inner_test_labels)
+            assert set(inner_test.index["recording_type"]) == {"human_movement"}
+            assert set(inner_train.index["recording_type"]) == {"human_movement"}
+
+    captured_inner: dict[str, object] = {}
+
+    def capture_inner_cv(
+        optimizable: Optimize, inner_dataset: SustainWearTimeDataset, *, cv: BaseDatasetSplitter, **_: object
+    ) -> dict[str, list[float]]:
+        captured_inner["optimizer"] = optimizable
+        captured_inner["dataset"] = inner_dataset
+        captured_inner["splitter"] = cv
+        return {"test__agg__combined__accuracy": [0.75]}
+
+    monkeypatch.setattr(xgboost, "cross_validate", capture_inner_cv)
+    wrapper = captured_wrappers[0]
+    assert isinstance(wrapper, xgboost.XGBoostOptunaOptimize)
+    outer_train = dataset.get_subset(group_labels=next(captured_splitters["outer"].split(dataset))[0])
+    search = wrapper.clone().set_params(n_trials=1, return_optimized=False).optimize(outer_train)
+    assert search.best_score_ == 0.75
+    inner_dataset = captured_inner["dataset"]
+    assert isinstance(inner_dataset, SustainWearTimeDataset)
+    assert set(inner_dataset.index["recording_type"]) == {"human_movement"}
+    assert isinstance(captured_inner["splitter"], DatasetSplitter)
+    assert captured_inner["splitter"].groupby == "participant_id"
+    inner_optimizer = captured_inner["optimizer"]
+    assert isinstance(inner_optimizer, Optimize)
+    sample_human_days = inner_optimizer.train_dataset_transform
+    assert sample_human_days is not None
+    sampled = sample_human_days(inner_dataset)
+    assert set(sampled.index["recording_type"]) == {"human_movement"}
+    assert len(sampled.index) == max(1, round(0.4 * len(inner_dataset.index)))
