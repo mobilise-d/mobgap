@@ -7,6 +7,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS, BGF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
+from mobgap.data_transform import HampelFilter
 from mobgap.pipeline import GsIterator
 from mobgap.stride_length import SlZijlstra
 from mobgap.utils.conversions import to_body_frame
@@ -28,6 +29,20 @@ class TestMetaSlZijlstra(TestAlgorithmMixin):
 
 
 class TestSlZijlstra:
+    def test_default_smoothing_preserves_small_reported_stride_length_changes(self):
+        step_lengths = np.array([0.5, 0.5, 0.54, 0.5, 0.5, 0.56, 0.5, 0.5])
+
+        smoothed = SlZijlstra().step_length_smoothing.clone().filter(step_lengths).filtered_data_
+        previous = (
+            SlZijlstra(step_length_smoothing=HampelFilter(2, 3.0))
+            .step_length_smoothing.clone()
+            .filter(step_lengths)
+            .filtered_data_
+        )
+
+        assert_array_equal(2 * smoothed, [1.0, 1.0, 1.08, 1.0, 1.0, 1.0, 1.0, 1.0])
+        assert_array_equal(2 * previous, np.ones(len(step_lengths)))
+
     @pytest.mark.parametrize(
         "all_columns,required_column",
         [(BF_SENSOR_COLS, "acc_is"), (BGF_SENSOR_COLS, "acc_gis")],

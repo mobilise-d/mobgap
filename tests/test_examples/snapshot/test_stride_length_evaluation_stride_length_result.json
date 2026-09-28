@@ -90,7 +90,7 @@
             "wb_id":1,
             "r_gs_id":0,
             "sec_center_samples":4784,
-            "stride_length_m":0.6863905713
+            "stride_length_m":0.6160522952
         },
         {
             "wb_id":1,
@@ -126,7 +126,7 @@
             "wb_id":1,
             "r_gs_id":0,
             "sec_center_samples":5384,
-            "stride_length_m":0.6524944595
+            "stride_length_m":0.6903450334
         },
         {
             "wb_id":1,
@@ -396,7 +396,7 @@
             "wb_id":5,
             "r_gs_id":0,
             "sec_center_samples":21428,
-            "stride_length_m":1.0292486034
+            "stride_length_m":0.9752545301
         },
         {
             "wb_id":5,

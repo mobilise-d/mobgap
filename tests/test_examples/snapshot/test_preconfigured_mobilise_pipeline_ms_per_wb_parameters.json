@@ -62,9 +62,9 @@
             "duration_s":8.56,
             "n_raw_initial_contacts":14,
             "stride_duration_s":1.305,
-            "cadence_spm":92.9003655441,
+            "cadence_spm":92.5763263521,
             "stride_length_m":0.9236297928,
-            "walking_speed_mps":0.7467274709
+            "walking_speed_mps":0.743593414
         },
         {
             "wb_id":1,
@@ -101,9 +101,9 @@
             "duration_s":16.96,
             "n_raw_initial_contacts":29,
             "stride_duration_s":1.1281481481,
-            "cadence_spm":100.8109219782,
+            "cadence_spm":100.2945436445,
             "stride_length_m":0.8792665863,
-            "walking_speed_mps":0.7419642122
+            "walking_speed_mps":0.737568094
         },
         {
             "wb_id":4,

@@ -62,9 +62,9 @@
             "duration_s":11.05,
             "n_raw_initial_contacts":17,
             "stride_duration_s":1.2113333333,
-            "cadence_spm":93.9027763981,
+            "cadence_spm":92.9534036567,
             "stride_length_m":0.8140551395,
-            "walking_speed_mps":0.6673256715
+            "walking_speed_mps":0.6584239779
         },
         {
             "wb_id":1,
@@ -102,8 +102,8 @@
             "n_raw_initial_contacts":52,
             "stride_duration_s":1.235106383,
             "cadence_spm":97.1072141922,
-            "stride_length_m":0.7363454445,
-            "walking_speed_mps":0.5976895582
+            "stride_length_m":0.7376291864,
+            "walking_speed_mps":0.5987962323
         },
         {
             "wb_id":4,
@@ -114,9 +114,9 @@
             "duration_s":24.4,
             "n_raw_initial_contacts":33,
             "stride_duration_s":1.2921428571,
-            "cadence_spm":87.6269795377,
+            "cadence_spm":88.0032132936,
             "stride_length_m":0.8361303346,
-            "walking_speed_mps":0.6017249259
+            "walking_speed_mps":0.6037912688
         }
     ]
 }
