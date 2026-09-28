@@ -1,4 +1,4 @@
-"""Check the training-only days in the daily ML evaluation fold plans."""
+"""Check human and Part B assignments in daily ML evaluation folds."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
             "recording_day": f"2020-02-{day:02d}",
             "file_path": f"part_b_{participant}.cwa",
         }
-        for participant in ("020", "021")
+        for participant in ("020", "021", "022")
         for day in (1, 2)
     )
     dataset = SustainWearTimeDataset(Path("unused"), splitter=split_by_utc_day, subset_index=pd.DataFrame(rows))
@@ -78,22 +78,44 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         script.main()
 
         output_dir = tmp_path / script.__name__
-        training_only = pd.read_csv(output_dir / "training_only_index.csv")
         fold_plan = pd.read_csv(output_dir / "fold_metadata.csv")
-        assert len(training_only) == 4
-        assert set(training_only["recording_id"]) == {"part_b_020", "part_b_021"}
         assert len(fold_plan) == 3
         assert set(fold_plan["n_train_days"]) == {14}
-        assert set(fold_plan["n_training_only_days"]) == {4}
         assert set(fold_plan["n_test_days"]) == {5}
         assert all(recording_id.startswith("human_") for recording_id in fold_plan["test_recording_ids"])
 
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                script.__name__,
+                "--dataset-path",
+                "unused",
+                "--dry-run",
+                "--output-dir",
+                str(tmp_path),
+                "--run-name",
+                f"{script.__name__}_selected",
+                "--participant-id",
+                "002",
+                "--participant-id",
+                "003",
+                "--max-participants",
+                "2",
+            ],
+        )
+        script.main()
+        selected_folds = pd.read_csv(tmp_path / f"{script.__name__}_selected" / "fold_metadata.csv")
+        assert set(selected_folds["held_out_participant_ids"].astype(str).str.zfill(3)) == {"002", "003"}
+
     xgboost = evaluation_scripts[1]
     captured_splitters: dict[str, BaseDatasetSplitter] = {}
+    captured_datasets: dict[str, SustainWearTimeDataset] = {}
     captured_wrappers: list[object] = []
 
     def capture_run(evaluation: EvaluationCV, optimizer: xgboost.OptimizableOptunaSearch) -> EvaluationCV:
         captured_splitters["outer"] = evaluation.cv_iterator
+        captured_datasets["outer"] = evaluation.dataset
         captured_wrappers.append(optimizer)
         return evaluation
 
@@ -103,9 +125,12 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     monkeypatch.setattr(sys, "argv", ["loso_daily_xgboost", "--dataset-path", "unused", "--inner-folds", "2"])
     xgboost.main()
 
-    for outer_train_labels, _ in captured_splitters["outer"].split(dataset):
-        outer_train = dataset.get_subset(group_labels=outer_train_labels)
-        assert len(outer_train.get_subset(recording_type="simulated_movements").index) == 4
+    evaluation_dataset = captured_datasets["outer"]
+    for outer_train_labels, _ in captured_splitters["outer"].split(evaluation_dataset):
+        outer_train = evaluation_dataset.get_subset(group_labels=outer_train_labels)
+        part_b_train = outer_train.get_subset(recording_type="simulated_movements").index
+        assert len(part_b_train) == 4
+        assert set(part_b_train["recording_id"]) == {"part_b_020", "part_b_021"}
 
     captured_inner: dict[str, object] = {}
 
@@ -128,7 +153,8 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     monkeypatch.setattr(Optimize, "optimize", capture_refit)
     wrapper = captured_wrappers[0]
     assert isinstance(wrapper, xgboost.OptimizableOptunaSearch)
-    outer_train = dataset.get_subset(group_labels=next(captured_splitters["outer"].split(dataset))[0])
+    first_train_labels, _ = next(captured_splitters["outer"].split(evaluation_dataset))
+    outer_train = evaluation_dataset.get_subset(group_labels=first_train_labels)
     search = wrapper.clone().set_params(n_trials=1).optimize(outer_train)
     assert search.best_score_ == 0.75
     assert len(refit_datasets) == 1

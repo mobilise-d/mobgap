@@ -37,9 +37,7 @@ DEFAULT_OUTPUT_DIR = Path(".cache") / "weartime_loso_runs"
 DEFAULT_CACHE_DIR = Path(".cache") / "mobgap"
 
 
-def _fold_metadata(
-    dataset: SustainWearTimeDataset, splitter: CombinedSplitter, training_only_index: pd.DataFrame
-) -> pd.DataFrame:
+def _fold_metadata(dataset: SustainWearTimeDataset, splitter: CombinedSplitter) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for fold, (train_labels, test_labels) in enumerate(splitter.split(dataset)):
         train_index = dataset.get_subset(group_labels=train_labels).index
@@ -51,12 +49,10 @@ def _fold_metadata(
                 "fold": fold,
                 "held_out_participant_ids": ",".join(str(participant_id) for participant_id in test_participants),
                 "n_train_days": len(train_index),
-                "n_training_only_days": len(training_only_index),
                 "n_test_days": len(test_index),
                 "n_train_participants": len(train_participants),
                 "n_test_participants": len(test_participants),
                 "train_participant_ids": ",".join(str(participant_id) for participant_id in train_participants),
-                "training_only_recording_ids": ",".join(sorted(training_only_index["recording_id"].unique())),
                 "test_recording_ids": ",".join(sorted(test_index["recording_id"].unique())),
                 "test_recording_days": ",".join(str(day) for day in sorted(test_index["recording_day"].unique())),
             }
@@ -80,8 +76,6 @@ def _numeric_summary(frame: pd.DataFrame) -> dict[str, dict[str, float]]:
 def _write_results(
     *,
     evaluation: EvaluationCV,
-    dataset: SustainWearTimeDataset,
-    training_only_index: pd.DataFrame,
     fold_metadata: pd.DataFrame,
     output_dir: Path,
     run_metadata: dict[str, Any],
@@ -99,15 +93,8 @@ def _write_results(
     for name, value in raw_results.items():
         if isinstance(value, pd.DataFrame):
             value.to_csv(output_dir / f"raw_{name}.csv")
-    dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
-    training_only_index.to_csv(output_dir / "training_only_index.csv", index=False)
-
     summary = {
         **run_metadata,
-        "n_days": len(dataset.index),
-        "n_participants": int(dataset.index["participant_id"].nunique()),
-        "n_training_only_days": len(training_only_index),
-        "training_only_recording_ids": sorted(training_only_index["recording_id"].unique()),
         "n_folds": len(fold_metadata),
         "fold_metric_summary": _numeric_summary(fold_results),
         "daily_metric_summary": _numeric_summary(daily_results.reset_index(drop=True)),
@@ -199,7 +186,7 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one place.
+def main() -> None:
     """Run the LOSO evaluation."""
     args = _parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
@@ -207,7 +194,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
     run_name = args.run_name or f"loso_daily_cnn_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     output_dir = Path(args.output_dir).expanduser() / run_name
 
-    # Select the human days to evaluate.
+    # Configure the dataset and the human fold selector.
     dataset_path = Path(args.dataset_path or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser()
     cache_dir = Path(args.cache_dir or get_env_var("MOBGAP_CACHE_DIR_PATH", str(DEFAULT_CACHE_DIR))).expanduser()
     base_dataset = SustainWearTimeDataset(
@@ -217,55 +204,47 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
         splitter=split_by_utc_day,
         memory=joblib.Memory(cache_dir, verbose=0),
     )
-    dataset = base_dataset.get_subset(recording_type="human_movement")
-    if args.participant_id:
-        dataset = dataset.get_subset(index=dataset.index[dataset.index["participant_id"].isin(args.participant_id)])
-    if args.max_participants is not None:
-        selected_participants = dataset.index["participant_id"].drop_duplicates().iloc[: args.max_participants]
-        dataset = dataset.get_subset(index=dataset.index[dataset.index["participant_id"].isin(selected_participants)])
-    if len(dataset.index) == 0:
-        raise ValueError("The selected SUSTAIN human split-by-day subset is empty.")
+
+    def select_human_days(days: SustainWearTimeDataset) -> SustainWearTimeDataset:
+        human = days.get_subset(recording_type="human_movement")
+        if args.participant_id:
+            human = human.get_subset(index=human.index[human.index["participant_id"].isin(args.participant_id)])
+        if args.max_participants is not None:
+            participant_ids = human.index["participant_id"].drop_duplicates().iloc[: args.max_participants]
+            human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
+        return human
 
     # Add the same two Part B recordings to every training fold.
-    part_b_index = base_dataset.get_subset(recording_type="simulated_movements").index
-    available_ids = sorted(part_b_index["recording_id"].unique())
+    available_ids = sorted(base_dataset.get_subset(recording_type="simulated_movements").index["recording_id"].unique())
     selected_ids = available_ids[:2] if args.part_b_recording_id is None else args.part_b_recording_id
     if len(selected_ids) != 2 or len(set(selected_ids)) != 2 or not set(selected_ids).issubset(available_ids):
         raise ValueError("Select exactly two distinct part B recording IDs present in the dataset.")
-    training_only_index = part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
-    evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
-    evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
 
     # Hold out one human participant per fold; keep Part B out of test folds.
     splitter = CombinedSplitter(
         parts=[
             (
-                lambda days: days.get_subset(recording_type="human_movement"),
+                select_human_days,
                 DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
             ),
             (
                 lambda days: days.get_subset(recording_type="simulated_movements"),
-                NoSplit(dataset.index["participant_id"].nunique(), train=lambda days: days),
+                NoSplit(
+                    select_human_days(base_dataset).index["participant_id"].nunique(),
+                    train=lambda days: days.get_subset(recording_id=selected_ids),
+                ),
             ),
         ]
     )
-    fold_metadata = _fold_metadata(evaluation_dataset, splitter, training_only_index)
+    fold_metadata = _fold_metadata(base_dataset, splitter)
 
-    LOGGER.info("Selected split-by-day human datapoints: %s", len(dataset.index))
-    LOGGER.info("Selected participants: %s", dataset.index["participant_id"].nunique())
-    LOGGER.info("Participant-grouped CV folds: %s", len(fold_metadata))
-    LOGGER.info(
-        "Part B recordings added to every training fold: %s", sorted(training_only_index["recording_id"].unique())
-    )
     LOGGER.info("Output directory: %s", output_dir)
 
     # Preview the fold plan before loading TensorFlow.
     if args.dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
-        dataset.index.to_csv(output_dir / "dataset_index.csv", index=False)
-        training_only_index.to_csv(output_dir / "training_only_index.csv", index=False)
         fold_metadata.to_csv(output_dir / "fold_metadata.csv", index=False)
-        LOGGER.info("Dry run complete. Wrote fold metadata and human and part B dataset indices.")
+        LOGGER.info("Dry run complete. Wrote fold metadata.")
         return
 
     # Configure TensorFlow and choose safe fold parallelism.
@@ -298,7 +277,7 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
         )
     )
     evaluation = EvaluationCV(
-        dataset=evaluation_dataset,
+        dataset=base_dataset,
         scoring=wtd_score,
         cv_iterator=splitter,
         cv_params={
@@ -338,8 +317,6 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
     }
     _write_results(
         evaluation=evaluation,
-        dataset=dataset,
-        training_only_index=training_only_index,
         fold_metadata=fold_metadata,
         output_dir=output_dir,
         run_metadata=run_metadata,
