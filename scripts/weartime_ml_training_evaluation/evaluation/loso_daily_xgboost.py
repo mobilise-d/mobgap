@@ -22,7 +22,6 @@ import pandas as pd
 from loso_daily_cnn import (
     DEFAULT_CACHE_DIR,
     DEFAULT_OUTPUT_DIR,
-    _combined_splitter,
     _fold_metadata,
     _make_base_dataset,
     _make_dataset,
@@ -34,7 +33,7 @@ from optuna import Study, Trial
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
 from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
-from tpcp.validate import BaseDatasetSplitter, DatasetSplitter, cross_validate
+from tpcp.validate import BaseDatasetSplitter, CombinedSplitter, DatasetSplitter, NoSplit, cross_validate
 
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.weartime import WtdMegaritisXGBoost
@@ -272,9 +271,17 @@ def main() -> None:
     training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
     evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
     evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
-    outer_splitter = _combined_splitter(
-        DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
-        dataset.index["participant_id"].nunique(),
+    outer_splitter = CombinedSplitter(
+        parts=[
+            (
+                lambda days: days.get_subset(recording_type="human_movement"),
+                DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
+            ),
+            (
+                lambda days: days.get_subset(recording_type="simulated_movements"),
+                NoSplit(dataset.index["participant_id"].nunique(), train=lambda days: days),
+            ),
+        ]
     )
     fold_metadata = _fold_metadata(evaluation_dataset, outer_splitter, training_only_index)
 
@@ -307,9 +314,17 @@ def main() -> None:
     cache_dir = _path_from_env_or_arg(args.cache_dir, "MOBGAP_CACHE_DIR_PATH", fallback=DEFAULT_CACHE_DIR)
     pipeline = _make_pipeline(args, cache_dir)
     # The outer split decides which part B days enter training; inner CV only keeps those days out of validation.
-    inner_splitter = _combined_splitter(
-        DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id"),
-        args.inner_folds,
+    inner_splitter = CombinedSplitter(
+        parts=[
+            (
+                lambda days: days.get_subset(recording_type="human_movement"),
+                DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id"),
+            ),
+            (
+                lambda days: days.get_subset(recording_type="simulated_movements"),
+                NoSplit(args.inner_folds, train=lambda days: days),
+            ),
+        ]
     )
     evaluation = EvaluationCV(
         dataset=evaluation_dataset,

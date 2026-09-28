@@ -104,27 +104,6 @@ def _select_training_only_index(base_dataset: SustainWearTimeDataset, recording_
     return part_b_index[part_b_index["recording_id"].isin(selected_ids)].reset_index(drop=True)
 
 
-def _human_days(dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
-    return dataset.get_subset(recording_type="human_movement")
-
-
-def _training_only_days(dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
-    return dataset.get_subset(recording_type="simulated_movements")
-
-
-def _all_days(dataset: SustainWearTimeDataset) -> SustainWearTimeDataset:
-    return dataset
-
-
-def _combined_splitter(human_splitter: DatasetSplitter, n_folds: int) -> CombinedSplitter:
-    return CombinedSplitter(
-        parts=[
-            (_human_days, human_splitter),
-            (_training_only_days, NoSplit(n_folds, train=_all_days)),
-        ]
-    )
-
-
 def _fold_metadata(
     dataset: SustainWearTimeDataset, splitter: CombinedSplitter, training_only_index: pd.DataFrame
 ) -> pd.DataFrame:
@@ -312,9 +291,17 @@ def main() -> None:
     training_only_index = _select_training_only_index(base_dataset, args.part_b_recording_id)
     evaluation_index = pd.concat([dataset.index, training_only_index], ignore_index=True)
     evaluation_dataset = base_dataset.get_subset(index=evaluation_index)
-    splitter = _combined_splitter(
-        DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
-        dataset.index["participant_id"].nunique(),
+    splitter = CombinedSplitter(
+        parts=[
+            (
+                lambda days: days.get_subset(recording_type="human_movement"),
+                DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
+            ),
+            (
+                lambda days: days.get_subset(recording_type="simulated_movements"),
+                NoSplit(dataset.index["participant_id"].nunique(), train=lambda days: days),
+            ),
+        ]
     )
     fold_metadata = _fold_metadata(evaluation_dataset, splitter, training_only_index)
 
