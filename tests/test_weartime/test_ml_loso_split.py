@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import pytest
 from tpcp.optimize import Optimize
-from tpcp.validate import DatasetSplitter
+from tpcp.validate import CombinedSplitter
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV
@@ -107,10 +107,9 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     for outer_train_labels, _ in captured_splitters["outer"].split(dataset):
         outer_train = dataset.get_subset(group_labels=outer_train_labels)
         assert len(outer_train.get_subset(recording_type="simulated_movements").index) == 4
-        human_days = outer_train.get_subset(recording_type="human_movement")
-        for inner_train_labels, inner_test_labels in captured_splitters["inner"].split(human_days):
-            inner_train = human_days.get_subset(group_labels=inner_train_labels)
-            inner_test = human_days.get_subset(group_labels=inner_test_labels)
+        for inner_train_labels, inner_test_labels in captured_splitters["inner"].split(outer_train):
+            inner_train = outer_train.get_subset(group_labels=inner_train_labels)
+            inner_test = outer_train.get_subset(group_labels=inner_test_labels)
             assert set(inner_test.index["recording_type"]) == {"human_movement"}
             assert set(inner_train.index["recording_type"]) == {"human_movement"}
 
@@ -132,13 +131,14 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     assert search.best_score_ == 0.75
     inner_dataset = captured_inner["dataset"]
     assert isinstance(inner_dataset, SustainWearTimeDataset)
-    assert set(inner_dataset.index["recording_type"]) == {"human_movement"}
-    assert isinstance(captured_inner["splitter"], DatasetSplitter)
-    assert captured_inner["splitter"].groupby == "participant_id"
+    assert len(inner_dataset.get_subset(recording_type="simulated_movements").index) == 4
+    assert isinstance(captured_inner["splitter"], CombinedSplitter)
     inner_optimizer = captured_inner["optimizer"]
     assert isinstance(inner_optimizer, Optimize)
     sample_human_days = inner_optimizer.train_dataset_transform
     assert sample_human_days is not None
-    sampled = sample_human_days(inner_dataset)
+    inner_train_labels, _ = next(captured_inner["splitter"].split(inner_dataset))
+    human_training_days = inner_dataset.get_subset(group_labels=inner_train_labels)
+    sampled = sample_human_days(human_training_days)
     assert set(sampled.index["recording_type"]) == {"human_movement"}
-    assert len(sampled.index) == max(1, round(0.4 * len(inner_dataset.index)))
+    assert len(sampled.index) == max(1, round(0.4 * len(human_training_days.index)))
