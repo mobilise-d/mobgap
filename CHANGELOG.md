@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Missing per-second cadence or stride-length values no longer erase estimates for later, nonoverlapping strides.
+  Strides that overlap a missing interval remain NaN. (https://github.com/mobilise-d/mobgap/issues/203,
+  https://github.com/mobilise-d/mobgap/pull/261)
 - `MisorientedDataset` now preserves the wrapped dataset's grouping and appends its orientation column instead of
   resetting iteration to every source-index row. Callers that intentionally need the previous row-level grouping can
   pass all source-index columns plus the orientation column explicitly via `groupby_cols`.
