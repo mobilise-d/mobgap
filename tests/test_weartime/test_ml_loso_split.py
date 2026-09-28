@@ -92,9 +92,8 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     captured_splitters: dict[str, BaseDatasetSplitter] = {}
     captured_wrappers: list[object] = []
 
-    def capture_run(evaluation: EvaluationCV, optimizer: xgboost.XGBoostOptunaOptimize) -> EvaluationCV:
+    def capture_run(evaluation: EvaluationCV, optimizer: xgboost.OptimizableOptunaSearch) -> EvaluationCV:
         captured_splitters["outer"] = evaluation.cv_iterator
-        captured_splitters["inner"] = optimizer.inner_splitter
         captured_wrappers.append(optimizer)
         return evaluation
 
@@ -107,11 +106,6 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     for outer_train_labels, _ in captured_splitters["outer"].split(dataset):
         outer_train = dataset.get_subset(group_labels=outer_train_labels)
         assert len(outer_train.get_subset(recording_type="simulated_movements").index) == 4
-        for inner_train_labels, inner_test_labels in captured_splitters["inner"].split(outer_train):
-            inner_train = outer_train.get_subset(group_labels=inner_train_labels)
-            inner_test = outer_train.get_subset(group_labels=inner_test_labels)
-            assert set(inner_test.index["recording_type"]) == {"human_movement"}
-            assert set(inner_train.index["recording_type"]) == {"human_movement"}
 
     captured_inner: dict[str, object] = {}
 
@@ -124,15 +118,30 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         return {"test__agg__combined__accuracy": [0.75]}
 
     monkeypatch.setattr(xgboost, "cross_validate", capture_inner_cv)
+    refit_datasets: list[SustainWearTimeDataset] = []
+
+    def capture_refit(optimizer: Optimize, train_dataset: SustainWearTimeDataset) -> Optimize:
+        refit_datasets.append(train_dataset)
+        optimizer.optimized_pipeline_ = optimizer.pipeline
+        return optimizer
+
+    monkeypatch.setattr(Optimize, "optimize", capture_refit)
     wrapper = captured_wrappers[0]
-    assert isinstance(wrapper, xgboost.XGBoostOptunaOptimize)
+    assert isinstance(wrapper, xgboost.OptimizableOptunaSearch)
     outer_train = dataset.get_subset(group_labels=next(captured_splitters["outer"].split(dataset))[0])
-    search = wrapper.clone().set_params(n_trials=1, return_optimized=False).optimize(outer_train)
+    search = wrapper.clone().set_params(n_trials=1).optimize(outer_train)
     assert search.best_score_ == 0.75
+    assert len(refit_datasets) == 1
+    assert len(refit_datasets[0].get_subset(recording_type="simulated_movements").index) == 4
     inner_dataset = captured_inner["dataset"]
     assert isinstance(inner_dataset, SustainWearTimeDataset)
     assert len(inner_dataset.get_subset(recording_type="simulated_movements").index) == 4
     assert isinstance(captured_inner["splitter"], CombinedSplitter)
+    for inner_train_labels, inner_test_labels in captured_inner["splitter"].split(inner_dataset):
+        inner_train = inner_dataset.get_subset(group_labels=inner_train_labels)
+        inner_test = inner_dataset.get_subset(group_labels=inner_test_labels)
+        assert set(inner_test.index["recording_type"]) == {"human_movement"}
+        assert set(inner_train.index["recording_type"]) == {"human_movement"}
     inner_optimizer = captured_inner["optimizer"]
     assert isinstance(inner_optimizer, Optimize)
     sample_human_days = inner_optimizer.train_dataset_transform

@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any
 
 import joblib
 import numpy as np
@@ -23,11 +23,11 @@ from loso_daily_cnn import (
     _fold_metadata,
     _write_results,
 )
-from optuna import Study, Trial
+from optimizable_optuna_search import OptimizableOptunaSearch
+from optuna import Trial
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
 from tpcp.optimize import Optimize
-from tpcp.optimize.optuna import CustomOptunaOptimize
-from tpcp.validate import BaseDatasetSplitter, CombinedSplitter, DatasetSplitter, NoSplit, cross_validate
+from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit, cross_validate
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV
@@ -38,92 +38,9 @@ from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 LOGGER = logging.getLogger(__name__)
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from optuna.trial import FrozenTrial
-
 
 def _study_params(seed: int) -> dict[str, Any]:
     return {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)}
-
-
-class XGBoostOptunaOptimize(CustomOptunaOptimize):
-    """Tune within one outer LOSO training fold, then refit on all its training days."""
-
-    def __init__(
-        self,
-        pipeline: WtdEmulationPipeline,
-        inner_splitter: BaseDatasetSplitter,
-        *,
-        n_trials: int = 20,
-        train_fraction: float = 0.4,
-        random_seed: int = 42,
-        get_study_params: Callable[[int], dict[str, Any]] = _study_params,
-        timeout: float | None = None,
-        callbacks: list[Callable[[Study, FrozenTrial], None]] | None = None,
-        gc_after_trial: bool = False,
-        n_jobs: int = 1,
-        eval_str_paras: Sequence[str] = (),
-        show_progress_bar: bool = False,
-        return_optimized: bool = True,
-    ) -> None:
-        self.inner_splitter = inner_splitter
-        self.train_fraction = train_fraction
-        super().__init__(
-            pipeline,
-            get_study_params,
-            n_trials=n_trials,
-            random_seed=random_seed,
-            timeout=timeout,
-            callbacks=callbacks,
-            gc_after_trial=gc_after_trial,
-            n_jobs=n_jobs,
-            eval_str_paras=eval_str_paras,
-            show_progress_bar=show_progress_bar,
-            return_optimized=return_optimized,
-        )
-
-    def create_objective(self) -> Callable[[Trial, WtdEmulationPipeline, SustainWearTimeDataset], float]:
-        """Score each candidate on participant-grouped inner validation folds."""
-
-        def objective(trial: Trial, pipeline: WtdEmulationPipeline, dataset: SustainWearTimeDataset) -> float:
-            params = {
-                "algo__clf__n_estimators": trial.suggest_categorical("algo__clf__n_estimators", [50, 100, 200]),
-                "algo__clf__max_depth": trial.suggest_categorical("algo__clf__max_depth", [3, 5]),
-                "algo__clf__learning_rate": trial.suggest_categorical("algo__clf__learning_rate", [0.05, 0.1]),
-                "algo__clf__subsample": trial.suggest_categorical("algo__clf__subsample", [0.7, 0.8, 0.9]),
-                "algo__clf__colsample_bytree": trial.suggest_categorical("algo__clf__colsample_bytree", [0.6, 0.8]),
-                "algo__clf__min_child_weight": trial.suggest_categorical("algo__clf__min_child_weight", [1, 3]),
-            }
-            pipeline.set_params(**params)
-            inner_optimizer = Optimize(
-                pipeline,
-                train_dataset_transform=lambda train_days: train_days.get_subset(
-                    index=train_days.index.sample(
-                        n=max(1, round(len(train_days.index) * self.train_fraction)), random_state=self.random_seed
-                    )
-                ),
-            )
-            scores = cross_validate(
-                inner_optimizer,
-                dataset,
-                scoring=wtd_score,
-                cv=self.inner_splitter,
-                n_jobs=1,
-                return_train_score=False,
-                progress_bar=False,
-            )
-            return float(np.mean(scores["test__agg__combined__accuracy"]))
-
-        return objective
-
-    def return_optimized_pipeline(
-        self, pipeline: WtdEmulationPipeline, dataset: SustainWearTimeDataset, study: Study
-    ) -> WtdEmulationPipeline:
-        """Refit the winning parameters with every outer training day."""
-        pipeline.set_params(**study.best_params)
-        return Optimize(pipeline).optimize(dataset).optimized_pipeline_
 
 
 def _write_search_results(evaluation: EvaluationCV, output_dir: Path) -> None:
@@ -311,6 +228,37 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
             )
         ]
     )
+
+    def objective(trial: Trial, candidate: WtdEmulationPipeline, train_days: SustainWearTimeDataset) -> float:
+        params = {
+            "algo__clf__n_estimators": trial.suggest_categorical("algo__clf__n_estimators", [50, 100, 200]),
+            "algo__clf__max_depth": trial.suggest_categorical("algo__clf__max_depth", [3, 5]),
+            "algo__clf__learning_rate": trial.suggest_categorical("algo__clf__learning_rate", [0.05, 0.1]),
+            "algo__clf__subsample": trial.suggest_categorical("algo__clf__subsample", [0.7, 0.8, 0.9]),
+            "algo__clf__colsample_bytree": trial.suggest_categorical("algo__clf__colsample_bytree", [0.6, 0.8]),
+            "algo__clf__min_child_weight": trial.suggest_categorical("algo__clf__min_child_weight", [1, 3]),
+        }
+        candidate.set_params(**params)
+        inner_optimizer = Optimize(
+            candidate,
+            train_dataset_transform=lambda inner_train_days: inner_train_days.get_subset(
+                index=inner_train_days.index.sample(
+                    n=max(1, round(len(inner_train_days.index) * args.search_train_fraction)),
+                    random_state=args.search_seed,
+                )
+            ),
+        )
+        scores = cross_validate(
+            inner_optimizer,
+            train_days,
+            scoring=wtd_score,
+            cv=inner_splitter,
+            n_jobs=1,
+            return_train_score=False,
+            progress_bar=False,
+        )
+        return float(np.mean(scores["test__agg__combined__accuracy"]))
+
     evaluation = EvaluationCV(
         dataset=evaluation_dataset,
         scoring=wtd_score,
@@ -322,12 +270,8 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
             "progress_bar": True,
         },
     )
-    optimizer = XGBoostOptunaOptimize(
-        pipeline,
-        inner_splitter,
-        n_trials=args.n_trials,
-        train_fraction=args.search_train_fraction,
-        random_seed=args.search_seed,
+    optimizer = OptimizableOptunaSearch(
+        pipeline, _study_params, objective, n_trials=args.n_trials, random_seed=args.search_seed
     )
 
     evaluation.run(optimizer)
