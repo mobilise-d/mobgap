@@ -330,7 +330,7 @@ class TestWtdMegaritisXGBoost:
                 window_sec=20.0,
                 overlap=0.0,
                 window_batch_size=2,
-                feature_memory=memory,
+                memory=memory,
                 trained_sampling_rate_hz=None,
             ).self_optimize(
                 [(recording, _weartime_list(intervals))], sampling_rate_hz=1.0, recording_sample_counts=(60,)
