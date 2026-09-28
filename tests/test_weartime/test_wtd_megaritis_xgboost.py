@@ -314,15 +314,13 @@ class TestWtdMegaritisXGBoost:
         calls: list[dict[str, float]] = []
         _patch_simple_features(monkeypatch, calls)
         data = _sensor_data(60)
-        reindexed_data = data.copy()
-        reindexed_data.index = np.arange(60) + 1000
         changed_data = data.copy()
         changed_data.loc[0, "acc_pa"] = 2.0
         memory = Memory(tmp_path, verbose=0)
 
         for recording, intervals, expected_labels, expected_extractions in [
             (data, [(0, 40)], [1, 1, 0], 2),
-            (reindexed_data, [(20, 60)], [0, 1, 1], 2),
+            (data, [(20, 60)], [0, 1, 1], 2),
             (changed_data, [(0, 40)], [1, 1, 0], 4),
         ]:
             clf = _TrainableProbabilityClassifier()

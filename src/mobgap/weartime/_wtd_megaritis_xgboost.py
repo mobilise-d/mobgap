@@ -26,9 +26,9 @@ from typing import Any, Callable, Final, Literal, Optional, Protocol, TypeVar
 import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
-from joblib import hash as joblib_hash
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
+from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
 from typing_extensions import Self, TypedDict, Unpack
 
@@ -141,7 +141,7 @@ class _TrainingFeatureKwargs(_FeatureExtractionKwargs):
     window_sec: float
 
 
-def _iter_recording_feature_batches(
+def _extract_recording_feature_batches(
     data: pd.DataFrame,
     *,
     sampling_rate_hz: float,
@@ -151,61 +151,35 @@ def _iter_recording_feature_batches(
     version: Literal["full", "lightweight"],
     sensor_cols: tuple[str, ...],
     feature_names: tuple[str, ...],
-) -> Iterator[pd.DataFrame]:
+) -> list[np.ndarray]:
     window_start_end_ = window_start_end(len(data), window_samples, step_samples)
     dt = 1.0 / sampling_rate_hz
     sensor_data = data.loc[:, list(sensor_cols)].to_numpy(dtype=float, copy=False)
+    feature_batches = []
     for batch_start in range(0, len(window_start_end_), window_batch_size):
         batch_start_end = window_start_end_[batch_start : batch_start + window_batch_size]
-        yield extract_features_batched(
-            sensor_data,
-            batch_start_end,
-            acc_axes=sensor_cols[:3],
-            gyr_axes=sensor_cols[3:],
-            fs=sampling_rate_hz,
-            dt=dt,
-            feature_names=feature_names,
-            version=version,
+        feature_batches.append(
+            extract_features_batched(
+                sensor_data,
+                batch_start_end,
+                acc_axes=sensor_cols[:3],
+                gyr_axes=sensor_cols[3:],
+                fs=sampling_rate_hz,
+                dt=dt,
+                feature_names=feature_names,
+                version=version,
+            ).to_numpy(dtype=np.float32, copy=False)
         )
+    return feature_batches
 
 
-def _extract_recording_feature_batches(
-    data: pd.DataFrame,
-    *,
-    data_cache_key: str,  # noqa: ARG001 - joblib includes this key while omitting the large recording.
-    **feature_kwargs: Unpack[_FeatureExtractionKwargs],
-) -> list[np.ndarray]:
-    return [
-        features.to_numpy(dtype=np.float32, copy=False)
-        for features in _iter_recording_feature_batches(data, **feature_kwargs)
-    ]
-
-
-def _sensor_data_cache_key(data: pd.DataFrame, sensor_cols: tuple[str, ...]) -> str:
-    """Hash the sensor values read by the extractor without hashing unrelated DataFrame metadata."""
-    hasher = import_module("xxhash").xxh3_128()
-    hasher.update(b"mobgap-recording-sensors-v1")
-    hasher.update(pickle.dumps((len(data), sensor_cols), protocol=5))
-    for column in sensor_cols:
-        values = data[column].to_numpy(copy=False)
-        hasher.update(pickle.dumps((column, values.dtype.str), protocol=5))
-        if values.dtype.hasobject:
-            hasher.update(joblib_hash(data[column]).encode())
-        else:
-            hasher.update(memoryview(np.ascontiguousarray(values)).cast("B"))
-    return hasher.hexdigest()
-
-
-def _cached_recording_feature_batches(
+def _recording_feature_batches(
     data: pd.DataFrame, *, feature_memory: Memory, feature_kwargs: _FeatureExtractionKwargs
 ) -> list[np.ndarray]:
-    """Use a keyed, disk-only variant of tpcp's hybrid cache for full recordings."""
-    sensor_cols = feature_kwargs["sensor_cols"]
-    return feature_memory.cache(_extract_recording_feature_batches, ignore=["data"])(
-        data,
-        data_cache_key=_sensor_data_cache_key(data, sensor_cols),
-        **feature_kwargs,
-    )
+    extract = _extract_recording_feature_batches
+    if feature_memory.location is not None:
+        extract = hybrid_cache(feature_memory, False)(extract)
+    return extract(data, **feature_kwargs)
 
 
 def _iter_training_recording_feature_batches(
@@ -217,15 +191,7 @@ def _iter_training_recording_feature_batches(
     **feature_kwargs: Unpack[_FeatureExtractionKwargs],
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
     window_start_end_ = window_start_end(len(data), feature_kwargs["window_samples"], feature_kwargs["step_samples"])
-    if feature_memory.location is None:
-        feature_batches = (
-            features.to_numpy(dtype=np.float32, copy=False)
-            for features in _iter_recording_feature_batches(data, **feature_kwargs)
-        )
-    else:
-        feature_batches = _cached_recording_feature_batches(
-            data, feature_memory=feature_memory, feature_kwargs=feature_kwargs
-        )
+    feature_batches = _recording_feature_batches(data, feature_memory=feature_memory, feature_kwargs=feature_kwargs)
     reference_centers = window_start_end_[:, 0] + int((window_sec * feature_kwargs["sampling_rate_hz"]) // 2)
     for batch_index, features in enumerate(feature_batches):
         batch_start = batch_index * feature_kwargs["window_batch_size"]
@@ -646,10 +612,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             "sensor_cols": tuple(self.sensor_cols),
             "feature_names": tuple(feature_names),
         }
-        if self.feature_memory.location is None:
-            yield from _iter_recording_feature_batches(data, **feature_kwargs)
-        else:
-            for feature_values in _cached_recording_feature_batches(
-                data, feature_memory=self.feature_memory, feature_kwargs=feature_kwargs
-            ):
-                yield pd.DataFrame(feature_values, columns=feature_names)
+        for feature_values in _recording_feature_batches(
+            data, feature_memory=self.feature_memory, feature_kwargs=feature_kwargs
+        ):
+            yield pd.DataFrame(feature_values, columns=feature_names)
