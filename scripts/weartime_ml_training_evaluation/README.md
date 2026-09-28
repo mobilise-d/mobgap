@@ -36,10 +36,10 @@ participant. Use `--n-trials`, `--inner-folds`,
 Both daily evaluations write `timings.json` from `EvaluationCV.perf_`.
 
 Both daily evaluation scripts use TPCP's `CombinedSplitter` and `NoSplit` to put
-the same two part B recordings in training for every fold. Test folds contain
-only part A human recordings. By default, the scripts choose the first two part B recording IDs in sorted
-order. Pass `--part-b-recording-id` twice to select different recordings. The
-splitter applies both the human participant selection and the fixed part B training selection.
+the same sampled part B recordings in training for every fold. Test folds contain
+only part A human recordings. By default, the scripts sample two part B recordings
+with seed 42; `--part-b-recording-count` changes the count. The splitter applies
+both the human participant selection and the fixed part B training selection.
 The dry run writes the fold plan to `fold_metadata.csv`.
 
 CNN training saves a `.keras` artifact. Load it in a fresh Python process with
