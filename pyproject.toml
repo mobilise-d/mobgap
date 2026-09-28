@@ -43,6 +43,10 @@ ax6 = [
 ]
 weartime = [
     "cwa-reader-rs>=0.2.0,<0.3 ; python_full_version >= '3.10'",
+    "optuna>=4.0,<5",
+    "tensorflow>=2.18,<2.19 ; python_full_version < '3.13'",
+    "pyentrp>=2.1.0",
+    "xgboost>=2.1.4,<3.0",
 ]
 
 [dependency-groups]
@@ -59,6 +63,10 @@ test = [
     "pytest-xdist>=3.8.0,<4",
     "numpydoc>=1.6.0,<2",
     "ipython>=8.15.0,<10",
+]
+test-weartime-ml = [
+    "tensorflow>=2.18,<2.19 ; python_full_version < '3.13'",
+    "xgboost>=2.1.4,<3.0",
 ]
 lint = [
     "poethepoet>=0.22.0,<0.23",
