@@ -130,6 +130,7 @@ class BaseAX6Dataset(BaseGaitDataset):
     """Read AX6 CWA files, with file discovery and splitting supplied by subclasses.
 
     Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
+    They can provide :attr:`_file_path_root` to store paths relative to a dataset root in the index.
     The default index and time selection use ``start_time`` and ``end_time`` columns. Subclasses with different
     index columns can override :meth:`_selected_time_bounds`.
     """
@@ -159,9 +160,16 @@ class BaseAX6Dataset(BaseGaitDataset):
         raise NotImplementedError
 
     @property
+    def _file_path_root(self) -> Path | None:
+        """Root for paths stored in the index; ``None`` keeps full paths."""
+        return None
+
+    @property
     def _selected_file_path(self) -> Path:
         self.assert_is_single(["file_path"], "_selected_file_path")
-        return Path(self.index.iloc[0].file_path)
+        path = Path(self.index.iloc[0].file_path)
+        root = self._file_path_root
+        return path if root is None else root / path
 
     def _selected_time_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
         row = self.index.iloc[0]
@@ -194,10 +202,11 @@ class BaseAX6Dataset(BaseGaitDataset):
     def create_index(self) -> pd.DataFrame:
         """Combine each file's recording windows into one dataset index."""
         paths = tuple(map(Path, self._get_file_paths()))
+        root = self._file_path_root
         splits = []
         for path in paths:
             file_splits = self._get_splits_for_file(path).copy()
-            file_splits.insert(0, "file_path", str(path))
+            file_splits.insert(0, "file_path", str(path) if root is None else path.relative_to(root).as_posix())
             splits.append(file_splits)
         return pd.concat(splits, ignore_index=True)
 

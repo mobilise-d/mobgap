@@ -190,7 +190,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
     The dataset index contains one row per selected time window, including ``file_path``, ``start_time`` and
-    ``end_time``. ``recording_day`` is the UTC date at the start of the window. The raw data is loaded lazily and
+    ``end_time``. ``file_path`` is relative to ``base_path``, so the index does not depend on where the dataset is
+    stored. ``recording_day`` is the UTC date at the start of the window. The raw data is loaded lazily and
     returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention: ``start`` is
     inclusive and ``end`` is exclusive. ``start_dt`` and ``end_dt`` come from snapped sample boundaries.
 
@@ -380,6 +381,10 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             )
 
         return reference
+
+    @property
+    def _file_path_root(self) -> Path:
+        return Path(self.base_path)
 
     def _get_file_paths(self) -> list[Path]:
         paths = [
