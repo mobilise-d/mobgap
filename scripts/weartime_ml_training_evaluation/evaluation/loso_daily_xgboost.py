@@ -107,7 +107,7 @@ class XGBoostOptunaOptimize(CustomOptunaOptimize):
             )
             scores = cross_validate(
                 inner_optimizer,
-                dataset.get_subset(recording_type="human_movement"),
+                dataset,
                 scoring=wtd_score,
                 cv=self.inner_splitter,
                 n_jobs=1,
@@ -293,8 +293,15 @@ def main() -> None:  # noqa: PLR0915 - Keep the LOSO composition visible in one 
             memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
         )
     )
-    # Only the outer split includes part B; Optuna searches human movement days exclusively.
-    inner_splitter = DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id")
+    # The inner splitter selects only human days from each outer training fold.
+    inner_splitter = CombinedSplitter(
+        parts=[
+            (
+                lambda days: days.get_subset(recording_type="human_movement"),
+                DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id"),
+            )
+        ]
+    )
     evaluation = EvaluationCV(
         dataset=evaluation_dataset,
         scoring=wtd_score,
