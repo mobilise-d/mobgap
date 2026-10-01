@@ -150,9 +150,7 @@ class TestWtdMegaritisSignal:
         data["gyr_ml"] = 0.03
         data["gyr_is"] = 0.07
 
-        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(
-            data, sampling_rate_hz=10.0
-        )
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
 
