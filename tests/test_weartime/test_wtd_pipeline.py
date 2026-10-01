@@ -74,9 +74,21 @@ class DummyOptimizableWtd(DummyWtd):
         *,
         sampling_rate_hz: float,
     ) -> BaseWeartimeDetector:
-        self.training_records = list(training_data)
-        self.optimize_sampling_rate_hz = sampling_rate_hz
-        return DummyWtd(self.weartime_list, waking_hours_min=self.waking_hours_min)
+        records = list(training_data)
+        self.weartime_list = records[0][1]
+        self.total_weartime_during_waking_min = sampling_rate_hz + len(records[0][0])
+        return self
+
+
+class FailingOptimizableWtd(DummyOptimizableWtd):
+    def self_optimize(
+        self,
+        training_data: Iterable[tuple[pd.DataFrame, pd.DataFrame]],
+        *,
+        sampling_rate_hz: float,
+    ) -> BaseWeartimeDetector:
+        super().self_optimize(training_data, sampling_rate_hz=sampling_rate_hz)
+        raise RuntimeError("training failed")
 
 
 def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:
@@ -131,12 +143,30 @@ def test_wtd_emulation_pipeline_optimizes_with_paired_training_records():
     ]
 
     algo = DummyOptimizableWtd(_intervals([]))
+    other_pipeline = WtdEmulationPipeline(algo)
     pipeline = WtdEmulationPipeline(algo).self_optimize(datapoints)
 
     assert pipeline.algo is not algo
-    assert algo.optimize_sampling_rate_hz == 10.0
-    assert_frame_equal(algo.training_records[0][0], to_body_frame(datapoints[0].data_ss))
-    assert_frame_equal(algo.training_records[0][1], datapoints[0].reference_weartime_)
+    assert other_pipeline.algo is algo
+    assert algo.weartime_list.empty
+    assert algo.total_weartime_during_waking_min is None
+    assert pipeline.algo.total_weartime_during_waking_min == 13.0
+    assert_frame_equal(pipeline.algo.weartime_list, datapoints[0].reference_weartime_)
+
+
+def test_failed_optimization_preserves_supplied_detector():
+    algo = FailingOptimizableWtd(_intervals([]))
+    pipeline = WtdEmulationPipeline(algo)
+    datapoints = [
+        DummyDatapoint(data=_sensor_frame_data(3), reference_weartime=_intervals([(0, 3)]), sampling_rate_hz=10.0)
+    ]
+
+    with pytest.raises(RuntimeError, match="training failed"):
+        pipeline.self_optimize(datapoints)
+
+    assert pipeline.algo is algo
+    assert algo.weartime_list.empty
+    assert algo.total_weartime_during_waking_min is None
 
 
 def test_wtd_score_counts_half_open_samples_and_minute_durations():

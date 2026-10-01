@@ -181,7 +181,7 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
         """Run a detector's internal optimization routine, if implemented."""
         sampling_rate_hz = _single_sampling_rate_hz(dataset)
         training_data = _TrainingDataFromDataset(dataset, convert_to_body_frame=self.convert_to_body_frame)
-        self.algo = self.algo.self_optimize(
+        self.algo = self.algo.clone().self_optimize(
             training_data,
             sampling_rate_hz=sampling_rate_hz,
         )
