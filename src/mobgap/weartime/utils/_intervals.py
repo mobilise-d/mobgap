@@ -58,12 +58,18 @@ def _waking_hours_sample_bounds(
         )
 
     local_midnight = first_day.tz_localize(None)
-    start_ts = (local_midnight + pd.Timedelta(minutes=start_min)).tz_localize(
-        data.index.tz, ambiguous=True, nonexistent="shift_forward"
-    )
-    end_ts = (local_midnight + pd.Timedelta(minutes=end_min)).tz_localize(
-        data.index.tz, ambiguous=False, nonexistent="shift_forward"
-    )
+
+    def localize_boundary(minutes: int, *, first_occurrence: bool) -> pd.Timestamp:
+        local_time = local_midnight + pd.Timedelta(minutes=minutes)
+        boundary = local_time.tz_localize(data.index.tz, ambiguous=first_occurrence, nonexistent="NaT")
+        if pd.isna(boundary):
+            # shift_backward lands at the last representable instant before the gap.
+            boundary = local_time.tz_localize(data.index.tz, nonexistent="shift_backward")
+            boundary += pd.Timedelta(1, boundary.unit)
+        return boundary
+
+    start_ts = localize_boundary(start_min, first_occurrence=True)
+    end_ts = localize_boundary(end_min, first_occurrence=False)
     return (
         _timestamp_to_sample_boundary(start_ts, data.index),
         _timestamp_to_sample_boundary(end_ts, data.index),

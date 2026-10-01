@@ -72,6 +72,21 @@ def test_clip_intervals_to_waking_hours_resolves_transition_hour(day, waking_hou
     assert_frame_equal(clipped, _intervals([expected]))
 
 
+def test_clip_intervals_to_waking_hours_keeps_time_after_half_hour_dst_jump():
+    data = pd.DataFrame(
+        index=pd.date_range("2026-10-04 01:00", "2026-10-04 03:00", freq="min", tz="Australia/Lord_Howe")
+    )
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, len(data) - 1)]),
+        data=data,
+        sampling_rate_hz=1 / 60,
+        waking_hours_min=(2 * 60 + 15, 3 * 60),
+    )
+
+    assert_frame_equal(clipped, _intervals([(60, 90)]))
+
+
 class TestRemoveIsolatedShortPeriods:
     def test_removes_short_interior_wear_before_merging_nonwear_gaps(self):
         result = remove_isolated_short_periods_from_intervals(
