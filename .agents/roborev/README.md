@@ -50,37 +50,16 @@ fix_model = "opus"
 
 This example changes personal defaults across repositories. Preserve existing
 settings and remove or adjust conflicting personal pins when intentionally
-changing a provider. No personal configuration is modified by this repo setup.
-
-For a provider choice specific to this panel, merge the tables from
-[profiles/claude.toml](profiles/claude.toml) or
-[profiles/codex.toml](profiles/codex.toml) into your personal config instead.
-They define distinct personal panel/member names, reuse the repo's rubric files
-through uniquely named custom types, and choose both member agents and synthesis. Select one explicitly:
-
-```bash
-roborev review --branch --base <feature-base> --panel mobgap_claude --wait
-# Or --panel mobgap_codex
-```
-
-Codex uses `gpt-6.1-sol`, with `gpt-6-luna` for conventions. Claude uses its `opus`
-and `sonnet` aliases; adjust them for your account and installed CLI. All five
-members are required and use high reasoning. These are examples to merge, not
-replacement global config files, and RoboRev does not automatically load them.
+changing a provider. Panel installation does not modify personal provider settings.
 
 In v0.69.0, repo definitions replace complete global entries with the same name.
 A personal `[review.subagents.scientific_correctness]` cannot override the tracked
-entry. Distinct profile names avoid that conflict. RoboRev v0.69.0 also validates global
-custom types before merging repo types, so each profile includes its own unique
-type definitions pointing to the shared repo-relative rubric paths. This duplicates
-configuration wiring, not instructions. Select these profiles only in mobgap
-checkouts that contain the rubric files. After merging a profile, run
-`roborev config validate` from this checkout. The `[projects.<remote>]`
-settings support model/reasoning overrides, but no agent override. The source
-loads `.roborev.toml`; there is no separate `.roborev.local.toml` overlay. Panel
-member and synthesis selection is resolved independently of the ordinary
-single-review `--agent`/`--model` choices, so use the personal panel profile for a
-reliable provider switch rather than those flags.
+entry. The `[projects.<remote>]` settings support model/reasoning overrides, but
+no agent override. There is no separate `.roborev.local.toml` overlay. Keep
+provider choices in your personal generic defaults and fix-workflow settings.
+Panel member and synthesis selection is resolved independently of ordinary
+single-review `--agent`/`--model` flags; do not rely on those flags to switch an
+entire panel's provider. Provider profile files are not required or installed.
 
 Source references for the verified release:
 
@@ -88,6 +67,28 @@ Source references for the verified release:
 - [Member and synthesis execution selection](https://github.com/kenn-io/roborev/blob/v0.69.0/internal/daemon/panel_enqueue.go)
 - [Custom review types and schema support](https://github.com/kenn-io/roborev/blob/v0.69.0/docs/advanced/custom-review-types.md)
 - [Personal project defaults](https://github.com/kenn-io/roborev/blob/v0.69.0/internal/config/projects.go)
+
+## Global skill access and parallel reviews
+
+The shared rubric permits reading applicable installed global style-guide skills,
+with repository-local skills taking precedence. For Codex, enable skill instructions
+in your personal `~/.roborev/config.toml`:
+
+```toml
+[agent.codex]
+disable_review_skills = false
+```
+
+This allows consulting skills as review criteria, not running their implementation
+or recursive review workflows. Existing `ignore_review_user_config` settings can
+remain unchanged. Other developers need their own installed skills and settings;
+the repository cannot enable personal global skills on their machines.
+
+Concurrency is daemon-wide. Set `max_workers = 10` at the top level of your
+personal RoboRev config, before any table headers, to allow up to ten concurrent
+jobs. A five-member panel consumes up to five worker slots; synthesis runs after
+its members finish. In v0.69.0, changing `max_workers` requires a daemon restart.
+Wait for running jobs to finish before using `roborev daemon restart`.
 
 ## Scientific source access
 
