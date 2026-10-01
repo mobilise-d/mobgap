@@ -58,8 +58,12 @@ def _waking_hours_sample_bounds(
         )
 
     local_midnight = first_day.tz_localize(None)
-    start_ts = (local_midnight + pd.Timedelta(minutes=start_min)).tz_localize(data.index.tz)
-    end_ts = (local_midnight + pd.Timedelta(minutes=end_min)).tz_localize(data.index.tz)
+    start_ts = (local_midnight + pd.Timedelta(minutes=start_min)).tz_localize(
+        data.index.tz, ambiguous=True, nonexistent="shift_forward"
+    )
+    end_ts = (local_midnight + pd.Timedelta(minutes=end_min)).tz_localize(
+        data.index.tz, ambiguous=False, nonexistent="shift_forward"
+    )
     return (
         _timestamp_to_sample_boundary(start_ts, data.index),
         _timestamp_to_sample_boundary(end_ts, data.index),
@@ -73,7 +77,11 @@ def clip_intervals_to_waking_hours(
     waking_hours_min: tuple[int, int],
     data: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
-    """Clip ``[start, end)`` intervals to a daily waking-hours window."""
+    """Clip ``[start, end)`` intervals to local daily waking hours.
+
+    A skipped clock time moves to the first valid time. For repeated times, the start uses the first occurrence and
+    the end uses the second, so the repeated hour is included.
+    """
     start_min, end_min = _validate_waking_hours_min(waking_hours_min)
     start_sample, end_sample = _waking_hours_sample_bounds(
         data=data,

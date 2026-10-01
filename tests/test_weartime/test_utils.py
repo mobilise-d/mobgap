@@ -52,6 +52,26 @@ def test_clip_intervals_to_waking_hours_uses_local_clock_time_on_dst_days(day):
     assert_frame_equal(clipped, _intervals([(60, 120)]))
 
 
+@pytest.mark.parametrize(
+    "day, waking_hours_min, expected",
+    [
+        ("2026-03-29", (150, 240), (60, 120)),
+        ("2026-10-25", (120, 150), (60, 150)),
+    ],
+)
+def test_clip_intervals_to_waking_hours_resolves_transition_hour(day, waking_hours_min, expected):
+    data = pd.DataFrame(index=pd.date_range(f"{day} 01:00", f"{day} 04:00", freq="min", tz="Europe/Berlin"))
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, len(data) - 1)]),
+        data=data,
+        sampling_rate_hz=1 / 60,
+        waking_hours_min=waking_hours_min,
+    )
+
+    assert_frame_equal(clipped, _intervals([expected]))
+
+
 class TestRemoveIsolatedShortPeriods:
     def test_removes_short_interior_wear_before_merging_nonwear_gaps(self):
         result = remove_isolated_short_periods_from_intervals(
