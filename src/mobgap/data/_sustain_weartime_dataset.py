@@ -15,6 +15,7 @@ from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
 from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, split_by_utc_day
+from mobgap.utils.array_handling import merge_intervals
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -111,22 +112,6 @@ def _timestamp_to_sample_boundary(timestamp: Any, data_index: pd.DatetimeIndex, 
     return int(data_index.get_indexer([timestamp], method="nearest")[0])
 
 
-def _merge_intervals(intervals: pd.DataFrame) -> pd.DataFrame:
-    if intervals.empty:
-        return intervals.astype({"start": "int64", "end": "int64"})
-
-    intervals = intervals.sort_values(["start", "end"], ignore_index=True).astype({"start": "int64", "end": "int64"})
-    merged: list[tuple[int, int]] = []
-    for start, end in intervals[["start", "end"]].itertuples(index=False):
-        if end <= start:
-            continue
-        if not merged or start > merged[-1][1]:
-            merged.append((int(start), int(end)))
-        else:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], int(end)))
-    return pd.DataFrame(merged, columns=["start", "end"])
-
-
 def _format_reference_df(
     intervals: pd.DataFrame,
     *,
@@ -134,7 +119,8 @@ def _format_reference_df(
     sampling_rate_hz: float,
     index_name: str,
 ) -> pd.DataFrame:
-    intervals = _merge_intervals(intervals)
+    valid_intervals = intervals.loc[intervals["end"] > intervals["start"], ["start", "end"]]
+    intervals = pd.DataFrame(merge_intervals(valid_intervals.to_numpy(dtype="int64")), columns=["start", "end"])
     if intervals.empty:
         return _empty_reference_df(index_name)
 
