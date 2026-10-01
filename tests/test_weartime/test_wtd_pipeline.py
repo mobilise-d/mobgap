@@ -210,7 +210,8 @@ def test_wtd_score_counts_all_nonwear_samples():
     assert scores["reference_weartime_min"] == 0
 
 
-def test_wtd_score_combines_half_open_matches_across_datapoints():
+@pytest.mark.parametrize("reverse", [False, True])
+def test_wtd_score_combines_half_open_matches_across_datapoints(reverse):
     first = DummyDatapoint(
         data=_sensor_frame_data(3),
         reference_weartime=_intervals([(0, 3)]),
@@ -224,19 +225,20 @@ def test_wtd_score_combines_half_open_matches_across_datapoints():
     )
     first_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(1, 2)]), waking_hours_min=(0, 1)))
     second_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 1)]), waking_hours_min=(0, 1)))
-    scores = [
-        wtd_per_datapoint_score(first_pipeline, first, zero_division=0),
-        wtd_per_datapoint_score(second_pipeline, second, zero_division=0),
-    ]
+    pairs = [(first, first_pipeline), (second, second_pipeline)]
+    if reverse:
+        pairs.reverse()
+    scores = [wtd_per_datapoint_score(pipeline, datapoint, zero_division=0) for datapoint, pipeline in pairs]
     single_results = {
         key: [score[key].get_value() if hasattr(score[key], "get_value") else score[key] for score in scores]
         for key in scores[0]
     }
 
-    combined, _ = wtd_final_agg({}, single_results, first_pipeline, [first, second])
+    combined, raw = wtd_final_agg({}, single_results, first_pipeline, [datapoint for datapoint, _ in pairs])
 
     assert [combined[f"combined__{kind}_samples"] for kind in ("tp", "fp", "fn", "tn")] == [1, 1, 2, 1]
     assert combined["combined__reference_weartime_min"] == pytest.approx(3 / 60)
+    assert raw["raw__reference_waking"].index.names == ["participant_id", "recording_id", "weartime_id"]
 
 
 @pytest.mark.parametrize("waking_hours_min, expected_minutes", [((7 * 60, 22 * 60), 0), ((5, 20), 5)])

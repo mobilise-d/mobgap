@@ -8,19 +8,11 @@ import pandas as pd
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 
 
-def _empty_interval_df(index_name: str = "wt_id") -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "start": pd.Series(dtype="int64"),
-            "end": pd.Series(dtype="int64"),
-        }
-    ).rename_axis(index_name)
-
-
-def _only_start_end(intervals: pd.DataFrame, *, index_name: str = "wt_id") -> pd.DataFrame:
-    if intervals.empty:
-        return _empty_interval_df(index_name)
-    return intervals[["start", "end"]].astype({"start": "int64", "end": "int64"})
+def _only_start_end(intervals: pd.DataFrame, *, index_name: Optional[str] = None) -> pd.DataFrame:
+    result = intervals[["start", "end"]].astype({"start": "int64", "end": "int64"})
+    if index_name is not None:
+        return result.rename_axis(index_name)
+    return result
 
 
 def _validate_waking_hours_min(waking_hours_min: tuple[int, int]) -> tuple[int, int]:
