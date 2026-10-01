@@ -434,7 +434,7 @@ def save_evaluation_results(
     name: str,
     eval_obj: Union[Evaluation[Any], EvaluationCV[Any]],
     *,
-    condition: Literal["laboratory", "free_living"],
+    condition: str,
     base_path: Path,
     raw_results: Union[list[str], bool] = False,
     include_non_stable_results: bool = False,
@@ -452,8 +452,8 @@ def save_evaluation_results(
         The result object to save.
         Aka the evaluation object after the `run` method has been called.
     condition
-        The condition of the evaluation.
-        Should be one of "laboratory" or "free-living".
+        The evaluation condition used as a folder name, such as ``"laboratory"``, ``"free_living"`` or
+        ``"sustain_weartime"``.
     base_path
         The base path where the results should be stored.
     raw_results

@@ -72,11 +72,9 @@ dataset_sustain_weartime = SustainWearTimeDataset(
 # instance of the :class:`~mobgap.evaluation.Evaluation` class.
 #
 # The scoring function returns TP/FP/FN/TN counts in samples and duration metrics in minutes.
-import json
-
 import matplotlib.pyplot as plt
 import seaborn as sns
-from mobgap.utils.evaluation import Evaluation
+from mobgap.utils.evaluation import Evaluation, save_evaluation_results
 from mobgap.weartime.evaluation import wtd_score
 
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
@@ -126,34 +124,6 @@ def eval_debug_plot(
     plt.show()
 
 
-def save_weartime_evaluation_results(
-    name: str,
-    eval_obj: Evaluation[WtdEmulationPipeline],
-    *,
-    base_path: Path,
-    condition: str,
-    raw_results: list[str],
-    include_non_stable_results: bool = True,
-) -> None:
-    folder = base_path / condition / name
-    folder.mkdir(parents=True, exist_ok=True)
-
-    raw_results_vals = eval_obj.get_raw_results()
-    for key in raw_results:
-        raw_results_vals[key].to_csv(folder / f"raw_{key}.csv")
-
-    eval_obj.get_aggregated_results_as_df().drop(
-        columns="runtime_s", errors="ignore"
-    ).T.to_csv(folder / "aggregated_results.csv")
-    eval_obj.get_single_results_as_df().drop(
-        columns="runtime_s", errors="ignore"
-    ).to_csv(folder / "single_results.csv")
-
-    if include_non_stable_results:
-        with (folder / "timings.json").open("w") as file:
-            json.dump(eval_obj.perf_, file, indent=2)
-
-
 with Parallel(n_jobs=n_jobs) as parallel:
     results_sustain_weartime: dict[str, Evaluation[WtdEmulationPipeline]] = (
         dict(
@@ -174,10 +144,11 @@ eval_debug_plot(results_sustain_weartime)
 # %%
 # Then we save the results to disk.
 for name, result in results_sustain_weartime.items():
-    save_weartime_evaluation_results(
+    save_evaluation_results(
         name,
         result,
         condition=condition_name,
         base_path=results_base_path,
         raw_results=raw_results_to_save,
+        include_non_stable_results=True,
     )
