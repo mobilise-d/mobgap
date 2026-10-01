@@ -423,6 +423,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         wear_flags = np.empty(len(starts), dtype=bool)
         if len(starts) == 0:
             return wear_flags
+        if window_samples == 1:
+            return np.zeros(len(starts), dtype=bool)
 
         acc_pa = data["acc_pa"].to_numpy(copy=False)
         gyr_ml = data["gyr_ml"].to_numpy(copy=False)
@@ -451,7 +453,11 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         gyr_is_centroid: np.ndarray,
     ) -> np.ndarray:
         missing_features = np.isnan(acc_pa_std) | np.isnan(gyr_ml_centroid) | np.isnan(gyr_is_centroid)
-        all_zero_features = (gyr_ml_centroid == 0) & (gyr_is_centroid == 0) & (acc_pa_std == 0)
+        negligible_features = (
+            np.isclose(gyr_ml_centroid, 0, atol=1e-8)
+            & np.isclose(gyr_is_centroid, 0, atol=1e-8)
+            & np.isclose(acc_pa_std, 0, atol=1e-8)
+        )
 
         gyr_ml_wear = gyr_ml_centroid < self.gyr_ml_centroid_thresh_hz
         gyr_is_wear = gyr_is_centroid < self.gyr_is_centroid_thresh_hz
@@ -463,10 +469,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         else:
             wear_flags = gyr_ml_wear & gyr_is_wear & acc_pa_wear
 
-        wear_flags[missing_features] = True
-        # All-zero synthetic signals have zero spectral centroids and zero acceleration variance. The centroid checks
-        # alone would otherwise classify them as wear, although a constant signal should be non-wear.
-        wear_flags[all_zero_features & ~missing_features] = False
+        wear_flags[missing_features | negligible_features] = False
         return wear_flags
 
     def _add_macro_decision(

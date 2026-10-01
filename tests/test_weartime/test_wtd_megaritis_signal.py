@@ -144,6 +144,27 @@ class TestWtdMegaritisSignal:
         assert result.total_weartime_samples_ == 0
         assert result.total_weartime_min_ == 0
 
+    def test_constant_nonzero_signal_is_nonwear(self):
+        data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data["acc_pa"] = 0.1
+        data["gyr_ml"] = 0.03
+        data["gyr_is"] = 0.07
+
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(
+            data, sampling_rate_hz=10.0
+        )
+
+        assert_frame_equal(result.weartime_list_, _empty_weartime_list())
+
+    def test_single_sample_micro_windows_have_no_wear_evidence(self):
+        data = pd.DataFrame(np.zeros((120, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        result = WtdMegaritisSignal(window_min=1, step_min=1, window_size=1, overlap=0).detect(
+            data, sampling_rate_hz=1.0
+        )
+
+        assert_frame_equal(result.weartime_list_, _empty_weartime_list())
+
     def test_short_recording_uses_single_boundary_macro_window(self):
         data = pd.DataFrame(np.ones((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
