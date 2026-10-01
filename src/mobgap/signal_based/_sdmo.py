@@ -20,7 +20,7 @@ class TurnSDMO(BaseSDMOCalculator):
     `turn_mean_ang_vel` is the amplitude of the mean angular velocity in the turn. Absolute value is used since the
     direction of the turn is not important.
     `turn_peak_ang_vel` is the absolute amplitude of the strongest extrema in the angular velocity of the turn
-    `turn_smoothness` is the jerk of the angular velocity signal.
+    `turn_smoothness` is the RMS of the angular velocity signal during the turn.
     `turn_dur_percentage_from_wb_dur` is the percentage of the total duration of the turning instances to the walking
     bout duration (the total duration of the given signal).
 
@@ -65,21 +65,20 @@ class TurnSDMO(BaseSDMOCalculator):
         gyr = data["gyr_is"].to_numpy()
         means = []
         maxs = []
-        # smoothness == jerk of yaw
-        jerk_gyr = []
-        for start, end, dur in turn_list[["start", "end", "duration_s"]].to_numpy():
+        smoothness = []
+        for start, end, dur in turn_list[["start", "end", "duration_s"]].itertuples(index=False):
             seg = gyr[int(start) : int(end)]
-            means.append(seg.mean())
-            maxs.append(seg.max())
-            jerk_gyr.append(np.sqrt(np.trapezoid(seg**2) / dur))
+            means.append(abs(seg.mean()))
+            maxs.append(abs(seg.max()))
+            smoothness.append(np.sqrt(np.trapezoid(seg**2, dx=1 / sampling_rate_hz) / dur))
 
         turn_params = {
             "turn_mean_ang_vel": np.mean(means),
             "turn_peak_ang_vel": np.mean(maxs),
-            "turn_smoothness": np.mean(jerk_gyr),
+            "turn_smoothness": np.mean(smoothness),
         }
 
-        wb_dur = data.size / sampling_rate_hz
+        wb_dur = len(data) / sampling_rate_hz
         turn_dur = turn_list["duration_s"].sum()
         turn_params["turn_dur_percentage_from_wb_dur"] = 100 * (turn_dur / wb_dur)
         self.signal_based_parameters_ = pd.DataFrame([turn_params])
@@ -202,12 +201,12 @@ class RMS(BaseSDMOCalculator):
             signals.loc[:, acc_columns] = signals[acc_columns] - signals[acc_columns].mean()
 
         rms = np.sqrt(signals.pow(2).mean()).add_prefix("rms_")
-        if acc_columns:
+        if len(acc_columns) == 3:  # all acc columns must be available
             acc_rms_columns = [f"rms_{column}" for column in acc_columns]
             rms_total_acc = np.linalg.norm(rms[acc_rms_columns])
             rms["rms_total_acc"] = rms_total_acc
             for column, rms_column in zip(acc_columns, acc_rms_columns):
-                rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else 0
+                rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else None
         self.signal_based_parameters_ = rms.to_frame().T
         return self
 
@@ -224,7 +223,8 @@ class RegularitySymmetry(BaseSDMOCalculator):
         Expresses the regularity of the acceleration signal between neighboring strides. Values range between 0 and 1,
         where values close to 1 indicate greater regularity of the gait pattern.  Implemented from [1]_.
 
-    This class outputs the step and stride regularity for all available acceleration signals in the principal directions.
+    This class outputs the step and stride regularity for all available acceleration signals in the principal
+    directions.
     The parameters below (Asymmetry_MN, Symmetry_K, Asymmetry_G) are calculated for all axes, but only vertical-axis
     components are included in the output.
 
@@ -240,11 +240,11 @@ class RegularitySymmetry(BaseSDMOCalculator):
 
     Asymmetry_G
         It is defined on a linear scale, with different formulations for different axes in [3]_. For the vertical and
-        antero-posterior axes, it is calculated as ``(stride regularity-step regularity)/2``. For the medio-lateral axis,
-        it is ``(stride regularity+step regularity)/2``. The metric ranges between -1 and 1, where 0 indicates perfect
-        symmetry. Positive values reflect a gait pattern with higher regularity of strides than steps, while negative
-        values indicate the opposite. Note that the original matlab implementation uses the same formulation for
-        all axes `(stride regularity-step regularity)/2``.
+        antero-posterior axes, it is calculated as ``(stride regularity-step regularity)/2``. For the medio-lateral
+        axis, it is ``(stride regularity+step regularity)/2``. The metric ranges between -1 and 1, where 0 indicates
+        perfect symmetry. Positive values reflect a gait pattern with higher regularity of strides than steps, while
+        negative values indicate the opposite. Note that the original matlab implementation uses the same formulation
+        for all axes `(stride regularity-step regularity)/2``.
 
     Other Parameters
     ----------------
@@ -755,8 +755,8 @@ class HarmonicRatio(BaseSDMOCalculator):
     -----
     This implementation was based on the original Matlab implementation. There are deviations from the paper [1]_.
     Although these deviations did not drastically change how HR is computed, they are documented below:
-    - To avoid picking the wrong fundamental (e.g., DC or high‑frequency noise), the search for the fundamental
-    frequency was restricted to 0.5–3.0 Hz for IS/AP axes and 0.25–1.5 Hz for the ML axis. The original paper did not
+    - To avoid picking the wrong fundamental (e.g., DC or high-frequency noise), the search for the fundamental
+    frequency was restricted to 0.5-3.0 Hz for IS/AP axes and 0.25-1.5 Hz for the ML axis. The original paper did not
     specify such bands.
     - An optional adjustment of the stride end point is performed to align with a similar acceleration value, reducing
     spectral leakage caused by amplitude mismatch at stride boundaries. This heuristic is not described in the paper.
@@ -764,11 +764,11 @@ class HarmonicRatio(BaseSDMOCalculator):
     coefficients are averaged across strides first, and then the ratio is computed from the averaged coefficients. This
     differs mathematically but should produce similar results in practice.
     - The paper used exactly 10 strides per subject. In this implementation, all available strides in the provided
-    `stride_list` are used. This is more suitable for variable‑length walking bouts.
+    `stride_list` are used. This is more suitable for variable-length walking bouts.
 
 
     ..[1] H. J. Yack and R. C. Berger, "Dynamic stability in the elderly: identifying a possible measure,"
-        J Gerontol, vol. 48, no. 5, pp. M225–M230, 1993.
+        J Gerontol, vol. 48, no. 5, pp. M225-M230, 1993.
 
     """
 
@@ -815,9 +815,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.signal_based_parameters_ = pd.DataFrame([hr_results])
         return self
 
-    def _process_single_accelerometer(
-        self, data: pd.Series, stride_pairs: list, sampling_rate_hz: float
-    ) -> float:
+    def _process_single_accelerometer(self, data: pd.Series, stride_pairs: list, sampling_rate_hz: float) -> float:
         """Process a single accelerometer axis and return the Harmonic Ratio."""
         acc = data.to_numpy()
         stride_harmonics = np.full((len(stride_pairs), 20), np.nan)

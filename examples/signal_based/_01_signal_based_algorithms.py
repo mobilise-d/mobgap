@@ -45,9 +45,8 @@ reference_turns
 wb_id = 2
 reference_strides = reference_strides.loc[wb_id]
 reference_turns = reference_turns.loc[wb_id]
-data_in_wb = short_trial.data["LowerBack"].iloc[
-    reference_strides.start.iloc[0] : reference_strides.end.iloc[-1]
-]
+wb = short_trial.reference_parameters_relative_to_wb_.wb_list.loc[wb_id]
+data_in_wb = short_trial.data["LowerBack"].iloc[wb.start : wb.end]
 
 # %%
 # The data is required to be in body frame coordinates.
@@ -86,7 +85,14 @@ turn.signal_based_parameters_
 
 from mobgap.signal_based import StrideLevelSDMO
 
-stride_level = StrideLevelSDMO(stride_list_columns=["length_m", "duration_s"])
+stride_level = StrideLevelSDMO(
+    stride_list_columns=[
+        "stride_duration_s",
+        "stride_length_m",
+        "cadence_spm",
+        "speed_mps",
+    ]
+)
 
 stride_level.calculate(data=data_in_wb_bf, **params)
 

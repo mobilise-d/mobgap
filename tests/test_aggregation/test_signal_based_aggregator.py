@@ -1,8 +1,9 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
-from tpcp.testing import TestAlgorithmMixin
 from pandas._testing import assert_frame_equal
+from tpcp.testing import TestAlgorithmMixin
+
 from mobgap import PROJECT_ROOT
 from mobgap.aggregation import SDMOAggregator
 

@@ -80,7 +80,15 @@ class MobilisedSDMO(Pipeline):
                     ("rms", RMS()),
                     (
                         "stride_level",
-                        StrideLevelSDMO(stride_list_columns=["stride_length_m", "cadence_spm", "stride_duration_s"]),
+                        StrideLevelSDMO(
+                            stride_list_columns=[
+                                "stride_length_m",
+                                "stride_duration_s",
+                                "cadence_spm",
+                                "walking_speed_mps",
+                                "speed_mps",
+                            ]
+                        ),
                     ),
                     ("turn", TurnSDMO()),
                 )
