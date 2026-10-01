@@ -85,7 +85,8 @@ def clip_intervals_to_waking_hours(
     sampling_rate_hz : float
         Sampling rate used when ``data`` has no timestamps.
     waking_hours_min : tuple[int, int]
-        Start and end of the daily window, in minutes since midnight.
+        Start and end of the daily window, in minutes since midnight. Values must satisfy
+        ``0 <= start < end <= 1440``.
     data : pd.DataFrame, optional
         Recording data. A ``DatetimeIndex`` sets the local dates and times of the window. Without one, sample zero
         represents midnight.
@@ -94,6 +95,11 @@ def clip_intervals_to_waking_hours(
     -------
     pd.DataFrame
         Clipped half-open intervals with the input index and ``start`` and ``end`` columns.
+
+    Raises
+    ------
+    ValueError
+        If the waking-hours window is invalid or timestamped data crosses local midnight.
     """
     start_min, end_min = _validate_waking_hours_min(waking_hours_min)
     start_sample, end_sample = _waking_hours_sample_bounds(

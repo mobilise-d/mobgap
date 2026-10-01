@@ -74,7 +74,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     step_min : float
         Macro window step in minutes; fractional minutes are supported (default: 15)
     window_size : float
-        Micro window size in seconds; fractional seconds are supported (default: 5)
+        Micro window size in seconds; fractional seconds are supported and converted to sample counts (default: 5)
     overlap : float
         Micro window overlap fraction, from 0.0 up to but excluding 1.0 (default: 0.5)
     prob_thresh : float
@@ -84,7 +84,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     gyr_is_centroid_thresh_hz : float
         Threshold for IS gyroscope spectral centroid in Hz (default: 18.0)
     acc_pa_std_thresh : float
-        Threshold for PA acceleration standard deviation in m/s² (default: 0.17)
+        Threshold for PA acceleration sample standard deviation in m/s² (default: 0.17)
     voting_mode : bool
         If True, use voting system (default: True)
     min_features_required : int
@@ -130,6 +130,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
        gyr_ml_spectral_centroid (Welch power-weighted mean frequency of mediolateral gyroscope data),
        gyr_is_spectral_centroid (Welch power-weighted mean frequency of vertical gyroscope data),
        acc_pa_std (variability of anteroposterior acceleration)
+       Each spectral centroid is ``sum(frequency * Welch power) / sum(Welch power)``.
     4. Each micro window is classified using 2-out-of-3 voting
     5. Macro-level decision via probability threshold (default 0.4)
     6. Per-sample votes accumulated from overlapping macro windows

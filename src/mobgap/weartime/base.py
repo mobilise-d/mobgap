@@ -25,7 +25,8 @@ sampling_rate_hz
 weartime_list_
     A dataframe specifying the detected weartime periods.
     The dataframe has an index ``wt_id`` and columns ``start`` and ``end``, specifying the start and end
-    index of each weartime period. Each interval includes ``start`` and excludes ``end``.
+    index of each weartime period. Intervals are ``[start, end)``: ``start`` is included and ``end`` is excluded.
+    ``end`` may equal ``len(data)``.
     The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
 """,
         "total_weartime_samples_": """
@@ -62,7 +63,8 @@ self
         "self_optimize_paras": """
 training_data
     A re-iterable sequence of ``(data, reference_weartime)`` tuples. Each tuple contains the raw IMU data of a single
-    sensor and the reference wear-time periods for that recording.
+    sensor and the reference wear-time periods for that recording. Reference periods use the same ``[start, end)``
+    convention as ``weartime_list_``.
     This can be a lazy dataset-backed iterator so recordings are loaded only while training consumes them.
     The optimization is performed over all recordings combined.
 sampling_rate_hz
