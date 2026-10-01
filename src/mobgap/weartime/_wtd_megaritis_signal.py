@@ -47,7 +47,7 @@ def _spectral_centroid_batched(
     frequencies, power = welch(windows, fs=sampling_rate_hz, nperseg=len(offsets), axis=1)
     total_power = power.sum(axis=1)
     weighted_power = (power * frequencies).sum(axis=1)
-    centroid = np.zeros(len(starts), dtype=np.float64)
+    centroid = np.full(len(starts), np.nan, dtype=np.float64)
     signal_range = np.ptp(windows, axis=1)
     has_variation = signal_range > np.finfo(np.float64).eps * np.maximum(1.0, np.max(np.abs(windows), axis=1))
     np.divide(weighted_power, total_power, out=centroid, where=(total_power > 0) & has_variation)
@@ -448,7 +448,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         for batch_start in range(0, len(starts), self.feature_batch_size):
             batch = starts[batch_start : batch_start + self.feature_batch_size]
             batch_offsets = batch[:, None] + offsets
-            acc_pa_std = np.std(acc_pa[batch_offsets], axis=1, ddof=1)
+            acc_pa_std = np.std(acc_pa[batch_offsets], axis=1, ddof=1, dtype=np.float64)
             gyr_ml_centroid = _spectral_centroid_batched(gyr_ml, batch, offsets, sampling_rate_hz=sampling_rate_hz)
             gyr_is_centroid = _spectral_centroid_batched(gyr_is, batch, offsets, sampling_rate_hz=sampling_rate_hz)
             wear_flags[batch_start : batch_start + len(batch)] = self._classify_feature_arrays(
@@ -466,13 +466,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         gyr_ml_centroid: np.ndarray,
         gyr_is_centroid: np.ndarray,
     ) -> np.ndarray:
-        missing_features = np.isnan(acc_pa_std) | np.isnan(gyr_ml_centroid) | np.isnan(gyr_is_centroid)
-        negligible_features = (
-            np.isclose(gyr_ml_centroid, 0, atol=1e-8)
-            & np.isclose(gyr_is_centroid, 0, atol=1e-8)
-            & np.isclose(acc_pa_std, 0, atol=1e-8)
-        )
-
         gyr_ml_wear = gyr_ml_centroid < self.gyr_ml_centroid_thresh_hz
         gyr_is_wear = gyr_is_centroid < self.gyr_is_centroid_thresh_hz
         acc_pa_wear = acc_pa_std > self.acc_pa_std_thresh
@@ -483,7 +476,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         else:
             wear_flags = gyr_ml_wear & gyr_is_wear & acc_pa_wear
 
-        wear_flags[missing_features | negligible_features] = False
         return wear_flags
 
     def _add_macro_decision(
