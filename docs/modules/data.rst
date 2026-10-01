@@ -85,6 +85,14 @@ Technical Validation Study (TVS) Data Loader
     TVSLabDataset
     TVSFreeLivingDataset
 
+Base Classes
+++++++++++++
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    BaseTVSDataset
+
 MS Project Dataset
 ------------------
 
@@ -96,14 +104,16 @@ MS Project Dataset
 
     MsProjectDataset
 
+SUSTAIN Wear-Time Dataset
+-------------------------
 
-Base Classes
-++++++++++++
+.. currentmodule:: mobgap.data
+
 .. autosummary::
    :toctree: generated/data
    :template: class.rst
 
-    BaseTVSDataset
+    SustainWearTimeDataset
 
 
 Example Data

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
@@ -25,6 +26,11 @@ _ADDITIONAL_COLUMNS = {
     "magnetometer": ("mag_x", "mag_y", "mag_z"),
     "temperature": ("temperature",),
 }
+_SAMPLING_RATE_DEVIATION_WARNING = (
+    "The expected number of samples/the effective sampling rate waries considerable from the expected values. "
+    "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
+    "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
+)
 
 
 def _cwa_reader() -> Any:
@@ -33,7 +39,7 @@ def _cwa_reader() -> Any:
     except ModuleNotFoundError as exc:
         if exc.name != "cwa_reader_rs":
             raise
-        raise ImportError("AX6 CWA loading requires the mobgap[ax6] extra.") from exc
+        raise ImportError("AX6 CWA loading requires the mobgap[ax6] or mobgap[weartime] extra.") from exc
 
 
 class CwaRecordingInfo(NamedTuple):
@@ -48,32 +54,33 @@ class CwaRecordingInfo(NamedTuple):
     recording_metadata: RecordingMetadata
 
 
-def split_at_frequency(info: CwaRecordingInfo, frequency: str, label: str = "window") -> pd.DataFrame:
+def split_at_frequency(
+    info: CwaRecordingInfo, frequency: str, label: str = "window", *, min_duration: pd.Timedelta | None = None
+) -> pd.DataFrame:
     """Split a CWA recording at UTC boundaries of a fixed pandas frequency.
 
     Use ``functools.partial(split_at_frequency, frequency="30min")`` as a
     dataset splitter. Rows use half-open time windows and names such as
-    ``window_1``. The optional ``label`` changes that prefix.
+    ``window_1``. The optional ``label`` changes that prefix. Set
+    ``min_duration`` to omit windows with less recorded time than the threshold.
     """
     first_boundary = info.start_time.floor(frequency) + pd.tseries.frequencies.to_offset(frequency)
     boundaries = [info.start_time, *pd.date_range(first_boundary, info.last_sample_time, freq=frequency), info.end_time]
-    return pd.DataFrame(
-        {
-            "recording": [f"{label}_{i + 1}" for i in range(len(boundaries) - 1)],
-            "start_time": boundaries[:-1],
-            "end_time": boundaries[1:],
-        }
-    )
+    splits = pd.DataFrame({"start_time": boundaries[:-1], "end_time": boundaries[1:]})
+    if min_duration is not None:
+        splits = splits.loc[lambda df_: df_["end_time"] - df_["start_time"] >= min_duration].reset_index(drop=True)
+    splits.insert(0, "recording", [f"{label}_{i + 1}" for i in range(len(splits))])
+    return splits
 
 
-def split_by_utc_day(info: CwaRecordingInfo) -> pd.DataFrame:
-    """Split a CWA recording into half-open UTC calendar days."""
-    return split_at_frequency(info, "D", "day")
+def split_by_utc_day(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | None = None) -> pd.DataFrame:
+    """Split a CWA recording into half-open UTC calendar days, optionally omitting short days."""
+    return split_at_frequency(info, "D", "day", min_duration=min_duration)
 
 
-def split_by_utc_hour(info: CwaRecordingInfo) -> pd.DataFrame:
-    """Split a CWA recording into half-open UTC clock hours."""
-    return split_at_frequency(info, "h", "hour")
+def split_by_utc_hour(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | None = None) -> pd.DataFrame:
+    """Split a CWA recording into half-open UTC clock hours, optionally omitting short hours."""
+    return split_at_frequency(info, "h", "hour", min_duration=min_duration)
 
 
 @lru_cache(maxsize=128)
@@ -113,7 +120,13 @@ def _load_cwa_data(  # noqa: PLR0917
     frame = pd.DataFrame(raw)
     frame.index = pd.DatetimeIndex(pd.to_datetime(frame.pop("timestamp"), unit="us", utc=True), name="time")
     frame = frame.rename(columns={f"gyro_{axis}": f"gyr_{axis}" for axis in "xyz"})
-    selected_columns = [*SF_SENSOR_COLS, *(col for channel in channels for col in _ADDITIONAL_COLUMNS[channel])]
+    # Reader 0.3 omits channels absent from the source file. Keep AX3 acceleration-only recordings loadable without
+    # inventing gyroscope values; algorithms that need gyro data must check for their required channels.
+    selected_columns = [
+        col
+        for col in (*SF_SENSOR_COLS, *(col for channel in channels for col in _ADDITIONAL_COLUMNS[channel]))
+        if col in frame
+    ]
     frame = frame[selected_columns].copy()
     frame[SF_ACC_COLS] *= GRAV_MS2
     return frame.loc[(frame.index >= start_time) & (frame.index < end_time)]
@@ -123,19 +136,22 @@ class BaseAX6Dataset(BaseGaitDataset):
     """Read AX6 CWA files, with file discovery and splitting supplied by subclasses.
 
     Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
-    The latter returns rows with ``start_time`` and ``end_time`` columns.
+    They can provide :attr:`_file_path_root` to store paths relative to a dataset root in the index.
+    The index and time selection use ``start_time`` and ``end_time`` columns.
     """
 
     def __init__(
         self,
         *,
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
+        warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
         subset_index: pd.DataFrame | None = None,
     ) -> None:
         self.additional_sensors_enabled = additional_sensors_enabled
+        self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
         self.sensor_name = sensor_name
         self.memory = memory
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -149,9 +165,23 @@ class BaseAX6Dataset(BaseGaitDataset):
         raise NotImplementedError
 
     @property
+    def _file_path_root(self) -> Path | None:
+        """Root for paths stored in the index; ``None`` keeps full paths."""
+        return None
+
+    @property
     def _selected_file_path(self) -> Path:
         self.assert_is_single(["file_path"], "_selected_file_path")
-        return Path(self.index.iloc[0].file_path)
+        path = Path(self.index.iloc[0].file_path)
+        root = self._file_path_root
+        return path if root is None else root / path
+
+    def _get_additional_channels(self) -> tuple[AdditionalChannel, ...]:
+        channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
+        unknown = set(channels) - set(_ADDITIONAL_CHANNELS)
+        if unknown:
+            raise ValueError(f"Unknown CWA channels: {sorted(unknown)}")
+        return channels
 
     @property
     def cwa_header_(self) -> dict:
@@ -173,10 +203,11 @@ class BaseAX6Dataset(BaseGaitDataset):
     def create_index(self) -> pd.DataFrame:
         """Combine each file's recording windows into one dataset index."""
         paths = tuple(map(Path, self._get_file_paths()))
+        root = self._file_path_root
         splits = []
         for path in paths:
             file_splits = self._get_splits_for_file(path).copy()
-            file_splits.insert(0, "file_path", str(path))
+            file_splits.insert(0, "file_path", str(path) if root is None else path.relative_to(root).as_posix())
             splits.append(file_splits)
         return pd.concat(splits, ignore_index=True)
 
@@ -189,23 +220,30 @@ class BaseAX6Dataset(BaseGaitDataset):
     def data_ss(self) -> pd.DataFrame:
         """The selected recording window in the MobGap sensor frame."""
         self.assert_is_single(None, "data_ss")
-        channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
-        unknown = set(channels) - set(_ADDITIONAL_CHANNELS)
-        if unknown:
-            raise ValueError(f"Unknown CWA channels: {sorted(unknown)}")
-
-        row = self.index.iloc[0]
+        channels = self._get_additional_channels()
         path = self._selected_file_path
         timing = self.cwa_timing_report_
+        threshold = self.warn_thres_for_sampling_rate_deviations_hz
+        if threshold is not None:
+            expected_rate = timing.get("samplingrate_hz_from_header")
+            effective_rate = timing.get("samplingrate_hz_from_data")
+            if (
+                expected_rate is not None
+                and effective_rate is not None
+                and abs(float(effective_rate) - float(expected_rate)) > threshold
+            ):
+                warnings.warn(_SAMPLING_RATE_DEVIATION_WARNING, stacklevel=2)
         first_sample = pd.Timestamp(timing["start_from_data"]).tz_convert("UTC")
         sampling_rate_hz = self.sampling_rate_hz
         full_end = pd.Timestamp(timing["end_from_data"]).tz_convert("UTC") + pd.Timedelta(seconds=1 / sampling_rate_hz)
+        selected = self.index.iloc[0]
+        start_time, end_time = selected.start_time, selected.end_time
         start_s = end_s = None
-        if row.start_time != first_sample or row.end_time != full_end:
-            start_s = (row.start_time - first_sample).total_seconds()
-            end_s = (row.end_time - first_sample).total_seconds()
+        if start_time != first_sample or end_time != full_end:
+            start_s = (start_time - first_sample).total_seconds()
+            end_s = (end_time - first_sample).total_seconds()
         return hybrid_cache(self.memory, 1)(_load_cwa_data)(
-            path, _file_identity(path), start_s, end_s, channels, sampling_rate_hz, row.start_time, row.end_time
+            path, _file_identity(path), start_s, end_s, channels, sampling_rate_hz, start_time, end_time
         )
 
 
@@ -237,6 +275,9 @@ class AX6Dataset(BaseAX6Dataset):
         workers can serialize them.
     additional_sensors_enabled
         Extra CWA channels to return alongside acceleration and gyroscope data.
+    warn_thres_for_sampling_rate_deviations_hz
+        Warn when the effective and expected sampling rates differ by more than this many Hz. ``None`` disables
+        the warning.
     sensor_name
         Key used by ``data`` for this recording.
     memory
@@ -247,8 +288,9 @@ class AX6Dataset(BaseAX6Dataset):
 
     Notes
     -----
-    Acceleration is returned in m/s², gyroscope data in deg/s and the optional
-    magnetometer data in µT. The time index is UTC and each day is half-open.
+    Acceleration is returned in m/s², gyroscope data (when recorded) in deg/s and the optional
+    magnetometer data in µT. Channels absent from the CWA recording are omitted. The time index is UTC and each day
+    is half-open.
     """
 
     def __init__(
@@ -259,6 +301,7 @@ class AX6Dataset(BaseAX6Dataset):
         recording_metadata: RecordingMetadata,
         splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = None,
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
+        warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
@@ -270,6 +313,7 @@ class AX6Dataset(BaseAX6Dataset):
         self.splitter = splitter
         super().__init__(
             additional_sensors_enabled=additional_sensors_enabled,
+            warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
             sensor_name=sensor_name,
             memory=memory,
             groupby_cols=groupby_cols,

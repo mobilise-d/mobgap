@@ -204,6 +204,7 @@ sphinx_gallery_conf = {
         [
             "../examples/data",
             "../examples/pipeline",
+            "../examples/weartime",
             "../examples/gait_sequences",
             "../examples/initial_contacts",
             "../examples/laterality",
@@ -218,6 +219,7 @@ sphinx_gallery_conf = {
             "../revalidation/full_pipeline",
             "../revalidation/full_pipeline",
             "../revalidation/gait_sequences",
+            "../revalidation/weartime",
             "../revalidation/initial_contacts",
             "../revalidation/laterality",
             "../revalidation/cadence",

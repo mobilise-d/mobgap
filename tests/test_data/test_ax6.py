@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pickle
+import warnings
 from functools import partial
 from os import utime
 from shutil import copyfile
@@ -11,7 +12,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import pytest
 
-from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
+from mobgap.consts import GRAV_MS2, SF_ACC_COLS
 from mobgap.data import (
     AX6Dataset,
     BaseAX6Dataset,
@@ -83,18 +84,44 @@ class _DiscoveredFilesDataset(BaseAX6Dataset):
 
 
 def test_reads_real_cwa_as_mobgap_sensor_data() -> None:
-    """Load an AX6 fixture with the expected columns, time and units."""
+    """Load the acceleration-only CWA fixture without fabricating gyro values."""
     dataset = _dataset()
 
     assert dataset.index["recording"].tolist() == ["main"]
     assert dataset.index["file_path"].tolist() == [str(EXAMPLE_CWA)]
     assert dataset.sampling_rate_hz == 100
     data = dataset.data["LowerBack"]
-    assert data.columns.tolist() == SF_SENSOR_COLS
+    assert data.columns.tolist() == SF_ACC_COLS
     assert len(data) == 72472
     assert data.index[0] == pd.Timestamp("2012-03-27T11:14:57.500Z")
     assert data.iloc[0]["acc_x"] == pytest.approx(-0.21875 * GRAV_MS2)
-    assert data.iloc[0]["gyr_x"] == 0
+
+
+def test_additional_sensors_enabled_parameter_survives_clone() -> None:
+    """The shared channel parameter controls optional CWA columns."""
+    dataset = AX6Dataset(
+        EXAMPLE_CWA,
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        additional_sensors_enabled=("temperature", "magnetometer"),
+    )
+
+    assert dataset.clone().data_ss.columns.tolist() == [*SF_ACC_COLS, "temperature"]
+
+
+def test_sampling_rate_deviation_warning_threshold() -> None:
+    """The base loader owns the optional warning for CWA clock drift."""
+    options = {
+        "participant_metadata": {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        "recording_metadata": {"measurement_condition": "free_living"},
+    }
+    with pytest.warns(UserWarning, match="effective sampling rate waries considerable"):
+        AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=0.2, **options).data_ss
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=10.0, **options).data_ss
+    assert not [warning for warning in caught if "effective sampling rate" in str(warning.message)]
 
 
 def test_day_split_keeps_the_recording_in_one_utc_day() -> None:
@@ -106,6 +133,33 @@ def test_day_split_keeps_the_recording_in_one_utc_day() -> None:
     assert data.index.min() >= dataset.index.iloc[0].start_time
     assert data.index.max() < dataset.index.iloc[0].end_time
     assert len(data) == 72472
+
+
+@pytest.mark.parametrize(
+    ("splitter", "expected_start", "expected_end"),
+    [
+        (split_by_utc_day, "2026-09-25T00:00:00Z", "2026-09-25T01:30:00Z"),
+        (split_by_utc_hour, "2026-09-25T00:00:00Z", "2026-09-25T01:00:00Z"),
+    ],
+)
+def test_calendar_splitter_omits_windows_shorter_than_min_duration(
+    splitter: Callable[..., pd.DataFrame], expected_start: str, expected_end: str
+) -> None:
+    """A partial calendar window shorter than the requested duration is omitted."""
+    info = CwaRecordingInfo(
+        path=EXAMPLE_CWA,
+        start_time=pd.Timestamp("2026-09-24T23:30:00Z"),
+        last_sample_time=pd.Timestamp("2026-09-25T01:29:59.990Z"),
+        end_time=pd.Timestamp("2026-09-25T01:30:00Z"),
+        cwa_header={"sample_rate_hz": 100.0},
+        cwa_timing_report={},
+        recording_metadata={},
+    )
+
+    splits = splitter(info, min_duration=pd.Timedelta(hours=1))
+
+    assert splits.start_time.tolist() == [pd.Timestamp(expected_start)]
+    assert splits.end_time.tolist() == [pd.Timestamp(expected_end)]
 
 
 @pytest.mark.parametrize(("splitter", "label"), [(split_by_utc_day, "day"), (split_by_utc_hour, "hour")])

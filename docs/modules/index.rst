@@ -14,6 +14,7 @@ This is the API Reference for ``mobgap``.
     gait_sequences
     initial_contacts
     laterality
+    weartime
     turning
     cadence
     stride_length
