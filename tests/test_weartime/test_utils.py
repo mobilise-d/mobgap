@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_equal
 from pandas.testing import assert_frame_equal
 
@@ -35,6 +36,20 @@ def test_clip_intervals_to_waking_hours_uses_datetime_index_when_available():
     )
 
     assert_frame_equal(clipped, _intervals([(0, 60)]))
+
+
+@pytest.mark.parametrize("day", ["2026-03-29", "2026-10-25"])
+def test_clip_intervals_to_waking_hours_uses_local_clock_time_on_dst_days(day):
+    data = pd.DataFrame(index=pd.date_range(f"{day} 06:00", periods=181, freq="min", tz="Europe/Berlin"))
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, 180)]),
+        data=data,
+        sampling_rate_hz=1 / 60,
+        waking_hours_min=(7 * 60, 8 * 60),
+    )
+
+    assert_frame_equal(clipped, _intervals([(60, 120)]))
 
 
 class TestRemoveIsolatedShortPeriods:

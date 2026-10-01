@@ -57,8 +57,9 @@ def _waking_hours_sample_bounds(
             "Split recordings into individual days before scoring waking-hours wear-time."
         )
 
-    start_ts = first_day + pd.Timedelta(minutes=start_min)
-    end_ts = first_day + pd.Timedelta(minutes=end_min)
+    local_midnight = first_day.tz_localize(None)
+    start_ts = (local_midnight + pd.Timedelta(minutes=start_min)).tz_localize(data.index.tz)
+    end_ts = (local_midnight + pd.Timedelta(minutes=end_min)).tz_localize(data.index.tz)
     return (
         _timestamp_to_sample_boundary(start_ts, data.index),
         _timestamp_to_sample_boundary(end_ts, data.index),
