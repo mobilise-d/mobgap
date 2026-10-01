@@ -144,11 +144,12 @@ class TestWtdMegaritisSignal:
         assert result.total_weartime_samples_ == 0
         assert result.total_weartime_min_ == 0
 
-    def test_constant_nonzero_signal_is_nonwear(self):
+    @pytest.mark.parametrize("gyro_offset", [0.03, 0.1])
+    def test_constant_nonzero_signal_is_nonwear(self, gyro_offset):
         data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
         data["acc_pa"] = 0.1
-        data["gyr_ml"] = 0.03
-        data["gyr_is"] = 0.07
+        data["gyr_ml"] = gyro_offset
+        data["gyr_is"] = gyro_offset
 
         result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
 

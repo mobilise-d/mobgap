@@ -46,7 +46,9 @@ def _spectral_centroid_batched(
     total_power = power.sum(axis=1)
     weighted_power = (power * frequencies).sum(axis=1)
     centroid = np.zeros(len(starts), dtype=np.float64)
-    np.divide(weighted_power, total_power, out=centroid, where=total_power > 0)
+    signal_range = np.ptp(windows, axis=1)
+    has_variation = signal_range > np.finfo(np.float64).eps * np.maximum(1.0, np.max(np.abs(windows), axis=1))
+    np.divide(weighted_power, total_power, out=centroid, where=(total_power > 0) & has_variation)
     return centroid
 
 
