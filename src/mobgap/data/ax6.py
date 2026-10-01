@@ -137,8 +137,7 @@ class BaseAX6Dataset(BaseGaitDataset):
 
     Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
     They can provide :attr:`_file_path_root` to store paths relative to a dataset root in the index.
-    The default index and time selection use ``start_time`` and ``end_time`` columns. Subclasses with different
-    index columns can override :meth:`_selected_time_bounds`.
+    The index and time selection use ``start_time`` and ``end_time`` columns.
     """
 
     def __init__(
@@ -176,10 +175,6 @@ class BaseAX6Dataset(BaseGaitDataset):
         path = Path(self.index.iloc[0].file_path)
         root = self._file_path_root
         return path if root is None else root / path
-
-    def _selected_time_bounds(self) -> tuple[pd.Timestamp, pd.Timestamp]:
-        row = self.index.iloc[0]
-        return row.start_time, row.end_time
 
     def _get_additional_channels(self) -> tuple[AdditionalChannel, ...]:
         channels = tuple(dict.fromkeys(self.additional_sensors_enabled))
@@ -241,7 +236,8 @@ class BaseAX6Dataset(BaseGaitDataset):
         first_sample = pd.Timestamp(timing["start_from_data"]).tz_convert("UTC")
         sampling_rate_hz = self.sampling_rate_hz
         full_end = pd.Timestamp(timing["end_from_data"]).tz_convert("UTC") + pd.Timedelta(seconds=1 / sampling_rate_hz)
-        start_time, end_time = self._selected_time_bounds()
+        selected = self.index.iloc[0]
+        start_time, end_time = selected.start_time, selected.end_time
         start_s = end_s = None
         if start_time != first_sample or end_time != full_end:
             start_s = (start_time - first_sample).total_seconds()

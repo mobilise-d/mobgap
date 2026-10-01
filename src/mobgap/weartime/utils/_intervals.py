@@ -5,8 +5,6 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from mobgap.utils.array_handling import bool_array_to_start_end_array
-
 
 def _only_start_end(intervals: pd.DataFrame, *, index_name: Optional[str] = None) -> pd.DataFrame:
     result = intervals[["start", "end"]].astype({"start": "int64", "end": "int64"})
@@ -114,18 +112,6 @@ def clip_intervals_to_waking_hours(
     )
     clipped = clipped[clipped["end"] > clipped["start"]]
     return clipped.astype({"start": "int64", "end": "int64"})
-
-
-def flags_to_intervals(flags: np.ndarray) -> np.ndarray:
-    """Convert binary sample flags to ``[start, end)`` intervals."""
-    flags = np.asarray(flags).ravel()
-    if len(flags) == 0:
-        return np.empty((0, 2), dtype=np.int64)
-
-    intervals = bool_array_to_start_end_array(flags)
-    if intervals.size == 0:
-        return np.empty((0, 2), dtype=np.int64)
-    return intervals.astype(np.int64, copy=False).reshape(-1, 2)
 
 
 def remove_short_interior_intervals(intervals: np.ndarray, min_samples: int, data_length: int) -> np.ndarray:

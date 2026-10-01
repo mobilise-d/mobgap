@@ -20,8 +20,9 @@ from scipy.signal import welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
-from mobgap.weartime.utils._intervals import _validate_waking_hours_min, flags_to_intervals
+from mobgap.weartime.utils._intervals import _validate_waking_hours_min
 from mobgap.weartime.utils.windows_to_weartime import (
     remove_isolated_short_periods_from_intervals,
     remove_short_wear_bouts_by_ratio_from_intervals,
@@ -302,7 +303,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         non_wear_votes = np.cumsum(non_wear_vote_diff[:-1])
         # Equal votes favor wear when a window has voted; samples without evidence remain non-wear.
         weartime_flags = ((wear_votes >= non_wear_votes) & ((wear_votes + non_wear_votes) > 0)).astype(int)
-        weartime_intervals = flags_to_intervals(weartime_flags)
+        weartime_intervals = bool_array_to_start_end_array(weartime_flags).astype(np.int64, copy=False).reshape(-1, 2)
 
         # Stage 1 removes brief isolated periods caused by sensor noise, voting edge effects, or transient artifacts.
         weartime_intervals = remove_isolated_short_periods_from_intervals(
