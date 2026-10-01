@@ -49,15 +49,15 @@ def _waking_hours_sample_bounds(
     if len(data.index) == 0:
         return 0, 0
 
-    first_day = data.index[0].normalize()
-    last_day = data.index[-1].normalize()
+    first_day = data.index[0].date()
+    last_day = data.index[-1].date()
     if first_day != last_day:
         raise ValueError(
             "Waking-hours wear-time metrics require datapoints that do not cross midnight. "
             "Split recordings into individual days before scoring waking-hours wear-time."
         )
 
-    local_midnight = first_day.tz_localize(None)
+    local_midnight = pd.Timestamp(first_day)
 
     def localize_boundary(minutes: int, *, first_occurrence: bool) -> pd.Timestamp:
         local_time = local_midnight + pd.Timedelta(minutes=minutes)

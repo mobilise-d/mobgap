@@ -87,6 +87,23 @@ def test_clip_intervals_to_waking_hours_keeps_time_after_half_hour_dst_jump():
     assert_frame_equal(clipped, _intervals([(60, 90)]))
 
 
+@pytest.mark.parametrize(
+    ("day", "timezone"),
+    [("2018-08-12", "America/Santiago"), ("2020-11-01", "America/Havana")],
+)
+def test_clip_intervals_to_waking_hours_handles_midnight_clock_change(day, timezone):
+    data = pd.DataFrame(index=pd.date_range(f"{day} 06:00", periods=181, freq="min", tz=timezone))
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, 180)]),
+        data=data,
+        sampling_rate_hz=1 / 60,
+        waking_hours_min=(7 * 60, 8 * 60),
+    )
+
+    assert_frame_equal(clipped, _intervals([(60, 120)]))
+
+
 class TestRemoveIsolatedShortPeriods:
     def test_removes_short_interior_wear_before_merging_nonwear_gaps(self):
         result = remove_isolated_short_periods_from_intervals(
