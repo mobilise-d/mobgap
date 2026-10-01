@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Union
 
 import joblib
 import pandas as pd
+from tpcp import cf
 from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
@@ -257,7 +258,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
         sensor_name: str = "LowerBack",
-        splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = _DEFAULT_DAILY_SPLITTER,
+        splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = cf(_DEFAULT_DAILY_SPLITTER),
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
         subset_index: pd.DataFrame | None = None,

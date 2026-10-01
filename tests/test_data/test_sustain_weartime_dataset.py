@@ -249,6 +249,15 @@ def test_default_splitter_keeps_only_days_with_eight_hours(tmp_path, monkeypatch
     assert dataset.index.end_time.iloc[0] - dataset.index.start_time.iloc[0] == pd.Timedelta(hours=8)
 
 
+def test_default_splitter_is_independent_between_datasets(tmp_path):
+    first = SustainWearTimeDataset(tmp_path)
+    second = SustainWearTimeDataset(tmp_path)
+
+    first.splitter.keywords["min_duration"] = pd.Timedelta(hours=1)
+
+    assert second.splitter.keywords["min_duration"] == pd.Timedelta(hours=8)
+
+
 def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch):
     base_path = _create_sustain_layout(tmp_path)
     timing_report = {
