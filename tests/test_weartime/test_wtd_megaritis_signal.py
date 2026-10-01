@@ -36,108 +36,106 @@ class TestMetaWtdMegaritisSignal(TestAlgorithmMixin):
 
     @pytest.fixture
     def after_action_instance(self):
-        data = pd.DataFrame(np.zeros((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
         return self.ALGORITHM_CLASS(window_min=1, step_min=0.25, window_size=5, waking_hours_min=(0, 1)).detect(
             data,
-            sampling_rate_hz=10.0,
+            sampling_rate_hz=50.0,
         )
 
 
 class TestWtdMegaritisSignal:
+    def test_rejects_sampling_rate_below_50_hz(self):
+        data = pd.DataFrame(np.zeros((250, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        with pytest.raises(ValueError, match="at least 50 Hz"):
+            WtdMegaritisSignal().detect(data, sampling_rate_hz=25.0)
+
     def test_recording_shorter_than_micro_window_has_no_wear_evidence(self):
         data = pd.DataFrame(np.ones((30, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
-        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=50.0)
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
         assert "sample_votes" not in result.diagnostics_
 
     @pytest.mark.parametrize("column", ["acc_pa", "gyr_ml", "gyr_is"])
     def test_nan_sensor_samples_are_rejected(self, column):
-        data = pd.DataFrame(np.zeros((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
         data.loc[100, column] = np.nan
 
         with pytest.raises(ValueError, match="NaN"):
-            WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+            WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=50.0)
 
     @pytest.mark.parametrize("column", ["acc_pa", "gyr_ml", "gyr_is"])
     def test_missing_required_sensor_channels_are_rejected(self, column):
-        data = pd.DataFrame(np.zeros((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS).drop(columns=column)
+        data = pd.DataFrame(np.zeros((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS).drop(columns=column)
 
         with pytest.raises(ValueError, match=column):
-            WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+            WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=50.0)
 
     def test_sample_vote_diagnostics_are_opt_in(self):
-        data = pd.DataFrame(np.zeros((750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((3750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, store_sample_votes=True).detect(
-            data, sampling_rate_hz=10.0
+            data, sampling_rate_hz=50.0
         )
 
         assert result.diagnostics_["sample_votes"]["non_wear_votes"].max() == 2
 
     def test_exactly_tiled_recording_has_no_extra_boundary_vote(self):
-        data = pd.DataFrame(np.zeros((750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((3750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, store_sample_votes=True).detect(
-            data, sampling_rate_hz=10.0
+            data, sampling_rate_hz=50.0
         )
 
-        assert result.diagnostics_["macro"]["start"].to_list() == [0, 150]
+        assert result.diagnostics_["macro"]["start"].to_list() == [0, 750]
         assert not result.diagnostics_["macro"]["is_boundary_window"].any()
         assert result.diagnostics_["sample_votes"]["non_wear_votes"].max() == 2
 
     def test_complete_macro_windows_use_their_own_micro_grid(self, monkeypatch):
-        data = pd.DataFrame(np.zeros((780, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((3900, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         def classify_by_start(self, *, data, starts, window_samples, sampling_rate_hz):
-            return starts % 40 == 0
+            return starts % 200 == 0
 
         monkeypatch.setattr(WtdMegaritisSignal, "_classify_micro_windows_from_starts", classify_by_start)
         result = WtdMegaritisSignal(window_min=1, step_min=0.15, window_size=5, overlap=0.6).detect(
-            data, sampling_rate_hz=10.0
+            data, sampling_rate_hz=50.0
         )
 
-        assert result.diagnostics_["macro"]["start"].to_list() == [0, 90, 180]
+        assert result.diagnostics_["macro"]["start"].to_list() == [0, 450, 900]
         assert result.diagnostics_["macro"]["n_non_wear"].to_list() == [14, 28, 14]
 
     def test_custom_waking_hours_window(self):
         rng = np.random.default_rng(123)
-        data = pd.DataFrame(rng.normal(size=(2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(rng.normal(size=(12000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(
             window_min=1,
             step_min=0.25,
             window_size=5,
             waking_hours_min=(1, 3),
-        ).detect(data, sampling_rate_hz=10.0)
+        ).detect(data, sampling_rate_hz=50.0)
 
         assert result.total_weartime_min_ == pytest.approx(4)
         assert result.total_weartime_during_waking_min_ == pytest.approx(2)
 
     def test_waking_hours_rejects_recordings_longer_than_one_day(self):
-        sampling_rate_hz = 0.1
-        data = pd.DataFrame(
-            np.zeros((int(24 * 60 * 60 * sampling_rate_hz) + 1, len(BF_SENSOR_COLS))),
-            columns=BF_SENSOR_COLS,
-        )
-        result = WtdMegaritisSignal(
-            window_min=24 * 60 + 1,
-            step_min=24 * 60 + 1,
-            window_size=60,
-            overlap=0.0,
-            waking_hours_min=(0, 60),
-        ).detect(data, sampling_rate_hz=sampling_rate_hz)
+        result = WtdMegaritisSignal(waking_hours_min=(0, 60))
+        result.data = pd.DataFrame(index=range(24 * 60 * 60 * 50 + 1))
+        result.sampling_rate_hz = 50.0
+        result.weartime_list_ = _empty_weartime_list()
 
         with pytest.raises(ValueError, match="longer than one day"):
             _ = result.total_weartime_during_waking_min_
 
     def test_all_zero_signal_is_nonwear(self):
-        data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((12000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, waking_hours_min=(0, 1)).detect(
             data,
-            sampling_rate_hz=10.0,
+            sampling_rate_hz=50.0,
         )
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
@@ -146,36 +144,36 @@ class TestWtdMegaritisSignal:
 
     @pytest.mark.parametrize("gyro_offset", [0.03, 0.1])
     def test_constant_nonzero_signal_is_nonwear(self, gyro_offset):
-        data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((12000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
         data["acc_pa"] = 0.1
         data["gyr_ml"] = gyro_offset
         data["gyr_is"] = gyro_offset
 
-        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=10.0)
+        result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5).detect(data, sampling_rate_hz=50.0)
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
 
     def test_single_sample_micro_windows_have_no_wear_evidence(self):
-        data = pd.DataFrame(np.zeros((120, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((6000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
-        result = WtdMegaritisSignal(window_min=1, step_min=1, window_size=1, overlap=0).detect(
-            data, sampling_rate_hz=1.0
+        result = WtdMegaritisSignal(window_min=1, step_min=1, window_size=0.02, overlap=0).detect(
+            data, sampling_rate_hz=50.0
         )
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())
 
     def test_short_recording_uses_single_boundary_macro_window(self):
-        data = pd.DataFrame(np.ones((700, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.ones((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(window_min=2, step_min=0.25, window_size=5, waking_hours_min=(0, 1)).detect(
             data,
-            sampling_rate_hz=10.0,
+            sampling_rate_hz=50.0,
         )
 
         expected_macro = pd.DataFrame(
             {
                 "start": [0],
-                "end": [700],
+                "end": [3500],
                 "macro_score": [1.0],
                 "macro_non_wear": [True],
                 "n_micro_windows": [27],
@@ -248,11 +246,11 @@ class TestWtdMegaritisSignal:
         assert result.total_weartime_min_ == pytest.approx(2.538)
 
     def test_does_not_expose_duplicate_total_weartime_units(self):
-        data = pd.DataFrame(np.zeros((2400, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data = pd.DataFrame(np.zeros((12000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(window_min=1, step_min=0.25, window_size=5, waking_hours_min=(0, 1)).detect(
             data,
-            sampling_rate_hz=10.0,
+            sampling_rate_hz=50.0,
         )
 
         assert not hasattr(result, "total_weartime_minutes_")
