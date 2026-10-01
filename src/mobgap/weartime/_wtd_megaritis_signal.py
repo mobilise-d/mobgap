@@ -57,16 +57,16 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     The algorithm uses gyroscopes to detect angular (rotational) movement during true wear-time.
     Natural body movements show characteristic low-frequency rotational patterns (<15-17 Hz).
-    Movement variability captures continuous micro-movements during wear, discriminating wear
-    from non-wear independently of activity intensity.
+    Movement variability is intended to capture micro-movements during wear, including low-intensity activity.
+    Performance has not been evaluated separately across activity intensities.
     Input data must contain the body-frame channels ``acc_pa``, ``gyr_ml`` and ``gyr_is``.
 
     Parameters
     ----------
     window_min : int
         Macro window size in minutes (default: 60)
-    step_min : int
-        Macro window step in minutes (default: 15)
+    step_min : float
+        Macro window step in minutes; fractional minutes are supported (default: 15)
     window_size : int
         Micro window size in seconds (default: 5)
     overlap : float
@@ -109,8 +109,11 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     Notes
     -----
-    The algorithm parameters were selected by hyperparameter tuning on a single dataset. They may need adjustment for
-    other sensor systems or applications.
+    The algorithm parameters were selected by hyperparameter tuning on a single lower-back dataset. They may need
+    adjustment for other sensor systems, placements, sampling rates or applications. At 25 Hz, the Nyquist frequency
+    is 12.5 Hz, below both default gyroscope centroid thresholds (16 Hz and 18 Hz). Every finite gyroscope centroid
+    therefore passes both checks at that rate, so the default voting rule cannot distinguish wear from non-wear using
+    those features. Validate or re-tune the thresholds when using a different sampling rate.
 
     **Algorithm Workflow**
 
@@ -150,7 +153,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self,
         *,
         window_min: int = 60,
-        step_min: int = 15,
+        step_min: float = 15,
         window_size: int = 5,
         overlap: float = 0.5,
         prob_thresh: float = 0.4,
