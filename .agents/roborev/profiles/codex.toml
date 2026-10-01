@@ -1,0 +1,64 @@
+# Optional personal profile: merge these tables into ~/.roborev/config.toml.
+# Do not replace that file or copy these tables into the tracked repo config.
+# Rubrics remain in the repo. Unique global types are required for v0.69.0 validation.
+# Select this panel only in mobgap checkouts containing .agents/roborev/.
+
+[review.types.mobgap-codex-full-stack]
+template = ".agents/roborev/full-stack.md"
+[review.types.mobgap-codex-full-stack.includes]
+guidance = ".agents/roborev/guidance.md"
+
+[review.types.mobgap-codex-plan-conformance]
+template = ".agents/roborev/plan-conformance.md"
+[review.types.mobgap-codex-plan-conformance.includes]
+guidance = ".agents/roborev/guidance.md"
+
+[review.types.mobgap-codex-conventions]
+template = ".agents/roborev/conventions.md"
+[review.types.mobgap-codex-conventions.includes]
+guidance = ".agents/roborev/guidance.md"
+
+[review.types.mobgap-codex-simplicity]
+template = ".agents/roborev/simplicity.md"
+[review.types.mobgap-codex-simplicity.includes]
+guidance = ".agents/roborev/guidance.md"
+
+[review.types.mobgap-codex-scientific-correctness]
+template = ".agents/roborev/scientific-correctness.md"
+[review.types.mobgap-codex-scientific-correctness.includes]
+guidance = ".agents/roborev/guidance.md"
+
+[review.subagents.mobgap_codex_full_stack]
+agent = "codex"
+model = "gpt-6.1-sol"
+reasoning = "high"
+review_type = "mobgap-codex-full-stack"
+
+[review.subagents.mobgap_codex_plan_conformance]
+agent = "codex"
+model = "gpt-6.1-sol"
+reasoning = "high"
+review_type = "mobgap-codex-plan-conformance"
+
+[review.subagents.mobgap_codex_conventions]
+agent = "codex"
+model = "gpt-6-luna"
+reasoning = "high"
+review_type = "mobgap-codex-conventions"
+
+[review.subagents.mobgap_codex_simplicity]
+agent = "codex"
+model = "gpt-6.1-sol"
+reasoning = "high"
+review_type = "mobgap-codex-simplicity"
+
+[review.subagents.mobgap_codex_scientific_correctness]
+agent = "codex"
+model = "gpt-6.1-sol"
+reasoning = "high"
+review_type = "mobgap-codex-scientific-correctness"
+
+[review.panels.mobgap_codex]
+members = ["mobgap_codex_full_stack", "mobgap_codex_plan_conformance", "mobgap_codex_conventions", "mobgap_codex_simplicity", "mobgap_codex_scientific_correctness"]
+synthesis_agent = "codex"
+synthesis_model = "gpt-6.1-sol"
