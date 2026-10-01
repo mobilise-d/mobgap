@@ -46,15 +46,21 @@ class _TrainingDataFromDataset:
         return len(self.dataset)
 
     def __iter__(self) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
-        for datapoint_index, datapoint in enumerate(self.dataset):
+        for datapoint_index in range(len(self.dataset)):
+            yield self.load_recording(datapoint_index)
+
+    def load_recording(self, datapoint_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+        datapoint = self.dataset[datapoint_index]
+        if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
                 "Loading wear-time training datapoint %s: group=%s, rss_mb=%s",
                 datapoint_index,
                 datapoint.group_label,
                 _rss_mb(),
             )
-            data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
-            reference_weartime = datapoint.reference_weartime_
+        data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
+        reference_weartime = datapoint.reference_weartime_
+        if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
                 "Loaded wear-time training datapoint %s: n_samples=%s, n_reference_intervals=%s, rss_mb=%s",
                 datapoint_index,
@@ -62,25 +68,6 @@ class _TrainingDataFromDataset:
                 len(reference_weartime),
                 _rss_mb(),
             )
-            yield data, reference_weartime
-
-    def load_recording(self, datapoint_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-        datapoint = self.dataset[datapoint_index]
-        _LOGGER.debug(
-            "Loading wear-time training datapoint %s: group=%s, rss_mb=%s",
-            datapoint_index,
-            datapoint.group_label,
-            _rss_mb(),
-        )
-        data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
-        reference_weartime = datapoint.reference_weartime_
-        _LOGGER.debug(
-            "Loaded wear-time training datapoint %s: n_samples=%s, n_reference_intervals=%s, rss_mb=%s",
-            datapoint_index,
-            len(data),
-            len(reference_weartime),
-            _rss_mb(),
-        )
         return data, reference_weartime
 
 
