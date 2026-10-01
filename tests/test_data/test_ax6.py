@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import pytest
 
-from mobgap.consts import GRAV_MS2, SF_SENSOR_COLS
+from mobgap.consts import GRAV_MS2, SF_ACC_COLS
 from mobgap.data import (
     AX6Dataset,
     BaseAX6Dataset,
@@ -84,18 +84,17 @@ class _DiscoveredFilesDataset(BaseAX6Dataset):
 
 
 def test_reads_real_cwa_as_mobgap_sensor_data() -> None:
-    """Load an AX6 fixture with the expected columns, time and units."""
+    """Load the acceleration-only CWA fixture without fabricating gyro values."""
     dataset = _dataset()
 
     assert dataset.index["recording"].tolist() == ["main"]
     assert dataset.index["file_path"].tolist() == [str(EXAMPLE_CWA)]
     assert dataset.sampling_rate_hz == 100
     data = dataset.data["LowerBack"]
-    assert data.columns.tolist() == SF_SENSOR_COLS
+    assert data.columns.tolist() == SF_ACC_COLS
     assert len(data) == 72472
     assert data.index[0] == pd.Timestamp("2012-03-27T11:14:57.500Z")
     assert data.iloc[0]["acc_x"] == pytest.approx(-0.21875 * GRAV_MS2)
-    assert data.iloc[0]["gyr_x"] == 0
 
 
 def test_additional_sensors_enabled_parameter_survives_clone() -> None:
@@ -107,7 +106,7 @@ def test_additional_sensors_enabled_parameter_survives_clone() -> None:
         additional_sensors_enabled=("temperature", "magnetometer"),
     )
 
-    assert dataset.clone().data_ss.columns.tolist() == [*SF_SENSOR_COLS, "temperature", "mag_x", "mag_y", "mag_z"]
+    assert dataset.clone().data_ss.columns.tolist() == [*SF_ACC_COLS, "temperature"]
 
 
 def test_sampling_rate_deviation_warning_threshold() -> None:

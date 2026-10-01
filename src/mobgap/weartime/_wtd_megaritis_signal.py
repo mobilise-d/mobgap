@@ -222,6 +222,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         if sampling_rate_hz < _MIN_SAMPLING_RATE_HZ:
             raise ValueError(f"WtdMegaritisSignal requires a sampling rate of at least {_MIN_SAMPLING_RATE_HZ:g} Hz.")
 
+        # cwa-reader-rs 0.3 omits gyro axes that were not recorded. This detector needs both body-frame gyro axes;
+        # absent axes must not be treated as zero-valued measurements.
         missing_columns = {"acc_pa", "gyr_ml", "gyr_is"} - set(data.columns)
         if missing_columns:
             raise ValueError(f"Missing required body-frame channels: {sorted(missing_columns)}")

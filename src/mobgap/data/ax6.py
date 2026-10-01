@@ -120,7 +120,13 @@ def _load_cwa_data(  # noqa: PLR0917
     frame = pd.DataFrame(raw)
     frame.index = pd.DatetimeIndex(pd.to_datetime(frame.pop("timestamp"), unit="us", utc=True), name="time")
     frame = frame.rename(columns={f"gyro_{axis}": f"gyr_{axis}" for axis in "xyz"})
-    selected_columns = [*SF_SENSOR_COLS, *(col for channel in channels for col in _ADDITIONAL_COLUMNS[channel])]
+    # Reader 0.3 omits channels absent from the source file. Keep AX3 acceleration-only recordings loadable without
+    # inventing gyroscope values; algorithms that need gyro data must check for their required channels.
+    selected_columns = [
+        col
+        for col in (*SF_SENSOR_COLS, *(col for channel in channels for col in _ADDITIONAL_COLUMNS[channel]))
+        if col in frame
+    ]
     frame = frame[selected_columns].copy()
     frame[SF_ACC_COLS] *= GRAV_MS2
     return frame.loc[(frame.index >= start_time) & (frame.index < end_time)]
@@ -286,8 +292,9 @@ class AX6Dataset(BaseAX6Dataset):
 
     Notes
     -----
-    Acceleration is returned in m/s², gyroscope data in deg/s and the optional
-    magnetometer data in µT. The time index is UTC and each day is half-open.
+    Acceleration is returned in m/s², gyroscope data (when recorded) in deg/s and the optional
+    magnetometer data in µT. Channels absent from the CWA recording are omitted. The time index is UTC and each day
+    is half-open.
     """
 
     def __init__(
