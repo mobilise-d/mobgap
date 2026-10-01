@@ -79,6 +79,23 @@ def clip_intervals_to_waking_hours(
 
     A skipped clock time moves to the first valid time. For repeated times, the start uses the first occurrence and
     the end uses the second, so the repeated hour is included.
+
+    Parameters
+    ----------
+    intervals : pd.DataFrame
+        Intervals with sample-based ``start`` and ``end`` columns.
+    sampling_rate_hz : float
+        Sampling rate used when ``data`` has no timestamps.
+    waking_hours_min : tuple[int, int]
+        Start and end of the daily window, in minutes since midnight.
+    data : pd.DataFrame, optional
+        Recording data. A ``DatetimeIndex`` sets the local dates and times of the window. Without one, sample zero
+        represents midnight.
+
+    Returns
+    -------
+    pd.DataFrame
+        Clipped half-open intervals with the input index and ``start`` and ``end`` columns.
     """
     start_min, end_min = _validate_waking_hours_min(waking_hours_min)
     start_sample, end_sample = _waking_hours_sample_bounds(

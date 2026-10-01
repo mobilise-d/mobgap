@@ -25,7 +25,7 @@ sampling_rate_hz
 weartime_list_
     A dataframe specifying the detected weartime periods.
     The dataframe has an index ``wt_id`` and columns ``start`` and ``end``, specifying the start and end
-    index of each weartime period.
+    index of each weartime period. Each interval includes ``start`` and excludes ``end``.
     The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
 """,
         "total_weartime_samples_": """

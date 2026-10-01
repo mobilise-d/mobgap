@@ -72,8 +72,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         Macro window size in minutes (default: 60)
     step_min : float
         Macro window step in minutes; fractional minutes are supported (default: 15)
-    window_size : int
-        Micro window size in seconds (default: 5)
+    window_size : float
+        Micro window size in seconds; fractional seconds are supported (default: 5)
     overlap : float
         Micro window overlap fraction, from 0.0 up to but excluding 1.0 (default: 0.5)
     prob_thresh : float
@@ -83,7 +83,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     gyr_is_centroid_thresh_hz : float
         Threshold for IS gyroscope spectral centroid in Hz (default: 18.0)
     acc_pa_std_thresh : float
-        Threshold for PA acceleration standard deviation (default: 0.17)
+        Threshold for PA acceleration standard deviation in m/s² (default: 0.17)
     voting_mode : bool
         If True, use voting system (default: True)
     min_features_required : int
@@ -114,6 +114,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     Notes
     -----
+    Paper under submission.
+
     The algorithm parameters were selected by hyperparameter tuning on a single lower-back dataset. They may need
     adjustment for other sensor systems, placements, sampling rates or applications. The 50 Hz minimum gives a 25 Hz
     Nyquist frequency, above both default gyroscope centroid thresholds (16 Hz and 18 Hz). This is a technical minimum,
@@ -124,8 +126,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     1. Sliding macro windows are defined over the input data
     2. Complete macro windows with the same micro-step phase share a grid of 5-second micro windows
     3. Three features are extracted per micro window:
-       gyr_ml_spectral_centroid (frequency of mediolateral rotation),
-       gyr_is_spectral_centroid (frequency of vertical rotation),
+       gyr_ml_spectral_centroid (Welch power-weighted mean frequency of mediolateral gyroscope data),
+       gyr_is_spectral_centroid (Welch power-weighted mean frequency of vertical gyroscope data),
        acc_pa_std (variability of anteroposterior acceleration)
     4. Each micro window is classified using 2-out-of-3 voting
     5. Macro-level decision via probability threshold (default 0.4)
@@ -158,7 +160,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         *,
         window_min: int = 60,
         step_min: float = 15,
-        window_size: int = 5,
+        window_size: float = 5,
         overlap: float = 0.5,
         prob_thresh: float = 0.4,
         gyr_ml_centroid_thresh_hz: float = 16.0,
