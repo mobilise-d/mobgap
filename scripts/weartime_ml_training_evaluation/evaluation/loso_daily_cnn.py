@@ -2,7 +2,7 @@
 
 The evaluation dataset is split by recording day, but the cross-validation groups by participant. This means every
 fold holds out all days of one human participant and trains on all days from all other human
-participants, plus the same two part B recordings assigned to training by a combined splitter.
+participants, plus the same seeded part B selection assigned to training by a combined splitter.
 
 The script intentionally uses the standard :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` and
 :data:`~mobgap.weartime.evaluation.wtd_score` scorer so that metrics match the rest of the wear-time evaluation code.
@@ -99,22 +99,10 @@ def _write_results(
         "fold_metric_summary": _numeric_summary(fold_results),
         "daily_metric_summary": _numeric_summary(daily_results.reset_index(drop=True)),
     }
-    if run_metadata["return_train_score"]:
-        train_fold_results = evaluation.get_aggregated_results_as_df(group="train")
-        train_daily_results = evaluation.get_single_results_as_df(group="train")
-        train_fold_results = train_fold_results.join(fold_metadata.set_index("fold"), how="left")
-        train_fold_results.to_csv(output_dir / "train_fold_results.csv")
-        train_daily_results.to_csv(output_dir / "train_daily_results.csv")
-        for name, value in evaluation.get_raw_results(group="train").items():
-            if isinstance(value, pd.DataFrame):
-                value.to_csv(output_dir / f"raw_train_{name}.csv")
-        summary["train_fold_metric_summary"] = _numeric_summary(train_fold_results)
-        summary["train_daily_metric_summary"] = _numeric_summary(train_daily_results.reset_index(drop=True))
-    else:
-        for filename in ("train_fold_results.csv", "train_daily_results.csv"):
-            (output_dir / filename).unlink(missing_ok=True)
-        for path in output_dir.glob("raw_train_*.csv"):
-            path.unlink()
+    for filename in ("train_fold_results.csv", "train_daily_results.csv"):
+        (output_dir / filename).unlink(missing_ok=True)
+    for path in output_dir.glob("raw_train_*.csv"):
+        path.unlink()
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     (output_dir / "timings.json").write_text(json.dumps(evaluation.perf_, indent=2) + "\n")
 
@@ -140,6 +128,11 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=2,
         help="Number of Part B recordings sampled for every training fold. Default: 2; zero disables sampling.",
+    )
+    parser.add_argument(
+        "--part-b-day-count",
+        type=int,
+        help="Sample this many Part B days for every training fold instead of whole recordings.",
     )
     parser.add_argument(
         "--participant-id",
@@ -215,7 +208,7 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant per fold; sample Part B recordings for training with a fixed seed.
+    # Hold out one human participant per fold; use the same seeded Part B sample in every training fold.
     splitter = CombinedSplitter(
         parts=[
             (
@@ -226,11 +219,15 @@ def main() -> None:
                 lambda days: days.get_subset(recording_type="simulated_movements"),
                 NoSplit(
                     None,
-                    train=lambda days: days.get_subset(
-                        recording_id=days.index["recording_id"]
-                        .drop_duplicates()
-                        .sample(n=args.part_b_recording_count, random_state=42)
-                        .tolist()
+                    train=lambda days: (
+                        days.get_subset(index=days.index.sample(n=args.part_b_day_count, random_state=42))
+                        if args.part_b_day_count is not None
+                        else days.get_subset(
+                            recording_id=days.index["recording_id"]
+                            .drop_duplicates()
+                            .sample(n=args.part_b_recording_count, random_state=42)
+                            .tolist()
+                        )
                     ),
                 ),
             ),
@@ -282,7 +279,7 @@ def main() -> None:
         cv_iterator=splitter,
         cv_params={
             "n_jobs": n_jobs,
-            "return_train_score": True,
+            "return_train_score": False,
             "progress_bar": True,
         },
     )
@@ -297,7 +294,7 @@ def main() -> None:
         "tensorflow_version": tf_metadata["tensorflow_version"],
         "gpu_devices": tf_metadata["gpu_devices"],
         "n_jobs": n_jobs,
-        "return_train_score": True,
+        "return_train_score": False,
         "hyperparameters": {
             "model_type": "CNN_1D",
             "batch_size": args.batch_size,

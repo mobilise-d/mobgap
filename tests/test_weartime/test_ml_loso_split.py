@@ -111,6 +111,27 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         assert set(selected_folds["held_out_participant_ids"].astype(str).str.zfill(3)) == {"002", "003"}
         assert set(selected_folds["n_train_days"]) == {7}
 
+    cnn = evaluation_scripts[0]
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "loso_daily_cnn",
+            "--dataset-path",
+            "unused",
+            "--dry-run",
+            "--output-dir",
+            str(tmp_path),
+            "--run-name",
+            "cnn_part_b_days",
+            "--part-b-day-count",
+            "3",
+        ],
+    )
+    cnn.main()
+    cnn_day_plan = pd.read_csv(tmp_path / "cnn_part_b_days" / "fold_metadata.csv")
+    assert set(cnn_day_plan["n_train_days"]) == {13}
+
     xgboost = evaluation_scripts[1]
     captured_splitters: dict[str, BaseDatasetSplitter] = {}
     captured_datasets: dict[str, SustainWearTimeDataset] = {}
