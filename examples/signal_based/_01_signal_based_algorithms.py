@@ -173,27 +173,26 @@ sd_range.signal_based_parameters_
 
 
 # %%
-# the :class:`.Jerk` algorithm.
+# the :class:`.LogDimensionlessJerk` algorithm.
 
-from mobgap.signal_based import Jerk
+from mobgap.signal_based import LogDimensionlessJerk
 
-jerk = Jerk(
+log_dimensionless_jerk = LogDimensionlessJerk(
     acc_columns=["acc_is", "acc_ml", "acc_pa"],
-)
-
-jerk.calculate(data=data_in_wb_bf, **params)
-
-jerk.signal_based_parameters_
-
-# %%
-# the :class:`.AngularAcceleration` algorithm.
-
-from mobgap.signal_based import AngularAcceleration
-
-angular_acceleration = AngularAcceleration(
     gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
 )
 
-angular_acceleration.calculate(data=data_in_wb_bf, **params)
+log_dimensionless_jerk.calculate(data=data_in_wb_bf, **params)
 
-angular_acceleration.signal_based_parameters_
+log_dimensionless_jerk.signal_based_parameters_
+
+# %%
+# the :class:`.RMSJerkRatio` algorithm.
+
+from mobgap.signal_based import RMSJerkRatio
+
+rms_jerk_ratio = RMSJerkRatio()
+
+rms_jerk_ratio.calculate(data=data_in_wb_bf, **params)
+
+rms_jerk_ratio.signal_based_parameters_

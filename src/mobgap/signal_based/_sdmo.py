@@ -70,7 +70,7 @@ class TurnSDMO(BaseSDMOCalculator):
             seg = gyr[int(start) : int(end)]
             means.append(abs(seg.mean()))
             maxs.append(abs(seg.max()))
-            smoothness.append(np.sqrt(np.trapezoid(seg**2, dx=1 / sampling_rate_hz) / dur))
+            smoothness.append(_log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0])
 
         turn_params = {
             "turn_mean_ang_vel": np.mean(means),
@@ -964,23 +964,39 @@ class SDRange(BaseSDMOCalculator):
 
 
 @base_sdmo_docfiller
-class Jerk(BaseSDMOCalculator):
-    """Calculate RMS jerk of acceleration signals in each principal direction.
+class LogDimensionlessJerk(BaseSDMOCalculator):
+    r"""Calculate the log dimensionless jerk (LDLJ) of acceleration and angular velocity signals.
 
-    Jerk is defined as the third derivative of position with respect to time, so it is the second derivative
-    of velocity and the first derivative of acceleration.
-    With acceleration in m/s², the returned RMS jerk is expressed in m/s³.
-    The definition follows the following article:
-    Age associated changes in head jerk while walking reveal altered dynamic stability in older people.
-    Matthew A. et al., Exp Brain Res (2014) 232:51-60. DOI: 10.1007/s00221-013-3719-6
+    The squared jerk of each signal is integrated, normalised by the signal duration and peak amplitude to remove the
+    dependence on amplitude and unit, and log-transformed [1]_. More negative values indicate less smooth signals.
+    The derivative that is used depends on the type of signal:
 
-    Different methods of calculating jerk can be found in the following article:
-    Sensitivity of smoothness measures to movement duration, amplitude, and arrests.
-    Hogan N. et al., Journal of motor behavior (2009) 41,6. DOI:10.3200/35-09-004-RC
+    Acceleration signals (``acc_columns``, LDLJ-A)
+        Jerk is the first derivative of acceleration:
+
+        .. math::
+
+            LDLJ\text{-}A = -\ln\left(\frac{T}{a_{peak}^2}\int_0^T \left(\frac{da}{dt}\right)^2 dt\right)
+
+    Gyroscope signals (``gyr_columns``, LDLJ-V)
+        The angular velocity takes the role of the velocity, so the (angular) jerk is its second derivative:
+
+        .. math::
+
+            LDLJ\text{-}V = -\ln\left(\frac{T^3}{\omega_{peak}^2}\int_0^T
+            \left(\frac{d^2\omega}{dt^2}\right)^2 dt\right)
+
+    with :math:`T` the duration of the signal and :math:`x_{peak} = \max |x - \bar{x}|`.
+    The mean is only removed for the peak (it has no effect on the derivative).
+    This removes the static gravity component of the accelerometer from the peak amplitude.
+    The result is dimensionless and independent of the unit of the signal (g or m/s², deg/s or rad/s).
 
     Parameters
     ----------
-    %(acc_columns_para)s
+    acc_columns
+        Name of the accelerometer signal columns for which LDLJ-A will be calculated.
+    gyr_columns
+        Name of the gyroscope signal columns for which LDLJ-V will be calculated.
 
     Other Parameters
     ----------------
@@ -991,63 +1007,20 @@ class Jerk(BaseSDMOCalculator):
     ----------
     %(signal_based_parameters_)s
     %(perf_)s
+
+    References
+    ----------
+    .. [1] A. Melendez-Calderon, C. Shirota, and S. Balasubramanian, "Estimating Movement Smoothness From Inertial
+       Measurement Units," Front. Bioeng. Biotechnol., vol. 8, 2021. https://doi.org/10.3389/fbioe.2020.558771
 
     """
 
     def __init__(
         self,
         acc_columns: Optional[list[str]] = None,
+        gyr_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
-
-    @timed_action_method
-    @base_sdmo_docfiller
-    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
-        """%(calculate_short)s.
-
-        Parameters
-        ----------
-        %(data_param)s
-        %(sampling_rate_param)s
-
-        %(calculate_return)s
-
-        """
-        self.data = data
-        self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
-        acc_columns = [column for column in self.acc_columns or [] if column in data.columns]
-        jerk = _rms_derivative(data[acc_columns].to_numpy(), sampling_rate_hz)
-        out = {f"jerk_{column}": jerk[i] for i, column in enumerate(acc_columns)}
-        self.signal_based_parameters_ = pd.DataFrame([out])
-        return self
-
-
-@base_sdmo_docfiller
-class AngularAcceleration(BaseSDMOCalculator):
-    """Calculate RMS angular acceleration from gyroscope signals in each principal direction.
-
-    Angular acceleration is the first temporal derivative of angular velocity.
-    With angular velocity in deg/s, the returned RMS angular acceleration is expressed in deg/s².
-
-    Parameters
-    ----------
-    gyr_columns
-        Name of the gyroscope signal columns for which parameters will be calculated.
-
-    Other Parameters
-    ----------------
-    %(data_param)s
-    %(sampling_rate_param)s
-
-    Attributes
-    ----------
-    %(signal_based_parameters_)s
-    %(perf_)s
-
-    """
-
-    def __init__(self, gyr_columns: Optional[list[str]] = None) -> None:
         self.gyr_columns = gyr_columns
 
     @timed_action_method
@@ -1061,25 +1034,129 @@ class AngularAcceleration(BaseSDMOCalculator):
         %(sampling_rate_param)s
 
         %(calculate_return)s
+
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        gyr_columns = [column for column in self.gyr_columns or [] if column in data.columns]
-        angular_acceleration = _rms_derivative(data[gyr_columns].to_numpy(), sampling_rate_hz)
-        out = {f"angular_acceleration_{column}": angular_acceleration[i] for i, column in enumerate(gyr_columns)}
+
+        out = {}
+        for columns, derivative_order in ((self.acc_columns, 1), (self.gyr_columns, 2)):
+            available = [column for column in columns or [] if column in data.columns]
+            if not available:
+                continue
+            values = _log_dimensionless_jerk(data[available], sampling_rate_hz, derivative_order)
+            out.update({f"jerk_{column}": value for column, value in zip(available, values)})
+
+        if out:
+            self.signal_based_parameters_ = pd.DataFrame([out])
+        return self
+
+
+@base_sdmo_docfiller
+class RMSJerkRatio(BaseSDMOCalculator):
+    r"""Calculate the ratio of the RMS jerk of the horizontal axes to the RMS jerk of the vertical axis in dB.
+
+    Following [1]_, the jerk is the first derivative of the acceleration, and the ratios are defined as
+
+    .. math::
+
+        Ratio_{ML/IS} = 10 \log_{10}\left(\frac{RMS_{ML}(jerk)}{RMS_{IS}(jerk)}\right)
+
+    and likewise for the posterior-anterior axis (``jerk_ratio_pa_is_db``).
+    A ratio below 0 dB means less jerk in the horizontal than in the vertical axis.
+    The ratios are dimensionless and independent of the unit of the acceleration.
+    Each ratio is only calculated if both of its axes are available.
+    The un-normalised jerk is used on purpose: the amplitude of each axis is the information this ratio is supposed to
+    capture, and the amplitude normalisation of :class:`LogDimensionlessJerk` would remove it.
+
+    Other Parameters
+    ----------------
+    %(data_param)s
+    %(sampling_rate_param)s
+
+    Attributes
+    ----------
+    %(signal_based_parameters_)s
+    %(perf_)s
+
+    References
+    ----------
+    .. [1] M. A. D. Brodie, H. B. Menz, and S. R. Lord, "Age-associated changes in head jerk while walking reveal
+       altered dynamic stability in older people," Exp. Brain Res., vol. 232, pp. 51-60, 2014.
+       https://doi.org/10.1007/s00221-013-3719-6
+
+    """
+
+    @timed_action_method
+    @base_sdmo_docfiller
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
+        """%(calculate_short)s.
+
+        Parameters
+        ----------
+        %(data_param)s
+        %(sampling_rate_param)s
+
+        %(calculate_return)s
+        """
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.signal_based_parameters_ = pd.DataFrame()
+
+        columns = [column for column in ("acc_is", "acc_ml", "acc_pa") if column in data.columns]
+        if "acc_is" not in columns or len(columns) < 2:
+            return self
+
+        acc = data[columns].to_numpy(dtype=float)
+        if len(acc) < 3:
+            return self
+        duration = (len(acc) - 1) / sampling_rate_hz
+        rms_jerk = dict(zip(columns, np.sqrt(_integrated_squared_derivative(acc, sampling_rate_hz, 1) / duration)))
+
+        out = {}
+        for axis in ("ml", "pa"):
+            if f"acc_{axis}" not in rms_jerk:
+                continue
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio_db = 10 * np.log10(rms_jerk[f"acc_{axis}"] / rms_jerk["acc_is"])
+            out[f"jerk_ratio_{axis}_is"] = ratio_db if np.isfinite(ratio_db) else np.nan
+
         self.signal_based_parameters_ = pd.DataFrame([out])
         return self
 
 
-def _rms_derivative(signal: np.ndarray, sampling_rate_hz: float) -> np.ndarray:
-    """Calculate the RMS of the first temporal derivative for each signal column."""
+def _integrated_squared_derivative(signal: np.ndarray, sampling_rate_hz: float, derivative_order: int) -> np.ndarray:
+    """Integrate the squared n-th time derivative of each column of ``signal``."""
     if len(signal) < 2:
         return np.full(signal.shape[1], np.nan)
     dt = 1 / sampling_rate_hz
-    derivative = np.gradient(signal, dt, axis=0)
-    duration = dt * (len(signal) - 1)
-    return np.sqrt(np.trapezoid(derivative**2, dx=dt, axis=0) / duration)
+    derivative = signal
+    for _ in range(derivative_order):
+        derivative = np.gradient(derivative, dt, axis=0)
+    return np.trapezoid(derivative**2, dx=dt, axis=0)
+
+
+def _log_dimensionless_jerk(signal: np.ndarray, sampling_rate_hz: float, derivative_order: int) -> np.ndarray:
+    r"""Calculate the log dimensionless jerk for a signal.
+
+    ``derivative_order=1`` expects an acceleration (LDLJ-A: ``T / a_peak^2 * int (da/dt)^2 dt``).
+    ``derivative_order=2`` expects a velocity (LDLJ-V: ``T^3 / v_peak^2 * int (d2v/dt2)^2 dt``).
+
+    Columns without a valid result (constant signal, too few samples, NaNs) are returned as NaN.
+    """
+    n_samples, n_columns = signal.shape
+    result = np.full(n_columns, np.nan)
+    if n_samples < 3:
+        return result
+
+    duration = (n_samples - 1) / sampling_rate_hz
+    peak = np.max(np.abs(signal - signal.mean(axis=0)), axis=0)
+    integral = _integrated_squared_derivative(signal, sampling_rate_hz, derivative_order)
+    arg = duration ** (2 * derivative_order - 1) * integral / np.where(peak > 0, peak ** 2, np.nan)
+    valid = np.isfinite(arg) & (arg > 1e-12)
+    result[valid] = -np.log(arg[valid])
+    return result
 
 
 @njit
