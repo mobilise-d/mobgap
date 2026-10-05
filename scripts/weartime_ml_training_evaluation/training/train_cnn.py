@@ -2,7 +2,8 @@
 
 The script trains directly from raw SUSTAIN CWA recordings. It uses
 ``WtdEmulationPipeline.self_optimize`` so data loading stays lazy: the pipeline reads sampling-rate
-metadata first, then the low-level Keras model loads one recording at a time while TensorFlow consumes the windows.
+metadata first, then the low-level Keras model loads one datapoint at a time while TensorFlow consumes the windows.
+By default, raw recordings are split into daily datapoints, as in the XGBoost training script.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import joblib
 import numpy as np
 
 from mobgap import PROJECT_ROOT
-from mobgap.data import SustainWearTimeDataset
+from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.weartime import MegaritisCnnWeartimeModel, WtdMegaritisCNN
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
@@ -100,12 +101,19 @@ def _parse_args() -> argparse.Namespace:
         help="SUSTAIN recording type to train on.",
     )
     parser.add_argument(
+        "--split-by-day",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Split raw CWA recordings into daily datapoints before training. Enabled by default.",
+    )
+    parser.add_argument(
         "--participant-id",
         action="append",
         help="Restrict training to one participant. Can be passed multiple times.",
     )
     parser.add_argument("--epochs", type=int, default=60, help="Number of training epochs.")
     parser.add_argument("--batch-size", type=int, default=1024, help="Keras training batch size.")
+    parser.add_argument("--overlap", type=float, default=0.75, help="Fractional overlap of CNN windows.")
     parser.add_argument(
         "--window-batch-size",
         type=int,
@@ -153,7 +161,7 @@ def main() -> None:
         dataset_path,
         additional_sensors_enabled=(),
         warn_thres_for_sampling_rate_deviations_hz=None,
-        splitter=None,
+        splitter=split_by_utc_day if args.split_by_day else None,
         memory=joblib.Memory(cache_dir, verbose=0),
     ).get_subset(recording_type=args.recording_type)
     if args.participant_id:
@@ -162,7 +170,8 @@ def main() -> None:
     if len(dataset.index) == 0:
         raise ValueError("The selected SUSTAIN subset is empty.")
 
-    LOGGER.info("Training recordings: %s", len(dataset.index))
+    LOGGER.info("Training datapoints: %s", len(dataset.index))
+    LOGGER.info("Raw recordings: %s", dataset.index["recording_id"].nunique())
     LOGGER.info("Participants: %s", dataset.index["participant_id"].nunique())
     LOGGER.info("Output run name: %s", run_name)
 
@@ -173,6 +182,7 @@ def main() -> None:
         window_batch_size=window_batch_size,
         shuffle_buffer_size=args.shuffle_buffer_size,
         standardize_in_model=args.standardize_in_model,
+        overlap=args.overlap,
     )
 
     pipeline = WtdEmulationPipeline(WtdMegaritisCNN(model=low_level_model))
@@ -200,9 +210,12 @@ def main() -> None:
         "version": "pipeline_training",
         "training_date": datetime.now().isoformat(),
         "recording_type": args.recording_type,
-        "n_recordings": len(dataset.index),
+        "split_by_day": bool(args.split_by_day),
+        "n_datapoints": len(dataset.index),
+        "n_recordings": int(dataset.index["recording_id"].nunique()),
         "n_participants": int(dataset.index["participant_id"].nunique()),
         "input_shape": [int(window_samples), len(trained_model.sensor_cols)],
+        "sampling_rate_hz": float(trained_model._trained_sampling_rate_hz),
         "hyperparameters": {
             "num_conv_layers": 3,
             "filters": list(trained_model.filters),

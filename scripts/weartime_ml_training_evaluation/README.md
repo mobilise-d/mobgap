@@ -33,13 +33,13 @@ training day, including all selected part B days, before scoring the held-out
 participant. Use `--n-trials`, `--inner-folds`,
 `--search-train-fraction`, and `--search-seed` to adjust the search.
 `optuna_best_by_fold.csv` and `optuna_trials.csv` record the search results.
-Both daily evaluations write `timings.json` from `EvaluationCV.perf_`.
+Both daily evaluations score held-out days only and write `timings.json` from `EvaluationCV.perf_`.
 
 Both daily evaluation scripts use TPCP's `CombinedSplitter` and `NoSplit` to put
 the same sampled part B data in training for every fold. Test folds contain
 only part A human recordings. By default, the scripts sample two part B recordings
-with seed 42; `--part-b-recording-count` changes the count. The XGBoost script
-also accepts `--part-b-day-count` to sample that many individual part B days
+with seed 42; `--part-b-recording-count` changes the count. Both scripts
+also accept `--part-b-day-count` to sample that many individual part B days
 instead of whole recordings, using the same seed in every fold. The splitter applies
 both the human participant selection and the fixed part B training selection.
 `NoSplit` takes its fold count from the human participant splitter.
@@ -48,6 +48,15 @@ The dry run writes the fold plan to `fold_metadata.csv`.
 CNN training saves a `.keras` artifact. Load it in a fresh Python process with
 `mobgap.weartime.load_keras_weartime_model(path)` so the optional model-side
 standardization layer is registered before deserialization.
+The standalone CNN training script splits recordings by day by default; use
+`--no-split-by-day` for complete recordings. `--overlap` controls the CNN window stride.
+Calling `WtdMegaritisCNN()` without a model loads the packaged pretrained CNN for detection
+or creates a new CNN for `self_optimize`.
+
+For runs made with earlier drafts of these scripts, `--no-split-by-day` restores the
+old CNN training input. The daily CNN evaluation now writes held-out scores only.
+If an output directory is reused, it removes stale `train_*` score files from an
+earlier run. These scripts are part of the unpublished wear-time ML draft PR.
 
 The raw SUSTAIN dataset is not distributed with MobGap. Model fitting and daily
 cross-validation therefore require access to that dataset.
