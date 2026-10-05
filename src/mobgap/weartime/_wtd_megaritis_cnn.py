@@ -14,13 +14,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 import pandas as pd
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.weartime._keras_weartime_model import BaseKerasWeartimeModel, MegaritisCnnWeartimeModel
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
     TrainingData,
@@ -33,9 +34,6 @@ from mobgap.weartime.utils.windows_to_weartime import (
     overlapping_window_predictions_to_sample_labels,
     remove_isolated_short_periods_from_intervals,
 )
-
-if TYPE_CHECKING:
-    from mobgap.weartime._keras_weartime_model import BaseKerasWeartimeModel
 
 
 @base_weartime_docfiller
@@ -56,8 +54,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     Parameters
     ----------
     model : BaseKerasWeartimeModel, optional
-        Low-level Keras window classifier. Pass a pretrained or trainable model instance explicitly before calling
-        ``detect`` or ``self_optimize``.
+        Low-level Keras window classifier. If ``None``, ``detect`` loads the packaged pretrained CNN and
+        ``self_optimize`` creates a fresh, untrained CNN. Pass a model explicitly to use another architecture or
+        training configuration.
     waking_hours_min : tuple[int, int]
         Waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)`` in minutes since
         midnight.
@@ -146,9 +145,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         data_length = len(data)
         _validate_waking_hours_min(self.waking_hours_min)
 
-        model = self.model
-        if model is None:
-            raise RuntimeError("Pass a Keras wear-time `model` before calling `detect`.")
+        model = self.model or MegaritisCnnWeartimeModel(**MegaritisCnnWeartimeModel.PredefinedParameters.lowback)
         self.model_ = model.clone().run(data, sampling_rate_hz=sampling_rate_hz)
 
         # Post-processing: convert window predictions to sample-level weartime
@@ -192,9 +189,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         sampling_rate_hz: float,
     ) -> Self:
         """Train the low-level Keras window model from lazy ``(data, reference_weartime)`` records."""
-        model = self.model
-        if model is None:
-            raise RuntimeError("Pass an untrained Keras wear-time `model` before calling `self_optimize`.")
+        model = self.model or MegaritisCnnWeartimeModel(standardize_in_model=True)
         self.model = model.self_optimize(
             training_data,
             sampling_rate_hz=sampling_rate_hz,
