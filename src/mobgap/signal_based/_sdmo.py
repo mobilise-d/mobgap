@@ -66,10 +66,10 @@ class TurnSDMO(BaseSDMOCalculator):
         means = []
         maxs = []
         smoothness = []
-        for start, end, dur in turn_list[["start", "end", "duration_s"]].itertuples(index=False):
+        for start, end in turn_list[["start", "end"]].itertuples(index=False):
             seg = gyr[int(start) : int(end)]
             means.append(abs(seg.mean()))
-            maxs.append(abs(seg.max()))
+            maxs.append(max(abs(seg)))
             smoothness.append(_log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0])
 
         turn_params = {
@@ -1153,7 +1153,7 @@ def _log_dimensionless_jerk(signal: np.ndarray, sampling_rate_hz: float, derivat
     duration = (n_samples - 1) / sampling_rate_hz
     peak = np.max(np.abs(signal - signal.mean(axis=0)), axis=0)
     integral = _integrated_squared_derivative(signal, sampling_rate_hz, derivative_order)
-    arg = duration ** (2 * derivative_order - 1) * integral / np.where(peak > 0, peak ** 2, np.nan)
+    arg = duration ** (2 * derivative_order - 1) * integral / np.where(peak > 0, peak**2, np.nan)
     valid = np.isfinite(arg) & (arg > 1e-12)
     result[valid] = -np.log(arg[valid])
     return result

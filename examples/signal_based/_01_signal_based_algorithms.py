@@ -179,7 +179,7 @@ from mobgap.signal_based import LogDimensionlessJerk
 
 log_dimensionless_jerk = LogDimensionlessJerk(
     acc_columns=["acc_is", "acc_ml", "acc_pa"],
-    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
+    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
 )
 
 log_dimensionless_jerk.calculate(data=data_in_wb_bf, **params)
