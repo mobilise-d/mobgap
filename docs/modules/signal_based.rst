@@ -19,7 +19,7 @@ Algorithms
     SDRange
     Jerk
     AngularAcceleration
-    FrequencyAmplitudeWidthSlope
+    FrequencyAmplitudeWidth
     RegularitySymmetry
     RMS
     StrideLevelSDMO

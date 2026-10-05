@@ -8,11 +8,11 @@ from mobgap.data import LabExampleDataset
 from mobgap.data_transform import Resample
 from mobgap.signal_based import (
     RMS,
-    AngularAcceleration,
-    FrequencyAmplitudeWidthSlope,
+    FrequencyAmplitudeWidth,
     HarmonicRatio,
-    Jerk,
+    LogDimensionlessJerk,
     RegularitySymmetry,
+    RMSJerkRatio,
     SampleEntropy,
     SDRange,
     StrideLevelSDMO,
@@ -81,7 +81,7 @@ class TestMetaRegularitySymmetry(TestAlgorithmMixin):
 
 class TestMetaFrequencyAmplitudeWidthSlope(TestAlgorithmMixin):
     __test__ = True
-    ALGORITHM_CLASS = FrequencyAmplitudeWidthSlope
+    ALGORITHM_CLASS = FrequencyAmplitudeWidth
 
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
@@ -123,28 +123,26 @@ class TestMetaSDRange(TestAlgorithmMixin):
         return self.ALGORITHM_CLASS().calculate(data)
 
 
-class TestMetaJerk(TestAlgorithmMixin):
+class TestMetaLogDimensionlessJerk(TestAlgorithmMixin):
     __test__ = True
-    ALGORITHM_CLASS = Jerk
+    ALGORITHM_CLASS = LogDimensionlessJerk
 
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS(acc_columns=["acc_is", "acc_ml", "acc_pa"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        return self.ALGORITHM_CLASS(
+            acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
+        ).calculate(data, sampling_rate_hz=sampling_rate_hz)
 
 
-class TestMetaAngularAcceleration(TestAlgorithmMixin):
+class TestMetaRMSJerkRatio(TestAlgorithmMixin):
     __test__ = True
-    ALGORITHM_CLASS = AngularAcceleration
+    ALGORITHM_CLASS = RMSJerkRatio
 
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        return self.ALGORITHM_CLASS().calculate(data, sampling_rate_hz=sampling_rate_hz)
 
 
 @pytest.mark.parametrize(
@@ -154,12 +152,12 @@ class TestMetaAngularAcceleration(TestAlgorithmMixin):
         StrideLevelSDMO(),
         RMS(),
         RegularitySymmetry(),
-        FrequencyAmplitudeWidthSlope(),
+        FrequencyAmplitudeWidth(),
         SampleEntropy(),
         HarmonicRatio(),
         SDRange(),
-        Jerk(),
-        AngularAcceleration(),
+        LogDimensionlessJerk(),
+        RMSJerkRatio(),
     ],
 )
 def test_result_attributes_are_created_by_calculate(algorithm):
@@ -377,7 +375,7 @@ class TestRegularitySymmetry:
 
 class TestFrequencyAmplitudeWidthSlope:
     def test_pipe_data(self):
-        algo = FrequencyAmplitudeWidthSlope(acc_columns=["acc_is", "acc_ml", "acc_pa"])
+        algo = FrequencyAmplitudeWidth(acc_columns=["acc_is", "acc_ml", "acc_pa"])
         result = algo.calculate(pd.DataFrame(np.random.randn(200, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
         df = result.signal_based_parameters_
         expected_cols = [
@@ -543,39 +541,270 @@ class TestSDRange:
         assert df.shape == (1, len(expected_cols))
 
 
-class TestJerk:
+class TestLogDimensionlessJerk:
     def test_linear_acceleration_has_constant_jerk(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
         data = pd.DataFrame({"acc_is": 2.0 * time})
+        result = LogDimensionlessJerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert result.signal_based_parameters_.loc[0, "jerk_acc_is"] == pytest.approx(-np.log(4))
 
-        result = Jerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+    def test_constant_acceleration_gives_nan_ldlj(self):
+        sampling_rate_hz = 10.0
+        data = pd.DataFrame({"acc_is": np.full(11, 3.0)})
+        result = LogDimensionlessJerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert np.isnan(result.signal_based_parameters_.loc[0, "jerk_acc_is"])
 
-        assert result.signal_based_parameters_.loc[0, "jerk_acc_is"] == pytest.approx(2.0)
-
-    def test_requires_acc_columns(self):
-        algo = Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"])
-        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
-        df = result.signal_based_parameters_
-        expected = [f"jerk_{col}" for col in algo.acc_columns]
-        assert set(df.columns) == set(expected)
-        assert all(not np.isnan(value) and value > 0 for value in df.iloc[0])
-
-
-class TestAngularAcceleration:
-    def test_linear_angular_velocity_has_constant_angular_acceleration(self):
+    def test_quadratic_velocity_has_finite_ldlj_v(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame({"gyr_is": 3.0 * time})
+        data = pd.DataFrame({"gyr_is": time**2})
+        result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert result.signal_based_parameters_.loc[0, "jerk_gyr_is"] == pytest.approx(-np.log(3.35 / 0.65**2))
 
-        result = AngularAcceleration(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+    def test_linear_velocity_gives_nan_ldlj_v(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"gyr_is": 2.0 * time})
+        result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert np.isnan(result.signal_based_parameters_.loc[0, "jerk_gyr_is"])
 
-        assert result.signal_based_parameters_.loc[0, "angular_acceleration_gyr_is"] == pytest.approx(3.0)
+    def test_ldlj_a_and_ldlj_v_use_different_normalisations(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"acc_is": time**2, "gyr_is": time**2})
+        result = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
+        row = result.signal_based_parameters_.loc[0]
+        assert row["jerk_acc_is"] != pytest.approx(row["jerk_gyr_is"])
 
-    def test_requires_gyr_columns(self):
-        algo = AngularAcceleration(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
+    def test_both_acc_and_gyr_columns_are_output_when_provided(self):
+        algo = LogDimensionlessJerk(
+            acc_columns=["acc_is", "acc_ml", "acc_pa"],
+            gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
+        )
+        data = pd.DataFrame(
+            np.random.default_rng(0).standard_normal((300, 6)),
+            columns=["acc_is", "acc_ml", "acc_pa", "gyr_is", "gyr_ml", "gyr_pa"],
+        )
+        result = algo.calculate(data, sampling_rate_hz=100.0)
         df = result.signal_based_parameters_
-        expected = [f"angular_acceleration_{column}" for column in algo.gyr_columns]
-        assert set(df.columns) == set(expected)
-        assert all(not np.isnan(value) and value > 0 for value in df.iloc[0])
+        expected = {f"jerk_{col}" for col in algo.acc_columns + algo.gyr_columns}
+        assert set(df.columns) == expected
+        assert np.all(np.isfinite(df.to_numpy()))
+
+    def test_missing_columns_are_silently_skipped(self):
+        algo = LogDimensionlessJerk(
+            acc_columns=["acc_is", "acc_missing"],
+            gyr_columns=["gyr_missing"],
+        )
+        data = pd.DataFrame(
+            np.random.default_rng(2).standard_normal((300, 1)),
+            columns=["acc_is"],
+        )
+        result = algo.calculate(data, sampling_rate_hz=100.0)
+        assert set(result.signal_based_parameters_.columns) == {"jerk_acc_is"}
+
+    def test_no_columns_returns_empty(self):
+        algo = LogDimensionlessJerk()
+        data = pd.DataFrame(
+            np.random.default_rng(3).standard_normal((300, 3)),
+            columns=["acc_is", "acc_ml", "acc_pa"],
+        )
+        result = algo.calculate(data, sampling_rate_hz=100.0)
+        assert result.signal_based_parameters_.empty
+
+    def test_ldlj_is_scale_invariant(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        base = pd.DataFrame({"acc_is": 2.0 * time, "gyr_is": time**2})
+        scaled = pd.DataFrame({"acc_is": 200.0 * time, "gyr_is": 100.0 * time**2})
+        algo = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"])
+        r1 = algo.calculate(base, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
+        r2 = algo.calculate(scaled, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
+        assert r1["jerk_acc_is"] == pytest.approx(r2["jerk_acc_is"])
+        assert r1["jerk_gyr_is"] == pytest.approx(r2["jerk_gyr_is"])
+
+    def test_ldlj_is_shift_invariant(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        base = pd.DataFrame({"acc_is": 2.0 * time, "gyr_is": time**2})
+        shifted = pd.DataFrame({"acc_is": 2.0 * time + 9.81, "gyr_is": time**2 + 5.0})
+        algo = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"])
+        r1 = algo.calculate(base, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
+        r2 = algo.calculate(shifted, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
+        assert r1["jerk_acc_is"] == pytest.approx(r2["jerk_acc_is"])
+        assert r1["jerk_gyr_is"] == pytest.approx(r2["jerk_gyr_is"])
+
+    def test_too_few_samples_returns_nan(self):
+        algo = LogDimensionlessJerk(acc_columns=["acc_is"])
+        data = pd.DataFrame({"acc_is": [1.0, 2.0]})
+        result = algo.calculate(data, sampling_rate_hz=10.0)
+        assert np.isnan(result.signal_based_parameters_.loc[0, "jerk_acc_is"])
+
+
+class TestRMSJerkRatio:
+    def test_equal_slopes_give_zero_db(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": 1.0 * time,
+                "acc_pa": 1.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert row["jerk_ratio_ml_is"] == pytest.approx(0.0)
+        assert row["jerk_ratio_pa_is"] == pytest.approx(0.0)
+
+    def test_ml_ten_times_is_gives_10_db(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": 10.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert row["jerk_ratio_ml_is"] == pytest.approx(10.0)
+
+    def test_ml_tenth_of_is_gives_minus_10_db(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 10.0 * time,
+                "acc_ml": 1.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert row["jerk_ratio_ml_is"] == pytest.approx(-10.0)
+
+    def test_negative_slope_uses_absolute_magnitude(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": -10.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert row["jerk_ratio_ml_is"] == pytest.approx(10.0)
+
+    def test_only_ml_axis_available(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": 2.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert "jerk_ratio_ml_is" in result.signal_based_parameters_.columns
+        assert "jerk_ratio_pa_is" not in result.signal_based_parameters_.columns
+        assert row["jerk_ratio_ml_is"] == pytest.approx(10.0 * np.log10(2.0))
+
+    def test_only_pa_axis_available(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_pa": 2.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert "jerk_ratio_pa_is" in result.signal_based_parameters_.columns
+        assert "jerk_ratio_ml_is" not in result.signal_based_parameters_.columns
+        assert row["jerk_ratio_pa_is"] == pytest.approx(10.0 * np.log10(2.0))
+
+    def test_missing_is_axis_returns_empty(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_ml": 1.0 * time,
+                "acc_pa": 1.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert result.signal_based_parameters_.empty
+
+    def test_single_axis_returns_empty(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame({"acc_is": 1.0 * time})
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert result.signal_based_parameters_.empty
+
+    def test_too_few_samples_returns_empty(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(2) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": 1.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        assert result.signal_based_parameters_.empty
+
+    def test_zero_jerk_on_is_axis_returns_nan(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": np.full(11, 3.0),
+                "acc_ml": 1.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert np.isnan(row["jerk_ratio_ml_is"])
+
+    def test_ratio_is_dimensionless_and_scale_invariant(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        base = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": 5.0 * time,
+            }
+        )
+        scaled = pd.DataFrame(
+            {
+                "acc_is": 1000.0 * time,
+                "acc_ml": 5000.0 * time,
+            }
+        )
+        r1 = RMSJerkRatio().calculate(base, sampling_rate_hz=sampling_rate_hz)
+        r2 = RMSJerkRatio().calculate(scaled, sampling_rate_hz=sampling_rate_hz)
+        assert r1.signal_based_parameters_.loc[0, "jerk_ratio_ml_is"] == pytest.approx(
+            r2.signal_based_parameters_.loc[0, "jerk_ratio_ml_is"]
+        )
+
+    def test_handles_other_acceleration_columns_gracefully(self):
+        sampling_rate_hz = 10.0
+        time = np.arange(11) / sampling_rate_hz
+        data = pd.DataFrame(
+            {
+                "acc_is": 1.0 * time,
+                "acc_ml": 1.0 * time,
+                "acc_extra": 99.0 * time,
+            }
+        )
+        result = RMSJerkRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+        row = result.signal_based_parameters_.loc[0]
+        assert set(result.signal_based_parameters_.columns) == {"jerk_ratio_ml_is"}
+        assert row["jerk_ratio_ml_is"] == pytest.approx(0.0)

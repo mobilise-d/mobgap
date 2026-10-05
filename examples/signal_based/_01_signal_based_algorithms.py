@@ -45,9 +45,8 @@ reference_turns
 wb_id = 2
 reference_strides = reference_strides.loc[wb_id]
 reference_turns = reference_turns.loc[wb_id]
-data_in_wb = short_trial.data["LowerBack"].iloc[
-    reference_strides.start.iloc[0] : reference_strides.end.iloc[-1]
-]
+wb = short_trial.reference_parameters_relative_to_wb_.wb_list.loc[wb_id]
+data_in_wb = short_trial.data["LowerBack"].iloc[wb.start : wb.end]
 
 # %%
 # The data is required to be in body frame coordinates.
@@ -86,7 +85,14 @@ turn.signal_based_parameters_
 
 from mobgap.signal_based import StrideLevelSDMO
 
-stride_level = StrideLevelSDMO(stride_list_columns=["length_m", "duration_s"])
+stride_level = StrideLevelSDMO(
+    stride_list_columns=[
+        "stride_duration_s",
+        "stride_length_m",
+        "cadence_spm",
+        "speed_mps",
+    ]
+)
 
 stride_level.calculate(data=data_in_wb_bf, **params)
 
@@ -117,11 +123,11 @@ regularity_symmetry.signal_based_parameters_
 
 
 # %%
-# the :class:`.FrequencyAmplitudeWidthSlope` algorithm.
+# the :class:`.FrequencyAmplitudeWidth` algorithm.
 
-from mobgap.signal_based import FrequencyAmplitudeWidthSlope
+from mobgap.signal_based import FrequencyAmplitudeWidth
 
-frequency_amplitude = FrequencyAmplitudeWidthSlope(
+frequency_amplitude = FrequencyAmplitudeWidth(
     acc_columns=["acc_is", "acc_ml", "acc_pa"]
 )
 
@@ -167,27 +173,26 @@ sd_range.signal_based_parameters_
 
 
 # %%
-# the :class:`.Jerk` algorithm.
+# the :class:`.LogDimensionlessJerk` algorithm.
 
-from mobgap.signal_based import Jerk
+from mobgap.signal_based import LogDimensionlessJerk
 
-jerk = Jerk(
+log_dimensionless_jerk = LogDimensionlessJerk(
     acc_columns=["acc_is", "acc_ml", "acc_pa"],
+    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
 )
 
-jerk.calculate(data=data_in_wb_bf, **params)
+log_dimensionless_jerk.calculate(data=data_in_wb_bf, **params)
 
-jerk.signal_based_parameters_
+log_dimensionless_jerk.signal_based_parameters_
 
 # %%
-# the :class:`.AngularAcceleration` algorithm.
+# the :class:`.RMSJerkRatio` algorithm.
 
-from mobgap.signal_based import AngularAcceleration
+from mobgap.signal_based import RMSJerkRatio
 
-angular_acceleration = AngularAcceleration(
-    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
-)
+rms_jerk_ratio = RMSJerkRatio()
 
-angular_acceleration.calculate(data=data_in_wb_bf, **params)
+rms_jerk_ratio.calculate(data=data_in_wb_bf, **params)
 
-angular_acceleration.signal_based_parameters_
+rms_jerk_ratio.signal_based_parameters_
