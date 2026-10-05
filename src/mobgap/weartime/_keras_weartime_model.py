@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
@@ -29,16 +28,7 @@ if TYPE_CHECKING:
 
     from mobgap.weartime.base import TrainingData
 
-_LOGGER = logging.getLogger(__name__)
 _MODEL_STANDARDIZATION_LAYER_NAME = "per_window_standardization"
-
-
-def _rss_mb() -> float | None:
-    try:
-        psutil = import_module("psutil")
-    except ImportError:
-        return None
-    return float(psutil.Process().memory_info().rss / 1024**2)
 
 
 def _validate_model_sampling_rate(
@@ -193,13 +183,7 @@ class BaseKerasWeartimeModel(Algorithm):
         self.window_start_end_ = window_start_end(len(data), self.window_samples_, self.step_samples_)
 
         probability_batches: list[np.ndarray] = []
-        for batch_index, windows in enumerate(self._iter_window_batches(data, sampling_rate_hz)):
-            _LOGGER.debug(
-                "Predicting Keras wear-time window batch %s: n_windows=%s, rss_mb=%s",
-                batch_index,
-                len(windows),
-                _rss_mb(),
-            )
+        for windows in self._iter_window_batches(data, sampling_rate_hz):
             probabilities = self._model.predict(windows, verbose=0, batch_size=self.predict_batch_size)
             probability_batches.append(np.asarray(probabilities).reshape(-1))
 
@@ -234,17 +218,6 @@ class BaseKerasWeartimeModel(Algorithm):
         self._trained_sampling_rate_hz = float(sampling_rate_hz)
         self._model = self._create_model((window_samples, len(self.sensor_cols)))
 
-        _LOGGER.debug(
-            "Starting Keras wear-time model training: sampling_rate_hz=%s, epochs=%s, batch_size=%s, "
-            "window_batch_size=%s, shuffle_buffer_size=%s, rss_mb=%s",
-            sampling_rate_hz,
-            epochs,
-            batch_size,
-            self.window_batch_size,
-            self.shuffle_buffer_size,
-            _rss_mb(),
-        )
-
         self._model.fit(
             self._make_tf_dataset(
                 training_data,
@@ -253,6 +226,7 @@ class BaseKerasWeartimeModel(Algorithm):
                 window_samples=window_samples,
             ),
             epochs=epochs,
+            shuffle=False,
             verbose=self.fit_verbose,
         )
         return self
@@ -283,17 +257,9 @@ class BaseKerasWeartimeModel(Algorithm):
         self,
         data: pd.DataFrame,
         sampling_rate_hz: float,
-        recording_index: int | None = None,
     ) -> Iterator[np.ndarray]:
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         n_windows = window_count_from_sample_count(len(data), window_samples, step_samples)
-        _LOGGER.debug(
-            "Preparing Keras wear-time windows for recording %s: n_samples=%s, n_windows=%s, rss_mb=%s",
-            recording_index,
-            len(data),
-            n_windows,
-            _rss_mb(),
-        )
         if n_windows == 0:
             return
 
@@ -305,7 +271,7 @@ class BaseKerasWeartimeModel(Algorithm):
         sensor_data = _as_model_input_sensor_array(sensor_data)
         window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
 
-        for batch_index, batch_start in enumerate(range(0, n_windows, self.window_batch_size)):
+        for batch_start in range(0, n_windows, self.window_batch_size):
             batch_window_view = window_view[batch_start : batch_start + self.window_batch_size]
             if self.standardize_in_model and batch_window_view.flags.c_contiguous:
                 windows = batch_window_view
@@ -313,32 +279,15 @@ class BaseKerasWeartimeModel(Algorithm):
                 windows = np.array(batch_window_view, dtype=np.float32, order="C")
             if not self.standardize_in_model:
                 windows = _standardize_windows(windows)
-            _LOGGER.debug(
-                "Yielding Keras wear-time window batch %s for recording %s: start_window=%s, n_windows=%s, rss_mb=%s",
-                batch_index,
-                recording_index,
-                batch_start,
-                len(windows),
-                _rss_mb(),
-            )
             yield windows
 
     def _iter_training_window_batches(
         self, training_data: TrainingData, sampling_rate_hz: float
     ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-        for recording_index, (data, reference_weartime) in enumerate(training_data):
-            _LOGGER.debug(
-                "Loaded Keras wear-time training recording %s: n_samples=%s, n_reference_intervals=%s, rss_mb=%s",
-                recording_index,
-                len(data),
-                len(reference_weartime),
-                _rss_mb(),
-            )
+        for data, reference_weartime in training_data:
             reference_interval_arrays = reference_weartime_interval_arrays(reference_weartime)
-            for batch_index, windows in enumerate(
-                self._iter_window_batches(data, sampling_rate_hz, recording_index=recording_index)
-            ):
+            for batch_index, windows in enumerate(self._iter_window_batches(data, sampling_rate_hz)):
                 batch_start = batch_index * self.window_batch_size
                 centers = np.arange(batch_start, batch_start + len(windows)) * step_samples + window_samples // 2
                 yield windows, labels_from_interval_arrays(centers, *reference_interval_arrays)
