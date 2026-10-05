@@ -8,11 +8,11 @@ from mobgap.data import LabExampleDataset
 from mobgap.data_transform import Resample
 from mobgap.signal_based import (
     RMS,
-    LogDimensionlessJerk,
     FrequencyAmplitudeWidth,
     HarmonicRatio,
-    RMSJerkRatio,
+    LogDimensionlessJerk,
     RegularitySymmetry,
+    RMSJerkRatio,
     SampleEntropy,
     SDRange,
     StrideLevelSDMO,
@@ -130,10 +130,9 @@ class TestMetaLogDimensionlessJerk(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS(acc_columns=["acc_is", "acc_ml", "acc_pa"],
-                                    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        return self.ALGORITHM_CLASS(
+            acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
+        ).calculate(data, sampling_rate_hz=sampling_rate_hz)
 
 
 class TestMetaRMSJerkRatio(TestAlgorithmMixin):
@@ -143,9 +142,7 @@ class TestMetaRMSJerkRatio(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS().calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        return self.ALGORITHM_CLASS().calculate(data, sampling_rate_hz=sampling_rate_hz)
 
 
 @pytest.mark.parametrize(
@@ -549,44 +546,36 @@ class TestLogDimensionlessJerk:
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
         data = pd.DataFrame({"acc_is": 2.0 * time})
-        result = LogDimensionlessJerk(acc_columns=["acc_is"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        result = LogDimensionlessJerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
         assert result.signal_based_parameters_.loc[0, "jerk_acc_is"] == pytest.approx(-np.log(4))
 
     def test_constant_acceleration_gives_nan_ldlj(self):
         sampling_rate_hz = 10.0
         data = pd.DataFrame({"acc_is": np.full(11, 3.0)})
-        result = LogDimensionlessJerk(acc_columns=["acc_is"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        result = LogDimensionlessJerk(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
         assert np.isnan(result.signal_based_parameters_.loc[0, "jerk_acc_is"])
 
     def test_quadratic_velocity_has_finite_ldlj_v(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame({"gyr_is": time ** 2})
-        result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        data = pd.DataFrame({"gyr_is": time**2})
+        result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
         assert result.signal_based_parameters_.loc[0, "jerk_gyr_is"] == pytest.approx(-np.log(3.35 / 0.65**2))
 
     def test_linear_velocity_gives_nan_ldlj_v(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
         data = pd.DataFrame({"gyr_is": 2.0 * time})
-        result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
+        result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
         assert np.isnan(result.signal_based_parameters_.loc[0, "jerk_gyr_is"])
 
     def test_ldlj_a_and_ldlj_v_use_different_normalisations(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame({"acc_is": time ** 2, "gyr_is": time ** 2})
-        result = LogDimensionlessJerk(
-            acc_columns=["acc_is"], gyr_columns=["gyr_is"]
-        ).calculate(data, sampling_rate_hz=sampling_rate_hz)
+        data = pd.DataFrame({"acc_is": time**2, "gyr_is": time**2})
+        result = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"]).calculate(
+            data, sampling_rate_hz=sampling_rate_hz
+        )
         row = result.signal_based_parameters_.loc[0]
         assert row["jerk_acc_is"] != pytest.approx(row["jerk_gyr_is"])
 
@@ -629,8 +618,8 @@ class TestLogDimensionlessJerk:
     def test_ldlj_is_scale_invariant(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
-        base = pd.DataFrame({"acc_is": 2.0 * time, "gyr_is": time ** 2})
-        scaled = pd.DataFrame({"acc_is": 200.0 * time, "gyr_is": 100.0 * time ** 2})
+        base = pd.DataFrame({"acc_is": 2.0 * time, "gyr_is": time**2})
+        scaled = pd.DataFrame({"acc_is": 200.0 * time, "gyr_is": 100.0 * time**2})
         algo = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"])
         r1 = algo.calculate(base, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
         r2 = algo.calculate(scaled, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
@@ -640,8 +629,8 @@ class TestLogDimensionlessJerk:
     def test_ldlj_is_shift_invariant(self):
         sampling_rate_hz = 10.0
         time = np.arange(11) / sampling_rate_hz
-        base = pd.DataFrame({"acc_is": 2.0 * time, "gyr_is": time ** 2})
-        shifted = pd.DataFrame({"acc_is": 2.0 * time + 9.81, "gyr_is": time ** 2 + 5.0})
+        base = pd.DataFrame({"acc_is": 2.0 * time, "gyr_is": time**2})
+        shifted = pd.DataFrame({"acc_is": 2.0 * time + 9.81, "gyr_is": time**2 + 5.0})
         algo = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"])
         r1 = algo.calculate(base, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
         r2 = algo.calculate(shifted, sampling_rate_hz=sampling_rate_hz).signal_based_parameters_.loc[0]
