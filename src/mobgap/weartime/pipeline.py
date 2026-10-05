@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-from importlib import import_module
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -20,21 +18,10 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-_LOGGER = logging.getLogger(__name__)
-
-
 def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
     if convert:
         return to_body_frame(data)
     return data
-
-
-def _rss_mb() -> float | None:
-    try:
-        psutil = import_module("psutil")
-    except ImportError:
-        return None
-    return float(psutil.Process().memory_info().rss / 1024**2)
 
 
 class _TrainingDataFromDataset:
@@ -57,23 +44,8 @@ class _TrainingDataFromDataset:
                 "Cannot optimize a binary wear-time detector on a datapoint with uncertain ground truth. "
                 "Select recordings with fully labeled wear and non-wear references."
             )
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug(
-                "Loading wear-time training datapoint %s: group=%s, rss_mb=%s",
-                datapoint_index,
-                datapoint.group_label,
-                _rss_mb(),
-            )
         data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         reference_weartime = datapoint.reference_weartime_
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug(
-                "Loaded wear-time training datapoint %s: n_samples=%s, n_reference_intervals=%s, rss_mb=%s",
-                datapoint_index,
-                len(data),
-                len(reference_weartime),
-                _rss_mb(),
-            )
         return data, reference_weartime
 
 
