@@ -226,9 +226,11 @@ class TestMegaritisCnnWeartimeModel:
             [
                 sys.executable,
                 "-c",
-                "import sys; from mobgap.weartime import load_keras_weartime_model; "
-                "model = load_keras_weartime_model(sys.argv[1]); "
-                "assert any(layer.name == 'per_window_standardization' for layer in model.layers)",
+                """import sys
+from mobgap.weartime import load_keras_weartime_model
+model = load_keras_weartime_model(sys.argv[1])
+assert any(layer.name == 'per_window_standardization' for layer in model.layers)
+""",
                 str(model_path),
             ],
             capture_output=True,
@@ -401,17 +403,41 @@ class TestMegaritisCnnWeartimeModel:
 class TestWtdMegaritisCNN:
     """Test the CNN detector behavior with deterministic model outputs."""
 
-    def test_detect_requires_model(self) -> None:
-        """Require callers to pass the low-level model explicitly."""
-        with pytest.raises(RuntimeError, match="Pass a Keras wear-time `model`"):
-            WtdMegaritisCNN().detect(_sensor_data(60), sampling_rate_hz=1.0)
+    def test_detect_uses_packaged_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Load the packaged CNN only when the detector needs it."""
+        pretrained = _FixedPredictionModel([1] * 9)
+        loaded_files: list[str] = []
 
-    def test_self_optimize_requires_model(self) -> None:
-        """Require callers to pass the trainable low-level model explicitly."""
+        def load_model(file_name: str) -> _FixedPredictionModel:
+            loaded_files.append(file_name)
+            return pretrained
+
+        monkeypatch.setattr(keras_model_module, "_load_keras_model_resource", load_model)
+        detector = WtdMegaritisCNN()
+        assert loaded_files == []
+
+        result = detector.detect(_sensor_data(1500), sampling_rate_hz=100.0)
+
+        assert loaded_files == ["cnn_lowback_model.keras"]
+        assert result.model_.window_predictions_.tolist() == [1] * 9
+
+    def test_self_optimize_creates_untrained_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Train a new CNN when no low-level model was configured."""
         training_data = [(_sensor_data(60), _weartime_list([(0, 60)]))]
+        calls: list[tuple[object, float]] = []
 
-        with pytest.raises(RuntimeError, match="Pass an untrained Keras wear-time `model`"):
-            WtdMegaritisCNN().self_optimize(training_data, sampling_rate_hz=1.0)
+        def fit_model(
+            model: MegaritisCnnWeartimeModel, records: object, *, sampling_rate_hz: float
+        ) -> MegaritisCnnWeartimeModel:
+            calls.append((records, sampling_rate_hz))
+            return model
+
+        monkeypatch.setattr(MegaritisCnnWeartimeModel, "self_optimize", fit_model)
+        result = WtdMegaritisCNN().self_optimize(training_data, sampling_rate_hz=1.0)
+
+        assert isinstance(result.model, MegaritisCnnWeartimeModel)
+        assert result.model.standardize_in_model is True
+        assert calls == [(training_data, 1.0)]
 
     def test_self_optimize_delegates_to_configured_window_model(self) -> None:
         """Delegate training to the low-level Keras model instance."""
