@@ -66,15 +66,23 @@
                 "type":"number"
             },
             {
-                "name":"angular_acceleration_gyr_is",
+                "name":"jerk_gyr_is",
                 "type":"number"
             },
             {
-                "name":"angular_acceleration_gyr_ml",
+                "name":"jerk_gyr_ml",
                 "type":"number"
             },
             {
-                "name":"angular_acceleration_gyr_pa",
+                "name":"jerk_gyr_pa",
+                "type":"number"
+            },
+            {
+                "name":"jerk_ratio_ml_is",
+                "type":"number"
+            },
+            {
+                "name":"jerk_ratio_pa_is",
                 "type":"number"
             },
             {
@@ -82,23 +90,7 @@
                 "type":"number"
             },
             {
-                "name":"amplitude_ml",
-                "type":"number"
-            },
-            {
-                "name":"amplitude_pa",
-                "type":"number"
-            },
-            {
                 "name":"freq_is",
-                "type":"number"
-            },
-            {
-                "name":"freq_ml",
-                "type":"number"
-            },
-            {
-                "name":"freq_pa",
                 "type":"number"
             },
             {
@@ -106,7 +98,23 @@
                 "type":"number"
             },
             {
+                "name":"amplitude_ml",
+                "type":"number"
+            },
+            {
+                "name":"freq_ml",
+                "type":"number"
+            },
+            {
                 "name":"width_ml",
+                "type":"number"
+            },
+            {
+                "name":"amplitude_pa",
+                "type":"number"
+            },
+            {
+                "name":"freq_pa",
                 "type":"number"
             },
             {
@@ -194,11 +202,15 @@
                 "type":"number"
             },
             {
+                "name":"cv_stride_duration_s",
+                "type":"number"
+            },
+            {
                 "name":"cv_cadence_spm",
                 "type":"number"
             },
             {
-                "name":"cv_stride_duration_s",
+                "name":"cv_speed_mps",
                 "type":"number"
             }
         ],
@@ -222,20 +234,22 @@
             "sd_gyr_is":3.6208884237,
             "sd_gyr_ml":31.1138098977,
             "sd_gyr_pa":3.0040870532,
-            "jerk_acc_is":8.513815047,
-            "jerk_acc_ml":3.7548309091,
-            "jerk_acc_pa":8.1036386568,
-            "angular_acceleration_gyr_is":45.5850403314,
-            "angular_acceleration_gyr_ml":152.0798755713,
-            "angular_acceleration_gyr_pa":48.3566917387,
+            "jerk_acc_is":-3.9178674727,
+            "jerk_acc_ml":-5.8952111821,
+            "jerk_acc_pa":-2.9844018096,
+            "jerk_gyr_is":-16.3961720384,
+            "jerk_gyr_ml":-13.2322575492,
+            "jerk_gyr_pa":-16.4076230285,
+            "jerk_ratio_ml_is":-3.5553382715,
+            "jerk_ratio_pa_is":-0.214441439,
             "amplitude_is":0.0000966552,
-            "amplitude_ml":0.0833499045,
-            "amplitude_pa":0.0001905077,
             "freq_is":2.734375,
-            "freq_ml":0.78125,
-            "freq_pa":1.66015625,
             "width_is":null,
+            "amplitude_ml":0.0833499045,
+            "freq_ml":0.78125,
             "width_ml":null,
+            "amplitude_pa":0.0001902399,
+            "freq_pa":1.7578125,
             "width_pa":null,
             "step_regularity_is":null,
             "stride_regularity_is":null,
@@ -257,8 +271,9 @@
             "rms_ratio_acc_ml":0.0799072714,
             "rms_ratio_acc_pa":0.8630771371,
             "cv_stride_length_m":19.1171709987,
+            "cv_stride_duration_s":5.5962180399,
             "cv_cadence_spm":5.2665510813,
-            "cv_stride_duration_s":5.5962180399
+            "cv_speed_mps":19.9588783397
         }
     ]
 }

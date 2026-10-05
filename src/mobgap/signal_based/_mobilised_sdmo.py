@@ -9,10 +9,10 @@ from typing_extensions import Self, Unpack
 from mobgap._utils_internal.misc import MeasureTimeResults, timed_action_method
 from mobgap.signal_based._sdmo import (
     RMS,
-    AngularAcceleration,
+    LogDimensionlessJerk,
     FrequencyAmplitudeWidth,
     HarmonicRatio,
-    Jerk,
+    RMSJerkRatio,
     RegularitySymmetry,
     SampleEntropy,
     SDRange,
@@ -65,12 +65,12 @@ class MobilisedSDMO(Pipeline):
                     ("harmonic_ratio", HarmonicRatio(acc_columns=["acc_is", "acc_pa"])),
                     ("sd_range", SDRange()),
                     (
-                        "jerk",
-                        Jerk(acc_columns=["acc_is", "acc_ml", "acc_pa"]),
+                        "log_dimensionless_jerk",
+                        LogDimensionlessJerk(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]),
                     ),
                     (
-                        "angular_acceleration",
-                        AngularAcceleration(gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]),
+                        "rms_jerk_ratio",
+                        RMSJerkRatio(),
                     ),
                     (
                         "freq_amp_width",
