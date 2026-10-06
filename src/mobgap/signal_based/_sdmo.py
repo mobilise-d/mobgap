@@ -165,10 +165,20 @@ class RMS(BaseSDMOCalculator):
     RMS divided by that total. Gyroscope signals are not mean-centered and are reported as independent per-axis RMS
     parameters; they do not contribute to the total acceleration RMS or acceleration ratios.
 
+    The total acceleration RMS is meaningful when ``acc_columns`` lists orthogonal axes (``acc_is``, ``acc_ml``,
+    ``acc_pa``). Including non-orthogonal columns (e.g. a pre-computed magnitude) in ``acc_columns`` will
+    double-count the signal.
+
     The acceleration RMS ratios follow:
     A gait abnormality measure based on root mean square of trunk acceleration.
     Masaki Sekine et al. Journal of NeuroEngineering and Rehabilitation 2013, 10:118.
     https://doi.org/10.1186/1743-0003-10-118
+
+    Parameters
+    ----------
+    %(acc_columns_para)s
+    gyr_columns
+        Name of the gyroscope columns to compute per-axis RMS for.
 
     Other Parameters
     ----------------
@@ -180,6 +190,13 @@ class RMS(BaseSDMOCalculator):
     %(perf_)s
 
     """
+    def __init__(
+            self,
+            acc_columns: Optional[list[str]] = None,
+            gyr_columns: Optional[list[str]] = None,
+    ) -> None:
+        self.acc_columns = acc_columns
+        self.gyr_columns = gyr_columns
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -194,23 +211,27 @@ class RMS(BaseSDMOCalculator):
         """
         self.data = data
         self.signal_based_parameters_ = pd.DataFrame()
-        acc_columns = [column for column in data.columns if column.startswith("acc_")]
-        gyr_columns = [column for column in data.columns if column.startswith("gyr_")]
+        acc_columns = [c for c in (self.acc_columns or []) if c in data.columns]
+        gyr_columns = [c for c in (self.gyr_columns or []) if c in data.columns]
         if not acc_columns and not gyr_columns:
+            warnings.warn(
+                "No acceleration or gyroscope columns are available.",
+                stacklevel=1,
+            )
             return self
 
         signals = data[[*acc_columns, *gyr_columns]].copy()
         # Remove the DC component of the acceleration signals.
         if acc_columns:
-            signals.loc[:, acc_columns] = signals[acc_columns] - signals[acc_columns].mean()
+            signals[acc_columns] = signals[acc_columns].subtract(signals[acc_columns].mean(), axis=1)
 
         rms = np.sqrt(signals.pow(2).mean()).add_prefix("rms_")
-        if len(acc_columns) == 3:  # all acc columns must be available
+        if acc_columns:
             acc_rms_columns = [f"rms_{column}" for column in acc_columns]
             rms_total_acc = np.linalg.norm(rms[acc_rms_columns])
             rms["rms_total_acc"] = rms_total_acc
             for column, rms_column in zip(acc_columns, acc_rms_columns):
-                rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else None
+                rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else np.nan
         self.signal_based_parameters_ = rms.to_frame().T
         return self
 
