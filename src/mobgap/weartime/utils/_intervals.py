@@ -44,7 +44,8 @@ def _waking_hours_sample_bounds(
             return Fraction(microseconds, 60_000_000)
 
         end_min = 24 * 60 if end == time(0) else minutes_since_midnight(end)
-        samples_per_minute = 60 * Fraction(str(sampling_rate_hz))
+        # Recover rates such as 1/15 Hz from their floating-point representation before rounding to samples.
+        samples_per_minute = 60 * Fraction(sampling_rate_hz).limit_denominator(1_000_000)
         return (
             ceil(minutes_since_midnight(start) * samples_per_minute),
             ceil(end_min * samples_per_minute),

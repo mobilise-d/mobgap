@@ -82,6 +82,20 @@ def test_untimed_waking_boundary_exactly_on_high_rate_sample():
     assert_frame_equal(clipped, _intervals([(62_800, 62_801)]))
 
 
+@pytest.mark.parametrize("index", [pd.RangeIndex(9), pd.date_range("2026-01-01", periods=9, freq="15s", tz="UTC")])
+def test_waking_boundary_at_fractional_rate_matches_localized_samples(index):
+    data = pd.DataFrame(index=index)
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, len(data))]),
+        data=data,
+        sampling_rate_hz=1 / 15,
+        waking_hours=(time(0, 1), time(0, 2)),
+    )
+
+    assert_frame_equal(clipped, _intervals([(4, 8)]))
+
+
 def test_clip_intervals_with_localized_timestamps_rejects_multiple_local_days():
     data = pd.DataFrame(index=pd.date_range("2026-03-29 23:59:00", periods=180, freq="s", tz="Europe/London"))
 
