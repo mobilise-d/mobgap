@@ -17,12 +17,11 @@ from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 class TurnSDMO(BaseSDMOCalculator):
     """Extract various features from the angular velocity signal around the Yaw axis during turns.
 
-    `turn_mean_ang_vel` is the amplitude of the mean angular velocity in the turn. Absolute value is used since the
-    direction of the turn is not important.
-    `turn_peak_ang_vel` is the absolute amplitude of the strongest extrema in the angular velocity of the turn
-    `turn_smoothness` is the RMS of the angular velocity signal during the turn.
-    `turn_dur_percentage_from_wb_dur` is the percentage of the total duration of the turning instances to the walking
-    bout duration (the total duration of the given signal).
+    `turn_mean_ang_vel` is the duration-weighted mean of the absolute mean angular velocity per turn,
+    equivalent to the grand mean of |ω| over all turn samples.
+    `turn_peak_ang_vel` is the unweighted mean of the per-turn peak absolute angular velocity.
+    `turn_smoothness` is the unweighted mean of the per-turn log dimensionless jerk (LDLJ-V) of the
+    angular velocity signal. Higher values indicate smoother turns.
 
     Other Parameters
     ----------------
@@ -63,22 +62,21 @@ class TurnSDMO(BaseSDMOCalculator):
             return self
         turn_list = turn_list.copy()
         gyr = data["gyr_is"].to_numpy()
-        means = []
-        maxs = []
-        smoothness = []
-        for start, end in turn_list[["start", "end"]].itertuples(index=False):
+        means, maxs, smoothness, durations = [], [], [], []
+        for start, end, dur in turn_list[["start", "end", "duration_s"]].itertuples(index=False):
             seg = gyr[int(start) : int(end)]
-            means.append(abs(seg.mean()))
-            maxs.append(max(abs(seg)))
+            means.append(np.abs(seg.mean()))
+            maxs.append(np.max(np.abs(seg)))
             smoothness.append(_log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0])
+            durations.append(float(dur))
 
         turn_params = {
-            "turn_mean_ang_vel": np.mean(means),
-            "turn_peak_ang_vel": np.mean(maxs),
-            "turn_smoothness": np.mean(smoothness),
+            "turn_mean_ang_vel": _weighted_nanmean(means, durations),
+            "turn_peak_ang_vel": _nanmean(maxs),
+            "turn_smoothness": _nanmean(smoothness),
         }
 
-        wb_dur = len(data) / sampling_rate_hz
+        wb_dur = (len(data)-1) / sampling_rate_hz
         turn_dur = turn_list["duration_s"].sum()
         turn_params["turn_dur_percentage_from_wb_dur"] = 100 * (turn_dur / wb_dur)
         self.signal_based_parameters_ = pd.DataFrame([turn_params])
@@ -1209,3 +1207,19 @@ def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
 
 def _pd_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     return pd.Series(y).rolling(span, center=True, min_periods=1).mean().to_numpy()
+
+def _nanmean(values: np.ndarray | list[float]) -> float:
+    """Mean of finite values, ignoring NaNs. Returns NaN if no finite values."""
+    values = np.asarray(values, dtype=float)
+    finite = values[np.isfinite(values)]
+    return float(np.mean(finite)) if finite.size else np.nan
+
+
+def _weighted_nanmean(values: np.ndarray | list[float], weights: np.ndarray | list[float]) -> float:
+    """Weighted mean of finite values with finite positive weights. NaN otherwise."""
+    values = np.asarray(values, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    mask = np.isfinite(values) & np.isfinite(weights) & (weights > 0)
+    if not mask.any():
+        return np.nan
+    return float(np.average(values[mask], weights=weights[mask]))
