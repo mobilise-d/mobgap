@@ -179,8 +179,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     base_path
         The root folder containing ``weartime_part_a_all`` and ``weartime_part_b``.
     tz
-        Timezone of the computer that synchronized the sensor clock. Use ``"Europe/London"``
-        for SUSTAIN recordings configured in UK local time.
+        Timezone of the computer that synchronized the sensor clock. Defaults to ``"Europe/London"``
+        for the SUSTAIN recordings made in the UK.
     output_timezone
         ``"local"`` returns timestamps in ``tz`` (the default); ``"utc"`` returns UTC timestamps.
     additional_sensors_enabled
@@ -239,7 +239,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         self,
         base_path: PathLike,
         *,
-        tz: str,
+        tz: str = "Europe/London",
         output_timezone: Literal["utc", "local"] = "local",
         additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
