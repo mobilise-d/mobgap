@@ -333,6 +333,50 @@ def test_fixed_split_table_is_exposed_in_requested_local_timezone() -> None:
     assert dataset.data_ss.index[0] == dataset.index.start_time.iloc[0]
 
 
+def test_fixed_split_table_accepts_mixed_dst_offsets() -> None:
+    splits = pd.DataFrame(
+        {
+            "recording": ["before", "after"],
+            "start_time": [pd.Timestamp("2026-03-29T01:00:00+01:00"), pd.Timestamp("2026-03-29T03:00:00+02:00")],
+            "end_time": [pd.Timestamp("2026-03-29T01:30:00+01:00"), pd.Timestamp("2026-03-29T03:30:00+02:00")],
+        }
+    )
+    dataset = AX6Dataset(
+        EXAMPLE_CWA,
+        tz="Europe/Berlin",
+        output_timezone="local",
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        splitter=splits,
+    )
+
+    assert dataset.index.start_time.tolist() == [
+        pd.Timestamp("2026-03-29T01:00:00+01:00"),
+        pd.Timestamp("2026-03-29T03:00:00+02:00"),
+    ]
+    assert str(dataset.index.start_time.dt.tz) == "Europe/Berlin"
+
+
+def test_fixed_split_table_rejects_naive_timestamps() -> None:
+    splits = pd.DataFrame(
+        {
+            "recording": ["naive"],
+            "start_time": [pd.Timestamp("2012-03-27T11:15:00")],
+            "end_time": [pd.Timestamp("2012-03-27T11:15:10")],
+        }
+    )
+    dataset = AX6Dataset(
+        EXAMPLE_CWA,
+        tz="Europe/Berlin",
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        splitter=splits,
+    )
+
+    with pytest.raises(TypeError, match="tz-naive"):
+        _ = dataset.index
+
+
 def test_single_file_metadata_is_available_with_multiple_windows() -> None:
     """Header and timing metadata remain available before selecting a window."""
     start = pd.Timestamp("2012-03-27T11:14:57.500Z")

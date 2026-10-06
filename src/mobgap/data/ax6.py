@@ -307,8 +307,12 @@ class BaseAX6Dataset(BaseGaitDataset):
         for path in paths:
             file_splits = self._get_splits_for_file(path).copy()
             output_tz = "UTC" if self.output_timezone == "utc" else self.tz
-            file_splits["start_time"] = pd.to_datetime(file_splits["start_time"]).dt.tz_convert(output_tz)
-            file_splits["end_time"] = pd.to_datetime(file_splits["end_time"]).dt.tz_convert(output_tz)
+            file_splits["start_time"] = file_splits["start_time"].map(
+                lambda value: pd.Timestamp(value).tz_convert(output_tz)
+            )
+            file_splits["end_time"] = file_splits["end_time"].map(
+                lambda value: pd.Timestamp(value).tz_convert(output_tz)
+            )
             file_splits.insert(0, "file_path", str(path) if root is None else path.relative_to(root).as_posix())
             splits.append(file_splits)
         return pd.concat(splits, ignore_index=True)
