@@ -79,7 +79,7 @@ class MobilisedSDMO(Pipeline):
                         FrequencyAmplitudeWidth(acc_columns=["acc_is", "acc_ml", "acc_pa"]),
                     ),
                     ("regularity_symmetry", RegularitySymmetry()),
-                    ("rms", RMS()),
+                    ("rms", RMS(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])),
                     (
                         "stride_level",
                         StrideLevelSDMO(
