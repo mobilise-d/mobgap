@@ -14,6 +14,10 @@ one day at a time and because waking-hours metrics are only well-defined for sin
 Performance metrics are calculated on a per-day basis and aggregated over the full dataset. The raw detected
 wear-time intervals, reference wear-time intervals, waking-hours reference intervals, and interval-overlap matches are
 saved together with the single and aggregated score tables.
+For SUSTAIN participant 010, samples after the documented device-removal cutoff remain available to the detector
+but have uncertain ground truth and are excluded from scoring. Undefined per-day metrics appear as NaN; dataset means
+omit those days. Saved raw intervals retain detector and reference IDs, while ``*_scored`` tables show the fragments
+used for metrics.
 
 .. warning::
     Before you modify and re-run this script, read through our guide on :ref:`revalidation`.
@@ -77,7 +81,14 @@ from mobgap.utils.evaluation import Evaluation, save_evaluation_results
 from mobgap.weartime.evaluation import wtd_score
 
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
-raw_results_to_save = ["matches", "detected", "reference", "reference_waking"]
+raw_results_to_save = [
+    "matches",
+    "detected",
+    "detected_scored",
+    "reference",
+    "reference_scored",
+    "reference_waking",
+]
 
 
 def run_evaluation(name, pipeline, ds):

@@ -1,7 +1,7 @@
 """Evaluation and scoring helpers for wear-time detection pipelines."""
 
 import warnings
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,6 @@ from tpcp.validate import FloatAggregator, Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
 from mobgap.gait_sequences.evaluation import calculate_matched_gsd_performance_metrics
-from mobgap.utils.array_handling import merge_intervals
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
 from mobgap.weartime.utils._intervals import _only_start_end
@@ -38,12 +37,31 @@ def _categorize_weartime_samples(
     )
 
 
-def _labeled_intervals(
-    matches: pd.DataFrame, labels: tuple[str, str], index_name: Optional[str] = None
-) -> pd.DataFrame:
-    intervals = matches.loc[matches["match_type"].isin(labels), ["start", "end"]]
-    merged = merge_intervals(intervals.to_numpy(dtype="int64"))
-    return pd.DataFrame(merged, columns=["start", "end"]).rename_axis(index_name)
+def _exclude_uncertain(intervals: pd.DataFrame, uncertain: pd.DataFrame) -> pd.DataFrame:
+    """Subtract uncertain samples while retaining each source interval's index value."""
+    positions: list[int] = []
+    starts: list[int] = []
+    ends: list[int] = []
+    for position, (start, end) in enumerate(intervals[["start", "end"]].itertuples(index=False)):
+        fragments = [(start, end)]
+        for uncertain_start, uncertain_end in uncertain[["start", "end"]].itertuples(index=False):
+            fragments = [
+                (fragment_start, fragment_end)
+                for left, right in fragments
+                for fragment_start, fragment_end in (
+                    (left, min(right, uncertain_start)),
+                    (max(left, uncertain_end), right),
+                )
+                if fragment_end > fragment_start
+            ]
+        for fragment_start, fragment_end in fragments:
+            positions.append(position)
+            starts.append(fragment_start)
+            ends.append(fragment_end)
+    result = intervals.iloc[positions][["start", "end"]].copy()
+    result["start"] = starts
+    result["end"] = ends
+    return result
 
 
 def _gsd_metric_matches(matches: pd.DataFrame) -> pd.DataFrame:
@@ -86,14 +104,18 @@ def wtd_per_datapoint_score(
         DataFrame with sample-based ``start`` and exclusive ``end`` columns. If the datapoint provides
         ``reference_uncertain_``, those samples are excluded from all scores and duration errors.
     zero_division : {"warn", 0, 1}
-        Value passed to the sample-based classification metrics when a denominator is zero.
+        Value passed to classification metrics when a denominator is zero on labeled data. It does not turn
+        entirely uncertain datapoints into measured zero scores.
 
     Returns
     -------
     dict[str, Any]
-        Classification metrics and sample counts, wear-time durations in minutes, and runtime in seconds. The
-        ``matches``, ``detected``, ``reference``, ``reference_waking`` and ``sampling_rate_hz`` entries use
-        :func:`~tpcp.validate.no_agg` so the final aggregator can retain their per-datapoint values.
+        Classification metrics and sample counts, wear-time durations in minutes, and runtime in seconds. All
+        scalar rates and durations are NaN when no labeled samples remain. Waking durations are NaN when the
+        recorded waking window contains only uncertain samples. ``detected`` and ``reference`` retain the original
+        interval IDs; ``detected_scored`` and ``reference_scored`` contain the fragments used for scoring after
+        uncertain samples are removed. These tables, ``matches``, ``reference_waking``, and ``sampling_rate_hz`` use
+        :func:`~tpcp.validate.no_agg` for the final aggregator.
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Zero division", category=UserWarning)
@@ -110,21 +132,22 @@ def wtd_per_datapoint_score(
 
         matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data), uncertain)
         if not uncertain.empty:
-            detected_weartime = _labeled_intervals(matches, ("tp", "fp"), detected_weartime.index.name)
-            reference_weartime = _labeled_intervals(matches, ("tp", "fn"), "weartime_id")
+            detected_scored = _exclude_uncertain(detected_weartime, uncertain)
+            reference_scored = _exclude_uncertain(reference_weartime, uncertain)
+        else:
+            detected_scored = detected_weartime
+            reference_scored = reference_weartime
 
         reference_waking_weartime = clip_intervals_to_waking_hours(
-            reference_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
+            reference_scored, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
         )
         if uncertain.empty:
             detected_weartime_min = pipeline.total_weartime_min_
             detected_waking_weartime_min = pipeline.total_weartime_during_waking_min_
         else:
-            detected_weartime_min = (detected_weartime["end"] - detected_weartime["start"]).sum() / (
-                sampling_rate_hz * 60
-            )
+            detected_weartime_min = (detected_scored["end"] - detected_scored["start"]).sum() / (sampling_rate_hz * 60)
             detected_waking = clip_intervals_to_waking_hours(
-                detected_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
+                detected_scored, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
             )
             detected_waking_weartime_min = (detected_waking["end"] - detected_waking["start"]).sum() / (
                 sampling_rate_hz * 60
@@ -134,7 +157,7 @@ def wtd_per_datapoint_score(
             _gsd_metric_matches(matches), zero_division=zero_division
         )
         duration = _duration_metrics(
-            reference_weartime=reference_weartime,
+            reference_weartime=reference_scored,
             detected_weartime_min=detected_weartime_min,
             sampling_rate_hz=sampling_rate_hz,
         )
@@ -148,6 +171,18 @@ def wtd_per_datapoint_score(
             classification.update({key: np.nan for key in classification if not key.endswith("_samples")})
             duration = dict.fromkeys(duration, np.nan)
             waking_duration = dict.fromkeys(waking_duration, np.nan)
+        elif not uncertain.empty:
+            recorded_waking = clip_intervals_to_waking_hours(
+                pd.DataFrame({"start": [0], "end": [len(data)]}),
+                data=data,
+                sampling_rate_hz=sampling_rate_hz,
+                waking_hours=waking_hours,
+            )
+            known_waking = clip_intervals_to_waking_hours(
+                matches[["start", "end"]], data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
+            )
+            if not recorded_waking.empty and known_waking.empty:
+                waking_duration = dict.fromkeys(waking_duration, np.nan)
 
         return {
             **classification,
@@ -155,7 +190,9 @@ def wtd_per_datapoint_score(
             **waking_duration,
             "matches": no_agg(matches),
             "detected": no_agg(detected_weartime),
+            "detected_scored": no_agg(detected_scored),
             "reference": no_agg(reference_weartime),
+            "reference_scored": no_agg(reference_scored),
             "reference_waking": no_agg(reference_waking_weartime),
             "sampling_rate_hz": no_agg(sampling_rate_hz),
             "runtime_s": getattr(pipeline.algo_, "perf_", {}).get("runtime_s", np.nan),
@@ -186,7 +223,9 @@ def wtd_final_agg(
     -------
     tuple[dict[str, Any], dict[str, Any]]
         Combined sample-based classification and minute-based duration metrics, followed by per-datapoint metrics and
-        raw ``matches``, ``detected``, ``reference`` and ``reference_waking`` tables indexed by dataset group labels.
+        raw interval tables indexed by dataset group labels. Entirely uncertain datapoints contribute no labeled
+        samples to combined metrics. Combined rates and durations are NaN if no labeled samples remain; combined
+        waking durations are NaN if no datapoint has waking-hours ground truth.
 
     Raises
     ------
@@ -200,8 +239,16 @@ def wtd_final_agg(
     matches = pd.concat(matches, keys=data_labels, names=[*data_label_names, *matches[0].index.names])
     detected = single_results.pop("detected")
     detected = pd.concat(detected, keys=data_labels, names=[*data_label_names, *detected[0].index.names])
+    detected_scored = single_results.pop("detected_scored")
+    detected_scored = pd.concat(
+        detected_scored, keys=data_labels, names=[*data_label_names, *detected_scored[0].index.names]
+    )
     reference = single_results.pop("reference")
     reference = pd.concat(reference, keys=data_labels, names=[*data_label_names, *reference[0].index.names])
+    reference_scored = single_results.pop("reference_scored")
+    reference_scored = pd.concat(
+        reference_scored, keys=data_labels, names=[*data_label_names, *reference_scored[0].index.names]
+    )
     reference_waking = single_results.pop("reference_waking")
     reference_waking = pd.concat(
         reference_waking, keys=data_labels, names=[*data_label_names, *reference_waking[0].index.names]
@@ -218,10 +265,12 @@ def wtd_final_agg(
     combined_matched = {
         f"combined__{k}": v for k, v in calculate_matched_gsd_performance_metrics(_gsd_metric_matches(matches)).items()
     }
+    if matches.empty:
+        combined_matched.update({key: np.nan for key in combined_matched if not key.endswith("_samples")})
     combined_duration = {
         f"combined__{k}": v
         for k, v in _duration_metrics(
-            reference_weartime=reference,
+            reference_weartime=reference_scored,
             detected_weartime_min=np.nansum(single_results["detected_weartime_min"]),
             sampling_rate_hz=sampling_rate_hz[0],
         ).items()
@@ -235,11 +284,17 @@ def wtd_final_agg(
             prefix="waking_",
         ).items()
     }
+    if matches.empty:
+        combined_duration = dict.fromkeys(combined_duration, np.nan)
+    if np.isnan(single_results["waking_reference_weartime_min"]).all():
+        combined_waking_duration = dict.fromkeys(combined_waking_duration, np.nan)
 
     aggregated_single_results = {
         "raw__matches": matches,
         "raw__detected": detected,
+        "raw__detected_scored": detected_scored,
         "raw__reference": reference,
+        "raw__reference_scored": reference_scored,
         "raw__reference_waking": reference_waking,
     }
 
@@ -256,8 +311,11 @@ wtd_score.__doc__ = """Scorer for wear-time detection algorithms.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using :func:`wtd_per_datapoint_score` as
 per-datapoint scorer and :func:`wtd_final_agg` as final aggregator. Pass single-day datapoints with
-``reference_weartime_`` intervals in ``[start, end)`` sample coordinates and a common sampling rate. It returns
-per-datapoint metrics plus combined metrics; raw interval tables remain indexed by dataset group labels.
+``reference_weartime_`` intervals in ``[start, end)`` sample coordinates and a common sampling rate. If a datapoint
+provides ``reference_uncertain_``, its samples are excluded from scoring while the detector still receives the full
+signal. Undefined per-day rates and durations are NaN and excluded from mean scores. Combined metrics use only
+labeled samples; they are NaN when no applicable labels exist. ``raw__detected`` and ``raw__reference`` retain
+original interval IDs, while ``raw__detected_scored`` and ``raw__reference_scored`` show fragments after masking.
 """
 
 

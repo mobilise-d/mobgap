@@ -190,6 +190,16 @@ def test_failed_optimization_preserves_supplied_detector():
     assert algo.total_weartime_during_waking_min is None
 
 
+def test_optimization_rejects_uncertain_ground_truth():
+    datapoint = DummyDatapoint(
+        data=_sensor_frame_data(4), reference_weartime=_intervals([(0, 2)]), sampling_rate_hz=1.0
+    )
+    datapoint.reference_uncertain_ = _intervals([(2, 4)])
+
+    with pytest.raises(ValueError, match="uncertain ground truth"):
+        WtdEmulationPipeline(DummyOptimizableWtd(_intervals([]))).self_optimize([datapoint])
+
+
 def test_wtd_score_counts_half_open_samples_and_minute_durations():
     data = _sensor_frame_data(120)
     datapoint = DummyDatapoint(
@@ -264,6 +274,76 @@ def test_wtd_score_excludes_uncertain_samples_from_all_metrics():
     assert scores["detected_weartime_min"] == 1
     assert scores["waking_detected_weartime_min"] == 1
     assert scores["weartime_error_min"] == 0
+
+
+def test_scored_interval_fragments_keep_original_detector_ids():
+    datapoint = DummyDatapoint(
+        data=_sensor_frame_data(30), reference_weartime=_intervals([(0, 30)]), sampling_rate_hz=1.0
+    )
+    datapoint.reference_uncertain_ = _intervals([(10, 20)])
+    detected = _intervals([(0, 30)])
+    detected.index = pd.Index([42], name="wt_id")
+
+    scores = wtd_per_datapoint_score(
+        WtdEmulationPipeline(DummyWtd(detected, waking_hours=(time(0), time(0, 1)))), datapoint, zero_division=0
+    )
+
+    assert_frame_equal(scores["detected"].get_value(), detected)
+    assert scores["detected_scored"].get_value().index.tolist() == [42, 42]
+    assert scores["detected_scored"].get_value()[["start", "end"]].to_numpy().tolist() == [[0, 10], [20, 30]]
+
+
+def test_uncertainty_outside_intervals_keeps_nonconsecutive_source_ids():
+    detected = _intervals([(0, 10), (20, 30)])
+    detected.index = pd.Index([7, 42], name="wt_id")
+    datapoint = DummyDatapoint(data=_sensor_frame_data(30), reference_weartime=detected, sampling_rate_hz=1.0)
+    datapoint.reference_uncertain_ = _intervals([(12, 18)])
+
+    scores = wtd_per_datapoint_score(
+        WtdEmulationPipeline(DummyWtd(detected, waking_hours=(time(0), time(0, 1)))), datapoint, zero_division=0
+    )
+
+    assert_frame_equal(scores["detected_scored"].get_value(), detected)
+    assert scores["reference_scored"].get_value().index.tolist() == [7, 42]
+
+
+def test_fully_uncertain_waking_window_does_not_bias_waking_average():
+    uncertain_day = DummyDatapoint(
+        data=_sensor_frame_data(7200),
+        reference_weartime=_intervals([(0, 3600)]),
+        sampling_rate_hz=1.0,
+        group_label=GroupLabel("010", "uncertain_waking"),
+    )
+    uncertain_day.reference_uncertain_ = _intervals([(3600, 7200)])
+    labeled_day = DummyDatapoint(
+        data=_sensor_frame_data(7200),
+        reference_weartime=_intervals([(0, 7200)]),
+        sampling_rate_hz=1.0,
+    )
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 7200)]), waking_hours=(time(1), time(2))))
+
+    scores = wtd_per_datapoint_score(pipeline, uncertain_day, zero_division=0)
+    aggregate, single = wtd_score(pipeline, [uncertain_day, labeled_day])
+
+    assert np.isnan(scores["waking_weartime_error_min"])
+    assert np.isnan(single["waking_detected_weartime_min"][0])
+    assert aggregate["waking_reference_weartime_min"] == 60
+    assert aggregate["combined__waking_reference_weartime_min"] == 60
+
+
+def test_all_uncertain_dataset_has_no_combined_performance_rates():
+    datapoint = DummyDatapoint(data=_sensor_frame_data(60), reference_weartime=_intervals([]), sampling_rate_hz=1.0)
+    datapoint.reference_uncertain_ = _intervals([(0, 60)])
+
+    aggregate, _ = wtd_score(
+        WtdEmulationPipeline(DummyWtd(_intervals([(0, 60)]), waking_hours=(time(0), time(0, 1)))),
+        [datapoint],
+    )
+
+    assert aggregate["combined__tp_samples"] == 0
+    assert np.isnan(aggregate["combined__accuracy"])
+    assert np.isnan(aggregate["combined__weartime_error_min"])
+    assert np.isnan(aggregate["combined__waking_weartime_error_min"])
 
 
 @pytest.mark.parametrize("uncertain_first", [False, True])
