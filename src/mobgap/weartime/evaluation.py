@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
-from tpcp.validate import Scorer, no_agg
+from tpcp.validate import FloatAggregator, Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
 from mobgap.gait_sequences.evaluation import calculate_matched_gsd_performance_metrics
@@ -110,7 +110,7 @@ def wtd_per_datapoint_score(
 
         matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data), uncertain)
         if not uncertain.empty:
-            detected_weartime = _labeled_intervals(matches, ("tp", "fp"))
+            detected_weartime = _labeled_intervals(matches, ("tp", "fp"), detected_weartime.index.name)
             reference_weartime = _labeled_intervals(matches, ("tp", "fn"), "weartime_id")
 
         reference_waking_weartime = clip_intervals_to_waking_hours(
@@ -130,19 +130,29 @@ def wtd_per_datapoint_score(
                 sampling_rate_hz * 60
             )
 
+        classification = calculate_matched_gsd_performance_metrics(
+            _gsd_metric_matches(matches), zero_division=zero_division
+        )
+        duration = _duration_metrics(
+            reference_weartime=reference_weartime,
+            detected_weartime_min=detected_weartime_min,
+            sampling_rate_hz=sampling_rate_hz,
+        )
+        waking_duration = _duration_metrics(
+            reference_weartime=reference_waking_weartime,
+            detected_weartime_min=detected_waking_weartime_min,
+            sampling_rate_hz=sampling_rate_hz,
+            prefix="waking_",
+        )
+        if matches.empty:
+            classification.update({key: np.nan for key in classification if not key.endswith("_samples")})
+            duration = dict.fromkeys(duration, np.nan)
+            waking_duration = dict.fromkeys(waking_duration, np.nan)
+
         return {
-            **calculate_matched_gsd_performance_metrics(_gsd_metric_matches(matches), zero_division=zero_division),
-            **_duration_metrics(
-                reference_weartime=reference_weartime,
-                detected_weartime_min=detected_weartime_min,
-                sampling_rate_hz=sampling_rate_hz,
-            ),
-            **_duration_metrics(
-                reference_weartime=reference_waking_weartime,
-                detected_weartime_min=detected_waking_weartime_min,
-                sampling_rate_hz=sampling_rate_hz,
-                prefix="waking_",
-            ),
+            **classification,
+            **duration,
+            **waking_duration,
             "matches": no_agg(matches),
             "detected": no_agg(detected_weartime),
             "reference": no_agg(reference_weartime),
@@ -212,7 +222,7 @@ def wtd_final_agg(
         f"combined__{k}": v
         for k, v in _duration_metrics(
             reference_weartime=reference,
-            detected_weartime_min=sum(single_results["detected_weartime_min"]),
+            detected_weartime_min=np.nansum(single_results["detected_weartime_min"]),
             sampling_rate_hz=sampling_rate_hz[0],
         ).items()
     }
@@ -220,7 +230,7 @@ def wtd_final_agg(
         f"combined__{k}": v
         for k, v in _duration_metrics(
             reference_weartime=reference_waking,
-            detected_weartime_min=sum(single_results["waking_detected_weartime_min"]),
+            detected_weartime_min=np.nansum(single_results["waking_detected_weartime_min"]),
             sampling_rate_hz=sampling_rate_hz[0],
             prefix="waking_",
         ).items()
@@ -239,7 +249,9 @@ def wtd_final_agg(
     )
 
 
-wtd_score = Scorer(wtd_per_datapoint_score, final_aggregator=wtd_final_agg)
+wtd_score = Scorer(
+    wtd_per_datapoint_score, final_aggregator=wtd_final_agg, default_aggregator=FloatAggregator(np.nanmean)
+)
 wtd_score.__doc__ = """Scorer for wear-time detection algorithms.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using :func:`wtd_per_datapoint_score` as

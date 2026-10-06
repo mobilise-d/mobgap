@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from datetime import time
 from typing import Any, NamedTuple, Optional
 
+import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -9,7 +10,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap.utils.conversions import to_body_frame
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df
-from mobgap.weartime.evaluation import wtd_final_agg, wtd_per_datapoint_score
+from mobgap.weartime.evaluation import wtd_final_agg, wtd_per_datapoint_score, wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 
@@ -263,6 +264,38 @@ def test_wtd_score_excludes_uncertain_samples_from_all_metrics():
     assert scores["detected_weartime_min"] == 1
     assert scores["waking_detected_weartime_min"] == 1
     assert scores["weartime_error_min"] == 0
+
+
+@pytest.mark.parametrize("uncertain_first", [False, True])
+def test_fully_uncertain_day_does_not_bias_mean_or_combined_scores(uncertain_first):
+    certain = DummyDatapoint(
+        data=_sensor_frame_data(60), reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0
+    )
+    uncertain = DummyDatapoint(
+        data=_sensor_frame_data(60),
+        reference_weartime=_intervals([]),
+        sampling_rate_hz=1.0,
+        group_label=GroupLabel("010", "uncertain"),
+    )
+    uncertain.reference_uncertain_ = _intervals([(0, 60)])
+    pairs = [(certain, WtdEmulationPipeline(DummyWtd(_intervals([(0, 60)]))))]
+    uncertain_pair = (uncertain, WtdEmulationPipeline(DummyWtd(_intervals([(0, 60)]))))
+    pairs.insert(0 if uncertain_first else 1, uncertain_pair)
+    scores = [wtd_per_datapoint_score(pipeline, datapoint, zero_division=0) for datapoint, pipeline in pairs]
+    single_results = {
+        key: [score[key].get_value() if hasattr(score[key], "get_value") else score[key] for score in scores]
+        for key in scores[0]
+    }
+
+    assert np.nanmean(single_results["accuracy"]) == 1
+    assert np.nanmean(single_results["detected_weartime_min"]) == 1
+    combined, raw = wtd_final_agg({}, single_results, pairs[0][1], [datapoint for datapoint, _ in pairs])
+    assert combined["combined__accuracy"] == 1
+    assert combined["combined__detected_weartime_min"] == 1
+    assert raw["raw__detected"].index.names == ["participant_id", "recording_id", "wt_id"]
+    aggregate, _ = wtd_score(pairs[0][1], [datapoint for datapoint, _ in pairs])
+    assert aggregate["accuracy"] == 1
+    assert aggregate["detected_weartime_min"] == 1
 
 
 @pytest.mark.parametrize("reverse", [False, True])

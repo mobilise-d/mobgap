@@ -227,6 +227,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         Intervals with uncertain ground truth, in the same format. These samples remain in ``data_ss``.
     """
 
+    # Part A preprocessing discards participant 010's lower-back samples after device removal.
     UNCERTAIN_GROUND_TRUTH_OVERRIDES: ClassVar[tuple[tuple[str, str], ...]] = (("010", "2026-02-02T07:09:15"),)
 
     base_path: PathLike
@@ -359,11 +360,12 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         """Ground-truth intervals excluded from wear and non-wear labels."""
         self.assert_is_single(None, "reference_uncertain_")
         data = self.data_ss
-        participant_id = self.index_as_tuples()[0].participant_id
+        label = self.index_as_tuples()[0]
+        participant_id = label.participant_id
         starts = [
             _timestamp_to_sample_boundary(_reference_timestamp(start), data.index, fallback=len(data))
             for override_id, start in self.UNCERTAIN_GROUND_TRUTH_OVERRIDES
-            if override_id == participant_id
+            if label.recording_type == "human_movement" and override_id == participant_id
         ]
         intervals = pd.DataFrame({"start": starts, "end": [len(data)] * len(starts)})
         return _format_reference_df(
