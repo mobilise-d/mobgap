@@ -105,8 +105,8 @@ def test_index_creation(tmp_path):
     )
 
 
-def test_sustain_local_output_uses_uk_timezone_in_index_and_metadata(tmp_path):
-    dataset = SustainWearTimeDataset(_create_sustain_layout(tmp_path), splitter=None, output_timezone="local")
+def test_sustain_default_uses_uk_timezone_in_index_and_metadata(tmp_path):
+    dataset = SustainWearTimeDataset(_create_sustain_layout(tmp_path), splitter=None)
     datapoint = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
 
     assert datapoint.index.start_time.iloc[0] == pd.Timestamp("2012-03-27T11:14:57.500+01:00")

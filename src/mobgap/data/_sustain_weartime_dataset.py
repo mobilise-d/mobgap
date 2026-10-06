@@ -177,7 +177,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     tz
         Timezone of the computer that synchronized the sensor clock. Defaults to ``"Europe/London"``.
     output_timezone
-        ``"utc"`` returns UTC timestamps; ``"local"`` returns timestamps in ``tz``.
+        ``"local"`` returns timestamps in ``tz`` (the default); ``"utc"`` returns UTC timestamps.
     additional_sensors_enabled
         Additional CWA channels to append to the core accelerometer and gyroscope data. Supports
         ``"temperature"``, ``"light"``, ``"battery"`` and ``"magnetometer"``.
@@ -234,7 +234,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         base_path: PathLike,
         *,
         tz: str = "Europe/London",
-        output_timezone: Literal["utc", "local"] = "utc",
+        output_timezone: Literal["utc", "local"] = "local",
         additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,

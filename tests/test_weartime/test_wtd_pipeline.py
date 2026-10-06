@@ -217,6 +217,26 @@ def test_wtd_score_counts_half_open_samples_and_minute_durations():
     assert_frame_equal(scores["reference"].get_value(), _intervals([(0, 119)], index_name="weartime_id"))
 
 
+@pytest.mark.parametrize("day", ["2026-03-29", "2026-10-25"])
+def test_wtd_score_accepts_uk_local_days_across_dst(day):
+    start = pd.Timestamp(day, tz="Europe/London")
+    end = start + pd.DateOffset(days=1)
+    index = pd.date_range(start, end, freq="s", inclusive="left")
+    data = _sensor_frame_data(len(index))
+    data.index = index
+    datapoint = DummyDatapoint(
+        data=data,
+        reference_weartime=_intervals([(0, len(data))], index_name="weartime_id"),
+        sampling_rate_hz=1.0,
+    )
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, len(data))]), waking_hours_min=(7 * 60, 22 * 60)))
+
+    scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
+
+    assert scores["waking_reference_weartime_min"] == 900
+    assert scores["waking_detected_weartime_min"] == 900
+
+
 def test_wtd_score_counts_all_nonwear_samples():
     data = _sensor_frame_data(3)
     datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([]), sampling_rate_hz=1.0)
