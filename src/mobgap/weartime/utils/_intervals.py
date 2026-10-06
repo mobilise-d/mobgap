@@ -2,6 +2,8 @@
 
 import warnings
 from datetime import time
+from fractions import Fraction
+from math import ceil
 from typing import Optional
 
 import numpy as np
@@ -37,13 +39,15 @@ def _waking_hours_sample_bounds(
     start, end = waking_hours
     if data is None or not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
 
-        def minutes_since_midnight(value: time) -> float:
-            return value.hour * 60 + value.minute + value.second / 60 + value.microsecond / 60_000_000
+        def minutes_since_midnight(value: time) -> Fraction:
+            microseconds = ((value.hour * 60 + value.minute) * 60 + value.second) * 1_000_000 + value.microsecond
+            return Fraction(microseconds, 60_000_000)
 
         end_min = 24 * 60 if end == time(0) else minutes_since_midnight(end)
+        samples_per_minute = 60 * Fraction(str(sampling_rate_hz))
         return (
-            int(np.ceil(np.nextafter(minutes_since_midnight(start) * 60 * sampling_rate_hz, -np.inf))),
-            int(np.ceil(np.nextafter(end_min * 60 * sampling_rate_hz, -np.inf))),
+            ceil(minutes_since_midnight(start) * samples_per_minute),
+            ceil(end_min * samples_per_minute),
         )
 
     if len(data.index) == 0:

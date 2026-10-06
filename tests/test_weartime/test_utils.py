@@ -69,6 +69,19 @@ def test_waking_clock_boundaries_between_samples_round_up(index):
     assert_frame_equal(clipped, _intervals([(1, 2)]))
 
 
+def test_untimed_waking_boundary_exactly_on_high_rate_sample():
+    data = pd.DataFrame(index=pd.RangeIndex(62_802))
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, len(data))]),
+        data=data,
+        sampling_rate_hz=1000.0,
+        waking_hours=(time(0, 1, 2, 800_000), time(0, 1, 2, 801_000)),
+    )
+
+    assert_frame_equal(clipped, _intervals([(62_800, 62_801)]))
+
+
 def test_clip_intervals_with_localized_timestamps_rejects_multiple_local_days():
     data = pd.DataFrame(index=pd.date_range("2026-03-29 23:59:00", periods=180, freq="s", tz="Europe/London"))
 
