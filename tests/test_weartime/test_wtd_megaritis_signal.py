@@ -49,8 +49,8 @@ class TestWtdMegaritisSignal:
     def test_negative_micro_window_overlap_is_rejected(self):
         data = pd.DataFrame(np.zeros((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
-        with pytest.raises(ValueError, match="overlap"):
-            WtdMegaritisSignal(macro_win_size_min=1, micro_win_size_s=5, overlap=-0.5).detect(
+        with pytest.raises(ValueError, match="micro_win_overlap"):
+            WtdMegaritisSignal(macro_win_size_min=1, micro_win_size_s=5, micro_win_overlap=-0.5).detect(
                 data, sampling_rate_hz=50.0
             )
 
@@ -117,7 +117,7 @@ class TestWtdMegaritisSignal:
 
         monkeypatch.setattr(WtdMegaritisSignal, "_classify_micro_windows_from_starts", classify_by_start)
         result = WtdMegaritisSignal(
-            macro_win_size_min=1, macro_win_step_min=0.15, micro_win_size_s=5, overlap=0.6
+            macro_win_size_min=1, macro_win_step_min=0.15, micro_win_size_s=5, micro_win_overlap=0.6
         ).detect(data, sampling_rate_hz=50.0)
 
         assert result.diagnostics_["macro"]["start"].to_list() == [0, 450, 900]
@@ -193,7 +193,7 @@ class TestWtdMegaritisSignal:
         data = pd.DataFrame(np.zeros((6000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(
-            macro_win_size_min=1, macro_win_step_min=1, micro_win_size_s=0.02, overlap=0
+            macro_win_size_min=1, macro_win_step_min=1, micro_win_size_s=0.02, micro_win_overlap=0
         ).detect(data, sampling_rate_hz=50.0)
 
         assert_frame_equal(result.weartime_list_, _empty_weartime_list())

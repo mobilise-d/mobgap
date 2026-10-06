@@ -40,17 +40,21 @@ def remove_short_wear_bouts_by_ratio_from_intervals(
     wear_intervals: np.ndarray,
     *,
     data_length: int,
-    max_bout_min: float = 20.0,
-    min_ratio: float = 0.3,
+    max_wear_bout_duration_min: float = 20.0,
+    min_wear_to_nonwear_ratio: float = 0.3,
     sampling_rate_hz: float = 100.0,
 ) -> np.ndarray:
-    """Remove short wear bouts surrounded by disproportionately long non-wear periods from wear intervals."""
+    """Remove short wear bouts with little wear relative to surrounding non-wear.
+
+    Only bouts at most ``max_wear_bout_duration_min`` long are eligible. Their wear duration divided by the combined
+    non-wear duration before and after the bout must reach ``min_wear_to_nonwear_ratio`` to be retained.
+    """
     wear_intervals = np.asarray(wear_intervals, dtype=np.int64)
     if wear_intervals.size == 0:
         return np.empty((0, 2), dtype=np.int64)
 
     wear_intervals = wear_intervals.reshape(-1, 2)
-    max_bout_samples = int(max_bout_min * 60 * sampling_rate_hz)
+    max_bout_samples = int(max_wear_bout_duration_min * 60 * sampling_rate_hz)
 
     keep = np.ones(len(wear_intervals), dtype=bool)
     for i, (start, end) in enumerate(wear_intervals):
@@ -62,7 +66,9 @@ def remove_short_wear_bouts_by_ratio_from_intervals(
         next_wear_start = wear_intervals[i + 1, 0] if i < len(wear_intervals) - 1 else data_length
         surrounding_nonwear_samples = (start - previous_wear_end) + (next_wear_start - end)
 
-        if surrounding_nonwear_samples > 0 and wear_duration_samples / surrounding_nonwear_samples < min_ratio:
+        if surrounding_nonwear_samples > 0 and (
+            wear_duration_samples / surrounding_nonwear_samples < min_wear_to_nonwear_ratio
+        ):
             keep[i] = False
 
     return wear_intervals[keep]
