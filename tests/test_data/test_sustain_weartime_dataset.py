@@ -25,6 +25,7 @@ requires_sustain_data = pytest.mark.skipif(
 
 
 def _read_fixture_data(**kwargs):
+    header = cwa_reader_rs.read_metadata(str(CWA_FIXTURE))
     kwargs = {
         "include_magnetometer": False,
         "include_temperature": True,
@@ -35,14 +36,24 @@ def _read_fixture_data(**kwargs):
     return cwa_reader_rs.read_cwa_file(
         str(CWA_FIXTURE),
         **kwargs,
-        resample_hz=cwa_reader_rs.read_header(str(CWA_FIXTURE))["sample_rate_hz"],
+        fixed_utc_offset_timezone=ax6_module._clock_timezone(header, "Europe/London"),
+        resample_hz=header["sample_rate_hz"],
         resample_method="cubic",
     )
 
 
 def _read_fixture_index() -> pd.DatetimeIndex:
-    raw_data = _read_fixture_data()
-    return pd.DatetimeIndex(pd.to_datetime(raw_data["timestamp"], unit="us", utc=True), name="time")
+    return _read_fixture_data().index.rename("time")
+
+
+def _fake_recording_info(start, end, timing=None):
+    header = {
+        "sample_rate_hz": 100.0,
+        "last_change_time_raw": "2020-01-01T12:00:00",
+        "start_from_data_raw": pd.Timestamp(start).tz_localize(None).isoformat(),
+        "end_from_data_raw": pd.Timestamp(end).tz_localize(None).isoformat(),
+    }
+    return header, timing or {}
 
 
 def _create_sustain_layout(tmp_path: Path) -> Path:
@@ -92,6 +103,34 @@ def test_index_creation(tmp_path):
     assert_frame_equal(
         dataset.index.drop(columns=["recording", "start_time", "end_time", "recording_day"]), expected_index
     )
+
+
+def test_sustain_local_output_uses_uk_timezone_in_index_and_metadata(tmp_path):
+    dataset = SustainWearTimeDataset(_create_sustain_layout(tmp_path), splitter=None, output_timezone="local")
+    datapoint = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
+
+    assert datapoint.index.start_time.iloc[0] == pd.Timestamp("2012-03-27T11:14:57.500+01:00")
+    assert datapoint.data_ss.index[0] == datapoint.index.start_time.iloc[0]
+    assert datapoint.cwa_header_["start_from_data"] == datapoint.index.start_time.iloc[0]
+    assert datapoint.cwa_timing_report_["start_from_data"] == datapoint.index.start_time.iloc[0]
+
+
+def test_sustain_naive_reference_times_use_uk_local_time(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    reference_path = base_path / "weartime_part_a_all" / "reference.json"
+    reference_row = json.loads(reference_path.read_text())
+    reference_row["device_off"] = (
+        pd.Timestamp(reference_row["device_off"]).tz_convert("Europe/London").tz_localize(None).isoformat()
+    )
+    reference_row["device_on"] = (
+        pd.Timestamp(reference_row["device_on"]).tz_convert("Europe/London").tz_localize(None).isoformat()
+    )
+    reference_path.write_text(json.dumps(reference_row) + "\n")
+
+    datapoint = SustainWearTimeDataset(base_path, splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
+
+    assert datapoint.reference_nonwear_.iloc[0]["start"] == 10
+    assert datapoint.reference_nonwear_.iloc[0]["end"] == 20
 
 
 def test_sensor_name_is_configurable_and_survives_clone(tmp_path):
@@ -159,7 +198,7 @@ def test_split_by_day_index_creation(tmp_path, monkeypatch):
                 "samplingrate_hz_from_header": 100.0,
                 "samplingrate_hz_from_data": 100.0,
             }
-        return {"sample_rate_hz": 100.0}, timing
+        return _fake_recording_info(timing["start_from_data"], timing["end_from_data"], timing)
 
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
 
@@ -224,7 +263,7 @@ def test_configured_daily_splitter_omits_short_days(tmp_path, monkeypatch):
             start, end = "2020-01-01T23:59:58Z", "2020-01-03T00:00:01Z"
         else:
             start, end = "2020-02-01T00:00:00Z", "2020-02-01T12:00:00Z"
-        return {"sample_rate_hz": 100.0}, {"start_from_data": start, "end_from_data": end}
+        return _fake_recording_info(start, end)
 
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
     dataset = SustainWearTimeDataset(
@@ -240,7 +279,7 @@ def test_default_splitter_keeps_only_days_with_eight_hours(tmp_path, monkeypatch
 
     def fake_recording_info(file_path, _identity):
         end = "2020-01-01T07:59:59.990Z" if file_path.parent.name == "001" else "2020-01-01T07:59:59Z"
-        return {"sample_rate_hz": 100.0}, {"start_from_data": "2020-01-01T00:00:00Z", "end_from_data": end}
+        return _fake_recording_info("2020-01-01T00:00:00Z", end)
 
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
     dataset = SustainWearTimeDataset(base_path)
@@ -269,9 +308,9 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
     cuts = []
 
     def fake_recording_info(_file_path, _identity):
-        return {"sample_rate_hz": 100.0}, timing_report
+        return _fake_recording_info(timing_report["start_from_data"], timing_report["end_from_data"], timing_report)
 
-    def fake_load_cwa_data(_path, _identity, start_s, end_s, _channels, _rate, start_time, end_time):
+    def fake_load_cwa_data(_path, _identity, start_s, end_s, _channels, _rate, start_time, end_time, *_args):
         cuts.append((start_s, end_s))
         data = pd.DataFrame(
             [[0.0] * (len(SF_SENSOR_COLS) + 1), [1.0] * (len(SF_SENSOR_COLS) + 1)],

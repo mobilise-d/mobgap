@@ -14,7 +14,7 @@ from tpcp import cf
 from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
-from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, split_by_utc_day
+from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, _split_by_local_days
 from mobgap.utils.array_handling import merge_intervals
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
-_DEFAULT_DAILY_SPLITTER = partial(split_by_utc_day, min_duration=pd.Timedelta(hours=8))
+_DEFAULT_DAILY_SPLITTER = partial(_split_by_local_days, min_duration=pd.Timedelta(hours=8))
 
 
 def _is_lowerback_name(name: str) -> bool:
@@ -43,7 +43,12 @@ def _as_utc_timestamp(timestamp: Any) -> pd.Timestamp:
     return timestamp.tz_convert("UTC")
 
 
-def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
+def _reference_timestamp(value: Any, tz: str) -> pd.Timestamp:
+    timestamp = pd.Timestamp(value)
+    return timestamp.tz_localize(tz).tz_convert("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
+
+
+def _load_reference_file(reference_path: PathLike, tz: str) -> pd.DataFrame:
     reference_path = Path(reference_path)
     if not reference_path.exists():
         raise FileNotFoundError(f"Could not find the SUSTAIN wear-time reference file at {reference_path}.")
@@ -67,8 +72,8 @@ def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
         )
         .loc[lambda df_: df_["is_lowerback"]]
         .assign(
-            device_off=lambda df_: pd.to_datetime(df_["device_off"], errors="raise", utc=True),
-            device_on=lambda df_: pd.to_datetime(df_["device_on"], errors="raise", utc=True),
+            device_off=lambda df_: df_["device_off"].map(lambda value: _reference_timestamp(value, tz)),
+            device_on=lambda df_: df_["device_on"].map(lambda value: _reference_timestamp(value, tz)),
         )
         .drop(columns=["id", "sensor", "is_lowerback"])
     )
@@ -155,37 +160,24 @@ def _complement_intervals(intervals: pd.DataFrame, data_length: int) -> pd.DataF
     return pd.DataFrame(complement, columns=["start", "end"])
 
 
-def _recording_start_end_from_timing_report(timing_report: dict[str, Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
-    start = timing_report.get("start_from_data")
-    end = timing_report.get("end_from_data")
-    if start is None or end is None:
-        raise ValueError(
-            "The CWA timing report does not contain `start_from_data` and `end_from_data`. "
-            "These fields are required to split SUSTAIN wear-time recordings."
-        )
-
-    start = _as_utc_timestamp(start)
-    end = _as_utc_timestamp(end)
-    if end < start:
-        raise ValueError(
-            f"The CWA timing report contains an `end_from_data` timestamp before `start_from_data`: {end} < {start}."
-        )
-    return start, end
-
-
 class SustainWearTimeDataset(BaseAX6Dataset):
     """Dataset for the SUSTAIN wear-time raw CWA recordings.
 
     The dataset index contains one row per selected time window, including ``file_path``, ``start_time`` and
     ``end_time``. ``file_path`` is relative to ``base_path``, so the index does not depend on where the dataset is
-    stored. ``recording_day`` is the UTC date at the start of the window. The raw data is loaded lazily and
+    stored. ``recording_day`` is the UK local date at the start of the window. The raw data is loaded lazily and
     returned in the MobGap sensor frame. Reference intervals use MobGap's half-open sample convention: ``start`` is
     inclusive and ``end`` is exclusive. ``start_dt`` and ``end_dt`` come from snapped sample boundaries.
+    Reference timestamps without an offset are interpreted as UK local time.
 
     Parameters
     ----------
     base_path
         The root folder containing ``weartime_part_a_all`` and ``weartime_part_b``.
+    tz
+        Timezone of the computer that synchronized the sensor clock. Defaults to ``"Europe/London"``.
+    output_timezone
+        ``"utc"`` returns UTC timestamps; ``"local"`` returns timestamps in ``tz``.
     additional_sensors_enabled
         Additional CWA channels to append to the core accelerometer and gyroscope data. Supports
         ``"temperature"``, ``"light"``, ``"battery"`` and ``"magnetometer"``.
@@ -198,10 +190,9 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         Sensor key used by ``data``. Defaults to ``"LowerBack"``.
     splitter
         A DataFrame of windows or a callable receiving one file's :class:`~mobgap.data.CwaRecordingInfo` and
-        returning a DataFrame of windows. By default, the dataset selects UTC days with at least eight hours of
-        recorded data. Set to ``None`` to use each complete recording. Use :func:`~mobgap.data.split_by_utc_day` or
-        :func:`~mobgap.data.split_by_utc_hour` for other calendar splits; both accept ``min_duration`` through
-        :func:`functools.partial`.
+        returning a DataFrame of windows. By default, the dataset selects UK local calendar days with at least
+        eight hours of recorded data. Set to ``None`` to use each complete recording. Use
+        :func:`~mobgap.data.split_by_utc_day` or :func:`~mobgap.data.split_by_utc_hour` for UTC calendar splits.
     memory
         A joblib memory object used to cache CWA data and reference file loading.
     groupby_cols
@@ -229,6 +220,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     """
 
     base_path: PathLike
+    tz: str
+    output_timezone: Literal["utc", "local"]
     additional_sensors_enabled: Sequence[AdditionalChannel]
     missing_reference_error_type: MissingReferenceErrorType
     warn_thres_for_sampling_rate_deviations_hz: float | None
@@ -240,6 +233,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         self,
         base_path: PathLike,
         *,
+        tz: str = "Europe/London",
+        output_timezone: Literal["utc", "local"] = "utc",
         additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
         warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
@@ -253,6 +248,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         self.missing_reference_error_type = missing_reference_error_type
         self.splitter = splitter
         super().__init__(
+            tz=tz,
+            output_timezone=output_timezone,
             additional_sensors_enabled=additional_sensors_enabled,
             warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
             sensor_name=sensor_name,
@@ -343,7 +340,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         )
 
     def _cached_load_reference_file(self) -> pd.DataFrame:
-        return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path)
+        return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path, self.tz)
 
     def _raw_reference_for_selected_recording(self) -> pd.DataFrame:
         participant_id = self.index_as_tuples()[0].participant_id
@@ -391,16 +388,10 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         recording_type = "human_movement" if path.parent.parent == self._human_movement_path else "simulated_movements"
         participant_id = path.parent.name
         recording_id = f"{recording_type}_{participant_id}_{path.stem}"
-        header, timing_report = ax6_module._recording_info(path, ax6_module._file_identity(path))
-        start, last_sample = _recording_start_end_from_timing_report(timing_report)
-        end = last_sample + pd.to_timedelta(1 / float(header["sample_rate_hz"]), unit="s")
-        info = CwaRecordingInfo(
-            path=path,
-            start_time=start,
-            last_sample_time=last_sample,
-            end_time=end,
-            cwa_header=dict(header),
-            cwa_timing_report=timing_report,
+        info = ax6_module._cwa_recording_info(
+            path,
+            tz=self.tz,
+            output_timezone=self.output_timezone,
             recording_metadata={
                 "measurement_condition": "laboratory",
                 "recording_id": recording_id,
@@ -410,7 +401,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             },
         )
         if self.splitter is None:
-            splits = pd.DataFrame({"recording": ["main"], "start_time": [start], "end_time": [end]})
+            splits = pd.DataFrame({"recording": ["main"], "start_time": [info.start_time], "end_time": [info.end_time]})
         elif isinstance(self.splitter, pd.DataFrame):
             splits = self.splitter.copy()
         else:
@@ -419,7 +410,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             recording_type=recording_type,
             participant_id=participant_id,
             recording_id=recording_id,
-            recording_day=lambda df_: df_["start_time"].dt.strftime("%Y-%m-%d"),
+            recording_day=lambda df_: df_["start_time"].dt.tz_convert(self.tz).dt.strftime("%Y-%m-%d"),
         ).astype(
             {
                 "recording_type": "string",

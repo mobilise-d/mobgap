@@ -23,6 +23,7 @@ from mobgap.data import (
     split_by_utc_hour,
 )
 from mobgap.data import ax6 as ax6_module
+from mobgap.data.ax6 import _split_by_local_days
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
@@ -38,6 +39,7 @@ def _dataset(*, splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFra
         EXAMPLE_CWA,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
         splitter=splitter,
     )
 
@@ -71,7 +73,7 @@ class _DiscoveredFilesDataset(BaseAX6Dataset):
         self.paths = paths
         self.participant_metadata = {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"}
         self.recording_metadata = {"measurement_condition": "free_living"}
-        super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
+        super().__init__(tz="UTC", groupby_cols=groupby_cols, subset_index=subset_index)
 
     def _get_file_paths(self) -> list[Path]:
         return self.paths
@@ -97,12 +99,89 @@ def test_reads_real_cwa_as_mobgap_sensor_data() -> None:
     assert data.iloc[0]["acc_x"] == pytest.approx(-0.21875 * GRAV_MS2)
 
 
+def test_reader_uses_configuration_offset_and_requested_output_timezone() -> None:
+    """The sensor clock keeps its configuration offset, while local output uses the named timezone."""
+    options = {
+        "participant_metadata": {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        "recording_metadata": {"measurement_condition": "free_living"},
+        "tz": "Europe/Berlin",
+    }
+    utc_dataset = AX6Dataset(EXAMPLE_CWA, **options)
+    local_dataset = AX6Dataset(EXAMPLE_CWA, output_timezone="local", **options)
+    utc_data = utc_dataset.data_ss
+    local_data = local_dataset.data_ss
+
+    assert utc_data.index[0] == pd.Timestamp("2012-03-27T09:14:57.500Z")
+    assert local_data.index[0] == pd.Timestamp("2012-03-27T11:14:57.500+02:00")
+    assert local_data.index.tz == pd.Timestamp.now(tz="Europe/Berlin").tz
+    assert local_data.iloc[0].equals(utc_data.iloc[0])
+    assert local_dataset.index.start_time.iloc[0] == local_data.index[0]
+    assert local_dataset.cwa_header_["start_from_data"] == local_data.index[0]
+    assert local_dataset.cwa_timing_report_["start_from_data"] == local_data.index[0]
+    assert utc_dataset.cwa_header_["start_from_data"] == utc_data.index[0]
+
+
+@pytest.mark.parametrize(
+    ("last_change", "start_raw", "end_raw", "day_start", "day_end", "hours"),
+    [
+        (
+            "2026-03-20T12:00:00",
+            "2026-03-28T23:00:00",
+            "2026-03-30T00:59:59.990",
+            "2026-03-28T23:00:00Z",
+            "2026-03-29T22:00:00Z",
+            23,
+        ),
+        (
+            "2026-10-20T12:00:00",
+            "2026-10-24T23:00:00",
+            "2026-10-27T00:59:59.990",
+            "2026-10-24T22:00:00Z",
+            "2026-10-25T23:00:00Z",
+            25,
+        ),
+    ],
+)
+def test_local_day_split_follows_calendar_at_clock_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    last_change: str,
+    start_raw: str,
+    end_raw: str,
+    day_start: str,
+    day_end: str,
+    hours: int,
+) -> None:
+    """A Berlin calendar day can span 23 or 25 elapsed hours at a clock change."""
+    path = tmp_path / "spring.cwa"
+    path.touch()
+    header = {
+        "sample_rate_hz": 100.0,
+        "last_change_time_raw": last_change,
+        "start_from_data_raw": start_raw,
+        "end_from_data_raw": end_raw,
+    }
+    monkeypatch.setattr(ax6_module, "_recording_info", lambda *_args: (header, {}))
+    dataset = AX6Dataset(
+        path,
+        tz="Europe/Berlin",
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        splitter=_split_by_local_days,
+    )
+
+    assert dataset.index.start_time.iloc[1] == pd.Timestamp(day_start)
+    assert dataset.index.end_time.iloc[1] == pd.Timestamp(day_end)
+    assert dataset.index.end_time.iloc[1] - dataset.index.start_time.iloc[1] == pd.Timedelta(hours=hours)
+
+
 def test_additional_sensors_enabled_parameter_survives_clone() -> None:
     """The shared channel parameter controls optional CWA columns."""
     dataset = AX6Dataset(
         EXAMPLE_CWA,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
         additional_sensors_enabled=("temperature", "magnetometer"),
     )
 
@@ -114,6 +193,7 @@ def test_sampling_rate_deviation_warning_threshold() -> None:
     options = {
         "participant_metadata": {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         "recording_metadata": {"measurement_condition": "free_living"},
+        "tz": "UTC",
     }
     with pytest.warns(UserWarning, match="effective sampling rate waries considerable"):
         AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=0.2, **options).data_ss
@@ -171,21 +251,35 @@ def test_calendar_split_cuts_at_utc_midnight(
     midnight = pd.Timestamp("2026-09-25T00:00:00Z")
     cuts: list[tuple[float, float]] = []
 
-    monkeypatch.setattr(cwa_reader_rs, "read_header", lambda _path: {"sample_rate_hz": 100.0})
+    monkeypatch.setattr(
+        cwa_reader_rs,
+        "read_metadata",
+        lambda _path: {
+            "sample_rate_hz": 100.0,
+            "last_change_time_raw": "2026-09-24T12:00:00",
+            "start_from_data_raw": start.tz_localize(None).isoformat(),
+            "end_from_data_raw": midnight.tz_localize(None).isoformat(),
+        },
+    )
     monkeypatch.setattr(
         cwa_reader_rs,
         "sampling_consistency_report",
-        lambda _path: {"start_from_data": start.isoformat(), "end_from_data": midnight.isoformat()},
+        lambda _path: {
+            "start_from_data_raw": start.tz_localize(None).isoformat(),
+            "end_from_data_raw": midnight.tz_localize(None).isoformat(),
+        },
     )
     monkeypatch.setattr(cwa_reader_rs, "seconds", lambda first, end: (first, end))
 
-    def read_window(_path: str, *, cut: tuple[float, float], **_kwargs: object) -> dict[str, list[float | int]]:
+    def read_window(_path: str, *, cut: tuple[float, float], **_kwargs: object) -> pd.DataFrame:
         cuts.append(cut)
-        return {
-            "timestamp": [start.value // 1000, midnight.value // 1000],
-            **{f"acc_{axis}": [0.0, 0.0] for axis in "xyz"},
-            **{f"gyro_{axis}": [0.0, 0.0] for axis in "xyz"},
-        }
+        return pd.DataFrame(
+            {
+                **{f"acc_{axis}": [0.0, 0.0] for axis in "xyz"},
+                **{f"gyro_{axis}": [0.0, 0.0] for axis in "xyz"},
+            },
+            index=pd.DatetimeIndex([start, midnight], name="timestamp"),
+        )
 
     monkeypatch.setattr(cwa_reader_rs, "read_cwa_file", read_window)
     path = tmp_path / "crosses-midnight.cwa"
@@ -194,6 +288,7 @@ def test_calendar_split_cuts_at_utc_midnight(
         path,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
         splitter=splitter,
     )
 
@@ -220,6 +315,24 @@ def test_dataframe_splitter_selects_a_recording_window() -> None:
     assert len(dataset.get_subset(test="walk_1").data_ss) == 1000
 
 
+def test_fixed_split_table_is_exposed_in_requested_local_timezone() -> None:
+    start = pd.Timestamp("2012-03-27T09:14:57.500Z")
+    splits = pd.DataFrame(
+        {"recording": ["first"], "start_time": [start], "end_time": [start + pd.Timedelta(seconds=10)]}
+    )
+    dataset = AX6Dataset(
+        EXAMPLE_CWA,
+        tz="Europe/Berlin",
+        output_timezone="local",
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+        splitter=splits,
+    )
+
+    assert dataset.index.start_time.iloc[0] == pd.Timestamp("2012-03-27T11:14:57.500+02:00")
+    assert dataset.data_ss.index[0] == dataset.index.start_time.iloc[0]
+
+
 def test_single_file_metadata_is_available_with_multiple_windows() -> None:
     """Header and timing metadata remain available before selecting a window."""
     start = pd.Timestamp("2012-03-27T11:14:57.500Z")
@@ -234,7 +347,7 @@ def test_single_file_metadata_is_available_with_multiple_windows() -> None:
 
     assert len(dataset.index) == 2
     assert dataset.cwa_header_["sample_rate_hz"] == 100
-    assert dataset.cwa_timing_report_["start_from_data"] is not None
+    assert dataset.cwa_timing_report_["start_from_data_raw"] is not None
     assert dataset.sampling_rate_hz == 100
 
 
@@ -278,6 +391,7 @@ def test_multiple_files_keep_splits_distinct_and_load_the_selected_file(
         paths,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
         splitter=_split_named_for_file,
     )
 
@@ -307,6 +421,7 @@ def test_fixed_split_table_applies_to_each_file(tmp_path: Path) -> None:
         paths,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
         splitter=splits,
     )
 
@@ -340,6 +455,7 @@ def test_missing_optional_reader_explains_extra_requirement(tmp_path: Path, monk
         path,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
     )
 
     with pytest.raises(ImportError, match=r"mobgap\[ax6\]"):
@@ -363,6 +479,7 @@ def test_repeated_data_access_reuses_the_last_read(tmp_path: Path, monkeypatch: 
         path,
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
     )
 
     assert len(dataset.data_ss) == 72472
