@@ -69,11 +69,11 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     Parameters
     ----------
-    window_min : int
+    macro_win_size_min : int
         Macro window size in minutes (default: 60)
-    step_min : float
+    macro_win_step_min : float
         Macro window step in minutes; fractional minutes are supported (default: 15)
-    window_size : float
+    micro_win_size_s : float
         Micro window size in seconds; fractional seconds are supported and converted to sample counts (default: 5)
     overlap : float
         Micro window overlap fraction, from 0.0 up to but excluding 1.0 (default: 0.5)
@@ -83,7 +83,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         Threshold for ML gyroscope spectral centroid in Hz (default: 16.0)
     gyr_is_centroid_thresh_hz : float
         Threshold for IS gyroscope spectral centroid in Hz (default: 18.0)
-    acc_pa_std_thresh : float
+    acc_pa_std_thresh_ms2 : float
         Threshold for PA acceleration sample standard deviation in m/s² (default: 0.17)
     voting_mode : bool
         If True, use voting system (default: True)
@@ -160,28 +160,28 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     def __init__(
         self,
         *,
-        window_min: int = 60,
-        step_min: float = 15,
-        window_size: float = 5,
+        macro_win_size_min: int = 60,
+        macro_win_step_min: float = 15,
+        micro_win_size_s: float = 5,
         overlap: float = 0.5,
         prob_thresh: float = 0.4,
         gyr_ml_centroid_thresh_hz: float = 16.0,
         gyr_is_centroid_thresh_hz: float = 18.0,
-        acc_pa_std_thresh: float = 0.17,
+        acc_pa_std_thresh_ms2: float = 0.17,
         voting_mode: bool = True,
         min_features_required: int = 2,
         waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
         feature_batch_size: int = 4096,
         store_sample_votes: bool = False,
     ) -> None:
-        self.window_min = window_min
-        self.step_min = step_min
-        self.window_size = window_size
+        self.macro_win_size_min = macro_win_size_min
+        self.macro_win_step_min = macro_win_step_min
+        self.micro_win_size_s = micro_win_size_s
         self.overlap = overlap
         self.prob_thresh = prob_thresh
         self.gyr_ml_centroid_thresh_hz = gyr_ml_centroid_thresh_hz
         self.gyr_is_centroid_thresh_hz = gyr_is_centroid_thresh_hz
-        self.acc_pa_std_thresh = acc_pa_std_thresh
+        self.acc_pa_std_thresh_ms2 = acc_pa_std_thresh_ms2
         self.voting_mode = voting_mode
         self.min_features_required = min_features_required
         self.waking_hours_min = waking_hours_min
@@ -242,13 +242,13 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.diagnostics_ = {"macro": []}
         _validate_waking_hours_min(self.waking_hours_min)
 
-        window_samples = int(self.window_min * 60 * self.sampling_rate_hz)
-        step_samples = int(self.step_min * 60 * self.sampling_rate_hz)
-        micro_window_samples = int(self.window_size * self.sampling_rate_hz)
+        window_samples = int(self.macro_win_size_min * 60 * self.sampling_rate_hz)
+        step_samples = int(self.macro_win_step_min * 60 * self.sampling_rate_hz)
+        micro_window_samples = int(self.micro_win_size_s * self.sampling_rate_hz)
         micro_step_samples = int(micro_window_samples * (1 - self.overlap))
 
         if micro_step_samples <= 0:
-            raise ValueError("The micro-window step must be positive. Check `window_size` and `overlap`.")
+            raise ValueError("The micro-window step must be positive. Check `micro_win_size_s` and `overlap`.")
         if self.feature_batch_size <= 0:
             raise ValueError("`feature_batch_size` must be a positive integer.")
 
@@ -310,14 +310,14 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         weartime_intervals = remove_isolated_short_periods_from_intervals(
             weartime_intervals,
             data_length=data_length,
-            min_period_sec=15.0,
+            min_period_s=15.0,
             sampling_rate_hz=self.sampling_rate_hz,
         )
         # Stage 2 removes short wear bouts that are likely device handling rather than sustained wear.
         weartime_intervals = remove_short_wear_bouts_by_ratio_from_intervals(
             weartime_intervals,
             data_length=data_length,
-            max_bout_minutes=20.0,
+            max_bout_min=20.0,
             min_ratio=0.3,
             sampling_rate_hz=self.sampling_rate_hz,
         )
@@ -472,7 +472,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     ) -> np.ndarray:
         gyr_ml_wear = gyr_ml_centroid < self.gyr_ml_centroid_thresh_hz
         gyr_is_wear = gyr_is_centroid < self.gyr_is_centroid_thresh_hz
-        acc_pa_wear = acc_pa_std > self.acc_pa_std_thresh
+        acc_pa_wear = acc_pa_std > self.acc_pa_std_thresh_ms2
 
         if self.voting_mode:
             wear_score = gyr_ml_wear.astype(np.int8) + gyr_is_wear.astype(np.int8) + acc_pa_wear.astype(np.int8)

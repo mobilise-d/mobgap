@@ -10,7 +10,7 @@ def remove_isolated_short_periods_from_intervals(
     wear_intervals: np.ndarray,
     *,
     data_length: int,
-    min_period_sec: float = 15.0,
+    min_period_s: float = 15.0,
     sampling_rate_hz: float = 100.0,
 ) -> np.ndarray:
     """
@@ -24,7 +24,7 @@ def remove_isolated_short_periods_from_intervals(
         return np.empty((0, 2), dtype=np.int64)
 
     wear_intervals = wear_intervals.reshape(-1, 2)
-    min_samples = int(min_period_sec * sampling_rate_hz)
+    min_samples = int(min_period_s * sampling_rate_hz)
     if min_samples <= 0:
         return wear_intervals.copy()
 
@@ -40,7 +40,7 @@ def remove_short_wear_bouts_by_ratio_from_intervals(
     wear_intervals: np.ndarray,
     *,
     data_length: int,
-    max_bout_minutes: float = 20.0,
+    max_bout_min: float = 20.0,
     min_ratio: float = 0.3,
     sampling_rate_hz: float = 100.0,
 ) -> np.ndarray:
@@ -50,7 +50,7 @@ def remove_short_wear_bouts_by_ratio_from_intervals(
         return np.empty((0, 2), dtype=np.int64)
 
     wear_intervals = wear_intervals.reshape(-1, 2)
-    max_bout_samples = int(max_bout_minutes * 60 * sampling_rate_hz)
+    max_bout_samples = int(max_bout_min * 60 * sampling_rate_hz)
 
     keep = np.ones(len(wear_intervals), dtype=bool)
     for i, (start, end) in enumerate(wear_intervals):

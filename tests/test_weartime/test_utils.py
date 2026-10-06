@@ -109,7 +109,7 @@ class TestRemoveIsolatedShortPeriods:
         result = remove_isolated_short_periods_from_intervals(
             np.array([[0, 3], [5, 7]]),
             data_length=10,
-            min_period_sec=3,
+            min_period_s=3,
             sampling_rate_hz=1,
         )
 
@@ -119,7 +119,7 @@ class TestRemoveIsolatedShortPeriods:
         result = remove_isolated_short_periods_from_intervals(
             np.array([[0, 3], [5, 8]]),
             data_length=8,
-            min_period_sec=3,
+            min_period_s=3,
             sampling_rate_hz=1,
         )
 
@@ -131,7 +131,7 @@ class TestRemoveShortWearBoutsByRatio:
         result = remove_short_wear_bouts_by_ratio_from_intervals(
             np.array([[5, 7]]),
             data_length=12,
-            max_bout_minutes=3 / 60,
+            max_bout_min=3 / 60,
             min_ratio=0.3,
             sampling_rate_hz=1,
         )
@@ -142,7 +142,7 @@ class TestRemoveShortWearBoutsByRatio:
         result = remove_short_wear_bouts_by_ratio_from_intervals(
             np.array([[2, 4]]),
             data_length=6,
-            max_bout_minutes=3 / 60,
+            max_bout_min=3 / 60,
             min_ratio=0.3,
             sampling_rate_hz=1,
         )
@@ -153,7 +153,7 @@ class TestRemoveShortWearBoutsByRatio:
         result = remove_short_wear_bouts_by_ratio_from_intervals(
             np.array([[5, 9]]),
             data_length=14,
-            max_bout_minutes=3 / 60,
+            max_bout_min=3 / 60,
             min_ratio=0.3,
             sampling_rate_hz=1,
         )
