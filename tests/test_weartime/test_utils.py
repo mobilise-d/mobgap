@@ -38,6 +38,30 @@ def test_clip_intervals_to_waking_hours_uses_datetime_index_when_available():
     assert_frame_equal(clipped, _intervals([(0, 60)]))
 
 
+@pytest.mark.parametrize(
+    "index",
+    [pd.RangeIndex(240), pd.date_range("2026-01-01 00:02:00", periods=240, freq="s")],
+)
+def test_clip_intervals_without_localized_timestamps_warns_about_midnight_and_dst(index):
+    data = pd.DataFrame(index=index)
+
+    with pytest.warns(UserWarning, match="assum.*midnight.*DST"):
+        clipped = clip_intervals_to_waking_hours(
+            _intervals([(0, 239)]), data=data, sampling_rate_hz=1.0, waking_hours_min=(1, 3)
+        )
+
+    assert_frame_equal(clipped, _intervals([(60, 180)]))
+
+
+def test_clip_intervals_with_localized_timestamps_rejects_multiple_local_days():
+    data = pd.DataFrame(index=pd.date_range("2026-03-29 23:59:00", periods=180, freq="s", tz="Europe/London"))
+
+    with pytest.raises(ValueError, match="cross midnight"):
+        clip_intervals_to_waking_hours(
+            _intervals([(0, 179)]), data=data, sampling_rate_hz=1.0, waking_hours_min=(0, 60)
+        )
+
+
 @pytest.mark.parametrize("day", ["2026-03-29", "2026-10-25"])
 def test_clip_intervals_to_waking_hours_uses_local_clock_time_on_dst_days(day):
     data = pd.DataFrame(index=pd.date_range(f"{day} 06:00", periods=181, freq="min", tz="Europe/Berlin"))

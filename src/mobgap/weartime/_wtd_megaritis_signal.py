@@ -31,6 +31,19 @@ from mobgap.weartime.utils.windows_to_weartime import (
 _MIN_SAMPLING_RATE_HZ = 50.0
 
 
+def _with_local_datetimes(intervals: pd.DataFrame, data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
+    if not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
+        return intervals
+    boundaries = data.index
+    if len(data):
+        # The final exclusive sample boundary is one sampling period after the last sample.
+        boundaries = boundaries.append(pd.DatetimeIndex([boundaries[-1] + pd.Timedelta(seconds=1 / sampling_rate_hz)]))
+    return intervals.assign(
+        local_datetime_start=boundaries.take(intervals["start"].to_numpy()),
+        local_datetime_end=boundaries.take(intervals["end"].to_numpy()),
+    )
+
+
 def _window_starts(n_samples: int, window_samples: int, step_samples: int) -> np.ndarray:
     if n_samples < window_samples:
         return np.array([], dtype=np.int64)
@@ -151,10 +164,14 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     extracted from the post-processed sample-level predictions by filtering wear-time to the
     configured waking-hours window.
 
-    Recordings must be segmented per day. When the data has a ``DatetimeIndex``, its timestamps define the waking-hours
-    window. Otherwise, sample zero is assumed to be midnight. Partial days contribute only wear-time within the
-    configured window. Accessing ``total_weartime_during_waking_min_`` raises an error for timestamped recordings
-    that cross local midnight, or untimestamped recordings longer than 24 hours.
+    Recordings must be segmented per day. A timezone-aware ``DatetimeIndex`` defines the local waking-hours window.
+    Otherwise, sample zero is assumed to be midnight with a warning, and DST cannot be considered. Partial days
+    contribute only wear-time within the configured window. Accessing ``total_weartime_during_waking_min_`` raises an
+    error for localized recordings that cross local midnight, or recordings without localized timestamps that exceed
+    24 hours.
+
+    When the input has a timezone-aware ``DatetimeIndex``, ``weartime_list_`` also contains
+    ``local_datetime_start`` and ``local_datetime_end`` in that timezone.
     """
 
     diagnostics_: dict[str, Union[pd.DataFrame, list]]
@@ -342,6 +359,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.weartime_list_ = pd.DataFrame(weartime_intervals, columns=["start", "end"]).rename_axis(index="wt_id")
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=data_length)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
+        self.weartime_list_ = _with_local_datetimes(self.weartime_list_, data, sampling_rate_hz)
 
         return self
 

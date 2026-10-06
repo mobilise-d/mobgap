@@ -1,5 +1,6 @@
 """Small interval adapters for wear-time utilities."""
 
+import warnings
 from typing import Optional
 
 import numpy as np
@@ -33,7 +34,7 @@ def _waking_hours_sample_bounds(
     waking_hours_min: tuple[int, int],
 ) -> tuple[int, int]:
     start_min, end_min = waking_hours_min
-    if data is None or not isinstance(data.index, pd.DatetimeIndex):
+    if data is None or not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
         return int(start_min * 60 * sampling_rate_hz), int(end_min * 60 * sampling_rate_hz)
 
     if len(data.index) == 0:
@@ -88,8 +89,8 @@ def clip_intervals_to_waking_hours(
         Start and end of the daily window, in minutes since midnight. Values must satisfy
         ``0 <= start < end <= 1440``.
     data : pd.DataFrame, optional
-        Recording data. A ``DatetimeIndex`` sets the local dates and times of the window. Without one, sample zero
-        represents midnight.
+        Recording data. A timezone-aware ``DatetimeIndex`` sets the local dates and times of the window.
+        Without one, sample zero represents midnight and daylight-saving transitions cannot be considered.
 
     Returns
     -------
@@ -102,6 +103,13 @@ def clip_intervals_to_waking_hours(
         If the waking-hours window is invalid or timestamped data crosses local midnight.
     """
     start_min, end_min = _validate_waking_hours_min(waking_hours_min)
+    if data is None or not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
+        warnings.warn(
+            "The provided data does not have a localized DatetimeIndex; assuming the recording starts at midnight. "
+            "DST and similar clock changes cannot be considered.",
+            UserWarning,
+            stacklevel=2,
+        )
     start_sample, end_sample = _waking_hours_sample_bounds(
         data=data,
         sampling_rate_hz=sampling_rate_hz,

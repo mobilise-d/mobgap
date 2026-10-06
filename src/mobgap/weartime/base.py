@@ -28,6 +28,8 @@ weartime_list_
     index of each weartime period. Intervals are ``[start, end)``: ``start`` is included and ``end`` is excluded.
     ``end`` may equal ``len(data)``.
     The values are specified as samples after the start of the recording (i.e. the start of the ``data``).
+    Detectors may also supply ``local_datetime_start`` and ``local_datetime_end`` when the input has a timezone-aware
+    ``DatetimeIndex``. The latter is the exclusive end boundary.
 """,
         "total_weartime_samples_": """
 total_weartime_samples_
@@ -41,8 +43,9 @@ total_weartime_min_
 total_weartime_during_waking_min_
     Total wear-time during the configured waking-hours window in minutes.
     Only wear-time within the intersection of the recording and the configured window is counted.
-    Timestamped recordings must lie within one local calendar date. Without timestamps, recordings may span at most
-    24 hours.
+    Recordings with a timezone-aware ``DatetimeIndex`` must lie within one local calendar date. Without a localized
+    index, sample zero is assumed to be midnight and daylight-saving changes cannot be considered; a warning is issued.
+    Such recordings may span at most 24 hours.
 """,
         "detect_short": """
 Detect weartime periods in the passed data
@@ -123,10 +126,10 @@ class BaseWeartimeDetector(Algorithm):
     during waking hours per valid day. Algorithms may expose a configurable waking-hours window; the current default is
     07:00-22:00.
 
-    Recordings must be segmented per day. A ``DatetimeIndex`` supplies the time of day; otherwise, sample zero
-    is assumed to be midnight. Only wear-time within the configured window is counted, even for partial days.
-    Timestamped recordings must lie within one local calendar date, which may span 23 or 25 hours across a clock
-    change. Without timestamps, recordings may span at most 24 hours.
+    Recordings must be segmented per day. A timezone-aware ``DatetimeIndex`` supplies the local time of day;
+    otherwise, sample zero is assumed to be midnight with a warning. Only wear-time within the configured window is
+    counted, even for partial days. Localized recordings must lie within one local calendar date, which may span 23 or
+    25 hours across a clock change. Without a localized index, recordings may span at most 24 hours.
     The default waking-hours window is 07:00-22:00. Subclasses can expose ``waking_hours_min`` as an init parameter
     to configure it.
 
@@ -177,7 +180,7 @@ class BaseWeartimeDetector(Algorithm):
 
         data_length = len(data)
         recording_hours = data_length / (3600 * sampling_rate_hz)
-        if not isinstance(data.index, pd.DatetimeIndex) and recording_hours > 24:
+        if (not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None) and recording_hours > 24:
             raise ValueError(
                 "Cannot calculate weartime during waking hours for recordings longer than one day. "
                 "Segment the recording into individual days before applying a daily waking-hours window."
