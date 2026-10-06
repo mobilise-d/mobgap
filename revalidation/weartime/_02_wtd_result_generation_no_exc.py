@@ -28,7 +28,6 @@ saved together with the single and aggregated score tables.
 # We use the :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` to run the wear-time detector. The pipeline
 # handles dataset metadata and the sensor-frame to body-frame conversion expected by the current signal-based
 # detector.
-from functools import partial
 from pathlib import Path
 
 from mobgap.weartime import WtdMegaritisSignal
@@ -49,7 +48,6 @@ import pandas as pd
 from joblib import Memory, Parallel, delayed
 from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
-from mobgap.data.ax6 import _split_by_local_days
 from mobgap.utils.misc import get_env_var
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
@@ -62,7 +60,6 @@ condition_name = "sustain_weartime"
 dataset_sustain_weartime = SustainWearTimeDataset(
     get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
     additional_sensors_enabled=(),
-    splitter=partial(_split_by_local_days, min_duration=pd.Timedelta(hours=8)),
     memory=Memory(cache_dir),
 )
 
