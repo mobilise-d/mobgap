@@ -29,6 +29,7 @@ from mobgap.data.ax6 import (
     BaseAX6Dataset,
     CwaRecordingInfo,
     split_at_frequency,
+    split_by_local_days,
     split_by_utc_day,
     split_by_utc_hour,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "matlab_dataset_docfiller",
     "parse_reference_parameters",
     "split_at_frequency",
+    "split_by_local_days",
     "split_by_utc_day",
     "split_by_utc_hour",
 ]

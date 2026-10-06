@@ -54,7 +54,7 @@ class CwaRecordingInfo(NamedTuple):
     cwa_header: dict[str, Any]
     cwa_timing_report: dict[str, Any]
     recording_metadata: RecordingMetadata
-    tz: str = "UTC"
+    tz: str
 
 
 def split_at_frequency(
@@ -92,8 +92,11 @@ def split_by_utc_hour(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | No
     return split_at_frequency(info, "h", "hour", min_duration=min_duration)
 
 
-def _split_by_local_days(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | None = None) -> pd.DataFrame:
-    """Split at calendar midnights in ``info.tz``, including daylight-saving transitions."""
+def split_by_local_days(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | None = None) -> pd.DataFrame:
+    """Split at calendar midnights in ``info.tz``, including daylight-saving transitions.
+
+    Set ``min_duration`` to omit days with less recorded time than the threshold.
+    """
     start_local = info.start_time.tz_convert(info.tz)
     last_local = info.last_sample_time.tz_convert(info.tz)
     first_midnight = start_local.normalize() + pd.DateOffset(days=1)
@@ -223,6 +226,8 @@ class BaseAX6Dataset(BaseGaitDataset):
     Subclasses implement :meth:`_get_file_paths` and :meth:`_get_splits_for_file`.
     They can provide :attr:`_file_path_root` to store paths relative to a dataset root in the index.
     The index and time selection use ``start_time`` and ``end_time`` columns.
+    Split boundaries may be in any timezone, but must be timezone-aware; the index
+    converts them to ``output_timezone``.
     ``tz`` is the timezone of the sensor's last clock synchronization;
     ``output_timezone`` selects UTC or that local timezone for data, index, and metadata timestamps.
     """
@@ -231,7 +236,7 @@ class BaseAX6Dataset(BaseGaitDataset):
         self,
         *,
         tz: str,
-        output_timezone: Literal["utc", "local"] = "utc",
+        output_timezone: Literal["utc", "local"] = "local",
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
         warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
@@ -386,16 +391,18 @@ class AX6Dataset(BaseAX6Dataset):
         ``last_change_time_raw`` is held fixed throughout the recording. This assumes the last configuration write
         also synchronized the clock; verify that assumption for your configuration software.
     output_timezone
-        ``"utc"`` returns UTC timestamps; ``"local"`` converts them to ``tz`` with daylight-saving rules.
+        ``"local"`` (the default) returns timestamps in ``tz`` with daylight-saving rules;
+        ``"utc"`` returns UTC timestamps.
     splitter
         A DataFrame with timezone-aware ``start_time`` and ``end_time`` columns plus any
-        identifying columns, or a callable returning such a DataFrame.
+        identifying columns, or a callable returning such a DataFrame. Boundaries can be
+        in any timezone and are converted to ``output_timezone`` in the index.
         A fixed DataFrame supplies the same splits for every file. A callable
         runs separately for each file and receives that file's
         :class:`CwaRecordingInfo`. ``None`` selects each complete recording. Use
-        :func:`split_by_utc_day` or :func:`split_by_utc_hour` for UTC calendar
-        intervals. Define custom callables at module level so joblib and process
-        workers can serialize them.
+        :func:`split_by_local_days` for local calendar days, or :func:`split_by_utc_day`
+        and :func:`split_by_utc_hour` for UTC calendar intervals. Define custom
+        callables at module level so joblib and process workers can serialize them.
     additional_sensors_enabled
         Extra CWA channels to return alongside acceleration and gyroscope data.
     warn_thres_for_sampling_rate_deviations_hz
@@ -422,7 +429,7 @@ class AX6Dataset(BaseAX6Dataset):
         participant_metadata: ParticipantMetadata,
         recording_metadata: RecordingMetadata,
         tz: str,
-        output_timezone: Literal["utc", "local"] = "utc",
+        output_timezone: Literal["utc", "local"] = "local",
         splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = None,
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
         warn_thres_for_sampling_rate_deviations_hz: float | None = None,

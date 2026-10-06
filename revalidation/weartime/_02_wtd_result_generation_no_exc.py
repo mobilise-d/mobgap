@@ -59,8 +59,8 @@ condition_name = "sustain_weartime"
 
 dataset_sustain_weartime = SustainWearTimeDataset(
     get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
+    tz="Europe/London",
     additional_sensors_enabled=(),
-    output_timezone="local",
     memory=Memory(cache_dir),
 )
 

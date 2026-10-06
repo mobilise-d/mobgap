@@ -44,6 +44,7 @@ AX6 CWA recording
    :template: function.rst
 
     split_at_frequency
+    split_by_local_days
     split_by_utc_day
     split_by_utc_hour
 

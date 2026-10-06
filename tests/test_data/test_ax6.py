@@ -19,11 +19,11 @@ from mobgap.data import (
     CwaRecordingInfo,
     get_example_cwa_data_path,
     split_at_frequency,
+    split_by_local_days,
     split_by_utc_day,
     split_by_utc_hour,
 )
 from mobgap.data import ax6 as ax6_module
-from mobgap.data.ax6 import _split_by_local_days
 
 cwa_reader_rs = pytest.importorskip("cwa_reader_rs")
 
@@ -106,8 +106,8 @@ def test_reader_uses_configuration_offset_and_requested_output_timezone() -> Non
         "recording_metadata": {"measurement_condition": "free_living"},
         "tz": "Europe/Berlin",
     }
-    utc_dataset = AX6Dataset(EXAMPLE_CWA, **options)
-    local_dataset = AX6Dataset(EXAMPLE_CWA, output_timezone="local", **options)
+    utc_dataset = AX6Dataset(EXAMPLE_CWA, output_timezone="utc", **options)
+    local_dataset = AX6Dataset(EXAMPLE_CWA, **options)
     utc_data = utc_dataset.data_ss
     local_data = local_dataset.data_ss
 
@@ -188,7 +188,8 @@ def test_local_day_split_follows_calendar_at_clock_change(
         tz="Europe/Berlin",
         participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
         recording_metadata={"measurement_condition": "free_living"},
-        splitter=_split_by_local_days,
+        splitter=split_by_local_days,
+        output_timezone="utc",
     )
 
     assert dataset.index.start_time.iloc[1] == pd.Timestamp(day_start)
@@ -255,6 +256,7 @@ def test_calendar_splitter_omits_windows_shorter_than_min_duration(
         cwa_header={"sample_rate_hz": 100.0},
         cwa_timing_report={},
         recording_metadata={},
+        tz="UTC",
     )
 
     splits = splitter(info, min_duration=pd.Timedelta(hours=1))

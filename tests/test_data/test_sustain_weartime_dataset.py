@@ -24,6 +24,10 @@ requires_sustain_data = pytest.mark.skipif(
 )
 
 
+def _sustain_dataset(base_path, *, tz="Europe/London", **kwargs):
+    return SustainWearTimeDataset(base_path, tz=tz, **kwargs)
+
+
 def _read_fixture_data(**kwargs):
     header = cwa_reader_rs.read_metadata(str(CWA_FIXTURE))
     kwargs = {
@@ -82,7 +86,7 @@ def _create_sustain_layout(tmp_path: Path) -> Path:
 def test_index_creation(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
 
-    dataset = SustainWearTimeDataset(base_path, splitter=None)
+    dataset = _sustain_dataset(base_path, splitter=None)
 
     expected_index = pd.DataFrame(
         [
@@ -106,7 +110,7 @@ def test_index_creation(tmp_path):
 
 
 def test_sustain_default_uses_uk_timezone_in_index_and_metadata(tmp_path):
-    dataset = SustainWearTimeDataset(_create_sustain_layout(tmp_path), splitter=None)
+    dataset = _sustain_dataset(_create_sustain_layout(tmp_path), splitter=None)
     datapoint = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
 
     assert datapoint.index.start_time.iloc[0] == pd.Timestamp("2012-03-27T11:14:57.500+01:00")
@@ -127,7 +131,7 @@ def test_sustain_naive_reference_times_use_uk_local_time(tmp_path):
     )
     reference_path.write_text(json.dumps(reference_row) + "\n")
 
-    datapoint = SustainWearTimeDataset(base_path, splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
 
     assert datapoint.reference_nonwear_.iloc[0]["start"] == 10
     assert datapoint.reference_nonwear_.iloc[0]["end"] == 20
@@ -144,7 +148,7 @@ def test_sustain_reference_timezone_is_independent_of_sensor_clock(tmp_path):
     reference_row["device_on"] = utc_data_index[20].tz_convert("Europe/London").tz_localize(None).isoformat()
     reference_path.write_text(json.dumps(reference_row) + "\n")
 
-    datapoint = SustainWearTimeDataset(base_path, tz="UTC", splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, tz="UTC", splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
 
     assert datapoint.reference_nonwear_.iloc[0]["start"] == 10
     assert datapoint.reference_nonwear_.iloc[0]["end"] == 20
@@ -157,7 +161,7 @@ def test_empty_reference_timestamps_match_data_timezone(tmp_path, output_timezon
     reference_row = json.loads(reference_path.read_text())
     reference_row["wear_status"] = "wear"
     reference_path.write_text(json.dumps(reference_row) + "\n")
-    dataset = SustainWearTimeDataset(
+    dataset = _sustain_dataset(
         base_path, splitter=None, output_timezone=output_timezone, missing_reference_error_type="ignore"
     )
     human = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
@@ -177,7 +181,7 @@ def test_sustain_fixed_splits_accept_mixed_uk_offsets(tmp_path):
             "end_time": [pd.Timestamp("2020-01-15T13:00:00+00:00"), pd.Timestamp("2020-07-15T13:00:00+01:00")],
         }
     )
-    dataset = SustainWearTimeDataset(_create_sustain_layout(tmp_path), splitter=splits)
+    dataset = _sustain_dataset(_create_sustain_layout(tmp_path), splitter=splits)
 
     assert dataset.index.recording_day.tolist() == ["2020-01-15", "2020-07-15"] * 2
     assert str(dataset.index.start_time.dt.tz) == "Europe/London"
@@ -186,7 +190,7 @@ def test_sustain_fixed_splits_accept_mixed_uk_offsets(tmp_path):
 def test_sensor_name_is_configurable_and_survives_clone(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
 
-    dataset = SustainWearTimeDataset(base_path, splitter=None, sensor_name="Waist").clone()
+    dataset = _sustain_dataset(base_path, splitter=None, sensor_name="Waist").clone()
     datapoint = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
 
     assert datapoint.sensor_name == "Waist"
@@ -198,7 +202,7 @@ def test_index_creation_detects_lb_abbreviation(tmp_path):
     human_file = base_path / "weartime_part_a_all" / "001" / "example_lowback.cwa"
     human_file.rename(human_file.with_name("example_lb.cwa"))
 
-    dataset = SustainWearTimeDataset(base_path, splitter=None)
+    dataset = _sustain_dataset(base_path, splitter=None)
 
     expected_human_row = {
         "file_path": "weartime_part_a_all/001/example_lb.cwa",
@@ -222,9 +226,9 @@ def test_non_lowerback_reference_rows_are_filtered_before_timestamp_parsing(tmp_
     (base_path / "weartime_part_a_all" / "reference.json").write_text(
         "\n".join(json.dumps(row) for row in [valid_reference_row, ignored_reference_row]) + "\n"
     )
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
 
     assert len(datapoint.reference_nonwear_) == 1
 
@@ -252,7 +256,7 @@ def test_split_by_day_index_creation(tmp_path, monkeypatch):
 
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
 
-    dataset = SustainWearTimeDataset(base_path, splitter=split_by_utc_day)
+    dataset = _sustain_dataset(base_path, splitter=split_by_utc_day)
 
     expected_index = pd.DataFrame(
         [
@@ -293,12 +297,12 @@ def test_split_by_day_index_creation(tmp_path, monkeypatch):
 
 def test_index_and_data_survive_moving_the_dataset_root(tmp_path):
     original_root = _create_sustain_layout(tmp_path / "original")
-    original_index = SustainWearTimeDataset(original_root, splitter=None).index
+    original_index = _sustain_dataset(original_root, splitter=None).index
     relocated_root = tmp_path / "relocated" / "Wear-time"
     relocated_root.parent.mkdir()
     original_root.rename(relocated_root)
 
-    relocated = SustainWearTimeDataset(relocated_root, splitter=None)
+    relocated = _sustain_dataset(relocated_root, splitter=None)
 
     assert_frame_equal(relocated.index, original_index)
     datapoint = relocated.get_subset(file_path="weartime_part_a_all/001/example_lowback.cwa")
@@ -316,7 +320,7 @@ def test_configured_daily_splitter_omits_short_days(tmp_path, monkeypatch):
         return _fake_recording_info(start, end)
 
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
-    dataset = SustainWearTimeDataset(
+    dataset = _sustain_dataset(
         base_path,
         splitter=partial(split_by_utc_day, min_duration=pd.Timedelta(hours=1)),
     )
@@ -332,15 +336,15 @@ def test_default_splitter_keeps_only_days_with_eight_hours(tmp_path, monkeypatch
         return _fake_recording_info("2020-01-01T00:00:00Z", end)
 
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
-    dataset = SustainWearTimeDataset(base_path)
+    dataset = _sustain_dataset(base_path)
 
     assert dataset.clone().index.participant_id.tolist() == ["001"]
     assert dataset.index.end_time.iloc[0] - dataset.index.start_time.iloc[0] == pd.Timedelta(hours=8)
 
 
 def test_default_splitter_is_independent_between_datasets(tmp_path):
-    first = SustainWearTimeDataset(tmp_path)
-    second = SustainWearTimeDataset(tmp_path)
+    first = _sustain_dataset(tmp_path)
+    second = _sustain_dataset(tmp_path)
 
     first.splitter.keywords["min_duration"] = pd.Timedelta(hours=1)
 
@@ -372,7 +376,7 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
     monkeypatch.setattr(ax6_module, "_recording_info", fake_recording_info)
     monkeypatch.setattr(ax6_module, "_load_cwa_data", fake_load_cwa_data)
 
-    datapoint = SustainWearTimeDataset(
+    datapoint = _sustain_dataset(
         base_path, splitter=split_by_utc_day, warn_thres_for_sampling_rate_deviations_hz=None
     ).get_subset(recording_id=HUMAN_RECORDING_ID, recording_day="2020-01-02")
 
@@ -384,7 +388,7 @@ def test_split_by_day_loads_selected_day_with_seconds_cut(tmp_path, monkeypatch)
 
 @requires_sustain_data
 def test_real_dataset_index_smoke():
-    dataset = SustainWearTimeDataset(SUSTAIN_DATA_PATH)
+    dataset = _sustain_dataset(SUSTAIN_DATA_PATH)
     index = dataset.index
 
     assert not index.empty
@@ -395,7 +399,7 @@ def test_real_dataset_index_smoke():
 
 def test_recording_metadata_uses_selected_file_and_sustain_labels(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(base_path, splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
 
     metadata = datapoint.recording_metadata
     assert metadata["recording_id"] == HUMAN_RECORDING_ID
@@ -407,9 +411,9 @@ def test_recording_metadata_uses_selected_file_and_sustain_labels(tmp_path):
 
 def test_human_movement_references_are_snapped_to_sample_boundaries(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
 
     data = datapoint.data_ss
     nonwear = datapoint.reference_nonwear_
@@ -440,9 +444,9 @@ def test_missing_reference_device_off_timestamps_raise(tmp_path):
         "wear_status": "non_wear",
     }
     (base_path / "weartime_part_a_all" / "reference.json").write_text(json.dumps(reference_row) + "\n")
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
 
     with pytest.raises(ValueError, match="missing `device_off` timestamps"):
         datapoint.reference_nonwear_
@@ -459,9 +463,9 @@ def test_missing_reference_device_on_extends_nonwear_to_end_of_data(tmp_path):
         "wear_status": "non_wear",
     }
     (base_path / "weartime_part_a_all" / "reference.json").write_text(json.dumps(reference_row) + "\n")
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
 
     data = datapoint.data_ss
     nonwear = datapoint.reference_nonwear_
@@ -489,18 +493,18 @@ def test_missing_reference_timestamps_for_unrelated_recording_are_ignored(tmp_pa
     (base_path / "weartime_part_a_all" / "reference.json").write_text(
         "\n".join(json.dumps(row) for row in [valid_reference_row, unrelated_reference_row]) + "\n"
     )
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=HUMAN_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=HUMAN_RECORDING_ID
+    )
 
     assert len(datapoint.reference_nonwear_) == 1
 
 
 def test_simulated_movements_are_all_nonwear(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=SIMULATED_RECORDING_ID)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=SIMULATED_RECORDING_ID
+    )
 
     data = datapoint.data_ss
     nonwear = datapoint.reference_nonwear_
@@ -519,9 +523,9 @@ def test_simulated_movements_are_all_nonwear(tmp_path):
 @pytest.mark.parametrize("recording_id", [HUMAN_RECORDING_ID, SIMULATED_RECORDING_ID])
 def test_grouping_preserves_selected_recording_metadata_and_references(tmp_path, recording_id):
     base_path = _create_sustain_layout(tmp_path)
-    datapoint = SustainWearTimeDataset(
-        base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None
-    ).get_subset(recording_id=recording_id)
+    datapoint = _sustain_dataset(base_path, splitter=None, warn_thres_for_sampling_rate_deviations_hz=None).get_subset(
+        recording_id=recording_id
+    )
     grouped = datapoint.groupby("recording_id")
 
     assert grouped.recording_metadata == datapoint.recording_metadata

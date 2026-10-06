@@ -14,7 +14,7 @@ from tpcp import cf
 from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
-from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, _split_by_local_days
+from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, split_by_local_days
 from mobgap.utils.array_handling import merge_intervals
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
 DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
-_DEFAULT_DAILY_SPLITTER = partial(_split_by_local_days, min_duration=pd.Timedelta(hours=8))
+_DEFAULT_DAILY_SPLITTER = partial(split_by_local_days, min_duration=pd.Timedelta(hours=8))
 
 
 def _is_lowerback_name(name: str) -> bool:
@@ -179,7 +179,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     base_path
         The root folder containing ``weartime_part_a_all`` and ``weartime_part_b``.
     tz
-        Timezone of the computer that synchronized the sensor clock. Defaults to ``"Europe/London"``.
+        Timezone of the computer that synchronized the sensor clock. Use ``"Europe/London"``
+        for SUSTAIN recordings configured in UK local time.
     output_timezone
         ``"local"`` returns timestamps in ``tz`` (the default); ``"utc"`` returns UTC timestamps.
     additional_sensors_enabled
@@ -195,7 +196,8 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     splitter
         A DataFrame of windows or a callable receiving one file's :class:`~mobgap.data.CwaRecordingInfo` and
         returning a DataFrame of windows. By default, the dataset selects UK local calendar days with at least
-        eight hours of recorded data. Set to ``None`` to use each complete recording. Use
+        eight hours of recorded data using :func:`~mobgap.data.split_by_local_days`.
+        Set to ``None`` to use each complete recording. Use
         :func:`~mobgap.data.split_by_utc_day` or :func:`~mobgap.data.split_by_utc_hour` for UTC calendar splits.
     memory
         A joblib memory object used to cache CWA data and reference file loading.
@@ -237,7 +239,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         self,
         base_path: PathLike,
         *,
-        tz: str = "Europe/London",
+        tz: str,
         output_timezone: Literal["utc", "local"] = "local",
         additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
