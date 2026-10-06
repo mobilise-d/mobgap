@@ -249,6 +249,21 @@ def test_wtd_score_counts_all_nonwear_samples():
     assert scores["reference_weartime_min"] == 0
 
 
+def test_wtd_score_excludes_uncertain_samples_from_all_metrics():
+    data = _sensor_frame_data(120)
+    datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0)
+    datapoint.reference_uncertain_ = _intervals([(60, 120)])
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 120)]), waking_hours_min=(0, 2)))
+
+    scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
+
+    assert scores["tp_samples"] == 60
+    assert scores["fp_samples"] == 0
+    assert scores["detected_weartime_min"] == 1
+    assert scores["waking_detected_weartime_min"] == 1
+    assert scores["weartime_error_min"] == 0
+
+
 @pytest.mark.parametrize("reverse", [False, True])
 def test_wtd_score_combines_half_open_matches_across_datapoints(reverse):
     first = DummyDatapoint(

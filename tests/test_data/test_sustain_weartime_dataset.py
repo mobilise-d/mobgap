@@ -516,6 +516,35 @@ def test_simulated_movements_are_all_nonwear(tmp_path):
     assert weartime.empty
 
 
+def test_uncertain_ground_truth_overrides_open_nonwear_tail(tmp_path, monkeypatch):
+    base_path = _create_sustain_layout(tmp_path)
+    data_index = _read_fixture_index()
+    reference_path = base_path / "weartime_part_a_all" / "reference.json"
+    reference_path.write_text(
+        json.dumps(
+            {
+                "id": "10",
+                "sensor": "lowerback",
+                "device_off": data_index[10].isoformat(),
+                "device_on": None,
+                "wear_status": "non_wear",
+            }
+        )
+        + "\n"
+    )
+    (base_path / "weartime_part_a_all" / "001").rename(base_path / "weartime_part_a_all" / "010")
+    monkeypatch.setattr(
+        SustainWearTimeDataset,
+        "UNCERTAIN_GROUND_TRUTH_OVERRIDES",
+        (("010", data_index[15].tz_convert("Europe/London").tz_localize(None).isoformat()),),
+    )
+    datapoint = SustainWearTimeDataset(base_path, splitter=None).get_subset(participant_id="010")
+
+    assert datapoint.reference_nonwear_[["start", "end"]].to_numpy().tolist() == [[10, 15]]
+    assert datapoint.reference_uncertain_[["start", "end"]].to_numpy().tolist() == [[15, len(datapoint.data_ss)]]
+    assert datapoint.reference_weartime_[["start", "end"]].to_numpy().tolist() == [[0, 10]]
+
+
 @pytest.mark.parametrize("recording_id", [HUMAN_RECORDING_ID, SIMULATED_RECORDING_ID])
 def test_grouping_preserves_selected_recording_metadata_and_references(tmp_path, recording_id):
     base_path = _create_sustain_layout(tmp_path)

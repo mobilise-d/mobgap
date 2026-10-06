@@ -1,7 +1,7 @@
 """Evaluation and scoring helpers for wear-time detection pipelines."""
 
 import warnings
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -9,24 +9,41 @@ from tpcp.validate import Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
 from mobgap.gait_sequences.evaluation import calculate_matched_gsd_performance_metrics
+from mobgap.utils.array_handling import merge_intervals
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
 from mobgap.weartime.utils._intervals import _only_start_end
 
 
-def _categorize_weartime_samples(detected: pd.DataFrame, reference: pd.DataFrame, n_samples: int) -> pd.DataFrame:
+def _categorize_weartime_samples(
+    detected: pd.DataFrame, reference: pd.DataFrame, n_samples: int, uncertain: pd.DataFrame
+) -> pd.DataFrame:
     """Categorize samples and return half-open runs of equal classification."""
     labels = np.zeros(n_samples, dtype=np.uint8)
     for start, end in detected[["start", "end"]].itertuples(index=False):
         labels[start:end] |= 1
     for start, end in reference[["start", "end"]].itertuples(index=False):
         labels[start:end] |= 2
+    for start, end in uncertain[["start", "end"]].itertuples(index=False):
+        labels[start:end] |= 4
 
     if n_samples == 0:
         return pd.DataFrame(columns=["start", "end", "match_type"])
     boundaries = np.r_[0, np.flatnonzero(labels[1:] != labels[:-1]) + 1, n_samples]
-    match_types = np.array(["tn", "fp", "fn", "tp"])[labels[boundaries[:-1]]]
-    return pd.DataFrame({"start": boundaries[:-1], "end": boundaries[1:], "match_type": match_types})
+    match_types = np.array(["tn", "fp", "fn", "tp", "uncertain", "uncertain", "uncertain", "uncertain"])[
+        labels[boundaries[:-1]]
+    ]
+    return pd.DataFrame({"start": boundaries[:-1], "end": boundaries[1:], "match_type": match_types}).query(
+        "match_type != 'uncertain'"
+    )
+
+
+def _labeled_intervals(
+    matches: pd.DataFrame, labels: tuple[str, str], index_name: Optional[str] = None
+) -> pd.DataFrame:
+    intervals = matches.loc[matches["match_type"].isin(labels), ["start", "end"]]
+    merged = merge_intervals(intervals.to_numpy(dtype="int64"))
+    return pd.DataFrame(merged, columns=["start", "end"]).rename_axis(index_name)
 
 
 def _gsd_metric_matches(matches: pd.DataFrame) -> pd.DataFrame:
@@ -66,7 +83,8 @@ def wtd_per_datapoint_score(
         Pipeline with a detector that provides ``waking_hours_min`` and wear-time results.
     datapoint : BaseGaitDataset
         Single-day datapoint with ``data_ss``, ``sampling_rate_hz`` and ``reference_weartime_``. The reference is a
-        DataFrame with sample-based ``start`` and exclusive ``end`` columns.
+        DataFrame with sample-based ``start`` and exclusive ``end`` columns. If the datapoint provides
+        ``reference_uncertain_``, those samples are excluded from all scores and duration errors.
     zero_division : {"warn", 0, 1}
         Value passed to the sample-based classification metrics when a denominator is zero.
 
@@ -88,14 +106,29 @@ def wtd_per_datapoint_score(
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
         waking_hours_min = pipeline.algo_.waking_hours_min
+        uncertain = getattr(datapoint, "reference_uncertain_", pd.DataFrame(columns=["start", "end"]))
 
-        matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data))
+        matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data), uncertain)
+        if not uncertain.empty:
+            detected_weartime = _labeled_intervals(matches, ("tp", "fp"))
+            reference_weartime = _labeled_intervals(matches, ("tp", "fn"), "weartime_id")
 
         reference_waking_weartime = clip_intervals_to_waking_hours(
             reference_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours_min=waking_hours_min
         )
-        detected_weartime_min = pipeline.total_weartime_min_
-        detected_waking_weartime_min = pipeline.total_weartime_during_waking_min_
+        if uncertain.empty:
+            detected_weartime_min = pipeline.total_weartime_min_
+            detected_waking_weartime_min = pipeline.total_weartime_during_waking_min_
+        else:
+            detected_weartime_min = (detected_weartime["end"] - detected_weartime["start"]).sum() / (
+                sampling_rate_hz * 60
+            )
+            detected_waking = clip_intervals_to_waking_hours(
+                detected_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours_min=waking_hours_min
+            )
+            detected_waking_weartime_min = (detected_waking["end"] - detected_waking["start"]).sum() / (
+                sampling_rate_hz * 60
+            )
 
         return {
             **calculate_matched_gsd_performance_metrics(_gsd_metric_matches(matches), zero_division=zero_division),
