@@ -93,8 +93,9 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         Waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)`` in minutes since
         midnight.
     feature_batch_size : int
-        Number of 5-second windows processed together during feature extraction. Larger batches reduce overhead, while
-        smaller batches reduce peak memory use.
+        Number of micro windows processed together during feature extraction. Their duration is set by
+        ``micro_win_size_s`` (five seconds by default). Larger batches reduce overhead; smaller batches reduce peak
+        memory use.
     store_sample_votes : bool
         Store per-sample vote counts in ``diagnostics_["sample_votes"]``. Disabled by default. Enable only when the
         individual votes are needed, as the DataFrame uses substantial memory for full-day recordings.
@@ -125,7 +126,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
     **Algorithm Workflow**
 
     1. Sliding macro windows are defined over the input data
-    2. Complete macro windows with the same micro-step phase share a grid of 5-second micro windows
+    2. Complete macro windows with the same micro-step phase share a grid of micro windows whose duration is
+       ``micro_win_size_s`` (five seconds by default)
     3. Three features are extracted per micro window:
        gyr_ml_spectral_centroid (Welch power-weighted mean frequency of mediolateral gyroscope data),
        gyr_is_spectral_centroid (Welch power-weighted mean frequency of vertical gyroscope data),

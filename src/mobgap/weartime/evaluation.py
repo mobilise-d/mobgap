@@ -59,6 +59,23 @@ def wtd_per_datapoint_score(
 
     Intervals are half-open. Confusion-matrix counts are returned in samples; wear-time durations are returned in
     minutes.
+
+    Parameters
+    ----------
+    pipeline : WtdEmulationPipeline
+        Pipeline with a detector that provides ``waking_hours_min`` and wear-time results.
+    datapoint : BaseGaitDataset
+        Single-day datapoint with ``data_ss``, ``sampling_rate_hz`` and ``reference_weartime_``. The reference is a
+        DataFrame with sample-based ``start`` and exclusive ``end`` columns.
+    zero_division : {"warn", 0, 1}
+        Value passed to the sample-based classification metrics when a denominator is zero.
+
+    Returns
+    -------
+    dict[str, Any]
+        Classification metrics and sample counts, wear-time durations in minutes, and runtime in seconds. The
+        ``matches``, ``detected``, ``reference``, ``reference_waking`` and ``sampling_rate_hz`` entries use
+        :func:`~tpcp.validate.no_agg` so the final aggregator can retain their per-datapoint values.
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="Zero division", category=UserWarning)
@@ -107,8 +124,32 @@ def wtd_final_agg(
     single_results: dict[str, list],
     pipeline: WtdEmulationPipeline,  # noqa: ARG001
     dataset: BaseGaitDataset,
-) -> tuple[dict[str, Any], dict[str, list[Any]]]:
-    """Aggregate wear-time scoring results over multiple datapoints."""
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Aggregate wear-time scoring results over multiple datapoints.
+
+    Parameters
+    ----------
+    agg_results : dict[str, float]
+        Values already aggregated by the tpcp scorer.
+    single_results : dict[str, list]
+        Per-datapoint values from :func:`wtd_per_datapoint_score` in dataset order. This function removes the raw
+        interval and sampling-rate entries from the dictionary.
+    pipeline : WtdEmulationPipeline
+        Pipeline passed by the scorer. The aggregation does not inspect it.
+    dataset : BaseGaitDataset
+        Scored single-day datapoints, each with a named ``group_label``. All must share one sampling rate.
+
+    Returns
+    -------
+    tuple[dict[str, Any], dict[str, Any]]
+        Combined sample-based classification and minute-based duration metrics, followed by per-datapoint metrics and
+        raw ``matches``, ``detected``, ``reference`` and ``reference_waking`` tables indexed by dataset group labels.
+
+    Raises
+    ------
+    ValueError
+        If datapoints have different sampling rates.
+    """
     data_labels = [d.group_label for d in dataset]
     data_label_names = data_labels[0]._fields
 
@@ -169,7 +210,9 @@ wtd_score = Scorer(wtd_per_datapoint_score, final_aggregator=wtd_final_agg)
 wtd_score.__doc__ = """Scorer for wear-time detection algorithms.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using :func:`wtd_per_datapoint_score` as
-per-datapoint scorer and :func:`wtd_final_agg` as final aggregator.
+per-datapoint scorer and :func:`wtd_final_agg` as final aggregator. Pass single-day datapoints with
+``reference_weartime_`` intervals in ``[start, end)`` sample coordinates and a common sampling rate. It returns
+per-datapoint metrics plus combined metrics; raw interval tables remain indexed by dataset group labels.
 """
 
 
