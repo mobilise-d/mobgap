@@ -67,6 +67,14 @@ class DummyWtd(BaseWeartimeDetector):
         return super().total_weartime_during_waking_min_
 
 
+class MinimalWtd(BaseWeartimeDetector):
+    def detect(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.weartime_list_ = _intervals([(0, len(data))])
+        return self
+
+
 class DummyOptimizableWtd(DummyWtd):
     def self_optimize(
         self,
@@ -125,6 +133,17 @@ def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():
     assert not hasattr(pipeline, "total_weartime_minutes_")
     assert not hasattr(pipeline, "total_weartime_hours_")
     assert not hasattr(pipeline, "total_weartime_hours_during_waking_")
+
+
+def test_pipeline_accepts_minimal_detector_with_default_waking_hours():
+    datapoint = DummyDatapoint(
+        data=_sensor_frame_data(60), reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0
+    )
+
+    pipeline = WtdEmulationPipeline(MinimalWtd()).safe_run(datapoint)
+
+    assert pipeline.total_weartime_min_ == 1.0
+    assert pipeline.total_weartime_during_waking_min_ == 0.0
 
 
 def test_wtd_emulation_pipeline_optimizes_with_paired_training_records():

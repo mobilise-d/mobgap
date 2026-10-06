@@ -241,6 +241,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         data_length = len(data)
         self.diagnostics_ = {"macro": []}
         _validate_waking_hours_min(self.waking_hours_min)
+        if not 0 <= self.overlap < 1:
+            raise ValueError("`overlap` must be between 0 (inclusive) and 1 (exclusive).")
 
         window_samples = int(self.macro_win_size_min * 60 * self.sampling_rate_hz)
         step_samples = int(self.macro_win_step_min * 60 * self.sampling_rate_hz)

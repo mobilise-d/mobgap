@@ -126,6 +126,8 @@ class BaseWeartimeDetector(Algorithm):
     is assumed to be midnight. Only wear-time within the configured window is counted, even for partial days.
     For recordings longer than one day, algorithms should raise an error instead of applying a single daily window to
     multi-day data.
+    The default waking-hours window is 07:00-22:00. Subclasses can expose ``waking_hours_min`` as an init parameter
+    to configure it.
 
     **Implementation Notes**
 
@@ -139,6 +141,7 @@ class BaseWeartimeDetector(Algorithm):
     # Other Parameters
     data: pd.DataFrame
     sampling_rate_hz: float
+    waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60)
 
     # Results
     weartime_list_: pd.DataFrame

@@ -46,6 +46,14 @@ class TestMetaWtdMegaritisSignal(TestAlgorithmMixin):
 
 
 class TestWtdMegaritisSignal:
+    def test_negative_micro_window_overlap_is_rejected(self):
+        data = pd.DataFrame(np.zeros((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        with pytest.raises(ValueError, match="overlap"):
+            WtdMegaritisSignal(macro_win_size_min=1, micro_win_size_s=5, overlap=-0.5).detect(
+                data, sampling_rate_hz=50.0
+            )
+
     def test_rejects_sampling_rate_below_50_hz(self):
         data = pd.DataFrame(np.zeros((250, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
