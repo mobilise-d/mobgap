@@ -55,6 +55,20 @@ def test_clip_intervals_without_localized_timestamps_warns_about_midnight_and_ds
     assert_frame_equal(clipped, _intervals([(60, 180)]))
 
 
+@pytest.mark.parametrize("index", [pd.RangeIndex(3), pd.date_range("2026-01-01", periods=3, freq="s", tz="UTC")])
+def test_waking_clock_boundaries_between_samples_round_up(index):
+    data = pd.DataFrame(index=index)
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, 3)]),
+        data=data,
+        sampling_rate_hz=1.0,
+        waking_hours=(time(0, 0, 0, 500_000), time(0, 0, 1, 500_000)),
+    )
+
+    assert_frame_equal(clipped, _intervals([(1, 2)]))
+
+
 def test_clip_intervals_with_localized_timestamps_rejects_multiple_local_days():
     data = pd.DataFrame(index=pd.date_range("2026-03-29 23:59:00", periods=180, freq="s", tz="Europe/London"))
 
