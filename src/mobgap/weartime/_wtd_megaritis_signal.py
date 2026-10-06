@@ -153,8 +153,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
 
     Recordings must be segmented per day. When the data has a ``DatetimeIndex``, its timestamps define the waking-hours
     window. Otherwise, sample zero is assumed to be midnight. Partial days contribute only wear-time within the
-    configured window. Accessing ``total_weartime_during_waking_min_`` raises an error for recordings longer than
-    24 hours or timestamped recordings that cross midnight.
+    configured window. Accessing ``total_weartime_during_waking_min_`` raises an error for timestamped recordings
+    that cross local midnight, or untimestamped recordings longer than 24 hours.
     """
 
     diagnostics_: dict[str, Union[pd.DataFrame, list]]

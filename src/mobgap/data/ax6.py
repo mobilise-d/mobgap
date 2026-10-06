@@ -115,6 +115,8 @@ def _recording_info(path: Path, _file_identity: tuple[int, int]) -> tuple[dict, 
 
 def _clock_timezone(header: dict, tz: str) -> timezone:
     # AX6 clocks retain the offset from their last synchronization; they do not switch at DST changes.
+    if tz == "UTC":
+        return timezone.utc
     last_change = header["last_change_time_raw"]
     if last_change is None:
         raise ValueError("Cannot derive the CWA clock offset without `last_change_time_raw`.")
@@ -303,10 +305,10 @@ class BaseAX6Dataset(BaseGaitDataset):
         """Combine each file's recording windows into one dataset index."""
         paths = tuple(map(Path, self._get_file_paths()))
         root = self._file_path_root
+        output_tz = "UTC" if self.output_timezone == "utc" else self.tz
         splits = []
         for path in paths:
             file_splits = self._get_splits_for_file(path).copy()
-            output_tz = "UTC" if self.output_timezone == "utc" else self.tz
             file_splits["start_time"] = file_splits["start_time"].map(
                 lambda value: pd.Timestamp(value).tz_convert(output_tz)
             )

@@ -133,6 +133,40 @@ def test_sustain_naive_reference_times_use_uk_local_time(tmp_path):
     assert datapoint.reference_nonwear_.iloc[0]["end"] == 20
 
 
+def test_sustain_reference_timezone_is_independent_of_sensor_clock(tmp_path):
+    base_path = _create_sustain_layout(tmp_path)
+    reference_path = base_path / "weartime_part_a_all" / "reference.json"
+    utc_data_index = cwa_reader_rs.read_cwa_file(
+        str(CWA_FIXTURE), fixed_utc_offset_timezone=ax6_module._clock_timezone({"last_change_time_raw": None}, "UTC")
+    ).index
+    reference_row = json.loads(reference_path.read_text())
+    reference_row["device_off"] = utc_data_index[10].tz_convert("Europe/London").tz_localize(None).isoformat()
+    reference_row["device_on"] = utc_data_index[20].tz_convert("Europe/London").tz_localize(None).isoformat()
+    reference_path.write_text(json.dumps(reference_row) + "\n")
+
+    datapoint = SustainWearTimeDataset(base_path, tz="UTC", splitter=None).get_subset(recording_id=HUMAN_RECORDING_ID)
+
+    assert datapoint.reference_nonwear_.iloc[0]["start"] == 10
+    assert datapoint.reference_nonwear_.iloc[0]["end"] == 20
+
+
+@pytest.mark.parametrize("output_timezone", ["utc", "local"])
+def test_empty_reference_timestamps_match_data_timezone(tmp_path, output_timezone):
+    base_path = _create_sustain_layout(tmp_path)
+    reference_path = base_path / "weartime_part_a_all" / "reference.json"
+    reference_row = json.loads(reference_path.read_text())
+    reference_row["wear_status"] = "wear"
+    reference_path.write_text(json.dumps(reference_row) + "\n")
+    dataset = SustainWearTimeDataset(
+        base_path, splitter=None, output_timezone=output_timezone, missing_reference_error_type="ignore"
+    )
+    human = dataset.get_subset(recording_id=HUMAN_RECORDING_ID)
+    simulated = dataset.get_subset(recording_id=SIMULATED_RECORDING_ID)
+
+    assert human.reference_nonwear_.start_dt.dtype == human.data_ss.index.dtype
+    assert simulated.reference_weartime_.start_dt.dtype == simulated.data_ss.index.dtype
+
+
 def test_sensor_name_is_configurable_and_survives_clone(tmp_path):
     base_path = _create_sustain_layout(tmp_path)
 

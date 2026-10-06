@@ -43,12 +43,16 @@ def _as_utc_timestamp(timestamp: Any) -> pd.Timestamp:
     return timestamp.tz_convert("UTC")
 
 
-def _reference_timestamp(value: Any, tz: str) -> pd.Timestamp:
+def _reference_timestamp(value: Any) -> pd.Timestamp:
     timestamp = pd.Timestamp(value)
-    return timestamp.tz_localize(tz).tz_convert("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
+    return (
+        timestamp.tz_localize("Europe/London").tz_convert("UTC")
+        if timestamp.tzinfo is None
+        else timestamp.tz_convert("UTC")
+    )
 
 
-def _load_reference_file(reference_path: PathLike, tz: str) -> pd.DataFrame:
+def _load_reference_file(reference_path: PathLike) -> pd.DataFrame:
     reference_path = Path(reference_path)
     if not reference_path.exists():
         raise FileNotFoundError(f"Could not find the SUSTAIN wear-time reference file at {reference_path}.")
@@ -72,8 +76,8 @@ def _load_reference_file(reference_path: PathLike, tz: str) -> pd.DataFrame:
         )
         .loc[lambda df_: df_["is_lowerback"]]
         .assign(
-            device_off=lambda df_: df_["device_off"].map(lambda value: _reference_timestamp(value, tz)),
-            device_on=lambda df_: df_["device_on"].map(lambda value: _reference_timestamp(value, tz)),
+            device_off=lambda df_: df_["device_off"].map(_reference_timestamp),
+            device_on=lambda df_: df_["device_on"].map(_reference_timestamp),
         )
         .drop(columns=["id", "sensor", "is_lowerback"])
     )
@@ -81,14 +85,14 @@ def _load_reference_file(reference_path: PathLike, tz: str) -> pd.DataFrame:
     return reference.sort_values(["participant_id", "device_off", "device_on"], ignore_index=True)
 
 
-def _empty_reference_df(index_name: str) -> pd.DataFrame:
+def _empty_reference_df(index_name: str, data_index: pd.DatetimeIndex) -> pd.DataFrame:
     return pd.DataFrame(
         {
             "start": pd.Series(dtype="int64"),
             "end": pd.Series(dtype="int64"),
             "duration": pd.Series(dtype="int64"),
-            "start_dt": pd.Series(dtype="datetime64[ns, UTC]"),
-            "end_dt": pd.Series(dtype="datetime64[ns, UTC]"),
+            "start_dt": pd.Series(dtype=data_index.dtype),
+            "end_dt": pd.Series(dtype=data_index.dtype),
             "duration_s": pd.Series(dtype="float64"),
         }
     ).rename_axis(index_name)
@@ -127,7 +131,7 @@ def _format_reference_df(
     valid_intervals = intervals.loc[intervals["end"] > intervals["start"], ["start", "end"]]
     intervals = pd.DataFrame(merge_intervals(valid_intervals.to_numpy(dtype="int64")), columns=["start", "end"])
     if intervals.empty:
-        return _empty_reference_df(index_name)
+        return _empty_reference_df(index_name, data_index)
 
     intervals = intervals.assign(
         duration=lambda df_: df_["end"] - df_["start"],
@@ -340,7 +344,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         )
 
     def _cached_load_reference_file(self) -> pd.DataFrame:
-        return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path, self.tz)
+        return hybrid_cache(self.memory, 1)(_load_reference_file)(self._reference_path)
 
     def _raw_reference_for_selected_recording(self) -> pd.DataFrame:
         participant_id = self.index_as_tuples()[0].participant_id

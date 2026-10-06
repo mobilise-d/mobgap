@@ -121,6 +121,27 @@ def test_reader_uses_configuration_offset_and_requested_output_timezone() -> Non
     assert utc_dataset.cwa_header_["start_from_data"] == utc_data.index[0]
 
 
+def test_utc_clock_needs_no_configuration_timestamp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "unconfigured.cwa"
+    path.touch()
+    header = {
+        "sample_rate_hz": 100.0,
+        "last_change_time_raw": None,
+        "start_from_data_raw": "2026-03-29T10:00:00",
+        "end_from_data_raw": "2026-03-29T10:00:00.990",
+    }
+    monkeypatch.setattr(ax6_module, "_recording_info", lambda *_args: (header, {}))
+    dataset = AX6Dataset(
+        path,
+        tz="UTC",
+        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
+        recording_metadata={"measurement_condition": "free_living"},
+    )
+
+    assert dataset.index.start_time.iloc[0] == pd.Timestamp("2026-03-29T10:00:00Z")
+    assert dataset.cwa_header_["last_change_time"] is None
+
+
 @pytest.mark.parametrize(
     ("last_change", "start_raw", "end_raw", "day_start", "day_end", "hours"),
     [
