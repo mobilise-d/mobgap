@@ -203,6 +203,20 @@ class TestTurnSDMO:
 
 
 class TestStrideLevelSDMO:
+    def test_cv_uses_sample_std_ddof_1(self):
+        stride_list = pd.DataFrame({"stride_duration_s": [1.0, 1.1, 1.2, 1.3]})
+        algo = StrideLevelSDMO(stride_list_columns=["stride_duration_s"])
+
+        result = algo.calculate(pd.DataFrame(), stride_list=stride_list)
+        cv = result.signal_based_parameters_.loc[0, "cv_stride_duration_s"]
+
+        expected = 100 * stride_list["stride_duration_s"].std(ddof=1) / stride_list["stride_duration_s"].mean()
+        assert cv == pytest.approx(expected)
+
+        # And explicitly not the ddof=0 value
+        wrong = 100 * stride_list["stride_duration_s"].std(ddof=0) / stride_list["stride_duration_s"].mean()
+        assert cv != pytest.approx(wrong)
+
     def test_calculates_coefficient_of_variation_as_percentage(self):
         stride_list = pd.DataFrame({"stride_duration_s": [1.0, 2.0, 3.0]})
 
@@ -221,7 +235,7 @@ class TestStrideLevelSDMO:
         assert result.signal_based_parameters_.empty
 
     def test_missing_columns_warns(self):
-        stride_list = pd.DataFrame([[0, 91, 0.9]], columns=["start", "end", "stride_duration_s"])
+        stride_list = pd.DataFrame([[0, 91, 0.9], [91, 182, 0.91]], columns=["start", "end", "stride_duration_s"])
         algo = StrideLevelSDMO(stride_list_columns=["non_existent"])
         with pytest.warns(UserWarning, match="None of .* is available"):
             result = algo.calculate(

@@ -87,12 +87,16 @@ class TurnSDMO(BaseSDMOCalculator):
 class StrideLevelSDMO(BaseSDMOCalculator):
     r"""Compute stride-level parameters.
 
-    This algorithm calculates the percentage coefficient of variation in stride-level primary parameters (stride length,
-    cadence and stride duration):
+    This algorithm calculates the percentage coefficient of variation in stride-level primary parameters (e.g.,
+    stride length, cadence and stride duration):
 
     .. math::
 
         CV = 100*std/mean
+
+    The standard deviation is the **sample standard deviation** (``ddof=1``, Bessel-corrected). This is not the same as
+    the population standard deviation (``ddof=0``, the :func:`numpy.std` default). The two differ by a factor of
+    :math:`\sqrt{n/(n-1)}`, and get closer as n grows.
 
     Parameters
     ----------
@@ -133,15 +137,17 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         self.data = data
         self.stride_list = stride_list
         self.signal_based_parameters_ = pd.DataFrame()
-        if stride_list is None or self.stride_list_columns is None:
+        if stride_list is None or stride_list.empty or len(stride_list) < 2 or self.stride_list_columns is None:
+            warnings.warn(
+                f"Stride-level SDMOs are not calculated because stride list is not valid.",
+                stacklevel=1,
+            )
             return self
-        # in case the required columns are not available in the `stride_list`, then raise warning
         cols = self.stride_list_columns
         available_cols = [c for c in cols if c in stride_list.columns]
         if not available_cols:
             warnings.warn(
-                f"Stride-level signal-based parameters are not calculated. None of {cols} is available in the "
-                "stride list.",
+                f"Stride-level SDMOs are not calculated. None of {cols} is available in the stride list.",
                 stacklevel=1,
             )
             return self
