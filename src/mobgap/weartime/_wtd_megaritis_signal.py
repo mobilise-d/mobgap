@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import time
 from typing import Any, Union
 
 import numpy as np
@@ -22,7 +23,7 @@ from typing_extensions import Self, Unpack
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
-from mobgap.weartime.utils._intervals import _validate_waking_hours_min
+from mobgap.weartime.utils._intervals import _validate_waking_hours
 from mobgap.weartime.utils.windows_to_weartime import (
     remove_isolated_short_periods_from_intervals,
     remove_short_wear_bouts_by_ratio_from_intervals,
@@ -102,9 +103,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         If True, use voting system (default: True)
     min_features_required : int
         Minimum features meeting wear criteria (default: 2)
-    waking_hours_min : tuple[int, int]
-        Waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)`` in minutes since
-        midnight.
+    waking_hours : tuple[datetime.time, datetime.time]
+        Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
     feature_batch_size : int
         Number of micro windows processed together during feature extraction. Their duration is set by
         ``micro_win_size_s`` (five seconds by default). Larger batches reduce overhead; smaller batches reduce peak
@@ -189,7 +189,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         acc_pa_std_thresh_ms2: float = 0.17,
         voting_mode: bool = True,
         min_features_required: int = 2,
-        waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
+        waking_hours: tuple[time, time] = (time(7), time(22)),
         feature_batch_size: int = 4096,
         store_sample_votes: bool = False,
     ) -> None:
@@ -203,7 +203,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.acc_pa_std_thresh_ms2 = acc_pa_std_thresh_ms2
         self.voting_mode = voting_mode
         self.min_features_required = min_features_required
-        self.waking_hours_min = waking_hours_min
+        self.waking_hours = waking_hours
         self.feature_batch_size = feature_batch_size
         self.store_sample_votes = store_sample_votes
 
@@ -259,7 +259,7 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.sampling_rate_hz = sampling_rate_hz
         data_length = len(data)
         self.diagnostics_ = {"macro": []}
-        _validate_waking_hours_min(self.waking_hours_min)
+        _validate_waking_hours(self.waking_hours)
         if not 0 <= self.micro_win_overlap < 1:
             raise ValueError("`micro_win_overlap` must be between 0 (inclusive) and 1 (exclusive).")
 

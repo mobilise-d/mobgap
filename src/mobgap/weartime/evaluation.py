@@ -80,7 +80,7 @@ def wtd_per_datapoint_score(
     Parameters
     ----------
     pipeline : WtdEmulationPipeline
-        Pipeline with a detector that provides ``waking_hours_min`` and wear-time results.
+        Pipeline with a detector that provides ``waking_hours`` and wear-time results.
     datapoint : BaseGaitDataset
         Single-day datapoint with ``data_ss``, ``sampling_rate_hz`` and ``reference_weartime_``. The reference is a
         DataFrame with sample-based ``start`` and exclusive ``end`` columns. If the datapoint provides
@@ -105,7 +105,7 @@ def wtd_per_datapoint_score(
         reference_weartime = _only_start_end(datapoint.reference_weartime_, index_name="weartime_id")
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
-        waking_hours_min = pipeline.algo_.waking_hours_min
+        waking_hours = pipeline.algo_.waking_hours
         uncertain = getattr(datapoint, "reference_uncertain_", pd.DataFrame(columns=["start", "end"]))
 
         matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data), uncertain)
@@ -114,7 +114,7 @@ def wtd_per_datapoint_score(
             reference_weartime = _labeled_intervals(matches, ("tp", "fn"), "weartime_id")
 
         reference_waking_weartime = clip_intervals_to_waking_hours(
-            reference_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours_min=waking_hours_min
+            reference_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
         )
         if uncertain.empty:
             detected_weartime_min = pipeline.total_weartime_min_
@@ -124,7 +124,7 @@ def wtd_per_datapoint_score(
                 sampling_rate_hz * 60
             )
             detected_waking = clip_intervals_to_waking_hours(
-                detected_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours_min=waking_hours_min
+                detected_weartime, data=data, sampling_rate_hz=sampling_rate_hz, waking_hours=waking_hours
             )
             detected_waking_weartime_min = (detected_waking["end"] - detected_waking["start"]).sum() / (
                 sampling_rate_hz * 60

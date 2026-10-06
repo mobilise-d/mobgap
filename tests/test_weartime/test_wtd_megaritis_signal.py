@@ -1,3 +1,5 @@
+from datetime import time
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -38,7 +40,7 @@ class TestMetaWtdMegaritisSignal(TestAlgorithmMixin):
     def after_action_instance(self):
         data = pd.DataFrame(np.zeros((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
         return self.ALGORITHM_CLASS(
-            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours_min=(0, 1)
+            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours=(time(0), time(0, 1))
         ).detect(
             data,
             sampling_rate_hz=50.0,
@@ -131,7 +133,7 @@ class TestWtdMegaritisSignal:
             macro_win_size_min=1,
             macro_win_step_min=0.25,
             micro_win_size_s=5,
-            waking_hours_min=(1, 3),
+            waking_hours=(time(0, 1), time(0, 3)),
         ).detect(data, sampling_rate_hz=50.0)
 
         assert result.total_weartime_min_ == pytest.approx(4)
@@ -151,7 +153,7 @@ class TestWtdMegaritisSignal:
         assert str(result.weartime_list_.local_datetime_start.dt.tz) == "Europe/London"
 
     def test_waking_hours_rejects_recordings_longer_than_one_day(self):
-        result = WtdMegaritisSignal(waking_hours_min=(0, 60))
+        result = WtdMegaritisSignal(waking_hours=(time(0), time(1)))
         result.data = pd.DataFrame(index=range(24 * 60 * 60 * 50 + 1))
         result.sampling_rate_hz = 50.0
         result.weartime_list_ = _empty_weartime_list()
@@ -163,7 +165,7 @@ class TestWtdMegaritisSignal:
         data = pd.DataFrame(np.zeros((12000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(
-            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours_min=(0, 1)
+            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours=(time(0), time(0, 1))
         ).detect(
             data,
             sampling_rate_hz=50.0,
@@ -215,7 +217,7 @@ class TestWtdMegaritisSignal:
         data = pd.DataFrame(np.ones((3500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(
-            macro_win_size_min=2, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours_min=(0, 1)
+            macro_win_size_min=2, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours=(time(0), time(0, 1))
         ).detect(
             data,
             sampling_rate_hz=50.0,
@@ -243,7 +245,7 @@ class TestWtdMegaritisSignal:
         data = _semi_simulated_wear_nonwear_data()
 
         result = WtdMegaritisSignal(
-            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours_min=(0, 1)
+            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours=(time(0), time(0, 1))
         ).detect(
             data,
             sampling_rate_hz=100.0,
@@ -302,7 +304,7 @@ class TestWtdMegaritisSignal:
         data = pd.DataFrame(np.zeros((12000, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
         result = WtdMegaritisSignal(
-            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours_min=(0, 1)
+            macro_win_size_min=1, macro_win_step_min=0.25, micro_win_size_s=5, waking_hours=(time(0), time(0, 1))
         ).detect(
             data,
             sampling_rate_hz=50.0,

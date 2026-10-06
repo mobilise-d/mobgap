@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import time
 from typing import Any, NamedTuple, Optional
 
 import pandas as pd
@@ -39,11 +40,11 @@ class DummyWtd(BaseWeartimeDetector):
         self,
         weartime_list: pd.DataFrame,
         *,
-        waking_hours_min: tuple[int, int] = (0, 24 * 60),
+        waking_hours: tuple[time, time] = (time(0), time(0)),
         total_weartime_during_waking_min: Optional[float] = None,
     ) -> None:
         self.weartime_list = weartime_list
-        self.waking_hours_min = waking_hours_min
+        self.waking_hours = waking_hours
         self.total_weartime_during_waking_min = total_weartime_during_waking_min
 
     def detect(
@@ -196,7 +197,7 @@ def test_wtd_score_counts_half_open_samples_and_minute_durations():
         sampling_rate_hz=1.0,
     )
     pipeline = WtdEmulationPipeline(
-        DummyWtd(_intervals([(60, 119)]), waking_hours_min=(1, 2), total_weartime_during_waking_min=0.5)
+        DummyWtd(_intervals([(60, 119)]), waking_hours=(time(0, 1), time(0, 2)), total_weartime_during_waking_min=0.5)
     )
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
@@ -229,7 +230,7 @@ def test_wtd_score_accepts_uk_local_days_across_dst(day):
         reference_weartime=_intervals([(0, len(data))], index_name="weartime_id"),
         sampling_rate_hz=1.0,
     )
-    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, len(data))]), waking_hours_min=(7 * 60, 22 * 60)))
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, len(data))]), waking_hours=(time(7), time(22))))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
 
@@ -240,7 +241,7 @@ def test_wtd_score_accepts_uk_local_days_across_dst(day):
 def test_wtd_score_counts_all_nonwear_samples():
     data = _sensor_frame_data(3)
     datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([]), sampling_rate_hz=1.0)
-    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([]), waking_hours_min=(0, 1)))
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([]), waking_hours=(time(0), time(0, 1))))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
 
@@ -253,7 +254,7 @@ def test_wtd_score_excludes_uncertain_samples_from_all_metrics():
     data = _sensor_frame_data(120)
     datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0)
     datapoint.reference_uncertain_ = _intervals([(60, 120)])
-    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 120)]), waking_hours_min=(0, 2)))
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 120)]), waking_hours=(time(0), time(0, 2))))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
 
@@ -277,8 +278,8 @@ def test_wtd_score_combines_half_open_matches_across_datapoints(reverse):
         sampling_rate_hz=1.0,
         group_label=GroupLabel("002", "rec_2"),
     )
-    first_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(1, 2)]), waking_hours_min=(0, 1)))
-    second_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 1)]), waking_hours_min=(0, 1)))
+    first_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(1, 2)]), waking_hours=(time(0), time(0, 1))))
+    second_pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 1)]), waking_hours=(time(0), time(0, 1))))
     pairs = [(first, first_pipeline), (second, second_pipeline)]
     if reverse:
         pairs.reverse()
@@ -295,11 +296,11 @@ def test_wtd_score_combines_half_open_matches_across_datapoints(reverse):
     assert raw["raw__reference_waking"].index.names == ["participant_id", "recording_id", "weartime_id"]
 
 
-@pytest.mark.parametrize("waking_hours_min, expected_minutes", [((7 * 60, 22 * 60), 0), ((5, 20), 5)])
-def test_short_recording_clips_detected_and_reference_waking_time(waking_hours_min, expected_minutes):
+@pytest.mark.parametrize("waking_hours, expected_minutes", [((time(7), time(22)), 0), ((time(0, 5), time(0, 20)), 5)])
+def test_short_recording_clips_detected_and_reference_waking_time(waking_hours, expected_minutes):
     intervals = _intervals([(0, 600)])
     datapoint = DummyDatapoint(data=_sensor_frame_data(600), reference_weartime=intervals, sampling_rate_hz=1.0)
-    pipeline = WtdEmulationPipeline(DummyWtd(intervals, waking_hours_min=waking_hours_min))
+    pipeline = WtdEmulationPipeline(DummyWtd(intervals, waking_hours=waking_hours))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
 

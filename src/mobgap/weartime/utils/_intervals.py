@@ -1,6 +1,7 @@
 """Small interval adapters for wear-time utilities."""
 
 import warnings
+from datetime import time
 from typing import Optional
 
 import numpy as np
@@ -14,13 +15,13 @@ def _only_start_end(intervals: pd.DataFrame, *, index_name: Optional[str] = None
     return result
 
 
-def _validate_waking_hours_min(waking_hours_min: tuple[int, int]) -> tuple[int, int]:
-    start_min, end_min = waking_hours_min
-    if not 0 <= start_min < end_min <= 24 * 60:
-        raise ValueError(
-            "`waking_hours_min` must define a non-empty window within one day using minutes since midnight."
-        )
-    return waking_hours_min
+def _validate_waking_hours(waking_hours: tuple[time, time]) -> tuple[time, time]:
+    start, end = waking_hours
+    if end == time(0):
+        return waking_hours
+    if start >= end:
+        raise ValueError("`waking_hours` must define a non-empty window within one day.")
+    return waking_hours
 
 
 def _timestamp_to_sample_boundary(timestamp: pd.Timestamp, data_index: pd.DatetimeIndex) -> int:
@@ -31,11 +32,16 @@ def _waking_hours_sample_bounds(
     *,
     data: Optional[pd.DataFrame],
     sampling_rate_hz: float,
-    waking_hours_min: tuple[int, int],
+    waking_hours: tuple[time, time],
 ) -> tuple[int, int]:
-    start_min, end_min = waking_hours_min
+    start, end = waking_hours
     if data is None or not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
-        return int(start_min * 60 * sampling_rate_hz), int(end_min * 60 * sampling_rate_hz)
+
+        def minutes_since_midnight(value: time) -> float:
+            return value.hour * 60 + value.minute + value.second / 60 + value.microsecond / 60_000_000
+
+        end_min = 24 * 60 if end == time(0) else minutes_since_midnight(end)
+        return int(minutes_since_midnight(start) * 60 * sampling_rate_hz), int(end_min * 60 * sampling_rate_hz)
 
     if len(data.index) == 0:
         return 0, 0
@@ -48,10 +54,9 @@ def _waking_hours_sample_bounds(
             "Split recordings into individual days before scoring waking-hours wear-time."
         )
 
-    local_midnight = pd.Timestamp(first_day)
-
-    def localize_boundary(minutes: int, *, first_occurrence: bool) -> pd.Timestamp:
-        local_time = local_midnight + pd.Timedelta(minutes=minutes)
+    def localize_boundary(clock_time: time, *, first_occurrence: bool, next_day: bool = False) -> pd.Timestamp:
+        local_day = pd.Timestamp(first_day) + pd.Timedelta(days=int(next_day))
+        local_time = pd.Timestamp.combine(local_day, clock_time)
         boundary = local_time.tz_localize(data.index.tz, ambiguous=first_occurrence, nonexistent="NaT")
         if pd.isna(boundary):
             # shift_backward lands at the last representable instant before the gap.
@@ -59,8 +64,8 @@ def _waking_hours_sample_bounds(
             boundary += pd.Timedelta(1, boundary.unit)
         return boundary
 
-    start_ts = localize_boundary(start_min, first_occurrence=True)
-    end_ts = localize_boundary(end_min, first_occurrence=False)
+    start_ts = localize_boundary(start, first_occurrence=True)
+    end_ts = localize_boundary(end, first_occurrence=False, next_day=end == time(0))
     return (
         _timestamp_to_sample_boundary(start_ts, data.index),
         _timestamp_to_sample_boundary(end_ts, data.index),
@@ -71,7 +76,7 @@ def clip_intervals_to_waking_hours(
     intervals: pd.DataFrame,
     *,
     sampling_rate_hz: float,
-    waking_hours_min: tuple[int, int],
+    waking_hours: tuple[time, time],
     data: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Clip ``[start, end)`` intervals to local daily waking hours.
@@ -85,9 +90,9 @@ def clip_intervals_to_waking_hours(
         Intervals with sample-based ``start`` and ``end`` columns.
     sampling_rate_hz : float
         Sampling rate used when ``data`` has no timestamps.
-    waking_hours_min : tuple[int, int]
-        Start and end of the daily window, in minutes since midnight. Values must satisfy
-        ``0 <= start < end <= 1440``.
+    waking_hours : tuple[datetime.time, datetime.time]
+        Start and end of the local daily window. An end time of midnight means the end of the day;
+        ``(time(0), time(0))`` covers the full day.
     data : pd.DataFrame, optional
         Recording data. A timezone-aware ``DatetimeIndex`` sets the local dates and times of the window.
         Without one, sample zero represents midnight and daylight-saving transitions cannot be considered.
@@ -102,7 +107,7 @@ def clip_intervals_to_waking_hours(
     ValueError
         If the waking-hours window is invalid or timestamped data crosses local midnight.
     """
-    start_min, end_min = _validate_waking_hours_min(waking_hours_min)
+    waking_hours = _validate_waking_hours(waking_hours)
     if data is None or not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
         warnings.warn(
             "The provided data does not have a localized DatetimeIndex; assuming the recording starts at midnight. "
@@ -113,7 +118,7 @@ def clip_intervals_to_waking_hours(
     start_sample, end_sample = _waking_hours_sample_bounds(
         data=data,
         sampling_rate_hz=sampling_rate_hz,
-        waking_hours_min=(start_min, end_min),
+        waking_hours=waking_hours,
     )
 
     intervals = _only_start_end(intervals)

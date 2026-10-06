@@ -1,3 +1,5 @@
+from datetime import time
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -19,7 +21,7 @@ def test_clip_intervals_to_waking_hours_drops_empty_boundary_intervals():
     clipped = clip_intervals_to_waking_hours(
         _intervals([(120, 120)]),
         sampling_rate_hz=1.0,
-        waking_hours_min=(1, 2),
+        waking_hours=(time(0, 1), time(0, 2)),
     )
 
     assert_frame_equal(clipped, _intervals([]))
@@ -32,7 +34,7 @@ def test_clip_intervals_to_waking_hours_uses_datetime_index_when_available():
         _intervals([(0, 239)]),
         data=data,
         sampling_rate_hz=1.0,
-        waking_hours_min=(1, 3),
+        waking_hours=(time(0, 1), time(0, 3)),
     )
 
     assert_frame_equal(clipped, _intervals([(0, 60)]))
@@ -47,7 +49,7 @@ def test_clip_intervals_without_localized_timestamps_warns_about_midnight_and_ds
 
     with pytest.warns(UserWarning, match="assum.*midnight.*DST"):
         clipped = clip_intervals_to_waking_hours(
-            _intervals([(0, 239)]), data=data, sampling_rate_hz=1.0, waking_hours_min=(1, 3)
+            _intervals([(0, 239)]), data=data, sampling_rate_hz=1.0, waking_hours=(time(0, 1), time(0, 3))
         )
 
     assert_frame_equal(clipped, _intervals([(60, 180)]))
@@ -58,7 +60,7 @@ def test_clip_intervals_with_localized_timestamps_rejects_multiple_local_days():
 
     with pytest.raises(ValueError, match="cross midnight"):
         clip_intervals_to_waking_hours(
-            _intervals([(0, 179)]), data=data, sampling_rate_hz=1.0, waking_hours_min=(0, 60)
+            _intervals([(0, 179)]), data=data, sampling_rate_hz=1.0, waking_hours=(time(0), time(1))
         )
 
 
@@ -70,27 +72,42 @@ def test_clip_intervals_to_waking_hours_uses_local_clock_time_on_dst_days(day):
         _intervals([(0, 180)]),
         data=data,
         sampling_rate_hz=1 / 60,
-        waking_hours_min=(7 * 60, 8 * 60),
+        waking_hours=(time(7), time(8)),
     )
 
     assert_frame_equal(clipped, _intervals([(60, 120)]))
 
 
+def test_midnight_end_covers_the_whole_local_day_across_dst():
+    start = pd.Timestamp("2026-03-29", tz="Europe/London")
+    end = start + pd.DateOffset(days=1)
+    data = pd.DataFrame(index=pd.date_range(start, end, freq="min", inclusive="left"))
+
+    clipped = clip_intervals_to_waking_hours(
+        _intervals([(0, len(data))]),
+        data=data,
+        sampling_rate_hz=1 / 60,
+        waking_hours=(time(0), time(0)),
+    )
+
+    assert_frame_equal(clipped, _intervals([(0, 23 * 60)]))
+
+
 @pytest.mark.parametrize(
-    "day, waking_hours_min, expected",
+    "day, waking_hours, expected",
     [
-        ("2026-03-29", (150, 240), (60, 120)),
-        ("2026-10-25", (120, 150), (60, 150)),
+        ("2026-03-29", (time(2, 30), time(4)), (60, 120)),
+        ("2026-10-25", (time(2), time(2, 30)), (60, 150)),
     ],
 )
-def test_clip_intervals_to_waking_hours_resolves_transition_hour(day, waking_hours_min, expected):
+def test_clip_intervals_to_waking_hours_resolves_transition_hour(day, waking_hours, expected):
     data = pd.DataFrame(index=pd.date_range(f"{day} 01:00", f"{day} 04:00", freq="min", tz="Europe/Berlin"))
 
     clipped = clip_intervals_to_waking_hours(
         _intervals([(0, len(data) - 1)]),
         data=data,
         sampling_rate_hz=1 / 60,
-        waking_hours_min=waking_hours_min,
+        waking_hours=waking_hours,
     )
 
     assert_frame_equal(clipped, _intervals([expected]))
@@ -105,7 +122,7 @@ def test_clip_intervals_to_waking_hours_keeps_time_after_half_hour_dst_jump():
         _intervals([(0, len(data) - 1)]),
         data=data,
         sampling_rate_hz=1 / 60,
-        waking_hours_min=(2 * 60 + 15, 3 * 60),
+        waking_hours=(time(2, 15), time(3)),
     )
 
     assert_frame_equal(clipped, _intervals([(60, 90)]))
@@ -122,7 +139,7 @@ def test_clip_intervals_to_waking_hours_handles_midnight_clock_change(day, timez
         _intervals([(0, 180)]),
         data=data,
         sampling_rate_hz=1 / 60,
-        waking_hours_min=(7 * 60, 8 * 60),
+        waking_hours=(time(7), time(8)),
     )
 
     assert_frame_equal(clipped, _intervals([(60, 120)]))

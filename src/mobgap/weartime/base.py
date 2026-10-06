@@ -1,6 +1,7 @@
 """Base class for weartime detectors."""
 
 from collections.abc import Iterable
+from datetime import time
 from typing import Any
 
 import pandas as pd
@@ -130,7 +131,7 @@ class BaseWeartimeDetector(Algorithm):
     otherwise, sample zero is assumed to be midnight with a warning. Only wear-time within the configured window is
     counted, even for partial days. Localized recordings must lie within one local calendar date, which may span 23 or
     25 hours across a clock change. Without a localized index, recordings may span at most 24 hours.
-    The default waking-hours window is 07:00-22:00. Subclasses can expose ``waking_hours_min`` as an init parameter
+    The default waking-hours window is 07:00-22:00. Subclasses can expose ``waking_hours`` as an init parameter
     to configure it.
 
     **Implementation Notes**
@@ -145,7 +146,7 @@ class BaseWeartimeDetector(Algorithm):
     # Other Parameters
     data: pd.DataFrame
     sampling_rate_hz: float
-    waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60)
+    waking_hours: tuple[time, time] = (time(7), time(22))
 
     # Results
     weartime_list_: pd.DataFrame
@@ -171,11 +172,11 @@ class BaseWeartimeDetector(Algorithm):
         try:
             data = self.data
             sampling_rate_hz = self.sampling_rate_hz
-            waking_hours_min = self.waking_hours_min
+            waking_hours = self.waking_hours
         except AttributeError as exc:
             raise AttributeError(
                 "`total_weartime_during_waking_min_` is only available after calling `detect` on an algorithm with "
-                "`data`, `sampling_rate_hz`, and `waking_hours_min` available."
+                "`data`, `sampling_rate_hz`, and `waking_hours` available."
             ) from exc
 
         data_length = len(data)
@@ -190,7 +191,7 @@ class BaseWeartimeDetector(Algorithm):
             self.weartime_list_,
             data=data,
             sampling_rate_hz=sampling_rate_hz,
-            waking_hours_min=waking_hours_min,
+            waking_hours=waking_hours,
         )
         total_weartime_waking_samples = (weartime_waking["end"] - weartime_waking["start"]).sum()
         return total_weartime_waking_samples / (60 * sampling_rate_hz)
