@@ -307,8 +307,8 @@ class BaseAX6Dataset(BaseGaitDataset):
         for path in paths:
             file_splits = self._get_splits_for_file(path).copy()
             output_tz = "UTC" if self.output_timezone == "utc" else self.tz
-            file_splits["start_time"] = pd.to_datetime(file_splits["start_time"], utc=True).dt.tz_convert(output_tz)
-            file_splits["end_time"] = pd.to_datetime(file_splits["end_time"], utc=True).dt.tz_convert(output_tz)
+            file_splits["start_time"] = pd.to_datetime(file_splits["start_time"]).dt.tz_convert(output_tz)
+            file_splits["end_time"] = pd.to_datetime(file_splits["end_time"]).dt.tz_convert(output_tz)
             file_splits.insert(0, "file_path", str(path) if root is None else path.relative_to(root).as_posix())
             splits.append(file_splits)
         return pd.concat(splits, ignore_index=True)
@@ -382,7 +382,7 @@ class AX6Dataset(BaseAX6Dataset):
     output_timezone
         ``"utc"`` returns UTC timestamps; ``"local"`` converts them to ``tz`` with daylight-saving rules.
     splitter
-        A DataFrame with ``start_time`` and ``end_time`` columns plus any
+        A DataFrame with timezone-aware ``start_time`` and ``end_time`` columns plus any
         identifying columns, or a callable returning such a DataFrame.
         A fixed DataFrame supplies the same splits for every file. A callable
         runs separately for each file and receives that file's
