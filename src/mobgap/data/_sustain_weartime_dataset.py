@@ -213,9 +213,9 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     sampling_rate_hz
         The sampling rate of the selected CWA recording.
     cwa_header_
-        The full CWA header of the selected recording as returned by ``cwa_reader_rs``.
+        CWA metadata with raw reader clock fields and interpreted timestamps in the output timezone.
     cwa_timing_report_
-        The CWA timing report of the selected recording as returned by ``cwa_reader_rs``.
+        CWA timing report with raw reader clock fields and interpreted timestamps in the output timezone.
     reference_nonwear_
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
@@ -414,7 +414,9 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             recording_type=recording_type,
             participant_id=participant_id,
             recording_id=recording_id,
-            recording_day=lambda df_: df_["start_time"].dt.tz_convert(self.tz).dt.strftime("%Y-%m-%d"),
+            recording_day=lambda df_: df_["start_time"].map(
+                lambda value: pd.Timestamp(value).tz_convert(self.tz).strftime("%Y-%m-%d")
+            ),
         ).astype(
             {
                 "recording_type": "string",

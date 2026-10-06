@@ -447,7 +447,7 @@ def test_multiple_files_keep_splits_distinct_and_load_the_selected_file(
     reads: list[str] = []
     original_read = cwa_reader_rs.read_cwa_file
 
-    def record_path(path: str, **kwargs: object) -> dict:
+    def record_path(path: str, **kwargs: object) -> pd.DataFrame:
         reads.append(path)
         return original_read(path, **kwargs)
 
@@ -534,7 +534,7 @@ def test_repeated_data_access_reuses_the_last_read(tmp_path: Path, monkeypatch: 
     calls = 0
     original_read = cwa_reader_rs.read_cwa_file
 
-    def count_reads(*args: object, **kwargs: object) -> dict:
+    def count_reads(*args: object, **kwargs: object) -> pd.DataFrame:
         nonlocal calls
         calls += 1
         return original_read(*args, **kwargs)

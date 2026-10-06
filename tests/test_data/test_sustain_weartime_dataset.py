@@ -165,6 +165,22 @@ def test_empty_reference_timestamps_match_data_timezone(tmp_path, output_timezon
 
     assert human.reference_nonwear_.start_dt.dtype == human.data_ss.index.dtype
     assert simulated.reference_weartime_.start_dt.dtype == simulated.data_ss.index.dtype
+    combined = pd.concat([human.reference_nonwear_, simulated.reference_nonwear_])
+    assert combined.start_dt.dtype == human.data_ss.index.dtype
+
+
+def test_sustain_fixed_splits_accept_mixed_uk_offsets(tmp_path):
+    splits = pd.DataFrame(
+        {
+            "recording": ["winter", "summer"],
+            "start_time": [pd.Timestamp("2020-01-15T12:00:00+00:00"), pd.Timestamp("2020-07-15T12:00:00+01:00")],
+            "end_time": [pd.Timestamp("2020-01-15T13:00:00+00:00"), pd.Timestamp("2020-07-15T13:00:00+01:00")],
+        }
+    )
+    dataset = SustainWearTimeDataset(_create_sustain_layout(tmp_path), splitter=splits)
+
+    assert dataset.index.recording_day.tolist() == ["2020-01-15", "2020-07-15"] * 2
+    assert str(dataset.index.start_time.dt.tz) == "Europe/London"
 
 
 def test_sensor_name_is_configurable_and_survives_clone(tmp_path):
