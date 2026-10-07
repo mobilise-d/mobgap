@@ -9,9 +9,12 @@ This avoids converting recordings to CSV. Install the optional reader with
 ``pip install mobgap[ax6]``.
 
 The reader can load a selected time window without reading the full recording.
-Pass the dataset a DataFrame with full UTC ``start_time`` and ``end_time``
-timestamps for each window, or a function that builds this table from recording
-metadata. The built-in splitters cover fixed frequencies, UTC days, and hours.
+Pass the dataset the timezone of the computer that synchronized the sensor
+clock. This determines the device's fixed UTC offset. Timestamps are returned
+in that timezone by default; choose ``output_timezone="utc"`` for UTC.
+Pass a DataFrame with ``start_time`` and ``end_time`` timestamps for each
+window, or a function that builds this table from recording metadata. The
+built-in splitters cover fixed frequencies, local days, UTC days, and hours.
 
 The small example file comes from Open Movement. See its
 `source and license notes <https://github.com/mobilise-d/mobgap/blob/main/example_data/data/ax6/README.md>`_.
@@ -29,6 +32,7 @@ from mobgap.data import (
 
 common_options = {
     "path": get_example_cwa_data_path(),
+    "tz": "Europe/London",  # Use the configuration computer's timezone for your files.
     "participant_metadata": {
         "height_m": 1.7,
         "sensor_height_m": 1.0,

@@ -44,6 +44,7 @@ AX6 CWA recording
    :template: function.rst
 
     split_at_frequency
+    split_by_local_days
     split_by_utc_day
     split_by_utc_hour
 
@@ -85,6 +86,14 @@ Technical Validation Study (TVS) Data Loader
     TVSLabDataset
     TVSFreeLivingDataset
 
+Base Classes
+++++++++++++
+.. autosummary::
+   :toctree: generated/data
+   :template: class.rst
+
+    BaseTVSDataset
+
 MS Project Dataset
 ------------------
 
@@ -96,14 +105,16 @@ MS Project Dataset
 
     MsProjectDataset
 
+SUSTAIN Wear-Time Dataset
+-------------------------
 
-Base Classes
-++++++++++++
+.. currentmodule:: mobgap.data
+
 .. autosummary::
    :toctree: generated/data
    :template: class.rst
 
-    BaseTVSDataset
+    SustainWearTimeDataset
 
 
 Example Data
