@@ -280,8 +280,9 @@ def main(output_dir: Path) -> None:
     )
     fig.text(
         0.5, 0.01,
-        "Sample counts are shown as mobgap/MATLAB. Counts differ because the algorithmic pipelines\n"
-        "did not produce reliable results for some participants.",
+        "Sample counts are the number of participants successfully processed by each pipeline, "
+        "shown as n=<mobgap>/<matlab>.\n"
+        "Counts differ because the algorithmic pipelines did not produce reliable results for some participants.",
         ha="center", va="bottom", fontsize=9,
     )
 
