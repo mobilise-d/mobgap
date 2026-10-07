@@ -2,7 +2,7 @@
 .. _gsd_misorientation_val_results:
 
 GSD performance under simulated mounting errors
-================================================
+===============================================
 
 This analysis compares free-living gait sequence detection performance across
 simulated lower-back sensor mounting orientations. It uses the result files

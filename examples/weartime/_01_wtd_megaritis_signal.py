@@ -11,7 +11,6 @@ adjustment for other sensor systems or applications.
 """
 
 import matplotlib.pyplot as plt
-
 from mobgap.data import LabExampleDataset
 from mobgap.weartime import WtdMegaritisSignal
 from mobgap.weartime.pipeline import WtdEmulationPipeline

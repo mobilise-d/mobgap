@@ -29,13 +29,15 @@ Requirements
 
 import argparse
 from pathlib import Path
+
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mobgap.data.validation_results import ValidationResultLoader
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+
+from mobgap.data.validation_results import ValidationResultLoader
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 __RESULT_VERSION = "v1.2.0"
@@ -49,15 +51,16 @@ ALGORITHMS_FP = {
     "EScience_MobiliseD_Pipeline": "MATLAB",
 }
 GSD_ALGO_MAP = {
-    "GsdIluz":               ("mobgap", ["HA", "CHF", "COPD"]),
-    "GsdIonescu":            ("mobgap", ["MS", "PD", "PFF"]),
-    "matlab_TA_Iluz-original":   ("MATLAB", ["HA", "CHF", "COPD"]),
-    "matlab_EPFL_V2-original":   ("MATLAB", ["MS", "PD", "PFF"]),
+    "GsdIluz": ("mobgap", ["HA", "CHF", "COPD"]),
+    "GsdIonescu": ("mobgap", ["MS", "PD", "PFF"]),
+    "matlab_TA_Iluz-original": ("MATLAB", ["HA", "CHF", "COPD"]),
+    "matlab_EPFL_V2-original": ("MATLAB", ["MS", "PD", "PFF"]),
 }
 ICD_ALGO_MAP = {
-    "IcdIonescu":          ("mobgap", None),
+    "IcdIonescu": ("mobgap", None),
     "matlab_Ani_McCamley": ("MATLAB", None),
 }
+
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 def load_full_pipeline(version: str) -> pd.DataFrame:
@@ -72,7 +75,7 @@ def load_full_pipeline(version: str) -> pd.DataFrame:
     df["cohort"] = df["cohort"].astype(str)
     df.columns = [c.replace("matched__", "") if "matched__" in c else c for c in df.columns]
     # Convert relative errors from fraction to percentage
-    df["cadence_spm__abs_rel_error"]     *= 100
+    df["cadence_spm__abs_rel_error"] *= 100
     df["stride_length_m__abs_rel_error"] *= 100
     return df
 
@@ -118,10 +121,10 @@ def compute_sig_results(
     Returns a dict keyed by (metric_label, cohort) -> corrected p-value.
     """
     sig_tests = [
-        (df_gsd, "f1_score",                     "gsd_f1"),
-        (df_icd, "f1_score",                     "icd_f1"),
-        (df_fp,  "cadence_spm__abs_rel_error",   "cadence"),
-        (df_fp,  "stride_length_m__abs_rel_error", "stride_length"),
+        (df_gsd, "f1_score", "gsd_f1"),
+        (df_icd, "f1_score", "icd_f1"),
+        (df_fp, "cadence_spm__abs_rel_error", "cadence"),
+        (df_fp, "stride_length_m__abs_rel_error", "stride_length"),
     ]
 
     sig_results = {}
@@ -131,9 +134,7 @@ def compute_sig_results(
             mat = df[(df["cohort"] == c) & (df["source"] == "MATLAB")][["participant_id", col]]
             merged = pd.merge(mob, mat, on="participant_id", suffixes=("_mob", "_mat")).dropna()
             if len(merged) > 0:
-                sig_results[label, c] = stats.wilcoxon(
-                    merged[f"{col}_mob"], merged[f"{col}_mat"]
-                ).pvalue
+                sig_results[label, c] = stats.wilcoxon(merged[f"{col}_mob"], merged[f"{col}_mat"]).pvalue
             else:
                 sig_results[label, c] = np.nan
 
@@ -151,6 +152,7 @@ def compute_sig_results(
 # ── Plotting helpers ──────────────────────────────────────────────────────────
 def build_data_paired(df: pd.DataFrame, col: str) -> tuple:
     """Build boxplot data and sample counts in mobgap/MATLAB order."""
+
     def get_data(source):
         sub = df[df["source"] == source]
         all_vals = sub[col].dropna().values
@@ -171,9 +173,9 @@ def get_sig_symbol(p: float) -> str:
     """Convert p-value to significance symbol."""
     if np.isnan(p):
         return ""
-    elif p < 0.01:
+    if p < 0.01:
         return "**"
-    elif p < 0.05:
+    if p < 0.05:
         return "*"
     return ""
 
@@ -191,12 +193,12 @@ def plot_clustered_panel(
     """Draw a single clustered box plot panel with significance annotations."""
     offset = 0.22
     positions_mobgap = [i - offset for i in range(1, 8)]
-    positions_matlab  = [i + offset for i in range(1, 8)]
+    positions_matlab = [i + offset for i in range(1, 8)]
     width = 0.35
 
     for positions, data, source_label, hatch in [
         (positions_mobgap, data_mobgap, "mobgap", ""),
-        (positions_matlab,  data_matlab, "Original Implementation", "///"),
+        (positions_matlab, data_matlab, "Original Implementation", "///"),
     ]:
         bp = ax.boxplot(
             data,
@@ -204,10 +206,7 @@ def plot_clustered_panel(
             widths=width,
             patch_artist=True,
             medianprops=dict(color="black", linewidth=2),
-            flierprops=dict(
-                marker="o", markersize=3,
-                markerfacecolor="none", markeredgewidth=0.6, alpha=0.4
-            ),
+            flierprops=dict(marker="o", markersize=3, markerfacecolor="none", markeredgewidth=0.6, alpha=0.4),
             whiskerprops=dict(linewidth=1.1, color="#444444"),
             capprops=dict(linewidth=1.2, color="#444444"),
             zorder=2,
@@ -224,24 +223,27 @@ def plot_clustered_panel(
     for i, c in enumerate(COHORTS, start=2):
         symbol = get_sig_symbol(sig_results.get((label, c), np.nan))
         if symbol:
-            x_left  = positions_mobgap[i - 1]
+            x_left = positions_mobgap[i - 1]
             x_right = positions_matlab[i - 1]
-            x_mid   = (x_left + x_right) / 2
+            x_mid = (x_left + x_right) / 2
             y_bracket = y_top * 1.02
-            ax.plot([x_left, x_right], [y_bracket, y_bracket],
-                    color="#333333", linewidth=1.0, clip_on=False)
-            ax.plot([x_left,  x_left],  [y_bracket * 0.99, y_bracket],
-                    color="#333333", linewidth=1.0, clip_on=False)
-            ax.plot([x_right, x_right], [y_bracket * 0.99, y_bracket],
-                    color="#333333", linewidth=1.0, clip_on=False)
-            ax.text(x_mid, y_bracket * 1.005, symbol,
-                    ha="center", va="bottom",
-                    fontsize=9, fontweight="bold", color="#333333")
+            ax.plot([x_left, x_right], [y_bracket, y_bracket], color="#333333", linewidth=1.0, clip_on=False)
+            ax.plot([x_left, x_left], [y_bracket * 0.99, y_bracket], color="#333333", linewidth=1.0, clip_on=False)
+            ax.plot([x_right, x_right], [y_bracket * 0.99, y_bracket], color="#333333", linewidth=1.0, clip_on=False)
+            ax.text(
+                x_mid,
+                y_bracket * 1.005,
+                symbol,
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                fontweight="bold",
+                color="#333333",
+            )
 
     ax.set_xticks(range(1, 8))
     ax.set_xticklabels(
-        [f"{c}\nn={n_mobgap}/{n_matlab}" for c, (n_mobgap, n_matlab) in zip(COHORT_ORDER_PLOT, ns)],
-        fontsize=10
+        [f"{c}\nn={n_mobgap}/{n_matlab}" for c, (n_mobgap, n_matlab) in zip(COHORT_ORDER_PLOT, ns)], fontsize=10
     )
     ax.set_xlim(0.3, 7.7)
     ax.set_xlabel("Cohort", fontsize=12, labelpad=4)
@@ -251,8 +253,7 @@ def plot_clustered_panel(
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.text(-0.12, 1.06, panel_label, transform=ax.transAxes,
-            fontsize=16, fontweight="bold", va="top")
+    ax.text(-0.12, 1.06, panel_label, transform=ax.transAxes, fontsize=16, fontweight="bold", va="top")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -261,7 +262,7 @@ def main(output_dir: Path) -> None:
 
     # Load data
     print("Loading data from GitHub validation repository...")
-    df_fp  = load_full_pipeline(__RESULT_VERSION)
+    df_fp = load_full_pipeline(__RESULT_VERSION)
     df_gsd = load_gsd(__RESULT_VERSION)
     df_icd = load_icd(__RESULT_VERSION)
 
@@ -272,45 +273,44 @@ def main(output_dir: Path) -> None:
     # Build plot data
     gsd_mobgap, gsd_matlab, ns_gsd = build_data_paired(df_gsd, "f1_score")
     icd_mobgap, icd_matlab, ns_icd = build_data_paired(df_icd, "f1_score")
-    cad_mobgap, cad_matlab, ns_cad = build_data_paired(df_fp,  "cadence_spm__abs_rel_error")
-    sl_mobgap,  sl_matlab,  ns_sl  = build_data_paired(df_fp,  "stride_length_m__abs_rel_error")
+    cad_mobgap, cad_matlab, ns_cad = build_data_paired(df_fp, "cadence_spm__abs_rel_error")
+    sl_mobgap, sl_matlab, ns_sl = build_data_paired(df_fp, "stride_length_m__abs_rel_error")
 
     # Figure
     fig, axes = plt.subplots(2, 2, figsize=(18, 9), dpi=150)
-    fig.subplots_adjust(hspace=0.45, wspace=0.28,
-                        left=0.07, right=0.98, top=0.95, bottom=0.18)
+    fig.subplots_adjust(hspace=0.45, wspace=0.28, left=0.07, right=0.98, top=0.95, bottom=0.18)
 
     panels = [
-        (gsd_mobgap, gsd_matlab, ns_gsd, "Gait Sequence Detection F1 Score",     "A", "gsd_f1"),
-        (icd_mobgap, icd_matlab, ns_icd, "Initial Contact Detection F1 Score",    "B", "icd_f1"),
-        (cad_mobgap, cad_matlab, ns_cad, "Cadence Abs. Relative Error (%)",       "C", "cadence"),
-        (sl_mobgap,  sl_matlab,  ns_sl,  "Stride Length Abs. Relative Error (%)", "D", "stride_length"),
+        (gsd_mobgap, gsd_matlab, ns_gsd, "Gait Sequence Detection F1 Score", "A", "gsd_f1"),
+        (icd_mobgap, icd_matlab, ns_icd, "Initial Contact Detection F1 Score", "B", "icd_f1"),
+        (cad_mobgap, cad_matlab, ns_cad, "Cadence Abs. Relative Error (%)", "C", "cadence"),
+        (sl_mobgap, sl_matlab, ns_sl, "Stride Length Abs. Relative Error (%)", "D", "stride_length"),
     ]
 
-    for ax, (data_mobgap, data_matlab, ns, ylabel, panel_label, label) in zip(
-        axes.flatten(), panels
-    ):
-        plot_clustered_panel(
-            ax, data_mobgap, data_matlab, ns,
-            ylabel, panel_label, sig_results, label
-        )
+    for ax, (data_mobgap, data_matlab, ns, ylabel, panel_label, label) in zip(axes.flatten(), panels):
+        plot_clustered_panel(ax, data_mobgap, data_matlab, ns, ylabel, panel_label, sig_results, label)
 
     mobgap_patch = mpatches.Patch(facecolor="grey", alpha=0.75, label="mobgap")
-    matlab_patch  = mpatches.Patch(
-        facecolor="grey", alpha=0.35, hatch="///", label="Original Implementation"
-    )
+    matlab_patch = mpatches.Patch(facecolor="grey", alpha=0.35, hatch="///", label="Original Implementation")
     fig.legend(
         handles=[mobgap_patch, matlab_patch],
-        loc="lower center", ncol=2, frameon=True,
-        framealpha=0.9, edgecolor="#cccccc",
-        fontsize=11, bbox_to_anchor=(0.5, 0.05)
+        loc="lower center",
+        ncol=2,
+        frameon=True,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+        fontsize=11,
+        bbox_to_anchor=(0.5, 0.05),
     )
     fig.text(
-        0.07, 0.01,
+        0.07,
+        0.01,
         "Sample counts are the number of participants successfully processed by each pipeline, "
         "shown as n=<mobgap>/<original>.\n"
         "Counts differ because the algorithmic pipelines did not produce reliable results for some participants.",
-        ha="left", va="bottom", fontsize=8,
+        ha="left",
+        va="bottom",
+        fontsize=8,
     )
 
     output_path = output_dir / "figure_block_vs_matlab.png"
@@ -320,13 +320,11 @@ def main(output_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Generate TVS block-by-block comparison figure (mobgap vs MATLAB)."
-    )
+    parser = argparse.ArgumentParser(description="Generate TVS block-by-block comparison figure (mobgap vs MATLAB).")
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("."),
+        default=Path(),
         help="Directory to save output figures (default: current directory)",
     )
     args = parser.parse_args()

@@ -2,7 +2,7 @@
 .. _gsd_misorientation_val_gen:
 
 Revalidation of gait sequence detection under simulated mounting errors
-========================================================================
+=======================================================================
 
 .. note:: This is the code to create the results! If you are interested in
     viewing the results, please check the

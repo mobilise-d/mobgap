@@ -28,13 +28,15 @@ Requirements
 import argparse
 from pathlib import Path
 from typing import Optional
+
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mobgap.data.validation_results import ValidationResultLoader
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+
+from mobgap.data.validation_results import ValidationResultLoader
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 __RESULT_VERSION = "v1.2.0"
@@ -48,13 +50,23 @@ ALGORITHMS_BOTH = {
     "EScience_MobiliseD_Pipeline": "MATLAB",
 }
 FREE_LIVING_INDEX_COLS = [
-    "cohort", "participant_id", "time_measure",
-    "recording", "recording_name", "recording_name_pretty",
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "recording",
+    "recording_name",
+    "recording_name_pretty",
 ]
 LABORATORY_INDEX_COLS = [
-    "cohort", "participant_id", "time_measure",
-    "test", "trial", "test_name", "test_name_pretty",
+    "cohort",
+    "participant_id",
+    "time_measure",
+    "test",
+    "trial",
+    "test_name",
+    "test_name_pretty",
 ]
+
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 def format_loaded_results(
@@ -100,7 +112,7 @@ def compute_sig_results(df_fp: pd.DataFrame) -> dict:
     Applies Benjamini-Hochberg FDR correction across all tests.
     """
     sig_tests = [
-        (df_fp, "matched__walking_speed_mps__abs_error",     "ws_abs"),
+        (df_fp, "matched__walking_speed_mps__abs_error", "ws_abs"),
         (df_fp, "matched__walking_speed_mps__abs_rel_error", "ws_abrel"),
     ]
 
@@ -111,9 +123,7 @@ def compute_sig_results(df_fp: pd.DataFrame) -> dict:
             mat = df[(df["cohort"] == c) & (df["source"] == "MATLAB")][["participant_id", col]]
             merged = pd.merge(mob, mat, on="participant_id", suffixes=("_mob", "_mat")).dropna()
             if len(merged) > 0:
-                sig_results[label, c] = stats.wilcoxon(
-                    merged[f"{col}_mob"], merged[f"{col}_mat"]
-                ).pvalue
+                sig_results[label, c] = stats.wilcoxon(merged[f"{col}_mob"], merged[f"{col}_mat"]).pvalue
             else:
                 sig_results[label, c] = np.nan
 
@@ -131,6 +141,7 @@ def compute_sig_results(df_fp: pd.DataFrame) -> dict:
 # ── Plotting helpers ──────────────────────────────────────────────────────────
 def build_fp_paired(df: pd.DataFrame, col: str) -> tuple:
     """Build boxplot data and sample counts in mobgap/MATLAB order."""
+
     def get_data(source):
         sub = df[df["source"] == source]
         all_vals = sub[col].dropna().values
@@ -151,9 +162,9 @@ def get_sig_symbol(p: float) -> str:
     """Convert p-value to significance symbol."""
     if np.isnan(p):
         return ""
-    elif p < 0.01:
+    if p < 0.01:
         return "**"
-    elif p < 0.05:
+    if p < 0.05:
         return "*"
     return ""
 
@@ -171,12 +182,12 @@ def plot_clustered_panel_ws(
     """Draw a single clustered walking speed box plot panel."""
     offset = 0.22
     positions_mobgap = [i - offset for i in range(1, 8)]
-    positions_matlab  = [i + offset for i in range(1, 8)]
+    positions_matlab = [i + offset for i in range(1, 8)]
     width = 0.35
 
     for positions, data, source_label, hatch in [
         (positions_mobgap, data_mobgap, "mobgap", ""),
-        (positions_matlab,  data_matlab, "MATLAB",  "///"),
+        (positions_matlab, data_matlab, "MATLAB", "///"),
     ]:
         bp = ax.boxplot(
             data,
@@ -184,10 +195,7 @@ def plot_clustered_panel_ws(
             widths=width,
             patch_artist=True,
             medianprops=dict(color="black", linewidth=2),
-            flierprops=dict(
-                marker="o", markersize=3,
-                markerfacecolor="none", markeredgewidth=0.6, alpha=0.4
-            ),
+            flierprops=dict(marker="o", markersize=3, markerfacecolor="none", markeredgewidth=0.6, alpha=0.4),
             whiskerprops=dict(linewidth=1.1, color="#444444"),
             capprops=dict(linewidth=1.2, color="#444444"),
             zorder=2,
@@ -206,24 +214,27 @@ def plot_clustered_panel_ws(
     for i, c in enumerate(COHORTS, start=2):
         symbol = get_sig_symbol(sig_results.get((label, c), np.nan))
         if symbol:
-            x_left  = positions_mobgap[i - 1]
+            x_left = positions_mobgap[i - 1]
             x_right = positions_matlab[i - 1]
-            x_mid   = (x_left + x_right) / 2
+            x_mid = (x_left + x_right) / 2
             y_bracket = y_top * 1.02
-            ax.plot([x_left, x_right], [y_bracket, y_bracket],
-                    color="#333333", linewidth=1.0, clip_on=False)
-            ax.plot([x_left,  x_left],  [y_bracket * 0.99, y_bracket],
-                    color="#333333", linewidth=1.0, clip_on=False)
-            ax.plot([x_right, x_right], [y_bracket * 0.99, y_bracket],
-                    color="#333333", linewidth=1.0, clip_on=False)
-            ax.text(x_mid, y_bracket * 1.005, symbol,
-                    ha="center", va="bottom",
-                    fontsize=9, fontweight="bold", color="#333333")
+            ax.plot([x_left, x_right], [y_bracket, y_bracket], color="#333333", linewidth=1.0, clip_on=False)
+            ax.plot([x_left, x_left], [y_bracket * 0.99, y_bracket], color="#333333", linewidth=1.0, clip_on=False)
+            ax.plot([x_right, x_right], [y_bracket * 0.99, y_bracket], color="#333333", linewidth=1.0, clip_on=False)
+            ax.text(
+                x_mid,
+                y_bracket * 1.005,
+                symbol,
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                fontweight="bold",
+                color="#333333",
+            )
 
     ax.set_xticks(range(1, 8))
     ax.set_xticklabels(
-        [f"{c}\nn={n_mobgap}/{n_matlab}" for c, (n_mobgap, n_matlab) in zip(COHORT_ORDER_PLOT, ns)],
-        fontsize=9
+        [f"{c}\nn={n_mobgap}/{n_matlab}" for c, (n_mobgap, n_matlab) in zip(COHORT_ORDER_PLOT, ns)], fontsize=9
     )
     ax.set_xlim(0.3, 7.7)
     ax.set_xlabel("Cohort", fontsize=10, labelpad=6)
@@ -233,8 +244,7 @@ def plot_clustered_panel_ws(
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.text(-0.08, 1.08, panel_label, transform=ax.transAxes,
-            fontsize=13, fontweight="bold", va="top")
+    ax.text(-0.08, 1.08, panel_label, transform=ax.transAxes, fontsize=13, fontweight="bold", va="top")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -248,42 +258,41 @@ def main(output_dir: Path) -> None:
     sig_results = compute_sig_results(df_fp)
 
     # Build plot data
-    ws_abs_mobgap,   ws_abs_matlab,   ns_abs   = build_fp_paired(
-        df_fp, "matched__walking_speed_mps__abs_error"
-    )
-    ws_abrel_mobgap, ws_abrel_matlab, ns_abrel = build_fp_paired(
-        df_fp, "matched__walking_speed_mps__abs_rel_error"
-    )
+    ws_abs_mobgap, ws_abs_matlab, ns_abs = build_fp_paired(df_fp, "matched__walking_speed_mps__abs_error")
+    ws_abrel_mobgap, ws_abrel_matlab, ns_abrel = build_fp_paired(df_fp, "matched__walking_speed_mps__abs_rel_error")
 
     # Figure
     fig, axes = plt.subplots(1, 2, figsize=(13, 5), dpi=150)
     fig.subplots_adjust(wspace=0.32, left=0.08, right=0.97, top=0.84, bottom=0.26)
 
     plot_clustered_panel_ws(
-        axes[0], ws_abs_mobgap, ws_abs_matlab,
-        ns_abs, "Absolute Error (m/s)", "A", sig_results, "ws_abs"
+        axes[0], ws_abs_mobgap, ws_abs_matlab, ns_abs, "Absolute Error (m/s)", "A", sig_results, "ws_abs"
     )
     plot_clustered_panel_ws(
-        axes[1], ws_abrel_mobgap, ws_abrel_matlab,
-        ns_abrel, "Absolute Relative Error (%)", "B", sig_results, "ws_abrel"
+        axes[1], ws_abrel_mobgap, ws_abrel_matlab, ns_abrel, "Absolute Relative Error (%)", "B", sig_results, "ws_abrel"
     )
 
     mobgap_patch = mpatches.Patch(facecolor="grey", alpha=0.75, label="mobgap")
-    matlab_patch  = mpatches.Patch(
-        facecolor="grey", alpha=0.35, hatch="///", label="Original Implementation"
-    )
+    matlab_patch = mpatches.Patch(facecolor="grey", alpha=0.35, hatch="///", label="Original Implementation")
     fig.legend(
         handles=[mobgap_patch, matlab_patch],
-        loc="lower center", ncol=2, frameon=True,
-        framealpha=0.9, edgecolor="#cccccc",
-        fontsize=10, bbox_to_anchor=(0.5, 0.06)
+        loc="lower center",
+        ncol=2,
+        frameon=True,
+        framealpha=0.9,
+        edgecolor="#cccccc",
+        fontsize=10,
+        bbox_to_anchor=(0.5, 0.06),
     )
     fig.text(
-        0.08, 0.01,
+        0.08,
+        0.01,
         "Sample counts are the number of participants successfully processed by each pipeline, "
         "shown as n=<mobgap>/<original>.\n"
         "Counts differ because the algorithmic pipelines did not produce reliable results for some participants.",
-        ha="left", va="bottom", fontsize=8,
+        ha="left",
+        va="bottom",
+        fontsize=8,
     )
 
     output_path = output_dir / "figure_walking_speed_vs_matlab.png"
@@ -299,7 +308,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("."),
+        default=Path(),
         help="Directory to save output figures (default: current directory)",
     )
     args = parser.parse_args()
