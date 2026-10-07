@@ -88,6 +88,7 @@ def load_full_pipeline_both(version: str) -> pd.DataFrame:
         parts.append(fl)
     df = pd.concat(parts, ignore_index=True)
     df["cohort"] = df["cohort"].astype(str)
+    df["matched__walking_speed_mps__abs_rel_error"] *= 100
     return df
 
 
@@ -129,7 +130,7 @@ def compute_sig_results(df_fp: pd.DataFrame) -> dict:
 
 # ── Plotting helpers ──────────────────────────────────────────────────────────
 def build_fp_paired(df: pd.DataFrame, col: str) -> tuple:
-    """Build paired data lists for mobgap and MATLAB for boxplot."""
+    """Build boxplot data and sample counts in mobgap/MATLAB order."""
     def get_data(source):
         sub = df[df["source"] == source]
         all_vals = sub[col].dropna().values
@@ -142,7 +143,8 @@ def build_fp_paired(df: pd.DataFrame, col: str) -> tuple:
         cohort_ns = [len(sub[sub["cohort"] == c][col].dropna()) for c in COHORTS]
         return [all_n] + cohort_ns
 
-    return get_data("mobgap"), get_data("MATLAB"), get_ns("mobgap")
+    ns = list(zip(get_ns("mobgap"), get_ns("MATLAB")))
+    return get_data("mobgap"), get_data("MATLAB"), ns
 
 
 def get_sig_symbol(p: float) -> str:
@@ -220,7 +222,7 @@ def plot_clustered_panel_ws(
 
     ax.set_xticks(range(1, 8))
     ax.set_xticklabels(
-        [f"{c}\nn={n}" for c, n in zip(COHORT_ORDER_PLOT, ns)],
+        [f"{c}\nn={n_mobgap}/{n_matlab}" for c, (n_mobgap, n_matlab) in zip(COHORT_ORDER_PLOT, ns)],
         fontsize=9
     )
     ax.set_xlim(0.3, 7.7)
@@ -255,7 +257,7 @@ def main(output_dir: Path) -> None:
 
     # Figure
     fig, axes = plt.subplots(1, 2, figsize=(13, 5), dpi=150)
-    fig.subplots_adjust(wspace=0.32, left=0.08, right=0.97, top=0.84, bottom=0.18)
+    fig.subplots_adjust(wspace=0.32, left=0.08, right=0.97, top=0.84, bottom=0.26)
 
     plot_clustered_panel_ws(
         axes[0], ws_abs_mobgap, ws_abs_matlab,
@@ -274,7 +276,13 @@ def main(output_dir: Path) -> None:
         handles=[mobgap_patch, matlab_patch],
         loc="lower center", ncol=2, frameon=True,
         framealpha=0.9, edgecolor="#cccccc",
-        fontsize=10, bbox_to_anchor=(0.5, -0.02)
+        fontsize=10, bbox_to_anchor=(0.5, 0.06)
+    )
+    fig.text(
+        0.5, 0.01,
+        "Sample counts are shown as mobgap/MATLAB. Counts differ because the algorithmic pipelines\n"
+        "did not produce reliable results for some participants.",
+        ha="center", va="bottom", fontsize=9,
     )
 
     output_path = output_dir / "figure_walking_speed_vs_matlab.png"

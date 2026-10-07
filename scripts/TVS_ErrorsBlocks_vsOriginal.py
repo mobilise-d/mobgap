@@ -150,7 +150,7 @@ def compute_sig_results(
 
 # ── Plotting helpers ──────────────────────────────────────────────────────────
 def build_data_paired(df: pd.DataFrame, col: str) -> tuple:
-    """Build paired data lists for mobgap and MATLAB for boxplot."""
+    """Build boxplot data and sample counts in mobgap/MATLAB order."""
     def get_data(source):
         sub = df[df["source"] == source]
         all_vals = sub[col].dropna().values
@@ -163,7 +163,8 @@ def build_data_paired(df: pd.DataFrame, col: str) -> tuple:
         cohort_ns = [len(sub[sub["cohort"] == c][col].dropna()) for c in COHORTS]
         return [all_n] + cohort_ns
 
-    return get_data("mobgap"), get_data("MATLAB"), get_ns("mobgap")
+    ns = list(zip(get_ns("mobgap"), get_ns("MATLAB")))
+    return get_data("mobgap"), get_data("MATLAB"), ns
 
 
 def get_sig_symbol(p: float) -> str:
@@ -239,7 +240,7 @@ def plot_clustered_panel(
 
     ax.set_xticks(range(1, 8))
     ax.set_xticklabels(
-        [f"{c}\nn={n}" for c, n in zip(COHORT_ORDER_PLOT, ns)],
+        [f"{c}\nn={n_mobgap}/{n_matlab}" for c, (n_mobgap, n_matlab) in zip(COHORT_ORDER_PLOT, ns)],
         fontsize=10
     )
     ax.set_xlim(0.3, 7.7)
@@ -250,7 +251,7 @@ def plot_clustered_panel(
     ax.set_axisbelow(True)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.text(-0.08, 1.06, panel_label, transform=ax.transAxes,
+    ax.text(-0.12, 1.06, panel_label, transform=ax.transAxes,
             fontsize=16, fontweight="bold", va="top")
 
 
@@ -277,7 +278,7 @@ def main(output_dir: Path) -> None:
     # Figure
     fig, axes = plt.subplots(2, 2, figsize=(18, 9), dpi=150)
     fig.subplots_adjust(hspace=0.45, wspace=0.28,
-                        left=0.07, right=0.98, top=0.95, bottom=0.1)
+                        left=0.07, right=0.98, top=0.95, bottom=0.18)
 
     panels = [
         (gsd_mobgap, gsd_matlab, ns_gsd, "Gait Sequence Detection F1 Score",     "A", "gsd_f1"),
@@ -302,7 +303,13 @@ def main(output_dir: Path) -> None:
         handles=[mobgap_patch, matlab_patch],
         loc="lower center", ncol=2, frameon=True,
         framealpha=0.9, edgecolor="#cccccc",
-        fontsize=11, bbox_to_anchor=(0.5, 0.0)
+        fontsize=11, bbox_to_anchor=(0.5, 0.05)
+    )
+    fig.text(
+        0.5, 0.01,
+        "Sample counts are shown as mobgap/MATLAB. Counts differ because the algorithmic pipelines\n"
+        "did not produce reliable results for some participants.",
+        ha="center", va="bottom", fontsize=9,
     )
 
     output_path = output_dir / "figure_block_vs_matlab.png"
