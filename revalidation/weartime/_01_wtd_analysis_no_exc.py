@@ -12,7 +12,11 @@ does not undo historical tuning of its fixed settings.
 Classification summaries compare equal weights for days, participants and folds.
 Within each participant, rates use either pooled labeled-sample confusion counts
 or the mean of daily rates. Duration summaries give each non-missing daily error
-equal weight.
+equal weight. All means include symmetric 95% Student's t confidence intervals
+using their averaging units. Intervals require at least two non-missing units
+and are not clipped. The day-based intervals treat days as independent and do
+not account for repeated days within a participant. Day counts and medians
+remain point estimates.
 
 .. note::
     See :ref:`wtd_val_gen_no_exc` for result generation. These results are not
@@ -37,6 +41,7 @@ from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 from mobgap.utils.df_operations import CustomOperation, apply_transformations
 from mobgap.utils.misc import get_env_var
 from mobgap.weartime.evaluation import calculate_wtd_classification_summary
+from scipy.stats import t
 
 algorithms = {
     "WtdMegaritisSignal": ("WtdMegaritisSignal", "MobGap"),
@@ -181,7 +186,6 @@ human_movement_summary_overall = (
     .agg(**human_movement_summary_aggs)
     .join(classification_overall)
 )
-human_movement_summary_overall
 
 # %%
 # Human movement: per participant
@@ -195,6 +199,32 @@ human_movement_summary_by_participant = (
     .agg(**human_movement_summary_aggs)
     .join(classification_by_participant)
 )
+
+# Daily t intervals apply to duration means; counts and medians stay unchanged.
+for group_columns, summary in (
+    (["algo", "version"], human_movement_summary_overall),
+    (
+        ["participant_id", "algo", "version"],
+        human_movement_summary_by_participant,
+    ),
+):
+    grouped_days = human_movement_results.groupby(group_columns)
+    for name, (column, aggregation) in human_movement_summary_aggs.items():
+        if aggregation != "mean":
+            continue
+        units = grouped_days[column]
+        half_width = units.sem() * t.ppf(0.975, units.count() - 1)
+        summary[f"{name}__ci95_lower"] = summary[name] - half_width
+        summary[f"{name}__ci95_upper"] = summary[name] + half_width
+
+# %%
+# Overall summary with confidence intervals
+# -----------------------------------------
+human_movement_summary_overall
+
+# %%
+# Participant summaries with confidence intervals
+# ------------------------------------------------
 human_movement_summary_by_participant
 
 # %%

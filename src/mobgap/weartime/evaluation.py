@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+from scipy.stats import t
 from tpcp.validate import FloatAggregator, Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
@@ -336,6 +337,12 @@ def calculate_wtd_classification_summary(daily_results: pd.DataFrame) -> pd.Seri
         A zero denominator yields zero, matching the default per-day scorer convention. A day or
         participant with no labeled samples has undefined rates and is excluded from means.
         Entirely undefined folds are also excluded from the fold mean.
+
+        Each mean has ``__ci95_lower`` and ``__ci95_upper`` siblings. These are symmetric
+        Student's t confidence intervals using the same averaging units as the mean.
+        Bounds are NaN for fewer than two labeled units and are not clipped to [0, 1].
+        Day-level intervals treat days as independent; they do not account for correlation
+        between days of the same participant.
     """
     counts = daily_results.set_index(["fold", "participant_id"])[
         ["tp_samples", "fp_samples", "fn_samples", "tn_samples"]
@@ -365,8 +372,15 @@ def calculate_wtd_classification_summary(daily_results: pd.DataFrame) -> pd.Seri
         ("participant__combined", participant_scores),
         ("participant__day_mean__combined", participant_day_scores),
     ):
-        summaries.append(scores.mean().add_prefix(f"single_mean__{name}__"))
-        summaries.append(scores.groupby(level="fold").mean().mean().add_prefix(f"fold_mean__{name}__"))
+        for prefix, units in (
+            ("single_mean", scores),
+            ("fold_mean", scores.groupby(level="fold").mean()),
+        ):
+            mean = units.mean().add_prefix(f"{prefix}__{name}__")
+            half_width = (units.sem() * t.ppf(0.975, units.count() - 1)).set_axis(mean.index)
+            summaries.extend(
+                [mean, (mean - half_width).add_suffix("__ci95_lower"), (mean + half_width).add_suffix("__ci95_upper")]
+            )
     return pd.concat(summaries)
 
 
