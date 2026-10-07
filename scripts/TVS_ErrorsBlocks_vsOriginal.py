@@ -306,11 +306,11 @@ def main(output_dir: Path) -> None:
         fontsize=11, bbox_to_anchor=(0.5, 0.05)
     )
     fig.text(
-        0.5, 0.01,
+        0.07, 0.01,
         "Sample counts are the number of participants successfully processed by each pipeline, "
-        "shown as n=<mobgap>/<matlab>.\n"
+        "shown as n=<mobgap>/<original>.\n"
         "Counts differ because the algorithmic pipelines did not produce reliable results for some participants.",
-        ha="center", va="bottom", fontsize=9,
+        ha="left", va="bottom", fontsize=8,
     )
 
     output_path = output_dir / "figure_block_vs_matlab.png"
