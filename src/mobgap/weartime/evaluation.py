@@ -304,6 +304,72 @@ def wtd_final_agg(
     )
 
 
+def calculate_wtd_classification_summary(daily_results: pd.DataFrame) -> pd.Series:
+    """Summarize held-out classification at day, participant and fold levels.
+
+    Parameters
+    ----------
+    daily_results
+        One row per held-out day for one algorithm, with ``fold``, ``participant_id``,
+        ``tp_samples``, ``fp_samples``, ``fn_samples`` and ``tn_samples`` columns.
+        Samples with uncertain ground truth must already be excluded from the counts.
+        A participant's held-out days must belong to one fold.
+
+    Returns
+    -------
+    pd.Series
+        Precision, recall, F1, specificity, accuracy and NPV under six prefixes:
+
+        - ``single_mean__day__combined__``
+        - ``fold_mean__day__combined__``
+        - ``single_mean__participant__combined__``
+        - ``fold_mean__participant__combined__``
+        - ``single_mean__participant__day_mean__combined__``
+        - ``fold_mean__participant__day_mean__combined__``
+
+        ``combined`` pools sample counts before calculating rates, within each day or participant.
+        ``participant__day_mean`` averages daily rates within each participant instead.
+        ``single_mean`` averages all scoring units across folds. ``fold_mean`` first averages the
+        scoring units within each fold, then averages folds. These are means of rates, not a
+        single rate calculated from samples pooled across all folds.
+
+        A zero denominator yields zero, matching the default per-day scorer convention. A day or
+        participant with no labeled samples has undefined rates and is excluded from means.
+        Entirely undefined folds are also excluded from the fold mean.
+    """
+    counts = daily_results.set_index(["fold", "participant_id"])[
+        ["tp_samples", "fp_samples", "fn_samples", "tn_samples"]
+    ]
+
+    def rates(sample_counts: pd.DataFrame) -> pd.DataFrame:
+        tp, fp, fn, tn = (sample_counts[column] for column in counts.columns)
+        labeled = tp + fp + fn + tn
+        scores = pd.DataFrame(
+            {
+                "precision": tp / (tp + fp),
+                "recall": tp / (tp + fn),
+                "f1_score": 2 * tp / (2 * tp + fp + fn),
+                "specificity": tn / (tn + fp),
+                "accuracy": (tp + tn) / labeled,
+                "npv": tn / (tn + fn),
+            }
+        )
+        return scores.fillna(0).where(labeled > 0, axis=0)
+
+    day_scores = rates(counts)
+    participant_scores = rates(counts.groupby(level=["fold", "participant_id"]).sum())
+    participant_day_scores = day_scores.groupby(level=["fold", "participant_id"]).mean()
+    summaries = []
+    for name, scores in (
+        ("day__combined", day_scores),
+        ("participant__combined", participant_scores),
+        ("participant__day_mean__combined", participant_day_scores),
+    ):
+        summaries.append(scores.mean().add_prefix(f"single_mean__{name}__"))
+        summaries.append(scores.groupby(level="fold").mean().mean().add_prefix(f"fold_mean__{name}__"))
+    return pd.concat(summaries)
+
+
 wtd_score = Scorer(
     wtd_per_datapoint_score, final_aggregator=wtd_final_agg, default_aggregator=FloatAggregator(np.nanmean)
 )
@@ -319,4 +385,4 @@ original interval IDs, while ``raw__detected_scored`` and ``raw__reference_score
 """
 
 
-__all__ = ["wtd_final_agg", "wtd_per_datapoint_score", "wtd_score"]
+__all__ = ["calculate_wtd_classification_summary", "wtd_final_agg", "wtd_per_datapoint_score", "wtd_score"]
