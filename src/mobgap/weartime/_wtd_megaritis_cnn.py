@@ -14,13 +14,16 @@
 
 from __future__ import annotations
 
+from datetime import time
 from typing import Any, Optional
 
+import numpy as np
 import pandas as pd
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime._keras_weartime_model import BaseKerasWeartimeModel, MegaritisCnnWeartimeModel
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
@@ -28,7 +31,7 @@ from mobgap.weartime.base import (
     _unify_weartime_df,
     base_weartime_docfiller,
 )
-from mobgap.weartime.utils._intervals import _validate_waking_hours_min, flags_to_intervals
+from mobgap.weartime.utils._intervals import _validate_waking_hours, _with_local_datetimes
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,
@@ -57,9 +60,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         Low-level Keras window classifier. If ``None``, ``detect`` loads the packaged pretrained CNN and
         ``self_optimize`` creates a fresh, untrained CNN. Pass a model explicitly to use another architecture or
         training configuration.
-    waking_hours_min : tuple[int, int]
-        Waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)`` in minutes since
-        midnight.
+    waking_hours : tuple[datetime.time, datetime.time]
+        Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
 
     Other Parameters
     ----------------
@@ -83,12 +85,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     extracted from the post-processed sample-level predictions by filtering wear-time to the
     configured waking-hours window.
 
-    The pipeline is designed for daily recordings (midnight-to-midnight, ~24 hours).
-    For shorter recordings, the waking-hours window is clipped to the available samples. For recordings longer than
-    one day, accessing ``total_weartime_during_waking_min_`` raises an error because the recording must be segmented
-    per day before a single daily waking-hours window can be applied.
-    Waking hours are identified using sample indices (07:00 = 7x3600xsampling_rate_hz) rather than
-    timestamps, ensuring compatibility with devices that may not provide timestamp metadata.
+    Recordings must be segmented per day. A timezone-aware ``DatetimeIndex`` defines the local waking-hours window.
+    Otherwise, sample zero is assumed to be midnight with a warning, and DST cannot be considered.
 
     **Model Architecture**
     The low-level model operates on raw windowed IMU data with per-window standardization
@@ -107,10 +105,10 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self,
         *,
         model: BaseKerasWeartimeModel | None = None,
-        waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
+        waking_hours: tuple[time, time] = (time(7), time(22)),
     ) -> None:
         self.model = model
-        self.waking_hours_min = waking_hours_min
+        self.waking_hours = waking_hours
 
     @make_action_safe
     @timed_action_method
@@ -143,7 +141,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         data_length = len(data)
-        _validate_waking_hours_min(self.waking_hours_min)
+        _validate_waking_hours(self.waking_hours)
 
         model = self.model or MegaritisCnnWeartimeModel(**MegaritisCnnWeartimeModel.PredefinedParameters.lowback)
         self.model_ = model.clone().run(data, sampling_rate_hz=sampling_rate_hz)
@@ -155,7 +153,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
             window_samples=self.model_.window_samples_,
             step_samples=self.model_.step_samples_,
         )
-        weartime_intervals = flags_to_intervals(weartime_flags)
+        weartime_intervals = bool_array_to_start_end_array(weartime_flags).astype(np.int64, copy=False).reshape(-1, 2)
         weartime_intervals = filter_short_wear_bouts_by_confidence(
             wear_intervals=weartime_intervals,
             vote_counts=vote_counts,
@@ -168,7 +166,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         weartime_intervals = remove_isolated_short_periods_from_intervals(
             weartime_intervals,
             data_length=data_length,
-            min_period_sec=15,
+            min_period_s=15,
             sampling_rate_hz=sampling_rate_hz,
         )
         self.weartime_list_ = pd.DataFrame(weartime_intervals, columns=["start", "end"]).rename_axis(index="wt_id")
@@ -178,6 +176,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
 
         # Unify format (adds wt_id index, ensures correct dtypes)
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
+        self.weartime_list_ = _with_local_datetimes(self.weartime_list_, data, sampling_rate_hz)
 
         return self
 

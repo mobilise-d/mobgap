@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from datetime import time
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -14,9 +15,9 @@ from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
+from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime import MegaritisCnnLstmWeartimeModel, MegaritisCnnWeartimeModel, WtdMegaritisCNN
 from mobgap.weartime import _keras_weartime_model as keras_model_module
-from mobgap.weartime.utils._intervals import flags_to_intervals
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,
@@ -91,7 +92,9 @@ class TestMetaWtdMegaritisCNN(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self) -> WtdMegaritisCNN:
         """Create a detector after action for the algorithm mixin."""
-        return self.ALGORITHM_CLASS(model=_keras_window_model([0, 0, 0, 0, 0, 0]), waking_hours_min=(0, 2)).detect(
+        return self.ALGORITHM_CLASS(
+            model=_keras_window_model([0, 0, 0, 0, 0, 0]), waking_hours=(time(0), time(0, 2))
+        ).detect(
             _sensor_data(120),
             sampling_rate_hz=1.0,
         )
@@ -458,7 +461,7 @@ class TestWtdMegaritisCNN:
         """Convert deterministic window predictions to expected wear-time intervals."""
         result = WtdMegaritisCNN(
             model=_keras_window_model([1, 1, 0, 0, 1, 1]),
-            waking_hours_min=(0, 2),
+            waking_hours=(time(0), time(0, 2)),
         ).detect(
             _sensor_data(120),
             sampling_rate_hz=1.0,
@@ -469,11 +472,19 @@ class TestWtdMegaritisCNN:
         assert result.total_weartime_min_ == pytest.approx(80 / 60)
         assert result.total_weartime_during_waking_min_ == pytest.approx(80 / 60)
 
+    def test_localized_signal_adds_interval_datetimes(self) -> None:
+        data = _sensor_data(120)
+        data.index = pd.date_range("2026-03-29 12:00", periods=120, freq="s", tz="Europe/London")
+        result = WtdMegaritisCNN(model=_keras_window_model([1, 1, 0, 0, 1, 1])).detect(data, sampling_rate_hz=1.0)
+
+        assert result.weartime_list_.local_datetime_start.iloc[0] == data.index[0]
+        assert result.weartime_list_.local_datetime_end.iloc[-1] == data.index[-1] + pd.Timedelta(seconds=1)
+
     def test_does_not_expose_duplicate_total_weartime_units(self) -> None:
         """Expose only the common base-class wear-time summary metrics."""
         result = WtdMegaritisCNN(
             model=_keras_window_model([1, 1, 0, 0, 1, 1]),
-            waking_hours_min=(0, 2),
+            waking_hours=(time(0), time(0, 2)),
         ).detect(
             _sensor_data(120),
             sampling_rate_hz=1.0,
@@ -489,7 +500,7 @@ class TestWtdMegaritisCNN:
         vote_counts = np.ones((len(sample_labels), 2), dtype=np.int32)
 
         result = filter_short_wear_bouts_by_confidence(
-            wear_intervals=flags_to_intervals(sample_labels),
+            wear_intervals=bool_array_to_start_end_array(sample_labels),
             vote_counts=vote_counts,
             data_length=len(sample_labels),
             sampling_rate_hz=1.0,

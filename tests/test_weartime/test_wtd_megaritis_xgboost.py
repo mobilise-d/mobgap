@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import time
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -145,7 +146,7 @@ class TestMetaWtdMegaritisXGBoost(TestAlgorithmMixin):
             feature_names=("window_start",),
             window_sec=20.0,
             overlap=0.0,
-            waking_hours_min=(0, 2),
+            waking_hours=(time(0), time(0, 2)),
             trained_sampling_rate_hz=1.0,
         ).detect(_sensor_data(60), sampling_rate_hz=1.0)
 
@@ -177,7 +178,7 @@ class TestWtdMegaritisXGBoost:
             window_sec=20.0,
             overlap=0.0,
             window_batch_size=2,
-            waking_hours_min=(0, 2),
+            waking_hours=(time(0), time(0, 2)),
             trained_sampling_rate_hz=1.0,
         ).detect(_sensor_data(120), sampling_rate_hz=1.0)
 
@@ -193,6 +194,22 @@ class TestWtdMegaritisXGBoost:
         assert result.total_weartime_min_ == pytest.approx(80 / 60)
         assert result.total_weartime_during_waking_min_ == pytest.approx(80 / 60)
 
+    def test_localized_signal_adds_interval_datetimes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        _patch_simple_features(monkeypatch)
+        _FixedProbabilityClassifier.batch_sizes = []
+        data = _sensor_data(120)
+        data.index = pd.date_range("2026-03-29 12:00", periods=120, freq="s", tz="Europe/London")
+        result = WtdMegaritisXGBoost(
+            clf=_FixedProbabilityClassifier([1, 1, 0, 0, 1, 1]),
+            feature_names=("window_start",),
+            window_sec=20.0,
+            overlap=0.0,
+            trained_sampling_rate_hz=1.0,
+        ).detect(data, sampling_rate_hz=1.0)
+
+        assert result.weartime_list_.local_datetime_start.iloc[0] == data.index[0]
+        assert result.weartime_list_.local_datetime_end.iloc[-1] == data.index[-1] + pd.Timedelta(seconds=1)
+
     @pytest.mark.parametrize("n_samples", [10, 19])
     def test_no_full_windows_returns_empty_result(self, monkeypatch: pytest.MonkeyPatch, n_samples: int) -> None:
         """Handle recordings shorter than one feature window."""
@@ -204,7 +221,7 @@ class TestWtdMegaritisXGBoost:
             feature_names=("window_start",),
             window_sec=20.0,
             overlap=0.0,
-            waking_hours_min=(0, 2),
+            waking_hours=(time(0), time(0, 2)),
             trained_sampling_rate_hz=1.0,
         ).detect(_sensor_data(n_samples), sampling_rate_hz=1.0)
 
@@ -224,7 +241,7 @@ class TestWtdMegaritisXGBoost:
             feature_names=("window_start",),
             window_sec=2.0,
             overlap=0.0,
-            waking_hours_min=(0, 1),
+            waking_hours=(time(0), time(0, 1)),
             trained_sampling_rate_hz=10.0,
         ).detect(_sensor_data(40), sampling_rate_hz=10.0)
 
@@ -254,7 +271,7 @@ class TestWtdMegaritisXGBoost:
             feature_names=("acc_pa_std",),
             window_sec=20.0,
             overlap=0.0,
-            waking_hours_min=(0, 1),
+            waking_hours=(time(0), time(0, 1)),
             trained_sampling_rate_hz=1.0,
         ).detect(_sensor_data(40), sampling_rate_hz=1.0)
 
@@ -347,7 +364,7 @@ class TestWtdMegaritisXGBoost:
             feature_names=("window_start",),
             window_sec=20.0,
             overlap=0.0,
-            waking_hours_min=(0, 1),
+            waking_hours=(time(0), time(0, 1)),
             trained_sampling_rate_hz=1.0,
         ).detect(_sensor_data(20), sampling_rate_hz=1.0)
 
