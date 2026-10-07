@@ -1,28 +1,14 @@
-"""Run daily aggregate participant-grouped evaluation for the SUSTAIN wear-time XGBoost model.
-
-This mirrors ``loso_daily_cnn.py``: the dataset is split by recording day, while CV groups by participant so every fold
-holds out all days of one human participant. Part B data are added to each training fold.
-"""
+"""Evaluate the XGBoost wear-time model with daily participant LOSO."""
 
 from __future__ import annotations
 
-import argparse
-import logging
+import pickle
 from datetime import datetime
-from importlib.metadata import version
 from pathlib import Path
-from typing import Any
 
 import joblib
 import numpy as np
 import optuna
-import pandas as pd
-from loso_daily_cnn import (
-    DEFAULT_CACHE_DIR,
-    DEFAULT_OUTPUT_DIR,
-    _fold_metadata,
-    _write_results,
-)
 from optimizable_optuna_search import OptimizableOptunaSearch
 from optuna import Trial
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
@@ -36,115 +22,33 @@ from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
-LOGGER = logging.getLogger(__name__)
-
-
-def _study_params(seed: int) -> dict[str, Any]:
-    return {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)}
-
-
-def _write_search_results(evaluation: EvaluationCV, output_dir: Path) -> None:
-    best_rows = []
-    trial_frames = []
-    for fold, optimizer in enumerate(evaluation.results_["optimizer"]):
-        best_rows.append({"fold": fold, "inner_accuracy": optimizer.best_score_, **optimizer.best_params_})
-        trials = optimizer.study_.trials_dataframe()
-        trials.insert(0, "fold", fold)
-        trial_frames.append(trials)
-    pd.DataFrame(best_rows).to_csv(output_dir / "optuna_best_by_fold.csv", index=False)
-    pd.concat(trial_frames, ignore_index=True).to_csv(output_dir / "optuna_trials.csv", index=False)
-
-
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--dataset-path",
-        help="Path to the SUSTAIN Wear-time folder. Defaults to MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH.",
-    )
-    parser.add_argument(
-        "--cache-dir",
-        help=f"joblib cache directory. Defaults to MOBGAP_CACHE_DIR_PATH or {DEFAULT_CACHE_DIR}.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=str(DEFAULT_OUTPUT_DIR),
-        help=f"Directory for LOSO result artifacts. Default: {DEFAULT_OUTPUT_DIR}",
-    )
-    parser.add_argument("--run-name", help="Artifact folder name. Defaults to loso_daily_xgboost_<timestamp>.")
-    parser.add_argument(
-        "--part-b-recording-count",
-        type=int,
-        default=2,
-        help="Number of Part B recordings sampled for every training fold. Default: 2; zero disables sampling.",
-    )
-    parser.add_argument(
-        "--part-b-day-count",
-        type=int,
-        help="Sample this many Part B days for every training fold instead of whole recordings.",
-    )
-    parser.add_argument(
-        "--participant-id",
-        action="append",
-        help="Restrict evaluation to one participant. Can be passed multiple times; mainly useful for smoke tests.",
-    )
-    parser.add_argument(
-        "--max-participants",
-        type=int,
-        help="Restrict to the first N participants in dataset order; mainly useful for smoke tests.",
-    )
-    parser.add_argument(
-        "--window-batch-size",
-        type=int,
-        default=8192,
-        help="Number of XGBoost feature windows processed together.",
-    )
-    parser.add_argument("--overlap", type=float, default=0.75, help="Fractional overlap of XGBoost windows.")
-    parser.add_argument("--n-trials", type=int, default=20, help="Optuna trials per outer participant fold.")
-    parser.add_argument("--inner-folds", type=int, default=5, help="Participant-grouped folds per Optuna trial.")
-    parser.add_argument(
-        "--search-train-fraction",
-        type=float,
-        default=0.4,
-        help="Fraction of human inner training days sampled for each Optuna trial; part B is excluded from search.",
-    )
-    parser.add_argument("--search-seed", type=int, default=42, help="Seed for Optuna and inner training-day sampling.")
-    parser.add_argument(
-        "--n-jobs",
-        type=int,
-        default=1,
-        help="Number of process workers for datapoint-level XGBoost feature extraction during training.",
-    )
-    parser.add_argument(
-        "--cv-n-jobs",
-        type=int,
-        default=1,
-        help="Number of CV folds to evaluate in parallel.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Only build the dataset and LOSO split metadata; do not train or score models.",
-    )
-    parser.add_argument(
-        "--log-level",
-        default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        help="Python logging level.",
-    )
-    return parser.parse_args()
+# Edit configuration here before running the script.
+DATASET_PATH = None  # Defaults to MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH.
+CACHE_DIR = None  # Defaults to MOBGAP_CACHE_DIR_PATH or .cache/mobgap.
+OUTPUT_DIR = Path(".cache/weartime_loso_runs")
+RUN_NAME = None  # Defaults to a timestamped directory.
+PARTICIPANT_IDS = None  # None selects all human participants.
+MAX_PARTICIPANTS = None
+PART_B_RECORDING_COUNT = 2
+PART_B_DAY_COUNT = None  # Set to sample days instead of whole recordings.
+SEED = 42
+OVERLAP = 0.75
+WINDOW_BATCH_SIZE = 8192
+FEATURE_N_JOBS = 1
+CV_N_JOBS = 1
+N_TRIALS = 20
+INNER_FOLDS = 5
+SEARCH_TRAIN_FRACTION = 0.4
 
 
 def main() -> None:
-    """Run the XGBoost LOSO evaluation."""
-    args = _parse_args()
-    logging.basicConfig(level=getattr(logging, args.log_level), format="%(asctime)s %(levelname)s %(message)s")
-
-    run_name = args.run_name or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    output_dir = Path(args.output_dir).expanduser() / run_name
+    """Train and evaluate the configured model."""
+    run_name = RUN_NAME or f"loso_daily_xgboost_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    output_dir = OUTPUT_DIR / run_name
 
     # Configure the dataset and the human fold selector.
-    dataset_path = Path(args.dataset_path or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser()
-    cache_dir = Path(args.cache_dir or get_env_var("MOBGAP_CACHE_DIR_PATH", str(DEFAULT_CACHE_DIR))).expanduser()
+    dataset_path = Path(DATASET_PATH or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser()
+    cache_dir = Path(CACHE_DIR or get_env_var("MOBGAP_CACHE_DIR_PATH", ".cache/mobgap")).expanduser()
     base_dataset = SustainWearTimeDataset(
         dataset_path,
         additional_sensors_enabled=(),
@@ -155,10 +59,10 @@ def main() -> None:
 
     def select_human_days(days: SustainWearTimeDataset) -> SustainWearTimeDataset:
         human = days.get_subset(recording_type="human_movement")
-        if args.participant_id:
-            human = human.get_subset(index=human.index[human.index["participant_id"].isin(args.participant_id)])
-        if args.max_participants is not None:
-            participant_ids = human.index["participant_id"].drop_duplicates().iloc[: args.max_participants]
+        if PARTICIPANT_IDS:
+            human = human.get_subset(index=human.index[human.index["participant_id"].isin(PARTICIPANT_IDS)])
+        if MAX_PARTICIPANTS is not None:
+            participant_ids = human.index["participant_id"].drop_duplicates().iloc[:MAX_PARTICIPANTS]
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
@@ -174,12 +78,12 @@ def main() -> None:
                 NoSplit(
                     None,
                     train=lambda days: (
-                        days.get_subset(index=days.index.sample(n=args.part_b_day_count, random_state=42))
-                        if args.part_b_day_count is not None
+                        days.get_subset(index=days.index.sample(n=PART_B_DAY_COUNT, random_state=SEED))
+                        if PART_B_DAY_COUNT is not None
                         else days.get_subset(
                             recording_id=days.index["recording_id"]
                             .drop_duplicates()
-                            .sample(n=args.part_b_recording_count, random_state=42)
+                            .sample(n=PART_B_RECORDING_COUNT, random_state=SEED)
                             .tolist()
                         )
                     ),
@@ -187,35 +91,14 @@ def main() -> None:
             ),
         ]
     )
-    fold_metadata = _fold_metadata(base_dataset, outer_splitter)
-
-    LOGGER.info("XGBoost datapoint feature workers: %s", args.n_jobs)
-    LOGGER.info("CV fold workers: %s", args.cv_n_jobs)
-    LOGGER.info("Optuna trials per outer fold: %s", args.n_trials)
-    LOGGER.info("Output directory: %s", output_dir)
-
-    # Preview the outer fold plan without fitting a model.
-    if args.dry_run:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        fold_metadata.to_csv(output_dir / "fold_metadata.csv", index=False)
-        LOGGER.info("Dry run complete. Wrote fold metadata.")
-        return
-
-    # Check settings that are only needed for Optuna training.
-    if not 0 < args.search_train_fraction <= 1:
-        raise ValueError("--search-train-fraction must be in (0, 1].")
-    if args.n_trials < 1:
-        raise ValueError("--n-trials must be positive.")
-    if args.inner_folds < 2 or args.inner_folds > len(fold_metadata) - 1:
-        raise ValueError("--inner-folds must be between 2 and the number of outer training participants.")
 
     # Configure XGBoost with cached recording features.
     pipeline = WtdEmulationPipeline(
         WtdMegaritisXGBoost(
             **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
-            window_batch_size=args.window_batch_size,
-            n_jobs=args.n_jobs,
-            overlap=args.overlap,
+            window_batch_size=WINDOW_BATCH_SIZE,
+            n_jobs=FEATURE_N_JOBS,
+            overlap=OVERLAP,
             memory=joblib.Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
         )
     )
@@ -225,7 +108,7 @@ def main() -> None:
         parts=[
             (
                 lambda days: days.get_subset(recording_type="human_movement"),
-                DatasetSplitter(GroupKFold(n_splits=args.inner_folds), groupby="participant_id"),
+                DatasetSplitter(GroupKFold(n_splits=INNER_FOLDS), groupby="participant_id"),
             )
         ]
     )
@@ -244,8 +127,8 @@ def main() -> None:
             candidate,
             train_dataset_transform=lambda inner_train_days: inner_train_days.get_subset(
                 index=inner_train_days.index.sample(
-                    n=max(1, round(len(inner_train_days.index) * args.search_train_fraction)),
-                    random_state=args.search_seed,
+                    n=max(1, round(len(inner_train_days.index) * SEARCH_TRAIN_FRACTION)),
+                    random_state=SEED,
                 )
             ),
         )
@@ -265,51 +148,37 @@ def main() -> None:
         scoring=wtd_score,
         cv_iterator=outer_splitter,
         cv_params={
-            "n_jobs": args.cv_n_jobs,
+            "n_jobs": CV_N_JOBS,
             "return_train_score": False,
-            "return_optimizer": True,
             "progress_bar": True,
         },
     )
     optimizer = OptimizableOptunaSearch(
-        pipeline, _study_params, objective, n_trials=args.n_trials, random_seed=args.search_seed
+        pipeline,
+        lambda seed: {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)},
+        objective,
+        n_trials=N_TRIALS,
+        random_seed=SEED,
+        return_optimized=True,
     )
 
     evaluation.run(optimizer)
 
-    # Write fold metrics, search results, and evaluator timings.
-    run_metadata = {
-        "run_name": run_name,
-        "xgboost_version": version("xgboost"),
-        "numpy_version": np.__version__,
-        "n_jobs": args.n_jobs,
-        "cv_n_jobs": args.cv_n_jobs,
-        "return_train_score": False,
-        "hyperparameter_search": {
-            "method": "Optuna TPE",
-            "n_trials_per_outer_fold": args.n_trials,
-            "inner_participant_folds": args.inner_folds,
-            "inner_training_day_fraction": args.search_train_fraction,
-            "seed": args.search_seed,
-            "objective": "mean inner held-out participant combined accuracy",
-        },
-        "hyperparameters": {
-            "model_type": "XGBoost",
-            "version": "lightweight",
-            "window_batch_size": args.window_batch_size,
-            "overlap": pipeline.algo.overlap,
-            "window_sec": pipeline.algo.window_sec,
-        },
-    }
-    _write_results(
-        evaluation=evaluation,
-        fold_metadata=fold_metadata,
-        output_dir=output_dir,
-        run_metadata=run_metadata,
-    )
-    _write_search_results(evaluation, output_dir)
+    # Export only the held-out metrics.
+    output_dir.mkdir(parents=True, exist_ok=True)
+    evaluation.get_aggregated_results_as_df(group="test").to_csv(output_dir / "fold_results.csv")
+    evaluation.get_single_results_as_df(group="test").to_csv(output_dir / "daily_results.csv")
 
-    LOGGER.info("Results written to %s", output_dir)
+    # Fit the final model on the union of all selected folds, preserving the Part B selection.
+    selected_labels = list(
+        dict.fromkeys(label for train, test in outer_splitter.split(base_dataset) for label in [*train, *test])
+    )
+    optimizer.optimize(base_dataset.get_subset(group_labels=selected_labels))
+    detector = optimizer.optimized_pipeline_.algo
+    with (output_dir / "model.pkl").open("wb") as file:
+        pickle.dump(detector.clf, file)
+    with (output_dir / "feature_order.pkl").open("wb") as file:
+        pickle.dump(list(detector.feature_names), file)
 
 
 if __name__ == "__main__":
