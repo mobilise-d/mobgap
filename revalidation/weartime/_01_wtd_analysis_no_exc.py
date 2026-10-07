@@ -9,9 +9,9 @@ recordings. Each held-out day contains at least eight hours of recorded data.
 Part B is not evaluated. The signal detector has no learned parameters; LOSO
 does not undo historical tuning of its fixed settings.
 
-Classification metrics pool sample matches across all held-out participants.
-Duration summaries pool daily errors. Participants contribute in proportion to
-their number of scored days, rather than receiving equal fold weight.
+Classification metrics pool labeled-sample confusion counts across all held-out
+participants. Duration summaries give each non-missing daily error equal weight,
+rather than giving each participant fold equal weight.
 
 .. note::
     See :ref:`wtd_val_gen_no_exc` for result generation. These results are not
