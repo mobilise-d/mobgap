@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import importlib
-import sys
+import pickle
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def evaluation_scripts(monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, ModuleType]:
-    """Import the command-line modules when their optional ML dependencies are installed."""
+    """Import the training modules when their optional ML dependencies are installed."""
     pytest.importorskip("optuna")
     pytest.importorskip("xgboost")
     script_dir = Path(__file__).resolve().parents[2] / "scripts" / "weartime_ml_training_evaluation" / "evaluation"
@@ -59,102 +60,100 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     )
     dataset = SustainWearTimeDataset(Path("unused"), splitter=split_by_utc_day, subset_index=pd.DataFrame(rows))
 
-    for script in evaluation_scripts:
-        monkeypatch.setattr(script, "SustainWearTimeDataset", lambda *_, **__: dataset)
-        monkeypatch.setattr(
-            sys,
-            "argv",
-            [
-                script.__name__,
-                "--dataset-path",
-                "unused",
-                "--dry-run",
-                "--output-dir",
-                str(tmp_path),
-                "--run-name",
-                script.__name__,
-            ],
-        )
-        script.main()
-
-        output_dir = tmp_path / script.__name__
-        fold_plan = pd.read_csv(output_dir / "fold_metadata.csv")
-        assert len(fold_plan) == 3
-        assert set(fold_plan["n_train_days"]) == {14}
-        assert set(fold_plan["n_test_days"]) == {5}
-        assert all(recording_id.startswith("human_") for recording_id in fold_plan["test_recording_ids"])
-
-        monkeypatch.setattr(
-            sys,
-            "argv",
-            [
-                script.__name__,
-                "--dataset-path",
-                "unused",
-                "--dry-run",
-                "--output-dir",
-                str(tmp_path),
-                "--run-name",
-                f"{script.__name__}_selected",
-                "--participant-id",
-                "002",
-                "--participant-id",
-                "003",
-                "--max-participants",
-                "2",
-                "--part-b-recording-count",
-                "1",
-            ],
-        )
-        script.main()
-        selected_folds = pd.read_csv(tmp_path / f"{script.__name__}_selected" / "fold_metadata.csv")
-        assert set(selected_folds["held_out_participant_ids"].astype(str).str.zfill(3)) == {"002", "003"}
-        assert set(selected_folds["n_train_days"]) == {7}
-
-    cnn = evaluation_scripts[0]
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "loso_daily_cnn",
-            "--dataset-path",
-            "unused",
-            "--dry-run",
-            "--output-dir",
-            str(tmp_path),
-            "--run-name",
-            "cnn_part_b_days",
-            "--part-b-day-count",
-            "3",
-        ],
-    )
-    cnn.main()
-    cnn_day_plan = pd.read_csv(tmp_path / "cnn_part_b_days" / "fold_metadata.csv")
-    assert set(cnn_day_plan["n_train_days"]) == {13}
-
-    xgboost = evaluation_scripts[1]
     captured_splitters: dict[str, BaseDatasetSplitter] = {}
     captured_datasets: dict[str, SustainWearTimeDataset] = {}
     captured_wrappers: list[object] = []
+    saved_models: list[Path] = []
 
-    def capture_run(evaluation: EvaluationCV, optimizer: xgboost.OptimizableOptunaSearch) -> EvaluationCV:
+    def capture_run(evaluation: EvaluationCV, optimizer: object) -> EvaluationCV:
         captured_splitters["outer"] = evaluation.cv_iterator
         captured_datasets["outer"] = evaluation.dataset
         captured_wrappers.append(optimizer)
+        assert not (evaluation.cv_params or {}).get("return_optimizer", False)
+        evaluation.results_ = {}
         return evaluation
 
     monkeypatch.setattr(EvaluationCV, "run", capture_run)
-    monkeypatch.setattr(xgboost, "_write_results", lambda **_: None)
-    monkeypatch.setattr(xgboost, "_write_search_results", lambda *_: None)
-    monkeypatch.setattr(sys, "argv", ["loso_daily_xgboost", "--dataset-path", "unused", "--inner-folds", "2"])
-    xgboost.main()
+    monkeypatch.setattr(EvaluationCV, "get_aggregated_results_as_df", lambda *_, **__: pd.DataFrame())
+    monkeypatch.setattr(EvaluationCV, "get_single_results_as_df", lambda *_, **__: pd.DataFrame())
+    cnn, xgboost = evaluation_scripts
+    monkeypatch.setattr(
+        cnn, "import_module", lambda _: SimpleNamespace(config=SimpleNamespace(list_physical_devices=lambda _: []))
+    )
 
+    final_training_datasets: list[SustainWearTimeDataset] = []
+
+    def capture_final_training(optimizer: object, train_dataset: SustainWearTimeDataset) -> object:
+        final_training_datasets.append(train_dataset)
+        optimizer.optimized_pipeline_ = SimpleNamespace(
+            algo=SimpleNamespace(
+                clf={"trained": True},
+                feature_names=["feature"],
+                model=SimpleNamespace(_model=SimpleNamespace(save=saved_models.append)),
+            )
+        )
+        return optimizer
+
+    def run_script(script: ModuleType) -> None:
+        with monkeypatch.context() as training:
+            optimizer_class = Optimize if script is cnn else xgboost.OptimizableOptunaSearch
+            training.setattr(optimizer_class, "optimize", capture_final_training)
+            script.main()
+
+    for script in evaluation_scripts:
+        monkeypatch.setattr(script, "SustainWearTimeDataset", lambda *_, **__: dataset)
+        monkeypatch.setattr(script, "DATASET_PATH", Path("unused"))
+        monkeypatch.setattr(script, "OUTPUT_DIR", tmp_path)
+        monkeypatch.setattr(script, "RUN_NAME", script.__name__)
+        if script is xgboost:
+            monkeypatch.setattr(script, "INNER_FOLDS", 2)
+        run_script(script)
+        assert len(final_training_datasets[-1].index) == 19
+        assert set(
+            final_training_datasets[-1].get_subset(recording_type="simulated_movements").index["recording_id"]
+        ) == {"part_b_021", "part_b_023"}
+        assert captured_datasets["outer"] is dataset
+        assert captured_splitters["outer"].get_n_splits(dataset) == 3
+        for train_labels, test_labels in captured_splitters["outer"].split(dataset):
+            train = dataset.get_subset(group_labels=train_labels)
+            test = dataset.get_subset(group_labels=test_labels)
+            assert len(train.index) == 14
+            assert len(test.index) == 5
+            assert set(test.index["recording_type"]) == {"human_movement"}
+            part_b = train.get_subset(recording_type="simulated_movements")
+            assert set(part_b.index["recording_id"]) == {"part_b_021", "part_b_023"}
+
+        with monkeypatch.context() as selection:
+            selection.setattr(script, "PARTICIPANT_IDS", ["002", "003"])
+            selection.setattr(script, "MAX_PARTICIPANTS", 2)
+            selection.setattr(script, "PART_B_RECORDING_COUNT", 1)
+            run_script(script)
+            assert len(final_training_datasets[-1].index) == 12
+            selected_folds = list(captured_splitters["outer"].split(dataset))
+            assert len(selected_folds) == 2
+            assert {
+                dataset.get_subset(group_labels=test).index["participant_id"].iloc[0] for _, test in selected_folds
+            } == {"002", "003"}
+            assert all(len(dataset.get_subset(group_labels=train).index) == 7 for train, _ in selected_folds)
+
+        with monkeypatch.context() as selection:
+            selection.setattr(script, "PART_B_DAY_COUNT", 3)
+            run_script(script)
+            assert len(final_training_datasets[-1].index) == 18
+            assert all(
+                len(dataset.get_subset(group_labels=train).index) == 13
+                for train, _ in captured_splitters["outer"].split(dataset)
+            )
+
+    assert saved_models == [tmp_path / "loso_daily_cnn" / "model.keras"] * 3
+    with (tmp_path / "loso_daily_xgboost" / "model.pkl").open("rb") as file:
+        assert pickle.load(file) == {"trained": True}
+    with (tmp_path / "loso_daily_xgboost" / "feature_order.pkl").open("rb") as file:
+        assert pickle.load(file) == ["feature"]
+    run_script(xgboost)
     evaluation_dataset = captured_datasets["outer"]
-    for outer_train_labels, _ in captured_splitters["outer"].split(evaluation_dataset):
-        outer_train = evaluation_dataset.get_subset(group_labels=outer_train_labels)
-        part_b_train = outer_train.get_subset(recording_type="simulated_movements").index
-        assert len(part_b_train) == 4
-        assert set(part_b_train["recording_id"]) == {"part_b_021", "part_b_023"}
+    wrapper = captured_wrappers[-1]
+    assert wrapper.return_optimized is True
 
     captured_inner: dict[str, object] = {}
 
@@ -175,7 +174,6 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         return optimizer
 
     monkeypatch.setattr(Optimize, "optimize", capture_refit)
-    wrapper = captured_wrappers[0]
     assert isinstance(wrapper, xgboost.OptimizableOptunaSearch)
     first_train_labels, _ = next(captured_splitters["outer"].split(evaluation_dataset))
     outer_train = evaluation_dataset.get_subset(group_labels=first_train_labels)
@@ -202,12 +200,8 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
     assert set(sampled.index["recording_type"]) == {"human_movement"}
     assert len(sampled.index) == max(1, round(0.4 * len(human_training_days.index)))
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["loso_daily_xgboost", "--dataset-path", "unused", "--inner-folds", "2", "--part-b-day-count", "3"],
-    )
-    xgboost.main()
+    monkeypatch.setattr(xgboost, "PART_B_DAY_COUNT", 3)
+    run_script(xgboost)
     part_b_days_by_fold = [
         evaluation_dataset.get_subset(group_labels=train_labels).get_subset(recording_type="simulated_movements").index
         for train_labels, _ in captured_splitters["outer"].split(evaluation_dataset)

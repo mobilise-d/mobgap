@@ -1,62 +1,38 @@
 # Wear-time model training and evaluation
 
-These scripts train the CNN and XGBoost wear-time detectors from raw SUSTAIN CWA
-recordings through `SustainWearTimeDataset` and
-`WtdEmulationPipeline.self_optimize`. The evaluation scripts split recordings
-by day and run participant-grouped cross-validation through TPCP `Optimize`.
+The daily LOSO scripts are the training entry points:
 
-Install MobGap with its `weartime` extra. TensorFlow training requires a
-supported Python version below 3.13. Supply `--dataset-path` or set
-`MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time folder.
+- `evaluation/loso_daily_cnn.py`
+- `evaluation/loso_daily_xgboost.py`
 
-| Model | Train | Daily evaluation |
-| --- | --- | --- |
-| CNN | `training/train_cnn.py` | `evaluation/loso_daily_cnn.py` |
-| XGBoost | `training/train_xgboost.py` | `evaluation/loso_daily_xgboost.py` |
+Edit the configuration constants at the top of each script, then run it with
+Python. Install MobGap with its `weartime` extra. TensorFlow requires Python
+below 3.13. Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the
+SUSTAIN wear-time folder. The raw dataset is not distributed with MobGap.
 
-Run each script with `--help` for its data selection, model, and output
-options. The daily evaluation scripts support `--dry-run` to write the fold
-plan without fitting models.
+Both scripts use daily datapoints and participant-grouped LOSO through
+`WtdEmulationPipeline`, TPCP optimizers, and `EvaluationCV`. Each outer training
+fold includes the same seed-42 sample of Part B recordings or days. Held-out
+folds contain only human recordings. `OVERLAP` controls the window stride;
+set it to `0` for non-overlapping windows.
 
-The XGBoost scripts accept `--overlap` (default `0.75`; `0` uses non-overlapping
-windows). They cache one float32 feature result per selected recording or day
-under `--cache-dir/xgboost_features`, shared between training and evaluation
-scoring. TPCP's fast best-effort hash is used for cache lookups; changing this option
-invalidates entries created with the default hash.
+XGBoost performs Optuna tuning separately within each outer fold. Inner CV
+uses human recordings only, with a seeded 40% sample of each inner training
+fold's days. The best candidate is refitted on all outer training days,
+including the selected Part B data. Recording-level float32 features are
+cached with TPCP's hybrid cache and fast best-effort hashing.
 
-XGBoost daily evaluation scores held-out days only. It runs a separate
-Optuna search in every outer participant fold. Each trial uses participant-grouped
-inner cross-validation and samples 40% of each inner training fold's human day
-rows. Inner folds use human recordings only. The LOSO script supplies the inner
-splitter to the Optuna optimizer. The best parameters are refit on every outer
-training day, including all selected part B days, before scoring the held-out
-participant. Use `--n-trials`, `--inner-folds`,
-`--search-train-fraction`, and `--search-seed` to adjust the search.
-`optuna_best_by_fold.csv` and `optuna_trials.csv` record the search results.
-Both daily evaluations score held-out days only and write `timings.json` from `EvaluationCV.perf_`.
+CNN trains directly in each outer fold. Windows are prepared lazily without
+feature caching. GPU folds run sequentially.
 
-Both daily evaluation scripts use TPCP's `CombinedSplitter` and `NoSplit` to put
-the same sampled part B data in training for every fold. Test folds contain
-only part A human recordings. By default, the scripts sample two part B recordings
-with seed 42; `--part-b-recording-count` changes the count. Both scripts
-also accept `--part-b-day-count` to sample that many individual part B days
-instead of whole recordings, using the same seed in every fold. The splitter applies
-both the human participant selection and the fixed part B training selection.
-`NoSplit` takes its fold count from the human participant splitter.
-The dry run writes the fold plan to `fold_metadata.csv`.
+Each run exports only `fold_results.csv`, `daily_results.csv`, and a final
+trained model. Fold optimizers are not retained. After LOSO, the optimizer runs
+once on the union of all selected human days and the fixed Part B sample.
+For XGBoost, this includes a new human-only Optuna search followed by refitting
+the best candidate on that complete training set. Its classifier and feature
+order are saved as `model.pkl` and `feature_order.pkl`. CNN saves `model.keras`.
+These final models are separate from the models used for held-out scoring.
 
-CNN training saves a `.keras` artifact. Load it in a fresh Python process with
-`mobgap.weartime.load_keras_weartime_model(path)` so the optional model-side
-standardization layer is registered before deserialization.
-The standalone CNN training script splits recordings by day by default; use
-`--no-split-by-day` for complete recordings. `--overlap` controls the CNN window stride.
-Calling `WtdMegaritisCNN()` without a model loads the packaged pretrained CNN for detection
-or creates a new CNN for `self_optimize`.
-
-For runs made with earlier drafts of these scripts, `--no-split-by-day` restores the
-old CNN training input. The daily CNN evaluation now writes held-out scores only.
-If an output directory is reused, it removes stale `train_*` score files from an
-earlier run. These scripts are part of the unpublished wear-time ML draft PR.
-
-The raw SUSTAIN dataset is not distributed with MobGap. Model fitting and daily
-cross-validation therefore require access to that dataset.
+Load CNN `.keras` artifacts in a fresh process with
+`mobgap.weartime.load_keras_weartime_model(path)` to register the optional
+model-side standardization layer before deserialization.
