@@ -19,9 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reorientation in the healthy pipeline. The sensor axis aligned with PA must still be known.
   (https://github.com/mobilise-d/mobgap/issues/238, https://github.com/mobilise-d/mobgap/pull/251)
 - Wear-time detection as a new algorithm category, including `mobgap.weartime.base.BaseWeartimeDetector` and
-  the signal-based `WtdMegaritisSignal` algorithm.
+  the signal-based `WtdMegaritisSignal` algorithm. (https://github.com/mobilise-d/mobgap/pull/253)
 - `WtdEmulationPipeline` for running wear-time algorithms on datasets, with scoring and evaluation helpers.
   (https://github.com/mobilise-d/mobgap/pull/253)
+- Direct loading and splitting of raw AX6 files using our custom loader library (https://github.com/mobilise-d/cwa_reader_rs)
+  This allows loading AX6 files fully or in intervals/sections (e.g. per day, or test segments) without processing the full file.
+  This is multiple order of magnitude faster, then converting and resampling the files with the previous mobilise-d tools and
+  allows mobgap to be used "end-to-end" with no other installs required. (https://github.com/mobilise-d/mobgap/pull/253)
 
 ### Changed
 
