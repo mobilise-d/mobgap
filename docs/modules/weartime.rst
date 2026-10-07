@@ -50,6 +50,7 @@ Evaluation
 
     wtd_per_datapoint_score
     wtd_final_agg
+    calculate_wtd_classification_summary
 
 Interval utilities
 ++++++++++++++++++

@@ -12,9 +12,10 @@ configured detector in every fold. This establishes the CV workflow for future
 trainable detectors.
 
 Per-day and per-fold metrics and raw interval matches are saved locally. The
-analysis pools all held-out sample matches for classification metrics and all
-held-out daily errors for duration summaries. Participant 010's uncertain ground
-truth is excluded from scoring; its signal remains available to the detector.
+analysis summarizes labeled-sample confusion counts with day, participant and
+fold weighting, and averages daily errors for duration summaries. Participant
+010's uncertain ground truth is excluded from scoring; the detector still
+receives its full signal.
 Undefined daily metrics are NaN.
 
 .. warning::

@@ -9,9 +9,10 @@ recordings. Each held-out day contains at least eight hours of recorded data.
 Part B is not evaluated. The signal detector has no learned parameters; LOSO
 does not undo historical tuning of its fixed settings.
 
-Classification metrics pool labeled-sample confusion counts across all held-out
-participants. Duration summaries give each non-missing daily error equal weight,
-rather than giving each participant fold equal weight.
+Classification summaries compare equal weights for days, participants and folds.
+Within each participant, rates use either pooled labeled-sample confusion counts
+or the mean of daily rates. Duration summaries give each non-missing daily error
+equal weight.
 
 .. note::
     See :ref:`wtd_val_gen_no_exc` for result generation. These results are not
@@ -32,12 +33,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from mobgap.gait_sequences.evaluation import (
-    calculate_matched_gsd_performance_metrics,
-)
 from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 from mobgap.utils.df_operations import CustomOperation, apply_transformations
 from mobgap.utils.misc import get_env_var
+from mobgap.weartime.evaluation import calculate_wtd_classification_summary
 
 algorithms = {
     "WtdMegaritisSignal": ("WtdMegaritisSignal", "MobGap"),
@@ -122,30 +121,17 @@ for prefix in ("", "waking_"):
 results["algo_with_version"] = results["algo"] + " (" + results["version"] + ")"
 human_movement_results = results[results["recording_type"] == "human_movement"]
 
-# Pool raw held-out sample matches, not per-fold classification rates.
-held_out_matches = pd.concat(
+# Compare day, participant and fold weights using the daily confusion counts.
+classification_overall = pd.DataFrame(
     {
-        display_name: pd.read_csv(
-            results_base_path / condition_name / result_name / "raw_matches.csv"
-        )
-        for result_name, display_name in algorithms.items()
-    },
-    names=["algo", "version"],
-).reset_index()
-pooled_classification_overall = pd.DataFrame(
-    {
-        group: calculate_matched_gsd_performance_metrics(
-            matches.assign(end=matches["end"] - 1)
-        )
-        for group, matches in held_out_matches.groupby(["algo", "version"])
+        group: calculate_wtd_classification_summary(days)
+        for group, days in human_movement_results.groupby(["algo", "version"])
     }
 ).T.rename_axis(index=["algo", "version"])
-pooled_classification_by_participant = pd.DataFrame(
+classification_by_participant = pd.DataFrame(
     {
-        group: calculate_matched_gsd_performance_metrics(
-            matches.assign(end=matches["end"] - 1)
-        )
-        for group, matches in held_out_matches.groupby(
+        group: calculate_wtd_classification_summary(days)
+        for group, days in human_movement_results.groupby(
             ["participant_id", "algo", "version"]
         )
     }
@@ -193,7 +179,7 @@ human_movement_summary_aggs = {
 human_movement_summary_overall = (
     human_movement_results.groupby(["algo", "version"])
     .agg(**human_movement_summary_aggs)
-    .join(pooled_classification_overall)
+    .join(classification_overall)
 )
 human_movement_summary_overall
 
@@ -202,12 +188,12 @@ human_movement_summary_overall
 # -------------------------------
 # For the human-movement recordings we inspect the full set of overlap and
 # duration metrics. The dataset is evaluated
-# per day; this aggregation keeps the participant identity, then averages across
-# the selected participant's days.
+# per day. Duration summaries average days; classification summaries compare
+# pooled participant counts with average daily rates.
 human_movement_summary_by_participant = (
     human_movement_results.groupby(["participant_id", "algo", "version"])
     .agg(**human_movement_summary_aggs)
-    .join(pooled_classification_by_participant)
+    .join(classification_by_participant)
 )
 human_movement_summary_by_participant
 
