@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pickle
 from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves algorithm annotations at runtime.
+from datetime import time
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
@@ -33,6 +34,7 @@ from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.consts import BF_SENSOR_COLS
+from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.utils.dtypes import assert_is_sensor_data
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
@@ -40,7 +42,7 @@ from mobgap.weartime.base import (
     _unify_weartime_df,
     base_weartime_docfiller,
 )
-from mobgap.weartime.utils._intervals import _validate_waking_hours_min, flags_to_intervals
+from mobgap.weartime.utils._intervals import _validate_waking_hours, _with_local_datetimes
 from mobgap.weartime.utils.feature_extraction import (
     FEATURE_ORDER_90PCT,
     FULL_FEATURE_ORDER,
@@ -256,9 +258,8 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     memory
         Optional joblib cache for complete recording-level feature batches shared by training and detection. Disabled
         by default. Cache entries use float32 features; feature calculations retain their original precision.
-    waking_hours_min
-        Waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)`` in minutes since
-        midnight.
+    waking_hours
+        Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
     trained_sampling_rate_hz
         Sampling rate used to train ``clf``. Pretrained models use 100 Hz.
     allow_sampling_rate_mismatch
@@ -370,7 +371,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         window_batch_size: int = 4096,
         n_jobs: int = 1,
         memory: Memory = Memory(None),
-        waking_hours_min: tuple[int, int] = (7 * 60, 22 * 60),
+        waking_hours: tuple[time, time] = (time(7), time(22)),
         trained_sampling_rate_hz: Optional[float] = 100.0,  # noqa: UP045 - tpcp 2.1 resolves annotations.
         allow_sampling_rate_mismatch: bool = False,
     ) -> None:
@@ -384,7 +385,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self.window_batch_size = window_batch_size
         self.n_jobs = n_jobs
         self.memory = memory
-        self.waking_hours_min = waking_hours_min
+        self.waking_hours = waking_hours
         self.trained_sampling_rate_hz = trained_sampling_rate_hz
         self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
 
@@ -395,7 +396,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         """%(detect_short)s using an XGBoost classifier with overlapping feature windows."""
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        _validate_waking_hours_min(self.waking_hours_min)
+        _validate_waking_hours(self.waking_hours)
         assert_is_sensor_data(data, frame="body")
 
         clf, feature_names, trained_sampling_rate_hz = self._classifier_and_feature_names()
@@ -435,6 +436,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         if len(self.window_predictions_) == 0:
             self.weartime_list_ = _unify_weartime_df(pd.DataFrame(columns=["start", "end"]).rename_axis(index="wt_id"))
+            self.weartime_list_ = _with_local_datetimes(self.weartime_list_, data, sampling_rate_hz)
             return self
 
         weartime_flags, vote_counts = overlapping_window_predictions_to_sample_labels(
@@ -443,7 +445,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             window_samples=window_samples,
             step_samples=step_samples,
         )
-        weartime_intervals = flags_to_intervals(weartime_flags)
+        weartime_intervals = bool_array_to_start_end_array(weartime_flags).astype(np.int64, copy=False).reshape(-1, 2)
         weartime_intervals = filter_short_wear_bouts_by_confidence(
             wear_intervals=weartime_intervals,
             vote_counts=vote_counts,
@@ -456,12 +458,13 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         weartime_intervals = remove_isolated_short_periods_from_intervals(
             weartime_intervals,
             data_length=len(data),
-            min_period_sec=15,
+            min_period_s=15,
             sampling_rate_hz=sampling_rate_hz,
         )
         self.weartime_list_ = pd.DataFrame(weartime_intervals, columns=["start", "end"]).rename_axis(index="wt_id")
         self.weartime_list_["end"] = self.weartime_list_["end"].clip(upper=len(data))
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
+        self.weartime_list_ = _with_local_datetimes(self.weartime_list_, data, sampling_rate_hz)
 
         return self
 
