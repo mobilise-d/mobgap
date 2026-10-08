@@ -30,3 +30,22 @@ class TestSlidingWindowView:
     def test_error_overlap_larger_than_window(self):
         with pytest.raises(ValueError):
             sliding_window_view(np.arange(14), window_size_samples=3, overlap_samples=4)
+
+    @pytest.mark.parametrize("step", [2, -1, -2])
+    def test_noncontiguous_views_keep_values_and_remain_read_only(self, step):
+        data = np.arange(120).reshape(20, 2, 3)[::step]
+        view = sliding_window_view(data, window_size_samples=3, overlap_samples=1)
+        expected = np.stack([data[start : start + 3] for start in range(0, len(data) - 2, 2)])
+        np.testing.assert_array_equal(view, expected)
+        assert np.shares_memory(view, data)
+        assert not view.flags.writeable
+
+    def test_half_day_window_view_does_not_require_every_one_sample_offset(self):
+        # The input has one allocated value. On 32-bit NumPy, the unused view
+        # of every offset would describe over 10 GB and fail before subsampling.
+        data = np.broadcast_to(np.array([7.0]), (4_319_378,))
+        view = sliding_window_view(data, window_size_samples=300, overlap_samples=0)
+        assert view.shape == (14_397, 300)
+        assert view[0, 0] == view[-1, -1] == 7.0
+        assert np.shares_memory(view, data)
+        assert not view.flags.writeable
