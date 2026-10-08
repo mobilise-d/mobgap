@@ -1,6 +1,7 @@
 """Utility functions to perform common array operations."""
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 from numpy.lib.stride_tricks import sliding_window_view as np_sliding_window_view
 
 from mobgap._gaitmap.utils.array_handling import (
@@ -52,14 +53,18 @@ def sliding_window_view(data: np.ndarray, window_size_samples: int, overlap_samp
     if overlap_samples > window_size_samples:
         raise ValueError("overlap_samples must be smaller than window_size_samples")
 
-    view = np_sliding_window_view(data, window_shape=(window_size_samples,), axis=0)[
-        :: (window_size_samples - overlap_samples)
-    ]
-
-    if data.ndim > 1:
-        view = np.moveaxis(view, -1, 1)
-
-    return view
+    # Validate the window on at most one window of input. Constructing every
+    # one-sample offset first can exceed np.intp on 32-bit platforms, even when
+    # the subsampled result is small enough to represent.
+    np_sliding_window_view(data[:window_size_samples], window_shape=(window_size_samples,), axis=0)
+    step = window_size_samples - overlap_samples
+    n_windows = len(range(0, data.shape[0] - window_size_samples + 1, step))
+    return as_strided(
+        data,
+        shape=(n_windows, window_size_samples, *data.shape[1:]),
+        strides=(step * data.strides[0], data.strides[0], *data.strides[1:]),
+        writeable=False,
+    )
 
 
 __all__ = ["bool_array_to_start_end_array", "merge_intervals", "sliding_window_view", "start_end_array_to_bool_array"]

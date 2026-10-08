@@ -109,6 +109,10 @@ mobilised_pipeline_docfiller = make_filldoc(
         The final aggregated parameters are available via the ``aggregated_parameters_`` attribute.
     """,
         "additional_parameters": """
+    retain_intermediate_results
+        Whether to keep executed algorithm instances and the input dataset after a run. Defaults to True.
+        Set to False to release these references while keeping all output tables.
+        This reduces retained memory, not the peak memory needed during processing.
     recommended_cohorts
         A tuple of recommended cohorts for this pipeline.
         If a datapoint is provided with a cohort that is not part of this tuple, a warning will be raised.
@@ -117,7 +121,8 @@ mobilised_pipeline_docfiller = make_filldoc(
     """,
         "other_parameters": """
     datapoint
-        The dataset instance passed to the run method.
+        The dataset instance passed to the run method. For pipelines supporting ``retain_intermediate_results``,
+        this is available after running only when that parameter is True.
     """,
         "primary_results": """
     per_stride_parameters_

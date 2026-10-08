@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pickle
-import warnings
 from functools import partial
 from os import utime
 from shutil import copyfile
@@ -117,7 +116,6 @@ def test_reader_uses_configuration_offset_and_requested_output_timezone() -> Non
     assert local_data.iloc[0].equals(utc_data.iloc[0])
     assert local_dataset.index.start_time.iloc[0] == local_data.index[0]
     assert local_dataset.cwa_header_["start_from_data"] == local_data.index[0]
-    assert local_dataset.cwa_timing_report_["start_from_data"] == local_data.index[0]
     assert utc_dataset.cwa_header_["start_from_data"] == utc_data.index[0]
 
 
@@ -130,7 +128,7 @@ def test_utc_clock_needs_no_configuration_timestamp(tmp_path: Path, monkeypatch:
         "start_from_data_raw": "2026-03-29T10:00:00",
         "end_from_data_raw": "2026-03-29T10:00:00.990",
     }
-    monkeypatch.setattr(ax6_module, "_recording_info", lambda *_args: (header, {}))
+    monkeypatch.setattr(cwa_reader_rs, "read_metadata", lambda *_args: header)
     dataset = AX6Dataset(
         path,
         tz="UTC",
@@ -182,7 +180,7 @@ def test_local_day_split_follows_calendar_at_clock_change(
         "start_from_data_raw": start_raw,
         "end_from_data_raw": end_raw,
     }
-    monkeypatch.setattr(ax6_module, "_recording_info", lambda *_args: (header, {}))
+    monkeypatch.setattr(cwa_reader_rs, "read_metadata", lambda *_args: header)
     dataset = AX6Dataset(
         path,
         tz="Europe/Berlin",
@@ -208,22 +206,6 @@ def test_additional_sensors_enabled_parameter_survives_clone() -> None:
     )
 
     assert dataset.clone().data_ss.columns.tolist() == [*SF_ACC_COLS, "temperature"]
-
-
-def test_sampling_rate_deviation_warning_threshold() -> None:
-    """The base loader owns the optional warning for CWA clock drift."""
-    options = {
-        "participant_metadata": {"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
-        "recording_metadata": {"measurement_condition": "free_living"},
-        "tz": "UTC",
-    }
-    with pytest.warns(UserWarning, match="effective sampling rate waries considerable"):
-        AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=0.2, **options).data_ss
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        AX6Dataset(EXAMPLE_CWA, warn_thres_for_sampling_rate_deviations_hz=10.0, **options).data_ss
-    assert not [warning for warning in caught if "effective sampling rate" in str(warning.message)]
 
 
 def test_day_split_keeps_the_recording_in_one_utc_day() -> None:
@@ -254,7 +236,6 @@ def test_calendar_splitter_omits_windows_shorter_than_min_duration(
         last_sample_time=pd.Timestamp("2026-09-25T01:29:59.990Z"),
         end_time=pd.Timestamp("2026-09-25T01:30:00Z"),
         cwa_header={"sample_rate_hz": 100.0},
-        cwa_timing_report={},
         recording_metadata={},
         tz="UTC",
     )
@@ -280,14 +261,6 @@ def test_calendar_split_cuts_at_utc_midnight(
         lambda _path: {
             "sample_rate_hz": 100.0,
             "last_change_time_raw": "2026-09-24T12:00:00",
-            "start_from_data_raw": start.tz_localize(None).isoformat(),
-            "end_from_data_raw": midnight.tz_localize(None).isoformat(),
-        },
-    )
-    monkeypatch.setattr(
-        cwa_reader_rs,
-        "sampling_consistency_report",
-        lambda _path: {
             "start_from_data_raw": start.tz_localize(None).isoformat(),
             "end_from_data_raw": midnight.tz_localize(None).isoformat(),
         },
@@ -401,7 +374,7 @@ def test_fixed_split_table_rejects_naive_timestamps() -> None:
 
 
 def test_single_file_metadata_is_available_with_multiple_windows() -> None:
-    """Header and timing metadata remain available before selecting a window."""
+    """Header metadata remains available before selecting a window."""
     start = pd.Timestamp("2012-03-27T11:14:57.500Z")
     splits = pd.DataFrame(
         {
@@ -414,7 +387,6 @@ def test_single_file_metadata_is_available_with_multiple_windows() -> None:
 
     assert len(dataset.index) == 2
     assert dataset.cwa_header_["sample_rate_hz"] == 100
-    assert dataset.cwa_timing_report_["start_from_data_raw"] is not None
     assert dataset.sampling_rate_hz == 100
 
 
@@ -557,3 +529,32 @@ def test_repeated_data_access_reuses_the_last_read(tmp_path: Path, monkeypatch: 
     utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
     assert len(dataset.data_ss) == 72472
     assert calls == 2
+
+
+@pytest.mark.parametrize(
+    "splitter", [None, split_by_local_days, split_by_utc_day, split_by_utc_hour, _split_first_ten_seconds, "fixed"]
+)
+def test_default_access_does_not_scan_timing_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, splitter: Callable[[CwaRecordingInfo], pd.DataFrame] | str | None
+) -> None:
+    """Indexing and normal reads need only boundary metadata, not a full timing scan."""
+    path = tmp_path / "recording.cwa"
+    copyfile(EXAMPLE_CWA, path)
+
+    def unexpected_report(_path: str) -> None:
+        pytest.fail("Default dataset access must not scan packet timing")
+
+    monkeypatch.setattr(cwa_reader_rs, "sampling_consistency_report", unexpected_report)
+    if splitter == "fixed":
+        splitter = pd.DataFrame(
+            {
+                "recording": ["first"],
+                "start_time": [pd.Timestamp("2012-03-27T11:14:57.500Z")],
+                "end_time": [pd.Timestamp("2012-03-27T11:15:07.500Z")],
+            }
+        )
+    dataset = _dataset(splitter=splitter).set_params(path=path)
+    assert len(dataset.index) == 1
+    assert dataset.cwa_header_["sample_rate_hz"] == 100
+    assert dataset.sampling_rate_hz == 100
+    assert len(dataset.data_ss) > 0

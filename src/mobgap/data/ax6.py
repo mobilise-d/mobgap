@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from datetime import timezone
 from functools import lru_cache
 from importlib import import_module
@@ -28,11 +27,6 @@ _ADDITIONAL_COLUMNS = {
     "magnetometer": ("mag_x", "mag_y", "mag_z"),
     "temperature": ("temperature",),
 }
-_SAMPLING_RATE_DEVIATION_WARNING = (
-    "The expected number of samples/the effective sampling rate waries considerable from the expected values. "
-    "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
-    "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
-)
 
 
 def _cwa_reader() -> Any:
@@ -52,7 +46,6 @@ class CwaRecordingInfo(NamedTuple):
     last_sample_time: pd.Timestamp
     end_time: pd.Timestamp
     cwa_header: dict[str, Any]
-    cwa_timing_report: dict[str, Any]
     recording_metadata: RecordingMetadata
     tz: str
 
@@ -110,10 +103,8 @@ def split_by_local_days(info: CwaRecordingInfo, *, min_duration: pd.Timedelta | 
 
 
 @lru_cache(maxsize=128)
-def _recording_info(path: Path, _file_identity: tuple[int, int]) -> tuple[dict, dict]:
-    reader = _cwa_reader()
-
-    return reader.read_metadata(str(path)), reader.sampling_consistency_report(str(path))
+def _recording_header(path: Path, _file_identity: tuple[int, int]) -> dict:
+    return _cwa_reader().read_metadata(str(path))
 
 
 def _clock_timezone(header: dict, tz: str) -> timezone:
@@ -158,7 +149,7 @@ def _recording_bounds(
 def _cwa_recording_info(
     path: Path, *, tz: str, output_timezone: Literal["utc", "local"], recording_metadata: RecordingMetadata
 ) -> CwaRecordingInfo:
-    header, timing = _recording_info(path, _file_identity(path))
+    header = _recording_header(path, _file_identity(path))
     if header["start_from_data_raw"] is None or header["end_from_data_raw"] is None:
         raise ValueError(f"The CWA file has no data timestamps: {path}")
     start, last_sample, end = _recording_bounds(header, tz=tz, output_timezone=output_timezone)
@@ -170,7 +161,6 @@ def _cwa_recording_info(
         last_sample_time=last_sample,
         end_time=end,
         cwa_header=_interpreted_metadata(header, clock_timezone=clock_timezone, output_timezone=output_tz),
-        cwa_timing_report=_interpreted_metadata(timing, clock_timezone=clock_timezone, output_timezone=output_tz),
         recording_metadata=recording_metadata,
         tz=tz,
     )
@@ -238,7 +228,6 @@ class BaseAX6Dataset(BaseGaitDataset):
         tz: str,
         output_timezone: Literal["utc", "local"] = "local",
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
-        warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
@@ -247,7 +236,6 @@ class BaseAX6Dataset(BaseGaitDataset):
         self.tz = tz
         self.output_timezone = output_timezone
         self.additional_sensors_enabled = additional_sensors_enabled
-        self.warn_thres_for_sampling_rate_deviations_hz = warn_thres_for_sampling_rate_deviations_hz
         self.sensor_name = sensor_name
         self.memory = memory
         super().__init__(groupby_cols=groupby_cols, subset_index=subset_index)
@@ -283,20 +271,9 @@ class BaseAX6Dataset(BaseGaitDataset):
     def cwa_header_(self) -> dict:
         """CWA metadata with raw clock fields and interpreted timestamps in the output timezone."""
         path = self._selected_file_path
-        header = _recording_info(path, _file_identity(path))[0]
+        header = _recording_header(path, _file_identity(path))
         return _interpreted_metadata(
             header,
-            clock_timezone=_clock_timezone(header, self.tz),
-            output_timezone="UTC" if self.output_timezone == "utc" else self.tz,
-        )
-
-    @property
-    def cwa_timing_report_(self) -> dict:
-        """CWA timing report with raw clock fields and interpreted timestamps in the output timezone."""
-        path = self._selected_file_path
-        header, report = _recording_info(path, _file_identity(path))
-        return _interpreted_metadata(
-            report,
             clock_timezone=_clock_timezone(header, self.tz),
             output_timezone="UTC" if self.output_timezone == "utc" else self.tz,
         )
@@ -335,17 +312,6 @@ class BaseAX6Dataset(BaseGaitDataset):
         self.assert_is_single(None, "data_ss")
         channels = self._get_additional_channels()
         path = self._selected_file_path
-        timing = self.cwa_timing_report_
-        threshold = self.warn_thres_for_sampling_rate_deviations_hz
-        if threshold is not None:
-            expected_rate = timing.get("samplingrate_hz_from_header")
-            effective_rate = timing.get("samplingrate_hz_from_data")
-            if (
-                expected_rate is not None
-                and effective_rate is not None
-                and abs(float(effective_rate) - float(expected_rate)) > threshold
-            ):
-                warnings.warn(_SAMPLING_RATE_DEVIATION_WARNING, stacklevel=2)
         header = self.cwa_header_
         first_sample, _, full_end = _recording_bounds(header, tz=self.tz, output_timezone=self.output_timezone)
         sampling_rate_hz = self.sampling_rate_hz
@@ -405,9 +371,6 @@ class AX6Dataset(BaseAX6Dataset):
         callables at module level so joblib and process workers can serialize them.
     additional_sensors_enabled
         Extra CWA channels to return alongside acceleration and gyroscope data.
-    warn_thres_for_sampling_rate_deviations_hz
-        Warn when the effective and expected sampling rates differ by more than this many Hz. ``None`` disables
-        the warning.
     sensor_name
         Key used by ``data`` for this recording.
     memory
@@ -432,7 +395,6 @@ class AX6Dataset(BaseAX6Dataset):
         output_timezone: Literal["utc", "local"] = "local",
         splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = None,
         additional_sensors_enabled: Sequence[AdditionalChannel] = (),
-        warn_thres_for_sampling_rate_deviations_hz: float | None = None,
         sensor_name: str = "LowerBack",
         memory: joblib.Memory = joblib.Memory(None),
         groupby_cols: list[str] | str | None = None,
@@ -446,7 +408,6 @@ class AX6Dataset(BaseAX6Dataset):
             tz=tz,
             output_timezone=output_timezone,
             additional_sensors_enabled=additional_sensors_enabled,
-            warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
             sensor_name=sensor_name,
             memory=memory,
             groupby_cols=groupby_cols,

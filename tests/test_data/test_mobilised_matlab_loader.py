@@ -1,9 +1,13 @@
 import warnings
+from pathlib import Path
+from shutil import copyfile
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
 import pytest
 from pandas._testing import assert_frame_equal
+from scipy.io import loadmat, savemat
 
 from mobgap import PROJECT_ROOT
 from mobgap.data import (
@@ -432,3 +436,107 @@ class TestDatasetClass:
 
         assert result[("TimeMeasure1", "Test11", "Trial1")].imu_data == {}
         assert result[("TimeMeasure1", "Test11", "Trial1")].metadata["sampling_rate_hz"] is None
+
+
+def test_participant_metadata_override_uses_normalized_dict_without_info_file(
+    example_data_path: Path, tmp_path: Path
+) -> None:
+    """A normalized override supplies metadata for every row and returns independent dictionaries."""
+    data_path = tmp_path / "upload.mat"
+    copyfile(example_data_path / "data.mat", data_path)
+    metadata = {"height_m": 1.73, "sensor_height_m": 0.95, "cohort": "HA"}
+    dataset = GenericMobilisedDataset(
+        data_path,
+        ("time_measure", "test", "trial"),
+        measurement_condition="laboratory",
+        participant_metadata_override=metadata,
+    )
+    assert dataset.participant_metadata_override is metadata
+    for datapoint in dataset.clone():
+        assert datapoint.participant_metadata == metadata
+    result = dataset[0].participant_metadata
+    result["height_m"] = 0.0
+    assert dataset[0].participant_metadata == metadata
+    assert dataset[0].set_params(participant_metadata_override={"height_m": 1.8}).participant_metadata == {
+        "height_m": 1.8
+    }
+
+
+def test_participant_metadata_override_selects_alternate_info_file(example_data_path: Path, tmp_path: Path) -> None:
+    """An alternate infoForAlgo path keeps the standard metadata and unit conversions."""
+    info_path = tmp_path / "participant.mat"
+    copyfile(example_data_path / "infoForAlgo.mat", info_path)
+    expected = GenericMobilisedDataset(
+        example_data_path / "data.mat",
+        ("time_measure", "test", "trial"),
+        ("cohort", "participant_id"),
+        measurement_condition="laboratory",
+    )[0].participant_metadata
+    dataset = GenericMobilisedDataset(
+        example_data_path / "data.mat",
+        ("time_measure", "test", "trial"),
+        ("cohort", "participant_id"),
+        measurement_condition="laboratory",
+        participant_metadata_override=info_path,
+    )
+    assert dataset.clone()[0].selected_meta_data_file == info_path
+    assert dataset.clone()[0].participant_metadata == expected
+    assert dataset[0].set_params(participant_metadata_override=None).participant_metadata == expected
+
+
+@pytest.mark.parametrize(
+    ("depth", "expected_names"),
+    [
+        (2, ["time_measure", "recording"]),
+        (3, ["time_measure", "test", "trial"]),
+        (4, ["level_0", "level_1", "level_2", "level_3"]),
+    ],
+)
+def test_automatic_test_level_names_follow_recording_depth(
+    example_data_path: Path, tmp_path: Path, depth: int, expected_names: list[str]
+) -> None:
+    """Automatic names follow the loaded hierarchy and still select the original signal."""
+    source = loadmat(example_data_path / "data.mat", simplify_cells=True)["data"]
+    trial = next(iter(next(iter(next(iter(source.values())).values())).values()))
+    nested = trial
+    for i in reversed(range(depth)):
+        nested = {f"Node{i}": nested}
+    path = tmp_path / "upload.mat"
+    savemat(path, {"data": nested})
+    dataset = GenericMobilisedDataset(path, test_level_names=None, measurement_condition="laboratory")
+    assert dataset.clone().index.columns.tolist() == expected_names
+    assert len(dataset[0].data_ss) > 0
+    explicit = dataset.clone().set_params(
+        test_level_names=tuple(f"custom_{i}" for i in range(depth)), subset_index=None
+    )
+    pd.testing.assert_frame_equal(dataset[0].data_ss, explicit[0].data_ss)
+
+
+def test_automatic_names_reuse_index_when_reading_a_later_file(
+    example_data_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading a later file must not reload the first file to rediscover its hierarchy."""
+    paths = [tmp_path / name / "data.mat" for name in ("first", "second")]
+    for path in paths:
+        path.parent.mkdir()
+        copyfile(example_data_path / "data.mat", path)
+    dataset = GenericMobilisedDataset(
+        paths,
+        test_level_names=None,
+        parent_folders_as_metadata=("participant_id",),
+        measurement_condition="laboratory",
+    )
+    selected = dataset.get_subset(participant_id="second")[0]
+    expected = selected.data_ss
+    calls = []
+    original_loadmat = loadmat
+
+    def track_loadmat(file_name: Union[str, Path], *args: Any, **kwargs: Any) -> dict[str, Any]:
+        calls.append(Path(file_name))
+        return original_loadmat(file_name, *args, **kwargs)
+
+    monkeypatch.setattr("scipy.io.loadmat", track_loadmat)
+    for datapoint in (selected, selected.clone(), selected.get_subset(trial=selected.group_label.trial)):
+        pd.testing.assert_frame_equal(datapoint.data_ss, expected)
+        assert datapoint.sampling_rate_hz == 100
+    assert calls == []
