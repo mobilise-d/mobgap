@@ -356,7 +356,8 @@ def analyze_recording(recording_id: str, options: dict[str, Any]) -> dict[str, A
 
 def _analyze_dataset(recording_id: str, description: dict[str, Any], dataset: Any, preset: str) -> dict[str, Any]:
     is_cwa = description.get("sourceFormat") == "cwa"
-    pipeline = MobilisedPipelineHealthy() if preset == "healthy" else MobilisedPipelineImpaired()
+    pipeline_class = MobilisedPipelineHealthy if preset == "healthy" else MobilisedPipelineImpaired
+    pipeline = pipeline_class(retain_intermediate_results=False)
     started = time.perf_counter()
     try:
         with warnings.catch_warnings(record=True) as caught:
