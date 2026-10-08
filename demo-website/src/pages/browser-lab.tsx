@@ -266,7 +266,7 @@ export function BrowserLab() {
     setOutcomes(previous => Object.fromEntries(Object.entries(previous).map(([id, outcome]) => [id,
       outcome.status === 'running' || outcome.status === 'queued' ? { ...outcome, status: 'cancelled', message: outcome.status === 'running' ? `Cancelled during ${outcome.message ?? 'analysis'}` : 'Not run (cancelled)' } : outcome,
     ])))
-    setNotice(`Cancelled.${completedRows.length > 0 ? ' Completed row results remain available.' : ''} Build the dataset again to run more rows.`)
+    setNotice(operation === 'sample' ? '' : `Cancelled.${completedRows.length > 0 ? ' Completed row results remain available.' : ''} Build the dataset again to run more rows.`)
   }
 
   return <div className="app-shell">
@@ -275,7 +275,10 @@ export function BrowserLab() {
     <main>
       <div className="page-intro"><div><p className="eyebrow">Gait analysis, locally</p><h1>Configure a dataset. Analyze selected rows.</h1><p className="intro-copy">Choose recordings and participant information on the left. Build the dataset, then select trials or days from its index.</p></div><p className="prototype-note"><FlaskConical aria-hidden="true" />Research prototype</p></div>
       <div id="dataset-workspace" className="workspace">
-        <DatasetSidebar files={files} infoFiles={infoFiles} samples={samples} sampleError={sampleError} participant={participant} cwa={cwa} busy={busy} building={operation === 'build'} sampleLoading={operation === 'sample'} canBuild={canBuild} hasCwa={hasCwa} indexBuilt={rows.length > 0} onFiles={stageFiles} onInfoFiles={stageInfoFiles} onSample={sample => void loadSample(sample)} onParticipant={updateParticipant} onCwa={updateCwa} onBuild={() => void buildDataset()} />
+        <div className="flex min-w-0 flex-col gap-3">
+          <DatasetSidebar files={files} infoFiles={infoFiles} samples={samples} sampleError={sampleError} participant={participant} cwa={cwa} busy={busy} building={operation === 'build'} sampleLoading={operation === 'sample'} canBuild={canBuild} hasCwa={hasCwa} indexBuilt={rows.length > 0} onFiles={stageFiles} onInfoFiles={stageInfoFiles} onSample={sample => void loadSample(sample)} onParticipant={updateParticipant} onCwa={updateCwa} onBuild={() => void buildDataset()} />
+          {operation === 'sample' ? <Button variant="outline" onClick={cancelOperation}>Cancel example loading</Button> : null}
+        </div>
         <div className="flex min-w-0 flex-col gap-5">
           {notice ? <Alert><AlertTitle>Operation stopped</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
           {error || fileErrors.length > 0 ? <Alert variant="destructive"><TriangleAlert /><AlertTitle>Could not complete this step</AlertTitle><AlertDescription>{error ? <p className="break-words whitespace-pre-wrap">{error}</p> : null}{fileErrors.map(message => <p key={message} className="break-words">{message}</p>)}</AlertDescription></Alert> : null}
