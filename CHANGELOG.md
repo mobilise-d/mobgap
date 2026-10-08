@@ -6,15 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed
-
-- Remove AX6 sampling-timing diagnostics from MobGap datasets: `cwa_timing_report_`,
-  `warn_thres_for_sampling_rate_deviations_hz` on `BaseAX6Dataset`, `AX6Dataset`, and `SustainWearTimeDataset`,
-  and `CwaRecordingInfo.cwa_timing_report`. Remove the warning argument from dataset construction and stop
-  accessing the report in custom splitters. Indexing, metadata access, and loading now use header metadata
-  without a separate full-file timing scan. For explicit diagnostics, use `cwa_reader_rs.sampling_consistency_report`
-  directly; the reader API is unchanged.
-
 ### Added
 
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or

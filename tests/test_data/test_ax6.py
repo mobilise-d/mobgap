@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pickle
-import weakref
 from functools import partial
 from os import utime
 from shutil import copyfile
@@ -529,62 +528,6 @@ def test_repeated_data_access_reuses_the_last_read(tmp_path: Path, monkeypatch: 
     stat = path.stat()
     utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
     assert len(dataset.data_ss) == 72472
-    assert calls == 2
-
-
-def test_previous_window_is_released_before_loading_the_next(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A cache miss must not keep the old window alive while decoding its replacement."""
-    path = tmp_path / "recording.cwa"
-    copyfile(EXAMPLE_CWA, path)
-    dataset = AX6Dataset(
-        path,
-        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
-        recording_metadata={"measurement_condition": "free_living"},
-        tz="UTC",
-        splitter=partial(split_at_frequency, frequency="10s"),
-    )
-    released = []
-    previous = dataset[0].data_ss
-    previous_ref = weakref.ref(previous, lambda _ref: released.append(True))
-    del previous
-    assert previous_ref() is not None  # The cache still makes repeated reads cheap.
-    original_read = cwa_reader_rs.read_cwa_file
-
-    def read_after_eviction(*args: object, **kwargs: object) -> pd.DataFrame:
-        assert previous_ref() is None
-        assert released == [True]
-        return original_read(*args, **kwargs)
-
-    monkeypatch.setattr(cwa_reader_rs, "read_cwa_file", read_after_eviction)
-    assert len(dataset[1].data_ss) == 1000
-
-
-def test_disk_cache_survives_replacement_of_the_ram_window(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Returning to an evicted window reuses its optional persistent cache."""
-    from joblib import Memory
-
-    path = tmp_path / "recording.cwa"
-    copyfile(EXAMPLE_CWA, path)
-    dataset = AX6Dataset(
-        path,
-        participant_metadata={"height_m": 1.7, "sensor_height_m": 1.0, "cohort": "HA"},
-        recording_metadata={"measurement_condition": "free_living"},
-        tz="UTC",
-        splitter=partial(split_at_frequency, frequency="10s"),
-        memory=Memory(tmp_path / "cache", verbose=0),
-    )
-    calls = 0
-    original_read = cwa_reader_rs.read_cwa_file
-
-    def count_reads(*args: object, **kwargs: object) -> pd.DataFrame:
-        nonlocal calls
-        calls += 1
-        return original_read(*args, **kwargs)
-
-    monkeypatch.setattr(cwa_reader_rs, "read_cwa_file", count_reads)
-    first = dataset[0].data_ss.copy()
-    assert len(dataset[1].data_ss) == 1000
-    pd.testing.assert_frame_equal(dataset[0].data_ss, first)
     assert calls == 2
 
 

@@ -110,15 +110,9 @@ mobilised_pipeline_docfiller = make_filldoc(
     """,
         "additional_parameters": """
     retain_intermediate_results
-        Whether to retain executed algorithm instances and raw input references after running the pipeline.
-        Defaults to True, preserving the full debugging results.
-        If False, ``datapoint``, ``gait_sequence_detection_``, ``gs_iterator_``, ``stride_selection_``, ``wba_`` and
-        ``dmo_aggregation_`` are unavailable after the run, including after a failed run.
-        After a successful run, all output tables remain available, including ``gs_list_``, the ``raw_*`` tables
-        and the primary results.
-        This controls retention after execution, not the peak memory needed while processing. It does not clear
-        dataset caches or references held by the caller. Exceptions retained by the caller can also retain inputs
-        through their tracebacks. Output tables from custom algorithms can themselves reference input data.
+        Whether to keep executed algorithm instances and the input dataset after a run. Defaults to True.
+        Set to False to release these references while keeping all output tables.
+        This reduces retained memory, not the peak memory needed during processing.
     recommended_cohorts
         A tuple of recommended cohorts for this pipeline.
         If a datapoint is provided with a cohort that is not part of this tuple, a warning will be raised.
