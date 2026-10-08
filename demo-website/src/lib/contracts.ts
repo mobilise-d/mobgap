@@ -34,7 +34,7 @@ export interface RunPipelineOptions {
   sensorHeightM: number
   cohort: string
   measurementCondition?: 'laboratory' | 'free_living'
-  cwaWindow?: { startSeconds: number; durationSeconds: number; timezone: string }
+  cwaFile?: { timezone: string }
   cwaDay?: { index: number; timezone: string }
 }
 export type CellValue = string | number | boolean | null
@@ -55,5 +55,5 @@ export interface AnalysisResult {
 export interface CwaDayWindow { index: number; label: string; startTime: string; endTime: string; startSeconds: number; durationSeconds: number }
 export interface CwaDayWindowsResult { windows: CwaDayWindow[]; timezone: string }
 
-export interface RunDaysOptions extends Omit<RunPipelineOptions, 'cwaWindow' | 'cwaDay'> { dayIndices: number[]; timezone: string }
+export interface RunDaysOptions extends Omit<RunPipelineOptions, 'cwaFile' | 'cwaDay'> { dayIndices: number[]; timezone: string }
 export interface DayAnalysisEvent { day: CwaDayWindow; result?: AnalysisResult; error?: string; fatal?: boolean }

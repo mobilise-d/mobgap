@@ -99,7 +99,7 @@ def _inspect_cwa(path: Path, configuration: dict[str, Any]) -> dict[str, Any]:
         },
         "warnings": [
             "CWA inspection uses AX6Dataset to read boundary metadata and a bounded initial window. "
-            "Samples are counted when the selected window is loaded.",
+            "Samples are counted when the selected day or whole file is loaded.",
             "CWA analysis assumes a LowerBack sensor in the expected sensor frame. Verify placement and orientation.",
             "Choose the timezone of the computer that synchronized the sensor. The last configuration write is "
             "assumed to be that synchronization; the offset then stays fixed across daylight-saving changes.",
@@ -159,24 +159,13 @@ def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: di
         raise ValueError(
             "Both full presets require gyroscope channels. This CWA recording has none in its initial window."
         )
-    day, window = options.get("cwaDay"), options.get("cwaWindow")
-    if (day is None) == (window is None):
-        raise ValueError("Choose one CWA calendar day or one bounded time window.")
-    selection = day if day is not None else window
+    day, whole_file = options.get("cwaDay"), options.get("cwaFile")
+    if (day is None) == (whole_file is None):
+        raise ValueError("Choose one CWA calendar day or the single whole file.")
+    selection = day if day is not None else whole_file
     timezone = selection.get("timezone")
     if not isinstance(timezone, str) or not timezone:
         raise ValueError("The sensor clock synchronization timezone is required.")
-    if day is None:
-        start, duration = window.get("startSeconds"), window.get("durationSeconds")
-        if (
-            not isinstance(start, (int, float))
-            or not math.isfinite(start)
-            or start < 0
-            or not isinstance(duration, (int, float))
-            or not math.isfinite(duration)
-            or not 0 < duration <= 3600
-        ):
-            raise ValueError("A manual CWA window needs a nonnegative start and duration between 0 and 3600 seconds.")
 
     dataset = AX6Dataset(
         selected["path"],
@@ -186,17 +175,7 @@ def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: di
         output_timezone="utc",
         splitter=split_by_local_days if day is not None else None,
     )
-    if day is None:
-        bounds = dataset.index.iloc[0]
-        start_time = bounds.start_time + pd.Timedelta(seconds=start)
-        end_time = start_time + pd.Timedelta(seconds=duration)
-        if start_time >= bounds.end_time or end_time > bounds.end_time:
-            raise ValueError("The selected CWA window extends beyond the recording.")
-        dataset = dataset.clone().set_params(
-            subset_index=None,
-            splitter=pd.DataFrame({"recording": ["selected"], "start_time": [start_time], "end_time": [end_time]}),
-        )
-    else:
+    if day is not None:
         day_index = day.get("index")
         if type(day_index) is not int or not 0 <= day_index < len(dataset):
             raise ValueError("Choose an available CWA calendar day.")
@@ -207,15 +186,16 @@ def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: di
 def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, Any]:
     """Inspect worker-filesystem MAT/CWA paths and retain available recordings.
 
-    CWA data remains on disk until a calendar day or manual window is selected.
+    CWA data remains on disk until a calendar day or the single file is selected.
     Participant metadata must come from a separate infoForAlgo file or manual configuration.
     One infoForAlgo file can accompany one data file regardless of upload filename.
-    When inspecting several data files, metadata files must be paired in distinct
-    directories, or supplied manually, to avoid assigning another participant's height.
-    Unreadable uploads prevent external pairing because their participant is unknown.
+    Accept one recording and, for MATLAB, at most one separate infoForAlgo file.
+    Dataset rows are trials or calendar days within that recording.
     """
     cancel_cwa_day_batch()
     _RECORDINGS.clear()
+    if len(paths) > 2:
+        raise ValueError("Choose one recording file and at most one separate infoForAlgo file.")
     cohort = configuration.get("cohort")
     if cohort not in ("HA", "COPD", "CHF", "PD", "MS", "PFF"):
         raise ValueError("Select a participant cohort before building the dataset.")
@@ -228,7 +208,6 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
         path = Path(raw_path)
         try:
             if path.suffix.lower() == ".cwa":
-                recordings.append(_inspect_cwa(path, configuration))
                 cwa_paths.append(path)
                 continue
             variables = _mat_variables(path)
@@ -248,27 +227,24 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
                 }
             )
     data_files = [path for path, variables in parsed if "data" in variables]
-    unreadable_uploads = bool(errors)
+    if errors:
+        return {"recordings": [], "errors": errors, "warnings": []}
+    if len(data_files) + len(cwa_paths) > 1 or len(metadata_files) > 1:
+        raise ValueError("Choose one recording file and at most one separate infoForAlgo file.")
+    if cwa_paths:
+        if metadata_files:
+            raise ValueError("CWA participant information must be entered manually.")
+        path = cwa_paths[0]
+        try:
+            recordings.append(_inspect_cwa(path, configuration))
+        except Exception as error:  # noqa: BLE001 - untyped reader errors cross the browser boundary.
+            if _release_exception_frames(error):
+                raise
+            errors.append({"fileName": path.name, "code": "unsupported_cwa_format", "message": str(error)})
     for path in data_files:
         try:
             file_warnings = []
-            companion = None
-            if companion is None and unreadable_uploads and metadata_files:
-                file_warnings.append(
-                    "Some uploaded files could not be read. Companion participant metadata cannot be paired safely. "
-                    "Enter heights manually."
-                )
-            elif companion is None:
-                candidates = [key for key in metadata_files if key.parent == path.parent]
-                data_in_directory = sum(key.parent == path.parent for key in [*data_files, *cwa_paths])
-                if len(candidates) == 1 and data_in_directory == 1:
-                    companion = candidates[0]
-                elif len(data_files) + len(cwa_paths) == len(metadata_files) == 1:
-                    companion = next(iter(metadata_files))
-                elif candidates:
-                    file_warnings.append(
-                        "Participant metadata is ambiguous for multiple data files. Enter heights manually."
-                    )
+            companion = next(iter(metadata_files), None)
             metadata_source = companion if companion is not None else _participant_metadata(configuration, {})
             dataset = GenericMobilisedDataset(
                 path,
@@ -420,7 +396,7 @@ def _analyze_dataset(recording_id: str, description: dict[str, Any], dataset: An
             if is_cwa:
                 frame = dataset.data_ss
                 if not all(column in frame for column in _REQUIRED_CHANNELS):
-                    raise ValueError("The selected CWA day/window does not contain all required gyroscope channels.")
+                    raise ValueError("The selected CWA recording does not contain all required gyroscope channels.")
                 sample_count = len(frame)
                 del frame
             else:

@@ -1,6 +1,6 @@
 # mobgap browser demo
 
-A standalone React page using TanStack Router and shadcn/ui. Stage Mobilise-D MATLAB or AX6 CWA recordings, supply participant information, build their dataset index, and run a full mobgap pipeline on selected rows. Analysis runs locally in a Xeus-Python browser worker with genuine Numba, PyWavelets and xxhash extensions.
+A standalone React page using TanStack Router and shadcn/ui. Stage one Mobilise-D MATLAB or AX6 CWA recording, supply participant information, build their dataset index, and run a full mobgap pipeline on selected rows. Analysis runs locally in a Xeus-Python browser worker with genuine Numba, PyWavelets and xxhash extensions.
 
 ## Development
 
@@ -39,7 +39,9 @@ Then rebuild the frontend for a production preview. The bundled source includes 
 
 The prototype targets the Mobilise-D MATLAB structure used by this repository's example data. It is not a general MATLAB variable explorer. Try the healthy or impaired example, or choose `example_data/data/lab/HA/001/data.mat` from the repository. Choose the recording file first, then upload its separate `infoForAlgo.mat` companion in Participant information or choose Enter manually and supply both measured heights. Cohort is an explicit choice, not inferred from a filename. The bundled examples provide separate recording and participant files. Nothing is inspected until you choose Build dataset; the center then shows the actual trial index with all rows selected. Choose Healthy, Impaired or Auto, then Run selected. Auto is the initial choice and uses the Universal pipeline to select Healthy for HA/COPD/CHF or Impaired for PD/MS/PFF from the supplied cohort. Bundled examples retain their explicit preset hints.
 
-For multiday CWA recordings, supply cohort and measured participant/sensor heights, select **By calendar day**, and enter the timezone of the computer that synchronized the sensor. Choose Build dataset to construct the calendar-day index, including partial first and last days. All days start selected; choose the rows to run, then Run selected. Days run sequentially through one Python dataset loop per file. Select a completed row to inspect or export its tables. A failed row is reported separately; cancellation stops the worker and preserves completed results. Changing dataset configuration clears the old index and requires rebuilding.
+For CWA recordings, supply cohort and measured participant/sensor heights, then enter the timezone of the computer that synchronized the sensor. Choose Build dataset to read metadata and construct the index. Recordings longer than 24 hours default to **Split by calendar day**; recordings of 24 hours or less default to **Single file**. The sidebar then lets you override this choice and rebuild; an explicit choice is preserved. Calendar-day rows include partial first and last days. A single-file row processes the entire recording. There is no bounded-window option.
+
+All rows start selected; choose the rows to run, then Run selected. Days run sequentially through one Python dataset loop . Select a completed row to inspect or export its tables. A failed row is reported separately; cancellation stops the worker and preserves completed results. Changing dataset configuration clears the old index and requires rebuilding.
 
 Calendar boundaries use the selected local timezone. The sensor clock uses the fixed offset at its last synchronization, including when a recording crosses a daylight-saving transition. The demo reuses mobgap's `AX6Dataset` and `split_by_local_days` for this behavior. CWA pipeline analysis assumes the device was worn on the lower back in the expected sensor orientation. Both full presets require gyroscope channels; acceleration-only AX3 recordings can be inspected but cannot run these presets.
 
@@ -54,3 +56,5 @@ Selected browser `File` handles are structured-cloned to the kernel worker and m
 This prototype targets desktop browsers. Daily CWA analysis can require substantial memory even though the input file itself is not copied into WASM memory. Runtime download, imports and first compilation take longer than a warm analysis. See [validation results](VALIDATION.md) for the real multiday recordings exercised and measured limits. Mobile memory limits and broad browser support need separate validation. MATLAB v7.3/HDF5 input is outside the existing SciPy-based loader's support.
 
 A production deployment should serve the generated frontend and runtime together over HTTPS, retain the runtime directory structure, and use an SPA fallback only where it does not replace runtime assets. No Python server is needed after the build.
+
+The upload workflow accepts exactly one recording file, with an optional separate infoForAlgo file for MATLAB. Multiple dataset rows come from trials within that MATLAB file or calendar days within that CWA file. Multiple recording-file drops are rejected; there is no multi-recording mode.

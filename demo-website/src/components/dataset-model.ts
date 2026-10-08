@@ -17,10 +17,8 @@ export interface ParticipantConfiguration {
   condition: 'laboratory' | 'free_living'
 }
 export interface CwaConfiguration {
-  scope: 'days' | 'window'
+  mode?: 'days' | 'file'
   timezone: string
-  start: string
-  duration: string
 }
 export interface DatasetRow {
   id: string
@@ -29,7 +27,7 @@ export interface DatasetRow {
   indexValues: Record<string, string>
   durationSeconds: number
   day?: CwaDayWindow
-  window?: { startSeconds: number; durationSeconds: number; timezone: string }
+  wholeFile?: true
 }
 export interface RowOutcome {
   status: 'queued' | 'running' | 'complete' | 'error' | 'cancelled'
@@ -62,3 +60,7 @@ export function rowProblem(row: DatasetRow): string | undefined {
   if (!height || !sensorHeight || sensorHeight > height) return 'Participant metadata missing or invalid'
   return undefined
 }
+
+export type DatasetFieldErrors = Partial<Record<'height' | 'sensorHeight' | 'timezone', string>>
+
+export const cwaMode = (recording: Recording, configuration: CwaConfiguration) => configuration.mode ?? (recording.durationSeconds > 86400 ? 'days' : 'file')

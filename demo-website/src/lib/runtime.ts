@@ -243,7 +243,7 @@ export class MobgapRuntime {
     return this.exclusive(async (generation) => {
       this.requireActiveKernel(generation)
       onProgress?.({ stage: 'analyzing', message: 'Running the pipeline. The first run compiles Numba functions…' })
-      const args = { preset: options.pipeline, participantHeightM: options.heightM, sensorHeightM: options.sensorHeightM, cohort: options.cohort, measurementCondition: options.measurementCondition ?? 'laboratory', cwaWindow: options.cwaWindow, cwaDay: options.cwaDay }
+      const args = { preset: options.pipeline, participantHeightM: options.heightM, sensorHeightM: options.sensorHeightM, cohort: options.cohort, measurementCondition: options.measurementCondition ?? 'laboratory', cwaFile: options.cwaFile, cwaDay: options.cwaDay }
       return this.call<AnalysisResult>(`api.analyze_recording(${JSON.stringify(options.recordingId)}, json.loads(${JSON.stringify(JSON.stringify(args))}))`, generation)
     })
   }

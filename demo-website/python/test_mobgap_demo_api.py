@@ -139,35 +139,27 @@ def test_user_sensor_height_overrides_companion_metadata():
     assert value > 0
 
 
-def test_companion_metadata_is_not_assigned_to_multiple_participants(tmp_path):
-    import shutil
-
-    shutil.copyfile(HA / "data.mat", tmp_path / "healthy.mat")
-    shutil.copyfile(ROOT / "example_data/data/lab/MS/001/data.mat", tmp_path / "impaired.mat")
-    shutil.copyfile(HA / "infoForAlgo.mat", tmp_path / "infoForAlgo.mat")
-    result = api().inspect_files([str(path) for path in tmp_path.glob("*.mat")], configuration=MANUAL)
-    assert len(result["recordings"]) == 6
-    assert all(recording["metadata"] == {"heightM": 1.59, "sensorHeightM": 0.964} for recording in result["recordings"])
-    assert all(any("ambiguous" in warning for warning in recording["warnings"]) for recording in result["recordings"])
-
-
-def test_unreadable_participant_file_prevents_external_metadata_pairing(tmp_path):
-    import shutil
-
-    shutil.copyfile(HA / "data.mat", tmp_path / "healthy.mat")
-    (tmp_path / "impaired.mat").write_bytes(b"not a MATLAB file")
-    shutil.copyfile(ROOT / "example_data/data/lab/MS/001/infoForAlgo.mat", tmp_path / "infoForAlgo.mat")
+@pytest.mark.parametrize(
+    "paths",
+    [
+        [str(HA / "data.mat"), str(ROOT / "example_data/data/lab/MS/001/data.mat")],
+        [str(HA / "data.mat"), str(HA / "infoForAlgo.mat"), str(ROOT / "example_data/data/lab/MS/001/data.mat")],
+        [str(HA / "data.mat"), str(ROOT / "example_data/data/ax6/example-610-steps.cwa")],
+    ],
+)
+def test_multiple_recording_uploads_are_rejected(paths):
     module = api()
-    result = module.inspect_files([str(path) for path in tmp_path.glob("*.mat")], configuration=MANUAL)
-    assert len(result["recordings"]) == 3
-    assert len(result["errors"]) == 1
-    assert result["errors"][0]["fileName"] == "impaired.mat"
-    assert all(recording["metadata"] == {"heightM": 1.59, "sensorHeightM": 0.964} for recording in result["recordings"])
-    assert all(
-        any("Enter heights manually" in warning for warning in recording["warnings"])
-        for recording in result["recordings"]
-    )
-    assert result["recordings"][0]["metadata"]["heightM"] == 1.59
+    with pytest.raises(ValueError, match="Choose one recording file"):
+        module.inspect_files(paths, MANUAL)
+    assert module._RECORDINGS == {}
+
+
+def test_unreadable_companion_does_not_construct_recording(tmp_path):
+    companion = tmp_path / "infoForAlgo.mat"
+    companion.write_bytes(b"not a MATLAB file")
+    result = api().inspect_files([str(HA / "data.mat"), str(companion)], MANUAL)
+    assert result["recordings"] == []
+    assert result["errors"][0]["fileName"] == "infoForAlgo.mat"
 
 
 def test_separate_participant_file_is_required_unless_manual_metadata_is_supplied():
@@ -184,7 +176,8 @@ def test_separate_participant_file_is_required_unless_manual_metadata_is_supplie
 
 
 @pytest.mark.parametrize("preset", ["healthy", "impaired"])
-def test_cwa_inspection_defers_samples_and_reports_absent_gyro(preset):
+@pytest.mark.parametrize("selection", [{"cwaDay": {"index": 0, "timezone": "UTC"}}, {"cwaFile": {"timezone": "UTC"}}])
+def test_cwa_inspection_defers_samples_and_reports_absent_gyro(preset, selection):
     module = api()
     result = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")], configuration=MANUAL)
     assert result["errors"] == []
@@ -204,21 +197,9 @@ def test_cwa_inspection_defers_samples_and_reports_absent_gyro(preset):
                 "cohort": "HA",
                 "participantHeightM": 1.7,
                 "sensorHeightM": 0.9,
-                "cwaDay": {"index": 0, "timezone": "UTC"},
+                **selection,
             },
         )
-
-
-def test_mixed_cwa_mat_upload_does_not_guess_external_participant_metadata(tmp_path):
-    import shutil
-
-    shutil.copyfile(HA / "data.mat", tmp_path / "healthy.mat")
-    shutil.copyfile(ROOT / "example_data/data/ax6/example-610-steps.cwa", tmp_path / "recording.cwa")
-    shutil.copyfile(ROOT / "example_data/data/lab/MS/001/infoForAlgo.mat", tmp_path / "infoForAlgo.mat")
-    result = api().inspect_files([str(path) for path in tmp_path.iterdir()], configuration=MANUAL)
-    assert result["errors"] == []
-    assert len(result["recordings"]) == 4
-    assert all(recording["metadata"] == {"heightM": 1.59, "sensorHeightM": 0.964} for recording in result["recordings"])
 
 
 def test_cwa_day_batch_returns_day_errors_without_raising_into_ipython():
@@ -260,7 +241,7 @@ def test_cwa_day_batch_returns_day_errors_without_raising_into_ipython():
     assert module.next_cwa_day() == {"done": True}
 
 
-@pytest.mark.parametrize("operation", ["mat_inspection", "mat_pipeline", "manual_window", "day_planning"])
+@pytest.mark.parametrize("operation", ["mat_inspection", "mat_pipeline", "whole_file", "day_planning"])
 def test_api_json_boundary_classifies_chained_memory_errors_and_releases_frames(monkeypatch, operation):
     module = api()
     recording = module.inspect_files([str(HA / "data.mat")], configuration=MANUAL)["recordings"][0]
@@ -289,13 +270,11 @@ def test_api_json_boundary_classifies_chained_memory_errors_and_releases_frames(
         cwa = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")], configuration=MANUAL)[
             "recordings"
         ][0]
-        if operation == "manual_window":
+        if operation == "whole_file":
             monkeypatch.setattr(module, "_cwa_dataset", out_of_memory)
 
             def invoke():
-                return module.analyze_recording(
-                    cwa["id"], {**options, "cwaWindow": {"startSeconds": 0, "durationSeconds": 1, "timezone": "UTC"}}
-                )
+                return module.analyze_recording(cwa["id"], {**options, "cwaFile": {"timezone": "UTC"}})
         else:
             monkeypatch.setattr(module, "_day_descriptions", out_of_memory)
 
@@ -340,10 +319,9 @@ def test_malformed_participant_info_is_reported_against_that_file(tmp_path):
     info = tmp_path / "bad-info.mat"
     savemat(info, {"infoForAlgo": 1})
     result = api().inspect_files([str(HA / "data.mat"), str(info)], MANUAL)
-    assert len(result["recordings"]) == 3
+    assert result["recordings"] == []
     assert len(result["errors"]) == 1
     assert result["errors"][0]["fileName"] == "bad-info.mat"
-    assert result["recordings"][0]["metadata"]["heightM"] == 1.59
 
 
 @pytest.mark.parametrize("cohort,preset,sample", [("HA", "healthy", "healthy"), ("MS", "impaired", "impaired")])
