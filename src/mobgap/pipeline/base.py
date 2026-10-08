@@ -109,6 +109,16 @@ mobilised_pipeline_docfiller = make_filldoc(
         The final aggregated parameters are available via the ``aggregated_parameters_`` attribute.
     """,
         "additional_parameters": """
+    retain_intermediate_results
+        Whether to retain executed algorithm instances and raw input references after running the pipeline.
+        Defaults to True, preserving the full debugging results.
+        If False, ``datapoint``, ``gait_sequence_detection_``, ``gs_iterator_``, ``stride_selection_``, ``wba_`` and
+        ``dmo_aggregation_`` are unavailable after the run, including after a failed run.
+        After a successful run, all output tables remain available, including ``gs_list_``, the ``raw_*`` tables
+        and the primary results.
+        This controls retention after execution, not the peak memory needed while processing. It does not clear
+        dataset caches or references held by the caller. Exceptions retained by the caller can also retain inputs
+        through their tracebacks. Output tables from custom algorithms can themselves reference input data.
     recommended_cohorts
         A tuple of recommended cohorts for this pipeline.
         If a datapoint is provided with a cohort that is not part of this tuple, a warning will be raised.
@@ -117,7 +127,8 @@ mobilised_pipeline_docfiller = make_filldoc(
     """,
         "other_parameters": """
     datapoint
-        The dataset instance passed to the run method.
+        The dataset instance passed to the run method. For pipelines supporting ``retain_intermediate_results``,
+        this is available after running only when that parameter is True.
     """,
         "primary_results": """
     per_stride_parameters_

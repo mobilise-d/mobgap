@@ -8,6 +8,8 @@ For multiday CWA files, offer “Split by day” and explicitly request the sens
 
 Preserve mobgap's existing public interfaces and numerical behavior. Daily WASM runs require sliding windows constructed at their final hop without an oversized intermediate view. AX6 window caching must use tpcp 3.2.0 or newer, whose hybrid_cache releases the previous entry before loading a replacement by default. Remove the prototype-local cache workaround and retain the release-before-load, repeat-window and optional disk-cache regression checks.
 
+The generic Mobilise-D pipeline and both full presets expose `retain_intermediate_results=True`. False removes the stored datapoint, executed detector, GS iterator, stride selection, WBA and aggregation instances after execution, including failures, and clears retained instances from a previous run before starting. All successful output tables, including raw tables, remain unchanged. The browser uses False. This does not clear dataset caches, caller-owned references or exception tracebacks, nor promise a lower processing peak. The universal cohort-dispatch wrapper is outside this parameter change. Verify table parity for both presets with/without aggregation, weak-reference input lifetime, reuse/toggling and failure cleanup.
+
 ## Acceptance checks
 
 - Original and bundled MATLAB examples, participant metadata, malformed files and missing metadata.

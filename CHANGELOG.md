@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `retain_intermediate_results=True` to `GenericMobilisedPipeline`, `MobilisedPipelineHealthy` and
+  `MobilisedPipelineImpaired`. Set it to `False` to release executed internal objects and the dataset reference
+  after a run while preserving all output tables. The default keeps the existing debugging attributes.
+
 - Add a standalone browser prototype in `demo-website` for local MATLAB and multiday AX6 CWA analysis using
   Xeus/Numba, WORKERFS and sequential `AX6Dataset` day processing. Browser/native output parity was checked on
   selected recordings; this is implementation verification, not additional scientific or clinical validation.

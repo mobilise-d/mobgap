@@ -1,4 +1,8 @@
+import gc
+import weakref
 from typing import Any, Self
+
+import numpy as np
 
 import pandas as pd
 import pytest
@@ -282,3 +286,100 @@ class TestFullPipelineEdgeCases:
 
         assert result.reorientation_result[0].family == "ml_up"
         assert result.stride_length_per_sec["stride_length_m"].iloc[0] == pytest.approx(9.81)
+
+
+class TestIntermediateRetention:
+    @pytest.mark.parametrize("pipeline_cls", [MobilisedPipelineHealthy, MobilisedPipelineImpaired])
+    @pytest.mark.parametrize("aggregate", [True, False])
+    def test_disabling_retention_preserves_tables(self, pipeline_cls, aggregate):
+        dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+            cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+        )
+        options = {} if aggregate else {"dmo_aggregation": None}
+        retained = pipeline_cls(**options).safe_run(dataset)
+        compact = pipeline_cls(retain_intermediate_results=False, **options).safe_run(dataset)
+
+        for name in (
+            "gs_list_",
+            "raw_ic_list_",
+            "raw_turn_list_",
+            "raw_per_sec_parameters_",
+            "raw_per_stride_parameters_",
+            "per_stride_parameters_",
+            "per_wb_parameters_",
+            "per_wb_parameter_mask_",
+            "aggregated_parameters_",
+        ):
+            expected, actual = getattr(retained, name), getattr(compact, name)
+            if expected is None:
+                assert actual is None
+            else:
+                pd.testing.assert_frame_equal(
+                    actual.drop(columns="rule_obj", errors="ignore"),
+                    expected.drop(columns="rule_obj", errors="ignore"),
+                )
+        assert retained.datapoint is dataset
+        assert retained.gait_sequence_detection_.gs_list_ is retained.gs_list_
+        assert retained.gs_iterator_.raw_results_
+        for name in (
+            "datapoint",
+            "gait_sequence_detection_",
+            "gs_iterator_",
+            "stride_selection_",
+            "wba_",
+            "dmo_aggregation_",
+        ):
+            assert not hasattr(compact, name)
+        assert compact.perf_["runtime_s"] > 0
+
+    @pytest.mark.parametrize("retain", [True, False])
+    def test_retention_controls_input_lifetime(self, retain):
+        dataset = _sensor_frame_test_dataset()
+        dataset_ref = weakref.ref(dataset)
+        backing = dataset.data_ss.to_numpy()
+        while isinstance(backing.base, np.ndarray):
+            backing = backing.base
+        backing_ref = weakref.ref(backing)
+        pipeline = _minimal_pipeline(retain_intermediate_results=retain).safe_run(dataset)
+        del dataset, backing
+        gc.collect()
+
+        assert (dataset_ref() is not None) is retain
+        assert (backing_ref() is not None) is retain
+        assert not pipeline.per_stride_parameters_.empty
+
+    def test_disabling_retention_on_reused_pipeline_releases_previous_run(self):
+        first = _sensor_frame_test_dataset()
+        first_ref = weakref.ref(first)
+        pipeline = _minimal_pipeline().run(first)
+        del first
+        assert first_ref() is not None
+
+        pipeline.set_params(retain_intermediate_results=False).run(_sensor_frame_test_dataset())
+        gc.collect()
+        assert first_ref() is None
+        assert not hasattr(pipeline, "datapoint")
+        assert not hasattr(pipeline, "gs_iterator_")
+
+        # Re-enabling retention on the same object restores the normal debugging API.
+        third = _sensor_frame_test_dataset()
+        pipeline.set_params(retain_intermediate_results=True).run(third)
+        assert pipeline.datapoint is third
+        assert pipeline.gs_iterator_.raw_results_
+
+    def test_failed_run_does_not_leave_intermediate_attributes(self):
+        # Missing cohort raises after GSD, per-GS processing and WB assembly have completed.
+        dataset = _sensor_frame_test_dataset()
+        dataset._participant_metadata["test"].pop("cohort")
+        dataset_ref = weakref.ref(dataset)
+        pipeline = _minimal_pipeline(
+            retain_intermediate_results=False,
+            dmo_thresholds=MobilisedPipelineHealthy().dmo_thresholds,
+        )
+        with pytest.raises(ValueError, match="cohort of the participant"):
+            pipeline.run(dataset)
+        del dataset
+        gc.collect()
+        assert dataset_ref() is None
+        for name in ("datapoint", "gait_sequence_detection_", "gs_iterator_", "stride_selection_", "wba_"):
+            assert not hasattr(pipeline, name)

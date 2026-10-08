@@ -94,6 +94,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
 
+    retain_intermediate_results: bool
+
     datapoint: BaseGaitDatasetT
 
     # Algos with results
@@ -169,6 +171,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: Optional[BaseAggregator],
         recommended_cohorts: Optional[tuple[str, ...]] = None,
+        retain_intermediate_results: bool = True,
     ) -> None:
         self.gait_sequence_detection = gait_sequence_detection
         self.per_gs_reorientation = per_gs_reorientation
@@ -183,6 +186,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self.dmo_thresholds = dmo_thresholds
         self.dmo_aggregation = dmo_aggregation
         self.recommended_cohorts = recommended_cohorts
+        self.retain_intermediate_results = retain_intermediate_results
 
     def get_recommended_cohorts(self) -> Optional[tuple[str, ...]]:
         """Get the recommended cohorts for this pipeline.
@@ -205,6 +209,28 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
         %(run_return)s
         """
+        if not self.retain_intermediate_results:
+            # A previous run may have retained its intermediates before the parameter was changed.
+            self._clear_intermediate_results()
+        try:
+            return self._run(datapoint)
+        finally:
+            if not self.retain_intermediate_results:
+                self._clear_intermediate_results()
+
+    def _clear_intermediate_results(self) -> None:
+        for name in (
+            "datapoint",
+            "gait_sequence_detection_",
+            "gs_iterator_",
+            "stride_selection_",
+            "wba_",
+            "dmo_aggregation_",
+            "_all_action_kwargs",
+        ):
+            self.__dict__.pop(name, None)
+
+    def _run(self, datapoint: BaseGaitDatasetT) -> Self:
         try:
             participant_metadata = datapoint.participant_metadata
         except AttributeError as e:
@@ -531,6 +557,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
         recommended_cohorts: Optional[tuple[str, ...]],
+        retain_intermediate_results: bool = True,
     ) -> None:
         super().__init__(
             gait_sequence_detection=gait_sequence_detection,
@@ -546,6 +573,7 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
             recommended_cohorts=recommended_cohorts,
+            retain_intermediate_results=retain_intermediate_results,
         )
 
 
@@ -619,6 +647,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
         recommended_cohorts: Optional[tuple[str, ...]],
+        retain_intermediate_results: bool = True,
     ) -> None:
         super().__init__(
             gait_sequence_detection=gait_sequence_detection,
@@ -634,6 +663,7 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
             recommended_cohorts=recommended_cohorts,
+            retain_intermediate_results=retain_intermediate_results,
         )
 
 
