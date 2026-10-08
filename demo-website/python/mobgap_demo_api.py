@@ -18,13 +18,11 @@ from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any
 
-import joblib
 import pandas as pd
 from mobgap.data import AX6Dataset, GenericMobilisedDataset, load_mobilised_participant_metadata_file
 from mobgap.data.ax6 import split_by_local_days
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired, MobilisedPipelineUniversal
 from scipy.io import whosmat
-from tpcp.caching import hybrid_cache
 
 _REQUIRED_CHANNELS = ("acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z")
 _RECORDINGS: dict[str, dict[str, Any]] = {}
@@ -223,7 +221,7 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
         raise ValueError("Select a participant cohort before building the dataset.")
     errors = []
     parsed = []
-    metadata_files = []
+    metadata_files = {}
     recordings = []
     cwa_paths = []
     for raw_path in paths:
@@ -237,8 +235,7 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
             if not variables.intersection({"data", "infoForAlgo"}):
                 raise ValueError("This MAT file has no Mobilise-D 'data' or 'infoForAlgo' variable.")
             if "infoForAlgo" in variables and "data" not in variables:
-                hybrid_cache(joblib.Memory(None), 1)(load_mobilised_participant_metadata_file)(path)
-                metadata_files.append(path)
+                metadata_files[path] = load_mobilised_participant_metadata_file(path)
             parsed.append((path, variables))
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
             if _release_exception_frames(error):
@@ -267,7 +264,7 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
                 if len(candidates) == 1 and data_in_directory == 1:
                     companion = candidates[0]
                 elif len(data_files) + len(cwa_paths) == len(metadata_files) == 1:
-                    companion = metadata_files[0]
+                    companion = next(iter(metadata_files))
                 elif candidates:
                     file_warnings.append(
                         "Participant metadata is ambiguous for multiple data files. Enter heights manually."
@@ -293,7 +290,16 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
                     raise ValueError(
                         "The recording requires a positive sampling rate and nonempty LowerBack sensor data."
                     )
-                metadata = _participant_metadata(configuration, _heights(datapoint.participant_metadata))
+                if companion is not None:
+                    info = metadata_files[companion].get(test_name[0], {})
+                    heights = {
+                        target: info[source] / 100
+                        for source, target in (("Height", "heightM"), ("SensorHeight", "sensorHeightM"))
+                        if isinstance(info.get(source), (int, float))
+                    }
+                else:
+                    heights = _heights(datapoint.participant_metadata)
+                metadata = _participant_metadata(configuration, heights)
                 datapoint = datapoint.clone().set_params(participant_metadata_override=metadata)
                 identifier = uuid.uuid4().hex
                 description = {

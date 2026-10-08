@@ -356,3 +356,17 @@ def test_auto_dispatches_to_the_cohort_pipeline(cohort, preset, sample):
     actual = module.analyze_recording(recording_id, {**options, "preset": "auto"})
     assert actual["preset"] == preset
     assert actual["tables"] == expected["tables"]
+
+
+def test_manual_height_completes_partial_companion(tmp_path):
+    metadata = tmp_path / "partial-info.mat"
+    savemat(metadata, {"infoForAlgo": {"TimeMeasure1": {"SensorHeight": 96.4}}})
+    result = api().inspect_files(
+        [str(HA / "data.mat"), str(metadata)],
+        {"cohort": "HA", "participantHeightM": 1.59},
+    )
+    assert result["errors"] == []
+    assert len(result["recordings"]) == 3
+    assert all(
+        row["metadata"] == pytest.approx({"heightM": 1.59, "sensorHeightM": 0.964}) for row in result["recordings"]
+    )
