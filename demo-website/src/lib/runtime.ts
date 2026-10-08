@@ -6,7 +6,7 @@ export class PythonExecutionError extends Error {
   override readonly name = 'PythonExecutionError'
 }
 
-interface KernelMessage { header: { msg_type: string }; content: { name?: string; text?: string; evalue?: string; traceback?: string[] } }
+interface KernelMessage { header: { msg_type: string }; content: { name?: string; text?: string; ename?: string; evalue?: string; traceback?: string[] } }
 interface ExecuteFuture { onIOPub: ((message: KernelMessage) => void) | null; done: Promise<unknown>; dispose(): void }
 interface Kernel { readonly isDisposed: boolean; dispose(): void; requestExecute(options: { code: string; store_history: false }): ExecuteFuture; }
 interface JupyterApp { started: Promise<void>; serviceManager: { ready: Promise<void>; kernels: { startNew(options: { name: string }): Promise<Kernel> } } }
@@ -120,16 +120,25 @@ export class MobgapRuntime {
     return new Promise<string>((resolve, reject) => {
       let stdout = ''
       let failure: string | undefined
+      let fatalMemoryFailure = false
       const cancelled = (error: Error) => { future.dispose(); reject(error) }
       this.pending.add(cancelled)
       future.onIOPub = (message) => {
         if (message.header.msg_type === 'stream' && message.content.name === 'stdout') stdout += message.content.text ?? ''
-        if (message.header.msg_type === 'error') failure = message.content.evalue || message.content.traceback?.join('\n') || 'Python execution failed.'
+        if (message.header.msg_type === 'error') {
+          failure = message.content.evalue || message.content.traceback?.join('\n') || 'Python execution failed.'
+          // Xeus reports class reprs; other kernels use the exception's name.
+          const exceptionType = message.content.ename?.replace(/^<class '([^']+)'>$/, '$1').split('.').at(-1)
+          fatalMemoryFailure ||= exceptionType === 'MemoryError' || exceptionType === '_ArrayMemoryError'
+        }
       }
       void future.done.then(() => {
         this.pending.delete(cancelled)
         future.dispose()
-        if (failure !== undefined) reject(new PythonExecutionError(failure))
+        if (fatalMemoryFailure) {
+          if (generation === this.generation) this.cancel()
+          reject(new Error(`${failure || 'Python ran out of memory.'} Select the files again to retry.`))
+        } else if (failure !== undefined) reject(new PythonExecutionError(failure))
         else resolve(stdout)
       }, (error: unknown) => {
         this.pending.delete(cancelled)
