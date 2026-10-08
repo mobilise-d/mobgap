@@ -11,7 +11,7 @@ The integration was exercised in the collaborative Chromium browser against the 
 
 All eight result tables from each browser run matched a native run of the same Python adapter against the original repository MATLAB recording, with relative tolerance 1e-8 and absolute tolerance 1e-9. Table columns, row structure and nonnumeric values also matched. The recordings were TimeMeasure1 / Test11 / Trial1. Heights and cohorts were the actual example metadata, not defaults inferred from file names.
 
-The healthy example's walking-bout CSV exported one header and six computed data rows. Display rounding does not alter the underlying export.
+The healthy example's walking-bout CSV exported one header and six computed data rows. CSV uses the exported JSON values without the table display rounding; Python serializes floats with pandas double_precision=15, so exact float64 round trips are not promised.
 
 These MATLAB runs cover the selected short examples and both full presets. Real multiday CWA measurements are documented below; broad browser compatibility remains untested. Cold runtime preparation and JIT compilation are excluded from earlier warm algorithm benchmarks; the application reports the duration of the particular pipeline call it just ran.
 
@@ -81,3 +81,5 @@ Final focused verification: 116 native tests covering the adapter, AX6 dataset, 
 Cancellation during a real five-day batch preserved the first completed day, its filename/timezone caption and CSV action, and removed the worker iframe. Loading the healthy MATLAB example again and running it succeeded (6 walking bouts, 60 initial contacts, 47 strides). Whole-file `File.arrayBuffer` calls remained zero. Both private OPFS test fixtures were deleted after verification.
 
 A worker ErrorEvent injected during calendar-day listing cleared the stale recording/day list and participant fields, removed the iframe, and requested file reselection. Selecting the public CWA example again created a new kernel and listed its day successfully. Switching from CWA to the healthy MATLAB example restored Laboratory settings and its measured heights.
+
+After the final UI simplification, the active recording completed both healthy days again with zero native differences across all eight tables. Selecting the first day displayed its matching caption and exported 214 walking-bout rows as `mobgap-2025-12-05-healthy-walking_bouts.csv`. Cancelling a second batch after its first day retained that day and removed the worker. Whole-file reads remained zero, and the temporary OPFS fixture was deleted again. This fresh-worker rerun took 35.23 and 5.59 seconds; first-use compilation and concurrent system load illustrate why the earlier timings are individual measurements, not a fixed speed ratio.

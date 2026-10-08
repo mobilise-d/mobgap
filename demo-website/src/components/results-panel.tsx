@@ -13,15 +13,10 @@ const PAGE_SIZE = 25
 const labels: Record<string, string> = {
   walking_bouts: 'Walking bouts', gait_sequences: 'Gait sequences', initial_contacts: 'Initial contacts',
   turns: 'Turns', per_second_parameters: 'Parameters per second', raw_per_stride_parameters: 'Raw stride parameters',
-  per_wb_parameters: 'Walking bouts', per_wb_parameters_: 'Walking bouts',
-  aggregated_parameters: 'Aggregated parameters', aggregated_parameters_: 'Aggregated parameters',
-  gs_list: 'Gait sequences', gs_list_: 'Gait sequences',
-  raw_ic_list: 'Initial contacts', raw_ic_list_: 'Initial contacts',
-  per_stride_parameters: 'Strides', per_stride_parameters_: 'Strides',
-  raw_turn_list: 'Turns', raw_turn_list_: 'Turns',
-  raw_per_sec_parameters: 'Parameters per second', raw_per_sec_parameters_: 'Parameters per second',
+  aggregated_parameters: 'Aggregated parameters', per_stride_parameters: 'Strides',
 }
-const tableLabel = (name: string) => labels[name] ?? name.replace(/_+/g, ' ').trim()
+const tableLabel = (name: string) => labels[name]
+
 const numericFormat = new Intl.NumberFormat('en', { maximumFractionDigits: 4 })
 const cellText = (value: unknown): string => {
   if (value === null || value === undefined) return '—'
@@ -46,7 +41,7 @@ function downloadCsv(table: ResultTable, filename: string) {
 
 export function ResultsPanel({ result, recordingLabel, downloadPrefix = 'mobgap' }: { result: AnalysisResult; recordingLabel: string; downloadPrefix?: string }) {
   const tableNames = Object.keys(result.tables)
-  const defaultTable = tableNames.find(name => name === 'walking_bouts' || name.startsWith('per_wb_parameters')) ?? tableNames[0] ?? ''
+  const defaultTable = tableNames.find(name => name === 'walking_bouts') ?? tableNames[0] ?? ''
   const [selectedTable, setSelectedTable] = useState(defaultTable)
   const [page, setPage] = useState(0)
   const table = result.tables[selectedTable]
@@ -87,7 +82,7 @@ export function ResultsPanel({ result, recordingLabel, downloadPrefix = 'mobgap'
           {table.rows.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">No rows in this result table.</p> : null}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>{table.rows.length.toLocaleString()} rows · Values rounded for display; CSV retains full precision.</p>
+          <p>{table.rows.length.toLocaleString()} rows · Values rounded for display; CSV exports values without display rounding.</p>
           <div className="flex items-center gap-2"><Button variant="outline" size="icon-sm" aria-label="Previous rows" disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft /></Button><span className="tabular-nums">{page + 1} / {totalPages}</span><Button variant="outline" size="icon-sm" aria-label="Next rows" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight /></Button></div>
         </div>
       </> : <p className="text-sm text-muted-foreground">This run did not return result tables.</p>}

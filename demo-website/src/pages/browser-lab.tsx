@@ -3,7 +3,7 @@ import { Activity, ArrowRight, FileCheck2, FileUp, FlaskConical, LoaderCircle, L
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet, FieldTitle } from '@/components/ui/field'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -57,9 +57,10 @@ export function BrowserLab() {
   const [notice, setNotice] = useState('')
   const [fileErrors, setFileErrors] = useState<string[]>([])
   const [dragging, setDragging] = useState(false)
-  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [singleResult, setSingleResult] = useState<AnalysisResult | null>(null)
   const recording = recordings.find(value => value.id === recordingId)
   const selectedDayResult = dayResults.find(entry => String(entry.day.index) === resultDay)
+  const result = selectedDayResult?.result ?? singleResult
   const heightNumber = Number(height)
   const sensorHeightNumber = Number(sensorHeight)
   const heightValid = heightNumber > 0 && Number.isFinite(heightNumber)
@@ -88,7 +89,7 @@ export function BrowserLab() {
   }, [])
 
   function clearResults() {
-    setResult(null); setDayResults([]); setResultDay(''); setDayErrors([]); setResultSourceLabel('')
+    setSingleResult(null); setDayResults([]); setResultDay(''); setDayErrors([]); setResultSourceLabel('')
   }
 
   function selectRecording(id: string, candidates = recordings) {
@@ -202,7 +203,7 @@ export function BrowserLab() {
           if (event.result) {
             const calculated = event.result
             setDayResults(previous => [...previous, { day: event.day, result: calculated }])
-            setResultDay(String(event.day.index)); setResult(calculated)
+            setResultDay(String(event.day.index))
           } else if (event.error) {
             const message = event.error
             setDayErrors(previous => [...previous, { day: event.day, message }])
@@ -210,7 +211,7 @@ export function BrowserLab() {
         }, onProgress(version))
       } else {
         const calculated = await getRuntime().runPipeline({ ...options, ...(cwa ? { cwaWindow: { startSeconds: windowStartNumber, durationSeconds: windowDurationNumber, timezone: clockTimezone.trim() } } : {}) }, onProgress(version))
-        if (version === requestVersion.current) setResult(calculated)
+        if (version === requestVersion.current) setSingleResult(calculated)
       }
     } catch (reason) { if (version === requestVersion.current) handleOperationError(reason) }
     finally { if (version === requestVersion.current) { setBusy(false); setProgress(null) } }
@@ -250,7 +251,7 @@ export function BrowserLab() {
             <p className="help-copy">You can select data and participant metadata files together. CWA files are inspected before decoding a selected window. Analysis happens entirely in your browser.</p>
             <div className="example-list"><p className="eyebrow">Or try an example</p>{samples.map(sample => <Button key={sample.id} variant="ghost" className="example-button" disabled={busy} onClick={() => void loadSample(sample)}><span><strong>{sample.label}</strong><small>{sample.description}</small></span><ArrowRight data-icon="inline-end" /></Button>)}{sampleError ? <p className="text-xs text-muted-foreground">Examples are unavailable. You can still load a local file.</p> : null}</div>
             {recordings.length > 0 ? <FieldGroup className="mt-5"><Field><FieldLabel htmlFor="recording">Recording</FieldLabel><Select value={recordingId} onValueChange={id => selectRecording(id)} disabled={busy}><SelectTrigger id="recording" className="w-full"><SelectValue placeholder="Select a recording" /></SelectTrigger><SelectContent><SelectGroup>{recordings.map(value => <SelectItem key={value.id} value={value.id}>{recordingLabel(value)}</SelectItem>)}</SelectGroup></SelectContent></Select></Field>{recording ? <div className="recording-facts"><FileCheck2 className="size-4" aria-hidden="true" /><span>{duration(recording.durationSeconds)} · {recording.samplingRateHz} Hz<br />{recording.samples === null ? 'Sample count available after decoding' : `${recording.samples.toLocaleString()} samples`} · {recording.sensorPosition}</span></div> : null}</FieldGroup> : null}
-            {cwa ? <div className="mt-5 space-y-4">
+            {cwa ? <div className="mt-5 flex flex-col gap-4">
               <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">CWA recording · metadata inspected</p>
                 <p className="mt-1 break-words">{cwa.startTimeRaw} to {cwa.endTimeRaw}</p>
@@ -282,7 +283,7 @@ export function BrowserLab() {
             <FieldSet disabled={busy}>
               <FieldLegend className="sr-only">Pipeline and participant metadata</FieldLegend>
               <FieldGroup>
-                <Field><FieldLabel>Walking preset</FieldLabel><ToggleGroup type="single" variant="outline" value={pipeline} onValueChange={value => { if (value) { setPipeline(value as PipelinePreset); clearResults() } }} disabled={busy} className="w-full"><ToggleGroupItem className="flex-1" value="healthy">Healthy</ToggleGroupItem><ToggleGroupItem className="flex-1" value="impaired">Impaired</ToggleGroupItem></ToggleGroup><FieldDescription>{pipeline === 'healthy' ? 'Recommended for HA, COPD and CHF cohorts.' : 'Recommended for PD, MS and PFF cohorts.'}</FieldDescription></Field>
+                <Field><FieldTitle id="walking-preset-label">Walking preset</FieldTitle><ToggleGroup aria-labelledby="walking-preset-label" type="single" variant="outline" value={pipeline} onValueChange={value => { if (value) { setPipeline(value as PipelinePreset); clearResults() } }} disabled={busy} className="w-full"><ToggleGroupItem className="flex-1" value="healthy">Healthy</ToggleGroupItem><ToggleGroupItem className="flex-1" value="impaired">Impaired</ToggleGroupItem></ToggleGroup><FieldDescription>{pipeline === 'healthy' ? 'Recommended for HA, COPD and CHF cohorts.' : 'Recommended for PD, MS and PFF cohorts.'}</FieldDescription></Field>
                 <Field><FieldLabel htmlFor="cohort">Participant cohort</FieldLabel><Select value={cohort} onValueChange={value => { setCohort(value); clearResults() }} disabled={busy}><SelectTrigger id="cohort" className="w-full"><SelectValue placeholder="Select a cohort" /></SelectTrigger><SelectContent><SelectGroup>{cohortOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label} ({value})</SelectItem>)}</SelectGroup></SelectContent></Select></Field>
                 <FieldGroup className="metadata-grid"><Field data-invalid={height !== '' && !heightValid}><FieldLabel htmlFor="participant-height">Participant height (m)</FieldLabel><Input id="participant-height" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Enter height" value={height} aria-invalid={height !== '' && !heightValid} onChange={event => { setHeight(event.target.value); clearResults() }} /></Field><Field data-invalid={sensorHeight !== '' && !sensorHeightValid}><FieldLabel htmlFor="sensor-height">Sensor height (m)</FieldLabel><Input id="sensor-height" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Enter height" value={sensorHeight} aria-invalid={sensorHeight !== '' && !sensorHeightValid} onChange={event => { setSensorHeight(event.target.value); clearResults() }} />{sensorHeight !== '' && !sensorHeightValid ? <FieldDescription>Enter a positive sensor height no greater than participant height.</FieldDescription> : null}</Field></FieldGroup>
                 <p className="help-copy">Measure sensor height from the floor to the lower-back sensor. Both heights are used to calculate stride length and apply parameter thresholds.</p>
@@ -298,7 +299,7 @@ export function BrowserLab() {
           {!busy && notice ? <Alert className="mb-6"><AlertTitle>Cancelled</AlertTitle><AlertDescription>{notice}</AlertDescription></Alert> : null}
           {!busy && (error || fileErrors.length > 0) ? <Alert variant="destructive" className="mb-6"><TriangleAlert /><AlertTitle>{error ? 'Could not complete this step' : 'Some files could not be loaded'}</AlertTitle><AlertDescription>{error ? <p className="break-words whitespace-pre-wrap">{error}</p> : null}{fileErrors.map(message => <p key={message}>{message}</p>)}<p>Check the file and participant details, then try again.</p></AlertDescription></Alert> : null}
           {!busy && dayErrors.length > 0 ? <Alert variant="destructive" className="mb-6"><AlertTitle>Some days could not be analyzed</AlertTitle><AlertDescription>{dayErrors.map(entry => <p key={entry.day.index} className="break-words"><strong>{entry.day.label}:</strong> {entry.message}</p>)}<p>Days are processed separately.{dayResults.length > 0 ? ' Successful results remain available below.' : ''}</p></AlertDescription></Alert> : null}
-          {!busy && dayResults.length > 0 ? <Field className="mb-6"><FieldLabel htmlFor="completed-day">Daily results · {dayResults.length} completed</FieldLabel><Select value={resultDay} onValueChange={value => { setResultDay(value); setResult(dayResults.find(entry => String(entry.day.index) === value)?.result ?? null) }}><SelectTrigger id="completed-day" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup>{dayResults.map(entry => <SelectItem key={entry.day.index} value={String(entry.day.index)}>{entry.day.label}</SelectItem>)}</SelectGroup></SelectContent></Select></Field> : null}
+          {!busy && dayResults.length > 0 ? <Field className="mb-6"><FieldLabel htmlFor="completed-day">Daily results · {dayResults.length} completed</FieldLabel><Select value={resultDay} onValueChange={setResultDay}><SelectTrigger id="completed-day" className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectGroup>{dayResults.map(entry => <SelectItem key={entry.day.index} value={String(entry.day.index)}>{entry.day.label}</SelectItem>)}</SelectGroup></SelectContent></Select></Field> : null}
           {!busy && result ? <ResultsPanel key={result.recordingId + resultDay + result.preset + result.summary.processingSeconds} result={result} recordingLabel={`${resultSourceLabel || result.recordingId}${dayResults.length > 0 ? ` · ${selectedDayResult?.day.label ?? ''}` : ''}`} downloadPrefix={selectedDayResult ? `mobgap-${selectedDayResult.day.label}` : 'mobgap'} /> : null}
           {!busy && !result ? <Empty className="results-empty"><EmptyHeader><EmptyMedia variant="icon"><Activity /></EmptyMedia><EmptyTitle>{recording ? 'Ready when you are' : 'A clearer view of your walking data'}</EmptyTitle><EmptyDescription>{recording ? 'Check the participant details and run the pipeline. Walking bouts, cadence, stride length and speed will appear here.' : 'Choose an example, a MATLAB recording or a CWA file. Your calculated walking parameters and downloadable tables will appear here.'}</EmptyDescription></EmptyHeader></Empty> : null}
         </section>
