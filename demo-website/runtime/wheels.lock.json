@@ -50,10 +50,10 @@
   },
   {
     "name": "tpcp",
-    "version": "3.1.0",
-    "filename": "tpcp-3.1.0-py3-none-any.whl",
-    "url": "https://files.pythonhosted.org/packages/b7/8f/e4c633500731f6acb33762e1c042f106d488a82f2db28b2b6cd660e90bc8/tpcp-3.1.0-py3-none-any.whl",
-    "sha256": "b789387a51eacd7cdb75bcbaf382339397b4c8bbca11000b13d518b2fb78faf0"
+    "version": "3.2.0",
+    "filename": "tpcp-3.2.0-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/a9/ae/a3a1ed3857d443788390a6520434508131c05cb880084d239c7167dc1506/tpcp-3.2.0-py3-none-any.whl",
+    "sha256": "a49e929cbf5f3294ff20e816e4fa9881e51da0a0a0a806c84a620fde225ce78d"
   },
   {
     "name": "python_dotenv",

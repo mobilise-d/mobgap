@@ -6,7 +6,7 @@ Selected browser File handles reach the worker through structured clone and moun
 
 For multiday CWA files, offer “Split by day” and explicitly request the sensor clock synchronization timezone. Use the public AX6Dataset with split_by_local_days, iterate one dataset in Python and apply a pipeline to each day item. Include partial first/last days and local daylight-saving boundaries. Process days sequentially, return separate per-day tables and CSV exports, and preserve completed results after an ordinary day error or cancellation. Fatal memory/worker errors stop and reset the runtime. Do not substitute hourly chunks for whole-day pipeline semantics. An optional bounded manual window is a separate mode.
 
-Preserve mobgap's existing public interfaces and numerical behavior. Two narrow core corrections are included because actual daily WASM runs exposed them: construct sliding windows at their final hop without an oversized intermediate view, and evict the prior AX6 cache frame before decoding its replacement while retaining repeat-window reuse and optional disk caching.
+Preserve mobgap's existing public interfaces and numerical behavior. Daily WASM runs require sliding windows constructed at their final hop without an oversized intermediate view. AX6 window caching must use tpcp 3.2.0 or newer, whose hybrid_cache releases the previous entry before loading a replacement by default. Remove the prototype-local cache workaround and retain the release-before-load, repeat-window and optional disk-cache regression checks.
 
 ## Acceptance checks
 

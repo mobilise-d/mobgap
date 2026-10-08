@@ -52,9 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accelerometer data can now run when those channels are absent, including on acceleration-only data. Sensor and body
   frame conversion also supports these partial inputs. (https://github.com/mobilise-d/mobgap/issues/172,
   https://github.com/mobilise-d/mobgap/issues/46)
-- The minimum supported `tpcp` version is now 2.3.0. Environments pinned to an older version must upgrade `tpcp`
+- The minimum supported `tpcp` version is now 3.2.0. Environments pinned to an older version must upgrade `tpcp`
   before updating mobgap. This does not change mobgap's public APIs, but warnings and exceptions produced during tpcp
-  validation and optimization can now include structured fold, parameter, and datapoint context.
+  validation and optimization can now include structured fold, parameter, and datapoint context. Bounded hybrid
+  caches now evict before loading a replacement by default; a failed load does not restore the old entry.
+  Direct tpcp users should also consult its [3.0 migration notes](https://github.com/mad-lab-fau/tpcp/releases/tag/v3.0.0).
 - **Breaking:** `MisorientedDataset` now follows tpcp's dataset-wrapper convention: pass the source dataset as
   `wrapped_dataset` instead of `base_dataset`, and access it through the `wrapped_dataset` attribute.
 - Warnings and exceptions raised inside mobgap's iterative processing now identify the active pipeline, gait sequence,
@@ -66,7 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Construct sliding-window views at their requested hop to avoid an oversized intermediate view on 32-bit NumPy,
   preserving values and read-only view behavior. (https://github.com/mobilise-d/mobgap/pull/268)
 - Release the previous AX6 in-memory cache entry before loading a replacement, reducing peak memory for sequential
-  day processing while retaining repeated-window and disk-cache reuse. (https://github.com/mobilise-d/mobgap/pull/268)
+  day processing while retaining repeated-window and disk-cache reuse. This uses tpcp 3.2’s default early eviction;
+  the prototype-local workaround has been removed. (https://github.com/mobilise-d/mobgap/pull/268)
 
 - Wear-time waking-hours totals now count only intervals within the configured window, including for short recordings
   without timestamps. The fallback to total wear-time has been removed; sample zero is assumed to be midnight.

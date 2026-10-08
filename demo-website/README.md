@@ -33,7 +33,7 @@ After changing the Python adapter or mobgap source, refresh its bundle without r
 npm run runtime:prepare -- --bundle-only
 ```
 
-Then rebuild the frontend for a production preview. The bundled source includes a compatible sliding-window fix for 32-bit NumPy: it constructs only requested window hops, avoiding an oversized intermediate view on day-long recordings.
+Then rebuild the frontend for a production preview. The bundled source includes a compatible sliding-window fix for 32-bit NumPy: it constructs only requested window hops, avoiding an oversized intermediate view on day-long recordings. AX6 uses tpcp 3.2.0’s built-in early cache eviction; no local cache workaround is needed.
 
 ## Supported input
 

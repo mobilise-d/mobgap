@@ -7,12 +7,12 @@ from datetime import timezone
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
-from threading import RLock
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from zoneinfo import ZoneInfo
 
 import joblib
 import pandas as pd
+from tpcp.caching import hybrid_cache
 
 from mobgap.consts import GRAV_MS2, SF_ACC_COLS, SF_SENSOR_COLS
 from mobgap.data.base import IMU_DATA_DTYPE, BaseGaitDataset, ParticipantMetadata, RecordingMetadata
@@ -33,8 +33,6 @@ _SAMPLING_RATE_DEVIATION_WARNING = (
     "While this is likely normal and might happen due to clock drift in long recordings, it might be worth "
     "investigating further. Data will be resampled assuming that the recorded start and end dates are correct."
 )
-_CWA_WINDOW_CACHE: tuple[str, pd.DataFrame] | None = None
-_CWA_WINDOW_CACHE_LOCK = RLock()
 
 
 def _cwa_reader() -> Any:
@@ -222,21 +220,6 @@ def _load_cwa_data(  # noqa: PLR0917
     return frame.loc[(frame.index >= start_time) & (frame.index < end_time)]
 
 
-def _cached_cwa_data(memory: joblib.Memory, *args: Any) -> pd.DataFrame:
-    """Reuse one window, releasing its predecessor before decoding a new one."""
-    global _CWA_WINDOW_CACHE  # noqa: PLW0603 - one module-level entry is shared by dataset clones.
-    key = joblib.hash((memory, args))
-    with _CWA_WINDOW_CACHE_LOCK:
-        if _CWA_WINDOW_CACHE is not None and _CWA_WINDOW_CACHE[0] == key:
-            return _CWA_WINDOW_CACHE[1]
-        # functools.lru_cache keeps its previous value until a miss completes.
-        # Day-sized frames must instead be released before loading replacements.
-        _CWA_WINDOW_CACHE = None
-        frame = memory.cache(_load_cwa_data)(*args)
-        _CWA_WINDOW_CACHE = (key, frame)
-        return frame
-
-
 class BaseAX6Dataset(BaseGaitDataset):
     """Read AX6 CWA files, with file discovery and splitting supplied by subclasses.
 
@@ -372,8 +355,7 @@ class BaseAX6Dataset(BaseGaitDataset):
         if start_time != first_sample or end_time != full_end:
             start_s = (start_time - first_sample).total_seconds()
             end_s = (end_time - first_sample).total_seconds()
-        return _cached_cwa_data(
-            self.memory,
+        return hybrid_cache(self.memory, 1)(_load_cwa_data)(
             path,
             _file_identity(path),
             start_s,
