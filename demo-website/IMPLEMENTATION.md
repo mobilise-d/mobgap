@@ -1,6 +1,6 @@
 # Browser prototype scope and acceptance
 
-Build a standalone page in `demo-website` using React, TanStack Router and shadcn/ui. Users select Mobilise-D MATLAB or AX6 CWA recordings, supply participant metadata, run full mobgap presets locally in a browser, and inspect or export actual results. The runtime uses genuine Xeus Python/Numba and compiled PyWavelets, Python xxhash and cwa_reader_rs extensions. The reader artifact comes from cwa_reader_rs PR #7 with pinned build/source provenance.
+Build a standalone page in `demo-website` using React, TanStack Router and shadcn/ui, with the official Mobilise-D logo. Users select Mobilise-D MATLAB or AX6 CWA recordings, supply participant metadata, run full mobgap presets locally in a browser, and inspect or export actual results. The runtime uses genuine Xeus Python/Numba and compiled PyWavelets, Python xxhash and cwa_reader_rs extensions. The reader artifact comes from cwa_reader_rs PR #7 with pinned build/source provenance.
 
 Selected browser File handles reach the worker through structured clone and mount on the official Emscripten 4.0.9 WORKERFS backend. Do not copy whole selected files into ArrayBuffer/base64/MEMFS or persistent browser storage. CWA reads use the reader’s internal packet batching; remove the redundant JavaScript read-ahead cache. Logical reader requests and physical browser reads have separate counters. MATLAB retains its existing eager decoding behavior.
 
