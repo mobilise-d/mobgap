@@ -1,6 +1,7 @@
 import warnings
 from pathlib import Path
 from shutil import copyfile
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
@@ -509,3 +510,33 @@ def test_automatic_test_level_names_follow_recording_depth(
         test_level_names=tuple(f"custom_{i}" for i in range(depth)), subset_index=None
     )
     pd.testing.assert_frame_equal(dataset[0].data_ss, explicit[0].data_ss)
+
+
+def test_automatic_names_reuse_index_when_reading_a_later_file(
+    example_data_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Reading a later file must not reload the first file to rediscover its hierarchy."""
+    paths = [tmp_path / name / "data.mat" for name in ("first", "second")]
+    for path in paths:
+        path.parent.mkdir()
+        copyfile(example_data_path / "data.mat", path)
+    dataset = GenericMobilisedDataset(
+        paths,
+        test_level_names=None,
+        parent_folders_as_metadata=("participant_id",),
+        measurement_condition="laboratory",
+    )
+    selected = dataset.get_subset(participant_id="second")[0]
+    expected = selected.data_ss
+    calls = []
+    original_loadmat = loadmat
+
+    def track_loadmat(file_name: Union[str, Path], *args: Any, **kwargs: Any) -> dict[str, Any]:
+        calls.append(Path(file_name))
+        return original_loadmat(file_name, *args, **kwargs)
+
+    monkeypatch.setattr("scipy.io.loadmat", track_loadmat)
+    for datapoint in (selected, selected.clone(), selected.get_subset(trial=selected.group_label.trial)):
+        pd.testing.assert_frame_equal(datapoint.data_ss, expected)
+        assert datapoint.sampling_rate_hz == 100
+    assert calls == []

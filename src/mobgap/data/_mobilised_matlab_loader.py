@@ -1463,13 +1463,12 @@ class BaseGenericMobilisedDataset(BaseGaitDatasetWithReference):
 
         The index columns will consist of the metadata extracted from the columns and the test names.
         """
+        # Discover automatic names before loading later files, preserving the single-file data cache.
+        test_level_names = list(self._test_level_names)
         # Resolve metadata (aka) test list from loading the files.
         test_name_metadata = (
             pd.concat(
-                {
-                    path: pd.DataFrame(self._get_test_list(path), columns=list(self._test_level_names))
-                    for path in self._paths_list
-                }
+                {path: pd.DataFrame(self._get_test_list(path), columns=test_level_names) for path in self._paths_list}
             )
             .reset_index(level=-1, drop=True)
             .rename_axis(index="__path")
@@ -1647,6 +1646,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     def _test_level_names(self) -> tuple[str, ...]:
         if self.test_level_names is not None:
             return tuple(self.test_level_names)
+        if self.subset_index is not None:
+            metadata_names = self._metadata_level_names or ()
+            return tuple(name for name in self.subset_index.columns if name not in metadata_names)
         tests = self._cached_data_load_no_checks(self._paths_list[0])[0]
         if not tests:
             raise ValueError("The first MAT file contains no Mobilise-D recordings.")
