@@ -42,15 +42,14 @@ function environment() {
   return { context, FS, FileHandle, physicalReads, mount, read, node: (name) => mounted.contents[name], stats: () => context.mobgapWorkerFiles.stats() };
 }
 
-test('CWA reads preserve seek ranges, EOF and read-only data with one bounded cache block', () => {
+test('CWA reads preserve exact ranges, offsets, seeks, EOF and read-only data without read-ahead', () => {
   const e = environment();
   const bytes = Uint8Array.from({ length: BLOCK * 2 + 53 }, (_, i) => i % 251);
   e.mount([new e.FileHandle(bytes, 'recording.cwa')]);
   assert.equal(e.physicalReads.length, 0, 'mount must not read bytes');
   assert.deepEqual([...e.read('recording.cwa', 0, 4).bytes], [0, 1, 2, 3]);
   assert.deepEqual([...e.read('recording.cwa', 10, 5).bytes], [10, 11, 12, 13, 14]);
-  assert.equal(e.physicalReads.length, 1, 'nearby reads reuse a block');
-  assert.equal(e.physicalReads[0], BLOCK);
+  assert.deepEqual(e.physicalReads, [4, 5], 'each nearby request reads only its requested slice');
   for (const [position, length] of [[BLOCK - 2, 6], [bytes.length - 3, 10], [0, 3], [BLOCK + 6, 100], [BLOCK - 2, BLOCK + 63]]) {
     const actual = e.read('recording.cwa', position, length);
     assert.deepEqual(actual.bytes, bytes.subarray(position, position + length));
@@ -74,11 +73,11 @@ test('CWA reads preserve seek ranges, EOF and read-only data with one bounded ca
   assert.equal(stats.physicalBytesRead, e.physicalReads.reduce((sum, size) => sum + size, 0));
   assert.equal(stats.physicalReadCalls, e.physicalReads.length);
   assert.equal(stats.logicalBytesRead, BLOCK + 180);
-  assert.ok(stats.cacheResidentBytes <= BLOCK);
-  assert.ok(e.physicalReads.every((size) => size <= BLOCK));
+  assert.equal(stats.physicalBytesRead, stats.logicalBytesRead);
+  assert.equal(stats.maxPhysicalReadBytes, stats.maxLogicalReadBytes);
 });
 
-test('remount and alternating CWA files never reuse another file’s bytes', () => {
+test('remount and alternating CWA files read their own bytes and reset counters', () => {
   const e = environment();
   e.mount([new e.FileHandle(new Uint8Array(BLOCK + 5).fill(7), 'one.cwa')]);
   assert.deepEqual([...e.read('one.cwa', 0, 3).bytes], [7, 7, 7]);
@@ -86,7 +85,8 @@ test('remount and alternating CWA files never reuse another file’s bytes', () 
   assert.equal(e.stats().physicalReadCalls, 0);
   for (const [name, value] of [['one.cwa', 8], ['two.cwa', 9], ['one.cwa', 8]]) assert.deepEqual([...e.read(name, 1, 2).bytes], [value, value]);
   assert.equal(e.stats().physicalReadCalls, 3);
-  assert.ok(e.stats().cacheResidentBytes <= BLOCK);
+  assert.deepEqual(e.physicalReads, [3, 2, 2, 2]);
+  assert.equal(e.stats().physicalBytesRead, 6);
 });
 
 test('other formats retain exact requested-range reads without read-ahead', () => {
@@ -94,5 +94,6 @@ test('other formats retain exact requested-range reads without read-ahead', () =
   e.mount([new e.FileHandle(new Uint8Array(BLOCK * 2).fill(42), 'large.bin')]);
   assert.deepEqual([...e.read('large.bin', BLOCK + 8, 4).bytes], [42, 42, 42, 42]);
   assert.deepEqual(e.physicalReads, [4]);
-  assert.equal(e.stats().cacheResidentBytes, 0);
+  assert.equal(e.stats().physicalBytesRead, 4);
+  assert.equal(e.stats().logicalBytesRead, 4);
 });

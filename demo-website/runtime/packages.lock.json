@@ -954,9 +954,9 @@
     {
       "name": "cwa_reader_rs",
       "version": "0.4.0",
-      "build": "h7223423_0",
-      "filename_stem": "cwa_reader_rs-0.4.0-h7223423_0",
-      "filename": "cwa_reader_rs-0.4.0-h7223423_0.tar.gz",
+      "build": "h7223423_pr7_84891bbb_1",
+      "filename_stem": "cwa_reader_rs-0.4.0-h7223423_pr7_84891bbb_1",
+      "filename": "cwa_reader_rs-0.4.0-h7223423_pr7_84891bbb_1.tar.bz2",
       "channel": "local-channel",
       "depends": [
         "python ==3.13.1 h_2efca29_11_cp313",
