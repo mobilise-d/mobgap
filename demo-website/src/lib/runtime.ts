@@ -1,3 +1,5 @@
+import { transfer } from 'comlink'
+import { XeusKernel } from './xeus-kernel'
 import type { AnalysisResult, CwaDayWindowsResult, DatasetConfiguration, DayAnalysisEvent, InspectionResult, ProgressHandler, RunDaysOptions, RunPipelineOptions } from './contracts'
 export type * from './contracts'
 
@@ -6,26 +8,12 @@ export class PythonExecutionError extends Error {
   override readonly name = 'PythonExecutionError'
 }
 
-interface KernelMessage { header: { msg_type: string }; content: { name?: string; text?: string; ename?: string; evalue?: string; traceback?: string[] } }
-interface ExecuteFuture { onIOPub: ((message: KernelMessage) => void) | null; done: Promise<unknown>; dispose(): void }
-interface Kernel { readonly isDisposed: boolean; dispose(): void; requestExecute(options: { code: string; store_history: false }): ExecuteFuture; }
-interface JupyterApp { started: Promise<void>; serviceManager: { ready: Promise<void>; kernels: { startNew(options: { name: string }): Promise<Kernel> } } }
-type RuntimeWindow = Window & { jupyterapp?: JupyterApp; Worker: typeof Worker; callGlobalReceiver(name: string, method: string, ...args: unknown[]): Promise<void> }
 const JSON_MARKER = '__MOBGAP_RESULT__'
-const CHUNK_BYTES = 256 * 1024
 const STARTUP_TIMEOUT_MS = 5 * 60 * 1000
-
-function encode(bytes: Uint8Array): string {
-  let text = ''
-  for (let start = 0; start < bytes.length; start += 8192) text += String.fromCharCode(...bytes.subarray(start, start + 8192))
-  return btoa(text)
-}
 
 /** A browser-local Xeus Python worker. No selected file is sent to a server. */
 export class MobgapRuntime {
-  private iframe?: HTMLIFrameElement
-  private kernel?: Kernel
-  private workers = new Set<Worker>()
+  private kernel?: XeusKernel
   private initialization?: Promise<void>
   private abort?: AbortController
   private pending = new Set<(error: Error) => void>()
@@ -53,29 +41,15 @@ export class MobgapRuntime {
   private async start(signal: AbortSignal, progress: ProgressHandler | undefined, failStartup: (error: Error) => void): Promise<void> {
     const generation = this.generation
     progress?.({ stage: 'loading', message: 'Loading Python, NumPy and the WebAssembly runtime…' })
-    const iframe = document.createElement('iframe')
-    iframe.hidden = true
-    iframe.title = 'Local Python runtime'
-    iframe.src = new URL('lab/index.html?exposeAppInBrowser=true', this.assetRoot).href
-    this.iframe = iframe
-    document.body.append(iframe)
-    const app = await new Promise<JupyterApp>((resolve, reject) => {
-      const deadline = Date.now() + 180_000
-      const stop = () => { clearInterval(timer); signal.removeEventListener('abort', cancelled) }
-      const cancelled = () => { stop(); reject(new Error('Runtime loading was cancelled.')) }
-      const timer = setInterval(() => {
-        const app = (iframe.contentWindow as RuntimeWindow | null)?.jupyterapp
-        if (app) { stop(); resolve(app) }
-        else if (Date.now() > deadline) { stop(); reject(new Error('Python runtime could not start. Check the runtime assets and reload.')) }
-      }, 100)
-      signal.addEventListener('abort', cancelled, { once: true })
-      if (signal.aborted) cancelled()
-    })
-    // Jupyter exposes kernel connections rather than their underlying Workers.
-    // Track this frame's dedicated Workers so Cancel stops busy Python immediately.
-    const frame = iframe.contentWindow as RuntimeWindow
-    const workers = new Set<Worker>()
-    this.workers = workers
+    const response = await fetch(new URL('xeus/mobgap-browser/xpython/kernel.json', this.assetRoot), { signal })
+    if (!response.ok) throw new Error('The Python runtime assets are missing. Run the asset setup command.')
+    const kernelSpec = { ...await response.json(), name: 'xpython', envName: 'mobgap-browser' }
+    signal.throwIfAborted()
+    const manifestResponse = await fetch(new URL('worker-manifest.json', this.assetRoot), { signal, cache: 'no-cache' })
+    if (!manifestResponse.ok) throw new Error('The Python worker bundle is missing. Run npm run worker:build.')
+    const manifest = await manifestResponse.json() as { worker: string }
+    signal.throwIfAborted()
+    const worker = new Worker(new URL(manifest.worker, this.assetRoot), { name: 'mobgap-python' })
     const workerFailure = (event: Event) => {
       if (signal.aborted) return
       const detail = event.type === 'error' ? (event as ErrorEvent).message : 'A worker message could not be decoded.'
@@ -84,32 +58,20 @@ export class MobgapRuntime {
       for (const reject of this.pending) reject(error)
       this.cancel()
     }
-    frame.Worker = new Proxy(frame.Worker, {
-      construct(target, args: [string | URL, WorkerOptions?]) {
-        const worker = new target(...args)
-        if (signal.aborted) worker.terminate()
-        else {
-          workers.add(worker)
-          worker.addEventListener('error', workerFailure)
-          worker.addEventListener('messageerror', workerFailure)
-        }
-        return worker
-      },
-    })
-    await Promise.race([Promise.all([app.started, app.serviceManager.ready]), new Promise<never>((_, reject) => signal.addEventListener('abort', () => reject(new Error('Runtime loading was cancelled.')), { once: true }))])
-    signal.throwIfAborted()
-    const kernel = await app.serviceManager.kernels.startNew({ name: 'xpython' })
-    if (signal.aborted) { kernel.dispose(); signal.throwIfAborted() }
+    worker.addEventListener('error', workerFailure)
+    worker.addEventListener('messageerror', workerFailure)
+    const kernel = new XeusKernel(worker, (text) => progress?.({ stage: 'loading', message: text.trim() }))
     this.kernel = kernel
-    progress?.({ stage: 'loading', message: 'Starting Python and importing mobgap…' })
-    const response = await fetch(new URL('bootstrap.zip', this.assetRoot), { signal })
-    if (!response.ok) throw new Error('The mobgap runtime bundle is missing. Run the asset setup command.')
-    await this.execute("import base64, pathlib\npathlib.Path('/mobgap-app.zip').write_bytes(b'')")
-    const bundle = new Uint8Array(await response.arrayBuffer())
+    await this.cancellable(kernel.remote.initialize({ baseUrl: this.assetRoot.href, kernelId: crypto.randomUUID(), kernelSpec, mountDrive: false, browsingContextId: '' }))
     signal.throwIfAborted()
-    await this.writeBundle(bundle, generation)
+    progress?.({ stage: 'loading', message: 'Importing mobgap…' })
+    const bundleResponse = await fetch(new URL('bootstrap.zip', this.assetRoot), { signal })
+    if (!bundleResponse.ok) throw new Error('The mobgap runtime bundle is missing. Run the asset setup command.')
+    const bundle = new Uint8Array(await bundleResponse.arrayBuffer())
+    this.checkGeneration(generation)
+    await this.cancellable(kernel.remote.writeBootstrap(transfer(bundle, [bundle.buffer])))
     signal.throwIfAborted()
-    await this.execute(`import sys, zipfile, json\nzipfile.ZipFile('/mobgap-app.zip').extractall('/mobgap-app')\nsys.path.insert(0, '/mobgap-app')\nimport mobgap_demo_api as api\nimport pyjs\npyjs.js.eval(pathlib.Path('/mobgap-app/workerfs.js').read_text())\npyjs.js.eval(pathlib.Path('/mobgap-app/bridge.js').read_text())`)
+    await this.execute(`import pathlib, sys, zipfile, json\nzipfile.ZipFile('/mobgap-app.zip').extractall('/mobgap-app')\npathlib.Path('/mobgap-app.zip').unlink()\nsys.path.insert(0, '/mobgap-app')\nimport mobgap_demo_api as api\nimport pyjs\npyjs.js.eval(pathlib.Path('/mobgap-app/workerfs.js').read_text())\npyjs.js.eval(pathlib.Path('/mobgap-app/bridge.js').read_text())`)
     progress?.({ stage: 'ready', message: 'Python is ready. Files stay in this browser.' })
   }
 
@@ -156,14 +118,6 @@ export class MobgapRuntime {
     })
   }
 
-  private async writeBundle(bytes: Uint8Array, generation: number): Promise<void> {
-    for (let offset = 0; offset < bytes.length; offset += CHUNK_BYTES) {
-      this.checkGeneration(generation)
-      const chunk = encode(bytes.subarray(offset, offset + CHUNK_BYTES))
-      await this.execute(`with open('/mobgap-app.zip', 'ab') as _file:\n    _file.write(base64.b64decode(${JSON.stringify(chunk)}))`)
-    }
-  }
-
   private async call<T>(expression: string, generation = this.generation): Promise<T> {
     this.checkGeneration(generation)
     const output = await this.execute(`print(${JSON.stringify(JSON_MARKER)} + api.call_json(lambda: ${expression}))`)
@@ -188,8 +142,7 @@ export class MobgapRuntime {
       if (new Set(names).size !== files.length) throw new Error('Select files with different filenames in one batch.')
       const folder = `/mobgap/uploads/${++this.batch}`
       onProgress?.({ stage: 'mounting', message: 'Mounting selected files in the local Python worker…' })
-      const frame = this.iframe?.contentWindow as RuntimeWindow
-      await this.cancellable(frame.callGlobalReceiver('mobgapWorkerFiles', 'mount', files, folder))
+      await this.cancellable(this.kernel!.remote.callGlobalReceiver('mobgapWorkerFiles', 'mount', files, folder))
       this.checkGeneration(generation)
       const paths = names.map((name) => `${folder}/${name}`)
       onProgress?.({ stage: 'inspecting', message: 'Inspecting recordings and sensor metadata…' })
@@ -272,12 +225,8 @@ export class MobgapRuntime {
     this.abort = undefined
     for (const reject of this.pending) reject(new Error('The operation was cancelled. Select the files again to retry.'))
     this.pending.clear()
-    for (const worker of this.workers) worker.terminate()
-    this.workers.clear()
     if (this.kernel) this.kernel.dispose()
     this.kernel = undefined
-    this.iframe?.remove()
-    this.iframe = undefined
     this.initialization = undefined
   }
 }

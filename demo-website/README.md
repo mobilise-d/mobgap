@@ -47,7 +47,7 @@ Calendar boundaries use the selected local timezone. The sensor clock uses the f
 
 ## Runtime architecture
 
-The React application controls a same-origin Xeus kernel through a hidden JupyterLite frame. The visible application has no notebook interface. This reuses the kernel loader from the verified WASM experiment. It is a prototype integration, not a new standalone Xeus JavaScript SDK.
+The React application starts a dedicated classic Xeus worker directly. Its small loader uses pinned Xeus core and mambajs-core bootstrap APIs to load the scientific environment and start Python. There is no iframe, Jupyter application, service worker or notebook UI in the delivered website. JupyterLite is used only as a build-time environment packer. `npm run dev` and `npm run build` first compile the worker and its unpacker into fingerprinted assets.
 
 Selected browser `File` handles are structured-cloned to the kernel worker and mounted read-only through Emscripten WORKERFS. Reads use `File.slice()` and `FileReaderSync`, so mounting does not copy the entire input into WASM memory or persistent browser storage. Both formats are loaded through file-backed tpcp datasets: `GenericMobilisedDataset` with upload metadata overrides for MATLAB, and `AX6Dataset` for CWA. They are not uploaded to an analysis server. The site serves static application and runtime assets. Results return to the page for display and download. The worker stays alive between analyses; cancelling resets the worker and requires rebuilding the dataset from the retained selected file handles. CWA batches use one `AX6Dataset` with `split_by_local_days`; a Python generator iterates the dataset and runs a fresh pipeline on each item, returning each day's result to React. WORKERFS still copies each requested read into WASM memory. The MATLAB dataset’s one-file cache retains eagerly decoded sensor trials; removing the input copy does not remove those allocations.
 
@@ -55,7 +55,7 @@ Selected browser `File` handles are structured-cloned to the kernel worker and m
 
 This prototype targets desktop browsers. Daily CWA analysis can require substantial memory even though the input file itself is not copied into WASM memory. Runtime download, imports and first compilation take longer than a warm analysis. See [validation results](VALIDATION.md) for the real multiday recordings exercised and measured limits. Mobile memory limits and broad browser support need separate validation. MATLAB v7.3/HDF5 input is outside the existing SciPy-based loader's support.
 
-A production deployment should serve the generated frontend and runtime together over HTTPS, retain the runtime directory structure, and use an SPA fallback only where it does not replace runtime assets. No Python server is needed after the build.
+A deployment serves the generated frontend and runtime together over HTTPS. Retain the complete directory structure. No Python server is needed after the build.
 
 The upload workflow accepts exactly one recording file, with an optional separate infoForAlgo file for MATLAB. Multiple dataset rows come from trials within that MATLAB file or calendar days within that CWA file. Multiple recording-file drops are rejected; there is no multi-recording mode.
 
@@ -63,14 +63,6 @@ The upload workflow accepts exactly one recording file, with an optional separat
 
 The workflow uses `/upload`, `/dataset`, `/progress` and `/results`; `/` redirects to Upload. Upload supplies files and participant configuration, Dataset selects trials/days, Progress tracks the entire selected batch, and Results shows its outcomes and tables. Ordinary row errors continue; cancellation stays on Progress with completed results retained. Back/Forward restores URL-backed controls without repeating analysis. File handles, participant measurements and results stay in memory: reloading or opening a direct link in another tab requires selecting the recording again.
 
-For a subpath deployment, build with `npx vite build --base=/mobgap/`. Serve the complete output under that path and configure an SPA fallback for page routes. Runtime and generated asset requests must retain normal missing-file responses, rather than receiving `index.html`. For example, an nginx deployment can use:
-
-```nginx
-location /mobgap/runtime/ { try_files $uri =404; }
-location /mobgap/assets/ { try_files $uri =404; }
-location /mobgap/ { try_files $uri $uri/ /mobgap/index.html; }
-```
-
-`npm run preview` supplies the page fallback for local checks. No analysis server is required.
+Routes are defined in `src/routes/` with TanStack file-based routing and normal browser-history URLs. For a subpath deployment, build with `npm run build -- --base=/mobgap-wasm/`. The build generates an `index.html` in each page directory, so a static file server can serve direct links and reloads without hash routes or a 404 redirect. Missing runtime files and assets retain normal 404 responses. Serve the complete `dist/` output under the configured base path.
 
 TanStack Query is the canonical in-memory cache for recording/metadata File handles, the dataset index and CWA description, and per-row outcomes/result payloads. A stable QueryClientProvider wraps the router. Manually supplied resources use skipToken, infinite garbage-collection/stale times and structuralSharing=false; they do not refetch or persist to browser storage. Staging a new recording replaces the old resource session, releasing its handles and computed data. The controller retains form drafts and active-job/cancellation state, and URL search retains view settings and selection.

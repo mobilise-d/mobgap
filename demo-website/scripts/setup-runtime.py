@@ -77,6 +77,7 @@ def bundle_sources() -> None:
             if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
                 output.write(path, path.relative_to(REPO / "src").as_posix())
         output.write(REPO / "LICENSE", "mobgap-LICENSE")
+        output.write(REPO / "NOTICE", "mobgap-NOTICE")
         output.writestr(
             f"mobgap-{version}.dist-info/METADATA", f"Metadata-Version: 2.1\nName: mobgap\nVersion: {version}\n"
         )
@@ -136,11 +137,29 @@ def build_runtime(jupyter: str | None, micromamba: str | None) -> None:
     (BUILD / "environment.yml").write_text("\n".join(environment) + "\n")
     env = dict(os.environ)
     env["PATH"] = str(Path(micromamba).resolve().parent) + os.pathsep + env.get("PATH", "")
-    subprocess.run([jupyter, "lite", "build", "--output-dir", str(PUBLIC)], cwd=BUILD, env=env, check=True)
-    config = PUBLIC / "jupyter-lite.json"
-    data = json.loads(config.read_text())
-    data.setdefault("jupyter-config-data", {})["exposeAppInBrowser"] = True
-    config.write_text(json.dumps(data, indent=2) + "\n")
+    packed = BUILD / "packed-runtime"
+    subprocess.run([jupyter, "lite", "build", "--output-dir", str(packed)], cwd=BUILD, env=env, check=True)
+    # JupyterLite is an asset builder only. Deliver the packed environment, not its UI.
+    PUBLIC.mkdir(parents=True, exist_ok=True)
+    for path in PUBLIC.iterdir():
+        if path.name not in {"bootstrap.zip", "licenses"}:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+    shutil.copytree(packed / "xeus", PUBLIC / "xeus")
+    # Existing builder prefixes can retain packages removed from the current lock.
+    # Deliver only locked packages; the worker never installs additional packages.
+    locked_names = {package["name"] for package in packages}
+    for metadata_path in (PUBLIC / "xeus").rglob("empack_env_meta.json"):
+        metadata = json.loads(metadata_path.read_text())
+        for package in metadata["packages"]:
+            if package["name"] not in locked_names:
+                (metadata_path.parent / "kernel_packages" / package["filename"]).unlink()
+        metadata["packages"] = [p for p in metadata["packages"] if p["name"] in locked_names]
+        metadata_path.write_text(json.dumps(metadata, indent=2) + "\n")
+    for path in (PUBLIC / "xeus").rglob("*.map"):
+        path.unlink()
 
 
 def main() -> None:

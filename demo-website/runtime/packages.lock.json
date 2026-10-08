@@ -80,19 +80,6 @@
       "subdir": "emscripten-wasm32"
     },
     {
-      "name": "kiwisolver",
-      "version": "1.5.1",
-      "build": "py313hb42c9ef_0",
-      "filename_stem": "kiwisolver-1.5.1-py313hb42c9ef_0",
-      "filename": "kiwisolver-1.5.1-py313hb42c9ef_0.tar.gz",
-      "channel": "https://repo.prefix.dev/emscripten-forge-4x",
-      "depends": [
-        "emscripten-abi >=4,<5.0a0",
-        "python_abi 3.13.* *_cp313"
-      ],
-      "subdir": "emscripten-wasm32"
-    },
-    {
       "name": "pyjs-rt",
       "version": "4.0.6",
       "build": "py313h06ab7c0_0",
@@ -159,20 +146,6 @@
       "subdir": "emscripten-wasm32"
     },
     {
-      "name": "pillow",
-      "version": "12.3.0",
-      "build": "py313h6414d15_0",
-      "filename_stem": "pillow-12.3.0-py313h6414d15_0",
-      "filename": "pillow-12.3.0-py313h6414d15_0.tar.gz",
-      "channel": "https://repo.prefix.dev/emscripten-forge-4x",
-      "depends": [
-        "zlib",
-        "emscripten-abi >=4,<5.0a0",
-        "python_abi 3.13.* *_cp313"
-      ],
-      "subdir": "emscripten-wasm32"
-    },
-    {
       "name": "brotli-python",
       "version": "1.2.0",
       "build": "py313ha26e73d_2",
@@ -195,34 +168,6 @@
       "channel": "https://repo.prefix.dev/emscripten-forge-4x",
       "depends": [
         "python >=3.8",
-        "emscripten-abi >=4,<5.0a0",
-        "python_abi 3.13.* *_cp313"
-      ],
-      "subdir": "emscripten-wasm32"
-    },
-    {
-      "name": "fonttools",
-      "version": "4.39.4",
-      "build": "py313h6d8a2ba_2",
-      "filename_stem": "fonttools-4.39.4-py313h6d8a2ba_2",
-      "filename": "fonttools-4.39.4-py313h6d8a2ba_2.tar.gz",
-      "channel": "https://repo.prefix.dev/emscripten-forge-4x",
-      "depends": [
-        "python",
-        "emscripten-abi >=4,<5.0a0",
-        "python_abi 3.13.* *_cp313"
-      ],
-      "subdir": "emscripten-wasm32"
-    },
-    {
-      "name": "contourpy",
-      "version": "1.4.0",
-      "build": "py313hb0228bc_0",
-      "filename_stem": "contourpy-1.4.0-py313hb0228bc_0",
-      "filename": "contourpy-1.4.0-py313hb0228bc_0.tar.gz",
-      "channel": "https://repo.prefix.dev/emscripten-forge-4x",
-      "depends": [
-        "numpy",
         "emscripten-abi >=4,<5.0a0",
         "python_abi 3.13.* *_cp313"
       ],
@@ -436,32 +381,6 @@
       "channel": "https://repo.prefix.dev/conda-forge",
       "depends": [
         "python >=3.9",
-        "python"
-      ],
-      "subdir": "noarch"
-    },
-    {
-      "name": "cycler",
-      "version": "0.12.1",
-      "build": "pyhcf101f3_2",
-      "filename_stem": "cycler-0.12.1-pyhcf101f3_2",
-      "filename": "cycler-0.12.1-pyhcf101f3_2.tar.gz",
-      "channel": "https://repo.prefix.dev/conda-forge",
-      "depends": [
-        "python >=3.10",
-        "python"
-      ],
-      "subdir": "noarch"
-    },
-    {
-      "name": "pyparsing",
-      "version": "3.3.3",
-      "build": "pyh5ded981_0",
-      "filename_stem": "pyparsing-3.3.3-pyh5ded981_0",
-      "filename": "pyparsing-3.3.3-pyh5ded981_0.tar.gz",
-      "channel": "https://repo.prefix.dev/conda-forge",
-      "depends": [
-        "python >=3.11",
         "python"
       ],
       "subdir": "noarch"
@@ -828,31 +747,6 @@
       "subdir": "emscripten-wasm32"
     },
     {
-      "name": "matplotlib-base",
-      "version": "3.11.2",
-      "build": "np23py313h397d816_2",
-      "filename_stem": "matplotlib-base-3.11.2-np23py313h397d816_2",
-      "filename": "matplotlib-base-3.11.2-np23py313h397d816_2.tar.gz",
-      "channel": "https://repo.prefix.dev/emscripten-forge-4x",
-      "depends": [
-        "contourpy",
-        "cycler",
-        "fonttools",
-        "kiwisolver",
-        "numpy",
-        "packaging",
-        "pillow",
-        "pyparsing",
-        "python-dateutil",
-        "pytz",
-        "emscripten-abi >=4,<5.0a0",
-        "python_abi 3.13.* *_cp313",
-        "numpy >=2.2,<3",
-        "qhull >=2020.2,<2020.3.0a0"
-      ],
-      "subdir": "emscripten-wasm32"
-    },
-    {
       "name": "pandas",
       "version": "3.0.6",
       "build": "np23py313h124dbc7_0",
@@ -921,19 +815,6 @@
       "subdir": "noarch"
     },
     {
-      "name": "matplotlib",
-      "version": "3.11.2",
-      "build": "pyhb74d4bf_2",
-      "filename_stem": "matplotlib-3.11.2-pyhb74d4bf_2",
-      "filename": "matplotlib-3.11.2-pyhb74d4bf_2.tar.gz",
-      "channel": "https://repo.prefix.dev/emscripten-forge-4x",
-      "depends": [
-        "python >=3.13",
-        "matplotlib-base ==3.11.2 np23py313h397d816_2"
-      ],
-      "subdir": "noarch"
-    },
-    {
       "name": "xeus-python",
       "version": "0.19.0",
       "build": "py313he5686da_3",
@@ -985,7 +866,6 @@
     "joblib=1.6.0",
     "tqdm",
     "pooch",
-    "matplotlib",
     "requests"
   ],
   "channels": [

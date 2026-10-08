@@ -1,0 +1,12 @@
+[
+  {
+    "filename": "mambajs-core-0.21.2-LICENSE",
+    "source": "https://raw.githubusercontent.com/emscripten-forge/mambajs/7eb30d6c70f1064d25166e95d046c3acd01dbd04/LICENSE",
+    "sha256": "d312c9bc73a9f2afea4c262c793f3365a1ec33c4e44aa62e2c383b48d1d94c32"
+  },
+  {
+    "filename": "untarjs-5.3.3-LICENSE",
+    "source": "https://raw.githubusercontent.com/emscripten-forge/untarjs/f31ca2208fd268e7a1d7d7394e070898c5d339e1/LICENSE",
+    "sha256": "b438b31f65f415de11fd2a8d3bef2aeb924a4f02396610a7a58f9c4f9f4bad04"
+  }
+]
