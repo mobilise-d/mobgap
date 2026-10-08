@@ -1,0 +1,83 @@
+# Prototype validation
+
+The integration was exercised in the collaborative Chromium browser against the production Vite build served as static files. The frontend used its actual Xeus kernel and the compiled local PyWavelets and Python xxhash packages. No numerical adapters or mocked result tables were used.
+
+## Numerical results
+
+| Input and preset | Samples | Gait sequences | Initial contacts | Walking bouts | Strides |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Healthy MATLAB example, healthy preset | 13,759 | 6 | 60 | 6 | 47 |
+| Original MS `data.mat` with `infoForAlgo.mat`, impaired preset | 22,728 | 5 | 98 | 5 | 84 |
+
+All eight result tables from each browser run matched a native run of the same Python adapter against the original repository MATLAB recording, with relative tolerance 1e-8 and absolute tolerance 1e-9. Table columns, row structure and nonnumeric values also matched. The recordings were TimeMeasure1 / Test11 / Trial1. Heights and cohorts were the actual example metadata, not defaults inferred from file names.
+
+The healthy example's walking-bout CSV exported one header and six computed data rows. Display rounding does not alter the underlying export.
+
+These MATLAB runs cover the selected short examples and both full presets. Real multiday CWA measurements are documented below; broad browser compatibility remains untested. Cold runtime preparation and JIT compilation are excluded from earlier warm algorithm benchmarks; the application reports the duration of the particular pipeline call it just ran.
+
+## Interface and build checks
+
+- Original multi-recording file selection populated measured participant and sensor heights from its companion metadata, while still requiring an explicit cohort.
+- A malformed MAT file displayed its error and left analysis disabled.
+- Cancellation during initialization and during a pipeline call cleared the loaded recording and removed the runtime frame. Loading again and running the healthy preset succeeded.
+- Desktop 1280px and narrow 390px layouts were inspected; the narrow page uses one column without horizontal page overflow.
+- The Python adapter's 16 focused tests, Ruff checks and TypeScript/Vite production build passed.
+- React Doctor's changed-source scan reported no security or performance findings. Remaining warnings concern standard shadcn variant exports, its generated field error-list key, and the orchestration component's control-flow complexity. Generated third-party runtime bundles are outside this source scan.
+- A separate clean runtime build using the locked packages and freshly bundled repository source completed successfully.
+
+## Reproducing checks
+
+Run the native adapter tests from the repository root with mobgap and pytest installed:
+
+```sh
+python -m pytest demo-website/python/test_mobgap_demo_api.py
+```
+
+Run the frontend type check and production build from `demo-website`:
+
+```sh
+npm run build
+```
+
+For browser verification, prepare runtime assets, build and preview as described in README.md. Try both examples, then select an original repository `data.mat` with its companion `infoForAlgo.mat`. Select Test11 / Trial1, choose the appropriate cohort and preset, run analysis and export the walking-bout table. Also check an invalid MAT file, missing metadata, cancellation and retry.
+
+## WORKERFS verification
+
+Both bundled MATLAB examples were rerun through WORKERFS with `File.prototype.arrayBuffer` replaced by a throwing function. There were zero calls to that function, and all eight result tables for each preset still matched native with the tolerances above. The healthy run took 3.43 s including first-use compilation; the subsequent impaired run took 0.59 s. These are individual measurements, not controlled speed comparisons.
+
+A disk-backed synthetic 512 MiB browser File mounted with zero data reads. Seeking to its beginning, middle and end read 80 bytes total, with a largest request of 32 bytes; an EOF read returned zero bytes. The combined bytes matched the native SHA256 `b721d9e84e8bb9b14fcdcd62e4d3bdf1557a58343935bb748ed68cee66df23f5`. The test created and then deleted its own temporary OPFS fixture. This fixture creation was test setup; the application does not copy selected files into OPFS.
+
+## Real multiday CWA verification
+
+The integrated reader is the genuine CPython side module from cwa_reader_rs PR #7. Its compiled sources match revision `f731c97801c9b48208582b26aab7b9021a1e891f`; artifact hashes and build provenance are checked in under `runtime/reader`. Two existing local six-axis recordings were exercised: 436,792,320 bytes spanning roughly four days, and 194,510,848 bytes spanning roughly 1.78 days. Recordings and participant result files are not committed. The benchmark supplied height 1.7 m, sensor height 0.9 m, Europe/Berlin clock timezone and HA/MS cohort solely to compare implementations; these are not assertions about the recorded participants.
+
+Raw and nominal-rate resampled 60-second windows near the beginning, middle and end of both recordings matched native hashes for every timestamp and float32 value. Metadata also matched. The files stayed mounted as browser File objects with whole-file `File.arrayBuffer` disabled. Automation staged its private fixtures into temporary local OPFS files using a streamed loopback transfer to obtain disk-backed File objects; this is test setup, not the application's file selection path.
+
+The uncached 437 MB metadata scan was still running when stopped after 242 seconds. With the bounded 1 MiB CWA read cache, one scan took 0.85 seconds: 1,706,219 logical requests became 417 physical browser reads. It still read the complete 436,792,320-byte recording sequentially; the cache changes call granularity, not the reader's scan algorithm. Native metadata scanning took about 0.56 seconds. A later-file short read also scans timing packets before decoding its selected samples.
+
+The five local-calendar segments of the four-day recording all completed through one Python AX6Dataset loop. All eight tables and non-timing summaries matched native at the same tolerances as MATLAB. The WASM linear-memory capacity grew from 346,554,368 to 1,678,049,280 bytes and stayed at that capacity for subsequent days. This is the WASM heap's capacity/high-water mark, not a measurement of live arrays or browser process RSS. Native peak RSS after the cache correction was 1,251,556 KiB. These measurements are not directly interchangeable.
+
+Two native-compatible core changes were needed. The window helper previously formed a stride-one view of more than 10 GB before subsampling, exceeding 32-bit NumPy's representable array size. It now directly forms the requested read-only windows. The AX6 cache previously retained the old day while loading the new one; it now evicts before a miss. A weak-reference test verifies release before the next Rust read, while repeated-window and disk-cache tests verify reuse.
+
+Daily errors are returned as JSON without leaving array-bearing tracebacks in IPython history. Memory errors stop/reset the worker and preserve completed JSON results. The initial failing batch exercised this path and retained its two completed days. Broad browser/mobile certification and arbitrary recording sizes remain untested.
+
+Subpath deployment was tested at `/mobgap/`: route, home link, sample manifest, MATLAB file and runtime assets all resolved under that prefix, and the healthy sample loaded in the actual kernel. An injected startup worker ErrorEvent terminated the worker and removed its iframe; loading again and running the healthy pipeline succeeded. This was an event-injection test, not a simulated network outage.
+
+The more active recording's two calendar days also passed both presets. All eight tables matched native across 122,512 numeric table values for the healthy run and 109,725 for the impaired run. WASM capacity remained 1,678,049,280 bytes across both batches. The healthy days reported 21.71 and 4.94 seconds of pipeline computation; impaired days reported 17.46 and 5.14 seconds. These calls include day decoding and pipeline execution, but exclude runtime startup, prior metadata/day-list scans and React table rendering. The first healthy run of the earlier file also included first-use compilation.
+
+Final native reruns used the same package versions, dataset loop and cache behavior. For the active recording:
+
+| Preset | Day | Native computation | Browser computation | Browser/native |
+| --- | --- | ---: | ---: | ---: |
+| Healthy | First | 10.92 s | 21.71 s | 1.99× |
+| Healthy | Second | 2.37 s | 4.94 s | 2.09× |
+| Impaired | First | 10.47 s | 17.46 s | 1.67× |
+| Impaired | Second | 2.70 s | 5.14 s | 1.90× |
+
+Native peak RSS was 1.17 GiB for healthy and 1.08 GiB for impaired. The browser retained a 1.56 GiB WASM memory capacity after earlier batches. Timings are individual local runs, not a statistically controlled benchmark or a browser-wide performance guarantee. Imports, runtime downloads and file selection are excluded from this table. Every numeric table value in these active-recording runs was exactly equal, stronger than the stated comparison tolerance.
+
+Final focused verification: 116 native tests covering the adapter, AX6 dataset, window utility and GsdIluz snapshots; three WORKERFS/cache tests; Ruff formatting/checks; TypeScript/Vite build. React Doctor remains 78/100 with the same five existing source warnings and no added diagnostics. The calendar-day result selector was exercised, and the first active impaired day exported 160 walking-bout rows with a date-specific CSV filename.
+
+Cancellation during a real five-day batch preserved the first completed day, its filename/timezone caption and CSV action, and removed the worker iframe. Loading the healthy MATLAB example again and running it succeeded (6 walking bouts, 60 initial contacts, 47 strides). Whole-file `File.arrayBuffer` calls remained zero. Both private OPFS test fixtures were deleted after verification.
+
+A worker ErrorEvent injected during calendar-day listing cleared the stale recording/day list and participant fields, removed the iframe, and requested file reselection. Selecting the public CWA example again created a new kernel and listed its day successfully. Switching from CWA to the healthy MATLAB example restored Laboratory settings and its measured heights.

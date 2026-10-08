@@ -1,0 +1,14 @@
+[
+  {
+    "filename": "pywavelets-1.9.0-np24py313h588d514_0.tar.bz2",
+    "sha256": "80335c15cceebcbe5528fbc839194e36f36493dcc3ec8889aa218456bd7a34d4"
+  },
+  {
+    "filename": "python-xxhash-4.0.1-h2caeabd_0.tar.bz2",
+    "sha256": "0a833666059ed98fd275b50ac34a0df3a01b7502babd133bd48015e58fa349b8"
+  },
+  {
+    "filename": "cwa_reader_rs-0.4.0-h7223423_0.tar.bz2",
+    "sha256": "50c46f99e8ae8ded6ad055b10ff5e2fb78c49c285531e000b88e5deff9ed7620"
+  }
+]

@@ -1,0 +1,43 @@
+{
+  "repository": "https://github.com/mobilise-d/cwa_reader_rs",
+  "pullRequest": 7,
+  "validatedRevision": "f731c97801c9b48208582b26aab7b9021a1e891f",
+  "artifactBuiltRevision": "86fa88184c43cfe9dc30f19e9fd51c253084b516",
+  "sourceDirty": false,
+  "compiledSourcesMatchValidatedRevision": true,
+  "sourceFiles": {
+    "Cargo.lock": "4ef19ca7332f5e95ba5bf3088c9099f9ba32d4cfb50bd9144a520e959adb8fe1",
+    "Cargo.toml": "9a90c6a3664714a33d1888013a7f551b0fc434c5e89315793570454998152a5d",
+    "pyproject.toml": "9f74cb8a8178c98700e42f7486461a18a84c3c669ba292fbf1ce12b5fa810557",
+    "src/data.rs": "c0af13de525960abbe9be21a808959b9ca38b9aff6b025998017dac61cc26178",
+    "src/errors.rs": "35e4b84744c7ab065ec6a156bca2b00b1091aaf386013a2a20d5a8e512d37078",
+    "src/header.rs": "8e70096da86d38ec4abf21863c033394a39ddc52edcb73a26eb010aa253e146e",
+    "src/lib.rs": "c9806bc4f5368791a82e4ad65a42a3353dbe85088e1aa080ad456ac3ba896170",
+    "src/packet.rs": "bdfbdf54b3eaa48bf8e236b853d4a28ead65f20a92e5f6ad6b6c65b684d96ece",
+    "src/python/data.rs": "d64b2d7ab14860e74e431a54f3174eac5d3d30dbf0a0ad54ad59b6369a06188d",
+    "src/python/header.rs": "a0b82aee283a8810e7fe96a5b7c88b7e7a1e00d66ab4774baeb54b014283b5d6",
+    "src/python/mod.rs": "edce6e9d41c25c352df3d46706ec172360a3ee726711693f34fb570ff3e1e09c"
+  },
+  "recipeHashes": {
+    "build.sh": "8f3226c721fc7fcee56d408e86e620e05dd4047ea6a311ff2e9fc18a88f3a6f7",
+    "recipe.yaml": "39fc8dc8af9cff61b4e426d0552d1428beb94c57e37587524c95355ca4d2e9c0"
+  },
+  "package": {
+    "filename": "cwa_reader_rs-0.4.0-h7223423_0.tar.bz2",
+    "sha256": "50c46f99e8ae8ded6ad055b10ff5e2fb78c49c285531e000b88e5deff9ed7620",
+    "sizeBytes": 165466
+  },
+  "module": {
+    "path": "lib/python3.13/site-packages/cwa_reader_rs/cwa_reader_rs.cpython-313-wasm32-emscripten.so",
+    "sha256": "a8600ffdf972c83975006ef081478a7a482981168e93bd5015247e147a225027",
+    "sizeBytes": 330704,
+    "firstSection": "dylink.0"
+  },
+  "toolchain": {
+    "rattlerBuild": "0.67.0",
+    "emscripten": "4.0.9",
+    "rustNightly": "2026-02-16",
+    "rustcCommit": "873b4beb0cc726493b94c8ef21f68795c04fbbc1",
+    "maturin": "1.15.0"
+  }
+}

@@ -1,0 +1,93 @@
+[
+  {
+    "name": "platformdirs",
+    "version": "4.12.4",
+    "filename": "platformdirs-4.12.4-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/f4/ba/223e00b885e960edd5d4b4d178c88acce019bd5b83786093681b8c393492/platformdirs-4.12.4-py3-none-any.whl",
+    "sha256": "78bfb9db2a8471ed7eebe3c3c932da413911042994e699b384fbb4493fa872d7"
+  },
+  {
+    "name": "pingouin",
+    "version": "0.7.0",
+    "filename": "pingouin-0.7.0-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/fc/35/738c2a5db160e58c90ab0ad73f77ad1c1f82fa7e2dbaca01b5a04dbc1c00/pingouin-0.7.0-py3-none-any.whl",
+    "sha256": "6ad8cee3f498d1c15deb74996264961b9bfaf126382847570b090ad5ac1b621f"
+  },
+  {
+    "name": "patsy",
+    "version": "1.0.3",
+    "filename": "patsy-1.0.3-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/20/70/cd3cf5cff538323076a879edef02cce6f13f7d75e03d12f211b0a0dbd178/patsy-1.0.3-py2.py3-none-any.whl",
+    "sha256": "d3dbebe8fd5f46e29912d030b63c6268647b59bf788a99e2af28a30234cf357c"
+  },
+  {
+    "name": "pandas_flavor",
+    "version": "0.8.1",
+    "filename": "pandas_flavor-0.8.1-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/30/04/b57109ac39c90054ca8239daa61f619042b73406309c33df06d3b73a48a7/pandas_flavor-0.8.1-py3-none-any.whl",
+    "sha256": "6a74c48a7014e27117a164b687c23ca9f7da46c5b198a516ab4ebaa22435292b"
+  },
+  {
+    "name": "tabulate",
+    "version": "0.10.0",
+    "filename": "tabulate-0.10.0-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/99/55/db07de81b5c630da5cbf5c7df646580ca26dfaefa593667fc6f2fe016d2e/tabulate-0.10.0-py3-none-any.whl",
+    "sha256": "f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3"
+  },
+  {
+    "name": "typing_extensions",
+    "version": "4.16.0",
+    "filename": "typing_extensions-4.16.0-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl",
+    "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+  },
+  {
+    "name": "seaborn",
+    "version": "0.13.2",
+    "filename": "seaborn-0.13.2-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/83/11/00d3c3dfc25ad54e731d91449895a79e4bf2384dc3ac01809010ba88f6d5/seaborn-0.13.2-py3-none-any.whl",
+    "sha256": "636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987"
+  },
+  {
+    "name": "tpcp",
+    "version": "3.1.0",
+    "filename": "tpcp-3.1.0-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/b7/8f/e4c633500731f6acb33762e1c042f106d488a82f2db28b2b6cd660e90bc8/tpcp-3.1.0-py3-none-any.whl",
+    "sha256": "b789387a51eacd7cdb75bcbaf382339397b4c8bbca11000b13d518b2fb78faf0"
+  },
+  {
+    "name": "python_dotenv",
+    "version": "1.2.4",
+    "filename": "python_dotenv-1.2.4-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/60/d1/38f3a3405989a89ac18390803e70c6ad7c7760da4f9b83cbeca0c44a0c72/python_dotenv-1.2.4-py3-none-any.whl",
+    "sha256": "42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc"
+  },
+  {
+    "name": "intervaltree",
+    "version": "3.2.1",
+    "filename": "intervaltree-3.2.1-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/83/7f/8a80a1c7c2ed05822b5a2b312d2995f30c533641f8198366ba2e26a7bb03/intervaltree-3.2.1-py2.py3-none-any.whl",
+    "sha256": "a8a8381bbd35d48ceebee932c77ffc988492d22fb1d27d0ba1d74a7694eb8f0b"
+  },
+  {
+    "name": "openpyxl",
+    "version": "3.1.5",
+    "filename": "openpyxl-3.1.5-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl",
+    "sha256": "5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2"
+  },
+  {
+    "name": "et_xmlfile",
+    "version": "2.0.0",
+    "filename": "et_xmlfile-2.0.0-py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl",
+    "sha256": "7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa"
+  },
+  {
+    "name": "sortedcontainers",
+    "version": "2.4.0",
+    "filename": "sortedcontainers-2.4.0-py2.py3-none-any.whl",
+    "url": "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl",
+    "sha256": "a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0"
+  }
+]

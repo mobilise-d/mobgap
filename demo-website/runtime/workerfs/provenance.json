@@ -1,0 +1,7 @@
+{
+  "upstreamVersion": "4.0.9",
+  "sourceUrl": "https://raw.githubusercontent.com/emscripten-core/emscripten/4.0.9/src/lib/libworkerfs.js",
+  "sourceSha256": "9d98184f0818eb39af7702357ab60fbce5ddffbb785ab733a3c94d7b5ac09c7f",
+  "license": "MIT",
+  "adaptation": "Classic-FS backend object extracted; Emscripten build macros resolved; worker assertion replaced with FileReaderSync availability check; FS/ERRNO_CODES read from globalThis.Module; exposed as globalThis.WORKERFS and FS.filesystems.WORKERFS."
+}

@@ -1,0 +1,38 @@
+context:
+  name: pywavelets
+  version: 1.9.0
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+source:
+  url: https://files.pythonhosted.org/packages/5a/75/50581633d199812205ea8cdd0f6d52f12a624886b74bf1486335b67f01ff/pywavelets-1.9.0.tar.gz
+  sha256: 148d12203377772bea452a59211d98649c8ee4a05eff019a9021853a36babdc8
+build:
+  number: 0
+  script: build.sh
+requirements:
+  build:
+    - python
+    - cross-python_${{ target_platform }}
+    - ${{ compiler('c') }}
+    - cython >=3.0.4
+    - meson-python >=0.18.0
+    - meson >=1.4.0
+    - ninja
+    - pip
+    - numpy
+    - pkg-config
+  host:
+    - python
+    - numpy
+  run:
+    - python
+    - numpy >=1.25,<3
+about:
+  license: MIT AND BSD-3-Clause
+  license_file:
+    - LICENSE
+    - licenses_bundled/LICENSE_numpy.txt
+    - licenses_bundled/LICENSE_scipy.txt
+  summary: Wavelet transforms from unmodified upstream PyWavelets1.9 sources
+  homepage: https://github.com/PyWavelets/pywt

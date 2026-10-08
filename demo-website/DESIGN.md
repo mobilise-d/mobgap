@@ -1,0 +1,3 @@
+# Interface decisions
+
+A narrow header introduces mobgap and indicates local browser processing. A two-column workspace has data and pipeline controls on the left, and a larger results area on the right. It becomes a single column on small screens. System sans text, fixed type scale and tabular numbers support reading. Slate neutrals, restrained indigo selected states, thin full borders and consistent shadcn components provide hierarchy. Empty results explain the next step. Running states show real runtime messages with indeterminate activity, never fabricated percentages. Computed results show walking-bout metrics and full tables with CSV export.
