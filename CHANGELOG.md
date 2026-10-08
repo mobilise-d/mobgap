@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Simplify the unreleased browser prototype at the maintainer's request: accept one recording file plus an
+  optional MATLAB `infoForAlgo` companion, and offer only whole-file or calendar-day CWA processing.
+  Adapter callers should inspect one recording at a time and replace `cwaWindow` with `cwaFile={"timezone": ...}`
+  for whole-file processing or `cwaDay={"index": ..., "timezone": ...}` for a selected day. Multiple trials
+  within one MATLAB recording remain supported. The public Python dataset APIs retain multi-file support.
+
 - Remove AX6 sampling-timing diagnostics from MobGap datasets: `cwa_timing_report_`,
   `warn_thres_for_sampling_rate_deviations_hz` on `BaseAX6Dataset`, `AX6Dataset`, and `SustainWearTimeDataset`,
   and `CwaRecordingInfo.cwa_timing_report`. Remove the warning argument from dataset construction and stop
