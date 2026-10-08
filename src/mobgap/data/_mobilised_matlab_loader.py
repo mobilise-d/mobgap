@@ -1556,6 +1556,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         An alternate ``infoForAlgo.mat`` path, or a dictionary of normalized participant metadata applied to all
         rows. Dictionary heights (``height_m`` and ``sensor_height_m``) are in metres; include ``cohort`` when
         required by the pipeline. Dictionary values are returned in a fresh copy without reading a metadata file.
+        Only supplied keys are returned, so the caller must provide the fields required by the selected algorithms.
         A path uses the standard metadata conversion and cohort inference from the index. ``None`` keeps the
         default ``infoForAlgo.mat`` lookup next to each data file.
     %(file_loader_args)s
@@ -1579,7 +1580,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     test_level_names: Optional[Sequence[str]]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
     measurement_condition: Literal["laboratory", "free_living"]
-    participant_metadata_override: Optional[Union[PathLike, MobilisedParticipantMetadata]]
+    participant_metadata_override: Optional[Union[PathLike, dict[str, Any]]]
 
     COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
@@ -1593,7 +1594,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
         measurement_condition: Literal["laboratory", "free_living"],
-        participant_metadata_override: Optional[Union[PathLike, MobilisedParticipantMetadata]] = None,
+        participant_metadata_override: Optional[Union[PathLike, dict[str, Any]]] = None,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
@@ -1664,7 +1665,9 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         return super().selected_meta_data_file
 
     @property
-    def participant_metadata(self) -> MobilisedParticipantMetadata:
+    def participant_metadata(self) -> Any:
+        """Return converted file metadata or a copy of the supplied, possibly partial dictionary."""
+        # Any permits partial overrides without weakening the base loader's complete TypedDict contract.
         if isinstance(self.participant_metadata_override, dict):
             return self.participant_metadata_override.copy()
         return super().participant_metadata
