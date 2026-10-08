@@ -1580,7 +1580,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     test_level_names: Optional[Sequence[str]]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
     measurement_condition: Literal["laboratory", "free_living"]
-    participant_metadata_override: Optional[Union[PathLike, dict[str, Any]]]
+    participant_metadata_override: Optional[Union[PathLike, MobilisedParticipantMetadata, dict[str, Any]]]
 
     COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
@@ -1594,7 +1594,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
         measurement_condition: Literal["laboratory", "free_living"],
-        participant_metadata_override: Optional[Union[PathLike, dict[str, Any]]] = None,
+        participant_metadata_override: Optional[Union[PathLike, MobilisedParticipantMetadata, dict[str, Any]]] = None,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
