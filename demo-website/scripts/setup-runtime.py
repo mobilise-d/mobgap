@@ -2,20 +2,21 @@
 """Build browser assets from pinned packages and this checkout, without system installs."""
 
 from __future__ import annotations
+
 import argparse
 import hashlib
-import io
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tarfile
-import tomllib
 import urllib.request
 import venv
 import zipfile
+from pathlib import Path
+
+import tomllib
 
 DEMO = Path(__file__).resolve().parents[1]
 REPO = DEMO.parent
@@ -100,13 +101,16 @@ def build_runtime(jupyter: str | None, micromamba: str | None) -> None:
     BUILD.mkdir(parents=True, exist_ok=True)
     if not jupyter:
         prefix = RUNTIME / ".venv"
-        if not (prefix / "bin" / "jupyter").exists():
-            venv.create(prefix, with_pip=True)
+        builder = venv.EnvBuilder(with_pip=True)
+        context = builder.ensure_directories(str(prefix))
+        executable = Path(context.bin_path) / ("jupyter.exe" if sys.platform == "win32" else "jupyter")
+        if not executable.exists():
+            builder.create(prefix)
             subprocess.run(
-                [str(prefix / "bin" / "python"), "-m", "pip", "install", "-r", str(RUNTIME / "build-requirements.txt")],
+                [context.env_exe, "-m", "pip", "install", "-r", str(RUNTIME / "build-requirements.txt")],
                 check=True,
             )
-        jupyter = str(prefix / "bin" / "jupyter")
+        jupyter = str(executable)
     if not micromamba:
         if sys.platform != "linux" or os.uname().machine != "x86_64":
             raise RuntimeError("Pass --micromamba /path/to/micromamba version 2.9.0 on this platform.")

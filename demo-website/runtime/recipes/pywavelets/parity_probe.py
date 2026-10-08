@@ -1,9 +1,10 @@
 """Shared native/browser probes for the real PyWavelets1.9 package."""
 
-import inspect
 import importlib.metadata
+import inspect
 import json
 from pathlib import Path
+
 import numpy as np
 import pywt
 
