@@ -46,7 +46,7 @@ export function DatasetIndex({ rows, selected, outcomes, disabled, onToggle, onT
           <TableCell className="whitespace-nowrap text-xs tabular-nums">{duration(row.durationSeconds)}<br /><span className="text-muted-foreground">{row.recording.samplingRateHz} Hz</span></TableCell>
           <TableCell className="whitespace-nowrap text-xs tabular-nums">{heightLabel(row.recording.metadata.heightM)} / {heightLabel(row.recording.metadata.sensorHeightM)} m</TableCell>
           <TableCell className="min-w-40 max-w-64 text-xs">
-            {outcome?.result ? <Button variant="ghost" size="sm" onClick={() => onViewResult(row.id)}><CheckCircle2 data-icon="inline-start" />View results</Button>
+            {outcome?.result && !disabled ? <Button variant="ghost" size="sm" onClick={() => onViewResult(row.id)}><CheckCircle2 data-icon="inline-start" />View results</Button>
               : outcome ? <span className="flex items-start gap-2">{outcome.status === 'running' ? <LoaderCircle className="size-3 shrink-0 animate-spin" aria-hidden="true" /> : outcome.status === 'error' ? <TriangleAlert className="size-3 shrink-0 text-destructive" aria-hidden="true" /> : null}<span className="break-words">{outcome.message ?? outcome.status}</span></span>
               : <span className={problem ? 'text-destructive' : 'text-muted-foreground'}>{problem ?? 'Ready'}</span>}
           </TableCell>

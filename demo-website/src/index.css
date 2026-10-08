@@ -179,3 +179,15 @@
 .example-button { white-space: normal; }
 .example-button > span { min-width: 0; }
 .example-button small { line-height: 1.5; }
+
+.step-navigation { display: flex; flex-wrap: wrap; gap: 6px; padding-block: 18px; border-bottom: 1px solid var(--border); }
+.step-navigation a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: var(--muted-foreground); }
+.step-navigation a span { font-size: 10px; font-variant-numeric: tabular-nums; }
+.step-navigation a[aria-current="page"] { color: var(--primary); background: var(--secondary); font-weight: 600; }
+.step-navigation a:hover { background: var(--secondary); }
+.lab-page { min-height: 65vh; outline: none; }
+.upload-page { max-width: 680px; }
+@media (max-width: 760px) { .step-navigation { gap: 2px; } .step-navigation a { padding: 8px; font-size: 12px; gap: 5px; } }
+
+.step-unavailable { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; color: var(--muted-foreground); opacity: .55; }
+.step-unavailable > span { font-size: 10px; }

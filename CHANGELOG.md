@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- At the maintainer's request, separate the browser prototype into `/upload`, `/dataset`, `/progress` and
+  `/results` pages. The root URL opens Upload. Search parameters preserve view settings and row selections
+  within the active browser session. TanStack Query keeps file handles, indexes and results in memory without
+  browser-storage persistence; reloading requires selecting the recording again. Runs show aggregate
+  progress across selected trials or days and enter Results only after the complete batch finishes.
+
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level
   names from the first file's recording hierarchy.
