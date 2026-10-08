@@ -8,12 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Simplify the unreleased browser prototype at the maintainer's request: accept one recording file plus an
-  optional MATLAB `infoForAlgo` companion, and offer only whole-file or calendar-day CWA processing.
-  Adapter callers should inspect one recording at a time and replace `cwaWindow` with `cwaFile={"timezone": ...}`
-  for whole-file processing or `cwaDay={"index": ..., "timezone": ...}` for a selected day. Multiple trials
-  within one MATLAB recording remain supported. The public Python dataset APIs retain multi-file support.
-
 - Remove AX6 sampling-timing diagnostics from MobGap datasets: `cwa_timing_report_`,
   `warn_thres_for_sampling_rate_deviations_hz` on `BaseAX6Dataset`, `AX6Dataset`, and `SustainWearTimeDataset`,
   and `CwaRecordingInfo.cwa_timing_report`. Remove the warning argument from dataset construction and stop
@@ -23,12 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- At the maintainer's request, separate the browser prototype into `/upload`, `/dataset`, `/progress` and
-  `/results` pages. The root URL opens Upload. Search parameters preserve view settings and row selections
-  within the active browser session. TanStack Query keeps file handles, indexes and results in memory without
-  browser-storage persistence; reloading requires selecting the recording again. Runs show aggregate
-  progress across selected trials or days and enter Results only after the complete batch finishes.
-
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level
   names from the first file's recording hierarchy.
@@ -36,11 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `retain_intermediate_results=True` to `GenericMobilisedPipeline`, `MobilisedPipelineHealthy` and
   `MobilisedPipelineImpaired`. Set it to `False` to release executed internal objects and the dataset reference
   after a run while preserving all output tables. The default keeps the existing debugging attributes.
-
-- Add a standalone browser prototype in `demo-website` for local MATLAB and multiday AX6 CWA analysis using
-  Xeus/Numba, WORKERFS and sequential `AX6Dataset` day processing. Browser/native output parity was checked on
-  selected recordings; this is implementation verification, not additional scientific or clinical validation.
-  (https://github.com/mobilise-d/mobgap/pull/268)
 
 - Add an example and TVS evaluation for a potential acceleration-only full pipeline. This configuration remains
   experimental and has not been properly validated; the TVS evaluation uses full IMU recordings.
@@ -98,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserving values and read-only view behavior. (https://github.com/mobilise-d/mobgap/pull/268)
 - Release the previous AX6 in-memory cache entry before loading a replacement, reducing peak memory for sequential
   day processing while retaining repeated-window and disk-cache reuse. This uses tpcp 3.2’s default early eviction;
-  the prototype-local workaround has been removed. (https://github.com/mobilise-d/mobgap/pull/268)
+  no local cache workaround is needed. (https://github.com/mobilise-d/mobgap/pull/268)
 
 - Wear-time waking-hours totals now count only intervals within the configured window, including for short recordings
   without timestamps. The fallback to total wear-time has been removed; sample zero is assumed to be midnight.
