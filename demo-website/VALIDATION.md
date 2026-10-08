@@ -39,7 +39,7 @@ Run the frontend type check and production build from `demo-website`:
 npm run build
 ```
 
-For browser verification, prepare runtime assets, build and preview as described in README.md. Try both examples, then select an original repository `data.mat` with its companion `infoForAlgo.mat`. Select Test11 / Trial1, choose the appropriate cohort and preset, run analysis and export the walking-bout table. Also check an invalid MAT file, missing metadata, cancellation and retry.
+For browser verification, prepare runtime assets, build and preview as described in README.md. Try both examples. For an original recording, stage `data.mat`, then upload its separate `infoForAlgo.mat` in Participant information or enter both heights manually. Choose the cohort and Build dataset. Select Test11 / Trial1 from the resulting index, choose Healthy, Impaired or Auto, Run selected, and export the walking-bout table. Also check an invalid MAT file, missing metadata, cancellation and retry.
 
 ## WORKERFS verification
 
