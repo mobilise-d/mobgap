@@ -1522,13 +1522,16 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     paths_list
         A list of paths to the data files.
         These should be the path to the actual data.mat files.
-        If you want to use ``participant_metadata``, we expect a ``inforForAlgo.mat`` file within the same folder.
+        If you want to use ``participant_metadata``, we expect a ``infoForAlgo.mat`` file within the same folder.
     test_level_names
         The names of the test levels in the data files.
         These will be used as the column names in the index.
         Usually, this will be something like ("TimeMeasure", "Test", "Trial").
         The number of levels can vary between datasets.
         For typically Mobilise-D datasets, check the ``COMMON_TEST_LEVEL_NAMES`` class variable.
+        If ``None``, infer the depth from the first recording in the first file: two levels use
+        ``("time_measure", "recording")``, three use ``("time_measure", "test", "trial")``, and other depths
+        use ``level_0``, ``level_1``, etc. All files must have the same hierarchy depth.
     measurement_condition
         Whether the data was recorded under laboratory or free-living conditions.
         At the moment, we only support creating datasets with a single measurement condition.
@@ -1550,6 +1553,12 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
 
         .. note:: Ideally one of the metadata levels should be called ``cohort`` otherwise, otherwise the cohort
                   information in ``participant_metadata`` will be set to ``None``.
+    participant_metadata_override
+        An alternate ``infoForAlgo.mat`` path, or a dictionary of normalized participant metadata applied to all
+        rows. Dictionary heights (``height_m`` and ``sensor_height_m``) are in metres; include ``cohort`` when
+        required by the pipeline. Dictionary values are returned in a fresh copy without reading a metadata file.
+        A path uses the standard metadata conversion and cohort inference from the index. ``None`` keeps the
+        default ``infoForAlgo.mat`` lookup next to each data file.
     %(file_loader_args)s
     %(dataset_memory_args)s
     %(general_dataset_args)s
@@ -1568,9 +1577,10 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     """
 
     paths_list: Union[PathLike, Sequence[PathLike]]
-    test_level_names: Sequence[str]
+    test_level_names: Optional[Sequence[str]]
     parent_folders_as_metadata: Optional[Sequence[Union[str, None]]]
     measurement_condition: Literal["laboratory", "free_living"]
+    participant_metadata_override: Optional[Union[PathLike, MobilisedParticipantMetadata]]
 
     COMMON_TEST_LEVEL_NAMES: ClassVar[dict[str, tuple[str, ...]]] = {
         "tvs_lab": ("time_measure", "test", "trial"),
@@ -1580,10 +1590,11 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
     def __init__(
         self,
         paths_list: Union[PathLike, Sequence[PathLike]],
-        test_level_names: Sequence[str],
+        test_level_names: Optional[Sequence[str]] = None,
         parent_folders_as_metadata: Optional[Sequence[Union[str, None]]] = None,
         *,
         measurement_condition: Literal["laboratory", "free_living"],
+        participant_metadata_override: Optional[Union[PathLike, MobilisedParticipantMetadata]] = None,
         raw_data_sensor: Literal["SU", "INDIP", "INDIP2"] = "SU",
         reference_system: Optional[Literal["INDIP", "Stereophoto"]] = None,
         reference_para_level: Literal["wb", "lwb"] = "wb",
@@ -1600,6 +1611,7 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
         self.test_level_names = test_level_names
         self.parent_folders_as_metadata = parent_folders_as_metadata
         self.measurement_condition = measurement_condition
+        self.participant_metadata_override = participant_metadata_override
         super().__init__(
             raw_data_sensor=raw_data_sensor,
             reference_system=reference_system,
@@ -1633,7 +1645,27 @@ class GenericMobilisedDataset(BaseGenericMobilisedDataset):
 
     @property
     def _test_level_names(self) -> tuple[str, ...]:
-        return tuple(self.test_level_names)
+        if self.test_level_names is not None:
+            return tuple(self.test_level_names)
+        tests = self._cached_data_load_no_checks(self._paths_list[0])[0]
+        if not tests:
+            raise ValueError("The first MAT file contains no Mobilise-D recordings.")
+        depth = len(next(iter(tests)))
+        return {2: self.COMMON_TEST_LEVEL_NAMES["tvs_2.5h"], 3: self.COMMON_TEST_LEVEL_NAMES["tvs_lab"]}.get(
+            depth, tuple(f"level_{i}" for i in range(depth))
+        )
+
+    @property
+    def selected_meta_data_file(self) -> Path:
+        if isinstance(self.participant_metadata_override, (str, Path)):
+            return Path(self.participant_metadata_override)
+        return super().selected_meta_data_file
+
+    @property
+    def participant_metadata(self) -> MobilisedParticipantMetadata:
+        if isinstance(self.participant_metadata_override, dict):
+            return self.participant_metadata_override.copy()
+        return super().participant_metadata
 
     def _get_measurement_condition(self) -> str:
         return self.measurement_condition

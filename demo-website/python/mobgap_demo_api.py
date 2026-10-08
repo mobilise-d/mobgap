@@ -18,13 +18,13 @@ from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any
 
+import joblib
 import pandas as pd
-from mobgap.data import AX6Dataset
+from mobgap.data import AX6Dataset, GenericMobilisedDataset, load_mobilised_participant_metadata_file
 from mobgap.data.ax6 import split_by_local_days
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired, MobilisedPipelineUniversal
 from scipy.io import whosmat
-
-from browser_datasets import UploadedMatlabDataset
+from tpcp.caching import hybrid_cache
 
 _REQUIRED_CHANNELS = ("acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z")
 _RECORDINGS: dict[str, dict[str, Any]] = {}
@@ -237,7 +237,7 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
             if not variables.intersection({"data", "infoForAlgo"}):
                 raise ValueError("This MAT file has no Mobilise-D 'data' or 'infoForAlgo' variable.")
             if "infoForAlgo" in variables and "data" not in variables:
-                UploadedMatlabDataset.read_participant_info(path)
+                hybrid_cache(joblib.Memory(None), 1)(load_mobilised_participant_metadata_file)(path)
                 metadata_files.append(path)
             parsed.append((path, variables))
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
@@ -272,17 +272,11 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
                     file_warnings.append(
                         "Participant metadata is ambiguous for multiple data files. Enter heights manually."
                     )
-            if companion is None:
-                overrides = _participant_metadata(configuration, {})
-            else:
-                overrides = {"cohort": cohort}
-                for source, target in (("participantHeightM", "height_m"), ("sensorHeightM", "sensor_height_m")):
-                    if configuration.get(source) is not None:
-                        overrides[target] = _height(configuration, source, {}, source)
-            dataset = UploadedMatlabDataset(
+            metadata_source = companion if companion is not None else _participant_metadata(configuration, {})
+            dataset = GenericMobilisedDataset(
                 path,
-                metadata_path=companion,
-                participant_metadata_override=overrides,
+                test_level_names=None,
+                participant_metadata_override=metadata_source,
                 measurement_condition=_measurement_condition(configuration, is_cwa=False),
             )
             with warnings.catch_warnings(record=True) as caught:
@@ -300,6 +294,7 @@ def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, 
                         "The recording requires a positive sampling rate and nonempty LowerBack sensor data."
                     )
                 metadata = _participant_metadata(configuration, _heights(datapoint.participant_metadata))
+                datapoint = datapoint.clone().set_params(participant_metadata_override=metadata)
                 identifier = uuid.uuid4().hex
                 description = {
                     "id": identifier,

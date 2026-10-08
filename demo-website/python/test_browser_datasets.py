@@ -4,10 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from mobgap.data import load_mobilised_matlab_format
+from mobgap.data import GenericMobilisedDataset, load_mobilised_matlab_format
 from scipy.io import loadmat, savemat
-
-from browser_datasets import UploadedMatlabDataset
 
 ROOT = Path(__file__).resolve().parents[2]
 HA = ROOT / "example_data/data/lab/HA/001"
@@ -15,17 +13,28 @@ HA = ROOT / "example_data/data/lab/HA/001"
 
 def test_each_index_row_loads_its_trial_and_survives_clone():
     expected = load_mobilised_matlab_format(HA / "data.mat")
-    dataset = UploadedMatlabDataset(HA / "data.mat", metadata_path=HA / "infoForAlgo.mat")
+    dataset = GenericMobilisedDataset(
+        HA / "data.mat",
+        test_level_names=None,
+        participant_metadata_override=HA / "infoForAlgo.mat",
+        measurement_condition="laboratory",
+    )
     assert set(dataset.index_as_tuples()) == set(expected)
     for datapoint in dataset:
         selected = datapoint.clone()
         assert selected.selected_data_file == HA / "data.mat"
         pd.testing.assert_frame_equal(selected.data_ss, expected[tuple(selected.group_label)].imu_data["LowerBack"])
-        assert selected.participant_metadata == pytest.approx({"height_m": 1.59, "sensor_height_m": 0.964})
+        assert selected.participant_metadata["height_m"] == pytest.approx(1.59)
+        assert selected.participant_metadata["sensor_height_m"] == pytest.approx(0.964)
 
 
 def test_manual_metadata_survives_subsetting_without_changing_file_defaults():
-    dataset = UploadedMatlabDataset(HA / "data.mat", metadata_path=HA / "infoForAlgo.mat")
+    dataset = GenericMobilisedDataset(
+        HA / "data.mat",
+        test_level_names=None,
+        participant_metadata_override=HA / "infoForAlgo.mat",
+        measurement_condition="laboratory",
+    )
     overridden = (
         dataset.clone()
         .set_params(
@@ -39,7 +48,7 @@ def test_manual_metadata_survives_subsetting_without_changing_file_defaults():
     assert dataset[0].participant_metadata["height_m"] == 1.59
 
 
-def test_two_level_file_exposes_recording_index_and_separate_partial_metadata(tmp_path):
+def test_two_level_file_exposes_recording_index_and_separate_metadata(tmp_path):
     original = loadmat(HA / "data.mat", squeeze_me=True, struct_as_record=False, mat_dtype=True)
     path = tmp_path / "free-living.mat"
     savemat(
@@ -49,8 +58,10 @@ def test_two_level_file_exposes_recording_index_and_separate_partial_metadata(tm
         },
     )
     info_path = tmp_path / "infoForAlgo.mat"
-    savemat(info_path, {"infoForAlgo": {"TimeMeasure1": {"SensorHeight": 96.4}}})
-    dataset = UploadedMatlabDataset(path, metadata_path=info_path, measurement_condition="free_living")
+    savemat(info_path, {"infoForAlgo": {"TimeMeasure1": {"SensorHeight": 96.4, "Height": 159}}})
+    dataset = GenericMobilisedDataset(
+        path, test_level_names=None, participant_metadata_override=info_path, measurement_condition="free_living"
+    )
     assert dataset.index.to_dict("records") == [{"time_measure": "TimeMeasure1", "recording": "Recording1"}]
     assert len(dataset.data_ss) == 13759
-    assert dataset.participant_metadata == pytest.approx({"sensor_height_m": 0.964})
+    assert dataset.participant_metadata["sensor_height_m"] == pytest.approx(0.964)

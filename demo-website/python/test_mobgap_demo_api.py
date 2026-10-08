@@ -276,7 +276,7 @@ def test_api_json_boundary_classifies_chained_memory_errors_and_releases_frames(
             raise failure from cause
 
     if operation == "mat_inspection":
-        monkeypatch.setattr(module.UploadedMatlabDataset, "create_index", out_of_memory)
+        monkeypatch.setattr(module.GenericMobilisedDataset, "create_index", out_of_memory)
 
         def invoke():
             return module.inspect_files([str(HA / "data.mat")], configuration=MANUAL)

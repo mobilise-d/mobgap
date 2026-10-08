@@ -1,6 +1,6 @@
 # MATLAB and CWA files in the browser demo
 
-`mobgap_demo_api.py` passes uploaded worker-filesystem paths to file-backed tpcp datasets. MATLAB uses `UploadedMatlabDataset`, a small `GenericMobilisedDataset` subclass that inherits its signal loading and adds upload metadata paths/overrides. CWA inspection and analysis use `AX6Dataset`. It keeps the loader's acceleration conversion and sensor frame; the full selected pipeline handles body-frame conversion. Cohort is explicitly selected. Unknown uploads have no invented participant heights. A separate `infoForAlgo.mat` supplies measured heights in centimetres, converted once to metres. Alternatively, users explicitly enter both heights manually.
+`mobgap_demo_api.py` passes uploaded worker-filesystem paths to file-backed tpcp datasets. MATLAB uses `GenericMobilisedDataset` directly, with its optional path/dictionary participant metadata override. CWA inspection and analysis use `AX6Dataset`. It keeps the loader's acceleration conversion and sensor frame; the full selected pipeline handles body-frame conversion. Cohort is explicitly selected. Unknown uploads have no invented participant heights. A separate `infoForAlgo.mat` supplies measured heights in centimetres, converted once to metres. Alternatively, users explicitly enter both heights manually.
 
 External companion metadata is not assigned when another uploaded file is unreadable: that file could belong to the participant described by the companion. Those recordings require manual heights before they can appear in the dataset index.
 
