@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 PathLike = Union[str, Path]
 MissingReferenceErrorType = Literal["raise", "warn", "ignore"]
 REFERENCE_COLUMNS = ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
-DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ = 0.2
 _DEFAULT_DAILY_SPLITTER = partial(split_by_local_days, min_duration=pd.Timedelta(hours=8))
 
 
@@ -188,9 +187,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         ``"temperature"``, ``"light"``, ``"battery"`` and ``"magnetometer"``.
     missing_reference_error_type
         How to handle missing part A reference rows for a selected recording.
-    warn_thres_for_sampling_rate_deviations_hz
-        Threshold in Hz used to warn when the effective sampling rate differs from the expected sampling rate. Set to
-        ``None`` to disable the warning.
     sensor_name
         Sensor key used by ``data``. Defaults to ``"LowerBack"``.
     splitter
@@ -216,8 +212,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         The sampling rate of the selected CWA recording.
     cwa_header_
         CWA metadata with raw reader clock fields and interpreted timestamps in the output timezone.
-    cwa_timing_report_
-        CWA timing report with raw reader clock fields and interpreted timestamps in the output timezone.
     reference_nonwear_
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
@@ -235,7 +229,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     output_timezone: Literal["utc", "local"]
     additional_sensors_enabled: Sequence[AdditionalChannel]
     missing_reference_error_type: MissingReferenceErrorType
-    warn_thres_for_sampling_rate_deviations_hz: float | None
     sensor_name: str
     splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None
     memory: joblib.Memory
@@ -248,7 +241,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         output_timezone: Literal["utc", "local"] = "local",
         additional_sensors_enabled: Sequence[AdditionalChannel] = ("temperature",),
         missing_reference_error_type: MissingReferenceErrorType = "raise",
-        warn_thres_for_sampling_rate_deviations_hz: float | None = DEFAULT_WARN_THRES_FOR_SAMPLING_RATE_DEVIATIONS_HZ,
         sensor_name: str = "LowerBack",
         splitter: pd.DataFrame | Callable[[CwaRecordingInfo], pd.DataFrame] | None = cf(_DEFAULT_DAILY_SPLITTER),
         memory: joblib.Memory = joblib.Memory(None),
@@ -262,7 +254,6 @@ class SustainWearTimeDataset(BaseAX6Dataset):
             tz=tz,
             output_timezone=output_timezone,
             additional_sensors_enabled=additional_sensors_enabled,
-            warn_thres_for_sampling_rate_deviations_hz=warn_thres_for_sampling_rate_deviations_hz,
             sensor_name=sensor_name,
             memory=memory,
             groupby_cols=groupby_cols,
