@@ -10,6 +10,8 @@ Preserve mobgap's existing public interfaces and numerical behavior. Daily WASM 
 
 The generic Mobilise-D pipeline and both full presets expose `retain_intermediate_results=True`. False removes the stored datapoint, executed detector, GS iterator, stride selection, WBA and aggregation instances after execution, including failures, and clears retained instances from a previous run before starting. All successful output tables, including raw tables, remain unchanged. The browser uses False. This does not clear dataset caches, caller-owned references or exception tracebacks, nor promise a lower processing peak. The universal cohort-dispatch wrapper is outside this parameter change. Verify table parity for both presets with/without aggregation, weak-reference input lifetime, reuse/toggling and failure cleanup.
 
+All runtime recording reads go through file-backed tpcp datasets. MATLAB uses a GenericMobilisedDataset subclass only to support arbitrary trial depth, uploaded metadata paths and manual participant metadata; its signal loading is inherited. CWA inspection also uses AX6Dataset with a bounded initial window. Retain file paths/index selections, not decoded signal frames, in the adapter registry. The sidebar configures the dataset; the center shows its index with all rows initially selected and runs selected rows sequentially. Preserve per-row results, errors and cancellation.
+
 ## Acceptance checks
 
 - Original and bundled MATLAB examples, participant metadata, malformed files and missing metadata.

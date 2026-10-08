@@ -1,6 +1,6 @@
 # MATLAB and CWA files in the browser demo
 
-`mobgap_demo_api.py` loads uploaded worker-filesystem paths with mobgap's existing Mobilise-D MATLAB loader. It keeps the loader's acceleration conversion and sensor frame; the full selected pipeline handles body-frame conversion. Cohort is explicitly selected. Unknown uploads have no invented participant heights. A companion `infoForAlgo.mat`, or an embedded `infoForAlgo` variable, supplies measured heights in centimetres, converted once to metres.
+`mobgap_demo_api.py` passes uploaded worker-filesystem paths to file-backed tpcp datasets. MATLAB uses `UploadedMatlabDataset`, a small `GenericMobilisedDataset` subclass that inherits its signal loading and adds upload metadata paths/overrides. CWA inspection and analysis use `AX6Dataset`. It keeps the loader's acceleration conversion and sensor frame; the full selected pipeline handles body-frame conversion. Cohort is explicitly selected. Unknown uploads have no invented participant heights. A companion `infoForAlgo.mat`, or an embedded `infoForAlgo` variable, supplies measured heights in centimetres, converted once to metres.
 
 External companion metadata is not assigned when another uploaded file is unreadable: that file could belong to the participant described by the companion. The valid recordings remain available with a warning to enter heights manually. Embedded metadata remains paired with its own file.
 
@@ -28,7 +28,7 @@ python demo-website/python/file_access_probe.py example_data/data/lab/HA/001/dat
 
 The first command creates a sparse 512 MiB file and reads only 80 bytes at three positions. A browser can upload the file and call `seek_read_probe(mounted_path)` to compare offsets, bytes and the probe hash with native results. In the worker, `mobgapWorkerFiles.stats()` reports actual FileReaderSync slice reads, independently of the Python byte count. The second command counts SciPy reads and measures decoded arrays and retained LowerBack DataFrames.
 
-WORKERFS removes the full upload copy into the worker's filesystem. Inspection still calls the existing eager MATLAB loader: it decodes every trial and retains the sensor DataFrames until the next inspection. Embedded participant metadata also uses a separate MATLAB decode. Neither WORKERFS nor the seek proof bounds SciPy or pipeline memory.
+WORKERFS removes the full upload copy into the worker's filesystem. The MATLAB dataset still uses an eager decoder to discover its trial index. Its standard one-file hybrid cache retains the decoded trials; the adapter registry stores only dataset paths/index selections and descriptions, not sensor DataFrames. Embedded participant metadata also uses a separate MATLAB decode. Neither WORKERFS nor the seek proof bounds SciPy or pipeline memory.
 
 For the original HA/001 and MS/001 files, native measurements were:
 
@@ -39,7 +39,7 @@ For the original HA/001 and MS/001 files, native measurements were:
 
 These counts are not peak memory measurements: Python object overhead and pipeline intermediates are additional. `whosmat` read 131,235 bytes for either file; full `loadmat` read the whole file plus 27 bytes of repeated header reads, using reads of at most 131,072 bytes.
 
-For CWA, `inspect_files` uses the PR 7 `cwa_reader_rs.read_metadata` API and a one-block channel probe. The recording's `samples` is `null` until a selected day/window is decoded. Heights and cohort are supplied manually. Both full presets require actual gyroscope channels; acceleration-only AX3 files can be inspected but cannot run those presets.
+For CWA, `inspect_files` constructs an `AX6Dataset` and reads its header and a window of at most one second to inspect channels. The provisional UTC interpretation is used only for inspection; analysis still requires the user’s synchronization timezone. The recording's `samples` is `null` until a selected day/window is decoded. Heights and cohort are supplied manually. Both full presets require actual gyroscope channels; acceleration-only AX3 files can be inspected but cannot run those presets.
 
 `cwa_day_windows(id, timezone)` enumerates local calendar days using the public `AX6Dataset` and `split_by_local_days`. The first and last days may be partial; daylight-saving calendar days use their actual elapsed duration. For a batch, `start_cwa_day_batch(id, options, day_indices)` creates one lazy `AX6Dataset` and a Python generator that loops over its day datapoints, applying a fresh pipeline to each. Options include `timezone` alongside the preset and participant measurements. The browser advances `next_cwa_day()` and receives `{done, packet?: {day, result?, error?, fatal?}}`; process any packet before checking `done`, since a fatal memory error includes its final packet. `cancel_cwa_day_batch()` closes the generator between days. Successful result JSON survives later day failures. No hour subdivision changes the day pipeline's semantics.
 

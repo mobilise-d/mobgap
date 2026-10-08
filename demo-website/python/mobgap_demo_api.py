@@ -19,15 +19,12 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from mobgap.data import (
-    AX6Dataset,
-    GaitDatasetFromData,
-    load_mobilised_matlab_format,
-    load_mobilised_participant_metadata_file,
-)
+from mobgap.data import AX6Dataset
 from mobgap.data.ax6 import split_by_local_days
 from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
 from scipy.io import whosmat
+
+from browser_datasets import UploadedMatlabDataset
 
 _REQUIRED_CHANNELS = ("acc_x", "acc_y", "acc_z", "gyr_x", "gyr_y", "gyr_z")
 _RECORDINGS: dict[str, dict[str, Any]] = {}
@@ -49,30 +46,37 @@ def _mat_variables(path: Path) -> set[str]:
 
 def _heights(metadata: dict[str, Any]) -> dict[str, float]:
     result = {}
-    for source, target in (("SensorHeight", "sensorHeightM"), ("Height", "heightM")):
+    for source, target in (("sensor_height_m", "sensorHeightM"), ("height_m", "heightM")):
         value = metadata.get(source)
         if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
-            result[target] = float(value) / 100
+            result[target] = float(value)
     return result
 
 
-def _inspect_cwa(path: Path) -> dict[str, Any]:
-    import cwa_reader_rs as reader
-
-    header = reader.read_metadata(str(path))
-    start, end = header["start_from_data_raw"], header["end_from_data_raw"]
-    if start is None or end is None:
-        raise ValueError("The CWA file contains no valid sample timestamps.")
-    first = reader.read_cwa_file(
-        str(path),
-        cut=reader.blocks(0, 1),
-        include_magnetometer=False,
-        include_temperature=False,
-        include_light=False,
-        include_battery=False,
+def _inspection_window(info):
+    return pd.DataFrame(
+        {
+            "recording": ["inspection"],
+            "start_time": [info.start_time],
+            "end_time": [min(info.start_time + pd.Timedelta(seconds=1), info.end_time)],
+        }
     )
-    fs = float(header["sample_rate_hz"])
-    channels = [column.replace("gyro_", "gyr_") for column in first.columns]
+
+
+def _inspect_cwa(path: Path) -> dict[str, Any]:
+    # UTC is only a provisional interpretation for raw-clock inspection. Actual
+    # analysis constructs a new dataset with the user's synchronization timezone.
+    dataset = AX6Dataset(
+        path,
+        participant_metadata={},
+        recording_metadata={"measurement_condition": "free_living"},
+        tz="UTC",
+        splitter=_inspection_window,
+    )
+    header = dataset.cwa_header_
+    start, end = header["start_from_data_raw"], header["end_from_data_raw"]
+    fs = dataset.sampling_rate_hz
+    channels = list(dataset.data_ss.columns)
     identifier = uuid.uuid4().hex
     description = {
         "id": identifier,
@@ -93,7 +97,7 @@ def _inspect_cwa(path: Path) -> dict[str, Any]:
             "clockTimezoneRequired": True,
         },
         "warnings": [
-            "CWA inspection scans packet timing across the file but decodes only the first block. "
+            "CWA inspection uses AX6Dataset to scan packet timing and load a bounded initial window. "
             "Samples are counted when the selected window is loaded.",
             "CWA analysis assumes a LowerBack sensor in the expected sensor frame. Verify placement and orientation.",
             "Choose the timezone of the computer that synchronized the sensor. The last configuration write is "
@@ -147,7 +151,7 @@ def _day_descriptions(dataset: AX6Dataset, timezone: str) -> list[dict[str, Any]
 def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: dict[str, Any], condition: str):
     if not selected["description"]["cwa"]["hasGyroscope"]:
         raise ValueError(
-            "Both full presets require gyroscope channels. This CWA recording has none in its first block."
+            "Both full presets require gyroscope channels. This CWA recording has none in its initial window."
         )
     day, window = options.get("cwaDay"), options.get("cwaWindow")
     if (day is None) == (window is None):
@@ -207,7 +211,7 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
     _RECORDINGS.clear()
     errors = []
     parsed = []
-    metadata_files = {}
+    metadata_files = []
     recordings = []
     cwa_paths = []
     for raw_path in paths:
@@ -221,7 +225,7 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
             if not variables.intersection({"data", "infoForAlgo"}):
                 raise ValueError("This MAT file has no Mobilise-D 'data' or 'infoForAlgo' variable.")
             if "infoForAlgo" in variables:
-                metadata_files[path] = load_mobilised_participant_metadata_file(path)
+                metadata_files.append(path)
             parsed.append((path, variables))
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
             if _release_exception_frames(error):
@@ -237,32 +241,35 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
     unreadable_uploads = bool(errors)
     for path in data_files:
         try:
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                loaded = load_mobilised_matlab_format(path)
-            file_warnings = list(dict.fromkeys(str(item.message) for item in caught))
-            companion = metadata_files.get(path)
+            file_warnings = []
+            companion = path if path in metadata_files else None
             if companion is None and unreadable_uploads and metadata_files:
                 file_warnings.append(
                     "Some uploaded files could not be read. Companion participant metadata cannot be paired safely. "
                     "Enter heights manually."
                 )
             elif companion is None:
-                candidates = [value for key, value in metadata_files.items() if key.parent == path.parent]
+                candidates = [key for key in metadata_files if key.parent == path.parent]
                 data_in_directory = sum(key.parent == path.parent for key in [*data_files, *cwa_paths])
                 if len(candidates) == 1 and data_in_directory == 1:
                     companion = candidates[0]
                 elif len(data_files) + len(cwa_paths) == len(metadata_files) == 1:
-                    companion = next(iter(metadata_files.values()))
+                    companion = metadata_files[0]
                 elif candidates:
                     file_warnings.append(
                         "Participant metadata is ambiguous for multiple data files. Enter heights manually."
                     )
-            for test_name, recording in sorted(loaded.items(), key=lambda item: ("Test11" not in item[0], item[0])):
-                frame = recording.imu_data.get("LowerBack") if recording.imu_data else None
+            dataset = UploadedMatlabDataset(path, metadata_path=companion)
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                datapoints = sorted(dataset, key=lambda dp: ("Test11" not in dp.group_label, tuple(dp.group_label)))
+            file_warnings.extend(str(item.message) for item in caught)
+            for datapoint in datapoints:
+                test_name = tuple(datapoint.group_label)
+                frame = datapoint.data_ss
                 if frame is None or not all(column in frame for column in _REQUIRED_CHANNELS):
                     raise ValueError("A LowerBack sensor with all three acceleration and gyroscope axes is required.")
-                fs = recording.metadata["sampling_rate_hz"]
+                fs = datapoint.sampling_rate_hz
                 if fs is None or not math.isfinite(fs) or fs <= 0 or frame.empty:
                     raise ValueError(
                         "The recording requires a positive sampling rate and nonempty LowerBack sensor data."
@@ -274,16 +281,18 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
                     "fileName": path.name,
                     "label": " / ".join(test_name),
                     "testName": list(test_name),
+                    "datasetIndex": dict(zip(datapoint.index.columns, test_name, strict=True)),
                     "samples": len(frame),
                     "samplingRateHz": float(fs),
                     "durationSeconds": len(frame) / fs,
                     "channels": list(frame.columns),
                     "sensorPosition": "LowerBack",
-                    "metadata": _heights((companion or {}).get(test_name[0], {})),
+                    "metadata": _heights(datapoint.participant_metadata),
                     "warnings": file_warnings,
                 }
-                _RECORDINGS[identifier] = {"data": recording, "description": description}
+                _RECORDINGS[identifier] = {"dataset": datapoint, "description": description}
                 recordings.append(description)
+                del frame
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
             if _release_exception_frames(error):
                 raise
@@ -344,12 +353,13 @@ def analyze_recording(recording_id: str, options: dict[str, Any]) -> dict[str, A
     if is_cwa:
         dataset = _cwa_dataset(selected, options, metadata, condition)
     else:
-        data = selected["data"]
-        dataset = GaitDatasetFromData(
-            {recording_id: data.imu_data},
-            data.metadata["sampling_rate_hz"],
-            {recording_id: metadata},
-            {recording_id: {**data.metadata, "measurement_condition": condition}},
+        dataset = (
+            selected["dataset"]
+            .clone()
+            .set_params(
+                participant_metadata_override=metadata,
+                measurement_condition=condition,
+            )
         )
     return _analyze_dataset(recording_id, description, dataset, preset)
 

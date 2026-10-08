@@ -81,6 +81,7 @@ def bundle_sources() -> None:
             f"mobgap-{version}.dist-info/METADATA", f"Metadata-Version: 2.1\nName: mobgap\nVersion: {version}\n"
         )
         output.write(DEMO / "python" / "mobgap_demo_api.py", "mobgap_demo_api.py")
+        output.write(DEMO / "python" / "browser_datasets.py", "browser_datasets.py")
         for name in ("file_access_probe.py", "cwa_window_probe.py", "cwa_pipeline_probe.py"):
             output.write(DEMO / "python" / name, name)
         for name in ("workerfs.js", "bridge.js"):

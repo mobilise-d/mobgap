@@ -9,6 +9,7 @@ export interface Recording {
   fileName: string
   label: string
   testName: string[]
+  datasetIndex?: Record<string, string>
   samples: number | null
   samplingRateHz: number
   durationSeconds: number
