@@ -1,10 +1,10 @@
-# Browser lab
+# mobgap WASM
 
 register: product
 
 Researchers and clinicians inspect gait recordings on a laptop in a bright office or lab, comparing a known dataset against a local analysis. The interface should feel precise, calm and candid about what has run. Files remain in the browser; the app requires no account, upload or backend. Its central task is constructing a file-backed dataset from Mobilise-D MATLAB or AX6 CWA recordings and complete participant metadata. The Upload page stages one local recording File handle and configures metadata, recording setting, timezone and calendar-day or single-file processing. Nothing is inspected or decoded before the user chooses Build dataset. MATLAB needs a separate infoForAlgo file or explicit manual heights; CWA always needs manual heights and a synchronization timezone. Cohort is explicit. The Dataset page is available after construction succeeds and shows the actual dataset index with all rows selected by default. Users choose trials or days and run a full mobgap preset for selected rows. Each CWA file is processed through one Python AX6Dataset loop; MATLAB trials run sequentially. Per-row progress, results, errors and exports remain available after cancellation. Configuration changes invalidate the old dataset index and require rebuilding.
 
-Use a light neutral surface, one restrained indigo accent for active controls, accessible labels and tabular numeric data. Avoid medical marketing imagery, decorative dashboards, invented result values and technical deployment details inside the main workflow. Loading and failed runs must state what the app is doing and what the user can do next. A prototype's limitations should be visible without becoming a checklist.
+Use a plain “mobgap WASM” text header without an organization logo, a light neutral surface, one restrained indigo accent for active controls, accessible labels and tabular numeric data. Avoid medical marketing imagery, decorative dashboards, invented result values and technical deployment details inside the main workflow. Loading and failed runs must state what the app is doing and what the user can do next. A prototype's limitations should be visible without becoming a checklist.
 
 Walking presets are Healthy, Impaired and Auto. Auto is the initial choice and uses the Universal pipeline to select Healthy for HA/COPD/CHF or Impaired for PD/MS/PFF from the explicitly supplied cohort. Bundled examples retain their explicit preset hints.
 

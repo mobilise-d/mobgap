@@ -1,6 +1,6 @@
 # Browser prototype scope and acceptance
 
-Build a standalone browser application in `demo-website` using React, TanStack Router and shadcn/ui, with the official Mobilise-D logo. Users select Mobilise-D MATLAB or AX6 CWA recordings, supply participant metadata, run full mobgap presets locally in a browser, and inspect or export actual results. The runtime uses genuine Xeus Python/Numba and compiled PyWavelets, Python xxhash and cwa_reader_rs extensions. The reader artifact comes from cwa_reader_rs PR #7 with pinned build/source provenance.
+Build a standalone browser application in `demo-website` using React, TanStack Router and shadcn/ui, with a plain mobgap WASM text header. Users select Mobilise-D MATLAB or AX6 CWA recordings, supply participant metadata, run full mobgap presets locally in a browser, and inspect or export actual results. The runtime uses genuine Xeus Python/Numba and compiled PyWavelets, Python xxhash and cwa_reader_rs extensions. The reader artifact comes from cwa_reader_rs PR #7 with pinned build/source provenance.
 
 Selected browser File handles reach the worker through structured clone and mount on the official Emscripten 4.0.9 WORKERFS backend. Do not copy whole selected files into ArrayBuffer/base64/MEMFS or persistent browser storage. CWA reads use the reader’s internal packet batching; remove the redundant JavaScript read-ahead cache. Logical reader requests and physical browser reads have separate counters. MATLAB retains its existing eager decoding behavior.
 
@@ -27,6 +27,12 @@ All runtime recording reads go through file-backed tpcp datasets. MATLAB uses Ge
 Parent owns browser integration, verification, commits, review and PR delivery. Agents own their assigned source slices. Broad browser/mobile certification and MATLAB v7.3/HDF5 support remain outside this prototype.
 
 COMPACTION CONTINUITY: Re-read implement-code-change and the task-defining artifacts before continuing after compaction or session restoration.
+
+## Direct worker replacement
+
+Before moving or deploying the demo, replace the hidden JupyterLite iframe with a dedicated classic Xeus worker. Preserve the runtime API used by the four routes, genuine Numba, the pinned scientific environment, WORKERFS File mounts without whole-input copying, startup failure/retry, cancellation and fatal-memory cleanup. Use the pinned Xeus core and mambajs-core bootstrap APIs. Remove generated Jupyter application assets and source maps from delivery, and measure the remaining bundle and first initialization requests. Audit plotting dependencies only through actual import and both-preset tests; retain declared LLVM dependencies such as Graphviz.
+
+The runtime agent owns worker/transport/asset packaging. Its single review unit ends with TypeScript/build checks and actual isolated browser checks for both MATLAB presets, CWA metadata/day/single-file calls, WORKERFS and worker lifecycle. Parent owns the commit gate, full integration review and later repository migration/deployment. No migration or deployment occurs before this verification.
 
 The upload workflow accepts exactly one recording file, with an optional separate infoForAlgo file for MATLAB. Multiple dataset rows come from trials within that MATLAB file or calendar days within that CWA file. Multiple recording-file drops are rejected; there is no multi-recording mode.
 

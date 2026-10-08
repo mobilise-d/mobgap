@@ -1,4 +1,4 @@
-# mobgap browser demo
+# mobgap WASM
 
 A standalone React application using TanStack Router and shadcn/ui. Stage one Mobilise-D MATLAB or AX6 CWA recording, supply participant information, build its dataset index, and run a full mobgap pipeline on selected rows. Analysis runs locally in a Xeus-Python browser worker with genuine Numba, PyWavelets and xxhash extensions.
 

@@ -3,7 +3,7 @@ import { LockKeyhole } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { LabProvider } from './lab-provider'
 import { validateLabSearch } from '@/lib/lab-search'
-import { appUrl, useLab } from '@/lib/lab-controller'
+import { useLab } from '@/lib/lab-controller'
 
 export function LabShell() {
   return (
@@ -25,17 +25,9 @@ function LabFrame() {
           to="/upload"
           search={(previous) => validateLabSearch(previous)}
           className="brand"
-          aria-label="Mobilise-D mobgap browser lab home"
+          aria-label="mobgap WASM home"
         >
-          <img
-            className="brand-logo"
-            src={appUrl('brand/mobilise-d-logo.png')}
-            alt="Mobilise-D"
-            width={370}
-            height={89}
-          />
-          <span className="brand-divider">/</span>
-          <span className="brand-label">mobgap Browser lab</span>
+          mobgap WASM
         </Link>
         <Badge variant="outline">
           <LockKeyhole data-icon="inline-start" />

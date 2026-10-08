@@ -1,6 +1,6 @@
 # Interface decisions
 
-The official Mobilise-D header and four-step navigation connect separate Upload, Dataset, Progress and Results pages. Upload stages one local recording and complete participant configuration. Dataset contains the actual trial/day index, selection checkboxes and walking preset; it has no persistent upload sidebar. Progress shows the frozen batch row list, aggregate completed-or-failed count and cancellation. Results contains batch outcomes, completed-row selection, all output tables and CSV exports.
+The plain mobgap WASM text header and four-step navigation connect separate Upload, Dataset, Progress and Results pages. Upload stages one local recording and complete participant configuration. Dataset contains the actual trial/day index, selection checkboxes and walking preset; it has no persistent upload sidebar. Progress shows the frozen batch row list, aggregate completed-or-failed count and cancellation. Results contains batch outcomes, completed-row selection, all output tables and CSV exports.
 
 Files, metadata and results remain in one in-memory controller across route transitions. URLs describe pipeline, CWA split/timezone, selected row indexes and result/table views. They cannot restore local files after a reload. Absent row selection means all, while an explicit empty selection means none. Back/Forward changes the view and controls without starting work. Configuration changes invalidate the index and require rebuilding.
 
