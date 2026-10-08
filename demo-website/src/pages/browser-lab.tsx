@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, Navigate } from '@tanstack/react-router'
 import { LoaderCircle, Play, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -508,9 +508,33 @@ function BatchSummary() {
   )
 }
 
+function ActiveOperationPage() {
+  const lab = useLab()
+  if (lab.operation === 'build')
+    return (
+      <>
+        <Navigate to="/dataset" search={keepSearch} replace />
+        <DatasetPage />
+      </>
+    )
+  if (lab.operation === 'sample')
+    return (
+      <>
+        <Navigate to="/upload" search={keepSearch} replace />
+        <UploadPage />
+      </>
+    )
+  return (
+    <>
+      <Navigate to="/progress" search={keepSearch} replace />
+      <ProgressPage />
+    </>
+  )
+}
+
 export function ResultsPage() {
   const lab = useLab()
-  if (lab.busy) return <ProgressPage />
+  if (lab.busy) return <ActiveOperationPage />
   const requested =
     lab.search.result === undefined ? undefined : lab.rows[lab.search.result]
   const row =
