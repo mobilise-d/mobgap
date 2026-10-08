@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Activity, FlaskConical, LoaderCircle, LockKeyhole, Play, TriangleAlert } from 'lucide-react'
+import { FlaskConical, LoaderCircle, LockKeyhole, Play, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Field, FieldTitle } from '@/components/ui/field'
@@ -271,7 +271,7 @@ export function BrowserLab() {
 
   return <div className="app-shell">
     <a className="skip-link" href="#dataset-workspace">Skip to dataset workspace</a>
-    <header className="app-header"><a href={appUrl('')} className="brand" aria-label="mobgap browser lab home"><span className="brand-symbol"><Activity aria-hidden="true" /></span><span>mobgap<span className="brand-divider">/</span><span className="brand-label">Browser lab</span></span></a><Badge variant="outline"><LockKeyhole data-icon="inline-start" />Files stay on your device</Badge></header>
+    <header className="app-header"><a href={appUrl('')} className="brand" aria-label="Mobilise-D mobgap browser lab home"><img className="brand-logo" src={appUrl('brand/mobilise-d-logo.png')} alt="Mobilise-D" width={370} height={89} /><span className="brand-divider">/</span><span className="brand-label">mobgap Browser lab</span></a><Badge variant="outline"><LockKeyhole data-icon="inline-start" />Files stay on your device</Badge></header>
     <main>
       <div className="page-intro"><div><p className="eyebrow">Gait analysis, locally</p><h1>Configure a dataset. Analyze selected rows.</h1><p className="intro-copy">Choose recordings and participant information on the left. Build the dataset, then select trials or days from its index.</p></div><p className="prototype-note"><FlaskConical aria-hidden="true" />Research prototype</p></div>
       <div id="dataset-workspace" className="workspace">
