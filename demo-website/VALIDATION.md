@@ -93,3 +93,23 @@ A separate actual-Xeus fault during response printing, outside the JSON helper, 
 The project now requires tpcp >=3.2.0 and the browser wheel lock pins 3.2.0. AX6 again calls the upstream `hybrid_cache(self.memory, 1)` directly; the module-local cache, key hashing and lock were removed. Existing weak-reference, repeat-read and disk-cache tests pass against the upstream default `evict_before_load=True`. Broader dependency verification passed 417 tests with 12 skips across datasets, full pipelines, evaluation utilities, windowing, GsdIluz and the browser adapter.
 
 The actual Xeus kernel reported tpcp 3.2.0 and processed both days of the active real CWA recording. All eight tables and non-timing summaries matched a fresh native tpcp 3.2 run (122,532 numeric comparisons, zero differences). Browser calls took 31.19/5.94 s; native calls took 13.64/3.16 s, again individual measurements including first-use effects. Browser WASM capacity was 1,627,455,488 bytes after the batch; native peak RSS was 1,225,408 KiB. Whole-file File.arrayBuffer calls remained zero. Temporary OPFS input was deleted after verification. The earlier timing tables describe the preceding tpcp 3.1/local-cache implementation.
+
+
+## Updated reader, dataset UI and Auto dispatch
+
+The reader is now PR #7 revision `84891bbb87239eb2a9d822ad7073f3936185d999`, with verified CI payload provenance and a distinct local conda build identity. Earlier read-ahead-cache measurements above are historical. The current bridge has no JavaScript read-ahead cache, and AX6 exposes no timing report or sampling-warning option.
+
+On the 194,510,848-byte two-day recording, building the index and inspecting the first second required 5,242 bytes in 11 WORKERFS reads. The Xeus reader signature includes `batch_packets=256, overlap_packets=1`; the packaged side-module SHA256 matches `b54ca209c6953230267e31d8adacf3aadcb5559a1e89860ec7d6117177cea2c3`.
+
+Fresh full-day runs with the updated reader matched native results across all eight tables and non-timing summaries: 122,532 numeric values for Healthy and 109,745 for Auto with cohort MS, which resolved to Impaired. Both comparisons had zero differences at `atol=1e-9, rtol=1e-8`.
+
+| Preset | Day | Native processing seconds | Browser processing seconds |
+| --- | --- | ---: | ---: |
+| Healthy | First | 13.43 | 30.38 |
+| Healthy | Second | 2.59 | 5.28 |
+| Auto → Impaired | First | 12.79 | 22.57 |
+| Auto → Impaired | Second | 4.24 | 5.44 |
+
+These are single desktop measurements, with first-use compilation and process/cache effects. Native peak RSS was 1,227,316 KiB for Healthy and 1,133,124 KiB for Impaired. Benchmark participant heights and cohort are comparison inputs, not assertions about the recorded person.
+
+The revised UI was checked under a subpath: staging separate MATLAB data/info files creates neither a kernel nor center content; Build dataset shows the actual index with all rows selected; deselecting all disables Run; configuration edits clear the index. Healthy and Auto→Impaired sample runs produce the expected 6/5 bouts and 60/98 contacts. At 390 px width, result/index tables scroll internally without page overflow. The native adapter has 28 passing tests, including Auto parity for HA/MS and malformed separate metadata. Core dataset/pipeline/gait-sequence/window tests pass 432 with 12 skips. WORKERFS has 3 passing tests; TypeScript/Vite, Python Ruff and formatting pass. React Doctor reports 5 existing warnings plus 3 deliberate sequential-await warnings for the exclusive worker.
