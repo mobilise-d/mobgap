@@ -250,3 +250,77 @@ def test_cwa_day_batch_returns_day_errors_without_raising_into_ipython():
     )
     module.cancel_cwa_day_batch()
     assert module.next_cwa_day() == {"done": True}
+
+
+@pytest.mark.parametrize("operation", ["mat_inspection", "mat_pipeline", "manual_window", "day_planning"])
+def test_api_json_boundary_classifies_chained_memory_errors_and_releases_frames(monkeypatch, operation):
+    module = api()
+    recording = module.inspect_files([str(HA / "data.mat")])["recordings"][0]
+    options = {"preset": "healthy", "cohort": "HA", "participantHeightM": 1.7, "sensorHeightM": 0.9}
+    failures = []
+
+    def out_of_memory(*args, **kwargs):
+        try:
+            raise MemoryError("injected allocation failure")
+        except MemoryError as cause:
+            failure = ValueError("reader could not allocate")
+            failures.extend([failure, cause])
+            raise failure from cause
+
+    if operation == "mat_inspection":
+        monkeypatch.setattr(module, "load_mobilised_matlab_format", out_of_memory)
+
+        def invoke():
+            return module.inspect_files([str(HA / "data.mat")])
+    elif operation == "mat_pipeline":
+        monkeypatch.setattr(module.MobilisedPipelineHealthy, "run", out_of_memory)
+
+        def invoke():
+            return module.analyze_recording(recording["id"], options)
+    else:
+        cwa = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")])["recordings"][0]
+        if operation == "manual_window":
+            monkeypatch.setattr(module, "_cwa_dataset", out_of_memory)
+
+            def invoke():
+                return module.analyze_recording(
+                    cwa["id"], {**options, "cwaWindow": {"startSeconds": 0, "durationSeconds": 1, "timezone": "UTC"}}
+                )
+        else:
+            monkeypatch.setattr(module, "_day_descriptions", out_of_memory)
+
+            def invoke():
+                return module.cwa_day_windows(cwa["id"], "UTC")
+
+    envelope = json.loads(module.call_json(invoke))
+    assert envelope["ok"] is False
+    assert envelope["error"]["fatal"] is True
+    assert "allocate" in envelope["error"]["message"]
+    assert all(error.__traceback__ is None for error in failures)
+
+
+def test_api_json_boundary_preserves_results_and_nonfatal_errors():
+    module = api()
+    success = json.loads(module.call_json(lambda: {"kept": [1, 2, 3]}))
+    assert success == {"ok": True, "result": {"kept": [1, 2, 3]}}
+    failure = json.loads(module.call_json(lambda: module.cwa_day_windows("missing", "UTC")))
+    assert failure["ok"] is False
+    assert failure["error"]["fatal"] is False
+    assert "currently loaded" in failure["error"]["message"]
+    assert success["result"]["kept"] == [1, 2, 3]
+
+
+def test_api_json_boundary_classifies_memory_error_during_result_serialization(monkeypatch):
+    module = api()
+    encode = module.json.dumps
+
+    def limited_encoder(value, **kwargs):
+        if value.get("ok"):
+            raise MemoryError("injected JSON allocation failure")
+        return encode(value, **kwargs)
+
+    monkeypatch.setattr(module.json, "dumps", limited_encoder)
+    assert json.loads(module.call_json(lambda: {"result": 42})) == {
+        "ok": False,
+        "error": {"message": "injected JSON allocation failure", "fatal": True},
+    }

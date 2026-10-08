@@ -124,12 +124,12 @@ export class MobgapRuntime {
       this.pending.add(cancelled)
       future.onIOPub = (message) => {
         if (message.header.msg_type === 'stream' && message.content.name === 'stdout') stdout += message.content.text ?? ''
-        if (message.header.msg_type === 'error') failure = message.content.evalue ?? message.content.traceback?.join('\n') ?? 'Python execution failed.'
+        if (message.header.msg_type === 'error') failure = message.content.evalue || message.content.traceback?.join('\n') || 'Python execution failed.'
       }
       void future.done.then(() => {
         this.pending.delete(cancelled)
         future.dispose()
-        if (failure) reject(new PythonExecutionError(failure))
+        if (failure !== undefined) reject(new PythonExecutionError(failure))
         else resolve(stdout)
       }, (error: unknown) => {
         this.pending.delete(cancelled)
@@ -157,10 +157,18 @@ export class MobgapRuntime {
 
   private async call<T>(expression: string, generation = this.generation): Promise<T> {
     this.checkGeneration(generation)
-    const output = await this.execute(`_result = ${expression}\nprint(${JSON.stringify(JSON_MARKER)} + json.dumps(_result, allow_nan=False))`)
+    const output = await this.execute(`print(${JSON.stringify(JSON_MARKER)} + api.call_json(lambda: ${expression}))`)
     const line = output.split('\n').find((line) => line.startsWith(JSON_MARKER))
     if (!line) throw new Error('Python completed without returning a result.')
-    return JSON.parse(line.slice(JSON_MARKER.length)) as T
+    const response = JSON.parse(line.slice(JSON_MARKER.length)) as { ok: true; result: T } | { ok: false; error: { message: string; fatal: boolean } }
+    if (!response.ok) {
+      if (response.error.fatal) {
+        this.cancel()
+        throw new Error(`${response.error.message || 'Python ran out of memory.'} Select the files again to retry.`)
+      }
+      throw new PythonExecutionError(response.error.message || 'Python execution failed.')
+    }
+    return response.result
   }
 
   async inspectFiles(files: File[], onProgress?: ProgressHandler): Promise<InspectionResult> {
@@ -184,8 +192,7 @@ export class MobgapRuntime {
 
   async getCwaDayWindows(recordingId: string, timezone: string, onProgress?: ProgressHandler): Promise<CwaDayWindowsResult> {
     return this.exclusive(async (generation) => {
-      await this.initialize(onProgress)
-      this.checkGeneration(generation)
+      this.requireActiveKernel(generation)
       onProgress?.({ stage: 'inspecting', message: 'Finding calendar days in the selected timezone…' })
       return this.call<CwaDayWindowsResult>(`api.cwa_day_windows(${JSON.stringify(recordingId)}, ${JSON.stringify(timezone)})`, generation)
     })
@@ -194,8 +201,7 @@ export class MobgapRuntime {
   /** Consume one Python AX6Dataset iterator, preserving results after each yield. */
   async runDays(options: RunDaysOptions, onDay: (event: DayAnalysisEvent) => void, onProgress?: ProgressHandler): Promise<void> {
     return this.exclusive(async (generation) => {
-      await this.initialize(onProgress)
-      this.checkGeneration(generation)
+      this.requireActiveKernel(generation)
       const args = { preset: options.pipeline, participantHeightM: options.heightM, sensorHeightM: options.sensorHeightM, cohort: options.cohort, measurementCondition: options.measurementCondition ?? 'free_living', timezone: options.timezone }
       const batch = await this.call<CwaDayWindowsResult & { totalDays: number }>(`api.start_cwa_day_batch(${JSON.stringify(options.recordingId)}, json.loads(${JSON.stringify(JSON.stringify(args))}), ${JSON.stringify(options.dayIndices)})`, generation)
       let completed = 0
@@ -225,12 +231,16 @@ export class MobgapRuntime {
 
   async runPipeline(options: RunPipelineOptions, onProgress?: ProgressHandler): Promise<AnalysisResult> {
     return this.exclusive(async (generation) => {
-      await this.initialize(onProgress)
-      this.checkGeneration(generation)
+      this.requireActiveKernel(generation)
       onProgress?.({ stage: 'analyzing', message: 'Running the pipeline. The first run compiles Numba functions…' })
       const args = { preset: options.pipeline, participantHeightM: options.heightM, sensorHeightM: options.sensorHeightM, cohort: options.cohort, measurementCondition: options.measurementCondition ?? 'laboratory', cwaWindow: options.cwaWindow, cwaDay: options.cwaDay }
       return this.call<AnalysisResult>(`api.analyze_recording(${JSON.stringify(options.recordingId)}, json.loads(${JSON.stringify(JSON.stringify(args))}))`, generation)
     })
+  }
+
+  private requireActiveKernel(generation: number): void {
+    this.checkGeneration(generation)
+    if (!this.hasActiveKernel) throw new Error('The Python worker is no longer available. Select the files again to retry.')
   }
 
   private checkGeneration(generation: number): void {

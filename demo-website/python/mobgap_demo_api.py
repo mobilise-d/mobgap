@@ -14,7 +14,7 @@ import time
 import traceback
 import uuid
 import warnings
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any
 
@@ -224,6 +224,8 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
                 metadata_files[path] = load_mobilised_participant_metadata_file(path)
             parsed.append((path, variables))
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
+            if _release_exception_frames(error):
+                raise
             errors.append(
                 {
                     "fileName": path.name,
@@ -283,6 +285,8 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
                 _RECORDINGS[identifier] = {"data": recording, "description": description}
                 recordings.append(description)
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
+            if _release_exception_frames(error):
+                raise
             errors.append({"fileName": path.name, "code": "unsupported_recording", "message": str(error)})
     return {
         "recordings": recordings,
@@ -419,7 +423,7 @@ def _analyze_dataset(recording_id: str, description: dict[str, Any], dataset: An
 
 
 def _release_exception_frames(error: BaseException) -> bool:
-    """Drop array-bearing tracebacks before a day error crosses into IPython."""
+    """Release array-bearing tracebacks and classify chained memory failures."""
     fatal = False
     while error is not None:
         fatal |= isinstance(error, MemoryError)
@@ -428,6 +432,17 @@ def _release_exception_frames(error: BaseException) -> bool:
             error.__traceback__ = None
         error = error.__cause__ if error.__cause__ is not None else error.__context__
     return fatal
+
+
+def call_json(operation: Callable[[], Any]) -> str:
+    """Serialize one API response without publishing array-bearing exceptions to IPython."""
+    try:
+        return json.dumps({"ok": True, "result": operation()}, allow_nan=False)
+    except Exception as error:  # noqa: BLE001 - Python/JavaScript IPC must retain fatal memory classification.
+        message = str(error)
+        fatal = _release_exception_frames(error)
+        gc.collect()
+        return json.dumps({"ok": False, "error": {"message": message, "fatal": fatal}}, allow_nan=False)
 
 
 def _iterate_cwa_days(recording_id, description, dataset, preset, windows, indices):
