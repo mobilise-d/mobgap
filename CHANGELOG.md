@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a standalone browser prototype in `demo-website` for local MATLAB and multiday AX6 CWA analysis using
+  Xeus/Numba, WORKERFS and sequential `AX6Dataset` day processing. Browser/native output parity was checked on
+  selected recordings; this is implementation verification, not additional scientific or clinical validation.
+  (https://github.com/mobilise-d/mobgap/pull/268)
+
 - Add an example and TVS evaluation for a potential acceleration-only full pipeline. This configuration remains
   experimental and has not been properly validated; the TVS evaluation uses full IMU recordings.
   (https://github.com/mobilise-d/mobgap/pull/256)
@@ -57,6 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   task, or input file as applicable.
 
 ### Fixed
+
+- Construct sliding-window views at their requested hop to avoid an oversized intermediate view on 32-bit NumPy,
+  preserving values and read-only view behavior. (https://github.com/mobilise-d/mobgap/pull/268)
+- Release the previous AX6 in-memory cache entry before loading a replacement, reducing peak memory for sequential
+  day processing while retaining repeated-window and disk-cache reuse. (https://github.com/mobilise-d/mobgap/pull/268)
 
 - Wear-time waking-hours totals now count only intervals within the configured window, including for short recordings
   without timestamps. The fallback to total wear-time has been removed; sample zero is assumed to be midnight.
