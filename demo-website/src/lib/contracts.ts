@@ -1,5 +1,5 @@
 /** Browser/Python bridge types. Tables include index columns in their rows. */
-export type PipelinePreset = 'healthy' | 'impaired'
+export type PipelinePreset = 'healthy' | 'impaired' | 'auto'
 export type ProgressHandler = (progress: RuntimeProgress) => void
 export interface RuntimeProgress { stage: string; message: string; percent?: number }
 export interface Recording {
@@ -20,6 +20,13 @@ export interface Recording {
 }
 export interface FileInspectionError { fileName: string; code: string; message: string }
 export interface InspectionResult { recordings: Recording[]; errors: FileInspectionError[]; warnings: string[] }
+export interface DatasetConfiguration {
+  cohort: string
+  heightM?: number
+  sensorHeightM?: number
+  measurementCondition?: 'laboratory' | 'free_living'
+  timezone?: string
+}
 export interface RunPipelineOptions {
   recordingId: string
   pipeline: PipelinePreset

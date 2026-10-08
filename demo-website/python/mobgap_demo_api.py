@@ -21,7 +21,7 @@ from typing import Any
 import pandas as pd
 from mobgap.data import AX6Dataset
 from mobgap.data.ax6 import split_by_local_days
-from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired
+from mobgap.pipeline import MobilisedPipelineHealthy, MobilisedPipelineImpaired, MobilisedPipelineUniversal
 from scipy.io import whosmat
 
 from browser_datasets import UploadedMatlabDataset
@@ -53,29 +53,32 @@ def _heights(metadata: dict[str, Any]) -> dict[str, float]:
     return result
 
 
-def _inspection_window(info):
-    return pd.DataFrame(
-        {
-            "recording": ["inspection"],
-            "start_time": [info.start_time],
-            "end_time": [min(info.start_time + pd.Timedelta(seconds=1), info.end_time)],
-        }
-    )
-
-
-def _inspect_cwa(path: Path) -> dict[str, Any]:
-    # UTC is only a provisional interpretation for raw-clock inspection. Actual
-    # analysis constructs a new dataset with the user's synchronization timezone.
+def _inspect_cwa(path: Path, configuration: dict[str, Any]) -> dict[str, Any]:
+    metadata = _participant_metadata(configuration, {})
+    timezone = configuration.get("timezone")
+    if not isinstance(timezone, str) or not timezone:
+        raise ValueError("The sensor clock synchronization timezone is required.")
+    condition = _measurement_condition(configuration, is_cwa=True)
     dataset = AX6Dataset(
         path,
-        participant_metadata={},
-        recording_metadata={"measurement_condition": "free_living"},
-        tz="UTC",
-        splitter=_inspection_window,
+        participant_metadata=metadata,
+        recording_metadata={"measurement_condition": condition},
+        tz=timezone,
     )
     header = dataset.cwa_header_
     start, end = header["start_from_data_raw"], header["end_from_data_raw"]
     fs = dataset.sampling_rate_hz
+    bounds = dataset.index.iloc[0]
+    dataset = dataset.clone().set_params(
+        subset_index=None,
+        splitter=pd.DataFrame(
+            {
+                "recording": ["inspection"],
+                "start_time": [bounds.start_time],
+                "end_time": [min(bounds.start_time + pd.Timedelta(seconds=1), bounds.end_time)],
+            }
+        ),
+    )
     channels = list(dataset.data_ss.columns)
     identifier = uuid.uuid4().hex
     description = {
@@ -89,7 +92,7 @@ def _inspect_cwa(path: Path) -> dict[str, Any]:
         "durationSeconds": (pd.Timestamp(end) - pd.Timestamp(start)).total_seconds() + 1 / fs,
         "channels": channels,
         "sensorPosition": "LowerBack",
-        "metadata": {},
+        "metadata": _heights(metadata),
         "cwa": {
             "startTimeRaw": start,
             "endTimeRaw": end,
@@ -97,14 +100,19 @@ def _inspect_cwa(path: Path) -> dict[str, Any]:
             "clockTimezoneRequired": True,
         },
         "warnings": [
-            "CWA inspection uses AX6Dataset to scan packet timing and load a bounded initial window. "
+            "CWA inspection uses AX6Dataset to read boundary metadata and a bounded initial window. "
             "Samples are counted when the selected window is loaded.",
             "CWA analysis assumes a LowerBack sensor in the expected sensor frame. Verify placement and orientation.",
             "Choose the timezone of the computer that synchronized the sensor. The last configuration write is "
             "assumed to be that synchronization; the offset then stays fixed across daylight-saving changes.",
         ],
     }
-    _RECORDINGS[identifier] = {"path": path, "description": description}
+    _RECORDINGS[identifier] = {
+        "path": path,
+        "description": description,
+        "participant_metadata": metadata,
+        "measurement_condition": condition,
+    }
     return description
 
 
@@ -122,8 +130,8 @@ def cwa_day_windows(recording_id: str, timezone: str) -> dict[str, Any]:
         raise ValueError("The sensor clock synchronization timezone is required.")
     dataset = AX6Dataset(
         selected["path"],
-        participant_metadata={},
-        recording_metadata={"measurement_condition": "free_living"},
+        participant_metadata=selected["participant_metadata"],
+        recording_metadata={"measurement_condition": selected["measurement_condition"]},
         tz=timezone,
         output_timezone="local",
         splitter=split_by_local_days,
@@ -160,9 +168,7 @@ def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: di
     timezone = selection.get("timezone")
     if not isinstance(timezone, str) or not timezone:
         raise ValueError("The sensor clock synchronization timezone is required.")
-    if day is not None:
-        splitter = split_by_local_days
-    else:
+    if day is None:
         start, duration = window.get("startSeconds"), window.get("durationSeconds")
         if (
             not isinstance(start, (int, float))
@@ -174,22 +180,25 @@ def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: di
         ):
             raise ValueError("A manual CWA window needs a nonnegative start and duration between 0 and 3600 seconds.")
 
-        def splitter(info):
-            start_time = info.start_time + pd.Timedelta(seconds=start)
-            end_time = start_time + pd.Timedelta(seconds=duration)
-            if start_time >= info.end_time or end_time > info.end_time:
-                raise ValueError("The selected CWA window extends beyond the recording.")
-            return pd.DataFrame({"recording": ["selected"], "start_time": [start_time], "end_time": [end_time]})
-
     dataset = AX6Dataset(
         selected["path"],
         participant_metadata=metadata,
         recording_metadata={"measurement_condition": condition},
         tz=timezone,
         output_timezone="utc",
-        splitter=splitter,
+        splitter=split_by_local_days if day is not None else None,
     )
-    if day is not None:
+    if day is None:
+        bounds = dataset.index.iloc[0]
+        start_time = bounds.start_time + pd.Timedelta(seconds=start)
+        end_time = start_time + pd.Timedelta(seconds=duration)
+        if start_time >= bounds.end_time or end_time > bounds.end_time:
+            raise ValueError("The selected CWA window extends beyond the recording.")
+        dataset = dataset.clone().set_params(
+            subset_index=None,
+            splitter=pd.DataFrame({"recording": ["selected"], "start_time": [start_time], "end_time": [end_time]}),
+        )
+    else:
         day_index = day.get("index")
         if type(day_index) is not int or not 0 <= day_index < len(dataset):
             raise ValueError("Choose an available CWA calendar day.")
@@ -197,18 +206,21 @@ def _cwa_dataset(selected: dict[str, Any], options: dict[str, Any], metadata: di
     return dataset
 
 
-def inspect_files(paths: list[str]) -> dict[str, Any]:
+def inspect_files(paths: list[str], configuration: dict[str, Any]) -> dict[str, Any]:
     """Inspect worker-filesystem MAT/CWA paths and retain available recordings.
 
     CWA data remains on disk until a calendar day or manual window is selected.
-    Companion infoForAlgo data can be in the same file or in a separate file.
-    One companion file can accompany one data file regardless of upload filename.
-    When inspecting several data files, metadata must be embedded or paired in
-    distinct directories to avoid assigning a participant's height to another.
+    Participant metadata must come from a separate infoForAlgo file or manual configuration.
+    One infoForAlgo file can accompany one data file regardless of upload filename.
+    When inspecting several data files, metadata files must be paired in distinct
+    directories, or supplied manually, to avoid assigning another participant's height.
     Unreadable uploads prevent external pairing because their participant is unknown.
     """
     cancel_cwa_day_batch()
     _RECORDINGS.clear()
+    cohort = configuration.get("cohort")
+    if cohort not in ("HA", "COPD", "CHF", "PD", "MS", "PFF"):
+        raise ValueError("Select a participant cohort before building the dataset.")
     errors = []
     parsed = []
     metadata_files = []
@@ -218,13 +230,14 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
         path = Path(raw_path)
         try:
             if path.suffix.lower() == ".cwa":
-                recordings.append(_inspect_cwa(path))
+                recordings.append(_inspect_cwa(path, configuration))
                 cwa_paths.append(path)
                 continue
             variables = _mat_variables(path)
             if not variables.intersection({"data", "infoForAlgo"}):
                 raise ValueError("This MAT file has no Mobilise-D 'data' or 'infoForAlgo' variable.")
-            if "infoForAlgo" in variables:
+            if "infoForAlgo" in variables and "data" not in variables:
+                UploadedMatlabDataset.read_participant_info(path)
                 metadata_files.append(path)
             parsed.append((path, variables))
         except Exception as error:  # noqa: BLE001 - untyped upload/pipeline errors cross the browser boundary.
@@ -242,7 +255,7 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
     for path in data_files:
         try:
             file_warnings = []
-            companion = path if path in metadata_files else None
+            companion = None
             if companion is None and unreadable_uploads and metadata_files:
                 file_warnings.append(
                     "Some uploaded files could not be read. Companion participant metadata cannot be paired safely. "
@@ -259,7 +272,19 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
                     file_warnings.append(
                         "Participant metadata is ambiguous for multiple data files. Enter heights manually."
                     )
-            dataset = UploadedMatlabDataset(path, metadata_path=companion)
+            if companion is None:
+                overrides = _participant_metadata(configuration, {})
+            else:
+                overrides = {"cohort": cohort}
+                for source, target in (("participantHeightM", "height_m"), ("sensorHeightM", "sensor_height_m")):
+                    if configuration.get(source) is not None:
+                        overrides[target] = _height(configuration, source, {}, source)
+            dataset = UploadedMatlabDataset(
+                path,
+                metadata_path=companion,
+                participant_metadata_override=overrides,
+                measurement_condition=_measurement_condition(configuration, is_cwa=False),
+            )
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always")
                 datapoints = sorted(dataset, key=lambda dp: ("Test11" not in dp.group_label, tuple(dp.group_label)))
@@ -274,6 +299,7 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
                     raise ValueError(
                         "The recording requires a positive sampling rate and nonempty LowerBack sensor data."
                     )
+                metadata = _participant_metadata(configuration, _heights(datapoint.participant_metadata))
                 identifier = uuid.uuid4().hex
                 description = {
                     "id": identifier,
@@ -287,7 +313,7 @@ def inspect_files(paths: list[str]) -> dict[str, Any]:
                     "durationSeconds": len(frame) / fs,
                     "channels": list(frame.columns),
                     "sensorPosition": "LowerBack",
-                    "metadata": _heights(datapoint.participant_metadata),
+                    "metadata": _heights(metadata),
                     "warnings": file_warnings,
                 }
                 _RECORDINGS[identifier] = {"dataset": datapoint, "description": description}
@@ -323,23 +349,33 @@ def _height(options: dict[str, Any], key: str, metadata: dict[str, Any], fallbac
     return float(value)
 
 
-def _analysis_configuration(description: dict[str, Any], options: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
-    preset = options.get("preset")
-    if preset not in ("healthy", "impaired"):
-        raise ValueError("Select the healthy or impaired pipeline preset.")
+def _participant_metadata(options: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
     cohort = options.get("cohort")
     if cohort not in ("HA", "COPD", "CHF", "PD", "MS", "PFF"):
         raise ValueError("Select a participant cohort: HA, COPD, CHF, PD, MS or PFF.")
-    is_cwa = description.get("sourceFormat") == "cwa"
+    return {
+        "sensor_height_m": _height(options, "sensorHeightM", fallback, "sensorHeightM"),
+        "height_m": _height(options, "participantHeightM", fallback, "heightM"),
+        "cohort": cohort,
+    }
+
+
+def _measurement_condition(options: dict[str, Any], *, is_cwa: bool) -> str:
     condition = options.get("measurementCondition", "free_living" if is_cwa else "laboratory")
     if condition not in ("laboratory", "free_living"):
         raise ValueError("Select laboratory or free_living as the measurement condition.")
-    metadata = {
-        "sensor_height_m": _height(options, "sensorHeightM", description["metadata"], "sensorHeightM"),
-        "height_m": _height(options, "participantHeightM", description["metadata"], "heightM"),
-        "cohort": cohort,
-    }
-    return preset, metadata, condition
+    return condition
+
+
+def _analysis_configuration(description: dict[str, Any], options: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
+    preset = options.get("preset")
+    if preset not in ("healthy", "impaired", "auto"):
+        raise ValueError("Select the healthy, impaired or auto pipeline preset.")
+    return (
+        preset,
+        _participant_metadata(options, description["metadata"]),
+        _measurement_condition(options, is_cwa=description.get("sourceFormat") == "cwa"),
+    )
 
 
 def analyze_recording(recording_id: str, options: dict[str, Any]) -> dict[str, Any]:
@@ -366,8 +402,16 @@ def analyze_recording(recording_id: str, options: dict[str, Any]) -> dict[str, A
 
 def _analyze_dataset(recording_id: str, description: dict[str, Any], dataset: Any, preset: str) -> dict[str, Any]:
     is_cwa = description.get("sourceFormat") == "cwa"
-    pipeline_class = MobilisedPipelineHealthy if preset == "healthy" else MobilisedPipelineImpaired
-    pipeline = pipeline_class(retain_intermediate_results=False)
+    if preset == "auto":
+        pipeline = MobilisedPipelineUniversal(
+            pipelines=[
+                ("healthy", MobilisedPipelineHealthy(retain_intermediate_results=False)),
+                ("impaired", MobilisedPipelineImpaired(retain_intermediate_results=False)),
+            ]
+        )
+    else:
+        pipeline_class = MobilisedPipelineHealthy if preset == "healthy" else MobilisedPipelineImpaired
+        pipeline = pipeline_class(retain_intermediate_results=False)
     started = time.perf_counter()
     try:
         with warnings.catch_warnings(record=True) as caught:
@@ -411,7 +455,7 @@ def _analyze_dataset(recording_id: str, description: dict[str, Any], dataset: An
     }
     return {
         "recordingId": recording_id,
-        "preset": preset,
+        "preset": getattr(pipeline, "pipeline_name_", preset),
         "summary": summary,
         "tables": tables,
         "warnings": list(dict.fromkeys([*description["warnings"], *(str(item.message) for item in caught)])),

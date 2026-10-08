@@ -1,4 +1,4 @@
-import type { AnalysisResult, CwaDayWindowsResult, DayAnalysisEvent, InspectionResult, ProgressHandler, RunDaysOptions, RunPipelineOptions } from './contracts'
+import type { AnalysisResult, CwaDayWindowsResult, DatasetConfiguration, DayAnalysisEvent, InspectionResult, ProgressHandler, RunDaysOptions, RunPipelineOptions } from './contracts'
 export type * from './contracts'
 
 /** A Python exception reported by a live kernel, distinct from a lost worker. */
@@ -180,7 +180,7 @@ export class MobgapRuntime {
     return response.result
   }
 
-  async inspectFiles(files: File[], onProgress?: ProgressHandler): Promise<InspectionResult> {
+  async inspectFiles(files: File[], onProgress?: ProgressHandler, configuration?: DatasetConfiguration): Promise<InspectionResult> {
     return this.exclusive(async (generation) => {
       await this.initialize(onProgress)
       this.checkGeneration(generation)
@@ -193,11 +193,12 @@ export class MobgapRuntime {
       this.checkGeneration(generation)
       const paths = names.map((name) => `${folder}/${name}`)
       onProgress?.({ stage: 'inspecting', message: 'Inspecting recordings and sensor metadata…' })
-      return this.call<InspectionResult>(`api.inspect_files(${JSON.stringify(paths)})`, generation)
+      const config = { cohort: configuration?.cohort, participantHeightM: configuration?.heightM, sensorHeightM: configuration?.sensorHeightM, measurementCondition: configuration?.measurementCondition, timezone: configuration?.timezone }
+      return this.call<InspectionResult>(`api.inspect_files(${JSON.stringify(paths)}, json.loads(${JSON.stringify(JSON.stringify(config))}))`, generation)
     })
   }
 
-  inspectMat(file: File, onProgress?: ProgressHandler): Promise<InspectionResult> { return this.inspectFiles([file], onProgress) }
+  inspectMat(file: File, onProgress?: ProgressHandler, configuration?: DatasetConfiguration): Promise<InspectionResult> { return this.inspectFiles([file], onProgress, configuration) }
 
   async getCwaDayWindows(recordingId: string, timezone: string, onProgress?: ProgressHandler): Promise<CwaDayWindowsResult> {
     return this.exclusive(async (generation) => {

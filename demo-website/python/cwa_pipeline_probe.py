@@ -25,12 +25,6 @@ def run_days(
     indexes: list[int] | None = None,
 ) -> dict[str, Any]:
     """Attempt every selected day; a day failure does not discard other results."""
-    inspected = api.inspect_files([path])
-    if inspected["errors"]:
-        raise ValueError(inspected["errors"])
-    recording = inspected["recordings"][0]
-    days = api.cwa_day_windows(recording["id"], timezone)
-    output: dict[str, Any] = {"recording": recording, "calendar": days, "days": []}
     options = {
         "preset": preset,
         "cohort": cohort,
@@ -39,6 +33,12 @@ def run_days(
         "measurementCondition": "free_living",
         "timezone": timezone,
     }
+    inspected = api.inspect_files([path], options)
+    if inspected["errors"]:
+        raise ValueError(inspected["errors"])
+    recording = inspected["recordings"][0]
+    days = api.cwa_day_windows(recording["id"], timezone)
+    output: dict[str, Any] = {"recording": recording, "calendar": days, "days": []}
     api.start_cwa_day_batch(recording["id"], options, indexes)
     try:
         while True:

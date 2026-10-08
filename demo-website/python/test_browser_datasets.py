@@ -39,17 +39,18 @@ def test_manual_metadata_survives_subsetting_without_changing_file_defaults():
     assert dataset[0].participant_metadata["height_m"] == 1.59
 
 
-def test_two_level_self_contained_file_exposes_recording_index_and_partial_metadata(tmp_path):
+def test_two_level_file_exposes_recording_index_and_separate_partial_metadata(tmp_path):
     original = loadmat(HA / "data.mat", squeeze_me=True, struct_as_record=False, mat_dtype=True)
     path = tmp_path / "free-living.mat"
     savemat(
         path,
         {
             "data": {"TimeMeasure1": {"Recording1": original["data"].TimeMeasure1.Test11.Trial1}},
-            "infoForAlgo": {"TimeMeasure1": {"SensorHeight": 96.4}},
         },
     )
-    dataset = UploadedMatlabDataset(path, metadata_path=path, measurement_condition="free_living")
+    info_path = tmp_path / "infoForAlgo.mat"
+    savemat(info_path, {"infoForAlgo": {"TimeMeasure1": {"SensorHeight": 96.4}}})
+    dataset = UploadedMatlabDataset(path, metadata_path=info_path, measurement_condition="free_living")
     assert dataset.index.to_dict("records") == [{"time_measure": "TimeMeasure1", "recording": "Recording1"}]
     assert len(dataset.data_ss) == 13759
     assert dataset.participant_metadata == pytest.approx({"sensor_height_m": 0.964})

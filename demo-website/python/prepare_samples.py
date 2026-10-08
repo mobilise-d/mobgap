@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 from scipy.io import loadmat, savemat
@@ -21,22 +22,25 @@ def prepare_samples(output_dir: Path = DEFAULT_OUTPUT) -> dict:
     ):
         source = ROOT / "example_data/data/lab" / cohort / "001"
         data = loadmat(source / "data.mat", simplify_cells=True)["data"]
-        metadata = loadmat(source / "infoForAlgo.mat", simplify_cells=True)["infoForAlgo"]
         trial = data["TimeMeasure1"]["Test11"]["Trial1"]
         selected = {key: trial[key] for key in ("StartDateTime", "TimeZone") if key in trial}
         selected["SU"] = {"LowerBack": trial["SU"]["LowerBack"]}
         path = output_dir / (identifier + ".mat")
         savemat(
             path,
-            {"data": {"TimeMeasure1": {"Test11": {"Trial1": selected}}}, "infoForAlgo": metadata},
+            {"data": {"TimeMeasure1": {"Test11": {"Trial1": selected}}}},
             do_compression=True,
         )
+        metadata_path = output_dir / (identifier + "-info.mat")
+        shutil.copyfile(source / "infoForAlgo.mat", metadata_path)
         samples.append(
             {
                 "id": identifier,
                 "label": label,
                 "description": f"{duration:.2f}s laboratory walking trial from the public mobgap examples",
-                "files": [f"/samples/{identifier}.mat"],
+                "dataFiles": [f"/samples/{identifier}.mat"],
+                "metadataFiles": [f"/samples/{identifier}-info.mat"],
+                "metadataSha256": hashlib.sha256(metadata_path.read_bytes()).hexdigest(),
                 "preset": preset,
                 "cohort": cohort,
                 "sensorHeightM": sensor_height,

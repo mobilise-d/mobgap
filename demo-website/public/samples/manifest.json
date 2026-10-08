@@ -4,9 +4,13 @@
       "id": "healthy",
       "label": "Healthy walking",
       "description": "137.59s laboratory walking trial from the public mobgap examples",
-      "files": [
+      "dataFiles": [
         "/samples/healthy.mat"
       ],
+      "metadataFiles": [
+        "/samples/healthy-info.mat"
+      ],
+      "metadataSha256": "6a0c79c7eba3b28a01a33ff92d08b6d987f2b337df8ab696533dc9ba4e09493e",
       "preset": "healthy",
       "cohort": "HA",
       "sensorHeightM": 0.964,
@@ -14,15 +18,19 @@
       "recordingLabel": "TimeMeasure1 / Test11 / Trial1",
       "source": "example_data/data/lab/HA/001/data.mat",
       "sourceSha256": "f1570054e195c44791cf4381e27083afb1c83432da6ae94078ed27c88bef12fc",
-      "sha256": "05ce6738930a0ba569e586ae45e5a5d5045bf13de426082608acdadb92a537c6"
+      "sha256": "0123fc9e8b13ba61f643aa71c261e13f53f8eb3c1d93fac76674186cdf9a7b2c"
     },
     {
       "id": "impaired",
       "label": "Impaired walking",
       "description": "227.28s laboratory walking trial from the public mobgap examples",
-      "files": [
+      "dataFiles": [
         "/samples/impaired.mat"
       ],
+      "metadataFiles": [
+        "/samples/impaired-info.mat"
+      ],
+      "metadataSha256": "7400cc0fa7fc559627eebdb2a8cf2d47efef18fc94533a6b54308873efe0b614",
       "preset": "impaired",
       "cohort": "MS",
       "sensorHeightM": 0.975,
@@ -30,7 +38,7 @@
       "recordingLabel": "TimeMeasure1 / Test11 / Trial1",
       "source": "example_data/data/lab/MS/001/data.mat",
       "sourceSha256": "e2a025fd14713b6730f838b116ad7fc2b1c71774e09c22ce0962a468b46c0b55",
-      "sha256": "5d0d923ad7fb53eeaa09a444454ba362f0d003ca06e5a75a805aa70475177e2c"
+      "sha256": "09d8d3cffc53b696b81190c10b305b81034a44876f7fdc899111bd0ea0a9c939"
     }
   ]
 }

@@ -3,8 +3,10 @@
 from pathlib import Path
 from typing import Any
 
+import joblib
 import pandas as pd
 from mobgap.data import GenericMobilisedDataset, load_mobilised_participant_metadata_file
+from tpcp.caching import hybrid_cache
 
 
 class UploadedMatlabDataset(GenericMobilisedDataset):
@@ -57,19 +59,23 @@ class UploadedMatlabDataset(GenericMobilisedDataset):
             depth, tuple(f"level_{i}" for i in range(depth))
         )
 
+    @staticmethod
+    def read_participant_info(path: Path) -> dict[str, dict[str, Any]]:
+        """Validate/cache the small separate infoForAlgo file before building an index."""
+        return hybrid_cache(joblib.Memory(None), 1)(load_mobilised_participant_metadata_file)(path)
+
     @property
     def participant_metadata(self) -> dict[str, Any]:
         self.assert_is_single(None, "participant_metadata")
-        if self.participant_metadata_override is not None:
-            return self.participant_metadata_override
+        overrides = self.participant_metadata_override or {}
         if self.metadata_path is None:
-            return {}
+            return overrides
         # Reuse the public metadata loader while allowing optional/missing heights.
         # No cohort is inferred from browser upload paths.
-        metadata = load_mobilised_participant_metadata_file(self.selected_meta_data_file)
+        metadata = self.read_participant_info(self.selected_meta_data_file)
         selected = metadata.get(self.index.iloc[0, 0], {})
         return {
             target: selected[source] / 100
             for source, target in (("SensorHeight", "sensor_height_m"), ("Height", "height_m"))
             if isinstance(selected.get(source), (int, float))
-        }
+        } | overrides

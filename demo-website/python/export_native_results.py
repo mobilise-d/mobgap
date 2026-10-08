@@ -19,10 +19,6 @@ def export(output: Path) -> None:
         ("impaired", "MS", 0.975, 1.68),
     ):
         path = ROOT / "example_data/data/lab" / cohort / "001/data.mat"
-        inspection = inspect_files([str(path)])
-        if inspection["errors"]:
-            raise ValueError(inspection["errors"])
-        recording = inspection["recordings"][0]
         options = {
             "preset": preset,
             "cohort": cohort,
@@ -30,6 +26,10 @@ def export(output: Path) -> None:
             "participantHeightM": height,
             "measurementCondition": "laboratory",
         }
+        inspection = inspect_files([str(path)], options)
+        if inspection["errors"]:
+            raise ValueError(inspection["errors"])
+        recording = inspection["recordings"][0]
         result = analyze_recording(recording["id"], options)
         (output / f"{preset}.json").write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
         (output / f"{preset}-options.json").write_text(

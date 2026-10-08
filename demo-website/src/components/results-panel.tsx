@@ -60,7 +60,7 @@ export function ResultsPanel({ result, recordingLabel, downloadPrefix = 'mobgap'
         <h2 className="text-xl font-semibold tracking-tight">Your results</h2>
         <p className="mt-1 text-sm text-muted-foreground break-words">{recordingLabel}</p>
       </div>
-      <div className="text-right text-xs text-muted-foreground"><p>{result.preset === 'healthy' ? 'Healthy walking' : 'Impaired walking'} preset</p><p className="mt-1 tabular-nums">{result.summary.processingSeconds.toFixed(2)} s computation</p></div>
+      <div className="text-right text-xs text-muted-foreground"><p>{result.preset === 'auto' ? 'Auto (cohort selection)' : result.preset === 'healthy' ? 'Healthy walking preset' : 'Impaired walking preset'}</p><p className="mt-1 tabular-nums">{result.summary.processingSeconds.toFixed(2)} s computation</p></div>
     </div>
     <dl className="results-stats">
       {statistics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{numericFormat.format(value)}</dd></div>)}

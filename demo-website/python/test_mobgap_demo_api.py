@@ -10,6 +10,7 @@ from scipy.io import savemat
 MODULE_PATH = Path(__file__).with_name("mobgap_demo_api.py")
 ROOT = Path(__file__).resolve().parents[2]
 HA = ROOT / "example_data/data/lab/HA/001"
+MANUAL = {"cohort": "HA", "participantHeightM": 1.59, "sensorHeightM": 0.964, "timezone": "UTC"}
 
 
 def api():
@@ -20,7 +21,7 @@ def api():
 
 
 def test_original_matlab_recordings_keep_units_and_actual_metadata():
-    result = api().inspect_files([str(HA / "data.mat"), str(HA / "infoForAlgo.mat")])
+    result = api().inspect_files([str(HA / "data.mat"), str(HA / "infoForAlgo.mat")], configuration={"cohort": "HA"})
     assert result["errors"] == []
     assert len(result["recordings"]) == 3
     first = result["recordings"][0]
@@ -37,8 +38,8 @@ def test_original_matlab_recordings_keep_units_and_actual_metadata():
 
 def test_full_healthy_pipeline_matches_known_matlab_trial():
     module = api()
-    recording = module.inspect_files([str(HA / "data.mat")])["recordings"][0]
-    assert recording["metadata"] == {}
+    recording = module.inspect_files([str(HA / "data.mat")], configuration=MANUAL)["recordings"][0]
+    assert recording["metadata"] == pytest.approx({"heightM": 1.59, "sensorHeightM": 0.964})
     result = module.analyze_recording(
         recording["id"],
         {
@@ -76,7 +77,7 @@ def test_full_healthy_pipeline_matches_known_matlab_trial():
 def test_invalid_matlab_upload_reports_file_error(tmp_path, content, message):
     path = tmp_path / "uploaded.mat"
     path.write_bytes(content)
-    result = api().inspect_files([str(path)])
+    result = api().inspect_files([str(path)], configuration=MANUAL)
     assert result["recordings"] == []
     assert len(result["errors"]) == 1
     assert result["errors"][0]["fileName"] == "uploaded.mat"
@@ -88,18 +89,18 @@ def test_invalid_matlab_upload_reports_file_error(tmp_path, content, message):
 def test_unknown_mat_structure_reports_supported_format(tmp_path):
     path = tmp_path / "other.mat"
     savemat(path, {"unrelated": [1, 2, 3]})
-    result = api().inspect_files([str(path)])
+    result = api().inspect_files([str(path)], configuration=MANUAL)
     assert result["recordings"] == []
     assert "no Mobilise-D 'data'" in result["errors"][0]["message"]
 
 
-def test_unknown_upload_requires_height_and_explicit_cohort():
+def test_dataset_requires_height_and_explicit_cohort_before_index_creation():
     module = api()
-    recording = module.inspect_files([str(HA / "data.mat")])["recordings"][0]
     with pytest.raises(ValueError, match="cohort"):
-        module.analyze_recording(recording["id"], {"preset": "healthy"})
-    with pytest.raises(ValueError, match="Sensor height is required"):
-        module.analyze_recording(recording["id"], {"preset": "healthy", "cohort": "HA"})
+        module.inspect_files([str(HA / "data.mat")], {})
+    result = module.inspect_files([str(HA / "data.mat")], {"cohort": "HA"})
+    assert result["recordings"] == []
+    assert "Sensor height is required" in result["errors"][0]["message"]
 
 
 def test_generated_samples_preserve_original_matlab_imu(tmp_path):
@@ -120,7 +121,9 @@ def test_generated_samples_preserve_original_matlab_imu(tmp_path):
 
 def test_user_sensor_height_overrides_companion_metadata():
     module = api()
-    recording = module.inspect_files([str(HA / "data.mat"), str(HA / "infoForAlgo.mat")])["recordings"][0]
+    recording = module.inspect_files(
+        [str(HA / "data.mat"), str(HA / "infoForAlgo.mat")], configuration={"cohort": "HA"}
+    )["recordings"][0]
     result = module.analyze_recording(
         recording["id"],
         {
@@ -142,9 +145,9 @@ def test_companion_metadata_is_not_assigned_to_multiple_participants(tmp_path):
     shutil.copyfile(HA / "data.mat", tmp_path / "healthy.mat")
     shutil.copyfile(ROOT / "example_data/data/lab/MS/001/data.mat", tmp_path / "impaired.mat")
     shutil.copyfile(HA / "infoForAlgo.mat", tmp_path / "infoForAlgo.mat")
-    result = api().inspect_files([str(path) for path in tmp_path.glob("*.mat")])
+    result = api().inspect_files([str(path) for path in tmp_path.glob("*.mat")], configuration=MANUAL)
     assert len(result["recordings"]) == 6
-    assert all(recording["metadata"] == {} for recording in result["recordings"])
+    assert all(recording["metadata"] == {"heightM": 1.59, "sensorHeightM": 0.964} for recording in result["recordings"])
     assert all(any("ambiguous" in warning for warning in recording["warnings"]) for recording in result["recordings"])
 
 
@@ -155,37 +158,40 @@ def test_unreadable_participant_file_prevents_external_metadata_pairing(tmp_path
     (tmp_path / "impaired.mat").write_bytes(b"not a MATLAB file")
     shutil.copyfile(ROOT / "example_data/data/lab/MS/001/infoForAlgo.mat", tmp_path / "infoForAlgo.mat")
     module = api()
-    result = module.inspect_files([str(path) for path in tmp_path.glob("*.mat")])
+    result = module.inspect_files([str(path) for path in tmp_path.glob("*.mat")], configuration=MANUAL)
     assert len(result["recordings"]) == 3
     assert len(result["errors"]) == 1
     assert result["errors"][0]["fileName"] == "impaired.mat"
-    assert all(recording["metadata"] == {} for recording in result["recordings"])
+    assert all(recording["metadata"] == {"heightM": 1.59, "sensorHeightM": 0.964} for recording in result["recordings"])
     assert all(
         any("Enter heights manually" in warning for warning in recording["warnings"])
         for recording in result["recordings"]
     )
-    with pytest.raises(ValueError, match="Sensor height is required"):
-        module.analyze_recording(result["recordings"][0]["id"], {"preset": "healthy", "cohort": "HA"})
+    assert result["recordings"][0]["metadata"]["heightM"] == 1.59
 
 
-def test_embedded_metadata_remains_paired_when_another_upload_is_unreadable(tmp_path):
-    unreadable = tmp_path / "impaired.mat"
-    unreadable.write_bytes(b"not a MATLAB file")
-    result = api().inspect_files([str(ROOT / "demo-website/public/samples/healthy.mat"), str(unreadable)])
-    assert len(result["errors"]) == 1
-    assert len(result["recordings"]) == 1
-    assert result["recordings"][0]["metadata"] == pytest.approx({"heightM": 1.59, "sensorHeightM": 0.964})
+def test_separate_participant_file_is_required_unless_manual_metadata_is_supplied():
+    module = api()
+    paths = [str(ROOT / "demo-website/public/samples/healthy.mat")]
+    incomplete = module.inspect_files(paths, {"cohort": "HA"})
+    assert incomplete["recordings"] == []
+    assert "Sensor height is required" in incomplete["errors"][0]["message"]
+    complete = module.inspect_files(
+        [*paths, str(ROOT / "demo-website/public/samples/healthy-info.mat")], {"cohort": "HA"}
+    )
+    assert complete["errors"] == []
+    assert complete["recordings"][0]["metadata"] == pytest.approx({"heightM": 1.59, "sensorHeightM": 0.964})
 
 
 @pytest.mark.parametrize("preset", ["healthy", "impaired"])
 def test_cwa_inspection_defers_samples_and_reports_absent_gyro(preset):
     module = api()
-    result = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")])
+    result = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")], configuration=MANUAL)
     assert result["errors"] == []
     recording = result["recordings"][0]
     assert recording["sourceFormat"] == "cwa"
     assert recording["samples"] is None
-    assert recording["metadata"] == {}
+    assert recording["metadata"] == pytest.approx({"heightM": 1.59, "sensorHeightM": 0.964})
     assert recording["cwa"]["hasGyroscope"] is False
     days = module.cwa_day_windows(recording["id"], "UTC")
     assert len(days["windows"]) == 1
@@ -209,15 +215,17 @@ def test_mixed_cwa_mat_upload_does_not_guess_external_participant_metadata(tmp_p
     shutil.copyfile(HA / "data.mat", tmp_path / "healthy.mat")
     shutil.copyfile(ROOT / "example_data/data/ax6/example-610-steps.cwa", tmp_path / "recording.cwa")
     shutil.copyfile(ROOT / "example_data/data/lab/MS/001/infoForAlgo.mat", tmp_path / "infoForAlgo.mat")
-    result = api().inspect_files([str(path) for path in tmp_path.iterdir()])
+    result = api().inspect_files([str(path) for path in tmp_path.iterdir()], configuration=MANUAL)
     assert result["errors"] == []
     assert len(result["recordings"]) == 4
-    assert all(recording["metadata"] == {} for recording in result["recordings"])
+    assert all(recording["metadata"] == {"heightM": 1.59, "sensorHeightM": 0.964} for recording in result["recordings"])
 
 
 def test_cwa_day_batch_returns_day_errors_without_raising_into_ipython():
     module = api()
-    recording = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")])["recordings"][0]
+    recording = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")], configuration=MANUAL)[
+        "recordings"
+    ][0]
     batch = module.start_cwa_day_batch(
         recording["id"],
         {
@@ -255,7 +263,7 @@ def test_cwa_day_batch_returns_day_errors_without_raising_into_ipython():
 @pytest.mark.parametrize("operation", ["mat_inspection", "mat_pipeline", "manual_window", "day_planning"])
 def test_api_json_boundary_classifies_chained_memory_errors_and_releases_frames(monkeypatch, operation):
     module = api()
-    recording = module.inspect_files([str(HA / "data.mat")])["recordings"][0]
+    recording = module.inspect_files([str(HA / "data.mat")], configuration=MANUAL)["recordings"][0]
     options = {"preset": "healthy", "cohort": "HA", "participantHeightM": 1.7, "sensorHeightM": 0.9}
     failures = []
 
@@ -271,14 +279,16 @@ def test_api_json_boundary_classifies_chained_memory_errors_and_releases_frames(
         monkeypatch.setattr(module.UploadedMatlabDataset, "create_index", out_of_memory)
 
         def invoke():
-            return module.inspect_files([str(HA / "data.mat")])
+            return module.inspect_files([str(HA / "data.mat")], configuration=MANUAL)
     elif operation == "mat_pipeline":
         monkeypatch.setattr(module.MobilisedPipelineHealthy, "run", out_of_memory)
 
         def invoke():
             return module.analyze_recording(recording["id"], options)
     else:
-        cwa = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")])["recordings"][0]
+        cwa = module.inspect_files([str(ROOT / "example_data/data/ax6/example-610-steps.cwa")], configuration=MANUAL)[
+            "recordings"
+        ][0]
         if operation == "manual_window":
             monkeypatch.setattr(module, "_cwa_dataset", out_of_memory)
 
@@ -324,3 +334,25 @@ def test_api_json_boundary_classifies_memory_error_during_result_serialization(m
         "ok": False,
         "error": {"message": "injected JSON allocation failure", "fatal": True},
     }
+
+
+def test_malformed_participant_info_is_reported_against_that_file(tmp_path):
+    info = tmp_path / "bad-info.mat"
+    savemat(info, {"infoForAlgo": 1})
+    result = api().inspect_files([str(HA / "data.mat"), str(info)], MANUAL)
+    assert len(result["recordings"]) == 3
+    assert len(result["errors"]) == 1
+    assert result["errors"][0]["fileName"] == "bad-info.mat"
+    assert result["recordings"][0]["metadata"]["heightM"] == 1.59
+
+
+@pytest.mark.parametrize("cohort,preset,sample", [("HA", "healthy", "healthy"), ("MS", "impaired", "impaired")])
+def test_auto_dispatches_to_the_cohort_pipeline(cohort, preset, sample):
+    module = api()
+    options = {**MANUAL, "cohort": cohort}
+    inspected = module.inspect_files([str(ROOT / f"demo-website/public/samples/{sample}.mat")], options)
+    recording_id = inspected["recordings"][0]["id"]
+    expected = module.analyze_recording(recording_id, {**options, "preset": preset})
+    actual = module.analyze_recording(recording_id, {**options, "preset": "auto"})
+    assert actual["preset"] == preset
+    assert actual["tables"] == expected["tables"]
