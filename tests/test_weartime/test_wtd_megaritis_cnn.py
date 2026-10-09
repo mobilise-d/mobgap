@@ -82,6 +82,15 @@ def _weartime_list(intervals: list[tuple[int, int]]) -> pd.DataFrame:
     return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index="wt_id").astype("int64")
 
 
+def _reference(intervals, uncertain=()):
+    reference = pd.concat(
+        [_weartime_list(intervals).assign(label="wear"), _weartime_list(uncertain).assign(label="uncertain")],
+        ignore_index=True,
+    ).rename_axis("wt_id")
+    reference["label"] = reference["label"].astype(pd.CategoricalDtype(["wear", "uncertain"]))
+    return reference
+
+
 class TestMetaWtdMegaritisCNN(TestAlgorithmMixin):
     """Test tpcp algorithm compatibility."""
 
@@ -158,7 +167,7 @@ class TestMegaritisCnnWeartimeModel:
 
     def test_self_optimize_rejects_one_shot_iterators_for_multi_epoch_training(self) -> None:
         """Require re-iterable lazy training data for multi-epoch fitting."""
-        training_data = iter([(_sensor_data(60), _weartime_list([(0, 60)]))])
+        training_data = iter([(_sensor_data(60), _reference([(0, 60)]))])
 
         with pytest.raises(ValueError, match="re-iterable"):
             MegaritisCnnWeartimeModel(epochs=2).self_optimize(
@@ -339,14 +348,17 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
             columns=BF_SENSOR_COLS,
         )
         other_data = data + 1000
-        recording = (data, _weartime_list([(30, 50), (0, 20)]))
+        recording = (data, _reference([(30, 50), (0, 20)]))
         if uncertain is not None:
-            recording = (*recording, _weartime_list(uncertain))
+            recording = (
+                recording[0],
+                _reference(recording[1][["start", "end"]].itertuples(index=False, name=None), uncertain),
+            )
         records = [
             recording,
-            (_sensor_data(10), _weartime_list([])),
-            (other_data, _weartime_list([(20, 30), (50, 60)])),
-            (data, _weartime_list([]), _weartime_list([(0, 60)])),
+            (_sensor_data(10), _reference([])),
+            (other_data, _reference([(20, 30), (50, 60)])),
+            (data, _reference([], [(0, 60)])),
         ]
         conversions = []
         convert = keras_model_module._as_model_input_sensor_array
@@ -419,7 +431,7 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         monkeypatch.setattr(keras_model_module, "import_module", _fake_import_module)
 
         dataset = MegaritisCnnWeartimeModel(shuffle_buffer_size=32)._make_tf_dataset(
-            [(_sensor_data(60), _weartime_list([(0, 60)]))],
+            [(_sensor_data(60), _reference([(0, 60)]))],
             sampling_rate_hz=1.0,
             batch_size=4,
             window_samples=20,
@@ -456,7 +468,7 @@ class TestWtdMegaritisCNN:
 
     def test_self_optimize_creates_untrained_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Train a new CNN when no low-level model was configured."""
-        training_data = [(_sensor_data(60), _weartime_list([(0, 60)]))]
+        training_data = [(_sensor_data(60), _reference([(0, 60)]))]
         calls: list[tuple[object, float]] = []
 
         def fit_model(
@@ -474,7 +486,7 @@ class TestWtdMegaritisCNN:
 
     def test_self_optimize_delegates_to_configured_window_model(self) -> None:
         """Delegate training to the low-level Keras model instance."""
-        training_data = [(_sensor_data(60), _weartime_list([(0, 60)]))]
+        training_data = [(_sensor_data(60), _reference([(0, 60)]))]
         returned_model = MegaritisCnnWeartimeModel()
         model = _SelfOptimizeRecorder(returned_model=returned_model)
 

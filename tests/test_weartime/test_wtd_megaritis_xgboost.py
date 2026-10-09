@@ -112,6 +112,15 @@ def _weartime_list(intervals: list[tuple[int, int]]) -> pd.DataFrame:
     return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index="wt_id").astype("int64")
 
 
+def _reference(intervals, uncertain=()):
+    reference = pd.concat(
+        [_weartime_list(intervals).assign(label="wear"), _weartime_list(uncertain).assign(label="uncertain")],
+        ignore_index=True,
+    ).rename_axis("wt_id")
+    reference["label"] = reference["label"].astype(pd.CategoricalDtype(["wear", "uncertain"]))
+    return reference
+
+
 def _patch_simple_features(monkeypatch: pytest.MonkeyPatch, calls: list[dict[str, float]] | None = None) -> None:
     def _extract_features(
         _data: pd.DataFrame,
@@ -283,8 +292,8 @@ class TestWtdMegaritisXGBoost:
         clf = _TrainableProbabilityClassifier()
         training_data = _IndexedTrainingData(
             [
-                (_sensor_data_with_acc_pa_window_means([1.0, 2.0], 20), _weartime_list([(0, 20)])),
-                (_sensor_data_with_acc_pa_window_means([3.0, 4.0], 20), _weartime_list([(20, 40)])),
+                (_sensor_data_with_acc_pa_window_means([1.0, 2.0], 20), _reference([(0, 20)])),
+                (_sensor_data_with_acc_pa_window_means([3.0, 4.0], 20), _reference([(20, 40)])),
             ],
             allow_iter=False,
         )
@@ -319,10 +328,13 @@ class TestWtdMegaritisXGBoost:
         calls = []
         _patch_simple_features(monkeypatch, calls)
         clf = _TrainableProbabilityClassifier()
-        recording = (_sensor_data(60), _weartime_list([(0, 40)]))
+        recording = (_sensor_data(60), _reference([(0, 40)]))
         if uncertain is not None:
-            recording = (*recording, _weartime_list(uncertain))
-        training_data = [recording, (_sensor_data(60), _weartime_list([]), _weartime_list([(0, 60)]))]
+            recording = (
+                recording[0],
+                _reference(recording[1][["start", "end"]].itertuples(index=False, name=None), uncertain),
+            )
+        training_data = [recording, (_sensor_data(60), _reference([], [(0, 60)]))]
 
         result = WtdMegaritisXGBoost(
             clf=clf,
@@ -366,7 +378,7 @@ class TestWtdMegaritisXGBoost:
                 window_batch_size=2,
                 memory=memory,
                 trained_sampling_rate_hz=None,
-            ).self_optimize([(recording, _weartime_list(intervals))], sampling_rate_hz=1.0)
+            ).self_optimize([(recording, _reference(intervals))], sampling_rate_hz=1.0)
             assert_array_equal(clf.fit_labels_, np.array(expected_labels, dtype=np.int32))
             model.detect(recording, sampling_rate_hz=1.0)
             assert len(calls) == expected_extractions

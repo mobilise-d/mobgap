@@ -209,9 +209,11 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         *,
         sampling_rate_hz: float,
     ) -> Self:
-        """Train the Keras model from lazy wear-reference pairs or uncertainty triples.
+        """Train the Keras model from lazy labeled-reference pairs.
 
-        Records are ``(data, reference_weartime)`` or ``(data, reference_weartime, reference_uncertain)``.
+        Records are ``(data, reference_weartime)`` pairs. The reference has a mandatory unordered categorical
+        ``label`` column with categories ``["wear", "uncertain"]``. Uncertain means wear versus non-wear could not
+        be determined; the unlabeled complement is known non-wear.
         References use half-open sample boundaries; windows intersecting uncertain intervals are excluded,
         retaining known windows on their original recording grid.
         """

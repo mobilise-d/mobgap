@@ -20,6 +20,11 @@ The inner presets rank three human participant folds. Each inner training set
 independently samples 40% of human days and five seed-42 simulated non-wear days
 from the supplied outer training pool. Simulated days never enter inner
 validation. The best candidate is refitted on the complete outer training fold.
+Every reference frame has a mandatory unordered categorical `label` column
+(categories `["wear", "uncertain"]`), even when empty or all wear. Uncertain
+means wear versus non-wear could not be determined; the unlabeled complement
+is known non-wear. Training consumes `(data, labeled_reference)` pairs.
+
 Partially uncertain human days remain in training: entire windows intersecting
 uncertain intervals are excluded, retaining known windows on the original
 sample grid. Held-out scoring masks uncertain samples as before.
