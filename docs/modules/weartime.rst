@@ -14,6 +14,8 @@ Algorithms
    :template: class.rst
 
     WtdMegaritisSignal
+    WtdMegaritisXGBoost
+    WtdMegaritisCNN
 
 Base classes
 ++++++++++++
@@ -50,6 +52,8 @@ Evaluation
 
     wtd_per_datapoint_score
     wtd_final_agg
+    calculate_wtd_classification_summary
+    calculate_wtd_simulated_non_wear_summary
 
 Interval utilities
 ++++++++++++++++++
@@ -60,3 +64,13 @@ Interval utilities
    :template: func.rst
 
     clip_intervals_to_waking_hours
+
+Optimization
+++++++++++++
+.. currentmodule:: mobgap.weartime.optimization
+
+.. autosummary::
+   :toctree: generated/weartime
+   :template: class.rst
+
+    WearTimeOptunaSearch

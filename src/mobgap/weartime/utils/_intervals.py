@@ -26,6 +26,19 @@ def _validate_waking_hours(waking_hours: tuple[time, time]) -> tuple[time, time]
     return waking_hours
 
 
+def _with_local_datetimes(intervals: pd.DataFrame, data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
+    if not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
+        return intervals
+    boundaries = data.index
+    if len(data):
+        # The final exclusive sample boundary is one sampling period after the last sample.
+        boundaries = boundaries.append(pd.DatetimeIndex([boundaries[-1] + pd.Timedelta(seconds=1 / sampling_rate_hz)]))
+    return intervals.assign(
+        local_datetime_start=boundaries.take(intervals["start"].to_numpy()),
+        local_datetime_end=boundaries.take(intervals["end"].to_numpy()),
+    )
+
+
 def _timestamp_to_sample_boundary(timestamp: pd.Timestamp, data_index: pd.DatetimeIndex) -> int:
     return int(data_index.searchsorted(timestamp, side="left"))
 

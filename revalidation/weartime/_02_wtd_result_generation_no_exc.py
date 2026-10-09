@@ -4,161 +4,200 @@
 Revalidation of the wear-time detection algorithms
 ==================================================
 
-.. note:: This script creates unpublished local validation results for the SUSTAIN wear-time dataset. The generated
-    result files are not part of the published validation-result package at this time.
+This script evaluates signal, XGBoost and CNN detectors on SUSTAIN human
+recordings
+with participant LOSO. Each held-out participant contributes daily datapoints
+with at least eight hours of recorded data. Simulated non-wear source recordings
+use one fixed seed-42 50/50 train/test split, repeated in every human fold.
+All evaluated days from one simulated recording remain in the same half.
+The signal detector uses ``DummyOptimize``. XGBoost and CNN use the SUSTAIN
+Optuna presets to tune on human-only inner validation and refit each outer
+training fold. The default CNN fits 60 epochs with 20 trials; XGBoost uses
+40 trials.
 
-This script runs the wear-time detector on the SUSTAIN wear-time dataset using daily datapoints with at least eight
-hours of recorded data. The daily split is important because the expected deployment mode is to apply the detector to
-one day at a time and because waking-hours metrics are only well-defined for single-day datapoints.
-
-Performance metrics are calculated on a per-day basis and aggregated over the full dataset. The raw detected
-wear-time intervals, reference wear-time intervals, waking-hours reference intervals, and interval-overlap matches are
-saved together with the single and aggregated score tables.
-For SUSTAIN participant 010, samples after the documented device-removal cutoff remain available to the detector
-but have uncertain ground truth and are excluded from scoring. Undefined per-day metrics appear as NaN; dataset means
-omit those days. Saved raw intervals retain detector and reference IDs, while ``*_scored`` tables show the fragments
-used for metrics.
+Per-day and per-fold metrics and raw interval matches are saved locally. The
+analysis summarizes labeled-sample confusion counts with day, participant and
+fold weighting, and averages daily errors for duration summaries. Participant
+010's uncertain ground truth is excluded from scoring; the detector still
+receives its full signal.
+Undefined daily metrics are NaN.
 
 .. warning::
-    Before you modify and re-run this script, read through our guide on :ref:`revalidation`.
-    These results are local/unpublished; keep the script suffix ``_no_exc`` until the generated results are intended
-    to be included in the public validation-result release.
+    Read :ref:`revalidation` before changing this script. These results are
+    unpublished; keep the ``_no_exc`` suffix until they are intended for the
+    public validation-result release.
 
 """
 
 # %%
-# Setting up the algorithms
-# -------------------------
-# We use the :class:`~mobgap.weartime.pipeline.WtdEmulationPipeline` to run the wear-time detector. The pipeline
-# handles dataset metadata and the sensor-frame to body-frame conversion expected by the current signal-based
-# detector.
+# Configure the signal detector and the daily dataset
+# --------------------------------------------------
 from pathlib import Path
 
-from mobgap.weartime import WtdMegaritisSignal
-from mobgap.weartime.pipeline import WtdEmulationPipeline
-
-pipelines = {
-    "WtdMegaritisSignal": WtdEmulationPipeline(WtdMegaritisSignal()),
-}
-
-# %%
-# Setting up the dataset
-# ----------------------
-# Set up your environment variables to point to the correct paths. The easiest way to do this is to create a `.env`
-# file in the root of the repository with the following content. You need the path to the root folder of the SUSTAIN
-# wear-time dataset `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` and the path where revalidation results should be stored
-# `MOBGAP_VALIDATION_DATA_PATH`. The path to the cache directory `MOBGAP_CACHE_DIR_PATH` is optional.
-import pandas as pd
-from joblib import Memory, Parallel, delayed
+from joblib import Memory
 from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
+from mobgap.utils.evaluation import EvaluationCV, save_evaluation_results
 from mobgap.utils.misc import get_env_var
+from mobgap.weartime import (
+    MegaritisCnnWeartimeModel,
+    WtdMegaritisCNN,
+    WtdMegaritisSignal,
+    WtdMegaritisXGBoost,
+)
+from mobgap.weartime.evaluation import wtd_score
+from mobgap.weartime.optimization import WearTimeOptunaSearch
+from mobgap.weartime.pipeline import WtdEmulationPipeline
+from sklearn.model_selection import LeaveOneGroupOut
+from tpcp.optimize import DummyOptimize
+from tpcp.validate import (
+    CombinedSplitter,
+    DatasetSplitter,
+    NoSplit,
+    SubsetSplitter,
+)
 
-cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
+cache_dir = Path(
+    get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache")
+).expanduser()
 results_base_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
-    / "results/weartime_no_exc_min8h"
+    / "results/weartime_loso_no_exc_min8h"
 )
 condition_name = "sustain_weartime"
+n_jobs = int(get_env_var("MOBGAP_N_JOBS", 1))
+SEED = 42
 
 dataset_sustain_weartime = SustainWearTimeDataset(
-    get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
+    Path(get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser(),
     tz="Europe/London",
     additional_sensors_enabled=(),
     memory=Memory(cache_dir),
 )
-
-# %%
-# Running the evaluation
-# ----------------------
-# We multiprocess the evaluation on the level of algorithms using joblib. Each algorithm pipeline is run using its own
-# instance of the :class:`~mobgap.evaluation.Evaluation` class.
-#
-# The scoring function returns TP/FP/FN/TN counts in samples and duration metrics in minutes.
-import matplotlib.pyplot as plt
-import seaborn as sns
-from mobgap.utils.evaluation import Evaluation, save_evaluation_results
-from mobgap.weartime.evaluation import wtd_score
-
-n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
-raw_results_to_save = [
-    "matches",
-    "detected",
-    "detected_scored",
-    "reference",
-    "reference_scored",
-    "reference_waking",
-]
-
-
-def run_evaluation(name, pipeline, ds):
-    eval_pipe = Evaluation(
-        ds,
-        scoring=wtd_score,
-    ).run(pipeline)
-    return name, eval_pipe
-
-
-def eval_debug_plot(
-    results: dict[str, Evaluation[WtdEmulationPipeline]],
-) -> None:
-    results_df = (
-        pd.concat({k: v.get_single_results_as_df() for k, v in results.items()})
-        .reset_index()
-        .rename(columns={"level_0": "algo_name"})
-    )
-
-    metrics = [
-        "precision",
-        "recall",
-        "f1_score",
-        "weartime_error_min",
-        "waking_weartime_error_min",
-        "reference_weartime_min",
-    ]
-    fig, axes = plt.subplots(2, 3, figsize=(18, 7))
-
-    for ax, metric in zip(axes.flatten(), metrics):
-        sns.boxplot(
-            data=results_df,
-            x="recording_type",
-            y=metric,
-            hue="algo_name",
-            ax=ax,
-            showmeans=True,
-        )
-        ax.set_title(metric)
-        ax.set_xlabel("")
-
-    plt.tight_layout()
-    plt.show()
-
-
-with Parallel(n_jobs=n_jobs) as parallel:
-    results_sustain_weartime: dict[str, Evaluation[WtdEmulationPipeline]] = (
-        dict(
-            parallel(
-                delayed(run_evaluation)(
-                    name, pipeline, dataset_sustain_weartime
-                )
-                for name, pipeline in pipelines.items()
+# The frozen lightweight XGBoost feature list was selected using this cohort;
+# revalidation does not provide an independent feature-selection assessment.
+optimizers = {
+    "WtdMegaritisSignal": DummyOptimize(
+        WtdEmulationPipeline(WtdMegaritisSignal()),
+        ignore_potential_user_error_warning=True,
+    ),
+    "WtdMegaritisXGBoost": WearTimeOptunaSearch(
+        WtdEmulationPipeline(
+            WtdMegaritisXGBoost(
+                **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
+                memory=Memory(
+                    cache_dir / "xgboost_features", compress=3, verbose=0
+                ),
             )
-        )
-    )
+        ),
+        **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+        n_trials=40,
+    ),
+    "WtdMegaritisCNN": WearTimeOptunaSearch(
+        WtdEmulationPipeline(
+            WtdMegaritisCNN(
+                model=MegaritisCnnWeartimeModel(standardize_in_model=True)
+            )
+        ),
+        **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
+    ),
+}
 
 # %%
-# We create a quick plot for debugging. This is not meant to be a comprehensive analysis, but rather a quick check to
-# see if the generated results are plausible before writing them to disk.
-eval_debug_plot(results_sustain_weartime)
+# Hold out every day of one human participant per fold
+# ---------------------------------------------------
+# The dataset contains two parts: human recordings and simulated non-wear
+# recordings.
+# The human recordings are the most important part of our evaluation.
+# We use a leave one participant out (LOSO) cross-validation scheme to
+# estimate the performance on independent human participants.
+#
+# The dataset further contains simulated non-wear recordings.
+# As this part of the data contans "unrealistic" distributions of wear vs.
+# non-wear, we would not expect during real deployments,
+# we try to keep this part seperated during the evaluation.
+# However, this data might still be usefull for the training of the models to
+# provide them with examples of non-wear "movements".
+#
+# For this reason we use a very unusal cross-validation approach.
+# We split the actual human recordings using a LOSO scheme.
+# Then we add a fixed 50% of the simulated non-wear recordings to eachs fold
+# train data, so that the models can learn from this data.
+#
+# To allow evaluation on the non-wear recordings, we add the remaining 50% of
+# the simulated non-wear recordings to each fold test data.
+# This means each test set contains one unique human participant and the same
+# 50% of the simulated non-wear recordings.
+# We will later sperate the two parts of the test data again before
+# calculating the metrics.
+# But this approach allows us to get all results in a single run of the
+# evaluation, without complex managment of intermediate model artifacts or
+# similar.
+splitter = CombinedSplitter(
+    parts=[
+        (
+            "human",
+            SubsetSplitter(
+                lambda days: days.get_subset(recording_type="human_movement"),
+                DatasetSplitter(LeaveOneGroupOut(), groupby="participant_id"),
+            ),
+        ),
+        (
+            "simulated_non_wear",
+            SubsetSplitter(
+                lambda days: days.get_subset(
+                    recording_type="simulated_movements"
+                ),
+                NoSplit(
+                    None,
+                    train=lambda days: days.get_subset(
+                        recording_id=days.index["recording_id"]
+                        .drop_duplicates()
+                        .sort_values()
+                        .sample(frac=1, random_state=SEED)
+                        .iloc[: days.index["recording_id"].nunique() // 2]
+                        .tolist()
+                    ),
+                    test=lambda days: days.get_subset(
+                        recording_id=days.index["recording_id"]
+                        .drop_duplicates()
+                        .sort_values()
+                        .sample(frac=1, random_state=SEED)
+                        .iloc[days.index["recording_id"].nunique() // 2 :]
+                        .tolist()
+                    ),
+                ),
+            ),
+        ),
+    ]
+)
 
 # %%
-# Then we save the results to disk.
+# Evaluate held-out days and save the standard result tables
+# ---------------------------------------------------------
+results_sustain_weartime = {
+    name: EvaluationCV(
+        dataset_sustain_weartime,
+        scoring=wtd_score,
+        cv_iterator=splitter,
+        cv_params={"n_jobs": n_jobs, "return_train_score": False},
+    ).run(optimizer)
+    for name, optimizer in optimizers.items()
+}
+
 for name, result in results_sustain_weartime.items():
     save_evaluation_results(
         name,
         result,
         condition=condition_name,
         base_path=results_base_path,
-        raw_results=raw_results_to_save,
+        raw_results=[
+            "matches",
+            "detected",
+            "detected_scored",
+            "reference",
+            "reference_scored",
+            "reference_waking",
+        ],
         include_non_stable_results=True,
     )

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-from importlib import import_module
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -19,22 +17,13 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-
-_LOGGER = logging.getLogger(__name__)
+    from mobgap.weartime.base import TrainingRecording
 
 
 def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
     if convert:
         return to_body_frame(data)
     return data
-
-
-def _rss_mb() -> float | None:
-    try:
-        psutil = import_module("psutil")
-    except ImportError:
-        return None
-    return float(psutil.Process().memory_info().rss / 1024**2)
 
 
 class _TrainingDataFromDataset:
@@ -45,35 +34,14 @@ class _TrainingDataFromDataset:
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def __iter__(self) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
+    def __iter__(self) -> Iterator[TrainingRecording]:
         for datapoint_index in range(len(self.dataset)):
             yield self.load_recording(datapoint_index)
 
-    def load_recording(self, datapoint_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def load_recording(self, datapoint_index: int) -> TrainingRecording:
         datapoint = self.dataset[datapoint_index]
-        uncertain = getattr(datapoint, "reference_uncertain_", None)
-        if uncertain is not None and not uncertain.empty:
-            raise ValueError(
-                "Cannot optimize a binary wear-time detector on a datapoint with uncertain ground truth. "
-                "Select recordings with fully labeled wear and non-wear references."
-            )
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug(
-                "Loading wear-time training datapoint %s: group=%s, rss_mb=%s",
-                datapoint_index,
-                datapoint.group_label,
-                _rss_mb(),
-            )
         data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         reference_weartime = datapoint.reference_weartime_
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug(
-                "Loaded wear-time training datapoint %s: n_samples=%s, n_reference_intervals=%s, rss_mb=%s",
-                datapoint_index,
-                len(data),
-                len(reference_weartime),
-                _rss_mb(),
-            )
         return data, reference_weartime
 
 
@@ -96,8 +64,9 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
 
     This wraps any wear-time detector and allows it to be evaluated or optimized through tpcp's validation and
     optimization utilities.
-    Optimization rejects datapoints with nonempty ``reference_uncertain_`` because the paired training interface
-    cannot distinguish uncertain samples from non-wear.
+    Training passes the recording and its labeled wear/uncertain reference regions.
+    Trainable detectors exclude complete windows intersecting uncertain regions, retaining known portions on the
+    original sample grid. Held-out scoring continues to mask uncertain samples independently.
 
     Parameters
     ----------
@@ -124,7 +93,9 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
     This is usually not required by algorithms, but it can be helpful for dummy algorithms and cache keys.
 
     For the ``self_optimize`` method, the pipeline first reads the sampling rate metadata for each
-    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` tuples to the algorithm.
+    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` pairs to the algorithm.
+    References have a mandatory categorical ``label`` column (``["wear", "uncertain"]``) and use half-open
+    sample intervals; trainable detectors exclude windows intersecting uncertainty on the original recording grid.
     This keeps recording data loading at the dataset iterator boundary instead of collecting all recordings in memory
     first.
     """

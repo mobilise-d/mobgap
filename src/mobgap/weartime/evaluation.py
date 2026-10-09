@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+from scipy.stats import t
 from tpcp.validate import FloatAggregator, Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
@@ -58,7 +59,7 @@ def _exclude_uncertain(intervals: pd.DataFrame, uncertain: pd.DataFrame) -> pd.D
             positions.append(position)
             starts.append(fragment_start)
             ends.append(fragment_end)
-    result = intervals.iloc[positions][["start", "end"]].copy()
+    result = intervals.iloc[positions].copy()
     result["start"] = starts
     result["end"] = ends
     return result
@@ -101,8 +102,10 @@ def wtd_per_datapoint_score(
         Pipeline with a detector that provides ``waking_hours`` and wear-time results.
     datapoint : BaseGaitDataset
         Single-day datapoint with ``data_ss``, ``sampling_rate_hz`` and ``reference_weartime_``. The reference is a
-        DataFrame with sample-based ``start`` and exclusive ``end`` columns. If the datapoint provides
-        ``reference_uncertain_``, those samples are excluded from all scores and duration errors.
+        DataFrame with sample-based ``start``, exclusive ``end`` and a mandatory unordered categorical ``label``
+        column with categories ``["wear", "uncertain"]``. Uncertain means wear versus non-wear could not be
+        determined; those samples are excluded from all scores and duration errors. The unlabeled complement
+        is known non-wear. Detector output does not require a label column.
     zero_division : {"warn", 0, 1}
         Value passed to classification metrics when a denominator is zero on labeled data. It does not turn
         entirely uncertain datapoints into measured zero scores.
@@ -113,7 +116,8 @@ def wtd_per_datapoint_score(
         Classification metrics and sample counts, wear-time durations in minutes, and runtime in seconds. All
         scalar rates and durations are NaN when no labeled samples remain. Waking durations are NaN when the
         recorded waking window contains only uncertain samples. ``detected`` and ``reference`` retain the original
-        interval IDs; ``detected_scored`` and ``reference_scored`` contain the fragments used for scoring after
+        interval IDs; ``reference`` includes wear and uncertain regions with their categorical labels.
+        ``detected_scored`` and wear-only ``reference_scored`` contain the fragments used for scoring after
         uncertain samples are removed. These tables, ``matches``, ``reference_waking``, and ``sampling_rate_hz`` use
         :func:`~tpcp.validate.no_agg` for the final aggregator.
     """
@@ -124,11 +128,16 @@ def wtd_per_datapoint_score(
         pipeline.safe_run(datapoint)
 
         detected_weartime = _only_start_end(pipeline.weartime_list_)
-        reference_weartime = _only_start_end(datapoint.reference_weartime_, index_name="weartime_id")
+        labeled_reference = datapoint.reference_weartime_
+        reference_weartime = (
+            labeled_reference.loc[labeled_reference["label"] == "wear", ["start", "end", "label"]]
+            .astype({"start": "int64", "end": "int64"})
+            .rename_axis("weartime_id")
+        )
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
         waking_hours = pipeline.algo_.waking_hours
-        uncertain = getattr(datapoint, "reference_uncertain_", pd.DataFrame(columns=["start", "end"]))
+        uncertain = labeled_reference.loc[labeled_reference["label"] == "uncertain", ["start", "end"]]
 
         matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data), uncertain)
         if not uncertain.empty:
@@ -191,7 +200,7 @@ def wtd_per_datapoint_score(
             "matches": no_agg(matches),
             "detected": no_agg(detected_weartime),
             "detected_scored": no_agg(detected_scored),
-            "reference": no_agg(reference_weartime),
+            "reference": no_agg(labeled_reference[["start", "end", "label"]].rename_axis("weartime_id")),
             "reference_scored": no_agg(reference_scored),
             "reference_waking": no_agg(reference_waking_weartime),
             "sampling_rate_hz": no_agg(sampling_rate_hz),
@@ -304,6 +313,133 @@ def wtd_final_agg(
     )
 
 
+def calculate_wtd_classification_summary(daily_results: pd.DataFrame) -> pd.Series:
+    """Summarize held-out classification at day, participant and fold levels.
+
+    Parameters
+    ----------
+    daily_results
+        One row per held-out day for one algorithm, with ``fold``, ``participant_id``,
+        ``tp_samples``, ``fp_samples``, ``fn_samples`` and ``tn_samples`` columns.
+        Samples with uncertain ground truth must already be excluded from the counts.
+        A participant's held-out days must belong to one fold.
+
+    Returns
+    -------
+    pd.Series
+        Precision, recall, F1, specificity, accuracy and NPV under six prefixes:
+
+        - ``single_mean__day__combined__``
+        - ``fold_mean__day__combined__``
+        - ``single_mean__participant__combined__``
+        - ``fold_mean__participant__combined__``
+        - ``single_mean__participant__day_mean__combined__``
+        - ``fold_mean__participant__day_mean__combined__``
+
+        ``combined`` pools sample counts before calculating rates, within each day or participant.
+        ``participant__day_mean`` averages daily rates within each participant instead.
+        ``single_mean`` averages all scoring units across folds. ``fold_mean`` first averages the
+        scoring units within each fold, then averages folds. These are means of rates, not a
+        single rate calculated from samples pooled across all folds.
+
+        A zero denominator yields zero, matching the default per-day scorer convention. A day or
+        participant with no labeled samples has undefined rates and is excluded from means.
+        Entirely undefined folds are also excluded from the fold mean.
+
+        Each mean has ``__ci95_lower`` and ``__ci95_upper`` siblings. These are symmetric
+        Student's t confidence intervals using the same averaging units as the mean.
+        Bounds are NaN for fewer than two labeled units and are not clipped to [0, 1].
+        Day-level intervals treat days as independent; they do not account for correlation
+        between days of the same participant.
+    """
+    counts = daily_results.set_index(["fold", "participant_id"])[
+        ["tp_samples", "fp_samples", "fn_samples", "tn_samples"]
+    ]
+
+    def rates(sample_counts: pd.DataFrame) -> pd.DataFrame:
+        tp, fp, fn, tn = (sample_counts[column] for column in counts.columns)
+        labeled = tp + fp + fn + tn
+        scores = pd.DataFrame(
+            {
+                "precision": tp / (tp + fp),
+                "recall": tp / (tp + fn),
+                "f1_score": 2 * tp / (2 * tp + fp + fn),
+                "specificity": tn / (tn + fp),
+                "accuracy": (tp + tn) / labeled,
+                "npv": tn / (tn + fn),
+            }
+        )
+        return scores.fillna(0).where(labeled > 0, axis=0)
+
+    day_scores = rates(counts)
+    participant_scores = rates(counts.groupby(level=["fold", "participant_id"]).sum())
+    participant_day_scores = day_scores.groupby(level=["fold", "participant_id"]).mean()
+    summaries = []
+    for name, scores in (
+        ("day__combined", day_scores),
+        ("participant__combined", participant_scores),
+        ("participant__day_mean__combined", participant_day_scores),
+    ):
+        for prefix, units in (
+            ("single_mean", scores),
+            ("fold_mean", scores.groupby(level="fold").mean()),
+        ):
+            mean = units.mean().add_prefix(f"{prefix}__{name}__")
+            half_width = (units.sem() * t.ppf(0.975, units.count() - 1)).set_axis(mean.index)
+            summaries.extend(
+                [mean, (mean - half_width).add_suffix("__ci95_lower"), (mean + half_width).add_suffix("__ci95_upper")]
+            )
+    return pd.concat(summaries)
+
+
+def calculate_wtd_simulated_non_wear_summary(daily_results: pd.DataFrame) -> pd.Series:
+    """Summarize repeated held-out predictions using unique simulated non-wear recordings.
+
+    Parameters
+    ----------
+    daily_results
+        One row per evaluated day and outer fold for one algorithm, containing only known non-wear recordings.
+        Columns are ``fold``, ``recording_id``, the four ``*_samples`` confusion counts, and
+        ``detected_weartime_min``. Uncertain samples must already be excluded. ``recording_id`` must identify
+        the original recording globally across days and folds; SUSTAIN IDs include type, participant and CWA stem.
+
+    Returns
+    -------
+    pd.Series
+        ``single_mean__recording__fold_mean__combined__specificity`` and ``...__accuracy`` pool day counts
+        within each recording/fold before calculating rates. For entirely non-wear ground truth, both rates
+        are equal. ``single_mean__recording__fold_mean__day_mean__false_wear_min`` averages detected wear
+        minutes over the evaluated days of each recording/fold. This is per evaluated day, not normalized
+        to 24 hours. Each recording's metrics are then averaged across outer-fold models, followed by an
+        equal mean over unique recordings. No positive-class rates or relative wear-duration errors are reported.
+
+        Each mean has symmetric Student's t ``__ci95_lower`` and ``__ci95_upper`` bounds based on those
+        unique recording values after fold-model averaging. Repeated recording/fold predictions are not
+        independent CI observations. Undefined values are excluded; fewer than two measured recordings
+        yield NaN bounds. Bounds are not clipped. ``n_recordings`` counts all provided recording IDs.
+    """
+    grouped = daily_results.groupby(["fold", "recording_id"])
+    counts = grouped[["tp_samples", "fp_samples", "fn_samples", "tn_samples"]].sum()
+    recording_fold_scores = pd.DataFrame(
+        {
+            "combined__specificity": counts["tn_samples"] / (counts["tn_samples"] + counts["fp_samples"]),
+            "combined__accuracy": (counts["tp_samples"] + counts["tn_samples"]) / counts.sum(axis=1),
+            "day_mean__false_wear_min": grouped["detected_weartime_min"].mean(),
+        }
+    )
+    recording_scores = recording_fold_scores.groupby(level="recording_id").mean()
+    mean = recording_scores.mean().add_prefix("single_mean__recording__fold_mean__")
+    half_width = (recording_scores.sem() * t.ppf(0.975, recording_scores.count() - 1)).set_axis(mean.index)
+    return pd.concat(
+        [
+            pd.Series({"n_recordings": len(recording_scores)}),
+            mean,
+            (mean - half_width).add_suffix("__ci95_lower"),
+            (mean + half_width).add_suffix("__ci95_upper"),
+        ]
+    )
+
+
 wtd_score = Scorer(
     wtd_per_datapoint_score, final_aggregator=wtd_final_agg, default_aggregator=FloatAggregator(np.nanmean)
 )
@@ -311,12 +447,21 @@ wtd_score.__doc__ = """Scorer for wear-time detection algorithms.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using :func:`wtd_per_datapoint_score` as
 per-datapoint scorer and :func:`wtd_final_agg` as final aggregator. Pass single-day datapoints with
-``reference_weartime_`` intervals in ``[start, end)`` sample coordinates and a common sampling rate. If a datapoint
-provides ``reference_uncertain_``, its samples are excluded from scoring while the detector still receives the full
-signal. Undefined per-day rates and durations are NaN and excluded from mean scores. Combined metrics use only
+``reference_weartime_`` intervals in ``[start, end)`` sample coordinates, mandatory categorical ``label``
+(categories ``["wear", "uncertain"]``), and a common sampling rate. Unknown wear versus non-wear regions are
+marked ``uncertain`` and excluded from scoring while the detector still receives the full signal. The unlabeled
+complement is known non-wear. Undefined per-day rates and durations are NaN and excluded from mean scores.
+Combined metrics use only
 labeled samples; they are NaN when no applicable labels exist. ``raw__detected`` and ``raw__reference`` retain
-original interval IDs, while ``raw__detected_scored`` and ``raw__reference_scored`` show fragments after masking.
+original interval IDs; reference exports include the categorical labels and unknown regions, while
+``raw__detected_scored`` and wear-only ``raw__reference_scored`` show fragments after masking.
 """
 
 
-__all__ = ["wtd_final_agg", "wtd_per_datapoint_score", "wtd_score"]
+__all__ = [
+    "calculate_wtd_classification_summary",
+    "calculate_wtd_simulated_non_wear_summary",
+    "wtd_final_agg",
+    "wtd_per_datapoint_score",
+    "wtd_score",
+]

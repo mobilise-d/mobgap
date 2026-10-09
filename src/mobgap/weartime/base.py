@@ -12,7 +12,8 @@ from mobgap._docutils import make_filldoc
 from mobgap._utils_internal.misc import MeasureTimeResults, timer_doc_filler
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
 
-TrainingData = Iterable[tuple[pd.DataFrame, pd.DataFrame]]
+TrainingRecording = tuple[pd.DataFrame, pd.DataFrame]
+TrainingData = Iterable[TrainingRecording]
 
 base_weartime_docfiller = make_filldoc(
     {
@@ -67,8 +68,12 @@ self
 """,
         "self_optimize_paras": """
 training_data
-    A re-iterable sequence of ``(data, reference_weartime)`` tuples. Each tuple contains the raw IMU data of a single
-    sensor and the reference wear-time periods for that recording. Reference periods use the same ``[start, end)``
+    A re-iterable sequence of ``(data, reference_weartime)`` pairs. Each tuple contains the raw IMU data of a single
+    sensor and reference periods for that recording. The reference has a mandatory unordered categorical
+    ``label`` column with categories ``["wear", "uncertain"]``. ``uncertain`` marks regions where wear versus
+    non-wear could not be determined; the unlabeled complement is known non-wear.
+    Windows intersecting uncertain samples are excluded from training.
+    Reference periods use the same ``[start, end)``
     convention as ``weartime_list_``.
     This can be a lazy dataset-backed iterator so recordings are loaded only while training consumes them.
     The optimization is performed over all recordings combined.
@@ -278,6 +283,7 @@ def _unify_weartime_df(df: pd.DataFrame, expected_id_name: str = "wt_id") -> pd.
 __all__ = [
     "BaseWeartimeDetector",
     "TrainingData",
+    "TrainingRecording",
     "_unify_weartime_df",
     "base_weartime_docfiller",
     "get_weartime_df_dtypes",

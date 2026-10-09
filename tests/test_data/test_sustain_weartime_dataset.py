@@ -412,6 +412,8 @@ def test_human_movement_references_are_snapped_to_sample_boundaries(tmp_path):
     assert nonwear.iloc[0]["duration_s"] == pytest.approx(10 / datapoint.sampling_rate_hz)
 
     weartime = datapoint.reference_weartime_
+    assert weartime["label"].dtype == pd.CategoricalDtype(["wear", "uncertain"])
+    assert weartime["label"].tolist() == ["wear", "wear"]
     assert weartime[["start", "end", "duration"]].to_dict("records") == [
         {"start": 0, "end": 10, "duration": 10},
         {"start": 20, "end": len(data), "duration": len(data) - 20},
@@ -493,7 +495,8 @@ def test_simulated_movements_are_all_nonwear(tmp_path):
     assert nonwear.iloc[0]["start_dt"] == data.index[0]
     assert nonwear.iloc[0]["end_dt"] == data.index[-1] + pd.to_timedelta(1 / datapoint.sampling_rate_hz, unit="s")
 
-    assert list(weartime.columns) == ["start", "end", "duration", "start_dt", "end_dt", "duration_s"]
+    assert list(weartime.columns) == ["start", "end", "duration", "start_dt", "end_dt", "duration_s", "label"]
+    assert weartime["label"].dtype == pd.CategoricalDtype(["wear", "uncertain"])
     assert weartime.empty
 
 
@@ -522,8 +525,10 @@ def test_uncertain_ground_truth_overrides_open_nonwear_tail(tmp_path, monkeypatc
     datapoint = SustainWearTimeDataset(base_path, splitter=None).get_subset(participant_id="010")
 
     assert datapoint.reference_nonwear_[["start", "end"]].to_numpy().tolist() == [[10, 15]]
-    assert datapoint.reference_uncertain_[["start", "end"]].to_numpy().tolist() == [[15, len(datapoint.data_ss)]]
-    assert datapoint.reference_weartime_[["start", "end"]].to_numpy().tolist() == [[0, 10]]
+    reference = datapoint.reference_weartime_
+    assert reference[["start", "end"]].to_numpy().tolist() == [[0, 10], [15, len(datapoint.data_ss)]]
+    assert reference["label"].tolist() == ["wear", "uncertain"]
+    assert reference["label"].dtype == pd.CategoricalDtype(["wear", "uncertain"])
 
 
 @pytest.mark.parametrize("recording_id", [HUMAN_RECORDING_ID, SIMULATED_RECORDING_ID])
