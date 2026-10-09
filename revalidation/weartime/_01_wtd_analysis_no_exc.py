@@ -7,8 +7,9 @@ Performance of the wear-time detection algorithms on the SUSTAIN dataset
 This script analyses unpublished participant-LOSO results on SUSTAIN human
 recordings and a fixed held-out half of simulated non-wear source recordings.
 Each evaluated day contains at least eight hours of recorded data. The signal
-detector has no learned parameters; LOSO does not undo historical tuning of
-its fixed settings.
+detector has no learned parameters; LOSO does not undo historical
+tuning of its fixed settings. CNN and XGBoost are fitted and tuned within each
+outer training fold.
 
 Classification summaries compare equal weights for days, participants and folds.
 Within each participant, rates use either pooled labeled-sample confusion counts
@@ -29,11 +30,7 @@ remain point estimates.
 # %%
 # Compared algorithms
 # -------------------
-# At the moment, this local validation compares the signal-based wear-time
-# detector implemented in MobGap. Additional
-# algorithms can be added here once they are implemented as
-# :class:`~mobgap.weartime.base.BaseWeartimeDetector`
-# instances and evaluated with the wear-time result-generation script.
+# Compare the three detectors configured in the shared result-generation script.
 from functools import partial
 from pathlib import Path
 
@@ -50,6 +47,8 @@ from scipy.stats import t
 
 algorithms = {
     "WtdMegaritisSignal": ("WtdMegaritisSignal", "MobGap"),
+    "WtdMegaritisXGBoost": ("WtdMegaritisXGBoost", "MobGap"),
+    "WtdMegaritisCNN": ("WtdMegaritisCNN", "MobGap"),
 }
 
 results_base_path = (

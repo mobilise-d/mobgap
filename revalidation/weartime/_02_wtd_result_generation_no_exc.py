@@ -4,14 +4,15 @@
 Revalidation of the wear-time detection algorithms
 ==================================================
 
-This script evaluates the signal-based detector on SUSTAIN human recordings
+This script evaluates signal, XGBoost and CNN detectors on SUSTAIN human
+recordings
 with participant LOSO. Each held-out participant contributes daily datapoints
 with at least eight hours of recorded data. Simulated non-wear source recordings
 use one fixed seed-42 50/50 train/test split, repeated in every human fold.
 All evaluated days from one simulated recording remain in the same half.
-The signal detector has no fitted parameters, so ``DummyOptimize`` runs the same
-configured detector in every fold. This establishes the CV workflow for future
-trainable detectors.
+The signal detector uses ``DummyOptimize``. XGBoost and CNN use the SUSTAIN
+Optuna presets to tune on human-only inner validation and refit each outer
+training fold. The default CNN fits 60 epochs and each search runs 20 trials.
 
 Per-day and per-fold metrics and raw interval matches are saved locally. The
 analysis summarizes labeled-sample confusion counts with day, participant and
@@ -37,8 +38,14 @@ from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV, save_evaluation_results
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime import WtdMegaritisSignal
+from mobgap.weartime import (
+    MegaritisCnnWeartimeModel,
+    WtdMegaritisCNN,
+    WtdMegaritisSignal,
+    WtdMegaritisXGBoost,
+)
 from mobgap.weartime.evaluation import wtd_score
+from mobgap.weartime.optimization import WearTimeOptunaSearch
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import DummyOptimize
@@ -55,7 +62,7 @@ results_base_path = (
     / "results/weartime_loso_no_exc_min8h"
 )
 condition_name = "sustain_weartime"
-n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
+n_jobs = int(get_env_var("MOBGAP_N_JOBS", 1))
 SEED = 42
 
 dataset_sustain_weartime = SustainWearTimeDataset(
@@ -68,6 +75,23 @@ optimizers = {
     "WtdMegaritisSignal": DummyOptimize(
         WtdEmulationPipeline(WtdMegaritisSignal()),
         ignore_potential_user_error_warning=True,
+    ),
+    "WtdMegaritisXGBoost": WearTimeOptunaSearch(
+        WtdEmulationPipeline(
+            WtdMegaritisXGBoost(
+                **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
+                memory=Memory(
+                    cache_dir / "xgboost_features", compress=3, verbose=0
+                ),
+            )
+        ),
+        **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+    ),
+    "WtdMegaritisCNN": WearTimeOptunaSearch(
+        WtdEmulationPipeline(
+            WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())
+        ),
+        **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
     ),
 }
 

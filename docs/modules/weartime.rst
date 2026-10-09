@@ -69,8 +69,21 @@ Interval utilities
 
     clip_intervals_to_waking_hours
 
+Training accepts ``(data, wear)`` recording pairs and optional
+``(data, wear, uncertain)`` triples. Windows touching uncertain samples are
+excluded from CNN and XGBoost training; intervals use half-open boundaries.
+Known windows remain on the original recording grid, including on either side
+of an uncertain gap. No signal segments are concatenated.
+
 Optimization presets
 ++++++++++++++++++++
+
+The shared wear-time revalidation scripts compare signal, CNN and XGBoost
+using one outer participant LOSO protocol and a fixed half of complete
+simulated non-wear recordings for evaluation. Both trainable detectors use
+their SUSTAIN search presets. The separate ``scripts/weartime_ml_training_evaluation/train.py``
+entry point tunes on inner CV and refits final classifiers on the complete
+provided dataset, without a second outer evaluation protocol.
 
 The trainable detectors provide dataset-specific settings for
 :class:`~mobgap.weartime.optimization.WearTimeOptunaSearch`. For SUSTAIN,
