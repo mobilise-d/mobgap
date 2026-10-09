@@ -1,4 +1,12 @@
-"""Shared inner training composition for the SUSTAIN wear-time presets."""
+"""Shared inner training composition for the SUSTAIN wear-time presets.
+
+Three participant-grouped folds rank candidates on human-movement days only.
+Each inner training subset samples 40% of its human days and five simulated
+non-wear days independently with seed 42. Supply at least five simulated days
+in the training pool. These are computational-budget settings for this dataset,
+not a published or validated tuning protocol. The outer train/test split is
+configured by the caller; final refitting uses the complete provided dataset.
+"""
 
 from __future__ import annotations
 
