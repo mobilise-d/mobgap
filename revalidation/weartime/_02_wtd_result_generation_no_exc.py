@@ -56,7 +56,9 @@ from tpcp.validate import (
     SubsetSplitter,
 )
 
-cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
+cache_dir = Path(
+    get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache")
+).expanduser()
 results_base_path = (
     Path(get_env_var("MOBGAP_VALIDATION_DATA_PATH"))
     / "results/weartime_loso_no_exc_min8h"
@@ -66,7 +68,7 @@ n_jobs = int(get_env_var("MOBGAP_N_JOBS", 1))
 SEED = 42
 
 dataset_sustain_weartime = SustainWearTimeDataset(
-    get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
+    Path(get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser(),
     tz="Europe/London",
     additional_sensors_enabled=(),
     memory=Memory(cache_dir),
