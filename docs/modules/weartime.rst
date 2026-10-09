@@ -51,6 +51,13 @@ Evaluation
     wtd_per_datapoint_score
     wtd_final_agg
     calculate_wtd_classification_summary
+    calculate_wtd_simulated_non_wear_summary
+
+Human and simulated non-wear summaries are separate. Simulated non-wear pools
+counts per original recording in each fold and averages fold-model metrics for
+each recording before equal recording means and 95% t intervals. Repeated
+predictions do not add independent CI observations. False-wear minutes are
+per evaluated day, without normalization to 24 hours.
 
 Interval utilities
 ++++++++++++++++++
