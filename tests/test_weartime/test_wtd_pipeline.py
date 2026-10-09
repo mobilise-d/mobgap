@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from datetime import time
 from typing import Any, NamedTuple, Optional
 
@@ -9,7 +8,7 @@ from pandas.testing import assert_frame_equal
 from typing_extensions import Self, Unpack
 
 from mobgap.utils.conversions import to_body_frame
-from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df
+from mobgap.weartime.base import BaseWeartimeDetector, TrainingData, _unify_weartime_df
 from mobgap.weartime.evaluation import wtd_final_agg, wtd_per_datapoint_score, wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
@@ -80,7 +79,7 @@ class MinimalWtd(BaseWeartimeDetector):
 class DummyOptimizableWtd(DummyWtd):
     def self_optimize(
         self,
-        training_data: Iterable[tuple[pd.DataFrame, pd.DataFrame]],
+        training_data: TrainingData,
         *,
         sampling_rate_hz: float,
     ) -> BaseWeartimeDetector:
@@ -93,7 +92,7 @@ class DummyOptimizableWtd(DummyWtd):
 class FailingOptimizableWtd(DummyOptimizableWtd):
     def self_optimize(
         self,
-        training_data: Iterable[tuple[pd.DataFrame, pd.DataFrame]],
+        training_data: TrainingData,
         *,
         sampling_rate_hz: float,
     ) -> BaseWeartimeDetector:
@@ -190,14 +189,23 @@ def test_failed_optimization_preserves_supplied_detector():
     assert algo.total_weartime_during_waking_min is None
 
 
-def test_optimization_rejects_uncertain_ground_truth():
+def test_optimization_passes_uncertain_ground_truth_on_original_sample_grid(monkeypatch):
     datapoint = DummyDatapoint(
         data=_sensor_frame_data(4), reference_weartime=_intervals([(0, 2)]), sampling_rate_hz=1.0
     )
     datapoint.reference_uncertain_ = _intervals([(2, 4)])
 
-    with pytest.raises(ValueError, match="uncertain ground truth"):
-        WtdEmulationPipeline(DummyOptimizableWtd(_intervals([]))).self_optimize([datapoint])
+    def capture_training(self, training_data, *, sampling_rate_hz):
+        (recording,) = training_data
+        data, wear, uncertain = recording
+        assert_frame_equal(data, to_body_frame(datapoint.data_ss))
+        assert_frame_equal(wear, datapoint.reference_weartime_)
+        assert_frame_equal(uncertain, datapoint.reference_uncertain_)
+        self.weartime_list = wear
+        return self
+
+    monkeypatch.setattr(DummyOptimizableWtd, "self_optimize", capture_training)
+    WtdEmulationPipeline(DummyOptimizableWtd(_intervals([]))).self_optimize([datapoint])
 
 
 def test_wtd_score_counts_half_open_samples_and_minute_durations():

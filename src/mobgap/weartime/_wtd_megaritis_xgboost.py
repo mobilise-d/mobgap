@@ -50,6 +50,7 @@ from mobgap.weartime.utils.feature_extraction import (
     extract_features_batched,
 )
 from mobgap.weartime.utils.ml_feature_extraction import (
+    known_window_mask,
     labels_from_interval_centers,
     window_start_end,
 )
@@ -175,12 +176,16 @@ def _recording_feature_batches(
 def _iter_training_recording_feature_batches(
     data: pd.DataFrame,
     reference_weartime: pd.DataFrame,
+    reference_uncertain: pd.DataFrame | None = None,
     *,
     memory: Memory,
     window_sec: float,
     **feature_kwargs: Unpack[_FeatureExtractionKwargs],
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
     window_start_end_ = window_start_end(len(data), feature_kwargs["window_samples"], feature_kwargs["step_samples"])
+    known = known_window_mask(window_start_end_[:, 0], window_start_end_[:, 1], reference_uncertain)
+    if not known.any():
+        return
     feature_batches = _recording_feature_batches(data, memory=memory, feature_kwargs=feature_kwargs)
     reference_centers = window_start_end_[:, 0] + int((window_sec * feature_kwargs["sampling_rate_hz"]) // 2)
     for batch_index, features in enumerate(feature_batches):
@@ -188,7 +193,11 @@ def _iter_training_recording_feature_batches(
         labels = labels_from_interval_centers(
             reference_centers[batch_start : batch_start + len(features)], reference_weartime
         )
-        yield features, labels
+        batch_known = known[batch_start : batch_start + len(features)]
+        if batch_known.all():
+            yield features, labels
+        elif batch_known.any():
+            yield features[batch_known], labels[batch_known]
 
 
 def _extract_training_data_recording_features(
@@ -196,8 +205,8 @@ def _extract_training_data_recording_features(
     datapoint_index: int,
     **kwargs: Unpack[_TrainingFeatureKwargs],
 ) -> list[tuple[np.ndarray, np.ndarray]]:
-    data, reference_weartime = training_data.load_recording(datapoint_index)
-    return list(_iter_training_recording_feature_batches(data, reference_weartime, **kwargs))
+    recording = training_data.load_recording(datapoint_index)
+    return list(_iter_training_recording_feature_batches(*recording, **kwargs))
 
 
 def _iter_training_feature_results(
@@ -219,8 +228,8 @@ def _iter_training_feature_results(
         for recording_batch_results in recording_batches:
             yield from recording_batch_results
     else:
-        for data, reference_weartime in training_data:
-            yield from _iter_training_recording_feature_batches(data, reference_weartime, **kwargs)
+        for recording in training_data:
+            yield from _iter_training_recording_feature_batches(*recording, **kwargs)
 
 
 @base_weartime_docfiller

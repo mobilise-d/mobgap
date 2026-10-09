@@ -16,6 +16,7 @@ from typing_extensions import Self
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.weartime.utils.ml_feature_extraction import (
+    known_window_mask,
     labels_from_interval_arrays,
     reference_weartime_interval_arrays,
     window_count_from_sample_count,
@@ -253,43 +254,53 @@ class BaseKerasWeartimeModel(Algorithm):
             raise ValueError("The window step must be positive. Check `window_sec` and `overlap`.")
         return window_samples, step_samples
 
-    def _iter_window_batches(
+    def _iter_window_batches(self, data: pd.DataFrame, sampling_rate_hz: float) -> Iterator[np.ndarray]:
+        for windows, _ in self._iter_window_batches_with_starts(data, sampling_rate_hz):
+            yield windows
+
+    def _iter_window_batches_with_starts(
         self,
         data: pd.DataFrame,
         sampling_rate_hz: float,
-    ) -> Iterator[np.ndarray]:
+        reference_uncertain: pd.DataFrame | None = None,
+    ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         n_windows = window_count_from_sample_count(len(data), window_samples, step_samples)
-        if n_windows == 0:
-            return
-
-        sensor_data = (
-            data.to_numpy(copy=False)
-            if tuple(data.columns) == tuple(self.sensor_cols)
-            else data[list(self.sensor_cols)].to_numpy(copy=False)
-        )
-        sensor_data = _as_model_input_sensor_array(sensor_data)
-        window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
-
+        window_view = None
         for batch_start in range(0, n_windows, self.window_batch_size):
-            batch_window_view = window_view[batch_start : batch_start + self.window_batch_size]
+            starts = np.arange(batch_start, min(batch_start + self.window_batch_size, n_windows)) * step_samples
+            known = known_window_mask(starts, starts + window_samples, reference_uncertain)
+            if not known.any():
+                continue
+            # Convert the recording only when the first usable batch is requested.
+            if window_view is None:
+                sensor_data = (
+                    data.to_numpy(copy=False)
+                    if tuple(data.columns) == tuple(self.sensor_cols)
+                    else data[list(self.sensor_cols)].to_numpy(copy=False)
+                )
+                sensor_data = _as_model_input_sensor_array(sensor_data)
+                window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
+            batch_window_view = window_view[batch_start : batch_start + len(starts)]
+            if not known.all():
+                batch_window_view = batch_window_view[known]
             if self.standardize_in_model and batch_window_view.flags.c_contiguous:
                 windows = batch_window_view
             else:
                 windows = np.array(batch_window_view, dtype=np.float32, order="C")
             if not self.standardize_in_model:
                 windows = _standardize_windows(windows)
-            yield windows
+            yield windows, starts[known]
 
     def _iter_training_window_batches(
         self, training_data: TrainingData, sampling_rate_hz: float
     ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-        window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-        for data, reference_weartime in training_data:
+        window_samples, _ = self._window_parameters(sampling_rate_hz)
+        for data, reference_weartime, *uncertain in training_data:
             reference_interval_arrays = reference_weartime_interval_arrays(reference_weartime)
-            for batch_index, windows in enumerate(self._iter_window_batches(data, sampling_rate_hz)):
-                batch_start = batch_index * self.window_batch_size
-                centers = np.arange(batch_start, batch_start + len(windows)) * step_samples + window_samples // 2
+            reference_uncertain = uncertain[0] if uncertain else None
+            for windows, starts in self._iter_window_batches_with_starts(data, sampling_rate_hz, reference_uncertain):
+                centers = starts + window_samples // 2
                 yield windows, labels_from_interval_arrays(centers, *reference_interval_arrays)
 
     def _make_tf_dataset(

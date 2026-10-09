@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from mobgap.weartime.base import TrainingRecording
+
 
 def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
     if convert:
@@ -32,20 +34,17 @@ class _TrainingDataFromDataset:
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def __iter__(self) -> Iterator[tuple[pd.DataFrame, pd.DataFrame]]:
+    def __iter__(self) -> Iterator[TrainingRecording]:
         for datapoint_index in range(len(self.dataset)):
             yield self.load_recording(datapoint_index)
 
-    def load_recording(self, datapoint_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def load_recording(self, datapoint_index: int) -> TrainingRecording:
         datapoint = self.dataset[datapoint_index]
         uncertain = getattr(datapoint, "reference_uncertain_", None)
-        if uncertain is not None and not uncertain.empty:
-            raise ValueError(
-                "Cannot optimize a binary wear-time detector on a datapoint with uncertain ground truth. "
-                "Select recordings with fully labeled wear and non-wear references."
-            )
         data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         reference_weartime = datapoint.reference_weartime_
+        if uncertain is not None and not uncertain.empty:
+            return data, reference_weartime, uncertain
         return data, reference_weartime
 
 
@@ -68,8 +67,9 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
 
     This wraps any wear-time detector and allows it to be evaluated or optimized through tpcp's validation and
     optimization utilities.
-    Optimization rejects datapoints with nonempty ``reference_uncertain_`` because the paired training interface
-    cannot distinguish uncertain samples from non-wear.
+    Training passes available ``reference_uncertain_`` intervals alongside the recording and wear reference.
+    Trainable detectors exclude complete windows intersecting those intervals, retaining known portions on the
+    original sample grid. Held-out scoring continues to mask uncertain samples independently.
 
     Parameters
     ----------

@@ -66,3 +66,16 @@ def labels_from_interval_arrays(
 def labels_from_interval_centers(centers: np.ndarray, reference_weartime: pd.DataFrame) -> np.ndarray:
     """Label window centers from a reference wear-time DataFrame."""
     return labels_from_interval_arrays(centers, *reference_weartime_interval_arrays(reference_weartime))
+
+
+def known_window_mask(starts: np.ndarray, ends: np.ndarray, reference_uncertain: pd.DataFrame | None) -> np.ndarray:
+    """Keep windows intersecting no uncertain ``[start, end)`` sample interval.
+
+    Merely touching either interval boundary is allowed. Input window positions
+    remain on the original recording grid; no samples are spliced across gaps.
+    """
+    known = np.ones(len(starts), dtype=bool)
+    if reference_uncertain is not None:
+        for start, end in reference_uncertain[["start", "end"]].itertuples(index=False, name=None):
+            known &= (ends <= start) | (starts >= end)
+    return known
