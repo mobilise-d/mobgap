@@ -73,6 +73,12 @@ Inner validation includes only human-movement days. Each inner training fold
 uses 40% of its human days and five seeded Part B days from the provided training
 pool, sampled independently with seed 42. Supply at least five Part B training
 days; the preset does not select or alter the outer train/test split.
+These sampling choices are computational-budget defaults selected for the
+training experiments in this repository: 40% reduces human-day preprocessing
+and fitting costs, while five Part B days provide a limited non-wear training
+pool. They are not an author-reported or scientifically validated tuning
+protocol. Changing them changes the training distribution used to rank
+candidates; configure the training transform for the intended experiment.
 The optimizer defaults to 20 trials, seed 42 and final refitting. Callers can
 override the inner splitter and training transform; ``train_dataset_transform=None``
 keeps complete inner training subsets.
