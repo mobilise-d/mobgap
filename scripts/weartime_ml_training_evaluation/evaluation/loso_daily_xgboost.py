@@ -8,8 +8,8 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
-from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
-from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
+from sklearn.model_selection import LeaveOneGroupOut
+from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit, SubsetSplitter
 
 from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
@@ -26,7 +26,7 @@ OUTPUT_DIR = Path(".cache/weartime_loso_runs")
 RUN_NAME = None  # Defaults to a timestamped directory.
 PARTICIPANT_IDS = None  # None selects all human participants.
 MAX_PARTICIPANTS = None
-PART_B_DAY_COUNT = None  # None keeps all inner training Part B days; an integer samples that many days.
+SIMULATED_NON_WEAR_DAY_COUNT = None  # None keeps all simulated non-wear training days; an integer samples days.
 SEED = 42
 OVERLAP = 0.75
 WINDOW_BATCH_SIZE = 8192
@@ -61,22 +61,27 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant; repeat a fixed 50/50 Part B day split in every outer fold.
+    # Hold out one human participant; repeat a fixed 50/50 simulated non-wear day split in every outer fold.
     outer_splitter = CombinedSplitter(
         parts=[
             (
-                select_human_days,
-                DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
+                "human",
+                SubsetSplitter(
+                    select_human_days, DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
+                ),
             ),
             (
-                lambda days: days.get_subset(recording_type="simulated_movements"),
-                NoSplit(
-                    None,
-                    train=lambda days: days.get_subset(
-                        index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
-                    ),
-                    test=lambda days: days.get_subset(
-                        index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
+                "simulated_non_wear",
+                SubsetSplitter(
+                    lambda days: days.get_subset(recording_type="simulated_movements"),
+                    NoSplit(
+                        None,
+                        train=lambda days: days.get_subset(
+                            index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
+                        ),
+                        test=lambda days: days.get_subset(
+                            index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
+                        ),
                     ),
                 ),
             ),
@@ -94,19 +99,9 @@ def main() -> None:
         )
     )
 
-    # Rank candidates on human-only inner validation; pass the outer Part B training pool through.
-    inner_splitter = CombinedSplitter(
-        parts=[
-            (
-                lambda days: days.get_subset(recording_type="human_movement"),
-                DatasetSplitter(GroupKFold(n_splits=INNER_FOLDS), groupby="participant_id"),
-            ),
-            (
-                lambda days: days.get_subset(recording_type="simulated_movements"),
-                NoSplit(None, train=lambda days: days),
-            ),
-        ]
-    )
+    # Keep the preset's human-only inner validation and train-only simulated non-wear composition.
+    optimization_preset = WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime
+    optimization_preset["cv"].set_params(parts__human__splitter__base_splitter=INNER_FOLDS)
 
     evaluation = EvaluationCV(
         dataset=base_dataset,
@@ -121,11 +116,10 @@ def main() -> None:
     optimizer = WearTimeOptunaSearch(
         pipeline=pipeline,
         **{
-            **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
-            "cv": inner_splitter,
+            **optimization_preset,
             "n_trials": N_TRIALS,
             "random_seed": SEED,
-            # Sample human training days and optional Part B days independently.
+            # Sample human training days and optional simulated non-wear days independently.
             "train_dataset_transform": lambda inner_train_days: inner_train_days.get_subset(
                 index=pd.concat(
                     [
@@ -141,9 +135,9 @@ def main() -> None:
                         ),
                         (
                             inner_train_days.index.query("recording_type == 'simulated_movements'").sample(
-                                n=PART_B_DAY_COUNT, random_state=SEED
+                                n=SIMULATED_NON_WEAR_DAY_COUNT, random_state=SEED
                             )
-                            if PART_B_DAY_COUNT is not None
+                            if SIMULATED_NON_WEAR_DAY_COUNT is not None
                             else inner_train_days.index.query("recording_type == 'simulated_movements'")
                         ),
                     ]
@@ -159,7 +153,7 @@ def main() -> None:
     evaluation.get_aggregated_results_as_df(group="test").to_csv(output_dir / "fold_results.csv")
     evaluation.get_single_results_as_df(group="test").to_csv(output_dir / "daily_results.csv")
 
-    # Fit the final export on all selected human days and both Part B halves after scoring.
+    # Fit the final export on all selected human days and both simulated non-wear halves after scoring.
     selected_labels = list(
         dict.fromkeys(label for train, test in outer_splitter.split(base_dataset) for label in [*train, *test])
     )

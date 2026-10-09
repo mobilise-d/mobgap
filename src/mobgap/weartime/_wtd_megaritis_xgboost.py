@@ -376,7 +376,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Rank on human days in three folds; train on 40% of human days plus five seeded Part B days."""
+            """Human-only three-fold ranking with 40% human and five seeded simulated non-wear training days."""
             return MappingProxyType(
                 {
                     "create_search_space": cls._create_search_space,
