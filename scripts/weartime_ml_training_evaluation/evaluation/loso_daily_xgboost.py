@@ -156,6 +156,7 @@ def main() -> None:
         },
     )
 
+    # Finally run the full evaluation
     evaluation.run(optimizer)
 
     # Export only the held-out metrics.
