@@ -28,7 +28,7 @@ _turn_df_types = {
 def _as_valid_turn_list(df: pd.DataFrame) -> pd.DataFrame:
     tmp = df.reset_index(drop=True).rename_axis("turn_id").reset_index()
     dtypes_for_check = {col: _turn_df_types[col] for col in tmp.columns}
-    return tmp.astype(dtypes_for_check)[list(dtypes_for_check.keys())].set_index("turn_id")
+    return tmp.astype(dtypes_for_check).set_index("turn_id")
 
 
 @base_turning_docfiller
@@ -239,32 +239,40 @@ class TdElGohary(BaseTurnDetector):
         ends += 1
 
         def _calculate_metrics(df: pd.DataFrame) -> pd.DataFrame:
-            return df.assign(
-                duration_s=lambda df_: (df_["end"] - df_["start"]) / sampling_rate_hz,
-                angle_deg=lambda df_: yaw_angle[df_["end"] - 1] - yaw_angle[df_["start"]],
-                direction=lambda df_: np.sign(df_["angle_deg"]),
-            ).replace({"direction": {1: "left", -1: "right"}})
+            starts_ = df["start"].to_numpy()
+            ends_ = df["end"].to_numpy()
+            angles_ = yaw_angle[ends_ - 1] - yaw_angle[starts_]
+            signs_ = np.sign(angles_)
+            directions_ = signs_.astype(object)
+            directions_[signs_ == 1] = "left"
+            directions_[signs_ == -1] = "right"
+            direction_ = pd.Series(directions_, index=df.index, dtype=object)
+            return pd.DataFrame(
+                {
+                    "start": starts_,
+                    "end": ends_,
+                    "duration_s": (ends_ - starts_) / sampling_rate_hz,
+                    "angle_deg": angles_,
+                    "direction": direction_,
+                },
+                index=df.index,
+            )
 
         # Create an array of turns
         turns = pd.DataFrame({"start": starts, "end": ends}).pipe(_calculate_metrics)
         self.raw_turn_list_ = turns.copy().assign(center=dominant_peaks.astype(int)).pipe(_as_valid_turn_list)
 
         min_gap_turn_samples = as_samples(self.min_gap_between_turns_s, sampling_rate_hz)
+        # Merge candidates separately for each direction, retaining the group order for sorting ties.
+        merged_intervals = [
+            merge_intervals(group[["start", "end"]].to_numpy(), min_gap_turn_samples)
+            for _, group in turns.groupby("direction")
+        ]
+        # NaN angles can leave no direction groups even when peaks were detected.
+        intervals = np.concatenate(merged_intervals) if merged_intervals else np.empty((0, 2), dtype=starts.dtype)
+        # Recalculate metrics to include movement during any gaps between merged candidates.
         turns = (
-            # For all left and all right turns, we merge turns that are closer than min_gap_between_turns_s and have the
-            # same direction
-            turns.groupby("direction")
-            .apply(
-                lambda df_: pd.DataFrame(
-                    merge_intervals(df_[["start", "end"]].to_numpy(), min_gap_turn_samples),
-                    columns=["start", "end"],
-                ),
-                include_groups=False,
-            )
-            # Then we combine all turns, sort them and recalculate the metrics.
-            # Recalculation is required as the merging might have changed the start and end indices, and we can not
-            # simply add the duration and angle columns, as we allow for merging of turns with a short break in between.
-            # So we need to account for movement that happened in between.
+            pd.DataFrame(intervals, columns=["start", "end"])
             .sort_values(by="start")
             .reset_index(drop=True)
             .pipe(_calculate_metrics)
