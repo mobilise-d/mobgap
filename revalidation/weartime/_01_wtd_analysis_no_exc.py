@@ -5,9 +5,10 @@ Performance of the wear-time detection algorithms on the SUSTAIN dataset
 ========================================================================
 
 This script analyses unpublished participant-LOSO results on SUSTAIN human
-recordings. Each held-out day contains at least eight hours of recorded data.
-Part B is not evaluated. The signal detector has no learned parameters; LOSO
-does not undo historical tuning of its fixed settings.
+recordings and a fixed held-out half of simulated non-wear source recordings.
+Each evaluated day contains at least eight hours of recorded data. The signal
+detector has no learned parameters; LOSO does not undo historical tuning of
+its fixed settings.
 
 Classification summaries compare equal weights for days, participants and folds.
 Within each participant, rates use either pooled labeled-sample confusion counts
@@ -40,7 +41,10 @@ import pandas as pd
 from mobgap.pipeline.evaluation import ErrorTransformFuncs as E
 from mobgap.utils.df_operations import CustomOperation, apply_transformations
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime.evaluation import calculate_wtd_classification_summary
+from mobgap.weartime.evaluation import (
+    calculate_wtd_classification_summary,
+    calculate_wtd_simulated_non_wear_summary,
+)
 from scipy.stats import t
 
 algorithms = {
@@ -86,6 +90,13 @@ results = pd.concat(
     },
     names=["algo", "version"],
 ).reset_index()
+human_movement_results = results[
+    results["recording_type"] == "human_movement"
+].copy()
+simulated_non_wear_results = results[
+    results["recording_type"] == "simulated_movements"
+].copy()
+
 # Use the same error functions as the cadence/stride-length evaluations.
 # Relative errors are percentages here; zero reference duration makes them
 # undefined.
@@ -118,13 +129,17 @@ for prefix in ("", "waking_"):
             ),
         )
     ]
-    errors = apply_transformations(results, transforms)
+    errors = apply_transformations(human_movement_results, transforms)
     for column in errors.filter(like="_pct").columns:
         errors[column] *= 100
-    results[errors.columns] = errors
+    human_movement_results[errors.columns] = errors
 
-results["algo_with_version"] = results["algo"] + " (" + results["version"] + ")"
-human_movement_results = results[results["recording_type"] == "human_movement"]
+human_movement_results["algo_with_version"] = (
+    human_movement_results["algo"]
+    + " ("
+    + human_movement_results["version"]
+    + ")"
+)
 
 # Compare day, participant and fold weights using the daily confusion counts.
 classification_overall = pd.DataFrame(
@@ -200,9 +215,25 @@ human_movement_summary_by_participant = (
     .join(classification_by_participant)
 )
 
+# Keep displayed fold summaries restricted to human recordings as well.
+classification_by_fold = pd.DataFrame(
+    {
+        group: calculate_wtd_classification_summary(days)
+        for group, days in human_movement_results.groupby(
+            ["fold", "algo", "version"]
+        )
+    }
+).T.rename_axis(index=["fold", "algo", "version"])
+human_movement_summary_by_fold = (
+    human_movement_results.groupby(["fold", "algo", "version"])
+    .agg(**human_movement_summary_aggs)
+    .join(classification_by_fold)
+)
+
 # Daily t intervals apply to duration means; counts and medians stay unchanged.
 for group_columns, summary in (
     (["algo", "version"], human_movement_summary_overall),
+    (["fold", "algo", "version"], human_movement_summary_by_fold),
     (
         ["participant_id", "algo", "version"],
         human_movement_summary_by_participant,
@@ -226,6 +257,11 @@ human_movement_summary_overall
 # Participant summaries with confidence intervals
 # ------------------------------------------------
 human_movement_summary_by_participant
+
+# %%
+# Human movement: per fold
+# -------------------------
+human_movement_summary_by_fold
 
 # %%
 # Human movement plots
@@ -283,3 +319,83 @@ for ax in axes.flatten():
 
 plt.tight_layout()
 fig_human.show()
+
+
+# %%
+# Simulated non-wear: independent source recordings
+# -------------------------------------------------
+# Pool sample counts within each recording/fold; false wear is the mean minutes
+# per evaluated day, without normalization to 24 hours. Average fold models for
+# each recording before averaging recordings and calculating the 95% t interval.
+# Repeated predictions across folds do not add independent CI observations.
+simulated_non_wear_summary_overall = pd.DataFrame(
+    {
+        group: calculate_wtd_simulated_non_wear_summary(days)
+        for group, days in simulated_non_wear_results.groupby(
+            ["algo", "version"]
+        )
+    }
+).T.rename_axis(index=["algo", "version"])
+
+recording_fold_groups = simulated_non_wear_results.groupby(
+    ["algo", "version", "fold", "recording_id"]
+)
+recording_fold_counts = recording_fold_groups[
+    ["tp_samples", "fp_samples", "fn_samples", "tn_samples"]
+].sum()
+simulated_non_wear_recording_fold_results = pd.DataFrame(
+    {
+        "combined__specificity": recording_fold_counts["tn_samples"]
+        / (
+            recording_fold_counts["tn_samples"]
+            + recording_fold_counts["fp_samples"]
+        ),
+        "combined__accuracy": (
+            recording_fold_counts["tp_samples"]
+            + recording_fold_counts["tn_samples"]
+        )
+        / recording_fold_counts.sum(axis=1),
+        "day_mean__false_wear_min": recording_fold_groups[
+            "detected_weartime_min"
+        ].mean(),
+    }
+)
+simulated_non_wear_recording_results = (
+    simulated_non_wear_recording_fold_results.groupby(
+        level=["algo", "version", "recording_id"]
+    ).mean()
+)
+simulated_non_wear_summary_by_fold = (
+    simulated_non_wear_recording_fold_results.groupby(
+        level=["algo", "version", "fold"]
+    ).mean()
+)
+# This descriptive SD measures model variation, not independent recording error.
+# It is zero for the fixed signal detector's repeated predictions.
+simulated_non_wear_model_sd = simulated_non_wear_recording_fold_results.groupby(
+    level=["algo", "version", "recording_id"]
+).std()
+
+# %%
+# Simulated non-wear summary with recording-level confidence intervals
+# --------------------------------------------------------------------
+simulated_non_wear_summary_overall
+
+# %%
+# Simulated non-wear: per recording, averaged across fold models
+# -------------------------------------------------------------
+simulated_non_wear_recording_results
+
+# %%
+# Simulated non-wear: per fold
+# ----------------------------
+simulated_non_wear_summary_by_fold
+
+# %%
+# Simulated non-wear: variation across fold models
+# ------------------------------------------------
+simulated_non_wear_model_sd
+
+# The raw fold CSV retains the scorer's mixed-population aggregates for its
+# existing low-level contract. Use the separate population tables above for
+# performance comparisons; there is no combined human/non-wear primary score.

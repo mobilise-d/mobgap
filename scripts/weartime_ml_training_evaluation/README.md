@@ -12,10 +12,12 @@ SUSTAIN wear-time folder. The raw dataset is not distributed with MobGap.
 
 Both scripts use daily datapoints and participant-grouped LOSO through
 `WtdEmulationPipeline`, TPCP optimizers, and `EvaluationCV`. Each human participant's
-entire set of selected days is held out together. simulated non-wear days use one seed-42
-permutation, split into disjoint halves. The same training half and test half are
-included in every outer fold. With an odd day count the test half has one extra
-day. simulated non-wear test days therefore repeat across folds; they are not independent
+entire set of selected days is held out together. Simulated non-wear source
+recordings use one seed-42 permutation, split into disjoint halves. The same
+training half and test half are included in every outer fold. With an odd
+recording count the test half has one extra recording. All its days remain in
+the same half. Simulated non-wear test days therefore repeat across folds; they
+are not independent
 additional held-out participants. `OVERLAP` controls the window stride; set it
 to `0` for non-overlapping windows.
 
@@ -50,3 +52,11 @@ These final models are separate from the models used for held-out scoring.
 Load CNN `.keras` artifacts in a fresh process with
 `mobgap.weartime.load_keras_weartime_model(path)` to register the optional
 model-side standardization layer before deserialization.
+
+The signal-only revalidation uses the same seed-42 split of whole simulated
+non-wear source recordings. Its result page keeps human and simulated non-wear
+summaries separate. For non-wear, sample counts are pooled per recording in each
+fold and false-wear minutes are averaged per evaluated day (not normalized to
+24 hours). Fold-model results are averaged for each recording before equal
+recording weighting and 95% t intervals. Repeated predictions do not add
+independent observations to those intervals.

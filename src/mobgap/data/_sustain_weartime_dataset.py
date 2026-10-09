@@ -219,6 +219,12 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         Wear intervals outside the non-wear and uncertain reference intervals, in the same format.
     reference_uncertain_
         Intervals with uncertain ground truth, in the same format. These samples remain in ``data_ss``.
+
+    Notes
+    -----
+    The index column ``recording_id`` identifies one original CWA file across its daily rows.
+    It combines recording type, participant ID and CWA filename stem, making it unique within this dataset.
+    Use this column when splitting or summarizing complete recordings; ``recording_day`` identifies their days.
     """
 
     # Part A preprocessing discards participant 010's lower-back samples after device removal.

@@ -384,6 +384,54 @@ def calculate_wtd_classification_summary(daily_results: pd.DataFrame) -> pd.Seri
     return pd.concat(summaries)
 
 
+def calculate_wtd_simulated_non_wear_summary(daily_results: pd.DataFrame) -> pd.Series:
+    """Summarize repeated held-out predictions using unique simulated non-wear recordings.
+
+    Parameters
+    ----------
+    daily_results
+        One row per evaluated day and outer fold for one algorithm, containing only known non-wear recordings.
+        Columns are ``fold``, ``recording_id``, the four ``*_samples`` confusion counts, and
+        ``detected_weartime_min``. Uncertain samples must already be excluded. ``recording_id`` must identify
+        the original recording globally across days and folds; SUSTAIN IDs include type, participant and CWA stem.
+
+    Returns
+    -------
+    pd.Series
+        ``single_mean__recording__fold_mean__combined__specificity`` and ``...__accuracy`` pool day counts
+        within each recording/fold before calculating rates. For entirely non-wear ground truth, both rates
+        are equal. ``single_mean__recording__fold_mean__day_mean__false_wear_min`` averages detected wear
+        minutes over the evaluated days of each recording/fold. This is per evaluated day, not normalized
+        to 24 hours. Each recording's metrics are then averaged across outer-fold models, followed by an
+        equal mean over unique recordings. No positive-class rates or relative wear-duration errors are reported.
+
+        Each mean has symmetric Student's t ``__ci95_lower`` and ``__ci95_upper`` bounds based on those
+        unique recording values after fold-model averaging. Repeated recording/fold predictions are not
+        independent CI observations. Undefined values are excluded; fewer than two measured recordings
+        yield NaN bounds. Bounds are not clipped. ``n_recordings`` counts all provided recording IDs.
+    """
+    grouped = daily_results.groupby(["fold", "recording_id"])
+    counts = grouped[["tp_samples", "fp_samples", "fn_samples", "tn_samples"]].sum()
+    recording_fold_scores = pd.DataFrame(
+        {
+            "combined__specificity": counts["tn_samples"] / (counts["tn_samples"] + counts["fp_samples"]),
+            "combined__accuracy": (counts["tp_samples"] + counts["tn_samples"]) / counts.sum(axis=1),
+            "day_mean__false_wear_min": grouped["detected_weartime_min"].mean(),
+        }
+    )
+    recording_scores = recording_fold_scores.groupby(level="recording_id").mean()
+    mean = recording_scores.mean().add_prefix("single_mean__recording__fold_mean__")
+    half_width = (recording_scores.sem() * t.ppf(0.975, recording_scores.count() - 1)).set_axis(mean.index)
+    return pd.concat(
+        [
+            pd.Series({"n_recordings": len(recording_scores)}),
+            mean,
+            (mean - half_width).add_suffix("__ci95_lower"),
+            (mean + half_width).add_suffix("__ci95_upper"),
+        ]
+    )
+
+
 wtd_score = Scorer(
     wtd_per_datapoint_score, final_aggregator=wtd_final_agg, default_aggregator=FloatAggregator(np.nanmean)
 )
@@ -399,4 +447,10 @@ original interval IDs, while ``raw__detected_scored`` and ``raw__reference_score
 """
 
 
-__all__ = ["calculate_wtd_classification_summary", "wtd_final_agg", "wtd_per_datapoint_score", "wtd_score"]
+__all__ = [
+    "calculate_wtd_classification_summary",
+    "calculate_wtd_simulated_non_wear_summary",
+    "wtd_final_agg",
+    "wtd_per_datapoint_score",
+    "wtd_score",
+]

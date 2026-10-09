@@ -6,8 +6,9 @@ Revalidation of the wear-time detection algorithms
 
 This script evaluates the signal-based detector on SUSTAIN human recordings
 with participant LOSO. Each held-out participant contributes daily datapoints
-with at least eight hours of recorded data. Simulated non-wear recordings
-are excluded.
+with at least eight hours of recorded data. Simulated non-wear source recordings
+use one fixed seed-42 50/50 train/test split, repeated in every human fold.
+All evaluated days from one simulated recording remain in the same half.
 The signal detector has no fitted parameters, so ``DummyOptimize`` runs the same
 configured detector in every fold. This establishes the CV workflow for future
 trainable detectors.
@@ -41,7 +42,12 @@ from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import DummyOptimize
-from tpcp.validate import CombinedSplitter, DatasetSplitter, SubsetSplitter
+from tpcp.validate import (
+    CombinedSplitter,
+    DatasetSplitter,
+    NoSplit,
+    SubsetSplitter,
+)
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 results_base_path = (
@@ -50,6 +56,7 @@ results_base_path = (
 )
 condition_name = "sustain_weartime"
 n_jobs = int(get_env_var("MOBGAP_N_JOBS", 3))
+SEED = 42
 
 dataset_sustain_weartime = SustainWearTimeDataset(
     get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
@@ -67,8 +74,8 @@ optimizers = {
 # %%
 # Hold out every day of one human participant per fold
 # ---------------------------------------------------
-# Selection belongs to the splitter. Simulated non-wear recordings enter neither
-# train nor test sets.
+# Keep a fixed half of complete simulated non-wear recordings in train and test.
+# The source recording IDs, sorted before sampling, determine the split.
 splitter = CombinedSplitter(
     parts=[
         (
@@ -76,6 +83,33 @@ splitter = CombinedSplitter(
             SubsetSplitter(
                 lambda days: days.get_subset(recording_type="human_movement"),
                 DatasetSplitter(LeaveOneGroupOut(), groupby="participant_id"),
+            ),
+        ),
+        (
+            "simulated_non_wear",
+            SubsetSplitter(
+                lambda days: days.get_subset(
+                    recording_type="simulated_movements"
+                ),
+                NoSplit(
+                    None,
+                    train=lambda days: days.get_subset(
+                        recording_id=days.index["recording_id"]
+                        .drop_duplicates()
+                        .sort_values()
+                        .sample(frac=1, random_state=SEED)
+                        .iloc[: days.index["recording_id"].nunique() // 2]
+                        .tolist()
+                    ),
+                    test=lambda days: days.get_subset(
+                        recording_id=days.index["recording_id"]
+                        .drop_duplicates()
+                        .sort_values()
+                        .sample(frac=1, random_state=SEED)
+                        .iloc[days.index["recording_id"].nunique() // 2 :]
+                        .tolist()
+                    ),
+                ),
             ),
         ),
     ]
