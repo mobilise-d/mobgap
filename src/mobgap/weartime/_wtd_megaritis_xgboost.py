@@ -377,7 +377,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Report XGBoost ranges with three participant-grouped inner folds on SUSTAIN."""
+            """LOSO script search settings with three participant-grouped inner folds on SUSTAIN."""
             from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
 
             return MappingProxyType(

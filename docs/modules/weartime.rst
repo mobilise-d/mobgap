@@ -94,8 +94,8 @@ Use an explicit untrained ``MegaritisCnnWeartimeModel`` in the pipeline for
 Adam learning rate on a log scale from 0.0001 to 0.01, dropout at 0.2, 0.3 or 0.5,
 and training batch size at 256, 512 or 1024. Architecture, windows and epochs
 stay configured on the model. These are practical initial search ranges, not
-ranges recovered from the report. XGBoost retains the six report ranges used
-by the LOSO script.
+ranges derived from a published tuning study. XGBoost retains the six search
+ranges previously configured in the LOSO script.
 
 Override ``cv`` or ``train_dataset_transform`` to customize inner training and
 validation. The generic optimizer does not select recording types. Supply

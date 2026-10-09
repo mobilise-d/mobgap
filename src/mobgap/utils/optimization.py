@@ -38,6 +38,46 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
     The default study maximizes the score with seeded TPE sampling. ``cv=3`` uses ordinary three-fold
     splitting; pass a grouped splitter when datapoints from one participant must stay together.
     This module requires the optional Optuna dependency.
+
+    Parameters
+    ----------
+    pipeline
+        Trainable TPCP pipeline. Each trial and CV fold uses a clone.
+    create_search_space
+        Callable that suggests parameters on the trial, using pipeline parameter names.
+        Required for the shared CV objective; ignored when ``objective`` is supplied.
+    scoring
+        Per-datapoint scorer or Scorer object. Required for the shared objective unless the pipeline
+        provides a compatible ``score`` method. Ignored when ``objective`` is supplied.
+    score_name
+        Aggregate validation metric to rank. The shared objective averages
+        ``test__agg__<score_name>`` across folds. Scalar scorers use the default ``"score"``.
+        Ignored when ``objective`` is supplied.
+    cv
+        Inner CV splitter or fold count. The default integer uses ordinary three-fold splitting.
+        Supply a grouped splitter for participant separation. Ignored by an injected objective.
+    train_dataset_transform
+        Optional transform of each inner training subset before fitting. ``None`` keeps it unchanged.
+        Validation subsets and the final complete-data refit are unaffected. An injected objective
+        owns its own training procedure and does not apply this transform automatically.
+    objective
+        Optional replacement objective receiving ``(trial, cloned_pipeline, dataset)``.
+        It owns parameter suggestions, training and scoring. Final refitting still uses its winning
+        pipeline parameters and the complete optimization dataset.
+    get_study_params
+        Callable receiving the seed and returning Optuna study arguments. The default maximizes
+        the score with a seeded TPE sampler.
+    n_trials, random_seed
+        Trial budget and sampler seed, defaulting to 20 and 42.
+    n_jobs
+        Parallel trial workers. The shared objective always runs inner CV sequentially.
+        Multiple trial workers require persistent study storage, as described in
+        :class:`~tpcp.optimize.optuna.CustomOptunaOptimize`.
+    return_optimized
+        Refit the best pipeline on the complete optimization dataset when True.
+    timeout, callbacks, gc_after_trial, eval_str_paras, show_progress_bar
+        Passed unchanged to :class:`~tpcp.optimize.optuna.CustomOptunaOptimize`; see its documentation
+        for stopping, callbacks, cleanup, parameter conversion and progress settings.
     """
 
     def __init__(
