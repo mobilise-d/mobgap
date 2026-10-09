@@ -96,7 +96,9 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
     This is usually not required by algorithms, but it can be helpful for dummy algorithms and cache keys.
 
     For the ``self_optimize`` method, the pipeline first reads the sampling rate metadata for each
-    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` tuples to the algorithm.
+    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` pairs or
+    ``(data, reference_weartime, reference_uncertain)`` triples to the algorithm. References use half-open
+    sample intervals; trainable detectors exclude windows intersecting uncertainty on the original recording grid.
     This keeps recording data loading at the dataset iterator boundary instead of collecting all recordings in memory
     first.
     """

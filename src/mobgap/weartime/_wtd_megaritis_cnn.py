@@ -209,7 +209,12 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         *,
         sampling_rate_hz: float,
     ) -> Self:
-        """Train the low-level Keras window model from lazy ``(data, reference_weartime)`` records."""
+        """Train the Keras model from lazy wear-reference pairs or uncertainty triples.
+
+        Records are ``(data, reference_weartime)`` or ``(data, reference_weartime, reference_uncertain)``.
+        References use half-open sample boundaries; windows intersecting uncertain intervals are excluded,
+        retaining known windows on their original recording grid.
+        """
         model = self.model or MegaritisCnnWeartimeModel(standardize_in_model=True)
         self.model = model.self_optimize(
             training_data,
