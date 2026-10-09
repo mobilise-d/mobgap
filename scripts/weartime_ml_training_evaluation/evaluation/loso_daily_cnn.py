@@ -25,8 +25,6 @@ OUTPUT_DIR = Path(".cache/weartime_loso_runs")
 RUN_NAME = None  # Defaults to a timestamped directory.
 PARTICIPANT_IDS = None  # None selects all human participants.
 MAX_PARTICIPANTS = None
-PART_B_RECORDING_COUNT = 2
-PART_B_DAY_COUNT = None  # Set to sample days instead of whole recordings.
 SEED = 42
 OVERLAP = 0.75
 EPOCHS = 60
@@ -49,7 +47,6 @@ def main() -> None:
     base_dataset = SustainWearTimeDataset(
         dataset_path,
         additional_sensors_enabled=(),
-        warn_thres_for_sampling_rate_deviations_hz=None,
         splitter=split_by_utc_day,
         memory=joblib.Memory(cache_dir, verbose=0),
     )
@@ -63,7 +60,7 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant per fold; use the same seeded Part B sample in every training fold.
+    # Hold out one human participant; repeat a fixed 50/50 Part B day split in every outer fold.
     splitter = CombinedSplitter(
         parts=[
             (
@@ -74,15 +71,11 @@ def main() -> None:
                 lambda days: days.get_subset(recording_type="simulated_movements"),
                 NoSplit(
                     None,
-                    train=lambda days: (
-                        days.get_subset(index=days.index.sample(n=PART_B_DAY_COUNT, random_state=SEED))
-                        if PART_B_DAY_COUNT is not None
-                        else days.get_subset(
-                            recording_id=days.index["recording_id"]
-                            .drop_duplicates()
-                            .sample(n=PART_B_RECORDING_COUNT, random_state=SEED)
-                            .tolist()
-                        )
+                    train=lambda days: days.get_subset(
+                        index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
+                    ),
+                    test=lambda days: days.get_subset(
+                        index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
                     ),
                 ),
             ),
@@ -131,7 +124,7 @@ def main() -> None:
     evaluation.get_aggregated_results_as_df(group="test").to_csv(output_dir / "fold_results.csv")
     evaluation.get_single_results_as_df(group="test").to_csv(output_dir / "daily_results.csv")
 
-    # Fit the final model on the union of all selected folds, preserving the Part B selection.
+    # Fit the final export on all selected human days and both Part B halves after scoring.
     selected_labels = list(
         dict.fromkeys(label for train, test in splitter.split(base_dataset) for label in [*train, *test])
     )

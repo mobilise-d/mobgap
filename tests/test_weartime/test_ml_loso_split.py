@@ -32,10 +32,10 @@ def evaluation_scripts(monkeypatch: pytest.MonkeyPatch) -> tuple[ModuleType, Mod
     return importlib.import_module("loso_daily_cnn"), importlib.import_module("loso_daily_xgboost")
 
 
-def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cover the complete nested split flow.
+def test_loso_fixed_part_b_halves_and_human_only_inner_ranking(  # noqa: PLR0915 - Cover the complete nested split flow.
     evaluation_scripts: tuple[ModuleType, ModuleType], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Outer training includes part B while inner search uses human recordings only."""
+    """Fixed Part B halves enter outer folds; only human inner validation ranks candidates."""
     rows = [
         {
             "recording_type": "human_movement",
@@ -108,44 +108,47 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         if script is xgboost:
             monkeypatch.setattr(script, "INNER_FOLDS", 2)
         run_script(script)
-        assert len(final_training_datasets[-1].index) == 19
-        assert set(
-            final_training_datasets[-1].get_subset(recording_type="simulated_movements").index["recording_id"]
-        ) == {"part_b_021", "part_b_023"}
+        assert len(final_training_datasets[-1].index) == 23
         assert captured_datasets["outer"] is dataset
         assert captured_splitters["outer"].get_n_splits(dataset) == 3
+        fixed_part_b = None
         for train_labels, test_labels in captured_splitters["outer"].split(dataset):
             train = dataset.get_subset(group_labels=train_labels)
             test = dataset.get_subset(group_labels=test_labels)
             assert len(train.index) == 14
-            assert len(test.index) == 5
-            assert set(test.index["recording_type"]) == {"human_movement"}
-            part_b = train.get_subset(recording_type="simulated_movements")
-            assert set(part_b.index["recording_id"]) == {"part_b_021", "part_b_023"}
+            assert len(test.index) == 9
+            human_train = train.get_subset(recording_type="human_movement")
+            human_test = test.get_subset(recording_type="human_movement")
+            assert len(set(human_test.index["participant_id"])) == 1
+            assert not set(human_train.index["participant_id"]) & set(human_test.index["participant_id"])
+            part_b_train = set(train.get_subset(recording_type="simulated_movements").group_labels)
+            part_b_test = set(test.get_subset(recording_type="simulated_movements").group_labels)
+            assert len(part_b_train) == len(part_b_test) == 4
+            assert not part_b_train & part_b_test
+            assert part_b_train | part_b_test == set(
+                dataset.get_subset(recording_type="simulated_movements").group_labels
+            )
+            fixed_part_b = fixed_part_b or (part_b_train, part_b_test)
+            assert fixed_part_b == (part_b_train, part_b_test)
 
         with monkeypatch.context() as selection:
             selection.setattr(script, "PARTICIPANT_IDS", ["002", "003"])
             selection.setattr(script, "MAX_PARTICIPANTS", 2)
-            selection.setattr(script, "PART_B_RECORDING_COUNT", 1)
             run_script(script)
-            assert len(final_training_datasets[-1].index) == 12
+            assert len(final_training_datasets[-1].index) == 18
             selected_folds = list(captured_splitters["outer"].split(dataset))
             assert len(selected_folds) == 2
             assert {
-                dataset.get_subset(group_labels=test).index["participant_id"].iloc[0] for _, test in selected_folds
+                dataset.get_subset(group_labels=test)
+                .get_subset(recording_type="human_movement")
+                .index["participant_id"]
+                .iloc[0]
+                for _, test in selected_folds
             } == {"002", "003"}
-            assert all(len(dataset.get_subset(group_labels=train).index) == 7 for train, _ in selected_folds)
+            assert all(len(dataset.get_subset(group_labels=train).index) == 9 for train, _ in selected_folds)
 
-        with monkeypatch.context() as selection:
-            selection.setattr(script, "PART_B_DAY_COUNT", 3)
-            run_script(script)
-            assert len(final_training_datasets[-1].index) == 18
-            assert all(
-                len(dataset.get_subset(group_labels=train).index) == 13
-                for train, _ in captured_splitters["outer"].split(dataset)
-            )
+    assert saved_models == [tmp_path / "loso_daily_cnn" / "model.keras"] * 2
 
-    assert saved_models == [tmp_path / "loso_daily_cnn" / "model.keras"] * 3
     with (tmp_path / "loso_daily_xgboost" / "model.pkl").open("rb") as file:
         assert pickle.load(file) == {"trained": True}
     with (tmp_path / "loso_daily_xgboost" / "feature_order.pkl").open("rb") as file:
@@ -189,29 +192,33 @@ def test_loso_outer_training_and_human_only_inner_search(  # noqa: PLR0915 - Cov
         inner_train = inner_dataset.get_subset(group_labels=inner_train_labels)
         inner_test = inner_dataset.get_subset(group_labels=inner_test_labels)
         assert set(inner_test.index["recording_type"]) == {"human_movement"}
-        assert set(inner_train.index["recording_type"]) == {"human_movement"}
+        assert set(inner_train.index["recording_type"]) == {"human_movement", "simulated_movements"}
+        assert set(inner_train.get_subset(recording_type="simulated_movements").group_labels) == set(
+            outer_train.get_subset(recording_type="simulated_movements").group_labels
+        )
     inner_optimizer = captured_inner["optimizer"]
     assert isinstance(inner_optimizer, Optimize)
     sample_human_days = inner_optimizer.train_dataset_transform
     assert sample_human_days is not None
     inner_train_labels, _ = next(captured_inner["splitter"].split(inner_dataset))
-    human_training_days = inner_dataset.get_subset(group_labels=inner_train_labels)
-    sampled = sample_human_days(human_training_days)
-    assert set(sampled.index["recording_type"]) == {"human_movement"}
-    assert len(sampled.index) == max(1, round(0.4 * len(human_training_days.index)))
+    inner_training_days = inner_dataset.get_subset(group_labels=inner_train_labels)
+    sampled = sample_human_days(inner_training_days)
+    human_training_days = inner_training_days.get_subset(recording_type="human_movement")
+    assert len(sampled.get_subset(recording_type="human_movement").index) == max(
+        1, round(0.4 * len(human_training_days.index))
+    )
+    sampled_part_b = sampled.get_subset(recording_type="simulated_movements")
+    assert sampled_part_b.index["recording_id"].nunique() == xgboost.PART_B_RECORDING_COUNT
+    assert set(sampled_part_b.group_labels) <= set(outer_train.group_labels)
+    pd.testing.assert_frame_equal(sample_human_days(inner_training_days).index, sampled.index)
 
     monkeypatch.setattr(xgboost, "PART_B_DAY_COUNT", 3)
-    run_script(xgboost)
-    part_b_days_by_fold = [
-        evaluation_dataset.get_subset(group_labels=train_labels).get_subset(recording_type="simulated_movements").index
-        for train_labels, _ in captured_splitters["outer"].split(evaluation_dataset)
-    ]
-    assert len(part_b_days_by_fold) == 3
-    assert all(len(days) == 3 for days in part_b_days_by_fold)
-    assert set(part_b_days_by_fold[0][["recording_id", "recording_day"]].itertuples(index=False, name=None)) == {
-        ("part_b_020", "2020-02-01"),
-        ("part_b_020", "2020-02-02"),
-        ("part_b_022", "2020-02-02"),
-    }
-    for days in part_b_days_by_fold[1:]:
-        pd.testing.assert_frame_equal(days, part_b_days_by_fold[0])
+    sampled_days = sample_human_days(inner_training_days)
+    assert len(sampled_days.get_subset(recording_type="simulated_movements").index) == 3
+    assert set(sampled_days.get_subset(recording_type="simulated_movements").group_labels) <= set(
+        outer_train.group_labels
+    )
+    pd.testing.assert_frame_equal(
+        sampled_days.get_subset(recording_type="human_movement").index,
+        sampled.get_subset(recording_type="human_movement").index,
+    )

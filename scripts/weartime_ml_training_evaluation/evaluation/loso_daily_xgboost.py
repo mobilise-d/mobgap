@@ -9,6 +9,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import optuna
+import pandas as pd
 from optimizable_optuna_search import OptimizableOptunaSearch
 from optuna import Trial
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
@@ -29,8 +30,8 @@ OUTPUT_DIR = Path(".cache/weartime_loso_runs")
 RUN_NAME = None  # Defaults to a timestamped directory.
 PARTICIPANT_IDS = None  # None selects all human participants.
 MAX_PARTICIPANTS = None
-PART_B_RECORDING_COUNT = 2
-PART_B_DAY_COUNT = None  # Set to sample days instead of whole recordings.
+PART_B_RECORDING_COUNT = 2  # Smaller train-only Part B sample for inner CV.
+PART_B_DAY_COUNT = None  # Set to sample inner training days instead of recordings.
 SEED = 42
 OVERLAP = 0.75
 WINDOW_BATCH_SIZE = 8192
@@ -52,7 +53,6 @@ def main() -> None:
     base_dataset = SustainWearTimeDataset(
         dataset_path,
         additional_sensors_enabled=(),
-        warn_thres_for_sampling_rate_deviations_hz=None,
         splitter=split_by_utc_day,
         memory=joblib.Memory(cache_dir, verbose=0),
     )
@@ -66,7 +66,7 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant per outer fold; use the same seeded Part B sample in every training fold.
+    # Hold out one human participant; repeat a fixed 50/50 Part B day split in every outer fold.
     outer_splitter = CombinedSplitter(
         parts=[
             (
@@ -77,15 +77,11 @@ def main() -> None:
                 lambda days: days.get_subset(recording_type="simulated_movements"),
                 NoSplit(
                     None,
-                    train=lambda days: (
-                        days.get_subset(index=days.index.sample(n=PART_B_DAY_COUNT, random_state=SEED))
-                        if PART_B_DAY_COUNT is not None
-                        else days.get_subset(
-                            recording_id=days.index["recording_id"]
-                            .drop_duplicates()
-                            .sample(n=PART_B_RECORDING_COUNT, random_state=SEED)
-                            .tolist()
-                        )
+                    train=lambda days: days.get_subset(
+                        index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
+                    ),
+                    test=lambda days: days.get_subset(
+                        index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
                     ),
                 ),
             ),
@@ -103,13 +99,17 @@ def main() -> None:
         )
     )
 
-    # Search human-only inner folds, then refit on the full outer training fold.
+    # Rank candidates on human-only inner validation; pass the outer Part B training pool through.
     inner_splitter = CombinedSplitter(
         parts=[
             (
                 lambda days: days.get_subset(recording_type="human_movement"),
                 DatasetSplitter(GroupKFold(n_splits=INNER_FOLDS), groupby="participant_id"),
-            )
+            ),
+            (
+                lambda days: days.get_subset(recording_type="simulated_movements"),
+                NoSplit(None, train=lambda days: days),
+            ),
         ]
     )
 
@@ -125,13 +125,40 @@ def main() -> None:
         candidate.set_params(**params)
         inner_optimizer = Optimize(
             candidate,
+            # Sample human training days and a smaller Part B subset independently.
             train_dataset_transform=lambda inner_train_days: inner_train_days.get_subset(
-                index=inner_train_days.index.sample(
-                    n=max(1, round(len(inner_train_days.index) * SEARCH_TRAIN_FRACTION)),
-                    random_state=SEED,
+                index=pd.concat(
+                    [
+                        inner_train_days.index.query("recording_type == 'human_movement'").sample(
+                            n=max(
+                                1,
+                                round(
+                                    (inner_train_days.index["recording_type"] == "human_movement").sum()
+                                    * SEARCH_TRAIN_FRACTION
+                                ),
+                            ),
+                            random_state=SEED,
+                        ),
+                        (
+                            inner_train_days.index.query("recording_type == 'simulated_movements'").sample(
+                                n=PART_B_DAY_COUNT, random_state=SEED
+                            )
+                            if PART_B_DAY_COUNT is not None
+                            else inner_train_days.get_subset(
+                                recording_type="simulated_movements",
+                                recording_id=inner_train_days.index.loc[
+                                    inner_train_days.index["recording_type"] == "simulated_movements", "recording_id"
+                                ]
+                                .drop_duplicates()
+                                .sample(n=PART_B_RECORDING_COUNT, random_state=SEED)
+                                .tolist(),
+                            ).index
+                        ),
+                    ]
                 )
             ),
         )
+
         scores = cross_validate(
             inner_optimizer,
             train_days,
@@ -169,7 +196,7 @@ def main() -> None:
     evaluation.get_aggregated_results_as_df(group="test").to_csv(output_dir / "fold_results.csv")
     evaluation.get_single_results_as_df(group="test").to_csv(output_dir / "daily_results.csv")
 
-    # Fit the final model on the union of all selected folds, preserving the Part B selection.
+    # Fit the final export on all selected human days and both Part B halves after scoring.
     selected_labels = list(
         dict.fromkeys(label for train, test in outer_splitter.split(base_dataset) for label in [*train, *test])
     )
