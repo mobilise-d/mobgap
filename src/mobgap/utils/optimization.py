@@ -47,8 +47,8 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
         Callable that suggests parameters on the trial, using pipeline parameter names.
         Required for the shared CV objective; ignored when ``objective`` is supplied.
     scoring
-        Per-datapoint scorer or Scorer object. Required for the shared objective unless the pipeline
-        provides a compatible ``score`` method. Ignored when ``objective`` is supplied.
+        Per-datapoint scorer or Scorer object. Required for the shared CV objective.
+        Ignored when ``objective`` is supplied, which may leave it as ``None``.
     score_name
         Aggregate validation metric to rank. The shared objective averages
         ``test__agg__<score_name>`` across folds. Scalar scorers use the default ``"score"``.
