@@ -135,6 +135,8 @@ complete dataset passed to ``optimize``.
 
 This draft's earlier ``mobgap.utils.optimization.OptimizableOptunaSearch`` API
 has been replaced, with maintainer approval, by the wear-time-specific class
-above. Update the import and class name; custom objectives and study factories
-are no longer accepted. Configure the scorer, ranking metric and optimization
-``direction`` instead. Importing this module requires the optional Optuna dependency.
+above. Update the import and class name; custom objectives are no longer
+accepted. Configure the scorer and ranking metric for the shared CV objective.
+Use the normal TPCP ``get_study_params`` factory parameter to configure study
+direction, sampling or storage. Importing this module requires the optional
+Optuna dependency.
