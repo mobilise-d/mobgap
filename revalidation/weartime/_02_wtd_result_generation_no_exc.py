@@ -89,7 +89,9 @@ optimizers = {
     ),
     "WtdMegaritisCNN": WearTimeOptunaSearch(
         WtdEmulationPipeline(
-            WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())
+            WtdMegaritisCNN(
+                model=MegaritisCnnWeartimeModel(standardize_in_model=True)
+            )
         ),
         **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
     ),

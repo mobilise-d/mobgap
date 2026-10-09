@@ -21,7 +21,7 @@ def main() -> None:
     """Tune on inner CV, then export models refitted on the complete dataset."""
     cache_dir = Path(CACHE_DIR or get_env_var("MOBGAP_CACHE_DIR_PATH", ".cache/mobgap")).expanduser()
     dataset = SustainWearTimeDataset(
-        DATASET_PATH or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH"),
+        Path(DATASET_PATH or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser(),
         additional_sensors_enabled=(),
         memory=Memory(cache_dir, verbose=0),
     )
@@ -38,7 +38,7 @@ def main() -> None:
             **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
-            WtdEmulationPipeline(WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())),
+            WtdEmulationPipeline(WtdMegaritisCNN(model=MegaritisCnnWeartimeModel(standardize_in_model=True))),
             **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
         ),
     }
