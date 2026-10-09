@@ -19,7 +19,7 @@ day. Part B test days therefore repeat across folds; they are not independent
 additional held-out participants. `OVERLAP` controls the window stride; set it
 to `0` for non-overlapping windows.
 
-XGBoost uses the reusable `mobgap.utils.optimization.OptimizableOptunaSearch`
+XGBoost uses the reusable `mobgap.weartime.optimization.WearTimeOptunaSearch`
 and `WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime` for separate
 Optuna tuning within each outer fold. Inner CV
 holds out human participants with GroupKFold. Inner validation and candidate

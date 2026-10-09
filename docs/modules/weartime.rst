@@ -66,7 +66,7 @@ Optimization presets
 ++++++++++++++++++++
 
 The trainable detectors provide dataset-specific settings for
-:class:`~mobgap.utils.optimization.OptimizableOptunaSearch`. For SUSTAIN,
+:class:`~mobgap.weartime.optimization.WearTimeOptunaSearch`. For SUSTAIN,
 ``OptimizationPresets.sustain_weartime`` supplies the search space, wear-time
 scorer, combined accuracy ranking and three participant-grouped inner folds.
 The optimizer defaults to 20 trials, seed 42 and final refitting. Its default
@@ -75,7 +75,7 @@ callers.
 
 .. code-block:: python
 
-    from mobgap.utils.optimization import OptimizableOptunaSearch
+    from mobgap.weartime.optimization import WearTimeOptunaSearch
     from mobgap.weartime import WtdMegaritisXGBoost
     from mobgap.weartime.pipeline import WtdEmulationPipeline
 
@@ -84,7 +84,7 @@ callers.
             **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight
         )
     )
-    optimizer = OptimizableOptunaSearch(
+    optimizer = WearTimeOptunaSearch(
         pipeline=pipeline,
         **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
     )
@@ -98,6 +98,20 @@ ranges derived from a published tuning study. XGBoost retains the six search
 ranges previously configured in the LOSO script.
 
 Override ``cv`` or ``train_dataset_transform`` to customize inner training and
-validation. The generic optimizer does not select recording types. Supply
-``objective`` to replace its shared CV objective entirely; final refitting still
-uses the complete dataset passed to ``optimize``.
+validation. The optimizer does not select recording types. Its shared objective
+ranks the mean validation score across inner folds; final refitting uses the
+complete dataset passed to ``optimize``.
+
+.. currentmodule:: mobgap.weartime.optimization
+
+.. autosummary::
+   :toctree: generated/weartime
+   :template: class.rst
+
+    WearTimeOptunaSearch
+
+This draft's earlier ``mobgap.utils.optimization.OptimizableOptunaSearch`` API
+has been replaced, with maintainer approval, by the wear-time-specific class
+above. Update the import and class name; custom objectives and study factories
+are no longer accepted. Configure the scorer, ranking metric and optimization
+``direction`` instead. Importing this module requires the optional Optuna dependency.

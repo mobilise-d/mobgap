@@ -14,7 +14,7 @@ from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
 from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.utils.misc import get_env_var
-from mobgap.utils.optimization import OptimizableOptunaSearch
+from mobgap.weartime.optimization import WearTimeOptunaSearch
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
@@ -118,7 +118,7 @@ def main() -> None:
             "progress_bar": True,
         },
     )
-    optimizer = OptimizableOptunaSearch(
+    optimizer = WearTimeOptunaSearch(
         pipeline=pipeline,
         **{
             **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,

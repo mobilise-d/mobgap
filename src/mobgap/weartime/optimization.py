@@ -1,29 +1,37 @@
-"""Reusable Optuna search for optimizable TPCP pipelines."""
+"""Optuna search for trainable wear-time pipelines."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from functools import partial
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import optuna
+from tpcp import cf
 from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
 from tpcp.validate import cross_validate
+
+from mobgap.weartime.evaluation import wtd_score
+from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from optuna import Study, Trial
     from optuna.trial import FrozenTrial
-    from tpcp import Dataset, OptimizablePipeline
+    from tpcp.optimize.optuna import StudyParamsDict
     from tpcp.validate import BaseDatasetSplitter, Scorer
+    from tpcp.validate._scorer import ScoreType
+
+    from mobgap.data.base import BaseGaitDataset
 
 
-def _seeded_study(seed: int) -> dict[str, Any]:
-    return {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)}
+def _seeded_study(seed: int, *, direction: Literal["maximize", "minimize"]) -> StudyParamsDict:
+    return {"direction": direction, "sampler": optuna.samplers.TPESampler(seed=seed)}
 
 
-class OptimizableOptunaSearch(CustomOptunaOptimize):
+class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitDataset"]):
     """Search parameters with inner CV, then refit the winner on the provided dataset.
 
     ``create_search_space`` calls Optuna's ``trial.suggest_*`` methods using pipeline parameter names.
@@ -31,8 +39,6 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
     ``score_name`` across its validation folds. ``train_dataset_transform`` changes only these inner
     training sets. The final refit uses the complete dataset provided to ``optimize``.
 
-    Supply ``objective`` to replace the shared CV objective. It receives the trial, cloned pipeline
-    and optimization dataset; its suggested parameter names must also be pipeline parameter names.
     Dataset selection belongs to the supplied ``cv`` and ``train_dataset_transform``.
 
     The default study maximizes the score with seeded TPE sampling. ``cv=3`` uses ordinary three-fold
@@ -42,37 +48,28 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
     Parameters
     ----------
     pipeline
-        Trainable TPCP pipeline. Each trial and CV fold uses a clone.
+        Trainable wear-time emulation pipeline. Each trial and CV fold uses a clone.
     create_search_space
         Callable that suggests parameters on the trial, using pipeline parameter names.
-        Required for the shared CV objective; ignored when ``objective`` is supplied.
     scoring
-        Per-datapoint scorer or Scorer object. Required for the shared CV objective.
-        Ignored when ``objective`` is supplied, which may leave it as ``None``.
+        Wear-time per-datapoint scorer or Scorer object, defaulting to ``wtd_score``.
     score_name
         Aggregate validation metric to rank. The shared objective averages
-        ``test__agg__<score_name>`` across folds. Scalar scorers use the default ``"score"``.
-        Ignored when ``objective`` is supplied.
+        ``test__agg__<score_name>`` across folds. The default ranks ``combined__accuracy``.
+        Set ``"score"`` when using a scalar scorer.
     cv
         Inner CV splitter or fold count. The default integer uses ordinary three-fold splitting.
-        Supply a grouped splitter for participant separation. Ignored by an injected objective.
+        Supply a grouped splitter for participant separation.
     train_dataset_transform
         Optional transform of each inner training subset before fitting. ``None`` keeps it unchanged.
-        Validation subsets and the final complete-data refit are unaffected. An injected objective
-        owns its own training procedure and does not apply this transform automatically.
-    objective
-        Optional replacement objective receiving ``(trial, cloned_pipeline, dataset)``.
-        It owns parameter suggestions, training and scoring. Final refitting still uses its winning
-        pipeline parameters and the complete optimization dataset.
-    get_study_params
-        Callable receiving the seed and returning Optuna study arguments. The default maximizes
-        the score with a seeded TPE sampler.
+        Validation subsets and the final complete-data refit are unaffected.
+    direction
+        Whether to maximize or minimize the selected validation metric. The study uses seeded TPE.
     n_trials, random_seed
         Trial budget and sampler seed, defaulting to 20 and 42.
     n_jobs
         Parallel trial workers. The shared objective always runs inner CV sequentially.
-        Multiple trial workers require persistent study storage, as described in
-        :class:`~tpcp.optimize.optuna.CustomOptunaOptimize`.
+        Use one worker: the internally configured study uses in-memory storage.
     return_optimized
         Refit the best pipeline on the complete optimization dataset when True.
     timeout, callbacks, gc_after_trial, eval_str_paras, show_progress_bar
@@ -82,15 +79,15 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
 
     def __init__(
         self,
-        pipeline: OptimizablePipeline,
-        create_search_space: Callable[[Trial], None] | None = None,
+        pipeline: WtdEmulationPipeline,
+        create_search_space: Callable[[Trial], None],
         *,
-        scoring: Scorer | Callable | None = None,
-        score_name: str = "score",
+        scoring: Scorer[WtdEmulationPipeline, BaseGaitDataset]
+        | Callable[[WtdEmulationPipeline, BaseGaitDataset], ScoreType] = cf(wtd_score),
+        score_name: str = "combined__accuracy",
         cv: BaseDatasetSplitter | int = 3,
-        train_dataset_transform: Callable[[Dataset], Dataset] | None = None,
-        objective: Callable[[Trial, OptimizablePipeline, Dataset], float] | None = None,
-        get_study_params: Callable[[int], dict[str, Any]] = _seeded_study,
+        train_dataset_transform: Callable[[BaseGaitDataset], BaseGaitDataset] | None = None,
+        direction: Literal["maximize", "minimize"] = "maximize",
         n_trials: int = 20,
         random_seed: int = 42,
         timeout: float | None = None,
@@ -106,27 +103,27 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
         self.score_name = score_name
         self.cv = cv
         self.train_dataset_transform = train_dataset_transform
-        self.objective = objective
-        super().__init__(
-            pipeline,
-            get_study_params,
-            n_trials=n_trials,
-            random_seed=random_seed,
-            timeout=timeout,
-            callbacks=callbacks,
-            gc_after_trial=gc_after_trial,
-            n_jobs=n_jobs,
-            eval_str_paras=eval_str_paras,
-            show_progress_bar=show_progress_bar,
-            return_optimized=return_optimized,
-        )
+        self.direction = direction
+        self.pipeline = pipeline
+        self.n_trials = n_trials
+        self.random_seed = random_seed
+        self.timeout = timeout
+        self.callbacks = callbacks
+        self.gc_after_trial = gc_after_trial
+        self.n_jobs = n_jobs
+        self.eval_str_paras = eval_str_paras
+        self.show_progress_bar = show_progress_bar
+        self.return_optimized = return_optimized
 
-    def create_objective(self) -> Callable[[Trial, OptimizablePipeline, Dataset], float]:
-        """Use the injected objective or the configured inner CV objective."""
-        if self.objective is not None:
-            return self.objective
+    @property
+    def get_study_params(self) -> Callable[[int], StudyParamsDict]:
+        """Configure the internal study using the current optimization direction."""
+        return partial(_seeded_study, direction=self.direction)
 
-        def objective(trial: Trial, candidate: OptimizablePipeline, dataset: Dataset) -> float:
+    def create_objective(self) -> Callable[[Trial, WtdEmulationPipeline, BaseGaitDataset], float]:
+        """Rank candidates using the configured inner CV objective."""
+
+        def objective(trial: Trial, candidate: WtdEmulationPipeline, dataset: BaseGaitDataset) -> float:
             self.create_search_space(trial)
             candidate.set_params(**self.sanitize_params(trial.params))
             scores = cross_validate(
@@ -143,4 +140,4 @@ class OptimizableOptunaSearch(CustomOptunaOptimize):
         return objective
 
 
-__all__ = ["OptimizableOptunaSearch"]
+__all__ = ["WearTimeOptunaSearch"]
