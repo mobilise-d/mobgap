@@ -19,7 +19,9 @@ day. Part B test days therefore repeat across folds; they are not independent
 additional held-out participants. `OVERLAP` controls the window stride; set it
 to `0` for non-overlapping windows.
 
-XGBoost performs Optuna tuning separately within each outer fold. Inner CV
+XGBoost uses the reusable `mobgap.utils.optimization.OptimizableOptunaSearch`
+and `WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime` for separate
+Optuna tuning within each outer fold. Inner CV
 holds out human participants with GroupKFold. Inner validation and candidate
 ranking contain human days only. The optimizer samples 40% of each inner human
 training set. `PART_B_DAY_COUNT=None` keeps all provided Part B training days unchanged; an
@@ -28,7 +30,10 @@ outer training half in the training dataset transform. The best candidate is
 refitted on the full outer training fold, including its complete Part B training
 half. Recording-level float32 features use TPCP's hybrid cache.
 
-CNN trains directly in each outer fold. Windows are prepared lazily without
+CNN trains directly in each outer fold. Its optional
+`WtdMegaritisCNN.OptimizationPresets.sustain_weartime` provides a modest learning
+rate/dropout/batch-size search for callers that want tuning; the CNN script does
+not enable it. Windows are prepared lazily without
 feature caching. GPU folds run sequentially.
 
 Each run exports only `fold_results.csv`, `daily_results.csv`, and a final

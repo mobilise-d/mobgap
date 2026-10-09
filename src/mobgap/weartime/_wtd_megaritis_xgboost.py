@@ -26,10 +26,12 @@ from typing import Any, Final, Literal, Optional, Protocol
 import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
+from sklearn.model_selection import GroupKFold
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
+from tpcp.validate import DatasetSplitter
 from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -355,6 +357,35 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
                     "feature_names": tuple(FULL_FEATURE_ORDER),
                     "version": "full",
                     "trained_sampling_rate_hz": None,
+                }
+            )
+
+    class OptimizationPresets:
+        """Dataset-specific search settings for an untrained detector in WtdEmulationPipeline."""
+
+        @staticmethod
+        def _create_search_space(trial: Any) -> None:
+            for name, choices in {
+                "n_estimators": [50, 100, 200],
+                "max_depth": [3, 5],
+                "learning_rate": [0.05, 0.1],
+                "subsample": [0.7, 0.8, 0.9],
+                "colsample_bytree": [0.6, 0.8],
+                "min_child_weight": [1, 3],
+            }.items():
+                trial.suggest_categorical(f"algo__clf__{name}", choices)
+
+        @classproperty
+        def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Report XGBoost ranges with three participant-grouped inner folds on SUSTAIN."""
+            from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
+
+            return MappingProxyType(
+                {
+                    "create_search_space": cls._create_search_space,
+                    "scoring": wtd_score,
+                    "score_name": "combined__accuracy",
+                    "cv": DatasetSplitter(GroupKFold(n_splits=3), groupby="participant_id"),
                 }
             )
 
