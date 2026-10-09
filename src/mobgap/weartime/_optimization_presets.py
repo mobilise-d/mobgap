@@ -5,23 +5,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from sklearn.model_selection import GroupKFold
-from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
+from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit, SubsetSplitter
 
 if TYPE_CHECKING:
     from mobgap.data.base import BaseGaitDataset
 
 
-def _sample_sustain_training_days(days: BaseGaitDataset, *, part_b_day_count: int | None = 5) -> BaseGaitDataset:
+def _sample_sustain_training_days(
+    days: BaseGaitDataset, *, simulated_non_wear_day_count: int | None = 5
+) -> BaseGaitDataset:
     human_days = days.index.query("recording_type == 'human_movement'")
-    part_b_days = days.index.query("recording_type == 'simulated_movements'")
+    simulated_non_wear_days = days.index.query("recording_type == 'simulated_movements'")
     return days.get_subset(
         index=pd.concat(
             [
                 human_days.sample(n=max(1, round(len(human_days) * 0.4)), random_state=42),
-                part_b_days.sample(n=part_b_day_count, random_state=42)
-                if part_b_day_count is not None
-                else part_b_days,
+                simulated_non_wear_days.sample(n=simulated_non_wear_day_count, random_state=42)
+                if simulated_non_wear_day_count is not None
+                else simulated_non_wear_days,
             ]
         )
     )
@@ -36,12 +37,18 @@ def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
         "cv": CombinedSplitter(
             parts=[
                 (
-                    lambda days: days.get_subset(recording_type="human_movement"),
-                    DatasetSplitter(GroupKFold(n_splits=3), groupby="participant_id"),
+                    "human",
+                    SubsetSplitter(
+                        lambda days: days.get_subset(recording_type="human_movement"),
+                        DatasetSplitter(3, groupby="participant_id"),
+                    ),
                 ),
                 (
-                    lambda days: days.get_subset(recording_type="simulated_movements"),
-                    NoSplit(None, train=lambda days: days),
+                    "simulated_non_wear",
+                    SubsetSplitter(
+                        lambda days: days.get_subset(recording_type="simulated_movements"),
+                        NoSplit(None, train=lambda days: days),
+                    ),
                 ),
             ]
         ),

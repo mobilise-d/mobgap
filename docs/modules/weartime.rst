@@ -70,13 +70,13 @@ The trainable detectors provide dataset-specific settings for
 ``OptimizationPresets.sustain_weartime`` supplies the search space, wear-time
 scorer, combined accuracy ranking and three participant-grouped inner folds.
 Inner validation includes only human-movement days. Each inner training fold
-uses 40% of its human days and five seeded Part B days from the provided training
-pool, sampled independently with seed 42. Supply at least five Part B training
-days; the preset does not select or alter the outer train/test split.
+uses 40% of its human days and five seeded simulated non-wear days from the
+provided training pool, sampled independently with seed 42. Supply at least five
+simulated non-wear training days; the preset does not select or alter the outer train/test split.
 These sampling choices are computational-budget defaults selected for the
 training experiments in this repository: 40% reduces human-day preprocessing
-and fitting costs, while five Part B days provide a limited non-wear training
-pool. They are not an author-reported or scientifically validated tuning
+and fitting costs, while five simulated non-wear days provide a limited
+non-wear training pool. They are not an author-reported or scientifically validated tuning
 protocol. Changing them changes the training distribution used to rank
 candidates; configure the training transform for the intended experiment.
 The optimizer defaults to 20 trials, seed 42 and final refitting. Callers can
@@ -106,6 +106,19 @@ and training batch size at 256, 512 or 1024. Architecture, windows and epochs
 stay configured on the model. These are practical initial search ranges, not
 ranges derived from a published tuning study. XGBoost retains the six search
 ranges previously configured in the LOSO script.
+
+The preset splitter has named ``human`` and ``simulated_non_wear`` parts.
+Override their nested parameters directly, for example:
+
+.. code-block:: python
+
+    optimizer.set_params(
+        cv__parts__human__splitter__base_splitter=5,
+    )
+
+Use ``cv__parts__human__selector`` to replace the human-day selector, or
+``cv__parts__simulated_non_wear__splitter__train`` to select a different simulated
+non-wear training pool. ``cv__parts__human`` replaces the complete human child.
 
 Override ``cv`` or ``train_dataset_transform`` to customize inner training and
 validation. The optimizer does not select recording types. Its shared objective

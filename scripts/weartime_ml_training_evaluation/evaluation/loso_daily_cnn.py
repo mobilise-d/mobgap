@@ -9,7 +9,7 @@ from pathlib import Path
 import joblib
 from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import Optimize
-from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
+from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit, SubsetSplitter
 
 from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
@@ -60,22 +60,27 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant; repeat a fixed 50/50 Part B day split in every outer fold.
+    # Hold out one human participant; repeat a fixed 50/50 simulated non-wear day split in every outer fold.
     splitter = CombinedSplitter(
         parts=[
             (
-                select_human_days,
-                DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id"),
+                "human",
+                SubsetSplitter(
+                    select_human_days, DatasetSplitter(base_splitter=LeaveOneGroupOut(), groupby="participant_id")
+                ),
             ),
             (
-                lambda days: days.get_subset(recording_type="simulated_movements"),
-                NoSplit(
-                    None,
-                    train=lambda days: days.get_subset(
-                        index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
-                    ),
-                    test=lambda days: days.get_subset(
-                        index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
+                "simulated_non_wear",
+                SubsetSplitter(
+                    lambda days: days.get_subset(recording_type="simulated_movements"),
+                    NoSplit(
+                        None,
+                        train=lambda days: days.get_subset(
+                            index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
+                        ),
+                        test=lambda days: days.get_subset(
+                            index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
+                        ),
                     ),
                 ),
             ),
@@ -124,7 +129,7 @@ def main() -> None:
     evaluation.get_aggregated_results_as_df(group="test").to_csv(output_dir / "fold_results.csv")
     evaluation.get_single_results_as_df(group="test").to_csv(output_dir / "daily_results.csv")
 
-    # Fit the final export on all selected human days and both Part B halves after scoring.
+    # Fit the final export on all selected human days and both simulated non-wear halves after scoring.
     selected_labels = list(
         dict.fromkeys(label for train, test in splitter.split(base_dataset) for label in [*train, *test])
     )

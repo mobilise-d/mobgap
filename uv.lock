@@ -1680,7 +1680,7 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.12.0" },
     { name = "statsmodels", specifier = ">=0.14.3" },
     { name = "tensorflow", marker = "python_full_version < '3.13' and extra == 'weartime'", specifier = ">=2.18,<2.19" },
-    { name = "tpcp", specifier = ">=3.2.0" },
+    { name = "tpcp", specifier = ">=3.3.0" },
     { name = "xgboost", marker = "extra == 'weartime'", specifier = ">=2.1.4,<3.0" },
 ]
 provides-extras = ["ax6", "weartime"]
@@ -3446,7 +3446,7 @@ wheels = [
 
 [[package]]
 name = "tpcp"
-version = "3.2.0"
+version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "joblib" },
@@ -3457,9 +3457,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "xxhash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/09/21/435635c25e1bad912c91a13b9fb2e20a17b88a13612899f925774f3e20ab/tpcp-3.2.0.tar.gz", hash = "sha256:d1901ffb6c9fdc9e6ece8c8a6fb3beb134a65459d62b2284c38d0d3d1e561107", size = 111288, upload-time = "2026-10-08T13:27:58.472Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/7d/eea163797169852f4788500b950e24e46c4fcc76317e69f9b27f9ecc7378/tpcp-3.3.0.tar.gz", hash = "sha256:9c8ce7379f3deef44f8f9f7a8f8a1fcc05f9f2748a08f95252482b826b614f76", size = 111802, upload-time = "2026-10-09T10:47:00.801Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/ae/a3a1ed3857d443788390a6520434508131c05cb880084d239c7167dc1506/tpcp-3.2.0-py3-none-any.whl", hash = "sha256:a49e929cbf5f3294ff20e816e4fa9881e51da0a0a0a806c84a620fde225ce78d", size = 130080, upload-time = "2026-10-08T13:27:57.192Z" },
+    { url = "https://files.pythonhosted.org/packages/75/fa/139702c070a3e1e790552760919262c2898a2c6200389a5337e143cb05c5/tpcp-3.3.0-py3-none-any.whl", hash = "sha256:d4945234391afa2bc249a32385db4fa339c1b73f2cb4b27732c0206a5083e974", size = 130661, upload-time = "2026-10-09T10:46:58.752Z" },
 ]
 
 [[package]]

@@ -6,7 +6,8 @@ Revalidation of the wear-time detection algorithms
 
 This script evaluates the signal-based detector on SUSTAIN human recordings
 with participant LOSO. Each held-out participant contributes daily datapoints
-with at least eight hours of recorded data. Part B recordings are excluded.
+with at least eight hours of recorded data. Simulated non-wear recordings
+are excluded.
 The signal detector has no fitted parameters, so ``DummyOptimize`` runs the same
 configured detector in every fold. This establishes the CV workflow for future
 trainable detectors.
@@ -40,7 +41,7 @@ from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import DummyOptimize
-from tpcp.validate import CombinedSplitter, DatasetSplitter
+from tpcp.validate import CombinedSplitter, DatasetSplitter, SubsetSplitter
 
 cache_dir = Path(get_env_var("MOBGAP_CACHE_DIR_PATH", PROJECT_ROOT / ".cache"))
 results_base_path = (
@@ -66,13 +67,16 @@ optimizers = {
 # %%
 # Hold out every day of one human participant per fold
 # ---------------------------------------------------
-# Selection belongs to the splitter. No Part B recordings enter either train or
-# test sets.
+# Selection belongs to the splitter. Simulated non-wear recordings enter neither
+# train nor test sets.
 splitter = CombinedSplitter(
     parts=[
         (
-            lambda days: days.get_subset(recording_type="human_movement"),
-            DatasetSplitter(LeaveOneGroupOut(), groupby="participant_id"),
+            "human",
+            SubsetSplitter(
+                lambda days: days.get_subset(recording_type="human_movement"),
+                DatasetSplitter(LeaveOneGroupOut(), groupby="participant_id"),
+            ),
         ),
     ]
 )
