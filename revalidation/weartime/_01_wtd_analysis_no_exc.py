@@ -9,7 +9,10 @@ recordings and a fixed held-out half of simulated non-wear source recordings.
 Each evaluated day contains at least eight hours of recorded data. The signal
 detector has no learned parameters; LOSO does not undo historical
 tuning of its fixed settings. CNN and XGBoost are fitted and tuned within each
-outer training fold.
+outer training fold. The lightweight XGBoost feature list was selected using
+SHAP results pooled across the historical SUSTAIN LOSO folds. These results
+revalidate that frozen method on the same cohort; feature selection is not
+independently validated.
 
 Classification summaries compare equal weights for days, participants and folds.
 Within each participant, rates use either pooled labeled-sample confusion counts
