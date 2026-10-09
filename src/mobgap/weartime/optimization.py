@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from functools import partial
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -25,10 +24,6 @@ if TYPE_CHECKING:
     from tpcp.validate._scorer import ScoreType
 
     from mobgap.data.base import BaseGaitDataset
-
-
-def _seeded_study(seed: int, *, direction: Literal["maximize", "minimize"]) -> StudyParamsDict:
-    return {"direction": direction, "sampler": optuna.samplers.TPESampler(seed=seed)}
 
 
 class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitDataset"]):
@@ -104,21 +99,22 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
         self.cv = cv
         self.train_dataset_transform = train_dataset_transform
         self.direction = direction
-        self.pipeline = pipeline
-        self.n_trials = n_trials
-        self.random_seed = random_seed
-        self.timeout = timeout
-        self.callbacks = callbacks
-        self.gc_after_trial = gc_after_trial
-        self.n_jobs = n_jobs
-        self.eval_str_paras = eval_str_paras
-        self.show_progress_bar = show_progress_bar
-        self.return_optimized = return_optimized
+        super().__init__(
+            pipeline,
+            self._get_study_params,
+            n_trials=n_trials,
+            random_seed=random_seed,
+            timeout=timeout,
+            callbacks=callbacks,
+            gc_after_trial=gc_after_trial,
+            n_jobs=n_jobs,
+            eval_str_paras=eval_str_paras,
+            show_progress_bar=show_progress_bar,
+            return_optimized=return_optimized,
+        )
 
-    @property
-    def get_study_params(self) -> Callable[[int], StudyParamsDict]:
-        """Configure the internal study using the current optimization direction."""
-        return partial(_seeded_study, direction=self.direction)
+    def _get_study_params(self, seed: int) -> StudyParamsDict:
+        return {"direction": self.direction, "sampler": optuna.samplers.TPESampler(seed=seed)}
 
     def create_objective(self) -> Callable[[Trial, WtdEmulationPipeline, BaseGaitDataset], float]:
         """Rank candidates using the configured inner CV objective."""
