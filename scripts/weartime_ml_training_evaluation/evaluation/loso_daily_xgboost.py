@@ -30,8 +30,7 @@ OUTPUT_DIR = Path(".cache/weartime_loso_runs")
 RUN_NAME = None  # Defaults to a timestamped directory.
 PARTICIPANT_IDS = None  # None selects all human participants.
 MAX_PARTICIPANTS = None
-PART_B_RECORDING_COUNT = 2  # Smaller train-only Part B sample for inner CV.
-PART_B_DAY_COUNT = None  # Set to sample inner training days instead of recordings.
+PART_B_DAY_COUNT = None  # None keeps all inner training Part B days; an integer samples that many days.
 SEED = 42
 OVERLAP = 0.75
 WINDOW_BATCH_SIZE = 8192
@@ -144,15 +143,7 @@ def main() -> None:
                                 n=PART_B_DAY_COUNT, random_state=SEED
                             )
                             if PART_B_DAY_COUNT is not None
-                            else inner_train_days.get_subset(
-                                recording_type="simulated_movements",
-                                recording_id=inner_train_days.index.loc[
-                                    inner_train_days.index["recording_type"] == "simulated_movements", "recording_id"
-                                ]
-                                .drop_duplicates()
-                                .sample(n=PART_B_RECORDING_COUNT, random_state=SEED)
-                                .tolist(),
-                            ).index
+                            else inner_train_days.index.query("recording_type == 'simulated_movements'")
                         ),
                     ]
                 )

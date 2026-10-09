@@ -20,12 +20,11 @@ additional held-out participants. `OVERLAP` controls the window stride; set it
 to `0` for non-overlapping windows.
 
 XGBoost performs Optuna tuning separately within each outer fold. Inner CV
-holds out human participants with GroupKFold. Its training sets include a smaller
-seeded sample drawn only from the provided outer Part B training half, configured
-by `PART_B_RECORDING_COUNT` or `PART_B_DAY_COUNT`. Inner validation and candidate
+holds out human participants with GroupKFold. Inner validation and candidate
 ranking contain human days only. The optimizer samples 40% of each inner human
-training set and independently draws the smaller Part B training sample in its
-training dataset transform. The best candidate is
+training set. `PART_B_DAY_COUNT=None` keeps all provided Part B training days unchanged; an
+integer independently samples that many seeded Part B days from the provided
+outer training half in the training dataset transform. The best candidate is
 refitted on the full outer training fold, including its complete Part B training
 half. Recording-level float32 features use TPCP's hybrid cache.
 
