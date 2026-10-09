@@ -125,31 +125,31 @@ def main() -> None:
             "cv": inner_splitter,
             "n_trials": N_TRIALS,
             "random_seed": SEED,
-        },
-        # Sample human training days and optional Part B days independently.
-        train_dataset_transform=lambda inner_train_days: inner_train_days.get_subset(
-            index=pd.concat(
-                [
-                    inner_train_days.index.query("recording_type == 'human_movement'").sample(
-                        n=max(
-                            1,
-                            round(
-                                (inner_train_days.index["recording_type"] == "human_movement").sum()
-                                * SEARCH_TRAIN_FRACTION
+            # Sample human training days and optional Part B days independently.
+            "train_dataset_transform": lambda inner_train_days: inner_train_days.get_subset(
+                index=pd.concat(
+                    [
+                        inner_train_days.index.query("recording_type == 'human_movement'").sample(
+                            n=max(
+                                1,
+                                round(
+                                    (inner_train_days.index["recording_type"] == "human_movement").sum()
+                                    * SEARCH_TRAIN_FRACTION
+                                ),
                             ),
+                            random_state=SEED,
                         ),
-                        random_state=SEED,
-                    ),
-                    (
-                        inner_train_days.index.query("recording_type == 'simulated_movements'").sample(
-                            n=PART_B_DAY_COUNT, random_state=SEED
-                        )
-                        if PART_B_DAY_COUNT is not None
-                        else inner_train_days.index.query("recording_type == 'simulated_movements'")
-                    ),
-                ]
-            )
-        ),
+                        (
+                            inner_train_days.index.query("recording_type == 'simulated_movements'").sample(
+                                n=PART_B_DAY_COUNT, random_state=SEED
+                            )
+                            if PART_B_DAY_COUNT is not None
+                            else inner_train_days.index.query("recording_type == 'simulated_movements'")
+                        ),
+                    ]
+                )
+            ),
+        },
     )
 
     evaluation.run(optimizer)

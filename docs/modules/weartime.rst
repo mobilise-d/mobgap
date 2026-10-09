@@ -69,9 +69,13 @@ The trainable detectors provide dataset-specific settings for
 :class:`~mobgap.weartime.optimization.WearTimeOptunaSearch`. For SUSTAIN,
 ``OptimizationPresets.sustain_weartime`` supplies the search space, wear-time
 scorer, combined accuracy ranking and three participant-grouped inner folds.
-The optimizer defaults to 20 trials, seed 42 and final refitting. Its default
-training transform is identity; dataset selection and subsampling stay with
-callers.
+Inner validation includes only human-movement days. Each inner training fold
+uses 40% of its human days and five seeded Part B days from the provided training
+pool, sampled independently with seed 42. Supply at least five Part B training
+days; the preset does not select or alter the outer train/test split.
+The optimizer defaults to 20 trials, seed 42 and final refitting. Callers can
+override the inner splitter and training transform; ``train_dataset_transform=None``
+keeps complete inner training subsets.
 
 .. code-block:: python
 
