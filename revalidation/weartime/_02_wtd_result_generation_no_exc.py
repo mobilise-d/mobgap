@@ -104,8 +104,23 @@ optimizers = {
 # %%
 # Hold out every day of one human participant per fold
 # ---------------------------------------------------
-# Keep a fixed half of complete simulated non-wear recordings in train and test.
-# The source recording IDs, sorted before sampling, determine the split.
+# The dataset contains two parts: human recordings and simulated non-wear recordings.
+# The human recordings are the most important part of our evaluation.
+# We use a leave one participant out (LOSO) cross-validation scheme to estimate the performance on independent human participants.
+#
+# The dataset further contains simulated non-wear recordings.
+# As this part of the data contans "unrealistic" distributions of wear vs. non-wear, we would not expect during real deployments,
+# we try to keep this part seperated during the evaluation.
+# However, this data might still be usefull for the training of the models to provide them with examples of non-wear "movements".
+#
+# For this reason we use a very unusal cross-validation approach.
+# We split the actual human recordings using a LOSO scheme.
+# Then we add a fixed 50% of the simulated non-wear recordings to eachs fold train data, so that the models can learn from this data.
+#
+# To allow evaluation on the non-wear recordings, we add the remaining 50% of the simulated non-wear recordings to each fold test data.
+# This means each test set contains one unique human participant and the same 50% of the simulated non-wear recordings.
+# We will later sperate the two parts of the test data again before calculating the metrics.
+# But this approach allows us to get all results in a single run of the evaluation, without complex managment of intermediate model artifacts or similar.
 splitter = CombinedSplitter(
     parts=[
         (
