@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   objective; the `objective` and `get_study_params` constructor arguments have been removed. Scoring now defaults
   to `wtd_score` with `score_name="combined__accuracy"`; use `score_name="score"` for a scalar scorer. Configure
   `direction="maximize"` or `"minimize"` for the internal seeded TPE study. This narrowing was approved by the
-  maintainer for the unreleased API. See the [migration instructions](docs/modules/weartime.rst#optimization-presets).
+  maintainer for the unreleased API. See the [migration instructions](https://mobgap.readthedocs.io/en/latest/modules/weartime.html#optimization-presets).
 
 - **Breaking:** The default Hampel smoothing in `CadFromIc`, `CadFromIcDetector`, and `SlZijlstra` now preserves
   deviations of up to 0.075 s in step time and 0.05 m in step length (0.10 m in reported stride length), respectively.
