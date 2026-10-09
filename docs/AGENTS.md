@@ -4,8 +4,3 @@
 - Document API contracts, parameters, behavior, and limitations in docstrings beside the implementation.
 - Put usage walkthroughs in examples. Document script configuration and execution beside the scripts, such as in their README files.
 - Document the current interface. Add migration guidance only for changes from a published version, never for iterations of an unpublished feature or draft PR.
-
-## Agent artifacts
-
-- This repository must never include agent-generated plan or specification files in changes merged to `main`, regardless of their directory.
-- Keep temporary agent plans, task specifications, and review coordination files outside the tracked repository. Do not turn development conversations into product documentation.

@@ -6,10 +6,9 @@
 ## Documentation and agent artifacts
 
 - Follow [docs/AGENTS.md](docs/AGENTS.md) when adding or changing documentation, including docstrings and examples outside `docs/`.
-- Never include agent-generated plan or specification files in changes merged to `main`, anywhere in this repository. Keep temporary agent planning artifacts outside the tracked repository.
+- Never include agent-generated plan or specification files in changes merged to `main`, anywhere in this repository. Keep temporary agent plans, task specifications, and review coordination files outside the tracked repository.
 
 ## Changelog
 
 - Changelog entries describe the final changes relative to the last published release.
 - When stacked changes revise an unreleased feature, update or replace its existing unreleased entry to describe the resulting behavior. Do not add entries narrating intermediate versions, draft API changes, or development discussions.
-- Document migrations only when users must migrate from a published version.
