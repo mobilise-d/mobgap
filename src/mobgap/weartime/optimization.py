@@ -44,6 +44,38 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
     splitting; pass a grouped splitter when datapoints from one participant must stay together.
     This module requires the optional Optuna dependency.
 
+    Examples
+    --------
+    Use the SUSTAIN preset with an explicitly untrained detector:
+
+    >>> from mobgap.weartime import WtdMegaritisXGBoost
+    >>> pipeline = WtdEmulationPipeline(
+    ...     WtdMegaritisXGBoost(
+    ...         **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight
+    ...     )
+    ... )
+    >>> optimizer = WearTimeOptunaSearch(
+    ...     pipeline=pipeline,
+    ...     **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+    ... )
+
+    The preset supplies human-only, participant-grouped inner validation and a
+    training transform sampling 40% of human days plus five simulated non-wear
+    days with seed 42. Supply at least five simulated days. These sampling
+    settings limit computation; they are not a validated tuning protocol.
+    ``train_dataset_transform=None`` keeps complete inner training subsets.
+    Named splitter parts allow direct overrides:
+
+    >>> optimizer.set_params(
+    ...     cv__parts__human__splitter__base_splitter=5
+    ... )  # doctest: +SKIP
+
+    Replace ``cv__parts__human__selector`` to change human-day selection, or
+    ``cv__parts__simulated_non_wear__splitter__train`` to change the simulated
+    training pool. For CNN, use an explicit untrained
+    :class:`~mobgap.weartime.MegaritisCnnWeartimeModel` with
+    ``WtdMegaritisCNN.OptimizationPresets.sustain_weartime``.
+
     Parameters
     ----------
     pipeline

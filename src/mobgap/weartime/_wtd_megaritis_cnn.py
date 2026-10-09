@@ -105,7 +105,13 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     model: OptimizableParameter[Optional[Any]]  # noqa: UP045 - tpcp 2.1 needs Python 3.9-evaluable strings.
 
     class OptimizationPresets:
-        """Dataset-specific search settings for an explicit untrained CNN model in WtdEmulationPipeline."""
+        """Dataset-specific search settings for an explicit untrained CNN model in WtdEmulationPipeline.
+
+        The SUSTAIN search uses log-scale Adam learning rates from 1e-4 to 1e-2,
+        dropout rates of 0.2, 0.3 or 0.5, and batch sizes of 256, 512 or 1024.
+        Architecture, windows and epochs stay configured on the model. These
+        are initial search ranges, not ranges from a published tuning study.
+        """
 
         @staticmethod
         def _create_search_space(trial: Any) -> None:
