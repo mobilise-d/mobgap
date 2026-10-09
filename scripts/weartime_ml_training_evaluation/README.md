@@ -63,3 +63,7 @@ caching. CNN prepares windows lazily without feature caching. Load exported CNN
 artifacts in a fresh process with
 `mobgap.weartime.load_keras_weartime_model(path)` to register its standardization
 layer before deserialization.
+
+The lightweight XGBoost feature list was selected from SHAP results pooled
+across the historical SUSTAIN LOSO folds. This revalidation evaluates that
+frozen method; its feature selection is not independent of this cohort.

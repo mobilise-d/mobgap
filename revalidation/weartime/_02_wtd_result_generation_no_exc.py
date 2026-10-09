@@ -73,6 +73,8 @@ dataset_sustain_weartime = SustainWearTimeDataset(
     additional_sensors_enabled=(),
     memory=Memory(cache_dir),
 )
+# The frozen lightweight XGBoost feature list was selected using this cohort;
+# revalidation does not provide an independent feature-selection assessment.
 optimizers = {
     "WtdMegaritisSignal": DummyOptimize(
         WtdEmulationPipeline(WtdMegaritisSignal()),
