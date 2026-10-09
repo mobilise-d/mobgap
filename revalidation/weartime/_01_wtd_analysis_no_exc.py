@@ -21,7 +21,8 @@ remain point estimates.
 
 .. note::
     See :ref:`wtd_val_gen_no_exc` for result generation. These results are not
-    part of the published validation-result package.
+    part of the published validation-result package. Only current result files
+    containing both human and simulated non-wear populations are supported.
 
 """
 
@@ -328,18 +329,14 @@ fig_human.show()
 # per evaluated day, without normalization to 24 hours. Average fold models for
 # each recording before averaging recordings and calculating the 95% t interval.
 # Repeated predictions across folds do not add independent CI observations.
-simulated_summary_rows = {
-    group: calculate_wtd_simulated_non_wear_summary(days)
-    for group, days in simulated_non_wear_results.groupby(["algo", "version"])
-}
-# Older human-only result files have no simulated rows: keep empty tables with
-# their expected index names rather than inventing performance observations.
 simulated_non_wear_summary_overall = pd.DataFrame(
-    simulated_summary_rows.values(),
-    index=pd.MultiIndex.from_tuples(
-        simulated_summary_rows, names=["algo", "version"]
-    ),
-)
+    {
+        group: calculate_wtd_simulated_non_wear_summary(days)
+        for group, days in simulated_non_wear_results.groupby(
+            ["algo", "version"]
+        )
+    }
+).T.rename_axis(index=["algo", "version"])
 
 recording_fold_groups = simulated_non_wear_results.groupby(
     ["algo", "version", "fold", "recording_id"]
