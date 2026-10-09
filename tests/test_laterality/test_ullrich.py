@@ -9,6 +9,7 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data import LabExampleDataset
+from mobgap.data_transform.base import IdentityFilter
 from mobgap.laterality import LrcUllrich
 from mobgap.pipeline import GsIterator
 from mobgap.utils.conversions import to_body_frame
@@ -47,6 +48,38 @@ class TestLrcUllrich:
 
         assert_frame_equal(actual.ic_lr_list_, expected.ic_lr_list_)
         assert_frame_equal(actual.feature_matrix_, expected.feature_matrix_)
+
+    def test_custom_filter_index_alignment(self):
+        class ReversedIndexFilter(IdentityFilter):
+            def filter(self, data, *, sampling_rate_hz=None, **kwargs):
+                super().filter(data, sampling_rate_hz=sampling_rate_hz, **kwargs)
+                self.transformed_data_.index = data.index[::-1]
+                return self
+
+        values = np.column_stack((np.arange(100, dtype=float) ** 2, np.arange(100, dtype=float) ** 3))
+        data = pd.DataFrame(values, columns=["gyr_is", "gyr_pa"])
+        ic_list = pd.DataFrame({"ic": [5, 20, 70]}, index=pd.Index(["a", "b", "c"], name="ic_id"))
+        algo = LrcUllrich(**{**self.model, "smoothing_filter": ReversedIndexFilter()})
+
+        result = algo.predict(data, ic_list, sampling_rate_hz=100.0)
+
+        # Filtered values retain their positions, while derivatives align by the original sample labels.
+        positions = ic_list["ic"].to_numpy()
+        aligned_positions = len(data) - 1 - positions
+        gradient = np.gradient(values, axis=0)
+        curvature = np.gradient(gradient, axis=0)
+        expected = pd.DataFrame(
+            {
+                "filtered__gyr_is": values[positions, 0],
+                "gradient__gyr_is": gradient[aligned_positions, 0],
+                "curvature__gyr_is": curvature[aligned_positions, 0],
+                "filtered__gyr_pa": values[positions, 1],
+                "gradient__gyr_pa": gradient[aligned_positions, 1],
+                "curvature__gyr_pa": curvature[aligned_positions, 1],
+            },
+            index=ic_list.index,
+        )
+        assert_frame_equal(result.feature_matrix_, expected, check_exact=True)
 
     def test_empty_data(self):
         test_params = self.model
