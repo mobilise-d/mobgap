@@ -1,62 +1,60 @@
-# Wear-time model training and evaluation
+# Wear-time training and evaluation
 
-The daily LOSO scripts are the training entry points:
+## Evaluation
 
-- `evaluation/loso_daily_cnn.py`
-- `evaluation/loso_daily_xgboost.py`
+The shared scripts are:
 
-Edit the configuration constants at the top of each script, then run it with
-Python. Install MobGap with its `weartime` extra. TensorFlow requires Python
-below 3.13. Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the
-SUSTAIN wear-time folder. The raw dataset is not distributed with MobGap.
+- `revalidation/weartime/_02_wtd_result_generation_no_exc.py`: generate signal,
+  XGBoost and CNN results with the same outer participant LOSO.
+- `revalidation/weartime/_01_wtd_analysis_no_exc.py`: compare their human and
+  simulated non-wear performance separately.
 
-Both scripts use daily datapoints and participant-grouped LOSO through
-`WtdEmulationPipeline`, TPCP optimizers, and `EvaluationCV`. Each human participant's
-entire set of selected days is held out together. Simulated non-wear source
-recordings use one seed-42 permutation, split into disjoint halves. The same
-training half and test half are included in every outer fold. With an odd
-recording count the test half has one extra recording. All its days remain in
-the same half. Simulated non-wear test days therefore repeat across folds; they
-are not independent
-additional held-out participants. `OVERLAP` controls the window stride; set it
-to `0` for non-overlapping windows.
+All human days of one participant are held out together. Simulated non-wear
+source recordings use one seed-42 50/50 split of complete original recordings;
+all days of a recording stay in the same half. The same training and test
+recordings repeat across outer fold models. The signal detector uses
+`DummyOptimize`; CNN and XGBoost use `WearTimeOptunaSearch` with their
+`OptimizationPresets.sustain_weartime`.
 
-XGBoost uses the reusable `mobgap.weartime.optimization.WearTimeOptunaSearch`
-and `WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime` for separate
-Optuna tuning within each outer fold. Both detector presets include human-only
-three-fold ranking and independently sample 40% of human days plus five seed-42 simulated non-wear
-training days. The script overrides this composition with its editable settings. Inner CV
-holds out human participants with GroupKFold. Inner validation and candidate
-ranking contain human days only. The optimizer samples 40% of each inner human
-training set. `SIMULATED_NON_WEAR_DAY_COUNT=None` keeps all provided simulated non-wear training days unchanged; an
-integer independently samples that many seeded simulated non-wear days from the provided
-outer training half in the training dataset transform. The best candidate is
-refitted on the full outer training fold, including its complete simulated non-wear training
-half. Recording-level float32 features use TPCP's hybrid cache.
+The inner presets rank three human participant folds. Each inner training set
+independently samples 40% of human days and five seed-42 simulated non-wear days
+from the supplied outer training pool. Simulated days never enter inner
+validation. The best candidate is refitted on the complete outer training fold.
+Partially uncertain human days remain in training: entire windows intersecting
+uncertain intervals are excluded, retaining known windows on the original
+sample grid. Held-out scoring masks uncertain samples as before.
+Defaults use 20 Optuna trials; the CNN model trains for 60 epochs. Edit script
+configuration before running. A full evaluation is expensive, especially
+without a GPU.
 
-CNN trains directly in each outer fold. Its optional
-`WtdMegaritisCNN.OptimizationPresets.sustain_weartime` provides a modest learning
-rate/dropout/batch-size search for callers that want tuning; the CNN script does
-not enable it. Windows are prepared lazily without
-feature caching. GPU folds run sequentially.
+Human metrics retain separate day, participant and fold weighting. Simulated
+metrics pool sample counts per recording/fold, average false-wear minutes per
+evaluated day (not normalized to 24 hours), then average fold models per
+recording. Equal recording means and 95% t intervals use those unique recording
+values; repeated predictions do not add independent CI observations. Only
+current result files containing all configured algorithms and both populations
+are supported.
 
-Each run exports only `fold_results.csv`, `daily_results.csv`, and a final
-trained model. Fold optimizers are not retained. After LOSO, the optimizer runs
-once on the union of all selected human days and both simulated non-wear halves. This final
-artifact fit happens after scoring and does not change the outer evaluation.
-For XGBoost, this includes a new search with human-only inner validation followed by refitting
-the best candidate on that complete training set. Its classifier and feature
-order are saved as `model.pkl` and `feature_order.pkl`. CNN saves `model.keras`.
-These final models are separate from the models used for held-out scoring.
+## Production training
 
-Load CNN `.keras` artifacts in a fresh process with
-`mobgap.weartime.load_keras_weartime_model(path)` to register the optional
-model-side standardization layer before deserialization.
+`train.py` tunes and refits XGBoost and CNN on the complete selected dataset.
+There is no outer CV or held-out metric export. Inner search uses the same
+SUSTAIN presets; final refitting uses all provided human and simulated days.
+Edit its optimizer dictionary to choose algorithms and override model/search
+settings. Final artifacts are exported under `.cache/weartime_models`:
 
-The signal-only revalidation uses the same seed-42 split of whole simulated
-non-wear source recordings. Its result page keeps human and simulated non-wear
-summaries separate. For non-wear, sample counts are pooled per recording in each
-fold and false-wear minutes are averaged per evaluated day (not normalized to
-24 hours). Fold-model results are averaged for each recording before equal
-recording weighting and 95% t intervals. Repeated predictions do not add
-independent observations to those intervals.
+- XGBoost: `WtdMegaritisXGBoost/model.pkl` and `feature_order.pkl`
+- CNN: `WtdMegaritisCNN/model.keras`
+
+Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).
+Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time
+folder. `MOBGAP_CACHE_DIR_PATH` configures dataset/feature caches; evaluation
+also requires `MOBGAP_VALIDATION_DATA_PATH`. The raw dataset is not distributed
+with MobGap. Both workflows use local calendar days with at least eight hours
+of recorded data.
+
+XGBoost extracts float32 features per supplied recording/day using TPCP hybrid
+caching. CNN prepares windows lazily without feature caching. Load exported CNN
+artifacts in a fresh process with
+`mobgap.weartime.load_keras_weartime_model(path)` to register its standardization
+layer before deserialization.
