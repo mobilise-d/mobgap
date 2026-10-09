@@ -14,9 +14,9 @@ from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
 from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime.optimization import WearTimeOptunaSearch
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.evaluation import wtd_score
+from mobgap.weartime.optimization import WearTimeOptunaSearch
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 # Edit configuration here before running the script.
