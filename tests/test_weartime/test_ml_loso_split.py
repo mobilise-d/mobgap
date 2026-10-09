@@ -168,7 +168,7 @@ def test_loso_fixed_part_b_halves_and_human_only_inner_ranking(  # noqa: PLR0915
         captured_inner["splitter"] = cv
         return {"test__agg__combined__accuracy": [0.75]}
 
-    monkeypatch.setattr(xgboost, "cross_validate", capture_inner_cv)
+    monkeypatch.setattr("mobgap.utils.optimization.cross_validate", capture_inner_cv)
     refit_datasets: list[SustainWearTimeDataset] = []
 
     def capture_refit(optimizer: Optimize, train_dataset: SustainWearTimeDataset) -> Optimize:

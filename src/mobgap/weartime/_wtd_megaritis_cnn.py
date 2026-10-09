@@ -15,11 +15,15 @@
 from __future__ import annotations
 
 from datetime import time
+from types import MappingProxyType
 from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import GroupKFold
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
+from tpcp.misc import classproperty
+from tpcp.validate import DatasetSplitter
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -100,6 +104,29 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     """
 
     model: OptimizableParameter[Optional[Any]]  # noqa: UP045 - tpcp 2.1 needs Python 3.9-evaluable strings.
+
+    class OptimizationPresets:
+        """Dataset-specific search settings for an explicit untrained CNN model in WtdEmulationPipeline."""
+
+        @staticmethod
+        def _create_search_space(trial: Any) -> None:
+            trial.suggest_float("algo__model__learning_rate", 1e-4, 1e-2, log=True)
+            trial.suggest_categorical("algo__model__dropout_rate", [0.2, 0.3, 0.5])
+            trial.suggest_categorical("algo__model__batch_size", [256, 512, 1024])
+
+        @classproperty
+        def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Modest training-parameter search with three participant-grouped inner folds on SUSTAIN."""
+            from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
+
+            return MappingProxyType(
+                {
+                    "create_search_space": cls._create_search_space,
+                    "scoring": wtd_score,
+                    "score_name": "combined__accuracy",
+                    "cv": DatasetSplitter(GroupKFold(n_splits=3), groupby="participant_id"),
+                }
+            )
 
     def __init__(
         self,

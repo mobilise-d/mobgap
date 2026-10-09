@@ -7,18 +7,14 @@ from datetime import datetime
 from pathlib import Path
 
 import joblib
-import numpy as np
-import optuna
 import pandas as pd
-from optimizable_optuna_search import OptimizableOptunaSearch
-from optuna import Trial
 from sklearn.model_selection import GroupKFold, LeaveOneGroupOut
-from tpcp.optimize import Optimize
-from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit, cross_validate
+from tpcp.validate import CombinedSplitter, DatasetSplitter, NoSplit
 
 from mobgap.data import SustainWearTimeDataset, split_by_utc_day
 from mobgap.utils.evaluation import EvaluationCV
 from mobgap.utils.misc import get_env_var
+from mobgap.utils.optimization import OptimizableOptunaSearch
 from mobgap.weartime import WtdMegaritisXGBoost
 from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
@@ -112,55 +108,6 @@ def main() -> None:
         ]
     )
 
-    def objective(trial: Trial, candidate: WtdEmulationPipeline, train_days: SustainWearTimeDataset) -> float:
-        params = {
-            "algo__clf__n_estimators": trial.suggest_categorical("algo__clf__n_estimators", [50, 100, 200]),
-            "algo__clf__max_depth": trial.suggest_categorical("algo__clf__max_depth", [3, 5]),
-            "algo__clf__learning_rate": trial.suggest_categorical("algo__clf__learning_rate", [0.05, 0.1]),
-            "algo__clf__subsample": trial.suggest_categorical("algo__clf__subsample", [0.7, 0.8, 0.9]),
-            "algo__clf__colsample_bytree": trial.suggest_categorical("algo__clf__colsample_bytree", [0.6, 0.8]),
-            "algo__clf__min_child_weight": trial.suggest_categorical("algo__clf__min_child_weight", [1, 3]),
-        }
-        candidate.set_params(**params)
-        inner_optimizer = Optimize(
-            candidate,
-            # Sample human training days and a smaller Part B subset independently.
-            train_dataset_transform=lambda inner_train_days: inner_train_days.get_subset(
-                index=pd.concat(
-                    [
-                        inner_train_days.index.query("recording_type == 'human_movement'").sample(
-                            n=max(
-                                1,
-                                round(
-                                    (inner_train_days.index["recording_type"] == "human_movement").sum()
-                                    * SEARCH_TRAIN_FRACTION
-                                ),
-                            ),
-                            random_state=SEED,
-                        ),
-                        (
-                            inner_train_days.index.query("recording_type == 'simulated_movements'").sample(
-                                n=PART_B_DAY_COUNT, random_state=SEED
-                            )
-                            if PART_B_DAY_COUNT is not None
-                            else inner_train_days.index.query("recording_type == 'simulated_movements'")
-                        ),
-                    ]
-                )
-            ),
-        )
-
-        scores = cross_validate(
-            inner_optimizer,
-            train_days,
-            scoring=wtd_score,
-            cv=inner_splitter,
-            n_jobs=1,
-            return_train_score=False,
-            progress_bar=False,
-        )
-        return float(np.mean(scores["test__agg__combined__accuracy"]))
-
     evaluation = EvaluationCV(
         dataset=base_dataset,
         scoring=wtd_score,
@@ -172,12 +119,37 @@ def main() -> None:
         },
     )
     optimizer = OptimizableOptunaSearch(
-        pipeline,
-        lambda seed: {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)},
-        objective,
-        n_trials=N_TRIALS,
-        random_seed=SEED,
-        return_optimized=True,
+        pipeline=pipeline,
+        **{
+            **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+            "cv": inner_splitter,
+            "n_trials": N_TRIALS,
+            "random_seed": SEED,
+        },
+        # Sample human training days and optional Part B days independently.
+        train_dataset_transform=lambda inner_train_days: inner_train_days.get_subset(
+            index=pd.concat(
+                [
+                    inner_train_days.index.query("recording_type == 'human_movement'").sample(
+                        n=max(
+                            1,
+                            round(
+                                (inner_train_days.index["recording_type"] == "human_movement").sum()
+                                * SEARCH_TRAIN_FRACTION
+                            ),
+                        ),
+                        random_state=SEED,
+                    ),
+                    (
+                        inner_train_days.index.query("recording_type == 'simulated_movements'").sample(
+                            n=PART_B_DAY_COUNT, random_state=SEED
+                        )
+                        if PART_B_DAY_COUNT is not None
+                        else inner_train_days.index.query("recording_type == 'simulated_movements'")
+                    ),
+                ]
+            )
+        ),
     )
 
     evaluation.run(optimizer)
