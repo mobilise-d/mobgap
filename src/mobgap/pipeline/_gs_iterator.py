@@ -1,5 +1,6 @@
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import (
@@ -19,6 +20,8 @@ import pandas as pd
 from tpcp import cf
 from tpcp.misc import BaseTypedIterator, TypedIteratorResultTuple, custom_hash, set_defaults
 from tpcp.misc._typed_iterator import _NotSet
+
+_setup_snapshot = ContextVar("gs_iterator_setup_snapshot", default=None)
 
 
 class Region(NamedTuple):
@@ -534,11 +537,15 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         subregion_data = current_data if data is None else data
 
         # We calculate the hash of the last outer result to check if it was changed during the sub-iteration.
-        # Note, that when you are using the ``subregion`` context manager, this check is duplicated.
-        # The reason for that is that with the context manager, we have a clear entry and exist point that we would
-        # not otherwise have, when we simply iterate a single subregion.
+        # The context manager can share its entry snapshot with built-in preparation.
+        # Keep the preparation-exit check separate from the context-exit check.
         current_result_obj = current_result.result
-        before_result_hash = custom_hash(current_result_obj)
+        pending = _setup_snapshot.get()
+        if pending is not None and pending[0] is self and pending[1] is current_result_obj:
+            before_result_hash = pending[2]
+            _setup_snapshot.set(None)
+        else:
+            before_result_hash = custom_hash(current_result_obj)
 
         yield from self._iterate(
             iter_gs(subregion_data, sub_region_list),
@@ -661,7 +668,19 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
         before_result_hash = custom_hash(outer_result)
 
         try:
-            yield self.with_subregion(sub_region_list, data=data)
+            # Reuse only the entry snapshot for unchanged built-in preparation.
+            # The preparation-exit guard and context-exit guard remain active.
+            use_snapshot = (
+                self.data_type is _DEFAULT_DATA_TYPE
+                and type(self).with_subregion is _ORIGINAL_WITH_SUBREGION
+                and type(self).iterate_subregions is _ACTIVE_ITERATE_SUBREGIONS
+            )
+            token = _setup_snapshot.set((self, outer_result, before_result_hash) if use_snapshot else None)
+            try:
+                prepared = self.with_subregion(sub_region_list, data=data)
+            finally:
+                _setup_snapshot.reset(token)
+            yield prepared
         finally:
             after_result_hash = custom_hash(outer_result)
             if before_result_hash != after_result_hash:
@@ -670,3 +689,8 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                     "context. "
                     "Use the result object returned by the context manager!"
                 )
+
+
+_ORIGINAL_WITH_SUBREGION = GsIterator.with_subregion
+_ACTIVE_ITERATE_SUBREGIONS = GsIterator.iterate_subregions
+_DEFAULT_DATA_TYPE = FullPipelinePerGsResult
