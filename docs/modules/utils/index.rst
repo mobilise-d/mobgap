@@ -12,5 +12,4 @@ Utility functions
     rotations
     conversions
     evaluation
-    optimization
     tables

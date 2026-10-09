@@ -96,7 +96,7 @@ def test_loso_fixed_part_b_halves_and_human_only_inner_ranking(  # noqa: PLR0915
 
     def run_script(script: ModuleType) -> None:
         with monkeypatch.context() as training:
-            optimizer_class = Optimize if script is cnn else xgboost.OptimizableOptunaSearch
+            optimizer_class = Optimize if script is cnn else xgboost.WearTimeOptunaSearch
             training.setattr(optimizer_class, "optimize", capture_final_training)
             script.main()
 
@@ -168,7 +168,7 @@ def test_loso_fixed_part_b_halves_and_human_only_inner_ranking(  # noqa: PLR0915
         captured_inner["splitter"] = cv
         return {"test__agg__combined__accuracy": [0.75]}
 
-    monkeypatch.setattr("mobgap.utils.optimization.cross_validate", capture_inner_cv)
+    monkeypatch.setattr("mobgap.weartime.optimization.cross_validate", capture_inner_cv)
     refit_datasets: list[SustainWearTimeDataset] = []
 
     def capture_refit(optimizer: Optimize, train_dataset: SustainWearTimeDataset) -> Optimize:
@@ -177,7 +177,7 @@ def test_loso_fixed_part_b_halves_and_human_only_inner_ranking(  # noqa: PLR0915
         return optimizer
 
     monkeypatch.setattr(Optimize, "optimize", capture_refit)
-    assert isinstance(wrapper, xgboost.OptimizableOptunaSearch)
+    assert isinstance(wrapper, xgboost.WearTimeOptunaSearch)
     first_train_labels, _ = next(captured_splitters["outer"].split(evaluation_dataset))
     outer_train = evaluation_dataset.get_subset(group_labels=first_train_labels)
     search = wrapper.clone().set_params(n_trials=1).optimize(outer_train)
