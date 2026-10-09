@@ -61,7 +61,7 @@ def main() -> None:
             human = human.get_subset(index=human.index[human.index["participant_id"].isin(participant_ids)])
         return human
 
-    # Hold out one human participant; repeat a fixed 50/50 simulated non-wear day split in every outer fold.
+    # Hold out one human participant; repeat a fixed 50/50 simulated non-wear recording split in every outer fold.
     outer_splitter = CombinedSplitter(
         parts=[
             (
@@ -77,10 +77,20 @@ def main() -> None:
                     NoSplit(
                         None,
                         train=lambda days: days.get_subset(
-                            index=days.index.sample(frac=1, random_state=SEED).iloc[: len(days.index) // 2]
+                            recording_id=days.index["recording_id"]
+                            .drop_duplicates()
+                            .sort_values()
+                            .sample(frac=1, random_state=SEED)
+                            .iloc[: days.index["recording_id"].nunique() // 2]
+                            .tolist()
                         ),
                         test=lambda days: days.get_subset(
-                            index=days.index.sample(frac=1, random_state=SEED).iloc[len(days.index) // 2 :]
+                            recording_id=days.index["recording_id"]
+                            .drop_duplicates()
+                            .sort_values()
+                            .sample(frac=1, random_state=SEED)
+                            .iloc[days.index["recording_id"].nunique() // 2 :]
+                            .tolist()
                         ),
                     ),
                 ),
