@@ -320,22 +320,47 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         assert not windows.flags.writeable
         assert not windows.flags.owndata
 
-    def test_training_batches_align_labels_across_recordings(self) -> None:
-        """Label partial batches by their window centers and restart offsets for each recording."""
-        model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2)
+    @pytest.mark.parametrize(
+        ("uncertain", "expected_starts", "first_labels", "batch_sizes"),
+        [
+            (None, [0, 10, 20, 30, 40], [1, 0, 1, 1, 0], [2, 2, 1]),
+            ([(35, 60)], [0, 10], [1, 0], [2]),
+            ([(20, 30)], [0, 30, 40], [1, 1, 0], [1, 1, 1]),
+            ([(10, 40)], [40], [0], [1]),
+        ],
+    )
+    def test_training_batches_align_labels_across_recordings(
+        self, monkeypatch: pytest.MonkeyPatch, uncertain, expected_starts, first_labels, batch_sizes
+    ) -> None:
+        """Keep original window positions after uncertainty removes partial or complete batches."""
+        model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2, standardize_in_model=True)
+        data = _sensor_data(60)
+        recording = (data, _weartime_list([(30, 50), (0, 20)]))
+        if uncertain is not None:
+            recording = (*recording, _weartime_list(uncertain))
         records = [
-            (_sensor_data(60), _weartime_list([(30, 50), (0, 20)])),
+            recording,
             (_sensor_data(10), _weartime_list([])),
-            (_sensor_data(60), _weartime_list([(20, 30), (50, 60)])),
+            (data, _weartime_list([(20, 30), (50, 60)])),
+            (data, _weartime_list([]), _weartime_list([(0, 60)])),
         ]
+        conversions = []
+        convert = keras_model_module._as_model_input_sensor_array
 
+        def record_conversion(array):
+            conversions.append(array)
+            return convert(array)
+
+        monkeypatch.setattr(keras_model_module, "_as_model_input_sensor_array", record_conversion)
         batches = list(model._iter_training_window_batches(records, sampling_rate_hz=1.0))
 
-        assert [len(windows) for windows, _ in batches] == [2, 2, 1, 2, 2, 1]
-        assert_array_equal(
-            np.concatenate([labels for _, labels in batches]),
-            np.array([1, 0, 1, 1, 0, 0, 1, 0, 0, 1], dtype=np.int32),
+        assert [len(windows) for windows, _ in batches] == [*batch_sizes, 2, 2, 1]
+        assert_array_equal(np.concatenate([labels for _, labels in batches]), [*first_labels, 0, 1, 0, 0, 1])
+        expected_windows = np.stack(
+            [data.iloc[start : start + 20].to_numpy() for start in [*expected_starts, 0, 10, 20, 30, 40]]
         )
+        assert_array_equal(np.concatenate([windows for windows, _ in batches]), expected_windows.astype(np.float32))
+        assert len(conversions) == 2  # Short and entirely uncertain recordings require no sensor conversion.
 
     def test_training_dataset_is_finite(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Let Keras finish each epoch at the end of the actual windows."""

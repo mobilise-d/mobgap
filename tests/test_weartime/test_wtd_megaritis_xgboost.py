@@ -303,26 +303,43 @@ class TestWtdMegaritisXGBoost:
         assert_allclose(clf.fit_features_["acc_pa_mean"].to_numpy(), np.array([1.0, 2.0, 3.0, 4.0]))
         assert_array_equal(clf.fit_labels_, np.array([1, 0, 0, 1], dtype=np.int32))
 
-    def test_self_optimize_fits_classifier_from_window_center_labels(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Train from lazy recording-level data and center labels."""
-        _patch_simple_features(monkeypatch)
+    @pytest.mark.parametrize(
+        ("uncertain", "expected_starts", "expected_labels"),
+        [
+            (None, [0, 10, 20, 30, 40], [1, 1, 1, 0, 0]),
+            ([(35, 60)], [0, 10], [1, 1]),
+            ([(20, 30)], [0, 30, 40], [1, 0, 0]),
+            ([(10, 40)], [40], [0]),
+        ],
+    )
+    def test_self_optimize_fits_classifier_from_window_center_labels(
+        self, monkeypatch: pytest.MonkeyPatch, uncertain, expected_starts, expected_labels
+    ) -> None:
+        """Exclude intersecting windows without shifting centers; skip entirely unknown recordings."""
+        calls = []
+        _patch_simple_features(monkeypatch, calls)
         clf = _TrainableProbabilityClassifier()
-        training_data = [(_sensor_data(60), _weartime_list([(0, 40)]))]
+        recording = (_sensor_data(60), _weartime_list([(0, 40)]))
+        if uncertain is not None:
+            recording = (*recording, _weartime_list(uncertain))
+        training_data = [recording, (_sensor_data(60), _weartime_list([]), _weartime_list([(0, 60)]))]
 
         result = WtdMegaritisXGBoost(
             clf=clf,
             feature_names=("window_start",),
             window_sec=20.0,
-            overlap=0.0,
+            overlap=0.5,
+            window_batch_size=2,
             trained_sampling_rate_hz=None,
         ).self_optimize(training_data, sampling_rate_hz=1.0, sample_weight="ok")
 
         assert result.clf is clf
         assert result.trained_sampling_rate_hz == 1.0
         assert result.feature_names == ("window_start",)
-        assert_array_equal(clf.fit_features_["window_start"].to_numpy(), np.array([0.0, 20.0, 40.0]))
-        assert_array_equal(clf.fit_labels_, np.array([1, 1, 0], dtype=np.int32))
+        assert_array_equal(clf.fit_features_["window_start"].to_numpy(), expected_starts)
+        assert_array_equal(clf.fit_labels_, expected_labels)
         assert clf.fit_kwargs_ == {"sample_weight": "ok"}
+        assert len(calls) == 3  # Full-recording features remain cached independently of uncertainty.
 
     def test_self_optimize_reuses_full_recording_features(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
