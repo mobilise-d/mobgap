@@ -26,7 +26,7 @@ description: Run MobGap evaluations with local data and companion result branche
 - Check CPU count, available RAM, nested model/BLAS threads, GPU availability when relevant, and cache/output disk space. Assess whether `n_jobs` is sensible for this machine; avoid multiplying outer workers by unrestricted inner threads.
 - Prefer an explicit shared cache directory outside individual worktrees to reuse dataset loading. Check that it is writable and has enough space. Inspect `MOBGAP_CACHE_DIR_PATH` and any separate model cache settings.
 - If concurrency or cache settings should change, suggest concrete values with a short reason and ask the user before the run. Do not silently change those settings.
-- Run the selected generation script with the project's environment, then its analysis script. For example, `uv run python revalidation/gait_sequences/_98_gsd_result_generation_no_exc.py` generates results; the matching `_01_gsd_analysis.py` analyzes them. This example is not permission to launch that evaluation.
+- Run from the checkout root with the project's environment using module invocation so checkout-local imports resolve, then run the analysis module. For example, `uv run python -m revalidation.gait_sequences._98_gsd_result_generation_no_exc` generates results; `uv run python -m revalidation.gait_sequences._01_gsd_analysis` analyzes them. This example is not permission to launch that evaluation.
 - Check progress early, then use infrequent checks appropriate to the run duration and the user's requested cadence. Avoid duplicate runs when a process is already active.
 
 ## Keep or publish results
