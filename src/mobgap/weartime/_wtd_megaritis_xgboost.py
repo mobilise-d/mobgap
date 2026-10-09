@@ -26,18 +26,17 @@ from typing import Any, Final, Literal, Optional, Protocol
 import numpy as np
 import pandas as pd
 from joblib import Memory, Parallel, delayed
-from sklearn.model_selection import GroupKFold
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
-from tpcp.validate import DatasetSplitter
 from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.utils.dtypes import assert_is_sensor_data
+from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
     TrainingData,
@@ -377,15 +376,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """LOSO script search settings with three participant-grouped inner folds on SUSTAIN."""
-            from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
-
+            """Rank on human days in three folds; train on 40% of human days plus five seeded Part B days."""
             return MappingProxyType(
                 {
                     "create_search_space": cls._create_search_space,
-                    "scoring": wtd_score,
-                    "score_name": "combined__accuracy",
-                    "cv": DatasetSplitter(GroupKFold(n_splits=3), groupby="participant_id"),
+                    **_sustain_weartime_optimization_defaults(),
                 }
             )
 

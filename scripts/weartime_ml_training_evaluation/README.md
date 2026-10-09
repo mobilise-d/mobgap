@@ -21,7 +21,9 @@ to `0` for non-overlapping windows.
 
 XGBoost uses the reusable `mobgap.weartime.optimization.WearTimeOptunaSearch`
 and `WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime` for separate
-Optuna tuning within each outer fold. Inner CV
+Optuna tuning within each outer fold. Both detector presets include human-only
+three-fold ranking and independently sample 40% of human days plus five seed-42 Part B
+training days. The script overrides this composition with its editable settings. Inner CV
 holds out human participants with GroupKFold. Inner validation and candidate
 ranking contain human days only. The optimizer samples 40% of each inner human
 training set. `PART_B_DAY_COUNT=None` keeps all provided Part B training days unchanged; an
