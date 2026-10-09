@@ -207,9 +207,10 @@ def test_loso_fixed_part_b_halves_and_human_only_inner_ranking(  # noqa: PLR0915
     assert len(sampled.get_subset(recording_type="human_movement").index) == max(
         1, round(0.4 * len(human_training_days.index))
     )
-    sampled_part_b = sampled.get_subset(recording_type="simulated_movements")
-    assert sampled_part_b.index["recording_id"].nunique() == xgboost.PART_B_RECORDING_COUNT
-    assert set(sampled_part_b.group_labels) <= set(outer_train.group_labels)
+    pd.testing.assert_frame_equal(
+        sampled.get_subset(recording_type="simulated_movements").index,
+        inner_training_days.get_subset(recording_type="simulated_movements").index,
+    )
     pd.testing.assert_frame_equal(sample_human_days(inner_training_days).index, sampled.index)
 
     monkeypatch.setattr(xgboost, "PART_B_DAY_COUNT", 3)
