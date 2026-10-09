@@ -334,14 +334,18 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
     ) -> None:
         """Keep original window positions after uncertainty removes partial or complete batches."""
         model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2, standardize_in_model=True)
-        data = _sensor_data(60)
+        data = pd.DataFrame(
+            np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
+            columns=BF_SENSOR_COLS,
+        )
+        other_data = data + 1000
         recording = (data, _weartime_list([(30, 50), (0, 20)]))
         if uncertain is not None:
             recording = (*recording, _weartime_list(uncertain))
         records = [
             recording,
             (_sensor_data(10), _weartime_list([])),
-            (data, _weartime_list([(20, 30), (50, 60)])),
+            (other_data, _weartime_list([(20, 30), (50, 60)])),
             (data, _weartime_list([]), _weartime_list([(0, 60)])),
         ]
         conversions = []
@@ -357,7 +361,8 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         assert [len(windows) for windows, _ in batches] == [*batch_sizes, 2, 2, 1]
         assert_array_equal(np.concatenate([labels for _, labels in batches]), [*first_labels, 0, 1, 0, 0, 1])
         expected_windows = np.stack(
-            [data.iloc[start : start + 20].to_numpy() for start in [*expected_starts, 0, 10, 20, 30, 40]]
+            [data.iloc[start : start + 20].to_numpy() for start in expected_starts]
+            + [other_data.iloc[start : start + 20].to_numpy() for start in [0, 10, 20, 30, 40]]
         )
         assert_array_equal(np.concatenate([windows for windows, _ in batches]), expected_windows.astype(np.float32))
         assert len(conversions) == 2  # Short and entirely uncertain recordings require no sensor conversion.
