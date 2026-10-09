@@ -78,6 +78,30 @@ excluded from CNN and XGBoost training; intervals use half-open boundaries.
 Known windows remain on the original recording grid, including on either side
 of an uncertain gap. No signal segments are concatenated.
 
+
+Reference API migration
++++++++++++++++++++++++
+
+Custom datasets and direct training callers must add ``label`` to every reference
+frame, including empty and all-wear references. Combine wear regions and regions
+where wear versus non-wear could not be determined into one frame:
+
+.. code-block:: python
+
+    reference = pd.concat(
+        [wear.assign(label="wear"), uncertain.assign(label="uncertain")],
+        ignore_index=True,
+    )
+    reference["label"] = reference["label"].astype(
+        pd.CategoricalDtype(categories=["wear", "uncertain"], ordered=False)
+    )
+
+Return this frame as ``reference_weartime_`` and pass ``(data, reference)`` pairs
+when training directly. The separate ``reference_uncertain_`` property and
+three-element training records are removed. Select uncertain regions with
+``reference.loc[reference["label"] == "uncertain"]``. Detected wear intervals
+continue to use their existing ``start``/``end`` format without a label column.
+
 Optimization presets
 ++++++++++++++++++++
 
