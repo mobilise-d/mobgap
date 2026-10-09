@@ -75,6 +75,19 @@ class TestSlZijlstra:
     If people run into bugs when changing parameters, we can add more tests.
     """
 
+    def test_unsigned_contacts_match_signed_contacts(self):
+        data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
+        contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
+        expected = SlZijlstra().calculate(data, contacts, sampling_rate_hz=100.0, sensor_height_m=0.95)
+        actual = SlZijlstra().calculate(
+            data, contacts.astype({"ic": "uint64"}), sampling_rate_hz=100.0, sensor_height_m=0.95
+        )
+        assert_frame_equal(actual.step_length_per_sec_, expected.step_length_per_sec_)
+        assert_frame_equal(actual.stride_length_per_sec_, expected.stride_length_per_sec_)
+        assert_array_equal(
+            actual.raw_step_length_per_step_.step_length_m, expected.raw_step_length_per_step_.step_length_m
+        )
+
     def test_not_enough_ics(self):
         data = pd.DataFrame(np.zeros((100, 6)), columns=BF_SENSOR_COLS)
         initial_contacts = pd.DataFrame({"ic": np.arange(0, 100, 5)})
