@@ -71,6 +71,22 @@ class TestTdElGohary:
         output.detect(data, sampling_rate_hz=100.0)
         assert len(output.global_frame_data_) == len(data)
 
+    def test_peaks_with_nan_turn_angles(self) -> None:
+        """Keep raw candidates when missing samples make their integrated angles NaN."""
+        signal = np.sin(np.linspace(0, 20 * np.pi, 1000))
+        signal[0] = np.nan
+        data = pd.DataFrame({"gyr_is": signal})
+        output = TdElGohary(
+            smoothing_filter=None, min_peak_angle_velocity_dps=0.8, lower_threshold_velocity_dps=0.1
+        ).detect(data, sampling_rate_hz=20.0)
+
+        assert len(output.raw_turn_list_) == 20
+        assert output.raw_turn_list_["angle_deg"].isna().all()
+        assert output.raw_turn_list_["direction"].isna().all()
+        empty_output = TdElGohary().detect(pd.DataFrame({"gyr_is": np.zeros(1000)}), sampling_rate_hz=20.0)
+        assert_frame_equal(output.turn_list_, empty_output.turn_list_, check_exact=True, check_index_type=True)
+        assert_frame_equal(output.yaw_angle_, pd.DataFrame({"angle_deg": np.r_[0.0, np.full(999, np.nan)]}))
+
     def test_sin_wave_turns(self):
         data = pd.DataFrame(np.zeros((1000, 6)), columns=BF_SENSOR_COLS)
         # Sin wave with 10 periods = we expect 10 left and 10 right turns

@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass, replace
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -9,6 +9,16 @@ from tpcp.misc import TypedIteratorResultTuple
 
 from mobgap.pipeline import GsIterator, create_aggregate_df, iter_gs
 from mobgap.pipeline._gs_iterator import Region, RegionDataTuple
+
+
+@dataclass
+class _SetupMutatingResults:
+    ic_list: Any
+    on_init: ClassVar[Any] = None
+
+    def __post_init__(self):
+        if self.on_init is not None:
+            type(self).on_init()
 
 
 class TestGsIterationFunc:
@@ -317,6 +327,34 @@ class TestSubregionIteration:
                 # We use the outer result object here, which should raise an error.
                 r.ic_list = pd.DataFrame({"ic": np.where(sd == 1)[0]}).rename_axis("step_id")
 
+    @pytest.mark.parametrize("custom_results", [False, True])
+    def test_preparation_mutation_rejected_before_context_body(self, custom_results, monkeypatch):
+        outer = None
+
+        def mutate_outer():
+            if outer is not None:
+                outer.ic_list.iloc[0, 0] += 1
+
+        monkeypatch.setattr(_SetupMutatingResults, "on_init", mutate_outer)
+
+        class MutatingIterator(GsIterator):
+            def _iterate(self, *args, **kwargs):
+                for item in super()._iterate(*args, **kwargs):
+                    if kwargs.get("iteration_name") == "__sub_iter__":
+                        outer.ic_list.iloc[0, 0] += 1
+                    yield item
+
+        iterator = GsIterator(_SetupMutatingResults, []) if custom_results else MutatingIterator()
+        data = pd.DataFrame({"data": range(10)})
+        regions = pd.DataFrame({"start": [0], "end": [10]}).rename_axis("gs_id")
+        subregions = pd.DataFrame({"start": [1], "end": [9]}).rename_axis("r_gs_id")
+        for _, outer in iterator.iterate(data, regions):
+            outer.ic_list = pd.DataFrame({"ic": [2, 5]})
+            entered_body = False
+            with pytest.raises(RuntimeError), iterator.subregion(subregions):
+                entered_body = True
+            assert not entered_body
+
 
 class TestAggregateDf:
     """Some isolated tests for the create_aggregate_df function."""
@@ -366,6 +404,30 @@ class TestAggregateDf:
         expected_df.index = index
 
         assert_frame_equal(aggregated, expected_df)
+
+    @pytest.mark.parametrize("dtype", ["int64", "Int64", "float64"])
+    def test_aggregation_preserves_source_and_result_isolation(self, dtype):
+        source = pd.DataFrame({"start": [1, 3], "end": [2, 4]}, dtype=dtype).rename_axis("step_id")
+        original = source.copy(deep=True)
+
+        @dataclass
+        class Result:
+            test: Any
+
+        records = [
+            TypedIteratorResultTuple(
+                "__main__", RegionDataTuple(Region("a", 5, 10, "gs_id"), pd.DataFrame()), Result(source), {}
+            )
+        ]
+        aggregated = create_aggregate_df("test", ["start", "end"])(records)
+        assert_frame_equal(source, original)
+        expected = (original + 5).copy()
+        expected.index = pd.MultiIndex.from_product([["a"], original.index], names=["gs_id", "step_id"])
+        assert_frame_equal(aggregated, expected)
+        source.iloc[0, 0] = 100
+        assert_frame_equal(aggregated, expected)
+        aggregated.iloc[0, 1] = 200
+        assert source.iloc[0, 1] == original.iloc[0, 1]
 
     @pytest.mark.parametrize("fix_index_offset", [True, False])
     def test_index_offset(self, fix_index_offset):

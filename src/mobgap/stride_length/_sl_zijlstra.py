@@ -334,9 +334,21 @@ class SlZijlstra(BaseSlCalculator):
 
         height_change_per_step = np.zeros(len(initial_contacts) - 1)
 
-        for step_id, (step_start, step_end) in enumerate(zip(initial_contacts[:-1], initial_contacts[1:])):
-            # np.ptp -> max - min
-            height_change_per_step[step_id] = np.abs(np.ptp(vertical_displacement[step_start:step_end]))
+        if (
+            np.asarray(vertical_displacement).size == len(vertical_displacement)
+            and np.all(np.diff(initial_contacts) > 0)
+            and initial_contacts[0] >= 0
+            and initial_contacts[-1] <= len(vertical_displacement)
+        ):
+            displacement = np.asarray(vertical_displacement)[initial_contacts[0] : initial_contacts[-1]].reshape(-1)
+            starts = (initial_contacts[:-1] - initial_contacts[0]).astype(np.intp)
+            # The final reduction ends at the last IC, just like the original per-step slices.
+            height_change_per_step[:] = np.abs(
+                np.maximum.reduceat(displacement, starts) - np.minimum.reduceat(displacement, starts)
+            )
+        else:
+            for step_id, (step_start, step_end) in enumerate(zip(initial_contacts[:-1], initial_contacts[1:])):
+                height_change_per_step[step_id] = np.abs(np.ptp(vertical_displacement[step_start:step_end]))
 
         # biomechanical model formula (inverted Pendulum model)
         step_length = (

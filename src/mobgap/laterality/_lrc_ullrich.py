@@ -353,6 +353,30 @@ class LrcUllrich(BaseLRClassifier):
         # are close to the beginning or end of the data.
         gyr_gradient = np.gradient(gyr_filtered, axis=0)
         curvature = np.gradient(gyr_gradient, axis=0)
+
+        # Construct the six features only at ICs instead of concatenating full-length signal frames.
+        # Keep the original DataFrame path for custom filters with different column types or layouts.
+        ic_positions = ics["ic"].to_numpy()
+        if (
+            np.issubdtype(ic_positions.dtype, np.integer)
+            and list(gyr_filtered.columns) == ["gyr_is", "gyr_pa"]
+            and all(dtype == np.dtype("float64") for dtype in gyr_filtered.dtypes)
+            and gyr_filtered.index.equals(gyr.index)
+            and self._feature_matrix_cols == LrcUllrich._feature_matrix_cols
+        ):
+            selected = gyr_filtered.iloc[ic_positions]
+            features = np.column_stack(
+                (
+                    selected["gyr_is"].to_numpy(),
+                    gyr_gradient[ic_positions, 0],
+                    curvature[ic_positions, 0],
+                    selected["gyr_pa"].to_numpy(),
+                    gyr_gradient[ic_positions, 1],
+                    curvature[ic_positions, 1],
+                )
+            )
+            return pd.DataFrame(features, columns=self._feature_matrix_cols, index=ics.index)
+
         gyr_gradient = pd.DataFrame(gyr_gradient, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
         curvature = pd.DataFrame(curvature, columns=["gyr_is", "gyr_pa"], copy=False, index=gyr.index)
 

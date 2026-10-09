@@ -123,14 +123,11 @@ def robust_step_para_to_sec(
     # This is not directly supported by Pandas (as the pandas ``limit`` parameter will interpolate the edges of larger
     # gaps, but can not skip larger gaps) entirely.
     # Instead, we need to segment the regions ourselves and use this as mask for the interpolation.
-    # This solution is taken from https://stackoverflow.com/questions/67128364
-    n_nan_mask = step_time_per_sec_smooth.notna()
-    n_nan_mask = n_nan_mask.ne(n_nan_mask.shift()).cumsum()
-    n_nan_mask = (
-        step_time_per_sec_smooth.groupby([n_nan_mask, step_time_per_sec_smooth.isna()])
-        .transform("size")
-        .where(step_time_per_sec_smooth.isna())
-    )
+    missing = step_time_per_sec_smooth.isna().to_numpy()
+    boundaries = np.flatnonzero(np.r_[True, missing[1:] != missing[:-1], True])
+    run_lengths = np.diff(boundaries)
+    # Only missing runs receive a length; long runs of valid values must stay unmasked.
+    n_nan_mask = np.where(missing, np.repeat(run_lengths, run_lengths), np.nan)
     step_time_per_sec_smooth = (
         pd.Series(step_time_per_sec_smooth)
         .interpolate(method="linear", limit_area="inside")
