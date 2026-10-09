@@ -13,6 +13,24 @@ from mobgap.weartime.evaluation import wtd_final_agg, wtd_per_datapoint_score, w
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 
+def _reference(intervals, index_name="wt_id"):
+    return _intervals(intervals, index_name=index_name).assign(
+        label=pd.Categorical(["wear"] * len(intervals), categories=["wear", "uncertain"])
+    )
+
+
+def _with_uncertain(reference, intervals):
+    uncertain = _intervals(intervals).assign(
+        label=pd.Categorical(["uncertain"] * len(intervals), categories=["wear", "uncertain"])
+    )
+    uncertain.index = pd.RangeIndex(
+        int(reference.index.max()) + 1 if len(reference) else 0,
+        int(reference.index.max()) + 1 + len(uncertain) if len(reference) else len(uncertain),
+        name=reference.index.name,
+    )
+    return pd.concat([reference, uncertain])
+
+
 class GroupLabel(NamedTuple):
     participant_id: str
     recording_id: str
@@ -119,7 +137,7 @@ def _sensor_frame_data(n_samples: int) -> pd.DataFrame:
 
 def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():
     data = _sensor_frame_data(3)
-    datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([(0, 3)]), sampling_rate_hz=10.0)
+    datapoint = DummyDatapoint(data=data, reference_weartime=_reference([(0, 3)]), sampling_rate_hz=10.0)
     datapoint.recording_metadata["sampling_rate_hz"] = 999.0
 
     pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(1, 2)]))).run(datapoint)
@@ -138,7 +156,7 @@ def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():
 
 def test_pipeline_accepts_minimal_detector_with_default_waking_hours():
     datapoint = DummyDatapoint(
-        data=_sensor_frame_data(60), reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0
+        data=_sensor_frame_data(60), reference_weartime=_reference([(0, 60)]), sampling_rate_hz=1.0
     )
 
     pipeline = WtdEmulationPipeline(MinimalWtd()).safe_run(datapoint)
@@ -151,12 +169,12 @@ def test_wtd_emulation_pipeline_optimizes_with_paired_training_records():
     datapoints = [
         DummyDatapoint(
             data=_sensor_frame_data(3),
-            reference_weartime=_intervals([(0, 3)]),
+            reference_weartime=_reference([(0, 3)]),
             sampling_rate_hz=10.0,
         ),
         DummyDatapoint(
             data=_sensor_frame_data(4),
-            reference_weartime=_intervals([(1, 4)]),
+            reference_weartime=_reference([(1, 4)]),
             sampling_rate_hz=10.0,
             group_label=GroupLabel("002", "rec_2"),
         ),
@@ -178,7 +196,7 @@ def test_failed_optimization_preserves_supplied_detector():
     algo = FailingOptimizableWtd(_intervals([]))
     pipeline = WtdEmulationPipeline(algo)
     datapoints = [
-        DummyDatapoint(data=_sensor_frame_data(3), reference_weartime=_intervals([(0, 3)]), sampling_rate_hz=10.0)
+        DummyDatapoint(data=_sensor_frame_data(3), reference_weartime=_reference([(0, 3)]), sampling_rate_hz=10.0)
     ]
 
     with pytest.raises(RuntimeError, match="training failed"):
@@ -191,16 +209,16 @@ def test_failed_optimization_preserves_supplied_detector():
 
 def test_optimization_passes_uncertain_ground_truth_on_original_sample_grid(monkeypatch):
     datapoint = DummyDatapoint(
-        data=_sensor_frame_data(4), reference_weartime=_intervals([(0, 2)]), sampling_rate_hz=1.0
+        data=_sensor_frame_data(4), reference_weartime=_reference([(0, 2)]), sampling_rate_hz=1.0
     )
-    datapoint.reference_uncertain_ = _intervals([(2, 4)])
+    datapoint.reference_weartime_ = _with_uncertain(datapoint.reference_weartime_, [(2, 4)])
 
     def capture_training(self, training_data, *, sampling_rate_hz):
         (recording,) = training_data
-        data, wear, uncertain = recording
+        data, wear = recording
         assert_frame_equal(data, to_body_frame(datapoint.data_ss))
         assert_frame_equal(wear, datapoint.reference_weartime_)
-        assert_frame_equal(uncertain, datapoint.reference_uncertain_)
+        assert wear["label"].tolist() == ["wear", "uncertain"]
         self.weartime_list = wear
         return self
 
@@ -212,7 +230,7 @@ def test_wtd_score_counts_half_open_samples_and_minute_durations():
     data = _sensor_frame_data(120)
     datapoint = DummyDatapoint(
         data=data,
-        reference_weartime=_intervals([(0, 119)], index_name="weartime_id"),
+        reference_weartime=_reference([(0, 119)], index_name="weartime_id"),
         sampling_rate_hz=1.0,
     )
     pipeline = WtdEmulationPipeline(
@@ -234,7 +252,7 @@ def test_wtd_score_counts_half_open_samples_and_minute_durations():
     assert scores["waking_weartime_error_min"] == pytest.approx(0.5 - 59 / 60)
     assert scores["runtime_s"] == 1.25
     assert_frame_equal(scores["detected"].get_value(), _intervals([(60, 119)]))
-    assert_frame_equal(scores["reference"].get_value(), _intervals([(0, 119)], index_name="weartime_id"))
+    assert_frame_equal(scores["reference"].get_value(), datapoint.reference_weartime_)
 
 
 @pytest.mark.parametrize("day", ["2026-03-29", "2026-10-25"])
@@ -246,7 +264,7 @@ def test_wtd_score_accepts_uk_local_days_across_dst(day):
     data.index = index
     datapoint = DummyDatapoint(
         data=data,
-        reference_weartime=_intervals([(0, len(data))], index_name="weartime_id"),
+        reference_weartime=_reference([(0, len(data))], index_name="weartime_id"),
         sampling_rate_hz=1.0,
     )
     pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, len(data))]), waking_hours=(time(7), time(22))))
@@ -259,7 +277,7 @@ def test_wtd_score_accepts_uk_local_days_across_dst(day):
 
 def test_wtd_score_counts_all_nonwear_samples():
     data = _sensor_frame_data(3)
-    datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([]), sampling_rate_hz=1.0)
+    datapoint = DummyDatapoint(data=data, reference_weartime=_reference([]), sampling_rate_hz=1.0)
     pipeline = WtdEmulationPipeline(DummyWtd(_intervals([]), waking_hours=(time(0), time(0, 1))))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
@@ -271,8 +289,8 @@ def test_wtd_score_counts_all_nonwear_samples():
 
 def test_wtd_score_excludes_uncertain_samples_from_all_metrics():
     data = _sensor_frame_data(120)
-    datapoint = DummyDatapoint(data=data, reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0)
-    datapoint.reference_uncertain_ = _intervals([(60, 120)])
+    datapoint = DummyDatapoint(data=data, reference_weartime=_reference([(0, 60)]), sampling_rate_hz=1.0)
+    datapoint.reference_weartime_ = _with_uncertain(datapoint.reference_weartime_, [(60, 120)])
     pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 120)]), waking_hours=(time(0), time(0, 2))))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)
@@ -286,9 +304,9 @@ def test_wtd_score_excludes_uncertain_samples_from_all_metrics():
 
 def test_scored_interval_fragments_keep_original_detector_ids():
     datapoint = DummyDatapoint(
-        data=_sensor_frame_data(30), reference_weartime=_intervals([(0, 30)]), sampling_rate_hz=1.0
+        data=_sensor_frame_data(30), reference_weartime=_reference([(0, 30)]), sampling_rate_hz=1.0
     )
-    datapoint.reference_uncertain_ = _intervals([(10, 20)])
+    datapoint.reference_weartime_ = _with_uncertain(datapoint.reference_weartime_, [(10, 20)])
     detected = _intervals([(0, 30)])
     detected.index = pd.Index([42], name="wt_id")
 
@@ -304,8 +322,10 @@ def test_scored_interval_fragments_keep_original_detector_ids():
 def test_uncertainty_outside_intervals_keeps_nonconsecutive_source_ids():
     detected = _intervals([(0, 10), (20, 30)])
     detected.index = pd.Index([7, 42], name="wt_id")
-    datapoint = DummyDatapoint(data=_sensor_frame_data(30), reference_weartime=detected, sampling_rate_hz=1.0)
-    datapoint.reference_uncertain_ = _intervals([(12, 18)])
+    reference = _reference([(0, 10), (20, 30)])
+    reference.index = detected.index
+    datapoint = DummyDatapoint(data=_sensor_frame_data(30), reference_weartime=reference, sampling_rate_hz=1.0)
+    datapoint.reference_weartime_ = _with_uncertain(datapoint.reference_weartime_, [(12, 18)])
 
     scores = wtd_per_datapoint_score(
         WtdEmulationPipeline(DummyWtd(detected, waking_hours=(time(0), time(0, 1)))), datapoint, zero_division=0
@@ -318,14 +338,14 @@ def test_uncertainty_outside_intervals_keeps_nonconsecutive_source_ids():
 def test_fully_uncertain_waking_window_does_not_bias_waking_average():
     uncertain_day = DummyDatapoint(
         data=_sensor_frame_data(7200),
-        reference_weartime=_intervals([(0, 3600)]),
+        reference_weartime=_reference([(0, 3600)]),
         sampling_rate_hz=1.0,
         group_label=GroupLabel("010", "uncertain_waking"),
     )
-    uncertain_day.reference_uncertain_ = _intervals([(3600, 7200)])
+    uncertain_day.reference_weartime_ = _with_uncertain(uncertain_day.reference_weartime_, [(3600, 7200)])
     labeled_day = DummyDatapoint(
         data=_sensor_frame_data(7200),
-        reference_weartime=_intervals([(0, 7200)]),
+        reference_weartime=_reference([(0, 7200)]),
         sampling_rate_hz=1.0,
     )
     pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 7200)]), waking_hours=(time(1), time(2))))
@@ -340,8 +360,8 @@ def test_fully_uncertain_waking_window_does_not_bias_waking_average():
 
 
 def test_all_uncertain_dataset_has_no_combined_performance_rates():
-    datapoint = DummyDatapoint(data=_sensor_frame_data(60), reference_weartime=_intervals([]), sampling_rate_hz=1.0)
-    datapoint.reference_uncertain_ = _intervals([(0, 60)])
+    datapoint = DummyDatapoint(data=_sensor_frame_data(60), reference_weartime=_reference([]), sampling_rate_hz=1.0)
+    datapoint.reference_weartime_ = _with_uncertain(datapoint.reference_weartime_, [(0, 60)])
 
     aggregate, _ = wtd_score(
         WtdEmulationPipeline(DummyWtd(_intervals([(0, 60)]), waking_hours=(time(0), time(0, 1)))),
@@ -357,15 +377,15 @@ def test_all_uncertain_dataset_has_no_combined_performance_rates():
 @pytest.mark.parametrize("uncertain_first", [False, True])
 def test_fully_uncertain_day_does_not_bias_mean_or_combined_scores(uncertain_first):
     certain = DummyDatapoint(
-        data=_sensor_frame_data(60), reference_weartime=_intervals([(0, 60)]), sampling_rate_hz=1.0
+        data=_sensor_frame_data(60), reference_weartime=_reference([(0, 60)]), sampling_rate_hz=1.0
     )
     uncertain = DummyDatapoint(
         data=_sensor_frame_data(60),
-        reference_weartime=_intervals([]),
+        reference_weartime=_reference([]),
         sampling_rate_hz=1.0,
         group_label=GroupLabel("010", "uncertain"),
     )
-    uncertain.reference_uncertain_ = _intervals([(0, 60)])
+    uncertain.reference_weartime_ = _with_uncertain(uncertain.reference_weartime_, [(0, 60)])
     pairs = [(certain, WtdEmulationPipeline(DummyWtd(_intervals([(0, 60)]))))]
     uncertain_pair = (uncertain, WtdEmulationPipeline(DummyWtd(_intervals([(0, 60)]))))
     pairs.insert(0 if uncertain_first else 1, uncertain_pair)
@@ -390,12 +410,12 @@ def test_fully_uncertain_day_does_not_bias_mean_or_combined_scores(uncertain_fir
 def test_wtd_score_combines_half_open_matches_across_datapoints(reverse):
     first = DummyDatapoint(
         data=_sensor_frame_data(3),
-        reference_weartime=_intervals([(0, 3)]),
+        reference_weartime=_reference([(0, 3)]),
         sampling_rate_hz=1.0,
     )
     second = DummyDatapoint(
         data=_sensor_frame_data(2),
-        reference_weartime=_intervals([]),
+        reference_weartime=_reference([]),
         sampling_rate_hz=1.0,
         group_label=GroupLabel("002", "rec_2"),
     )
@@ -420,7 +440,9 @@ def test_wtd_score_combines_half_open_matches_across_datapoints(reverse):
 @pytest.mark.parametrize("waking_hours, expected_minutes", [((time(7), time(22)), 0), ((time(0, 5), time(0, 20)), 5)])
 def test_short_recording_clips_detected_and_reference_waking_time(waking_hours, expected_minutes):
     intervals = _intervals([(0, 600)])
-    datapoint = DummyDatapoint(data=_sensor_frame_data(600), reference_weartime=intervals, sampling_rate_hz=1.0)
+    datapoint = DummyDatapoint(
+        data=_sensor_frame_data(600), reference_weartime=_reference([(0, 600)]), sampling_rate_hz=1.0
+    )
     pipeline = WtdEmulationPipeline(DummyWtd(intervals, waking_hours=waking_hours))
 
     scores = wtd_per_datapoint_score(pipeline, datapoint, zero_division=0)

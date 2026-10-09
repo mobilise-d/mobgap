@@ -216,9 +216,9 @@ class SustainWearTimeDataset(BaseAX6Dataset):
         Reference non-wear intervals with columns ``start``, ``end``, ``duration``, ``start_dt``, ``end_dt`` and
         ``duration_s``.
     reference_weartime_
-        Wear intervals outside the non-wear and uncertain reference intervals, in the same format.
-    reference_uncertain_
-        Intervals with uncertain ground truth, in the same format. These samples remain in ``data_ss``.
+        Labeled regions in the same format, with a mandatory unordered categorical ``label`` column
+        (categories ``["wear", "uncertain"]``). ``uncertain`` means wear versus non-wear could not be determined.
+        The unlabeled complement is known non-wear; all samples remain in ``data_ss``.
 
     Notes
     -----
@@ -328,7 +328,7 @@ class SustainWearTimeDataset(BaseAX6Dataset):
                 ],
             }
         )
-        uncertain = self.reference_uncertain_
+        uncertain = self._reference_uncertain_intervals()
         if not uncertain.empty:
             intervals[["start", "end"]] = intervals[["start", "end"]].clip(upper=int(uncertain.iloc[0]["start"]))
         return _format_reference_df(
@@ -342,31 +342,33 @@ class SustainWearTimeDataset(BaseAX6Dataset):
     def reference_weartime_(self) -> pd.DataFrame:
         self.assert_is_single(None, "reference_weartime_")
         data = self.data_ss
-        labeled_nonwear = pd.concat([self.reference_nonwear_, self.reference_uncertain_])
-        labeled_nonwear = labeled_nonwear.sort_values("start")
+        uncertain = self._reference_uncertain_intervals()
+        labeled_nonwear = pd.concat([self.reference_nonwear_, uncertain]).sort_values("start")
         intervals = _complement_intervals(labeled_nonwear[["start", "end"]], len(data))
-        return _format_reference_df(
+        wear = _format_reference_df(
             intervals,
             data_index=data.index,
             sampling_rate_hz=self.sampling_rate_hz,
             index_name="weartime_id",
+        ).assign(label="wear")
+        reference = (
+            pd.concat([wear, uncertain.assign(label="uncertain")], ignore_index=True)
+            .sort_values("start")
+            .reset_index(drop=True)
         )
+        reference["label"] = reference["label"].astype(pd.CategoricalDtype(categories=["wear", "uncertain"]))
+        return reference.rename_axis("weartime_id")
 
-    @property
-    def reference_uncertain_(self) -> pd.DataFrame:
-        """Ground-truth intervals excluded from wear and non-wear labels."""
-        self.assert_is_single(None, "reference_uncertain_")
+    def _reference_uncertain_intervals(self) -> pd.DataFrame:
         data = self.data_ss
         label = self.index_as_tuples()[0]
-        participant_id = label.participant_id
         starts = [
             _timestamp_to_sample_boundary(_reference_timestamp(start), data.index, fallback=len(data))
             for override_id, start in self.UNCERTAIN_GROUND_TRUTH_OVERRIDES
-            if label.recording_type == "human_movement" and override_id == participant_id
+            if label.recording_type == "human_movement" and override_id == label.participant_id
         ]
-        intervals = pd.DataFrame({"start": starts, "end": [len(data)] * len(starts)})
         return _format_reference_df(
-            intervals,
+            pd.DataFrame({"start": starts, "end": [len(data)] * len(starts)}),
             data_index=data.index,
             sampling_rate_hz=self.sampling_rate_hz,
             index_name="uncertain_id",

@@ -262,14 +262,14 @@ class BaseKerasWeartimeModel(Algorithm):
         self,
         data: pd.DataFrame,
         sampling_rate_hz: float,
-        reference_uncertain: pd.DataFrame | None = None,
+        reference: pd.DataFrame | None = None,
     ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         n_windows = window_count_from_sample_count(len(data), window_samples, step_samples)
         window_view = None
         for batch_start in range(0, n_windows, self.window_batch_size):
             starts = np.arange(batch_start, min(batch_start + self.window_batch_size, n_windows)) * step_samples
-            known = known_window_mask(starts, starts + window_samples, reference_uncertain)
+            known = known_window_mask(starts, starts + window_samples, reference)
             if not known.any():
                 continue
             # Convert the recording only when the first usable batch is requested.
@@ -296,10 +296,9 @@ class BaseKerasWeartimeModel(Algorithm):
         self, training_data: TrainingData, sampling_rate_hz: float
     ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
         window_samples, _ = self._window_parameters(sampling_rate_hz)
-        for data, reference_weartime, *uncertain in training_data:
+        for data, reference_weartime in training_data:
             reference_interval_arrays = reference_weartime_interval_arrays(reference_weartime)
-            reference_uncertain = uncertain[0] if uncertain else None
-            for windows, starts in self._iter_window_batches_with_starts(data, sampling_rate_hz, reference_uncertain):
+            for windows, starts in self._iter_window_batches_with_starts(data, sampling_rate_hz, reference_weartime):
                 centers = starts + window_samples // 2
                 yield windows, labels_from_interval_arrays(centers, *reference_interval_arrays)
 

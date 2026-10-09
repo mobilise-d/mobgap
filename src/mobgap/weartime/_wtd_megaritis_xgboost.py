@@ -176,14 +176,13 @@ def _recording_feature_batches(
 def _iter_training_recording_feature_batches(
     data: pd.DataFrame,
     reference_weartime: pd.DataFrame,
-    reference_uncertain: pd.DataFrame | None = None,
     *,
     memory: Memory,
     window_sec: float,
     **feature_kwargs: Unpack[_FeatureExtractionKwargs],
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
     window_start_end_ = window_start_end(len(data), feature_kwargs["window_samples"], feature_kwargs["step_samples"])
-    known = known_window_mask(window_start_end_[:, 0], window_start_end_[:, 1], reference_uncertain)
+    known = known_window_mask(window_start_end_[:, 0], window_start_end_[:, 1], reference_weartime)
     if not known.any():
         return
     feature_batches = _recording_feature_batches(data, memory=memory, feature_kwargs=feature_kwargs)

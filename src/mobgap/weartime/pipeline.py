@@ -40,11 +40,8 @@ class _TrainingDataFromDataset:
 
     def load_recording(self, datapoint_index: int) -> TrainingRecording:
         datapoint = self.dataset[datapoint_index]
-        uncertain = getattr(datapoint, "reference_uncertain_", None)
         data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
         reference_weartime = datapoint.reference_weartime_
-        if uncertain is not None and not uncertain.empty:
-            return data, reference_weartime, uncertain
         return data, reference_weartime
 
 
@@ -67,8 +64,8 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
 
     This wraps any wear-time detector and allows it to be evaluated or optimized through tpcp's validation and
     optimization utilities.
-    Training passes available ``reference_uncertain_`` intervals alongside the recording and wear reference.
-    Trainable detectors exclude complete windows intersecting those intervals, retaining known portions on the
+    Training passes the recording and its labeled wear/uncertain reference regions.
+    Trainable detectors exclude complete windows intersecting uncertain regions, retaining known portions on the
     original sample grid. Held-out scoring continues to mask uncertain samples independently.
 
     Parameters
@@ -96,8 +93,8 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
     This is usually not required by algorithms, but it can be helpful for dummy algorithms and cache keys.
 
     For the ``self_optimize`` method, the pipeline first reads the sampling rate metadata for each
-    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` pairs or
-    ``(data, reference_weartime, reference_uncertain)`` triples to the algorithm. References use half-open
+    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` pairs to the algorithm.
+    References have a mandatory categorical ``label`` column (``["wear", "uncertain"]``) and use half-open
     sample intervals; trainable detectors exclude windows intersecting uncertainty on the original recording grid.
     This keeps recording data loading at the dataset iterator boundary instead of collecting all recordings in memory
     first.

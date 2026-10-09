@@ -59,7 +59,7 @@ def _exclude_uncertain(intervals: pd.DataFrame, uncertain: pd.DataFrame) -> pd.D
             positions.append(position)
             starts.append(fragment_start)
             ends.append(fragment_end)
-    result = intervals.iloc[positions][["start", "end"]].copy()
+    result = intervals.iloc[positions].copy()
     result["start"] = starts
     result["end"] = ends
     return result
@@ -102,8 +102,10 @@ def wtd_per_datapoint_score(
         Pipeline with a detector that provides ``waking_hours`` and wear-time results.
     datapoint : BaseGaitDataset
         Single-day datapoint with ``data_ss``, ``sampling_rate_hz`` and ``reference_weartime_``. The reference is a
-        DataFrame with sample-based ``start`` and exclusive ``end`` columns. If the datapoint provides
-        ``reference_uncertain_``, those samples are excluded from all scores and duration errors.
+        DataFrame with sample-based ``start``, exclusive ``end`` and a mandatory unordered categorical ``label``
+        column with categories ``["wear", "uncertain"]``. Uncertain means wear versus non-wear could not be
+        determined; those samples are excluded from all scores and duration errors. The unlabeled complement
+        is known non-wear. Detector output does not require a label column.
     zero_division : {"warn", 0, 1}
         Value passed to classification metrics when a denominator is zero on labeled data. It does not turn
         entirely uncertain datapoints into measured zero scores.
@@ -114,7 +116,8 @@ def wtd_per_datapoint_score(
         Classification metrics and sample counts, wear-time durations in minutes, and runtime in seconds. All
         scalar rates and durations are NaN when no labeled samples remain. Waking durations are NaN when the
         recorded waking window contains only uncertain samples. ``detected`` and ``reference`` retain the original
-        interval IDs; ``detected_scored`` and ``reference_scored`` contain the fragments used for scoring after
+        interval IDs; ``reference`` includes wear and uncertain regions with their categorical labels.
+        ``detected_scored`` and wear-only ``reference_scored`` contain the fragments used for scoring after
         uncertain samples are removed. These tables, ``matches``, ``reference_waking``, and ``sampling_rate_hz`` use
         :func:`~tpcp.validate.no_agg` for the final aggregator.
     """
@@ -125,11 +128,16 @@ def wtd_per_datapoint_score(
         pipeline.safe_run(datapoint)
 
         detected_weartime = _only_start_end(pipeline.weartime_list_)
-        reference_weartime = _only_start_end(datapoint.reference_weartime_, index_name="weartime_id")
+        labeled_reference = datapoint.reference_weartime_
+        reference_weartime = (
+            labeled_reference.loc[labeled_reference["label"] == "wear", ["start", "end", "label"]]
+            .astype({"start": "int64", "end": "int64"})
+            .rename_axis("weartime_id")
+        )
         data = datapoint.data_ss
         sampling_rate_hz = datapoint.sampling_rate_hz
         waking_hours = pipeline.algo_.waking_hours
-        uncertain = getattr(datapoint, "reference_uncertain_", pd.DataFrame(columns=["start", "end"]))
+        uncertain = labeled_reference.loc[labeled_reference["label"] == "uncertain", ["start", "end"]]
 
         matches = _categorize_weartime_samples(detected_weartime, reference_weartime, len(data), uncertain)
         if not uncertain.empty:
@@ -192,7 +200,7 @@ def wtd_per_datapoint_score(
             "matches": no_agg(matches),
             "detected": no_agg(detected_weartime),
             "detected_scored": no_agg(detected_scored),
-            "reference": no_agg(reference_weartime),
+            "reference": no_agg(labeled_reference[["start", "end", "label"]].rename_axis("weartime_id")),
             "reference_scored": no_agg(reference_scored),
             "reference_waking": no_agg(reference_waking_weartime),
             "sampling_rate_hz": no_agg(sampling_rate_hz),
@@ -439,11 +447,14 @@ wtd_score.__doc__ = """Scorer for wear-time detection algorithms.
 
 This is a pre-configured :class:`~tpcp.validate.Scorer` object using :func:`wtd_per_datapoint_score` as
 per-datapoint scorer and :func:`wtd_final_agg` as final aggregator. Pass single-day datapoints with
-``reference_weartime_`` intervals in ``[start, end)`` sample coordinates and a common sampling rate. If a datapoint
-provides ``reference_uncertain_``, its samples are excluded from scoring while the detector still receives the full
-signal. Undefined per-day rates and durations are NaN and excluded from mean scores. Combined metrics use only
+``reference_weartime_`` intervals in ``[start, end)`` sample coordinates, mandatory categorical ``label``
+(categories ``["wear", "uncertain"]``), and a common sampling rate. Unknown wear versus non-wear regions are
+marked ``uncertain`` and excluded from scoring while the detector still receives the full signal. The unlabeled
+complement is known non-wear. Undefined per-day rates and durations are NaN and excluded from mean scores.
+Combined metrics use only
 labeled samples; they are NaN when no applicable labels exist. ``raw__detected`` and ``raw__reference`` retain
-original interval IDs, while ``raw__detected_scored`` and ``raw__reference_scored`` show fragments after masking.
+original interval IDs; reference exports include the categorical labels and unknown regions, while
+``raw__detected_scored`` and wear-only ``raw__reference_scored`` show fragments after masking.
 """
 
 

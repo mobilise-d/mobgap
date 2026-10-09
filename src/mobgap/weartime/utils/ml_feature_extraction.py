@@ -40,6 +40,7 @@ def window_count_from_sample_count(n_samples: int, window_samples: int, step_sam
 
 def reference_weartime_interval_arrays(reference_weartime: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     """Return sorted reference wear-time interval starts and ends."""
+    reference_weartime = reference_weartime.loc[reference_weartime["label"] == "wear"]
     if len(reference_weartime) == 0:
         empty = np.empty(0, dtype=np.int64)
         return empty, empty
@@ -68,14 +69,15 @@ def labels_from_interval_centers(centers: np.ndarray, reference_weartime: pd.Dat
     return labels_from_interval_arrays(centers, *reference_weartime_interval_arrays(reference_weartime))
 
 
-def known_window_mask(starts: np.ndarray, ends: np.ndarray, reference_uncertain: pd.DataFrame | None) -> np.ndarray:
+def known_window_mask(starts: np.ndarray, ends: np.ndarray, reference: pd.DataFrame | None) -> np.ndarray:
     """Keep windows intersecting no uncertain ``[start, end)`` sample interval.
 
     Merely touching either interval boundary is allowed. Input window positions
     remain on the original recording grid; no samples are spliced across gaps.
     """
     known = np.ones(len(starts), dtype=bool)
-    if reference_uncertain is not None:
-        for start, end in reference_uncertain[["start", "end"]].itertuples(index=False, name=None):
+    if reference is not None:
+        uncertain = reference.loc[reference["label"] == "uncertain", ["start", "end"]]
+        for start, end in uncertain.itertuples(index=False, name=None):
             known &= (ends <= start) | (starts >= end)
     return known

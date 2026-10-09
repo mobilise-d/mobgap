@@ -69,8 +69,11 @@ Interval utilities
 
     clip_intervals_to_waking_hours
 
-Training accepts ``(data, wear)`` recording pairs and optional
-``(data, wear, uncertain)`` triples. Windows touching uncertain samples are
+Training accepts ``(data, reference_weartime)`` recording pairs. References must
+include an unordered categorical ``label`` column with categories
+``["wear", "uncertain"]``, including empty and all-wear frames. ``uncertain``
+means wear versus non-wear could not be determined. The unlabeled complement
+is known non-wear. Windows touching uncertain samples are
 excluded from CNN and XGBoost training; intervals use half-open boundaries.
 Known windows remain on the original recording grid, including on either side
 of an uncertain gap. No signal segments are concatenated.
