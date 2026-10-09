@@ -405,6 +405,30 @@ class TestAggregateDf:
 
         assert_frame_equal(aggregated, expected_df)
 
+    @pytest.mark.parametrize("dtype", ["int64", "Int64", "float64"])
+    def test_aggregation_preserves_source_and_result_isolation(self, dtype):
+        source = pd.DataFrame({"start": [1, 3], "end": [2, 4]}, dtype=dtype).rename_axis("step_id")
+        original = source.copy(deep=True)
+
+        @dataclass
+        class Result:
+            test: Any
+
+        records = [
+            TypedIteratorResultTuple(
+                "__main__", RegionDataTuple(Region("a", 5, 10, "gs_id"), pd.DataFrame()), Result(source), {}
+            )
+        ]
+        aggregated = create_aggregate_df("test", ["start", "end"])(records)
+        assert_frame_equal(source, original)
+        expected = (original + 5).copy()
+        expected.index = pd.MultiIndex.from_product([["a"], original.index], names=["gs_id", "step_id"])
+        assert_frame_equal(aggregated, expected)
+        source.iloc[0, 0] = 100
+        assert_frame_equal(aggregated, expected)
+        aggregated.iloc[0, 1] = 200
+        assert source.iloc[0, 1] == original.iloc[0, 1]
+
     @pytest.mark.parametrize("fix_index_offset", [True, False])
     def test_index_offset(self, fix_index_offset):
         example_sequences = pd.DataFrame({"start": [1, 5], "end": [5, 10]}, index=["s1", "s2"]).rename_axis(index="id")

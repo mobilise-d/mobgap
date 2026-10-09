@@ -254,10 +254,12 @@ def create_aggregate_df(
                 offset += parent_region.start
                 region_id = (parent_region.id, region_id)
 
-            df = df.copy()
+            # pandas Copy-on-Write isolates offset updates without copying unchanged columns.
+            df = df.copy(deep=False)
             if fix_offset_cols:
                 cols_to_fix = set(fix_offset_cols).intersection(df.columns)
-                df[list(cols_to_fix)] += offset
+                for col in cols_to_fix:
+                    df[col] += offset
             if fix_offset_index:
                 df.index += offset
             to_concat[region_id] = df
