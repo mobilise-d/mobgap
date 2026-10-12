@@ -132,6 +132,7 @@ class _FeatureExtractionKwargs(TypedDict):
 class _TrainingFeatureKwargs(_FeatureExtractionKwargs):
     memory: Memory
     window_sec: float
+    n_jobs_features: int
 
 
 def _extract_recording_feature_batches(
@@ -197,13 +198,16 @@ def _iter_training_recording_feature_batches(
     *,
     memory: Memory,
     window_sec: float,
+    n_jobs_features: int,
     **feature_kwargs: Unpack[_FeatureExtractionKwargs],
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
     window_start_end_ = window_start_end(len(data), feature_kwargs["window_samples"], feature_kwargs["step_samples"])
     known = known_window_mask(window_start_end_[:, 0], window_start_end_[:, 1], reference_weartime)
     if not known.any():
         return
-    feature_batches = _recording_feature_batches(data, memory=memory, feature_kwargs=feature_kwargs)
+    feature_batches = _recording_feature_batches(
+        data, memory=memory, feature_kwargs=feature_kwargs, n_jobs=n_jobs_features
+    )
     reference_centers = window_start_end_[:, 0] + int((window_sec * feature_kwargs["sampling_rate_hz"]) // 2)
     for batch_index, features in enumerate(feature_batches):
         batch_start = batch_index * feature_kwargs["window_batch_size"]
@@ -279,11 +283,13 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     window_batch_size
         Number of windows feature-extracted before one classifier prediction call.
     n_jobs
-        Number of joblib workers, default 4. Detection and ``extract_features`` use threads over window
-        batches. Dataset-backed training uses processes over recordings, with one batch worker per recording.
-        Generic training iterables remain sequential. ``1`` disables parallel extraction; ``-1`` uses all
-        available workers. Use ``1`` when an outer evaluation already parallelizes folds. Worker count does
-        not change recording feature cache keys.
+        Number of processes over dataset-backed training recordings, default 1. Generic training iterables
+        remain sequential. ``1`` disables process parallelism; ``-1`` uses all available workers.
+        Use ``1`` when an outer evaluation already parallelizes folds.
+    n_jobs_features
+        Number of threads over feature window batches within each recording, default 4. Applies to training,
+        detection and ``extract_features`` independently of ``n_jobs``. ``1`` disables threaded extraction;
+        ``-1`` uses all available workers. Feature cache keys are independent of both worker counts.
     memory
         Optional joblib cache for complete recording-level feature batches shared by training and detection. Disabled
         by default. Float32 sensor inputs retain their dtype during extraction; cached features are float32.
@@ -423,7 +429,8 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
         prediction_threshold: float = 0.5,
         window_batch_size: int = 4096,
-        n_jobs: int = 4,
+        n_jobs: int = 1,
+        n_jobs_features: int = 4,
         memory: Memory = Memory(None),
         waking_hours: tuple[time, time] = (time(7), time(22)),
         trained_sampling_rate_hz: Optional[float] = 100.0,  # noqa: UP045 - tpcp 2.1 resolves annotations.
@@ -438,6 +445,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self.prediction_threshold = prediction_threshold
         self.window_batch_size = window_batch_size
         self.n_jobs = n_jobs
+        self.n_jobs_features = n_jobs_features
         self.memory = memory
         self.waking_hours = waking_hours
         self.trained_sampling_rate_hz = trained_sampling_rate_hz
@@ -549,6 +557,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             training_data,
             memory=self.memory,
             n_jobs=self.n_jobs,
+            n_jobs_features=self.n_jobs_features,
             sampling_rate_hz=sampling_rate_hz,
             window_samples=window_samples,
             step_samples=step_samples,
@@ -645,6 +654,6 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             "feature_names": tuple(feature_names),
         }
         for feature_values in _recording_feature_batches(
-            data, memory=self.memory, feature_kwargs=feature_kwargs, n_jobs=self.n_jobs
+            data, memory=self.memory, feature_kwargs=feature_kwargs, n_jobs=self.n_jobs_features
         ):
             yield pd.DataFrame(feature_values, columns=feature_names)

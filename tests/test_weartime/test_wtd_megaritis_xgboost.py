@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import time
+from threading import get_ident
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -309,6 +310,7 @@ class TestWtdMegaritisXGBoost:
             overlap=0.0,
             window_batch_size=1,
             n_jobs=2,
+            n_jobs_features=2,
             trained_sampling_rate_hz=None,
         ).self_optimize(training_data, sampling_rate_hz=1.0)
 
@@ -535,27 +537,63 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         starts = np.arange(0, len(data) - 499, step)
         windows = np.column_stack([starts, starts + 500])
         expected = extract_features_batched(data, windows).to_numpy(dtype=np.float32)
-        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT, window_batch_size=2, overlap=1 - step / 500)
+        algo = WtdMegaritisXGBoost(
+            feature_names=FEATURE_ORDER_90PCT, window_batch_size=2, overlap=1 - step / 500, n_jobs_features=1
+        )
         assert_array_equal(algo.extract_features(data, 100).to_numpy(), expected)
-        parallel = algo.clone().set_params(n_jobs=2)
+        parallel = algo.clone().set_params(n_jobs_features=2)
         assert_array_equal(parallel.extract_features(data, 100).to_numpy(), expected)
+
+    @pytest.mark.parametrize(("recording_jobs", "feature_jobs"), [(4, 1), (1, 2)])
+    def test_feature_threads_are_independent_of_recording_processes(
+        self, recording_jobs: int, feature_jobs: int, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Training and inference use feature threads regardless of the recording process count."""
+        data = pd.DataFrame(np.zeros((625, 6), dtype=np.float32), columns=BF_SENSOR_COLS)
+        caller_thread = get_ident()
+        worker_threads = []
+        extract = xgb_module.extract_features_batched
+
+        def record_thread(*args: object, **kwargs: object) -> pd.DataFrame:
+            worker_threads.append(get_ident())
+            return extract(*args, **kwargs)
+
+        monkeypatch.setattr(xgb_module, "extract_features_batched", record_thread)
+        algo = WtdMegaritisXGBoost(
+            clf=_TrainableProbabilityClassifier(),
+            feature_names=("acc_pa_mean",),
+            window_batch_size=1,
+            n_jobs=recording_jobs,
+            n_jobs_features=feature_jobs,
+        )
+        algo.self_optimize([(data, _reference([(0, 625)]))], sampling_rate_hz=100)
+        assert worker_threads
+        assert all((thread == caller_thread) == (feature_jobs == 1) for thread in worker_threads)
+        worker_threads.clear()
+        algo.extract_features(data, 100)
+        assert worker_threads
+        assert all((thread == caller_thread) == (feature_jobs == 1) for thread in worker_threads)
 
     def test_worker_count_shares_recording_cache(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A threaded cache hit reuses features previously extracted serially."""
         data = pd.DataFrame(np.zeros((625, 6), dtype=np.float32), columns=BF_SENSOR_COLS)
-        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT, memory=Memory(tmp_path, verbose=0))
+        algo = WtdMegaritisXGBoost(
+            feature_names=FEATURE_ORDER_90PCT, memory=Memory(tmp_path, verbose=0), n_jobs_features=1
+        )
         expected = algo.extract_features(data, 100)
 
         def unexpected_extraction(*_args: object, **_kwargs: object) -> None:
             pytest.fail("Worker count must not invalidate the recording cache")
 
         monkeypatch.setattr(xgb_module, "_prepare_lightweight_recording", unexpected_extraction)
-        assert_frame_equal(algo.clone().set_params(n_jobs=2).extract_features(data, 100), expected)
+        assert_frame_equal(algo.clone().set_params(n_jobs_features=2).extract_features(data, 100), expected)
 
     def test_threaded_extraction_preserves_warning_context_under_process_preference(self) -> None:
         """Keep caller warning records and allow an outer joblib process preference."""
         data = pd.DataFrame(np.ones((625, 6), dtype=np.float32), columns=BF_SENSOR_COLS)
-        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT, window_sec=2, window_batch_size=1, n_jobs=2)
+        algo = WtdMegaritisXGBoost(
+            feature_names=FEATURE_ORDER_90PCT, window_sec=2, window_batch_size=1, n_jobs_features=2
+        )
         with (
             parallel_config(prefer="processes"),
             warning_error_context("recording", {"id": "sample"}, record_only=True) as context,
