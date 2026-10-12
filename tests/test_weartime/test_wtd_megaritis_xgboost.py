@@ -462,9 +462,52 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
                 reference.max(axis=1),
                 skew(reference, axis=1, bias=False),
                 kurtosis(reference, axis=1, bias=False, fisher=False),
+                (reference * reference).mean(axis=1),
             )
         for actual, target in zip(_batched_time_statistics(values), expected):
             assert_allclose(actual, target, rtol=1e-8, atol=1e-8)
+
+    def test_near_constant_moments_respect_scipy_zero_convention(self) -> None:
+        """Preserve both near-zero conventions used by supported SciPy releases."""
+        values = np.tile([1.0, 1.0 + 2**-50], (1, 250))
+        current = _batched_time_statistics(values, zero_tolerance=np.finfo(np.float64).eps)
+        legacy = _batched_time_statistics(values, zero_tolerance=np.finfo(np.float64).resolution)
+        assert np.isfinite(current.kurtosis).all()
+        assert np.isnan(legacy.kurtosis).all()
+
+    @pytest.mark.parametrize("version", ["lightweight", "full"])
+    def test_small_axis_motion_survives_float32_storage(self, version: str) -> None:
+        """Calculate norms wide enough to retain representable low-intensity axis movements."""
+        values = np.zeros((500, 6), dtype=np.float32)
+        values[:, 3] = 1
+        values[1::2, 4] = 2**-13
+        features = extract_features_batched(
+            values,
+            np.array([[0, 500]]),
+            feature_names=("gyr_norm_perm_entropy", "burst_count_norm"),
+            version=version,
+        )
+        assert_allclose(features.iloc[0], [1 / np.log2(6), 249], rtol=1e-12)
+
+    @pytest.mark.parametrize("version", ["lightweight", "full"])
+    def test_near_constant_float32_moments_match_float64_reference(self, version: str) -> None:
+        """Retain finite corrected moments for small motion around a large gyroscope baseline."""
+        values = np.zeros((500, 6), dtype=np.float32)
+        values[:, 3] = 100
+        values[0, 3] += 2**-17
+        features = extract_features_batched(
+            values, np.array([[0, 500]]), feature_names=("gyr_is_kurtosis",), version=version
+        )
+        expected = kurtosis(values[:, 3].astype(np.float64), fisher=False, bias=False)
+        assert_allclose(features.iloc[0, 0], expected, rtol=1e-8)
+
+    def test_nullable_sensor_frame_matches_nan_array(self) -> None:
+        """Keep nullable pandas sensors compatible with missing-value feature extraction."""
+        data = pd.DataFrame(np.ones((625, 6), dtype=np.float32), columns=BF_SENSOR_COLS).astype("Float32")
+        data.iloc[0, 0] = pd.NA
+        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT)
+        expected = algo.extract_features(data.astype(np.float64), 100)
+        assert_frame_equal(algo.extract_features(data, 100), expected)
 
     @pytest.mark.parametrize("step", [125, 500])
     @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -606,3 +649,9 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
 
         assert_array_equal(frequencies, expected_frequencies)
         assert_allclose(power, expected_power, rtol=1e-14, atol=1e-14)
+
+    def test_float32_constant_welch_has_no_artificial_power(self) -> None:
+        """Detrend stationary float32 signals without inventing low-frequency motion."""
+        values = np.full((2, 500), 1.5 + 2**-17, dtype=np.float32)
+        _, power = _batched_welch(values, fs=100)
+        assert_array_equal(power, np.zeros_like(power))

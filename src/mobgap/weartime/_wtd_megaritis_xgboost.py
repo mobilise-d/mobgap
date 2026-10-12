@@ -148,9 +148,10 @@ def _extract_recording_feature_batches(
     if len(window_start_end_) == 0:
         return []
     dt = 1.0 / sampling_rate_hz
-    sensor_data = data.loc[:, list(sensor_cols)].to_numpy(copy=False)
+    sensor_frame = data.loc[:, list(sensor_cols)]
+    sensor_data = sensor_frame.to_numpy(copy=False)
     if sensor_data.dtype not in (np.float32, np.float64):
-        sensor_data = sensor_data.astype(float)
+        sensor_data = sensor_frame.to_numpy(dtype=float, copy=False, na_value=np.nan)
     prepared = (
         _prepare_lightweight_recording(sensor_data, window_samples, step_samples, dt)
         if version == "lightweight"
