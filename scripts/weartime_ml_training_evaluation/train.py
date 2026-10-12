@@ -52,15 +52,16 @@ def main() -> None:
         detector = optimizer.optimized_pipeline_.algo
         output_dir = OUTPUT_DIR / name
         output_dir.mkdir(parents=True, exist_ok=True)
-        with (output_dir / "best_params.json").open("w") as file:
+        artifact_name = "cnn_sustain_weartime" if isinstance(detector, WtdMegaritisCNN) else "xgboost_sustain_weartime"
+        with (output_dir / f"{artifact_name}_best_params.json").open("w") as file:
             json.dump(optimizer.best_params_, file, indent=2)
             file.write("\n")
         if isinstance(detector, WtdMegaritisCNN):
-            detector.model._model.save(output_dir / "model.keras")
+            detector.model._model.save(output_dir / f"{artifact_name}_model.keras")
         else:
-            with (output_dir / "model.pkl").open("wb") as file:
+            with (output_dir / f"{artifact_name}_model.pkl").open("wb") as file:
                 pickle.dump(detector.clf, file)
-            with (output_dir / "feature_order.pkl").open("wb") as file:
+            with (output_dir / f"{artifact_name}_feature_order.pkl").open("wb") as file:
                 pickle.dump(list(detector.feature_names), file)
 
 

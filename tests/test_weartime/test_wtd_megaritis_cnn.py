@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from datetime import time
@@ -210,25 +211,6 @@ class TestMegaritisCnnWeartimeModel:
         loaded_model = keras_models.load_model(model_path)
 
         assert any(layer.name == "per_window_standardization" for layer in loaded_model.layers)
-
-    def test_load_model_embeds_standardization_for_existing_artifacts(self, tmp_path: Path) -> None:
-        """Existing models accept raw windows after loading, without changing their predictions."""
-        tf = pytest.importorskip("tensorflow")
-        windows = np.random.default_rng(42).normal(loc=9.81, scale=0.2, size=(2, 20, 6)).astype(np.float32)
-        model = tf.keras.Sequential(
-            [tf.keras.layers.Input((20, 6)), tf.keras.layers.Flatten(), tf.keras.layers.Dense(1)]
-        )
-        centered = windows - windows.mean(axis=1, keepdims=True)
-        standardized = centered / np.sqrt(np.maximum(np.mean(centered**2, axis=1, keepdims=True), 1e-16))
-        expected = model(standardized, training=False).numpy()
-        model_path = tmp_path / "model.keras"
-        model.save(model_path)
-
-        loaded = keras_model_module.load_keras_weartime_model(model_path)
-        assert np.allclose(loaded(windows, training=False).numpy(), expected, rtol=1e-5, atol=1e-5)
-        loaded.save(model_path)
-        reloaded = keras_model_module.load_keras_weartime_model(model_path)
-        assert np.allclose(reloaded(windows, training=False).numpy(), expected, rtol=1e-5, atol=1e-5)
 
     def test_model_with_standardization_loads_in_fresh_process(self, tmp_path: Path) -> None:
         """A saved training artifact can be loaded without prior layer registration."""
@@ -446,23 +428,30 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
 class TestWtdMegaritisCNN:
     """Test the CNN detector behavior with deterministic model outputs."""
 
-    def test_detect_uses_packaged_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Load the packaged CNN only when the detector needs it."""
-        pretrained = _FixedPredictionModel([1] * 9)
-        loaded_files: list[str] = []
-
-        def load_model(file_name: str) -> _FixedPredictionModel:
-            loaded_files.append(file_name)
-            return pretrained
-
-        monkeypatch.setattr(keras_model_module, "_load_keras_model_resource", load_model)
-        detector = WtdMegaritisCNN()
-        assert loaded_files == []
-
-        result = detector.detect(_sensor_data(1500), sampling_rate_hz=100.0)
-
-        assert loaded_files == ["cnn_lowback_model.keras"]
-        assert result.model_.window_predictions_.tolist() == [1] * 9
+    def test_sustain_preset_loads_selected_hyperparameters(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Restore selected training settings alongside a model with built-in standardization."""
+        pytest.importorskip("tensorflow")
+        parameters = {
+            "algo__model__learning_rate": 0.007,
+            "algo__model__batch_size": 512,
+            "algo__model__dropout_rate": 0.5,
+        }
+        (tmp_path / "cnn_sustain_weartime_best_params.json").write_text(json.dumps(parameters))
+        model = MegaritisCnnWeartimeModel(dropout_rate=0.5)._create_model((20, len(BF_SENSOR_COLS)))
+        model.save(tmp_path / "cnn_sustain_weartime_model.keras")
+        monkeypatch.setattr(keras_model_module, "files", lambda _: tmp_path)
+        keras_model_module._load_keras_model_resource.cache_clear()
+        configured = MegaritisCnnWeartimeModel(**MegaritisCnnWeartimeModel.PredefinedParameters.sustain_weartime)
+        assert configured.learning_rate == 0.007
+        assert configured.batch_size == 512
+        assert configured.dropout_rate == 0.5
+        assert configured._trained_sampling_rate_hz == 100
+        assert any(layer.name == "per_window_standardization" for layer in configured._model.layers)
+        windows = np.random.default_rng(42).normal(size=(2, 20, 6)).astype(np.float32)
+        assert np.allclose(configured._model(windows, training=False).numpy(), model(windows, training=False).numpy())
+        keras_model_module._load_keras_model_resource.cache_clear()
 
     def test_self_optimize_creates_untrained_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Train a new CNN when no low-level model was configured."""
@@ -549,16 +538,3 @@ class TestWtdMegaritisCNN:
         )
 
         assert_array_equal(result, np.empty((0, 2), dtype=np.int64))
-
-    @pytest.mark.parametrize(
-        "filename",
-        [
-            "cnn_lowback_model.keras",
-            "cnn_lowback_model_metadata.json",
-            "cnn_lstm_lowback_model.keras",
-            "cnn_lstm_lowback_metadata.json",
-        ],
-    )
-    def test_model_files_are_packaged(self, filename: str) -> None:
-        """Keep the production model artifacts available as package resources."""
-        assert keras_model_module.files("mobgap.weartime.production_models").joinpath(filename).is_file()

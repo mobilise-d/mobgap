@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
@@ -100,21 +101,10 @@ def _load_keras_model_resource(file_name: str) -> Any:
 
 
 def load_keras_weartime_model(model_path: str | PathLike[str]) -> Any:
-    """Load a wear-time artifact whose graph standardizes raw windows, adding the layer when needed."""
-    standardization_layer = _get_per_window_standardization_layer_class()
+    """Load a wear-time artifact with a serialized per-window standardization layer."""
+    _get_per_window_standardization_layer_class()
     keras_models = import_module("tensorflow.keras.models")
-    model = keras_models.load_model(model_path)
-    # Packaged models trained with externally standardized inputs need the same preprocessing in their graph.
-    if not any(isinstance(layer, standardization_layer) for layer in model.layers):
-        layers = import_module("tensorflow.keras.layers")
-        model = keras_models.Sequential(
-            [
-                layers.Input(shape=model.input_shape[1:]),
-                standardization_layer(name=_MODEL_STANDARDIZATION_LAYER_NAME),
-                model,
-            ]
-        )
-    return model
+    return keras_models.load_model(model_path)
 
 
 class BaseKerasWeartimeModel(Algorithm):
@@ -395,10 +385,18 @@ class MegaritisCnnWeartimeModel(BaseKerasWeartimeModel):
         """Predefined parameters for the production CNN wear-time model."""
 
         @classproperty
-        def lowback(cls) -> MappingProxyType:  # noqa: N805
+        def sustain_weartime(cls) -> MappingProxyType:  # noqa: N805
+            """Load the fitted SUSTAIN CNN and its selected hyperparameters."""
+            with (
+                files("mobgap.weartime.production_models")
+                .joinpath("cnn_sustain_weartime_best_params.json")
+                .open() as file
+            ):
+                parameters = json.load(file)
             return MappingProxyType(
                 {
-                    "_model": _load_keras_model_resource("cnn_lowback_model.keras"),
+                    **{name.removeprefix("algo__model__"): value for name, value in parameters.items()},
+                    "_model": _load_keras_model_resource("cnn_sustain_weartime_model.keras"),
                     "_trained_sampling_rate_hz": 100.0,
                 }
             )
@@ -553,18 +551,6 @@ class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
     step_samples_
         Step size in samples used for the last call.
     """
-
-    class PredefinedParameters:
-        """Predefined parameters for the production CNN-LSTM wear-time model."""
-
-        @classproperty
-        def lowback(cls) -> MappingProxyType:  # noqa: N805
-            return MappingProxyType(
-                {
-                    "_model": _load_keras_model_resource("cnn_lstm_lowback_model.keras"),
-                    "_trained_sampling_rate_hz": 100.0,
-                }
-            )
 
     def __init__(
         self,

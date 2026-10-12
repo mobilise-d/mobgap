@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import json
 import pickle
 from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves algorithm annotations at runtime.
 from datetime import time
@@ -27,7 +28,7 @@ import numpy as np
 import pandas as pd
 from joblib import Memory, parallel_config
 from sklearn.utils.validation import check_is_fitted
-from tpcp import OptimizableParameter, PureParameter, make_action_safe, make_optimize_safe
+from tpcp import OptimizableParameter, PureParameter, clone, make_action_safe, make_optimize_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
 from tpcp.parallel import Parallel, delayed
@@ -259,19 +260,18 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     XGBoost-based wear-time detection for lower-back worn IMU sensors.
 
     The detector extracts time-domain and frequency-domain features from overlapping 5-second windows and classifies
-    each window with a sklearn-compatible classifier. Packaged XGBoost models are available for the full 230-feature
-    set and a 79-feature lightweight set selected from 90%% SHAP importance.
+    each window with a sklearn-compatible classifier. The full extractor computes 230 features; the lightweight
+    extractor uses 79 features selected from 90%% SHAP importance. Supply a trained classifier for detection.
 
     Parameters
     ----------
     clf
         Fitted or trainable sklearn classifier exposing ``fit`` and binary ``predict_proba`` with classes ``[0, 1]``.
-        If ``None``, ``detect`` lazily loads the packaged pretrained model selected by ``version`` and
-        ``self_optimize`` creates a new ``xgboost.XGBClassifier`` with the production hyperparameters.
+        If ``None``, ``self_optimize`` creates a new ``xgboost.XGBClassifier``. Detection requires a fitted classifier.
     feature_names
-        Feature order expected by ``clf``. If ``None``, the original production order for ``version`` is used.
+        Feature order expected by ``clf``. If ``None``, the extractor's feature order for ``version`` is used.
     version
-        Feature/model variant: ``"lightweight"`` for 79 features or ``"full"`` for 230 features.
+        Feature variant: ``"lightweight"`` for 79 features or ``"full"`` for 230 features.
     window_sec
         Window size in seconds for feature extraction.
     overlap
@@ -296,7 +296,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     waking_hours
         Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
     trained_sampling_rate_hz
-        Sampling rate used to train ``clf``. Pretrained models use 100 Hz.
+        Sampling rate used to train ``clf``. The SUSTAIN preset uses 100 Hz.
     allow_sampling_rate_mismatch
         If ``True``, allow inference at a different sampling rate than ``trained_sampling_rate_hz``.
 
@@ -352,31 +352,25 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             version: Literal["full", "lightweight"]
             trained_sampling_rate_hz: float
 
-        @classmethod
-        def _load_model_config(cls, version: Literal["full", "lightweight"]) -> MappingProxyType[str, Any]:
-            if version == "full":
-                model_file = "xgboost_fullfeatures_lowback_model.pkl"
-                feature_order_file = "xgboost_fullfeatures_lowback_feature_order.pkl"
-            else:
-                model_file = "xgboost_90pct_lowback_model.pkl"
-                feature_order_file = "xgboost_90pct_lowback_feature_order.pkl"
-
+        @classproperty
+        def sustain_weartime(cls) -> _ModelConfig:  # noqa: N805
+            """Load the fitted SUSTAIN classifier, feature order and selected hyperparameters."""
+            with (
+                files("mobgap.weartime.production_models")
+                .joinpath("xgboost_sustain_weartime_best_params.json")
+                .open() as file
+            ):
+                parameters = json.load(file)
+            clf = clone(_load_pickle_resource("xgboost_sustain_weartime_model.pkl"))
+            clf.set_params(**{name.removeprefix("algo__clf__"): value for name, value in parameters.items()})
             return MappingProxyType(
                 {
-                    "clf": _load_pickle_resource(model_file),
-                    "feature_names": tuple(_load_pickle_resource(feature_order_file)),
-                    "version": version,
+                    "clf": clf,
+                    "feature_names": tuple(_load_pickle_resource("xgboost_sustain_weartime_feature_order.pkl")),
+                    "version": "lightweight",
                     "trained_sampling_rate_hz": 100.0,
                 }
             )
-
-        @classproperty
-        def lightweight(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_model_config("lightweight")
-
-        @classproperty
-        def full(cls) -> _ModelConfig:  # noqa: N805
-            return cls._load_model_config("full")
 
         @classproperty
         def untrained_lightweight(cls) -> _ModelConfig:  # noqa: N805
@@ -468,10 +462,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         _validate_waking_hours(self.waking_hours)
         assert_is_sensor_data(data, frame="body")
 
-        clf, feature_names, trained_sampling_rate_hz = self._classifier_and_feature_names()
+        clf = self.clf or _new_xgboost_classifier()
+        feature_names = tuple(self.feature_names or self._feature_names_by_version[self.version])
         check_is_fitted(clf)
         _validate_model_sampling_rate(
-            trained_sampling_rate_hz=trained_sampling_rate_hz,
+            trained_sampling_rate_hz=self.trained_sampling_rate_hz,
             sampling_rate_hz=sampling_rate_hz,
             allow_mismatch=self.allow_sampling_rate_mismatch,
         )
@@ -609,21 +604,6 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             if feature_batches
             else pd.DataFrame(columns=feature_names)
         )
-
-    def _classifier_and_feature_names(
-        self,
-    ) -> tuple[_SklearnWearTimeClassifier, tuple[str, ...], Optional[float]]:  # noqa: UP045
-        if self.clf is not None:
-            return (
-                self.clf,
-                tuple(self.feature_names or self._feature_names_by_version[self.version]),
-                self.trained_sampling_rate_hz,
-            )
-
-        model_config = (
-            self.PredefinedParameters.full if self.version == "full" else self.PredefinedParameters.lightweight
-        )
-        return model_config["clf"], model_config["feature_names"], model_config["trained_sampling_rate_hz"]
 
     def _window_parameters(self, sampling_rate_hz: float) -> tuple[int, int]:
         if not 0 <= self.overlap < 1:

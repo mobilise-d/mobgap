@@ -60,7 +60,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     Parameters
     ----------
     model : BaseKerasWeartimeModel, optional
-        Low-level Keras window classifier. If ``None``, ``detect`` loads the packaged pretrained CNN and
+        Low-level Keras window classifier. Detection requires a trained model. If ``None``,
         ``self_optimize`` creates a fresh, untrained CNN. Pass a model explicitly to use another architecture or
         training configuration.
     waking_hours : tuple[datetime.time, datetime.time]
@@ -93,8 +93,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
 
     **Model Architecture**
     The low-level model operates on raw windowed IMU data with per-window standardization
-    (features scaled to zero mean, unit variance per window). Packaged production models can be instantiated with the
-    ``PredefinedParameters`` of the respective low-level model class and then passed as ``model``.
+    (features scaled to zero mean, unit variance per window). Supply a trained low-level model for detection.
+    The fixed SUSTAIN preset loads its model and selected
+    hyperparameters from packaged artifacts.
 
     Model architecture: 3-layer 1D CNN with progressively increasing filters [32, 64, 128],
     kernel size 9, max pooling (size 2), batch normalization, and dropout (0.3). Fully
@@ -172,7 +173,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         data_length = len(data)
         _validate_waking_hours(self.waking_hours)
 
-        model = self.model or MegaritisCnnWeartimeModel(**MegaritisCnnWeartimeModel.PredefinedParameters.lowback)
+        model = self.model or MegaritisCnnWeartimeModel()
         self.model_ = model.clone().run(data, sampling_rate_hz=sampling_rate_hz)
 
         # Post-processing: convert window predictions to sample-level weartime

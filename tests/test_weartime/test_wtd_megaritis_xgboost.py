@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import pickle
 from datetime import time
 from threading import get_ident
 from typing import TYPE_CHECKING, ClassVar
@@ -411,36 +413,29 @@ class TestWtdMegaritisXGBoost:
         assert not hasattr(result, "total_weartime_hours_")
         assert not hasattr(result, "total_weartime_hours_during_waking_")
 
-    @pytest.mark.parametrize(
-        "filename",
-        [
-            "xgboost_90pct_lowback_feature_order.pkl",
-            "xgboost_90pct_lowback_metadata.json",
-            "xgboost_90pct_lowback_model.pkl",
-            "xgboost_fullfeatures_lowback_feature_order.pkl",
-            "xgboost_fullfeatures_lowback_metadata.json",
-            "xgboost_fullfeatures_lowback_model.pkl",
-        ],
-    )
-    def test_model_files_are_packaged(self, filename: str) -> None:
-        """Keep the production model artifacts available as package resources."""
-        assert xgb_module.files("mobgap.weartime.production_models").joinpath(filename).is_file()
-
-    @pytest.mark.parametrize(
-        ("version", "expected_wear_probability"),
-        [("lightweight", 0.0011219463), ("full", 0.0079961754)],
-    )
-    def test_packaged_classifier_loads_and_predicts(self, version: str, expected_wear_probability: float) -> None:
-        """Keep the bundled classifiers usable with the supported XGBoost version."""
-        pytest.importorskip("xgboost")
-        config = getattr(WtdMegaritisXGBoost.PredefinedParameters, version)
-        clf = config["clf"]
-        check_is_fitted(clf)
-
-        features = pd.DataFrame(
-            np.zeros((1, len(config["feature_names"])), dtype=np.float32), columns=config["feature_names"]
+    def test_sustain_preset_loads_selected_hyperparameters(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Load the newly trained classifier, feature order and JSON parameters together."""
+        xgboost = pytest.importorskip("xgboost")
+        features = pd.DataFrame({"acc_pa_std": [0.0, 1.0, 2.0, 3.0]})
+        classifier = xgboost.XGBClassifier(n_estimators=1, max_depth=2, n_jobs=1).fit(features, [0, 0, 1, 1])
+        with (tmp_path / "xgboost_sustain_weartime_model.pkl").open("wb") as file:
+            pickle.dump(classifier, file)
+        with (tmp_path / "xgboost_sustain_weartime_feature_order.pkl").open("wb") as file:
+            pickle.dump(["acc_pa_std"], file)
+        (tmp_path / "xgboost_sustain_weartime_best_params.json").write_text(
+            json.dumps({"algo__clf__max_depth": 2, "algo__clf__n_estimators": 1})
         )
-        assert_allclose(clf.predict_proba(features)[0, 1], expected_wear_probability, rtol=1e-5)
+        monkeypatch.setattr(xgb_module, "files", lambda _: tmp_path)
+        xgb_module._load_pickle_resource.cache_clear()
+        config = WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime
+        check_is_fitted(config["clf"])
+        assert config["clf"].max_depth == 2
+        assert config["clf"].n_estimators == 1
+        assert config["feature_names"] == ("acc_pa_std",)
+        assert_array_equal(config["clf"].predict_proba(features), classifier.predict_proba(features))
+        xgb_module._load_pickle_resource.cache_clear()
 
 
 class TestWtdMegaritisXGBoostFeatureExtraction:
@@ -603,13 +598,6 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         assert context.records
         assert all("recording: id='sample'" in record.context for record in context.records)
         assert any("Input window duration" in str(record.message) for record in context.records)
-
-    def test_pretrained_feature_names_are_available_without_xgboost(self) -> None:
-        """Load feature-order resources without importing the optional model package."""
-        feature_names = xgb_module._load_pickle_resource("xgboost_90pct_lowback_feature_order.pkl")
-
-        assert feature_names[0] == "acc_pa_std"
-        assert len(feature_names) == 79
 
     def test_batched_lightweight_features_match_full_subset(self) -> None:
         """Keep the lightweight extractor equivalent to the full batched extractor for shared features."""

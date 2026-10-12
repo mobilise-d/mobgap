@@ -48,12 +48,22 @@ SUSTAIN presets; final refitting uses all provided human and simulated days.
 Edit its optimizer dictionary to choose algorithms and override model/search
 settings. Final artifacts are exported under `.cache/weartime_models`:
 
-- XGBoost: `WtdMegaritisXGBoost/model.pkl` and `feature_order.pkl`
-- CNN: `WtdMegaritisCNN/model.keras`
+- XGBoost: `WtdMegaritisXGBoost/xgboost_sustain_weartime_model.pkl` and
+  `xgboost_sustain_weartime_feature_order.pkl`
+- CNN: `WtdMegaritisCNN/cnn_sustain_weartime_model.keras`
 
-Each model directory also contains `best_params.json` with the selected Optuna
-hyperparameters, using pipeline parameter names such as `algo__clf__max_depth`.
-These are the searched settings, not a complete dump of fixed model configuration.
+Each model directory also contains its `*_best_params.json` with the selected
+Optuna hyperparameters, using pipeline parameter names such as
+`algo__clf__max_depth`. These are the searched settings, not a complete dump of
+fixed model configuration.
+
+To package a production run, copy these exported files into
+`src/mobgap/weartime/production_models/`, retaining their names. The fixed
+`WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` and
+`MegaritisCnnWeartimeModel.PredefinedParameters.sustain_weartime` presets load
+the fitted model and its selected parameters together. They require the freshly
+trained artifacts to be packaged. Detection otherwise requires an explicitly
+trained classifier/model, for example from `self_optimize`.
 
 Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).
 Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time
