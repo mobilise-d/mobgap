@@ -51,6 +51,10 @@ settings. Final artifacts are exported under `.cache/weartime_models`:
 - XGBoost: `WtdMegaritisXGBoost/model.pkl` and `feature_order.pkl`
 - CNN: `WtdMegaritisCNN/model.keras`
 
+Each model directory also contains `best_params.json` with the selected Optuna
+hyperparameters, using pipeline parameter names such as `algo__clf__max_depth`.
+These are the searched settings, not a complete dump of fixed model configuration.
+
 Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).
 Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time
 folder. `MOBGAP_CACHE_DIR_PATH` configures dataset/feature caches; evaluation

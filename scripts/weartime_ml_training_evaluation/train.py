@@ -1,5 +1,6 @@
-"""Tune and refit wear-time models on the complete SUSTAIN dataset."""
+"""Tune wear-time models with inner CV and refit on all eligible SUSTAIN days."""
 
+import json
 import pickle
 from pathlib import Path
 
@@ -18,7 +19,7 @@ OUTPUT_DIR = Path(".cache/weartime_models")
 
 
 def main() -> None:
-    """Tune on inner CV, then export models refitted on the complete dataset."""
+    """Export selected hyperparameters and models refitted on all indexed days."""
     cache_dir = Path(CACHE_DIR or get_env_var("MOBGAP_CACHE_DIR_PATH", ".cache/mobgap")).expanduser()
     dataset = SustainWearTimeDataset(
         Path(DATASET_PATH or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser(),
@@ -26,7 +27,8 @@ def main() -> None:
         memory=Memory(cache_dir, verbose=0),
     )
 
-    # These presets rank human inner validation folds and add simulated training days.
+    # Rank candidates on three participant-grouped human validation folds only.
+    # Each inner training set samples 40% of its human days and five simulated non-wear days.
     optimizers = {
         "WtdMegaritisXGBoost": WearTimeOptunaSearch(
             WtdEmulationPipeline(
@@ -43,12 +45,16 @@ def main() -> None:
         ),
     }
 
-    # Refit each search winner on all days; this script performs no outer evaluation.
+    # Refit the winner on all indexed human and simulated days, without inner subsampling.
+    # Windows with uncertain labels remain excluded. There is no outer evaluation here.
     for name, optimizer in optimizers.items():
         optimizer.optimize(dataset)
         detector = optimizer.optimized_pipeline_.algo
         output_dir = OUTPUT_DIR / name
         output_dir.mkdir(parents=True, exist_ok=True)
+        with (output_dir / "best_params.json").open("w") as file:
+            json.dump(optimizer.best_params_, file, indent=2)
+            file.write("\n")
         if isinstance(detector, WtdMegaritisCNN):
             detector.model._model.save(output_dir / "model.keras")
         else:
