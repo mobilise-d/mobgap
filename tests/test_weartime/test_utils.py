@@ -6,7 +6,13 @@ import pytest
 from numpy.testing import assert_array_equal
 from pandas.testing import assert_frame_equal
 
+from mobgap.weartime import WearTimeModelConfig
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
+from mobgap.weartime.utils.ml_feature_extraction import (
+    known_window_mask,
+    labels_from_interval_centers,
+    window_start_end,
+)
 from mobgap.weartime.utils.windows_to_weartime import (
     remove_isolated_short_periods_from_intervals,
     remove_short_wear_bouts_by_ratio_from_intervals,
@@ -254,3 +260,38 @@ class TestRemoveShortWearBoutsByRatio:
         )
 
         assert_array_equal(result, np.array([[5, 9]]))
+
+
+@pytest.mark.parametrize(
+    ("uncertain", "expected_starts", "expected_labels"),
+    [
+        ([], [0, 10, 20, 30, 40], [1, 1, 1, 0, 0]),
+        ([(35, 60)], [0, 10], [1, 1]),
+        ([(20, 30)], [0, 30, 40], [1, 0, 0]),
+        ([(10, 40)], [40], [0]),
+        ([(0, 60)], [], []),
+    ],
+)
+def test_uncertainty_excludes_intersecting_windows_without_shifting_labels(
+    uncertain: list[tuple[int, int]], expected_starts: list[int], expected_labels: list[int]
+) -> None:
+    """Remove unknown regions while keeping known windows on the original recording grid."""
+    reference = pd.concat(
+        [_intervals([(0, 40)]).assign(label="wear"), _intervals(uncertain).assign(label="uncertain")],
+        ignore_index=True,
+    )
+    reference["label"] = pd.Categorical(reference["label"], categories=["wear", "uncertain"])
+    windows = window_start_end(60, 20, 10)
+    selected = windows[known_window_mask(windows[:, 0], windows[:, 1], reference)]
+    assert_array_equal(selected[:, 0], expected_starts)
+    assert_array_equal(labels_from_interval_centers(selected[:, 0] + 10, reference), expected_labels)
+
+
+def test_fractional_sampling_rate_labels_the_rounded_window_center() -> None:
+    """A 5-second window at 99.9 Hz has 500 samples, with its midpoint at sample 250."""
+    config = WearTimeModelConfig(99.9, 5)
+    window_samples, step_samples = config.window_parameters(0)
+    windows = window_start_end(500, window_samples, step_samples)
+    reference = _intervals([(250, 500)]).assign(label=pd.Categorical(["wear"], categories=["wear", "uncertain"]))
+    assert_array_equal(windows, [[0, 500]])
+    assert_array_equal(labels_from_interval_centers(windows[:, 0] + window_samples // 2, reference), [1])

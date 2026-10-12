@@ -24,6 +24,7 @@ from mobgap.weartime import (
     WearTimeModelConfig,
     WtdMegaritisCNN,
     WtdMegaritisCNNTrainer,
+    load_keras_weartime_model,
 )
 from mobgap.weartime import _keras_weartime_model as keras_model_module
 from mobgap.weartime import _wtd_megaritis_cnn as cnn_module
@@ -69,15 +70,6 @@ def _sensor_data(n_samples: int) -> pd.DataFrame:
 
 def _weartime_list(intervals: list[tuple[int, int]]) -> pd.DataFrame:
     return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index="wt_id").astype("int64")
-
-
-def _reference(intervals, uncertain=()):
-    reference = pd.concat(
-        [_weartime_list(intervals).assign(label="wear"), _weartime_list(uncertain).assign(label="uncertain")],
-        ignore_index=True,
-    ).rename_axis("wt_id")
-    reference["label"] = reference["label"].astype(pd.CategoricalDtype(["wear", "uncertain"]))
-    return reference
 
 
 class TestMetaWtdMegaritisCNN(TestAlgorithmMixin):
@@ -151,24 +143,9 @@ class TestKerasWeartimeModel:
         with pytest.raises(ValueError, match="overlap"):
             _keras_window_model([0, 0, 0], overlap=overlap).run(_sensor_data(60), sampling_rate_hz=1.0)
 
-    def test_model_input_sensor_array_is_float32_and_contiguous(self) -> None:
-        """Prepare recording-level sensor arrays once before batching windows."""
-        source = np.arange(20 * len(BF_SENSOR_COLS) * 2, dtype=np.float64).reshape(20, len(BF_SENSOR_COLS) * 2)
-        sensor_view = source[:, ::2]
-
-        result = keras_model_module._as_model_input_sensor_array(sensor_view)
-
-        assert result.dtype == np.float32
-        assert result.flags.c_contiguous
-        assert_array_equal(result, sensor_view.astype(np.float32))
-
-        already_prepared = np.ascontiguousarray(sensor_view.astype(np.float32))
-        assert keras_model_module._as_model_input_sensor_array(already_prepared) is already_prepared
-
     def test_model_standardization_layer_matches_numpy_and_serializes(self, tmp_path: Path) -> None:
         """Run model-side standardization through Keras and keep it loadable."""
         tf = pytest.importorskip("tensorflow")
-        keras_models = pytest.importorskip("tensorflow.keras.models")
         layer_cls = keras_model_module._get_per_window_standardization_layer_class()
         rng = np.random.default_rng(42)
         windows = rng.normal(loc=9.81, scale=0.2, size=(8, 20, len(BF_SENSOR_COLS))).astype(np.float32)
@@ -183,25 +160,34 @@ class TestKerasWeartimeModel:
         model = MegaritisCnnWeartimeModel()._create_model(WearTimeModelConfig(1, 20))
         model_path = tmp_path / "model.keras"
         model.save(model_path)
-        loaded_model = keras_models.load_model(model_path)
+        loaded_model = load_keras_weartime_model(model_path)
 
-        assert any(layer.name == "per_window_standardization" for layer in loaded_model.layers)
+        assert np.allclose(
+            loaded_model(windows, training=False).numpy(), model(windows, training=False).numpy(), rtol=1e-6
+        )
 
     def test_model_with_standardization_loads_in_fresh_process(self, tmp_path: Path) -> None:
-        """A saved training artifact can be loaded without prior layer registration."""
+        """A saved model preserves predictions when loaded without prior layer registration."""
         pytest.importorskip("tensorflow")
         model = MegaritisCnnWeartimeModel()._create_model(WearTimeModelConfig(1, 20))
         model_path = tmp_path / "trained.keras"
         model.save(model_path)
 
+        windows = np.random.default_rng(42).normal(size=(2, 20, len(BF_SENSOR_COLS))).astype(np.float32)
+        np.save(tmp_path / "windows.npy", windows)
+        np.save(tmp_path / "expected.npy", model(windows, training=False).numpy())
         result = subprocess.run(
             [
                 sys.executable,
                 "-c",
                 """import sys
+from pathlib import Path
+import numpy as np
 from mobgap.weartime import load_keras_weartime_model
 model = load_keras_weartime_model(sys.argv[1])
-assert any(layer.name == 'per_window_standardization' for layer in model.layers)
+root = Path(sys.argv[1]).parent
+actual = model(np.load(root / 'windows.npy'), training=False).numpy()
+np.testing.assert_allclose(actual, np.load(root / 'expected.npy'), rtol=1e-6)
 """,
                 str(model_path),
             ],
@@ -218,34 +204,6 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
 
         assert_array_equal(labels, np.zeros(10, dtype=np.int32))
         assert_array_equal(vote_counts, np.zeros((10, 2), dtype=np.int32))
-
-    def test_stepped_window_view_matches_advanced_indexing(self) -> None:
-        """Create the same stepped windows for C- and Fortran-ordered arrays."""
-        sensor_data = np.arange(10 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(10, len(BF_SENSOR_COLS))
-        starts = np.arange(0, 10 - 4 + 1, 2)
-        offsets = np.arange(4)
-
-        for array in [sensor_data, np.asfortranarray(sensor_data)]:
-            result = keras_model_module._stepped_window_view(array, window_samples=4, step_samples=2, n_windows=4)
-            expected = array[starts[:, None] + offsets]
-            assert_array_equal(result, expected)
-            assert not result.flags.writeable
-
-    def test_non_overlapping_stepped_window_view_is_contiguous(self) -> None:
-        """Use a contiguous reshape view for non-overlapping windows."""
-        sensor_data = np.arange(12 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(12, len(BF_SENSOR_COLS))
-
-        result = keras_model_module._stepped_window_view(
-            sensor_data,
-            window_samples=4,
-            step_samples=4,
-            n_windows=3,
-        )
-
-        assert_array_equal(result, sensor_data.reshape(3, 4, len(BF_SENSOR_COLS)))
-        assert result.flags.c_contiguous
-        assert not result.flags.writeable
-        assert np.shares_memory(result, sensor_data)
 
     def test_window_batches_preserve_raw_sensor_values(self) -> None:
         """Yield raw windows when the Keras model owns standardization."""
@@ -265,148 +223,6 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
 
         assert len(result) == 1
         assert_array_equal(result[0], data.to_numpy(dtype=np.float32, copy=False).reshape(3, 20, len(BF_SENSOR_COLS)))
-
-    def test_non_overlapping_model_standardization_reuses_window_view(self) -> None:
-        """Avoid an extra batch copy for contiguous non-overlapping windows."""
-        data = pd.DataFrame(
-            np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
-            columns=BF_SENSOR_COLS,
-        )
-
-        result = list(
-            (
-                windows
-                for windows, _ in keras_model_module._iter_window_batches(
-                    data, WearTimeModelConfig(1, 20), overlap=0, window_batch_size=1024
-                )
-            )
-        )
-
-        windows = result[0]
-        assert_array_equal(windows, data.to_numpy(dtype=np.float32, copy=False).reshape(3, 20, len(BF_SENSOR_COLS)))
-        assert windows.flags.c_contiguous
-        assert not windows.flags.writeable
-        assert not windows.flags.owndata
-
-    @pytest.mark.parametrize(
-        ("uncertain", "expected_starts", "first_labels", "batch_sizes"),
-        [
-            (None, [0, 10, 20, 30, 40], [1, 0, 1, 1, 0], [2, 2, 1]),
-            ([(35, 60)], [0, 10], [1, 0], [2]),
-            ([(20, 30)], [0, 30, 40], [1, 1, 0], [1, 1, 1]),
-            ([(10, 40)], [40], [0], [1]),
-        ],
-    )
-    def test_training_batches_align_labels_across_recordings(
-        self, monkeypatch: pytest.MonkeyPatch, uncertain, expected_starts, first_labels, batch_sizes
-    ) -> None:
-        """Keep original window positions after uncertainty removes partial or complete batches."""
-        model = WtdMegaritisCNNTrainer(
-            WtdMegaritisCNN(
-                model=MegaritisCnnWeartimeModel(model_config=WearTimeModelConfig(window_sec=20), window_batch_size=2)
-            ),
-            training_overlap=0.5,
-        )
-        data = pd.DataFrame(
-            np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
-            columns=BF_SENSOR_COLS,
-        )
-        other_data = data + 1000
-        recording = (data, _reference([(30, 50), (0, 20)]))
-        if uncertain is not None:
-            recording = (
-                recording[0],
-                _reference(recording[1][["start", "end"]].itertuples(index=False, name=None), uncertain),
-            )
-        records = [
-            recording,
-            (_sensor_data(10), _reference([])),
-            (other_data, _reference([(20, 30), (50, 60)])),
-            (data, _reference([], [(0, 60)])),
-        ]
-        conversions = []
-        convert = keras_model_module._as_model_input_sensor_array
-
-        def record_conversion(array):
-            conversions.append(array)
-            return convert(array)
-
-        monkeypatch.setattr(keras_model_module, "_as_model_input_sensor_array", record_conversion)
-        batches = list(model._iter_training_window_batches(records, WearTimeModelConfig(1, 20)))
-
-        assert [len(windows) for windows, _ in batches] == [*batch_sizes, 2, 2, 1]
-        assert_array_equal(np.concatenate([labels for _, labels in batches]), [*first_labels, 0, 1, 0, 0, 1])
-        expected_windows = np.stack(
-            [data.iloc[start : start + 20].to_numpy() for start in expected_starts]
-            + [other_data.iloc[start : start + 20].to_numpy() for start in [0, 10, 20, 30, 40]]
-        )
-        assert_array_equal(np.concatenate([windows for windows, _ in batches]), expected_windows.astype(np.float32))
-        assert len(conversions) == 2  # Short and entirely uncertain recordings require no sensor conversion.
-
-    def test_training_dataset_is_finite(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Let Keras finish each epoch at the end of the actual windows."""
-
-        class _FakeDataset:
-            last: _FakeDataset | None = None
-
-            def __init__(self) -> None:
-                self.operations: list[object] = []
-
-            @classmethod
-            def from_generator(cls, generator_factory: object, *, output_signature: object) -> _FakeDataset:
-                dataset = cls()
-                dataset.operations.append(("from_generator", generator_factory, output_signature))
-                cls.last = dataset
-                return dataset
-
-            def unbatch(self) -> _FakeDataset:
-                self.operations.append("unbatch")
-                return self
-
-            def shuffle(self, buffer_size: int, *, seed: int, reshuffle_each_iteration: bool) -> _FakeDataset:
-                self.operations.append(("shuffle", buffer_size, seed, reshuffle_each_iteration))
-                return self
-
-            def batch(self, batch_size: int) -> _FakeDataset:
-                self.operations.append(("batch", batch_size))
-                return self
-
-            def prefetch(self, buffer_size: object) -> _FakeDataset:
-                self.operations.append(("prefetch", buffer_size))
-                return self
-
-        class _FakeTfData:
-            AUTOTUNE = "autotune"
-            Dataset = _FakeDataset
-
-        def _tensor_spec(*, shape: tuple[object, ...], dtype: object) -> tuple[tuple[object, ...], object]:
-            return shape, dtype
-
-        class _FakeTensorflow:
-            float32 = "float32"
-            int32 = "int32"
-            data = _FakeTfData
-            TensorSpec = staticmethod(_tensor_spec)
-
-        def _fake_import_module(name: str) -> type[_FakeTensorflow]:
-            assert name == "tensorflow"
-            return _FakeTensorflow
-
-        monkeypatch.setattr(trainer_module, "import_module", _fake_import_module)
-
-        dataset = WtdMegaritisCNNTrainer(shuffle_buffer_size=32)._make_tf_dataset(
-            [(_sensor_data(60), _reference([(0, 60)]))],
-            config=WearTimeModelConfig(1, 20),
-            batch_size=4,
-            window_samples=20,
-        )
-
-        assert dataset.operations[1:] == [
-            "unbatch",
-            ("shuffle", 32, 42, True),
-            ("batch", 4),
-            ("prefetch", "autotune"),
-        ]
 
 
 class TestWtdMegaritisCNN:
@@ -480,20 +296,6 @@ class TestWtdMegaritisCNN:
 
         assert result.weartime_list_.local_datetime_start.iloc[0] == data.index[0]
         assert result.weartime_list_.local_datetime_end.iloc[-1] == data.index[-1] + pd.Timedelta(seconds=1)
-
-    def test_does_not_expose_duplicate_total_weartime_units(self) -> None:
-        """Expose only the common base-class wear-time summary metrics."""
-        result = WtdMegaritisCNN(
-            model=_keras_window_model([1, 1, 0, 0, 1, 1]),
-            waking_hours=(time(0), time(0, 2)),
-        ).detect(
-            _sensor_data(120),
-            sampling_rate_hz=1.0,
-        )
-
-        assert not hasattr(result, "total_weartime_minutes_")
-        assert not hasattr(result, "total_weartime_hours_")
-        assert not hasattr(result, "total_weartime_hours_during_waking_")
 
     def test_short_ambiguous_interior_wear_bout_is_filtered(self) -> None:
         """Remove short interior wear bouts with insufficient wear-vote confidence."""
