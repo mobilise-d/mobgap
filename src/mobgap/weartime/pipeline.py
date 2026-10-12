@@ -51,8 +51,8 @@ class _TrainingDataFromDataset:
 
     def load_recording(self, datapoint_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         datapoint = self.dataset[datapoint_index]
-        uncertain = getattr(datapoint, "reference_uncertain_", None)
-        if uncertain is not None and not uncertain.empty:
+        uncertain = datapoint.reference_weartime_.query("label == 'uncertain'")
+        if not uncertain.empty:
             raise ValueError(
                 "Cannot optimize a binary wear-time detector on a datapoint with uncertain ground truth. "
                 "Select recordings with fully labeled wear and non-wear references."
@@ -96,7 +96,7 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
 
     This wraps any wear-time detector and allows it to be evaluated or optimized through tpcp's validation and
     optimization utilities.
-    Optimization rejects datapoints with nonempty ``reference_uncertain_`` because the paired training interface
+    Optimization rejects datapoints with uncertain reference regions because the paired training interface
     cannot distinguish uncertain samples from non-wear.
 
     Parameters
