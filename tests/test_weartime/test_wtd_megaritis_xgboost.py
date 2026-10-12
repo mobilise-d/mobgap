@@ -662,6 +662,14 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
 
         assert_allclose(_batched_iqr(values), percentile[0] - percentile[1])
 
+    def test_float32_iqr_keeps_fractional_order_statistics(self) -> None:
+        """Do not erase a small IQR by rounding both interpolated quartiles to the same float32 value."""
+        values = np.full((1, 500), 100, dtype=np.float32)
+        values[:, :125] = np.nextafter(np.float32(100), np.float32(-np.inf))
+        values[:, -125:] = np.nextafter(np.float32(100), np.float32(np.inf))
+        percentiles = np.percentile(values.astype(np.float64), [25, 75], axis=1)
+        assert_allclose(_batched_iqr(values), percentiles[1] - percentiles[0], rtol=1e-12)
+
     def test_batched_spectral_slope_matches_short_spectrum_guard(self) -> None:
         """Return zero when there are too few valid positive frequency bins."""
         frequencies = np.array([0.0, 1.0, 2.0])

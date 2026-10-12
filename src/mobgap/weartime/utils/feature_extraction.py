@@ -130,8 +130,14 @@ def _batched_iqr(values: np.ndarray) -> np.ndarray:
     partitioned = np.partition(values, np.unique([q25_low, q25_high, q75_low, q75_high]), axis=1)
     q25_fraction = q25_position - q25_low
     q75_fraction = q75_position - q75_low
-    q25 = (1 - q25_fraction) * partitioned[:, q25_low] + q25_fraction * partitioned[:, q25_high]
-    q75 = (1 - q75_fraction) * partitioned[:, q75_low] + q75_fraction * partitioned[:, q75_high]
+    # Widen only the selected order statistics: rounding each quartile to float32
+    # before subtraction can erase a small, representable interquartile range.
+    q25 = (1 - q25_fraction) * partitioned[:, q25_low].astype(np.float64, copy=False) + q25_fraction * partitioned[
+        :, q25_high
+    ].astype(np.float64, copy=False)
+    q75 = (1 - q75_fraction) * partitioned[:, q75_low].astype(np.float64, copy=False) + q75_fraction * partitioned[
+        :, q75_high
+    ].astype(np.float64, copy=False)
     iqr = q75 - q25
     iqr[has_nan] = np.nan
     return iqr
