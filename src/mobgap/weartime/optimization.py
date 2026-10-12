@@ -51,9 +51,11 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WearTimeTrainer, "BaseGaitDatase
     --------
     Use the SUSTAIN search preset with a trainer:
 
-    >>> from mobgap.weartime import WtdMegaritisXGBoostTrainer
+    >>> from mobgap.weartime import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
     >>> pipeline = WtdMegaritisXGBoostTrainer(
-    ...     **WtdMegaritisXGBoostTrainer.PredefinedParameters.untrained_sustain_weartime
+    ...     WtdMegaritisXGBoost(
+    ...         **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime
+    ...     )
     ... )
     >>> optimizer = WearTimeOptunaSearch(
     ...     pipeline,

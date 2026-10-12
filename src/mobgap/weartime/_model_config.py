@@ -12,14 +12,16 @@ from mobgap.consts import BF_SENSOR_COLS
 
 @dataclass(frozen=True)
 class WearTimeModelConfig:
-    """Immutable input configuration produced during training and saved with the model.
+    """Immutable model input configuration, completed and saved during training.
 
     Sampling rate, window duration and channel order must match training. XGBoost additionally requires the
     ordered feature names. CNN models use an empty feature tuple because they operate on raw windows.
-    Inference overlap, thresholds and execution settings are configured independently on the detector.
+    Before fitting, sampling_rate_hz may be None; the trainer fills the actual dataset rate.
+    Fitted inference requires a native rate. Inference overlap, thresholds and execution settings belong to
+    the detector.
     """
 
-    sampling_rate_hz: float
+    sampling_rate_hz: float | None = None
     window_sec: float = 5.0
     sensor_cols: tuple[str, ...] = tuple(BF_SENSOR_COLS)
     feature_names: tuple[str, ...] = ()

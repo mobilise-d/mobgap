@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves annotations at runtime.
-from importlib import import_module
+from collections.abc import Iterator  # noqa: TC003 - tpcp resolves annotations at runtime.
+from dataclasses import replace
 from importlib.resources import files
 from types import MappingProxyType
 from typing import Any, Optional
@@ -12,7 +12,8 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 from joblib import Memory  # noqa: TC002 - tpcp resolves annotations at runtime.
-from sklearn.base import BaseEstimator  # noqa: TC002 - tpcp resolves annotations at runtime.
+from sklearn.base import BaseEstimator
+from sklearn.base import clone as clone_untrained_estimator
 from tpcp import (
     HyperParameter,
     OptimizableParameter,
@@ -20,16 +21,14 @@ from tpcp import (
     Parameter,
     PureParameter,
     cf,
-    clone,
     make_optimize_safe,
 )
 from tpcp.misc import classproperty
 from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, Unpack
 
-from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data.base import BaseGaitDataset
-from mobgap.weartime._model_config import WearTimeModelConfig
+from mobgap.weartime._model_config import WearTimeModelConfig  # noqa: TC001 - tpcp evaluates field annotations.
 from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
 from mobgap.weartime._training import _single_sampling_rate_hz, _TrainingDataFromDataset
 from mobgap.weartime._wtd_megaritis_xgboost import (
@@ -49,25 +48,6 @@ from mobgap.weartime.utils.ml_feature_extraction import (
 class _TrainingFeatureKwargs(_FeatureExtractionKwargs):
     memory: Memory
     n_jobs_features: int
-
-
-def _new_xgboost_classifier() -> BaseEstimator:
-    try:
-        xgboost = import_module("xgboost")
-    except ImportError as exc:
-        raise ImportError(
-            "The optional dependency `xgboost` is required to train an XGBoost wear-time model. "
-            "Install MobGap with the `weartime` extra to use `WtdMegaritisXGBoostTrainer`."
-        ) from exc
-    return xgboost.XGBClassifier(
-        n_estimators=100,
-        max_depth=5,
-        learning_rate=0.1,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        min_child_weight=3,
-        random_state=42,
-    )
 
 
 def _iter_training_recording_feature_batches(
@@ -133,10 +113,8 @@ def _iter_training_feature_results(
 class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitDataset]):
     """Fit an inference detector from a gait dataset and run it through the normal emulation interface.
 
-    ``classifier`` is an untrained sklearn-compatible template; fitting uses a clone. ``algo`` holds the fitted
-    classifier and immutable input configuration after optimization. Recording processes and training overlap are
-    independent of the detector's feature threads and inference overlap. To search classifier parameters, supply
-    a configured template, for example ``classifier=XGBClassifier(...)``.
+    The supplied ``algo`` owns its untrained classifier and feature/input configuration. Fitting operates on a clone.
+    Recording processes and training overlap belong to this trainer; inference settings remain on the algorithm.
 
     ``PredefinedParameters.sustain_weartime`` restores selected fitting settings without loading weights.
     ``OptimizationPresets.sustain_weartime`` supplies the search space, grouped inner CV and training subsampling.
@@ -144,12 +122,7 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
     Parameters
     ----------
     algo
-        Inference detector to fill with a fitted classifier and input configuration.
-    classifier
-        Untrained sklearn classifier template. A clone is fitted; None creates the baseline XGBoost classifier.
-        Configure the classifier's n_jobs to control its native training and prediction threads.
-    window_sec, sensor_cols, feature_names
-        Trained window duration, ordered sensor channels and ordered feature columns.
+        Untrained detector defining the classifier type and model inputs. Its clf is fitted on a cloned detector.
     training_overlap
         Fractional training window overlap, independent of algo.overlap during inference.
     n_jobs
@@ -176,10 +149,6 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
     algo__n_jobs_features: PureParameter[int]
     algo__memory: PureParameter[Memory]
     algo__waking_hours: PureParameter[tuple]
-    classifier: HyperParameter[Optional[BaseEstimator]]  # noqa: UP045
-    window_sec: HyperParameter[float]
-    sensor_cols: HyperParameter[Sequence[str]]
-    feature_names: HyperParameter[Sequence[str]]
     training_overlap: HyperParameter[float]
     convert_to_body_frame: HyperParameter[bool]
     n_jobs: PureParameter[int]
@@ -188,29 +157,14 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         """Templates for new training and the selected settings of a packaged SUSTAIN run."""
 
         @classproperty
-        def untrained_sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Create the baseline classifier template without loading fitted weights."""
-            return MappingProxyType({"classifier": _new_xgboost_classifier()})
-
-        @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Restore selected classifier parameters and trained input requirements for retraining."""
-            resources = files("mobgap.weartime.production_models")
-            with resources.joinpath("xgboost_sustain_weartime_best_params.json").open() as file:
-                parameters = json.load(file)
-            with resources.joinpath("xgboost_sustain_weartime_model_config.json").open() as file:
-                config = WearTimeModelConfig.from_dict(json.load(file))
-            classifier = _new_xgboost_classifier().set_params(
-                **{name.removeprefix("classifier__"): value for name, value in parameters.items()}
-            )
-            return MappingProxyType(
-                {
-                    "classifier": classifier,
-                    "window_sec": config.window_sec,
-                    "sensor_cols": config.sensor_cols,
-                    "feature_names": config.feature_names,
-                }
-            )
+            """Load fitting settings without constructing or loading a model."""
+            with (
+                files("mobgap.weartime.production_models")
+                .joinpath("xgboost_sustain_weartime_training_params.json")
+                .open() as file
+            ):
+                return MappingProxyType(json.load(file))
 
     class OptimizationPresets:
         """SUSTAIN-specific inner search settings; sampling and CV belong to the search layer."""
@@ -225,7 +179,7 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
                 "colsample_bytree": [0.6, 0.8],
                 "min_child_weight": [1, 3],
             }.items():
-                trial.suggest_categorical(f"classifier__{name}", choices)
+                trial.suggest_categorical(f"algo__clf__{name}", choices)
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
@@ -238,19 +192,11 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         self,
         algo: WtdMegaritisXGBoost = cf(WtdMegaritisXGBoost()),
         *,
-        classifier: Optional[BaseEstimator] = None,  # noqa: UP045
-        window_sec: float = 5.0,
-        sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
-        feature_names: Sequence[str] = tuple(FEATURE_ORDER_90PCT),
         training_overlap: float = 0.75,
         n_jobs: int = 1,
         convert_to_body_frame: bool = True,
     ) -> None:
         super().__init__(algo, convert_to_body_frame=convert_to_body_frame)
-        self.classifier = classifier
-        self.window_sec = window_sec
-        self.sensor_cols = sensor_cols
-        self.feature_names = feature_names
         self.training_overlap = training_overlap
         self.n_jobs = n_jobs
 
@@ -278,11 +224,12 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
             Trainer with the fitted inference detector available as ``algo``.
         """
         sampling_rate_hz = _single_sampling_rate_hz(dataset)
-        config = WearTimeModelConfig(
-            sampling_rate_hz, self.window_sec, tuple(self.sensor_cols), tuple(self.feature_names)
-        )
+        algo = self.algo.clone()
+        if algo.model_config.sampling_rate_hz is not None:
+            algo.model_config.validate_sampling_rate(sampling_rate_hz)
+        config = replace(algo.model_config, sampling_rate_hz=sampling_rate_hz)
         window_samples, step_samples = config.window_parameters(self.training_overlap)
-        classifier = clone(self.classifier) if self.classifier is not None else _new_xgboost_classifier()
+        classifier = clone_untrained_estimator(algo.clf) if algo.clf is not None else algo._create_classifier()
         training_data = _TrainingDataFromDataset(dataset, convert_to_body_frame=self.convert_to_body_frame)
         feature_batches = []
         label_batches = []
@@ -306,5 +253,5 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         feature_values = feature_batches[0] if len(feature_batches) == 1 else np.concatenate(feature_batches)
         labels = label_batches[0] if len(label_batches) == 1 else np.concatenate(label_batches)
         classifier.fit(pd.DataFrame(feature_values, columns=config.feature_names, copy=False), labels, **kwargs)
-        self.algo = self.algo.clone().set_params(clf=classifier, model_config=config)
+        self.algo = algo.set_params(clf=classifier, model_config=config)
         return self

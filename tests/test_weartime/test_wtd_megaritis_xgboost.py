@@ -17,6 +17,9 @@ from pandas.testing import assert_frame_equal
 from scipy.signal import welch
 from scipy.stats import kurtosis, skew
 from sklearn.base import BaseEstimator
+from sklearn.base import clone as clone_untrained_estimator
+from sklearn.exceptions import NotFittedError
+from sklearn.linear_model import SGDClassifier
 from sklearn.utils.validation import check_is_fitted
 from tpcp.misc import warning_error_context
 from tpcp.testing import TestAlgorithmMixin
@@ -288,10 +291,13 @@ class TestWtdMegaritisXGBoost:
         )
 
         result = WtdMegaritisXGBoostTrainer(
-            algo=WtdMegaritisXGBoost(overlap=0.0, window_batch_size=1, n_jobs_features=2),
-            classifier=clf,
-            feature_names=("acc_pa_mean",),
-            window_sec=20.0,
+            WtdMegaritisXGBoost(
+                overlap=0.0,
+                window_batch_size=1,
+                n_jobs_features=2,
+                clf=clf,
+                model_config=WearTimeModelConfig(window_sec=20.0, feature_names=("acc_pa_mean",)),
+            ),
             n_jobs=2,
             training_overlap=0.0,
             convert_to_body_frame=False,
@@ -331,10 +337,12 @@ class TestWtdMegaritisXGBoost:
         training_data = [recording, (_sensor_data(60), _reference([], [(0, 60)]))]
 
         result = WtdMegaritisXGBoostTrainer(
-            algo=WtdMegaritisXGBoost(overlap=0.5, window_batch_size=2),
-            classifier=clf,
-            feature_names=("window_start",),
-            window_sec=20.0,
+            WtdMegaritisXGBoost(
+                overlap=0.5,
+                window_batch_size=2,
+                clf=clf,
+                model_config=WearTimeModelConfig(window_sec=20.0, feature_names=("window_start",)),
+            ),
             training_overlap=0.5,
             convert_to_body_frame=False,
         ).self_optimize(_dataset(training_data), sample_weight="ok")
@@ -342,7 +350,7 @@ class TestWtdMegaritisXGBoost:
         assert result.algo.clf is not clf
         clf = result.algo.clf
         assert result.algo.model_config.sampling_rate_hz == 1.0
-        assert result.feature_names == ("window_start",)
+        assert result.algo.model_config.feature_names == ("window_start",)
         assert_array_equal(clf.fit_features_["window_start"].to_numpy(), expected_starts)
         assert_array_equal(clf.fit_labels_, expected_labels)
         assert clf.fit_kwargs_ == {"sample_weight": "ok"}
@@ -366,10 +374,13 @@ class TestWtdMegaritisXGBoost:
         ]:
             clf = _TrainableProbabilityClassifier()
             model = WtdMegaritisXGBoostTrainer(
-                algo=WtdMegaritisXGBoost(overlap=0.0, window_batch_size=2, memory=memory),
-                classifier=clf,
-                feature_names=("window_start",),
-                window_sec=20.0,
+                WtdMegaritisXGBoost(
+                    overlap=0.0,
+                    window_batch_size=2,
+                    memory=memory,
+                    clf=clf,
+                    model_config=WearTimeModelConfig(window_sec=20.0, feature_names=("window_start",)),
+                ),
                 training_overlap=0.0,
                 convert_to_body_frame=False,
             ).self_optimize(_dataset([(recording, _reference(intervals))]))
@@ -416,20 +427,57 @@ class TestWtdMegaritisXGBoost:
         assert config["clf"].n_estimators == 1
         assert config["model_config"].feature_names == ("acc_pa_std",)
         assert config["model_config"].sampling_rate_hz == 50
+        with (tmp_path / "xgboost_sustain_weartime_classifier_template.pkl").open("wb") as file:
+            pickle.dump(clone_untrained_estimator(classifier), file)
+        (tmp_path / "xgboost_sustain_weartime_training_params.json").write_text(
+            json.dumps({"training_overlap": 0.5, "n_jobs": 2})
+        )
+        blueprint = WtdMegaritisXGBoost.PredefinedParameters.untrained_sustain_weartime
+        assert blueprint["clf"].max_depth == 2
+        assert blueprint["clf"].n_estimators == 1
+        with pytest.raises(NotFittedError):
+            check_is_fitted(blueprint["clf"])
         monkeypatch.setattr(trainer_module, "files", lambda _: tmp_path)
-        template = WtdMegaritisXGBoostTrainer.PredefinedParameters.sustain_weartime
-        assert template["classifier"].max_depth == 2
-        assert template["classifier"].n_estimators == 1
+        trainer_params = WtdMegaritisXGBoostTrainer.PredefinedParameters.sustain_weartime
+        assert dict(trainer_params) == {"training_overlap": 0.5, "n_jobs": 2}
         assert_array_equal(config["clf"].predict_proba(features), classifier.predict_proba(features))
         xgb_module._load_pickle_resource.cache_clear()
+
+    def test_refitting_starts_from_untrained_estimator_parameters(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A new fit uses only the new labels, even when the supplied estimator supports warm starts."""
+        _patch_simple_features(monkeypatch)
+        classifier = SGDClassifier(
+            loss="log_loss",
+            warm_start=True,
+            max_iter=1,
+            tol=None,
+            random_state=42,
+            learning_rate="constant",
+            eta0=0.01,
+            shuffle=False,
+        )
+        blueprint = WtdMegaritisXGBoostTrainer(
+            WtdMegaritisXGBoost(
+                clf=classifier, model_config=WearTimeModelConfig(window_sec=20, feature_names=("window_start",))
+            ),
+            training_overlap=0,
+            convert_to_body_frame=False,
+        )
+        first = _dataset([(_sensor_data(60), _reference([(0, 40)]))])
+        second = _dataset([(_sensor_data(60), _reference([(20, 60)]))])
+        fresh = blueprint.clone().self_optimize(second)
+        refitted = blueprint.clone().self_optimize(first).self_optimize(second)
+        assert_allclose(refitted.algo.clf.coef_, fresh.algo.clf.coef_)
+        assert_allclose(refitted.algo.clf.intercept_, fresh.algo.clf.intercept_)
 
     def test_fractional_sampling_rate_uses_actual_window_center(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Round window duration once and label at the midpoint of that actual window."""
         _patch_simple_features(monkeypatch)
         trainer = WtdMegaritisXGBoostTrainer(
-            classifier=_TrainableProbabilityClassifier(),
-            window_sec=5,
-            feature_names=("window_start",),
+            WtdMegaritisXGBoost(
+                clf=_TrainableProbabilityClassifier(),
+                model_config=WearTimeModelConfig(window_sec=5, feature_names=("window_start",)),
+            ),
             training_overlap=0,
             convert_to_body_frame=False,
         ).self_optimize(_dataset([(_sensor_data(500), _reference([(250, 500)]))], 99.9))
@@ -440,10 +488,11 @@ class TestWtdMegaritisXGBoost:
         _patch_simple_features(monkeypatch)
         template = _TrainableProbabilityClassifier()
         trainer = WtdMegaritisXGBoostTrainer(
-            WtdMegaritisXGBoost(overlap=0.5),
-            classifier=template,
-            window_sec=20,
-            feature_names=("window_start",),
+            WtdMegaritisXGBoost(
+                overlap=0.5,
+                clf=template,
+                model_config=WearTimeModelConfig(window_sec=20, feature_names=("window_start",)),
+            ),
             training_overlap=0,
             convert_to_body_frame=False,
         ).self_optimize(_dataset([(_sensor_data(60), _reference([(0, 60)]))]))
@@ -458,6 +507,18 @@ class TestWtdMegaritisXGBoost:
 
 class TestWtdMegaritisXGBoostFeatureExtraction:
     """Verify extracted feature contracts."""
+
+    def test_untrained_feature_configuration_uses_supplied_rate(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Extract diagnostically before fitting without modifying the untrained model configuration."""
+        calls = []
+        _patch_simple_features(monkeypatch, calls)
+        algo = WtdMegaritisXGBoost(
+            model_config=WearTimeModelConfig(window_sec=2, feature_names=("window_start",)), overlap=0
+        )
+        features = algo.extract_features(_sensor_data(40), 10)
+        assert features["window_start"].tolist() == [0, 20]
+        assert calls == [{"fs": 10, "dt": 0.1}]
+        assert algo.model_config.sampling_rate_hz is None
 
     @pytest.mark.parametrize("dtype", [np.float32, np.float64])
     def test_fused_statistics_match_reference(self, dtype: type) -> None:
@@ -578,9 +639,12 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
 
         monkeypatch.setattr(xgb_module, "extract_features_batched", record_thread)
         algo = WtdMegaritisXGBoostTrainer(
-            algo=WtdMegaritisXGBoost(window_batch_size=1, n_jobs_features=feature_jobs),
-            classifier=_TrainableProbabilityClassifier(),
-            feature_names=("acc_pa_mean",),
+            WtdMegaritisXGBoost(
+                window_batch_size=1,
+                n_jobs_features=feature_jobs,
+                clf=_TrainableProbabilityClassifier(),
+                model_config=WearTimeModelConfig(feature_names=("acc_pa_mean",)),
+            ),
             n_jobs=recording_jobs,
             training_overlap=0.75,
             convert_to_body_frame=False,

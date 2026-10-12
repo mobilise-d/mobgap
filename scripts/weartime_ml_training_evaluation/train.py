@@ -5,6 +5,7 @@ import pickle
 from pathlib import Path
 
 from joblib import Memory
+from sklearn.base import clone as clone_untrained_estimator
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
@@ -31,8 +32,10 @@ def main() -> None:
     optimizers = {
         "WtdMegaritisXGBoost": WearTimeOptunaSearch(
             WtdMegaritisXGBoostTrainer(
-                algo=WtdMegaritisXGBoost(memory=Memory(cache_dir / "xgboost_features", compress=3, verbose=0)),
-                **WtdMegaritisXGBoostTrainer.PredefinedParameters.untrained_sustain_weartime,
+                algo=WtdMegaritisXGBoost(
+                    **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime,
+                    memory=Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
+                ),
             ),
             **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
         ),
@@ -46,7 +49,8 @@ def main() -> None:
     # Windows with uncertain labels remain excluded. There is no outer evaluation here.
     for name, optimizer in optimizers.items():
         optimizer.optimize(dataset)
-        detector = optimizer.optimized_pipeline_.algo
+        trainer = optimizer.optimized_pipeline_
+        detector = trainer.algo
         output_dir = OUTPUT_DIR / name
         output_dir.mkdir(parents=True, exist_ok=True)
         artifact_name = "cnn_sustain_weartime" if isinstance(detector, WtdMegaritisCNN) else "xgboost_sustain_weartime"
@@ -60,6 +64,15 @@ def main() -> None:
         if isinstance(detector, WtdMegaritisCNN):
             detector.model.model.save(output_dir / f"{artifact_name}_model.keras")
         else:
+            with (output_dir / f"{artifact_name}_training_params.json").open("w") as file:
+                json.dump(
+                    {name: value for name, value in trainer.get_params(deep=False).items() if name != "algo"},
+                    file,
+                    indent=2,
+                )
+                file.write("\n")
+            with (output_dir / f"{artifact_name}_classifier_template.pkl").open("wb") as file:
+                pickle.dump(clone_untrained_estimator(detector.clf), file)
             with (output_dir / f"{artifact_name}_model.pkl").open("wb") as file:
                 pickle.dump(detector.clf, file)
 

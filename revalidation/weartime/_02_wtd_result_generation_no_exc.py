@@ -85,11 +85,11 @@ optimizers = {
     "WtdMegaritisXGBoost": WearTimeOptunaSearch(
         WtdMegaritisXGBoostTrainer(
             algo=WtdMegaritisXGBoost(
+                **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime,
                 memory=Memory(
                     cache_dir / "xgboost_features", compress=3, verbose=0
-                )
+                ),
             ),
-            **WtdMegaritisXGBoostTrainer.PredefinedParameters.untrained_sustain_weartime,
         ),
         **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
         n_trials=40,

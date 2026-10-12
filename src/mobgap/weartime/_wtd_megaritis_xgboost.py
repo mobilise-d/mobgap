@@ -17,15 +17,18 @@ from __future__ import annotations
 import json
 import pickle
 from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves algorithm annotations at runtime.
+from dataclasses import replace
 from datetime import time
 from functools import lru_cache
+from importlib import import_module
 from importlib.resources import files
 from types import MappingProxyType
-from typing import Any, Literal, Optional, Protocol
+from typing import Any, Literal, Optional
 
 import numpy as np
 import pandas as pd
 from joblib import Memory, parallel_config
+from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 from tpcp import cf, clone, make_action_safe
 from tpcp.caching import hybrid_cache
@@ -55,11 +58,26 @@ from mobgap.weartime.utils.windows_to_weartime import (
     remove_isolated_short_periods_from_intervals,
 )
 
+_SklearnWearTimeClassifier = BaseEstimator
 
-class _SklearnWearTimeClassifier(Protocol):
-    def fit(self, X: pd.DataFrame, y: np.ndarray, **kwargs: Any) -> Self: ...  # noqa: N803
 
-    def predict_proba(self, X: pd.DataFrame, **kwargs: Any) -> np.ndarray: ...  # noqa: N803
+def _new_xgboost_classifier() -> BaseEstimator:
+    try:
+        xgboost = import_module("xgboost")
+    except ImportError as exc:
+        raise ImportError(
+            "The optional dependency `xgboost` is required to train an XGBoost wear-time model. "
+            "Install MobGap with the `weartime` extra to use `WtdMegaritisXGBoost`."
+        ) from exc
+    return xgboost.XGBClassifier(
+        n_estimators=100,
+        max_depth=5,
+        learning_rate=0.1,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        min_child_weight=3,
+        random_state=42,
+    )
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -157,9 +175,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     Parameters
     ----------
     clf
-        Fitted sklearn-compatible classifier exposing binary ``predict_proba`` with classes ``[0, 1]``.
+        Sklearn-compatible classifier defining the model type and parameters. Supply it untrained to the Trainer;
+        detection requires fitted state and binary predict_proba with classes [0, 1].
     model_config
-        Native sampling rate, window duration, channel order and feature order saved with the fitted classifier.
+        Window duration, channel order and feature order owned by this detector. An unknown sampling rate is filled
+        when fitting; the completed configuration carries the native rate required for inference.
     overlap
         Fractional overlap of inference windows. Training overlap is configured on the trainer.
     prediction_threshold
@@ -195,13 +215,34 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     """
 
     clf: Optional[_SklearnWearTimeClassifier]  # noqa: UP045
-    model_config: Optional[WearTimeModelConfig]  # noqa: UP045
+    model_config: WearTimeModelConfig
     window_predictions_: np.ndarray
     window_probabilities_: np.ndarray
     window_start_end_: np.ndarray
 
     class PredefinedParameters:
         """Fitted SUSTAIN model artifacts and their native input configuration."""
+
+        @classproperty
+        def baseline_sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Fresh canonical baseline for a first training run, without packaged artifacts."""
+            return MappingProxyType({"clf": _new_xgboost_classifier()})
+
+        @classproperty
+        def untrained_sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Load selected model structure for retraining, without fitted weights."""
+            with (
+                files("mobgap.weartime.production_models")
+                .joinpath("xgboost_sustain_weartime_model_config.json")
+                .open() as file
+            ):
+                config = WearTimeModelConfig.from_dict(json.load(file))
+            return MappingProxyType(
+                {
+                    "clf": clone(_load_pickle_resource("xgboost_sustain_weartime_classifier_template.pkl")),
+                    "model_config": config,
+                }
+            )
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
@@ -220,7 +261,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self,
         *,
         clf: Optional[_SklearnWearTimeClassifier] = None,  # noqa: UP045
-        model_config: Optional[WearTimeModelConfig] = None,  # noqa: UP045
+        model_config: WearTimeModelConfig = cf(WearTimeModelConfig(feature_names=tuple(FEATURE_ORDER_90PCT))),
         overlap: float = 0.75,
         prediction_threshold: float = 0.5,
         window_batch_size: int = 4096,
@@ -236,6 +277,10 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self.n_jobs_features = n_jobs_features
         self.memory = memory
         self.waking_hours = waking_hours
+
+    @staticmethod
+    def _create_classifier() -> BaseEstimator:
+        return _new_xgboost_classifier()
 
     @make_action_safe
     @timed_action_method
@@ -307,7 +352,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         return self
 
     def extract_features(self, data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
-        """Extract the configured window-level feature matrix without running the classifier."""
+        """Extract features without running the classifier, including from an untrained input configuration."""
         assert_is_sensor_data(data, frame="body")
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         window_start_end_ = window_start_end(len(data), window_samples, step_samples)
@@ -327,10 +372,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         )
 
     def _window_parameters(self, sampling_rate_hz: float) -> tuple[int, int]:
-        if self.model_config is None:
-            raise RuntimeError("Input configuration is missing. Train the detector or load fitted model artifacts.")
-        self.model_config.validate_sampling_rate(sampling_rate_hz)
-        return self.model_config.window_parameters(self.overlap)
+        config = self.model_config
+        if config.sampling_rate_hz is None:
+            config = replace(config, sampling_rate_hz=sampling_rate_hz)
+        config.validate_sampling_rate(sampling_rate_hz)
+        return config.window_parameters(self.overlap)
 
     def _iter_feature_batches(
         self,
@@ -347,7 +393,9 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         feature_kwargs: _FeatureExtractionKwargs = {
-            "sampling_rate_hz": self.model_config.sampling_rate_hz,
+            "sampling_rate_hz": self.model_config.sampling_rate_hz
+            if self.model_config.sampling_rate_hz is not None
+            else sampling_rate_hz,
             "window_samples": window_samples,
             "step_samples": step_samples,
             "window_batch_size": self.window_batch_size,

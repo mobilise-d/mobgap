@@ -49,13 +49,15 @@ Edit its optimizer dictionary to choose algorithms and override model/search
 settings. Final artifacts are exported under `.cache/weartime_models`:
 
 - XGBoost: `WtdMegaritisXGBoost/xgboost_sustain_weartime_model.pkl` and
-  `xgboost_sustain_weartime_model_config.json`
+  `xgboost_sustain_weartime_model_config.json`. Its untrained selected classifier is saved as
+  `xgboost_sustain_weartime_classifier_template.pkl`; fitting settings are in
+  `xgboost_sustain_weartime_training_params.json`
 - CNN: `WtdMegaritisCNN/cnn_sustain_weartime_model.keras` and
   `cnn_sustain_weartime_model_config.json`
 
 Each model directory also contains its `*_best_params.json` with the selected
 Optuna hyperparameters, using pipeline parameter names such as
-`classifier__max_depth`. These are the searched settings, not a complete dump of
+`algo__clf__max_depth`. These are the searched settings, not a complete dump of
 fixed model configuration.
 
 To package a production run, copy these exported files into
@@ -64,11 +66,15 @@ To package a production run, copy these exported files into
 `WtdMegaritisCNN.PredefinedParameters.sustain_weartime` presets load
 fitted models with their native sampling rates, window durations and ordered
 inputs. The trainers' `PredefinedParameters.sustain_weartime` presets restore
-the selected search parameters for retraining without loading weights. They require the freshly
+fitting settings without loading weights. XGBoost's detector preset
+`PredefinedParameters.untrained_sustain_weartime` restores the selected classifier
+structure and inputs; `baseline_sustain_weartime` creates the canonical fresh baseline
+for tuning before production artifacts exist. They require the freshly
 trained artifacts to be packaged. Detection otherwise requires an explicitly
 trained classifier/model, for example from
 `Optimize(WtdMegaritisXGBoostTrainer()).optimize(dataset).optimized_pipeline_.algo`.
-Training overlap is configured on each trainer separately from inference overlap.
+XGBoost classifier and input/feature settings belong to the supplied untrained detector. Its trainer owns
+training overlap, recording processes and dataset conversion. Training overlap is independent of inference overlap.
 Model inputs must use the native training rate; resample explicitly if needed.
 
 Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).

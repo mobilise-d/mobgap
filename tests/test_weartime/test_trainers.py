@@ -20,6 +20,7 @@ from mobgap.weartime import (
     WearTimeModelConfig,
     WtdMegaritisCNN,
     WtdMegaritisCNNTrainer,
+    WtdMegaritisXGBoost,
     WtdMegaritisXGBoostTrainer,
     load_keras_weartime_model,
 )
@@ -75,9 +76,9 @@ def test_sklearn_trainer_through_optimize(classifier: str) -> None:
         else pytest.importorskip("xgboost").XGBClassifier(n_estimators=2, max_depth=2, n_jobs=1, random_state=42)
     )
     trainer = WtdMegaritisXGBoostTrainer(
-        classifier=template,
-        window_sec=10,
-        feature_names=("acc_pa_mean",),
+        WtdMegaritisXGBoost(
+            clf=template, model_config=WearTimeModelConfig(window_sec=10, feature_names=("acc_pa_mean",))
+        ),
         training_overlap=0,
         convert_to_body_frame=False,
     )
