@@ -8,13 +8,14 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 import pandas as pd
 import pytest
-from joblib import Memory
+from joblib import Memory, parallel_config
 from numpy.testing import assert_allclose, assert_array_equal
 from pandas.testing import assert_frame_equal
 from scipy.signal import welch
 from scipy.stats import kurtosis, skew
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
+from tpcp.misc import warning_error_context
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
@@ -535,6 +536,20 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
 
         monkeypatch.setattr(xgb_module, "_prepare_lightweight_recording", unexpected_extraction)
         assert_frame_equal(algo.clone().set_params(n_jobs=2).extract_features(data, 100), expected)
+
+    def test_threaded_extraction_preserves_warning_context_under_process_preference(self) -> None:
+        """Keep caller warning records and allow an outer joblib process preference."""
+        data = pd.DataFrame(np.ones((625, 6), dtype=np.float32), columns=BF_SENSOR_COLS)
+        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT, window_sec=2, window_batch_size=1, n_jobs=2)
+        with (
+            parallel_config(prefer="processes"),
+            warning_error_context("recording", {"id": "sample"}, record_only=True) as context,
+        ):
+            features = algo.extract_features(data, 100)
+        assert len(features) > 1
+        assert context.records
+        assert all("recording: id='sample'" in record.context for record in context.records)
+        assert any("Input window duration" in str(record.message) for record in context.records)
 
     def test_pretrained_feature_names_are_available_without_xgboost(self) -> None:
         """Load feature-order resources without importing the optional model package."""

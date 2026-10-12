@@ -25,11 +25,12 @@ from typing import Any, Final, Literal, Optional, Protocol
 
 import numpy as np
 import pandas as pd
-from joblib import Memory, Parallel, delayed, parallel_config
+from joblib import Memory, parallel_config
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
+from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -171,7 +172,7 @@ def _extract_recording_feature_batches(
             _prepared=prepared,
         ).to_numpy(dtype=np.float32, copy=False)
 
-    return Parallel(require="sharedmem")(
+    return Parallel()(
         delayed(extract_batch)(window_start_end_[start : start + window_batch_size])
         for start in range(0, len(window_start_end_), window_batch_size)
     )
