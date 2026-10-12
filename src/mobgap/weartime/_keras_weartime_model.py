@@ -122,7 +122,10 @@ def _iter_window_batches(
 
 
 class KerasWeartimeModel(Algorithm):
-    """Inference on lazy raw IMU window batches with standardization inside the fitted Keras model.
+    """Inference on lazy raw IMU window batches through a supplied Keras model.
+
+    Training and inference pass raw windows to the native graph; it must contain any required preprocessing.
+    The built-in Megaritis CNN and CNN-LSTM blueprints include per-window standardization.
 
     Parameters
     ----------

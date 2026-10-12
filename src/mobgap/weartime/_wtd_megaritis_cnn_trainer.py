@@ -41,8 +41,10 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
     """Build and fit a CNN on dataset recordings, exposing the fitted detector through ``algo``.
 
     Training consumes labeled reference regions on their original sample grid. Windows intersecting uncertain
-    regions are excluded. Recordings load lazily on demand; raw windows are not cached. Standardization is always
-    serialized inside the network. The supplied untrained ``algo.model`` owns its type, graph structure and inputs.
+    regions are excluded. Recordings load lazily on demand; raw windows are not cached. The built-in Megaritis CNN
+    and CNN-LSTM blueprints serialize per-window standardization inside the network. Supplied native Keras graphs
+    receive raw windows and must include their own required preprocessing. The supplied untrained ``algo.model``
+    owns its type, graph structure and inputs.
     This trainer only controls fitting; thresholds and prediction batching remain on ``algo.model``.
     ``random_seed`` seeds network initialization, dropout and window shuffling.
 

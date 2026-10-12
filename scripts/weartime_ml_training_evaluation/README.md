@@ -107,7 +107,9 @@ of recorded data.
 
 XGBoost extracts float32 features per supplied recording/day using TPCP hybrid
 caching. CNN prepares raw windows lazily without feature caching; per-window
-standardization always runs inside its Keras model. Load exported CNN
+standardization runs inside the built-in Megaritis CNN and CNN-LSTM graphs.
+Supplied native Keras graphs receive raw windows during fitting and prediction
+and must contain their own required preprocessing. Load exported CNN
 artifacts in a fresh process with
 `mobgap.weartime.load_keras_weartime_model(path)` to register its standardization
 layer before deserialization.
