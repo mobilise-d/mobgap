@@ -8,7 +8,7 @@ from joblib import Memory
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime import MegaritisCnnWeartimeModel, WtdMegaritisCNN, WtdMegaritisXGBoost
+from mobgap.weartime import MegaritisCnnWeartimeModel, WtdMegaritisCNN, WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
 from mobgap.weartime.optimization import WearTimeOptunaSearch
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 
@@ -31,13 +31,11 @@ def main() -> None:
     # Each inner training set samples 40% of its human days and five simulated non-wear days.
     optimizers = {
         "WtdMegaritisXGBoost": WearTimeOptunaSearch(
-            WtdEmulationPipeline(
-                WtdMegaritisXGBoost(
-                    **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
-                    memory=Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
-                )
+            WtdMegaritisXGBoostTrainer(
+                algo=WtdMegaritisXGBoost(memory=Memory(cache_dir / "xgboost_features", compress=3, verbose=0)),
+                **WtdMegaritisXGBoostTrainer.PredefinedParameters.untrained_sustain_weartime,
             ),
-            **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+            **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
             WtdEmulationPipeline(WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())),
@@ -61,8 +59,9 @@ def main() -> None:
         else:
             with (output_dir / f"{artifact_name}_model.pkl").open("wb") as file:
                 pickle.dump(detector.clf, file)
-            with (output_dir / f"{artifact_name}_feature_order.pkl").open("wb") as file:
-                pickle.dump(list(detector.feature_names), file)
+            with (output_dir / f"{artifact_name}_model_config.json").open("w") as file:
+                json.dump(detector.model_config.to_dict(), file, indent=2)
+                file.write("\n")
 
 
 if __name__ == "__main__":

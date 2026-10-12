@@ -44,6 +44,7 @@ from mobgap.weartime import (
     WtdMegaritisCNN,
     WtdMegaritisSignal,
     WtdMegaritisXGBoost,
+    WtdMegaritisXGBoostTrainer,
 )
 from mobgap.weartime.evaluation import wtd_score
 from mobgap.weartime.optimization import WearTimeOptunaSearch
@@ -82,16 +83,15 @@ optimizers = {
         ignore_potential_user_error_warning=True,
     ),
     "WtdMegaritisXGBoost": WearTimeOptunaSearch(
-        WtdEmulationPipeline(
-            WtdMegaritisXGBoost(
-                **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
-                n_jobs=1,
+        WtdMegaritisXGBoostTrainer(
+            algo=WtdMegaritisXGBoost(
                 memory=Memory(
                     cache_dir / "xgboost_features", compress=3, verbose=0
-                ),
-            )
+                )
+            ),
+            **WtdMegaritisXGBoostTrainer.PredefinedParameters.untrained_sustain_weartime,
         ),
-        **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+        **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
         n_trials=40,
     ),
     "WtdMegaritisCNN": WearTimeOptunaSearch(

@@ -19,44 +19,36 @@ import pickle
 from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves algorithm annotations at runtime.
 from datetime import time
 from functools import lru_cache
-from importlib import import_module
 from importlib.resources import files
 from types import MappingProxyType
-from typing import Any, Final, Literal, Optional, Protocol
+from typing import Any, Literal, Optional, Protocol
 
 import numpy as np
 import pandas as pd
 from joblib import Memory, parallel_config
 from sklearn.utils.validation import check_is_fitted
-from tpcp import OptimizableParameter, PureParameter, clone, make_action_safe, make_optimize_safe
+from tpcp import clone, make_action_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
 from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.utils.dtypes import assert_is_sensor_data
-from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
+from mobgap.weartime._model_config import WearTimeModelConfig
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
-    TrainingData,
     _unify_weartime_df,
     base_weartime_docfiller,
 )
 from mobgap.weartime.utils._intervals import _validate_waking_hours, _with_local_datetimes
 from mobgap.weartime.utils.feature_extraction import (
     FEATURE_ORDER_90PCT,
-    FULL_FEATURE_ORDER,
     _prepare_lightweight_recording,
     extract_features_batched,
 )
-from mobgap.weartime.utils.ml_feature_extraction import (
-    known_window_mask,
-    labels_from_interval_centers,
-    window_start_end,
-)
+from mobgap.weartime.utils.ml_feature_extraction import window_start_end
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,
@@ -85,41 +77,6 @@ def _load_pickle_resource(file_name: str) -> Any:
         raise
 
 
-def _new_xgboost_classifier() -> _SklearnWearTimeClassifier:
-    try:
-        xgboost = import_module("xgboost")
-    except ImportError as exc:
-        raise ImportError(
-            "The optional dependency `xgboost` is required to train an XGBoost wear-time model. "
-            "Install MobGap with the `weartime` extra to use `WtdMegaritisXGBoost.self_optimize`."
-        ) from exc
-    return xgboost.XGBClassifier(
-        n_estimators=100,
-        max_depth=5,
-        learning_rate=0.1,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        min_child_weight=3,
-        random_state=42,
-    )
-
-
-def _validate_model_sampling_rate(
-    *,
-    trained_sampling_rate_hz: Optional[float],  # noqa: UP045 - Python 3.9/tpcp annotation compatibility.
-    sampling_rate_hz: float,
-    allow_mismatch: bool,
-) -> None:
-    if trained_sampling_rate_hz is None or allow_mismatch:
-        return
-    if not np.isclose(float(trained_sampling_rate_hz), float(sampling_rate_hz)):
-        raise ValueError(
-            "The XGBoost wear-time model was trained for "
-            f"{trained_sampling_rate_hz} Hz, but inference received {sampling_rate_hz} Hz. "
-            "Pass a model trained at the target sampling rate or set `allow_sampling_rate_mismatch=True`."
-        )
-
-
 class _FeatureExtractionKwargs(TypedDict):
     sampling_rate_hz: float
     window_samples: int
@@ -128,12 +85,6 @@ class _FeatureExtractionKwargs(TypedDict):
     version: Literal["full", "lightweight"]
     sensor_cols: tuple[str, ...]
     feature_names: tuple[str, ...]
-
-
-class _TrainingFeatureKwargs(_FeatureExtractionKwargs):
-    memory: Memory
-    window_sec: float
-    n_jobs_features: int
 
 
 def _extract_recording_feature_batches(
@@ -193,67 +144,6 @@ def _recording_feature_batches(
         return extract(data, **feature_kwargs)
 
 
-def _iter_training_recording_feature_batches(
-    data: pd.DataFrame,
-    reference_weartime: pd.DataFrame,
-    *,
-    memory: Memory,
-    window_sec: float,
-    n_jobs_features: int,
-    **feature_kwargs: Unpack[_FeatureExtractionKwargs],
-) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-    window_start_end_ = window_start_end(len(data), feature_kwargs["window_samples"], feature_kwargs["step_samples"])
-    known = known_window_mask(window_start_end_[:, 0], window_start_end_[:, 1], reference_weartime)
-    if not known.any():
-        return
-    feature_batches = _recording_feature_batches(
-        data, memory=memory, feature_kwargs=feature_kwargs, n_jobs=n_jobs_features
-    )
-    reference_centers = window_start_end_[:, 0] + int((window_sec * feature_kwargs["sampling_rate_hz"]) // 2)
-    for batch_index, features in enumerate(feature_batches):
-        batch_start = batch_index * feature_kwargs["window_batch_size"]
-        labels = labels_from_interval_centers(
-            reference_centers[batch_start : batch_start + len(features)], reference_weartime
-        )
-        batch_known = known[batch_start : batch_start + len(features)]
-        if batch_known.all():
-            yield features, labels
-        elif batch_known.any():
-            yield features[batch_known], labels[batch_known]
-
-
-def _extract_training_data_recording_features(
-    training_data: Any,
-    datapoint_index: int,
-    **kwargs: Unpack[_TrainingFeatureKwargs],
-) -> list[tuple[np.ndarray, np.ndarray]]:
-    recording = training_data.load_recording(datapoint_index)
-    return list(_iter_training_recording_feature_batches(*recording, **kwargs))
-
-
-def _iter_training_feature_results(
-    training_data: TrainingData,
-    *,
-    n_jobs: int,
-    **kwargs: Unpack[_TrainingFeatureKwargs],
-) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-    if n_jobs != 1 and hasattr(training_data, "load_recording") and hasattr(training_data, "__len__"):
-        recording_batches = Parallel(
-            n_jobs=n_jobs,
-            backend="loky",
-            return_as="generator",
-            pre_dispatch="n_jobs",
-        )(
-            delayed(_extract_training_data_recording_features)(training_data, datapoint_index, **kwargs)
-            for datapoint_index in range(len(training_data))
-        )
-        for recording_batch_results in recording_batches:
-            yield from recording_batch_results
-    else:
-        for recording in training_data:
-            yield from _iter_training_recording_feature_batches(*recording, **kwargs)
-
-
 @base_weartime_docfiller
 class WtdMegaritisXGBoost(BaseWeartimeDetector):
     """
@@ -266,39 +156,21 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     Parameters
     ----------
     clf
-        Fitted or trainable sklearn classifier exposing ``fit`` and binary ``predict_proba`` with classes ``[0, 1]``.
-        If ``None``, ``self_optimize`` creates a new ``xgboost.XGBClassifier``. Detection requires a fitted classifier.
-    feature_names
-        Feature order expected by ``clf``. If ``None``, the extractor's feature order for ``version`` is used.
-    version
-        Feature variant: ``"lightweight"`` for 79 features or ``"full"`` for 230 features.
-    window_sec
-        Window size in seconds for feature extraction.
+        Fitted sklearn-compatible classifier exposing binary ``predict_proba`` with classes ``[0, 1]``.
+    model_config
+        Native sampling rate, window duration, channel order and feature order saved with the fitted classifier.
     overlap
-        Window overlap fraction.
-    sensor_cols
-        Body-frame sensor columns used for feature extraction.
+        Fractional overlap of inference windows. Training overlap is configured on the trainer.
     prediction_threshold
-        Probability threshold used to convert wear probabilities to binary window predictions.
+        Wear probabilities greater than or equal to this value become wear predictions.
     window_batch_size
-        Number of windows feature-extracted before one classifier prediction call.
-    n_jobs
-        Number of processes over dataset-backed training recordings, default 1. Generic training iterables
-        remain sequential. ``1`` disables process parallelism; ``-1`` uses all available workers.
-        Use ``1`` when an outer evaluation already parallelizes folds.
+        Number of feature windows processed in one batch.
     n_jobs_features
-        Number of threads over feature window batches within each recording, default 4. Applies to training,
-        detection and ``extract_features`` independently of ``n_jobs``. ``1`` disables threaded extraction;
-        ``-1`` uses all available workers. Feature cache keys are independent of both worker counts.
+        Number of joblib threads over feature batches within a recording, default 4.
     memory
-        Optional joblib cache for complete recording-level feature batches shared by training and detection. Disabled
-        by default. Float32 sensor inputs retain their dtype during extraction; cached features are float32.
+        Optional joblib cache for complete recording feature batches. Worker count does not change cache keys.
     waking_hours
-        Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
-    trained_sampling_rate_hz
-        Sampling rate used to train ``clf``. The SUSTAIN preset uses 100 Hz.
-    allow_sampling_rate_mismatch
-        If ``True``, allow inference at a different sampling rate than ``trained_sampling_rate_hz``.
+        Local waking-hours interval used for the reported waking wear time.
 
     Other Parameters
     ----------------
@@ -312,8 +184,6 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     %(total_weartime_during_waking_min_)s
     clf_
         The classifier used for the latest ``detect`` call.
-    feature_matrix_
-        Extracted window-level feature matrix for the latest ``detect`` call.
     window_predictions_
         Binary window-level wear predictions.
     window_probabilities_
@@ -323,134 +193,48 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     %(perf_)s
     """
 
-    clf: OptimizableParameter[Optional[_SklearnWearTimeClassifier]]  # noqa: UP045 - tpcp 2.1 resolves annotations.
-    feature_names: OptimizableParameter[Optional[Sequence[str]]]  # noqa: UP045 - tpcp 2.1 resolves annotations.
-    trained_sampling_rate_hz: OptimizableParameter[Optional[float]]  # noqa: UP045 - tpcp 2.1 resolves annotations.
-    prediction_threshold: PureParameter[float]
-    waking_hours: PureParameter[tuple[time, time]]
-    allow_sampling_rate_mismatch: PureParameter[bool]
-    memory: PureParameter[Memory]
-    n_jobs: PureParameter[int]
-    n_jobs_features: PureParameter[int]
-    window_batch_size: PureParameter[int]
+    clf: Optional[_SklearnWearTimeClassifier]  # noqa: UP045
+    model_config: Optional[WearTimeModelConfig]  # noqa: UP045
     window_predictions_: np.ndarray
     window_probabilities_: np.ndarray
     window_start_end_: np.ndarray
-    feature_matrix_: pd.DataFrame
-
-    _feature_names_by_version: Final = {
-        "full": tuple(FULL_FEATURE_ORDER),
-        "lightweight": tuple(FEATURE_ORDER_90PCT),
-    }
 
     class PredefinedParameters:
-        """Predefined parameters for the XGBoost wear-time detector."""
-
-        class _ModelConfig(TypedDict):
-            clf: _SklearnWearTimeClassifier
-            feature_names: tuple[str, ...]
-            version: Literal["full", "lightweight"]
-            trained_sampling_rate_hz: float
-
-        @classproperty
-        def sustain_weartime(cls) -> _ModelConfig:  # noqa: N805
-            """Load the fitted SUSTAIN classifier, feature order and selected hyperparameters."""
-            with (
-                files("mobgap.weartime.production_models")
-                .joinpath("xgboost_sustain_weartime_best_params.json")
-                .open() as file
-            ):
-                parameters = json.load(file)
-            clf = clone(_load_pickle_resource("xgboost_sustain_weartime_model.pkl"))
-            clf.set_params(**{name.removeprefix("algo__clf__"): value for name, value in parameters.items()})
-            return MappingProxyType(
-                {
-                    "clf": clf,
-                    "feature_names": tuple(_load_pickle_resource("xgboost_sustain_weartime_feature_order.pkl")),
-                    "version": "lightweight",
-                    "trained_sampling_rate_hz": 100.0,
-                }
-            )
-
-        @classproperty
-        def untrained_lightweight(cls) -> _ModelConfig:  # noqa: N805
-            return MappingProxyType(
-                {
-                    "clf": _new_xgboost_classifier(),
-                    "feature_names": tuple(FEATURE_ORDER_90PCT),
-                    "version": "lightweight",
-                    "trained_sampling_rate_hz": None,
-                }
-            )
-
-        @classproperty
-        def untrained_full(cls) -> _ModelConfig:  # noqa: N805
-            return MappingProxyType(
-                {
-                    "clf": _new_xgboost_classifier(),
-                    "feature_names": tuple(FULL_FEATURE_ORDER),
-                    "version": "full",
-                    "trained_sampling_rate_hz": None,
-                }
-            )
-
-    class OptimizationPresets:
-        """Dataset-specific search settings for an untrained detector in WtdEmulationPipeline."""
-
-        @staticmethod
-        def _create_search_space(trial: Any) -> None:
-            for name, choices in {
-                "n_estimators": [50, 100, 200],
-                "max_depth": [3, 5],
-                "learning_rate": [0.05, 0.1],
-                "subsample": [0.7, 0.8, 0.9],
-                "colsample_bytree": [0.6, 0.8],
-                "min_child_weight": [1, 3],
-            }.items():
-                trial.suggest_categorical(f"algo__clf__{name}", choices)
+        """Fitted SUSTAIN model artifacts and their native input configuration."""
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Human-only three-fold ranking with 40% human and five seeded simulated non-wear training days."""
+            """Load the fitted classifier and its exact trained input requirements."""
+            with (
+                files("mobgap.weartime.production_models")
+                .joinpath("xgboost_sustain_weartime_model_config.json")
+                .open() as file
+            ):
+                config = WearTimeModelConfig.from_dict(json.load(file))
             return MappingProxyType(
-                {
-                    "create_search_space": cls._create_search_space,
-                    **_sustain_weartime_optimization_defaults(),
-                }
+                {"clf": clone(_load_pickle_resource("xgboost_sustain_weartime_model.pkl")), "model_config": config}
             )
 
     def __init__(
         self,
         *,
-        clf: Optional[_SklearnWearTimeClassifier] = None,  # noqa: UP045 - tpcp 2.1 resolves annotations.
-        feature_names: Optional[Sequence[str]] = None,  # noqa: UP045 - tpcp 2.1 resolves annotations.
-        version: Literal["full", "lightweight"] = "lightweight",
-        window_sec: float = 5.0,
+        clf: Optional[_SklearnWearTimeClassifier] = None,  # noqa: UP045
+        model_config: Optional[WearTimeModelConfig] = None,  # noqa: UP045
         overlap: float = 0.75,
-        sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
         prediction_threshold: float = 0.5,
         window_batch_size: int = 4096,
-        n_jobs: int = 1,
         n_jobs_features: int = 4,
         memory: Memory = Memory(None),
         waking_hours: tuple[time, time] = (time(7), time(22)),
-        trained_sampling_rate_hz: Optional[float] = 100.0,  # noqa: UP045 - tpcp 2.1 resolves annotations.
-        allow_sampling_rate_mismatch: bool = False,
     ) -> None:
         self.clf = clf
-        self.feature_names = feature_names
-        self.version = version
-        self.window_sec = window_sec
+        self.model_config = model_config
         self.overlap = overlap
-        self.sensor_cols = sensor_cols
         self.prediction_threshold = prediction_threshold
         self.window_batch_size = window_batch_size
-        self.n_jobs = n_jobs
         self.n_jobs_features = n_jobs_features
         self.memory = memory
         self.waking_hours = waking_hours
-        self.trained_sampling_rate_hz = trained_sampling_rate_hz
-        self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
 
     @make_action_safe
     @timed_action_method
@@ -462,20 +246,15 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         _validate_waking_hours(self.waking_hours)
         assert_is_sensor_data(data, frame="body")
 
-        clf = self.clf or _new_xgboost_classifier()
-        feature_names = tuple(self.feature_names or self._feature_names_by_version[self.version])
+        clf = self.clf
         check_is_fitted(clf)
-        _validate_model_sampling_rate(
-            trained_sampling_rate_hz=self.trained_sampling_rate_hz,
-            sampling_rate_hz=sampling_rate_hz,
-            allow_mismatch=self.allow_sampling_rate_mismatch,
-        )
+        self.model_config.validate_sampling_rate(sampling_rate_hz)
+        feature_names = self.model_config.feature_names
         self.clf_ = clf
 
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         self.window_start_end_ = window_start_end(len(data), window_samples, step_samples)
 
-        feature_batches: list[pd.DataFrame] = []
         probability_batches: list[np.ndarray] = []
         for features in self._iter_feature_batches(
             data,
@@ -483,14 +262,8 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             window_start_end_=self.window_start_end_,
             feature_names=feature_names,
         ):
-            feature_batches.append(features)
             probability_batches.append(clf.predict_proba(features)[:, 1].astype(np.float32, copy=False))
 
-        self.feature_matrix_ = (
-            pd.concat(feature_batches, axis=0, ignore_index=True)
-            if feature_batches
-            else pd.DataFrame(columns=feature_names)
-        )
         self.window_probabilities_ = (
             np.concatenate(probability_batches).astype(np.float32, copy=False)
             if probability_batches
@@ -532,65 +305,12 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         return self
 
-    @make_optimize_safe
-    @base_weartime_docfiller
-    def self_optimize(
-        self,
-        training_data: TrainingData,
-        *,
-        sampling_rate_hz: float,
-        **kwargs: Unpack[dict[str, Any]],
-    ) -> Self:
-        """Fit the configured classifier from lazy recording-level training data."""
-        clf = self.clf or _new_xgboost_classifier()
-
-        window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-        if self.window_batch_size <= 0:
-            raise ValueError("`window_batch_size` must be a positive integer.")
-        if self.n_jobs == 0 or self.n_jobs < -1:
-            raise ValueError("`n_jobs` must be -1 or a positive integer.")
-
-        feature_names = tuple(self.feature_names or self._feature_names_by_version[self.version])
-        sensor_cols = tuple(self.sensor_cols)
-        feature_batches = []
-        label_batches = []
-
-        for recording_features, recording_labels in _iter_training_feature_results(
-            training_data,
-            memory=self.memory,
-            n_jobs=self.n_jobs,
-            n_jobs_features=self.n_jobs_features,
-            sampling_rate_hz=sampling_rate_hz,
-            window_samples=window_samples,
-            step_samples=step_samples,
-            window_sec=self.window_sec,
-            window_batch_size=self.window_batch_size,
-            version=self.version,
-            sensor_cols=sensor_cols,
-            feature_names=feature_names,
-        ):
-            feature_batches.append(recording_features)
-            label_batches.append(recording_labels)
-
-        if not feature_batches or not any(len(batch) for batch in feature_batches):
-            raise ValueError("The training data did not yield any XGBoost feature windows.")
-
-        feature_values = feature_batches[0] if len(feature_batches) == 1 else np.concatenate(feature_batches)
-        all_labels = label_batches[0] if len(label_batches) == 1 else np.concatenate(label_batches)
-        all_features = pd.DataFrame(feature_values, columns=feature_names, copy=False)
-        clf.fit(all_features, all_labels, **kwargs)
-
-        self.clf = clf
-        self.feature_names = tuple(all_features.columns)
-        self.trained_sampling_rate_hz = float(sampling_rate_hz)
-        return self
-
     def extract_features(self, data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
         """Extract the configured window-level feature matrix without running the classifier."""
         assert_is_sensor_data(data, frame="body")
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         window_start_end_ = window_start_end(len(data), window_samples, step_samples)
-        feature_names = tuple(self.feature_names or self._feature_names_by_version[self.version])
+        feature_names = self.model_config.feature_names
         feature_batches = list(
             self._iter_feature_batches(
                 data,
@@ -606,16 +326,10 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         )
 
     def _window_parameters(self, sampling_rate_hz: float) -> tuple[int, int]:
-        if not 0 <= self.overlap < 1:
-            raise ValueError("`overlap` must be in [0, 1).")
-        window_samples = int(self.window_sec * sampling_rate_hz)
-        overlap_samples = int(window_samples * self.overlap)
-        step_samples = window_samples - overlap_samples
-        if window_samples <= 0:
-            raise ValueError("`window_sec` and `sampling_rate_hz` must result in at least one sample per window.")
-        if step_samples <= 0:
-            raise ValueError("The window step must be positive. Check `window_sec` and `overlap`.")
-        return window_samples, step_samples
+        if self.model_config is None:
+            raise RuntimeError("Input configuration is missing. Train the detector or load fitted model artifacts.")
+        self.model_config.validate_sampling_rate(sampling_rate_hz)
+        return self.model_config.window_parameters(self.overlap)
 
     def _iter_feature_batches(
         self,
@@ -632,12 +346,12 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
 
         window_samples, step_samples = self._window_parameters(sampling_rate_hz)
         feature_kwargs: _FeatureExtractionKwargs = {
-            "sampling_rate_hz": sampling_rate_hz,
+            "sampling_rate_hz": self.model_config.sampling_rate_hz,
             "window_samples": window_samples,
             "step_samples": step_samples,
             "window_batch_size": self.window_batch_size,
-            "version": self.version,
-            "sensor_cols": tuple(self.sensor_cols),
+            "version": "lightweight" if set(feature_names).issubset(FEATURE_ORDER_90PCT) else "full",
+            "sensor_cols": self.model_config.sensor_cols,
             "feature_names": tuple(feature_names),
         }
         for feature_values in _recording_feature_batches(

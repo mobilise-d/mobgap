@@ -15,6 +15,8 @@ Algorithms
 
     WtdMegaritisSignal
     WtdMegaritisXGBoost
+    WtdMegaritisXGBoostTrainer
+    WearTimeModelConfig
     WtdMegaritisCNN
 
 Base classes

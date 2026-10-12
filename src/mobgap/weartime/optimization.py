@@ -48,17 +48,13 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
     --------
     Use the SUSTAIN preset with an explicitly untrained detector:
 
-    >>> from mobgap.weartime import WtdMegaritisXGBoost
-    >>> from mobgap.weartime.optimization import WearTimeOptunaSearch
-    >>> from mobgap.weartime.pipeline import WtdEmulationPipeline
-    >>> pipeline = WtdEmulationPipeline(
-    ...     WtdMegaritisXGBoost(
-    ...         **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight
-    ...     )
+    >>> from mobgap.weartime import WtdMegaritisXGBoostTrainer
+    >>> pipeline = WtdMegaritisXGBoostTrainer(
+    ...     **WtdMegaritisXGBoostTrainer.PredefinedParameters.untrained_sustain_weartime
     ... )
     >>> optimizer = WearTimeOptunaSearch(
-    ...     pipeline=pipeline,
-    ...     **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
+    ...     pipeline,
+    ...     **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
     ... )
 
     The preset supplies human-only, participant-grouped inner validation and a

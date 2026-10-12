@@ -49,12 +49,12 @@ Edit its optimizer dictionary to choose algorithms and override model/search
 settings. Final artifacts are exported under `.cache/weartime_models`:
 
 - XGBoost: `WtdMegaritisXGBoost/xgboost_sustain_weartime_model.pkl` and
-  `xgboost_sustain_weartime_feature_order.pkl`
+  `xgboost_sustain_weartime_model_config.json`
 - CNN: `WtdMegaritisCNN/cnn_sustain_weartime_model.keras`
 
 Each model directory also contains its `*_best_params.json` with the selected
 Optuna hyperparameters, using pipeline parameter names such as
-`algo__clf__max_depth`. These are the searched settings, not a complete dump of
+`classifier__max_depth`. These are the searched settings, not a complete dump of
 fixed model configuration.
 
 To package a production run, copy these exported files into
