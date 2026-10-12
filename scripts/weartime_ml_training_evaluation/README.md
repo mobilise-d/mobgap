@@ -13,7 +13,7 @@ All human days of one participant are held out together. Simulated non-wear
 source recordings use one seed-42 50/50 split of complete original recordings;
 all days of a recording stay in the same half. The same training and test
 recordings repeat across outer fold models. The signal detector uses
-`DummyOptimize`; CNN and XGBoost use `WearTimeOptunaSearch` with their
+`DummyOptimize`; CNN and XGBoost use `WearTimeOptunaSearch` with the trainers'
 `OptimizationPresets.sustain_weartime`.
 
 The inner presets rank three human participant folds. Each inner training set
@@ -23,12 +23,12 @@ validation. The best candidate is refitted on the complete outer training fold.
 Every reference frame has a mandatory unordered categorical `label` column
 (categories `["wear", "uncertain"]`), even when empty or all wear. Uncertain
 means wear versus non-wear could not be determined; the unlabeled complement
-is known non-wear. Training consumes `(data, labeled_reference)` pairs.
+is known non-wear. Trainers consume dataset datapoints and lazily access sensor data and labeled reference regions.
 
 Partially uncertain human days remain in training: entire windows intersecting
 uncertain intervals are excluded, retaining known windows on the original
 sample grid. Held-out scoring masks uncertain samples as before.
-Defaults use 20 Optuna trials; the CNN model trains for 60 epochs. Edit script
+Defaults use 20 Optuna trials; the CNN trainer fits for 60 epochs. Edit script
 configuration before running. A full evaluation is expensive, especially
 without a GPU.
 
@@ -50,7 +50,8 @@ settings. Final artifacts are exported under `.cache/weartime_models`:
 
 - XGBoost: `WtdMegaritisXGBoost/xgboost_sustain_weartime_model.pkl` and
   `xgboost_sustain_weartime_model_config.json`
-- CNN: `WtdMegaritisCNN/cnn_sustain_weartime_model.keras`
+- CNN: `WtdMegaritisCNN/cnn_sustain_weartime_model.keras` and
+  `cnn_sustain_weartime_model_config.json`
 
 Each model directory also contains its `*_best_params.json` with the selected
 Optuna hyperparameters, using pipeline parameter names such as
@@ -60,10 +61,15 @@ fixed model configuration.
 To package a production run, copy these exported files into
 `src/mobgap/weartime/production_models/`, retaining their names. The fixed
 `WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` and
-`MegaritisCnnWeartimeModel.PredefinedParameters.sustain_weartime` presets load
-the fitted model and its selected parameters together. They require the freshly
+`WtdMegaritisCNN.PredefinedParameters.sustain_weartime` presets load
+fitted models with their native sampling rates, window durations and ordered
+inputs. The trainers' `PredefinedParameters.sustain_weartime` presets restore
+the selected search parameters for retraining without loading weights. They require the freshly
 trained artifacts to be packaged. Detection otherwise requires an explicitly
-trained classifier/model, for example from `self_optimize`.
+trained classifier/model, for example from
+`Optimize(WtdMegaritisXGBoostTrainer()).optimize(dataset).optimized_pipeline_.algo`.
+Training overlap is configured on each trainer separately from inference overlap.
+Model inputs must use the native training rate; resample explicitly if needed.
 
 Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).
 Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time

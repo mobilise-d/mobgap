@@ -2,51 +2,29 @@
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import pandas as pd  # noqa: TC002 - tpcp 2.1 resolves class annotations at runtime.
-from tpcp import Algorithm, OptimizableParameter, PureParameter, make_action_safe, make_optimize_safe
-from tpcp.misc import classproperty
+from tpcp import Algorithm, make_action_safe
 from typing_extensions import Self
 
-from mobgap.consts import BF_SENSOR_COLS
+from mobgap.weartime._model_config import WearTimeModelConfig  # noqa: TC001 - tpcp evaluates annotations.
 from mobgap.weartime.utils.ml_feature_extraction import (
     known_window_mask,
-    labels_from_interval_arrays,
-    reference_weartime_interval_arrays,
     window_count_from_sample_count,
     window_start_end,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterator
     from os import PathLike
 
-    from mobgap.weartime.base import TrainingData
 
 _MODEL_STANDARDIZATION_LAYER_NAME = "per_window_standardization"
-
-
-def _validate_model_sampling_rate(
-    *,
-    trained_sampling_rate_hz: float | None,
-    sampling_rate_hz: float,
-    allow_mismatch: bool,
-) -> None:
-    if trained_sampling_rate_hz is None or allow_mismatch:
-        return
-    if not np.isclose(float(trained_sampling_rate_hz), float(sampling_rate_hz)):
-        raise ValueError(
-            "The Keras wear-time model was trained for "
-            f"{trained_sampling_rate_hz} Hz, but inference received {sampling_rate_hz} Hz. "
-            "Pass a model trained at the target sampling rate or set `allow_sampling_rate_mismatch=True`."
-        )
 
 
 def _as_model_input_sensor_array(sensor_data: np.ndarray) -> np.ndarray:
@@ -107,532 +85,119 @@ def load_keras_weartime_model(model_path: str | PathLike[str]) -> Any:
     return keras_models.load_model(model_path)
 
 
-class BaseKerasWeartimeModel(Algorithm):
-    """Base class for Keras wear-time models with per-window standardization in their input graph."""
+def _iter_window_batches(
+    data: pd.DataFrame,
+    config: WearTimeModelConfig,
+    *,
+    overlap: float,
+    window_batch_size: int,
+    reference: pd.DataFrame | None = None,
+) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+    window_samples, step_samples = config.window_parameters(overlap)
+    n_windows = window_count_from_sample_count(len(data), window_samples, step_samples)
+    window_view = None
+    for batch_start in range(0, n_windows, window_batch_size):
+        starts = np.arange(batch_start, min(batch_start + window_batch_size, n_windows)) * step_samples
+        known = known_window_mask(starts, starts + window_samples, reference)
+        if not known.any():
+            continue
+        # Convert the recording only when the first usable batch is requested.
+        if window_view is None:
+            sensor_data = (
+                data.to_numpy(copy=False)
+                if tuple(data.columns) == tuple(config.sensor_cols)
+                else data[list(config.sensor_cols)].to_numpy(copy=False)
+            )
+            sensor_data = _as_model_input_sensor_array(sensor_data)
+            window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
+        batch_window_view = window_view[batch_start : batch_start + len(starts)]
+        if not known.all():
+            batch_window_view = batch_window_view[known]
+        if batch_window_view.flags.c_contiguous:
+            windows = batch_window_view
+        else:
+            windows = np.array(batch_window_view, dtype=np.float32, order="C")
+        yield windows, starts[known]
+
+
+class KerasWeartimeModel(Algorithm):
+    """Inference on lazy raw IMU window batches with standardization inside the fitted Keras model.
+
+    Parameters
+    ----------
+    model
+        Fitted Keras model. Use WtdMegaritisCNNTrainer to train a new model.
+    model_config
+        Native sampling rate, window duration and ordered input channels produced during training.
+    overlap
+        Inference window overlap, independent of training overlap.
+    prediction_threshold
+        Wear probabilities greater than or equal to this threshold become wear predictions.
+    predict_batch_size
+        Batch size passed to Keras predict.
+    window_batch_size
+        Maximum number of raw windows prepared at once. No window cache is used.
+
+    Other Parameters
+    ----------------
+    data
+        Recording supplied to run.
+    sampling_rate_hz
+        Sampling rate of the recording supplied to run.
+
+    Attributes
+    ----------
+    window_predictions_
+        Binary wear predictions per window.
+    window_probabilities_
+        Wear probabilities per window.
+    window_start_end_
+        Half-open sample boundaries per window.
+    window_samples_
+        Window size in samples.
+    step_samples_
+        Window stride in samples.
+    """
 
     _action_methods = ("run",)
-
-    _model: OptimizableParameter[Optional[Any]]  # noqa: UP045 - tpcp 2.1 needs Python 3.9-evaluable strings.
-    _trained_sampling_rate_hz: OptimizableParameter[Optional[float]]  # noqa: UP045
-    prediction_threshold: PureParameter[float]
-    allow_sampling_rate_mismatch: PureParameter[bool]
-    predict_batch_size: PureParameter[int]
-    fit_verbose: PureParameter[int]
-    window_batch_size: PureParameter[int]
-
-    data: pd.DataFrame
-    sampling_rate_hz: float
-    window_predictions_: np.ndarray
-    window_probabilities_: np.ndarray
-    window_start_end_: np.ndarray
-    window_samples_: int
-    step_samples_: int
+    model: Optional[Any]  # noqa: UP045 - tpcp evaluates annotations at runtime.
+    model_config: Optional[WearTimeModelConfig]  # noqa: UP045
 
     def __init__(
         self,
         *,
-        _model: Any | None = None,
-        _trained_sampling_rate_hz: float | None = None,
-        window_sec: float = 5.0,
+        model: Any | None = None,
+        model_config: WearTimeModelConfig | None = None,
         overlap: float = 0.75,
-        sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
         prediction_threshold: float = 0.5,
-        batch_size: int = 1024,
-        epochs: int = 1,
-        fit_verbose: int = 1,
         predict_batch_size: int = 256,
         window_batch_size: int = 1024,
-        shuffle_buffer_size: int = 8192,
-        allow_sampling_rate_mismatch: bool = False,
     ) -> None:
-        self._model = _model
-        self._trained_sampling_rate_hz = _trained_sampling_rate_hz
-        self.window_sec = window_sec
+        self.model = model
+        self.model_config = model_config
         self.overlap = overlap
-        self.sensor_cols = sensor_cols
         self.prediction_threshold = prediction_threshold
-        self.batch_size = batch_size
-        self.epochs = epochs
-        self.fit_verbose = fit_verbose
         self.predict_batch_size = predict_batch_size
         self.window_batch_size = window_batch_size
-        self.shuffle_buffer_size = shuffle_buffer_size
-        self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
 
     @make_action_safe
     def run(self, data: pd.DataFrame, *, sampling_rate_hz: float) -> Self:
-        """Classify all model windows in a single recording."""
-        if self._model is None:
-            raise RuntimeError("Keras model is not trained or loaded. Call `self_optimize` or load a pretrained model.")
-
-        _validate_model_sampling_rate(
-            trained_sampling_rate_hz=self._trained_sampling_rate_hz,
-            sampling_rate_hz=sampling_rate_hz,
-            allow_mismatch=self.allow_sampling_rate_mismatch,
-        )
-
+        """Classify one recording at the fitted model's native sampling rate."""
+        self.model_config.validate_sampling_rate(sampling_rate_hz)
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.window_samples_, self.step_samples_ = self._window_parameters(sampling_rate_hz)
+        self.window_samples_, self.step_samples_ = self.model_config.window_parameters(self.overlap)
         self.window_start_end_ = window_start_end(len(data), self.window_samples_, self.step_samples_)
-
-        probability_batches: list[np.ndarray] = []
-        for windows in self._iter_window_batches(data, sampling_rate_hz):
-            probabilities = self._model.predict(windows, verbose=0, batch_size=self.predict_batch_size)
+        probability_batches = []
+        for windows, _ in _iter_window_batches(
+            data, self.model_config, overlap=self.overlap, window_batch_size=self.window_batch_size
+        ):
+            probabilities = self.model.predict(windows, verbose=0, batch_size=self.predict_batch_size)
             probability_batches.append(np.asarray(probabilities).reshape(-1))
-
         self.window_probabilities_ = (
             np.concatenate(probability_batches).astype(np.float32, copy=False)
             if probability_batches
             else np.empty(0, dtype=np.float32)
         )
-        self.window_predictions_ = (self.window_probabilities_ > self.prediction_threshold).astype(np.int32)
+        self.window_predictions_ = (self.window_probabilities_ >= self.prediction_threshold).astype(np.int32)
         return self
-
-    @make_optimize_safe
-    def self_optimize(
-        self,
-        training_data: TrainingData,
-        *,
-        sampling_rate_hz: float,
-    ) -> Self:
-        """Train the internal Keras model from lazy recording-level training data."""
-        if self._model is not None:
-            raise RuntimeError("Keras model is already trained or loaded. Initialize an untrained model first.")
-
-        epochs = int(self.epochs)
-        if epochs > 1 and iter(training_data) is training_data:
-            raise ValueError(
-                "`training_data` must be re-iterable for multi-epoch training. "
-                "Pass a lazy dataset wrapper whose `__iter__` creates a fresh recording iterator."
-            )
-
-        window_samples, _ = self._window_parameters(sampling_rate_hz)
-        batch_size = int(self.batch_size)
-        self._trained_sampling_rate_hz = float(sampling_rate_hz)
-        self._model = self._create_model((window_samples, len(self.sensor_cols)))
-
-        self._model.fit(
-            self._make_tf_dataset(
-                training_data,
-                sampling_rate_hz=sampling_rate_hz,
-                batch_size=batch_size,
-                window_samples=window_samples,
-            ),
-            epochs=epochs,
-            shuffle=False,
-            verbose=self.fit_verbose,
-        )
-        return self
-
-    def _create_model(self, input_shape: tuple[int, int]) -> Any:
-        raise NotImplementedError
-
-    def _model_input_layers(self, input_shape: tuple[int, int]) -> list[Any]:
-        layers = import_module("tensorflow.keras.layers")
-        input_layers = [layers.Input(shape=input_shape)]
-        input_layers.append(_get_per_window_standardization_layer_class()(name=_MODEL_STANDARDIZATION_LAYER_NAME))
-        return input_layers
-
-    def _window_parameters(self, sampling_rate_hz: float) -> tuple[int, int]:
-        if not 0 <= self.overlap < 1:
-            raise ValueError("`overlap` must be in [0, 1).")
-        window_samples = int(self.window_sec * sampling_rate_hz)
-        overlap_samples = int(window_samples * self.overlap)
-        step_samples = window_samples - overlap_samples
-        if window_samples <= 0:
-            raise ValueError("`window_sec` and `sampling_rate_hz` must result in at least one sample per window.")
-        if step_samples <= 0:
-            raise ValueError("The window step must be positive. Check `window_sec` and `overlap`.")
-        return window_samples, step_samples
-
-    def _iter_window_batches(self, data: pd.DataFrame, sampling_rate_hz: float) -> Iterator[np.ndarray]:
-        for windows, _ in self._iter_window_batches_with_starts(data, sampling_rate_hz):
-            yield windows
-
-    def _iter_window_batches_with_starts(
-        self,
-        data: pd.DataFrame,
-        sampling_rate_hz: float,
-        reference: pd.DataFrame | None = None,
-    ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-        window_samples, step_samples = self._window_parameters(sampling_rate_hz)
-        n_windows = window_count_from_sample_count(len(data), window_samples, step_samples)
-        window_view = None
-        for batch_start in range(0, n_windows, self.window_batch_size):
-            starts = np.arange(batch_start, min(batch_start + self.window_batch_size, n_windows)) * step_samples
-            known = known_window_mask(starts, starts + window_samples, reference)
-            if not known.any():
-                continue
-            # Convert the recording only when the first usable batch is requested.
-            if window_view is None:
-                sensor_data = (
-                    data.to_numpy(copy=False)
-                    if tuple(data.columns) == tuple(self.sensor_cols)
-                    else data[list(self.sensor_cols)].to_numpy(copy=False)
-                )
-                sensor_data = _as_model_input_sensor_array(sensor_data)
-                window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
-            batch_window_view = window_view[batch_start : batch_start + len(starts)]
-            if not known.all():
-                batch_window_view = batch_window_view[known]
-            if batch_window_view.flags.c_contiguous:
-                windows = batch_window_view
-            else:
-                windows = np.array(batch_window_view, dtype=np.float32, order="C")
-            yield windows, starts[known]
-
-    def _iter_training_window_batches(
-        self, training_data: TrainingData, sampling_rate_hz: float
-    ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-        window_samples, _ = self._window_parameters(sampling_rate_hz)
-        for data, reference_weartime in training_data:
-            reference_interval_arrays = reference_weartime_interval_arrays(reference_weartime)
-            for windows, starts in self._iter_window_batches_with_starts(data, sampling_rate_hz, reference_weartime):
-                centers = starts + window_samples // 2
-                yield windows, labels_from_interval_arrays(centers, *reference_interval_arrays)
-
-    def _make_tf_dataset(
-        self,
-        training_data: TrainingData,
-        *,
-        sampling_rate_hz: float,
-        batch_size: int,
-        window_samples: int,
-    ) -> Any:
-        tf = import_module("tensorflow")
-        output_signature = (
-            tf.TensorSpec(shape=(None, window_samples, len(self.sensor_cols)), dtype=tf.float32),
-            tf.TensorSpec(shape=(None,), dtype=tf.int32),
-        )
-        dataset = tf.data.Dataset.from_generator(
-            lambda: self._iter_training_window_batches(training_data, sampling_rate_hz),
-            output_signature=output_signature,
-        )
-        dataset = dataset.unbatch()
-        if self.shuffle_buffer_size > 0:
-            dataset = dataset.shuffle(self.shuffle_buffer_size, reshuffle_each_iteration=True)
-        return dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
-
-class MegaritisCnnWeartimeModel(BaseKerasWeartimeModel):
-    """1D CNN wear-time model with per-window standardization.
-
-    Parameters
-    ----------
-    _model
-        The underlying Keras model. If ``None``, ``self_optimize`` creates and trains a new model.
-    _trained_sampling_rate_hz
-        Sampling rate used when the model was loaded or trained. Inference rejects mismatching sampling rates by
-        default.
-    window_sec
-        Window size in seconds.
-    overlap
-        Fractional window overlap.
-    sensor_cols
-        Body-frame sensor columns passed to the Keras model.
-    prediction_threshold
-        Probability threshold used to convert Keras probabilities to binary window labels.
-    batch_size
-        Keras training batch size.
-    epochs
-        Default number of training epochs.
-    fit_verbose
-        Verbosity passed to Keras ``fit`` during self-optimization.
-    predict_batch_size
-        Keras prediction batch size.
-    window_batch_size
-        Number of raw windows prepared at once while iterating over a recording. Standardization runs in the model.
-    shuffle_buffer_size
-        Buffer size used to shuffle training windows in the TensorFlow dataset.
-    allow_sampling_rate_mismatch
-        If ``True``, allow inference at a different sampling rate than the loaded or trained model.
-    filters
-        Number of convolution filters in the three CNN blocks.
-    kernel_size
-        Kernel size of the convolution layers.
-    pool_size
-        Pool size of the max-pooling layers.
-    dropout_rate
-        Dropout rate used after each model block.
-    dense_units
-        Number of units in the dense hidden layer.
-    learning_rate
-        Adam optimizer learning rate.
-
-    Other Parameters
-    ----------------
-    data
-        The raw IMU data passed to ``run``.
-    sampling_rate_hz
-        The sampling rate of ``data`` passed to ``run``.
-
-    Attributes
-    ----------
-    window_predictions_
-        Binary window labels predicted by the Keras model.
-    window_probabilities_
-        Wear probabilities predicted by the Keras model.
-    window_start_end_
-        Array of ``[start, end)`` sample boundaries for each classified window.
-    window_samples_
-        Window size in samples used for the last call.
-    step_samples_
-        Step size in samples used for the last call.
-    """
-
-    class PredefinedParameters:
-        """Predefined parameters for the production CNN wear-time model."""
-
-        @classproperty
-        def sustain_weartime(cls) -> MappingProxyType:  # noqa: N805
-            """Load the fitted SUSTAIN CNN and its selected hyperparameters."""
-            with (
-                files("mobgap.weartime.production_models")
-                .joinpath("cnn_sustain_weartime_best_params.json")
-                .open() as file
-            ):
-                parameters = json.load(file)
-            return MappingProxyType(
-                {
-                    **{name.removeprefix("algo__model__"): value for name, value in parameters.items()},
-                    "_model": _load_keras_model_resource("cnn_sustain_weartime_model.keras"),
-                    "_trained_sampling_rate_hz": 100.0,
-                }
-            )
-
-    def __init__(
-        self,
-        *,
-        _model: Any | None = None,
-        _trained_sampling_rate_hz: float | None = None,
-        window_sec: float = 5.0,
-        overlap: float = 0.75,
-        sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
-        prediction_threshold: float = 0.5,
-        batch_size: int = 1024,
-        epochs: int = 60,
-        fit_verbose: int = 1,
-        predict_batch_size: int = 256,
-        window_batch_size: int = 1024,
-        shuffle_buffer_size: int = 8192,
-        allow_sampling_rate_mismatch: bool = False,
-        filters: Sequence[int] = (32, 64, 128),
-        kernel_size: int = 9,
-        pool_size: int = 2,
-        dropout_rate: float = 0.3,
-        dense_units: int = 64,
-        learning_rate: float = 0.001,
-    ) -> None:
-        super().__init__(
-            _model=_model,
-            _trained_sampling_rate_hz=_trained_sampling_rate_hz,
-            window_sec=window_sec,
-            overlap=overlap,
-            sensor_cols=sensor_cols,
-            prediction_threshold=prediction_threshold,
-            batch_size=batch_size,
-            epochs=epochs,
-            fit_verbose=fit_verbose,
-            predict_batch_size=predict_batch_size,
-            window_batch_size=window_batch_size,
-            shuffle_buffer_size=shuffle_buffer_size,
-            allow_sampling_rate_mismatch=allow_sampling_rate_mismatch,
-        )
-        self.filters = filters
-        self.kernel_size = kernel_size
-        self.pool_size = pool_size
-        self.dropout_rate = dropout_rate
-        self.dense_units = dense_units
-        self.learning_rate = learning_rate
-
-    def _create_model(self, input_shape: tuple[int, int]) -> Any:
-        keras = import_module("tensorflow.keras")
-        layers = import_module("tensorflow.keras.layers")
-
-        model = keras.Sequential(
-            [
-                *self._model_input_layers(input_shape),
-                layers.Conv1D(self.filters[0], self.kernel_size, padding="same"),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.MaxPooling1D(self.pool_size),
-                layers.Dropout(self.dropout_rate),
-                layers.Conv1D(self.filters[1], self.kernel_size, padding="same"),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.MaxPooling1D(self.pool_size),
-                layers.Dropout(self.dropout_rate),
-                layers.Conv1D(self.filters[2], self.kernel_size, padding="same"),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.MaxPooling1D(self.pool_size),
-                layers.Dropout(self.dropout_rate),
-                layers.Flatten(),
-                layers.Dense(self.dense_units),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.Dropout(self.dropout_rate),
-                layers.Dense(1, activation="sigmoid"),
-            ]
-        )
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss="binary_crossentropy",
-            metrics=["accuracy"],
-        )
-        return model
-
-
-class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
-    """CNN-LSTM wear-time model with per-window standardization.
-
-    Parameters
-    ----------
-    _model
-        The underlying Keras model. If ``None``, ``self_optimize`` creates and trains a new model.
-    _trained_sampling_rate_hz
-        Sampling rate used when the model was loaded or trained. Inference rejects mismatching sampling rates by
-        default.
-    window_sec
-        Window size in seconds.
-    overlap
-        Fractional window overlap.
-    sensor_cols
-        Body-frame sensor columns passed to the Keras model.
-    prediction_threshold
-        Probability threshold used to convert Keras probabilities to binary window labels.
-    batch_size
-        Keras training batch size.
-    epochs
-        Default number of training epochs.
-    fit_verbose
-        Verbosity passed to Keras ``fit`` during self-optimization.
-    predict_batch_size
-        Keras prediction batch size.
-    window_batch_size
-        Number of raw windows prepared at once while iterating over a recording. Standardization runs in the model.
-    shuffle_buffer_size
-        Buffer size used to shuffle training windows in the TensorFlow dataset.
-    allow_sampling_rate_mismatch
-        If ``True``, allow inference at a different sampling rate than the loaded or trained model.
-    filters
-        Number of convolution filters in the three CNN blocks.
-    kernel_size
-        Kernel size of the convolution layers.
-    pool_size
-        Pool size of the max-pooling layers.
-    dropout_rate
-        Dropout rate used after each model block.
-    dense_units
-        Number of units in the dense hidden layer.
-    learning_rate
-        Adam optimizer learning rate.
-    lstm_units
-        Number of units in the LSTM layer.
-
-    Other Parameters
-    ----------------
-    data
-        The raw IMU data passed to ``run``.
-    sampling_rate_hz
-        The sampling rate of ``data`` passed to ``run``.
-
-    Attributes
-    ----------
-    window_predictions_
-        Binary window labels predicted by the Keras model.
-    window_probabilities_
-        Wear probabilities predicted by the Keras model.
-    window_start_end_
-        Array of ``[start, end)`` sample boundaries for each classified window.
-    window_samples_
-        Window size in samples used for the last call.
-    step_samples_
-        Step size in samples used for the last call.
-    """
-
-    def __init__(
-        self,
-        *,
-        _model: Any | None = None,
-        _trained_sampling_rate_hz: float | None = None,
-        window_sec: float = 5.0,
-        overlap: float = 0.75,
-        sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
-        prediction_threshold: float = 0.5,
-        batch_size: int = 1024,
-        epochs: int = 57,
-        fit_verbose: int = 1,
-        predict_batch_size: int = 256,
-        window_batch_size: int = 1024,
-        shuffle_buffer_size: int = 8192,
-        allow_sampling_rate_mismatch: bool = False,
-        filters: Sequence[int] = (32, 64, 128),
-        kernel_size: int = 9,
-        pool_size: int = 2,
-        dropout_rate: float = 0.3,
-        dense_units: int = 64,
-        learning_rate: float = 0.001,
-        lstm_units: int = 64,
-    ) -> None:
-        super().__init__(
-            _model=_model,
-            _trained_sampling_rate_hz=_trained_sampling_rate_hz,
-            window_sec=window_sec,
-            overlap=overlap,
-            sensor_cols=sensor_cols,
-            prediction_threshold=prediction_threshold,
-            batch_size=batch_size,
-            epochs=epochs,
-            fit_verbose=fit_verbose,
-            predict_batch_size=predict_batch_size,
-            window_batch_size=window_batch_size,
-            shuffle_buffer_size=shuffle_buffer_size,
-            allow_sampling_rate_mismatch=allow_sampling_rate_mismatch,
-            filters=filters,
-            kernel_size=kernel_size,
-            pool_size=pool_size,
-            dropout_rate=dropout_rate,
-            dense_units=dense_units,
-            learning_rate=learning_rate,
-        )
-        self.lstm_units = lstm_units
-
-    def _create_model(self, input_shape: tuple[int, int]) -> Any:
-        keras = import_module("tensorflow.keras")
-        layers = import_module("tensorflow.keras.layers")
-
-        model = keras.Sequential(
-            [
-                *self._model_input_layers(input_shape),
-                layers.Conv1D(self.filters[0], self.kernel_size, padding="same"),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.MaxPooling1D(self.pool_size),
-                layers.Dropout(self.dropout_rate),
-                layers.Conv1D(self.filters[1], self.kernel_size, padding="same"),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.MaxPooling1D(self.pool_size),
-                layers.Dropout(self.dropout_rate),
-                layers.Conv1D(self.filters[2], self.kernel_size, padding="same"),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.MaxPooling1D(self.pool_size),
-                layers.Dropout(self.dropout_rate),
-                layers.LSTM(self.lstm_units, return_sequences=False),
-                layers.Dropout(self.dropout_rate),
-                layers.Dense(self.dense_units),
-                layers.BatchNormalization(),
-                layers.Activation("relu"),
-                layers.Dropout(self.dropout_rate),
-                layers.Dense(1, activation="sigmoid"),
-            ]
-        )
-        model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate, clipnorm=1.0),
-            loss="binary_crossentropy",
-            metrics=["accuracy"],
-        )
-        return model

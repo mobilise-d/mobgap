@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/issues/238, https://github.com/mobilise-d/mobgap/pull/251)
 - Wear-time detection as a new algorithm category, including `mobgap.weartime.base.BaseWeartimeDetector` and
   the signal-based `WtdMegaritisSignal` algorithm. (https://github.com/mobilise-d/mobgap/pull/253)
+- Inference-only `WtdMegaritisXGBoost` and `WtdMegaritisCNN` detectors with dataset-based
+  `WtdMegaritisXGBoostTrainer` and `WtdMegaritisCNNTrainer` pipelines. Training supports uncertain reference regions,
+  independent training/inference overlap, recording feature caches for XGBoost and lazy CNN windows with in-model
+  standardization. Fitted artifacts carry their native sampling rate and ordered inputs.
+  (https://github.com/mobilise-d/mobgap/pull/259)
 - `WtdEmulationPipeline` for running wear-time algorithms on datasets, with scoring and evaluation helpers.
   (https://github.com/mobilise-d/mobgap/pull/253)
 - Direct loading and splitting of raw AX6 files using our custom loader library (https://github.com/mobilise-d/cwa_reader_rs)

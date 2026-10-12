@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-from tpcp import OptimizableParameter, OptimizablePipeline, make_action_safe, make_optimize_safe
+from tpcp import Pipeline, make_action_safe
 from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDataset
@@ -13,11 +12,7 @@ from mobgap.utils.conversions import to_body_frame
 from mobgap.weartime.base import BaseWeartimeDetector, base_weartime_docfiller
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
     import pandas as pd
-
-    from mobgap.weartime.base import TrainingRecording
 
 
 def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
@@ -26,47 +21,12 @@ def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
     return data
 
 
-class _TrainingDataFromDataset:
-    def __init__(self, dataset: BaseGaitDataset, *, convert_to_body_frame: bool) -> None:
-        self.dataset = dataset
-        self.convert_to_body_frame = convert_to_body_frame
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __iter__(self) -> Iterator[TrainingRecording]:
-        for datapoint_index in range(len(self.dataset)):
-            yield self.load_recording(datapoint_index)
-
-    def load_recording(self, datapoint_index: int) -> TrainingRecording:
-        datapoint = self.dataset[datapoint_index]
-        data = _conditionally_to_bf(datapoint.data_ss, self.convert_to_body_frame)
-        reference_weartime = datapoint.reference_weartime_
-        return data, reference_weartime
-
-
-def _single_sampling_rate_hz(dataset: BaseGaitDataset) -> float:
-    sampling_rates = [float(datapoint.sampling_rate_hz) for datapoint in dataset]
-
-    if not sampling_rates:
-        raise ValueError("Cannot self-optimize a wear-time detector on an empty dataset.")
-
-    sampling_rate_hz = sampling_rates[0]
-    if not all(np.isclose(sampling_rate, sampling_rate_hz) for sampling_rate in sampling_rates):
-        raise ValueError("Wear-time model self-optimization requires all datapoints to use the same sampling rate.")
-
-    return sampling_rate_hz
-
-
 @base_weartime_docfiller
-class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
+class WtdEmulationPipeline(Pipeline[BaseGaitDataset]):
     """Run a wear-time detection algorithm on a single dataset datapoint.
 
-    This wraps any wear-time detector and allows it to be evaluated or optimized through tpcp's validation and
-    optimization utilities.
-    Training passes the recording and its labeled wear/uncertain reference regions.
-    Trainable detectors exclude complete windows intersecting uncertain regions, retaining known portions on the
-    original sample grid. Held-out scoring continues to mask uncertain samples independently.
+    Wrap any fitted detector for tpcp validation. Use WtdMegaritisXGBoostTrainer or WtdMegaritisCNNTrainer
+    for optimization and cross-validation involving fitting.
 
     Parameters
     ----------
@@ -92,15 +52,9 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
     In addition, we pass the group label of the datapoint as ``dp_group`` to the algorithm.
     This is usually not required by algorithms, but it can be helpful for dummy algorithms and cache keys.
 
-    For the ``self_optimize`` method, the pipeline first reads the sampling rate metadata for each
-    datapoint. It then passes a lazy, re-iterable sequence of ``(data, reference_weartime)`` pairs to the algorithm.
-    References have a mandatory categorical ``label`` column (``["wear", "uncertain"]``) and use half-open
-    sample intervals; trainable detectors exclude windows intersecting uncertainty on the original recording grid.
-    This keeps recording data loading at the dataset iterator boundary instead of collecting all recordings in memory
-    first.
     """
 
-    algo: OptimizableParameter[BaseWeartimeDetector]
+    algo: BaseWeartimeDetector
     convert_to_body_frame: bool
 
     algo_: BaseWeartimeDetector
@@ -139,24 +93,6 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
         }
 
         self.algo_ = self.algo.clone().detect(single_sensor_imu_data, **kwargs)
-
-        return self
-
-    @make_optimize_safe
-    def self_optimize(self, dataset: BaseGaitDataset) -> Self:
-        """Run a detector's internal optimization routine, if implemented.
-
-        Each datapoint's ``reference_weartime_`` must contain half-open sample ``start`` and ``end`` columns
-        and an unordered categorical ``label`` column with categories ``["wear", "uncertain"]``, even when all
-        regions are wear. The unlabeled complement is known non-wear. This paired training interface rejects
-        recordings containing uncertain regions; those regions cannot be assigned a binary training label.
-        """
-        sampling_rate_hz = _single_sampling_rate_hz(dataset)
-        training_data = _TrainingDataFromDataset(dataset, convert_to_body_frame=self.convert_to_body_frame)
-        self.algo = self.algo.clone().self_optimize(
-            training_data,
-            sampling_rate_hz=sampling_rate_hz,
-        )
 
         return self
 

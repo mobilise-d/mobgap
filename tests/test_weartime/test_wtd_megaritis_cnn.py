@@ -17,8 +17,10 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
-from mobgap.weartime import MegaritisCnnLstmWeartimeModel, MegaritisCnnWeartimeModel, WtdMegaritisCNN
+from mobgap.weartime import KerasWeartimeModel, WearTimeModelConfig, WtdMegaritisCNN, WtdMegaritisCNNTrainer
 from mobgap.weartime import _keras_weartime_model as keras_model_module
+from mobgap.weartime import _wtd_megaritis_cnn as cnn_module
+from mobgap.weartime import _wtd_megaritis_cnn_trainer as trainer_module
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,
@@ -44,33 +46,12 @@ class _FixedPredictionModel:
         return self.predictions.reshape(-1, 1)
 
 
-class _SelfOptimizeRecorder(MegaritisCnnWeartimeModel):
-    """Keras model double that records delegated self-optimization calls."""
-
-    def __init__(self, returned_model: MegaritisCnnWeartimeModel | None = None) -> None:
-        super().__init__()
-        self.returned_model = returned_model
-        self.optimize_training_data = None
-        self.optimize_sampling_rate_hz = None
-
-    def self_optimize(
-        self,
-        training_data: list[tuple[pd.DataFrame, pd.DataFrame]],
-        *,
-        sampling_rate_hz: float,
-    ) -> MegaritisCnnWeartimeModel:
-        self.optimize_training_data = training_data
-        self.optimize_sampling_rate_hz = sampling_rate_hz
-        return self.returned_model or self
-
-
 def _keras_window_model(
     predictions: list[int], *, window_sec: float = 20.0, overlap: float = 0.0
-) -> MegaritisCnnLstmWeartimeModel:
-    return MegaritisCnnLstmWeartimeModel(
-        _model=_FixedPredictionModel(predictions),
-        _trained_sampling_rate_hz=1.0,
-        window_sec=window_sec,
+) -> KerasWeartimeModel:
+    return KerasWeartimeModel(
+        model=_FixedPredictionModel(predictions),
+        model_config=WearTimeModelConfig(1.0, window_sec),
         overlap=overlap,
     )
 
@@ -110,15 +91,15 @@ class TestMetaWtdMegaritisCNN(TestAlgorithmMixin):
         )
 
 
-class TestMetaMegaritisCnnLstmWeartimeModel(TestAlgorithmMixin):
+class TestMetaKerasWeartimeModel(TestAlgorithmMixin):
     """Test tpcp algorithm compatibility for the low-level Keras model."""
 
     __test__ = True
 
-    ALGORITHM_CLASS = MegaritisCnnLstmWeartimeModel
+    ALGORITHM_CLASS = KerasWeartimeModel
 
     @pytest.fixture
-    def after_action_instance(self) -> MegaritisCnnLstmWeartimeModel:
+    def after_action_instance(self) -> KerasWeartimeModel:
         """Create a low-level model after action for the algorithm mixin."""
         return _keras_window_model([0, 1, 0], window_sec=20.0, overlap=0.0).run(
             _sensor_data(60),
@@ -126,7 +107,7 @@ class TestMetaMegaritisCnnLstmWeartimeModel(TestAlgorithmMixin):
         )
 
 
-class TestMegaritisCnnWeartimeModel:
+class TestKerasWeartimeModel:
     """Test the low-level Keras model wrapper behavior."""
 
     def test_run_creates_window_predictions_without_tensorflow_import(self) -> None:
@@ -141,16 +122,20 @@ class TestMegaritisCnnWeartimeModel:
         assert result.window_samples_ == 20
         assert result.step_samples_ == 20
 
+    def test_probability_at_threshold_counts_as_wear(self) -> None:
+        """Use the same inclusive probability threshold as the tree detector."""
+        result = _keras_window_model([0.5]).run(_sensor_data(20), sampling_rate_hz=1)
+        assert_array_equal(result.window_predictions_, [1])
+
     def test_run_rejects_sampling_rate_mismatch(self) -> None:
         """Reject inference at a sampling rate that differs from the loaded model."""
-        model = MegaritisCnnWeartimeModel(
-            _model=_FixedPredictionModel([0]),
-            _trained_sampling_rate_hz=100.0,
-            window_sec=20.0,
+        model = KerasWeartimeModel(
+            model=_FixedPredictionModel([0]),
+            model_config=WearTimeModelConfig(100.0, 20),
             overlap=0.0,
         )
 
-        with pytest.raises(ValueError, match=r"trained for 100\.0 Hz"):
+        with pytest.raises(ValueError, match=r"requires 100\.0 Hz"):
             model.run(_sensor_data(60), sampling_rate_hz=1.0)
 
     @pytest.mark.parametrize("overlap", [-0.1, 1.0])
@@ -158,23 +143,6 @@ class TestMegaritisCnnWeartimeModel:
         """Reject window strides that leave gaps or cannot advance."""
         with pytest.raises(ValueError, match="overlap"):
             _keras_window_model([0, 0, 0], overlap=overlap).run(_sensor_data(60), sampling_rate_hz=1.0)
-
-    def test_self_optimize_rejects_already_loaded_model(self) -> None:
-        """Do not train over an already loaded model."""
-        model = MegaritisCnnWeartimeModel(_model=_FixedPredictionModel([0]), _trained_sampling_rate_hz=1.0)
-
-        with pytest.raises(RuntimeError, match="already trained or loaded"):
-            model.self_optimize([], sampling_rate_hz=1.0)
-
-    def test_self_optimize_rejects_one_shot_iterators_for_multi_epoch_training(self) -> None:
-        """Require re-iterable lazy training data for multi-epoch fitting."""
-        training_data = iter([(_sensor_data(60), _reference([(0, 60)]))])
-
-        with pytest.raises(ValueError, match="re-iterable"):
-            MegaritisCnnWeartimeModel(epochs=2).self_optimize(
-                training_data,
-                sampling_rate_hz=1.0,
-            )
 
     def test_model_input_sensor_array_is_float32_and_contiguous(self) -> None:
         """Prepare recording-level sensor arrays once before batching windows."""
@@ -205,7 +173,7 @@ class TestMegaritisCnnWeartimeModel:
 
         assert np.allclose(result, expected, rtol=1e-6, atol=1e-6)
 
-        model = MegaritisCnnWeartimeModel()._create_model((20, len(BF_SENSOR_COLS)))
+        model = WtdMegaritisCNNTrainer()._create_model((20, len(BF_SENSOR_COLS)))
         model_path = tmp_path / "model.keras"
         model.save(model_path)
         loaded_model = keras_models.load_model(model_path)
@@ -215,7 +183,7 @@ class TestMegaritisCnnWeartimeModel:
     def test_model_with_standardization_loads_in_fresh_process(self, tmp_path: Path) -> None:
         """A saved training artifact can be loaded without prior layer registration."""
         pytest.importorskip("tensorflow")
-        model = MegaritisCnnWeartimeModel()._create_model((20, len(BF_SENSOR_COLS)))
+        model = WtdMegaritisCNNTrainer()._create_model((20, len(BF_SENSOR_COLS)))
         model_path = tmp_path / "trained.keras"
         model.save(model_path)
 
@@ -280,9 +248,11 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         )
 
         result = list(
-            MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.0)._iter_window_batches(
-                data,
-                sampling_rate_hz=1.0,
+            (
+                windows
+                for windows, _ in keras_model_module._iter_window_batches(
+                    data, WearTimeModelConfig(1, 20), overlap=0, window_batch_size=1024
+                )
             )
         )
 
@@ -297,9 +267,11 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         )
 
         result = list(
-            MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.0)._iter_window_batches(
-                data,
-                sampling_rate_hz=1.0,
+            (
+                windows
+                for windows, _ in keras_model_module._iter_window_batches(
+                    data, WearTimeModelConfig(1, 20), overlap=0, window_batch_size=1024
+                )
             )
         )
 
@@ -322,7 +294,9 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         self, monkeypatch: pytest.MonkeyPatch, uncertain, expected_starts, first_labels, batch_sizes
     ) -> None:
         """Keep original window positions after uncertainty removes partial or complete batches."""
-        model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2)
+        model = WtdMegaritisCNNTrainer(
+            WtdMegaritisCNN(model=KerasWeartimeModel(window_batch_size=2)), window_sec=20, training_overlap=0.5
+        )
         data = pd.DataFrame(
             np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
             columns=BF_SENSOR_COLS,
@@ -348,7 +322,7 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
             return convert(array)
 
         monkeypatch.setattr(keras_model_module, "_as_model_input_sensor_array", record_conversion)
-        batches = list(model._iter_training_window_batches(records, sampling_rate_hz=1.0))
+        batches = list(model._iter_training_window_batches(records, WearTimeModelConfig(1, 20)))
 
         assert [len(windows) for windows, _ in batches] == [*batch_sizes, 2, 2, 1]
         assert_array_equal(np.concatenate([labels for _, labels in batches]), [*first_labels, 0, 1, 0, 0, 1])
@@ -379,8 +353,8 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
                 self.operations.append("unbatch")
                 return self
 
-            def shuffle(self, buffer_size: int, *, reshuffle_each_iteration: bool) -> _FakeDataset:
-                self.operations.append(("shuffle", buffer_size, reshuffle_each_iteration))
+            def shuffle(self, buffer_size: int, *, seed: int, reshuffle_each_iteration: bool) -> _FakeDataset:
+                self.operations.append(("shuffle", buffer_size, seed, reshuffle_each_iteration))
                 return self
 
             def batch(self, batch_size: int) -> _FakeDataset:
@@ -408,18 +382,18 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
             assert name == "tensorflow"
             return _FakeTensorflow
 
-        monkeypatch.setattr(keras_model_module, "import_module", _fake_import_module)
+        monkeypatch.setattr(trainer_module, "import_module", _fake_import_module)
 
-        dataset = MegaritisCnnWeartimeModel(shuffle_buffer_size=32)._make_tf_dataset(
+        dataset = WtdMegaritisCNNTrainer(shuffle_buffer_size=32)._make_tf_dataset(
             [(_sensor_data(60), _reference([(0, 60)]))],
-            sampling_rate_hz=1.0,
+            config=WearTimeModelConfig(1, 20),
             batch_size=4,
             window_samples=20,
         )
 
         assert dataset.operations[1:] == [
             "unbatch",
-            ("shuffle", 32, True),
+            ("shuffle", 32, 42, True),
             ("batch", 4),
             ("prefetch", "autotune"),
         ]
@@ -434,56 +408,30 @@ class TestWtdMegaritisCNN:
         """Restore selected training settings alongside a model with built-in standardization."""
         pytest.importorskip("tensorflow")
         parameters = {
-            "algo__model__learning_rate": 0.007,
-            "algo__model__batch_size": 512,
-            "algo__model__dropout_rate": 0.5,
+            "learning_rate": 0.007,
+            "batch_size": 512,
+            "dropout_rate": 0.5,
         }
         (tmp_path / "cnn_sustain_weartime_best_params.json").write_text(json.dumps(parameters))
-        model = MegaritisCnnWeartimeModel(dropout_rate=0.5)._create_model((20, len(BF_SENSOR_COLS)))
+        model = WtdMegaritisCNNTrainer(dropout_rate=0.5)._create_model((20, len(BF_SENSOR_COLS)))
         model.save(tmp_path / "cnn_sustain_weartime_model.keras")
         monkeypatch.setattr(keras_model_module, "files", lambda _: tmp_path)
         keras_model_module._load_keras_model_resource.cache_clear()
-        configured = MegaritisCnnWeartimeModel(**MegaritisCnnWeartimeModel.PredefinedParameters.sustain_weartime)
-        assert configured.learning_rate == 0.007
-        assert configured.batch_size == 512
-        assert configured.dropout_rate == 0.5
-        assert configured._trained_sampling_rate_hz == 100
-        assert any(layer.name == "per_window_standardization" for layer in configured._model.layers)
-        windows = np.random.default_rng(42).normal(size=(2, 20, 6)).astype(np.float32)
-        assert np.allclose(configured._model(windows, training=False).numpy(), model(windows, training=False).numpy())
-        keras_model_module._load_keras_model_resource.cache_clear()
-
-    def test_self_optimize_creates_untrained_model_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Train a new CNN when no low-level model was configured."""
-        training_data = [(_sensor_data(60), _reference([(0, 60)]))]
-        calls: list[tuple[object, float]] = []
-
-        def fit_model(
-            model: MegaritisCnnWeartimeModel, records: object, *, sampling_rate_hz: float
-        ) -> MegaritisCnnWeartimeModel:
-            calls.append((records, sampling_rate_hz))
-            return model
-
-        monkeypatch.setattr(MegaritisCnnWeartimeModel, "self_optimize", fit_model)
-        result = WtdMegaritisCNN().self_optimize(training_data, sampling_rate_hz=1.0)
-
-        assert isinstance(result.model, MegaritisCnnWeartimeModel)
-        assert calls == [(training_data, 1.0)]
-
-    def test_self_optimize_delegates_to_configured_window_model(self) -> None:
-        """Delegate training to the low-level Keras model instance."""
-        training_data = [(_sensor_data(60), _reference([(0, 60)]))]
-        returned_model = MegaritisCnnWeartimeModel()
-        model = _SelfOptimizeRecorder(returned_model=returned_model)
-
-        result = WtdMegaritisCNN(model=model).self_optimize(
-            training_data,
-            sampling_rate_hz=1.0,
+        (tmp_path / "cnn_sustain_weartime_model_config.json").write_text(
+            json.dumps(WearTimeModelConfig(1, 20).to_dict())
         )
-
-        assert model.optimize_training_data is training_data
-        assert model.optimize_sampling_rate_hz == 1.0
-        assert result.model is returned_model
+        monkeypatch.setattr(cnn_module, "files", lambda _: tmp_path)
+        monkeypatch.setattr(trainer_module, "files", lambda _: tmp_path)
+        configured_trainer = WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.sustain_weartime)
+        configured = WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.sustain_weartime).model
+        assert configured_trainer.learning_rate == 0.007
+        assert configured_trainer.batch_size == 512
+        assert configured_trainer.dropout_rate == 0.5
+        assert configured.model_config == WearTimeModelConfig(1, 20)
+        assert any(layer.name == "per_window_standardization" for layer in configured.model.layers)
+        windows = np.random.default_rng(42).normal(size=(2, 20, 6)).astype(np.float32)
+        assert np.allclose(configured.model(windows, training=False).numpy(), model(windows, training=False).numpy())
+        keras_model_module._load_keras_model_resource.cache_clear()
 
     def test_fixed_window_predictions_regression(self) -> None:
         """Convert deterministic window predictions to expected wear-time intervals."""

@@ -66,27 +66,6 @@ self
     ``total_weartime_min_``, and ``total_weartime_during_waking_min_`` properties available for the detected
     weartime periods and total weartime values.
 """,
-        "self_optimize_paras": """
-training_data
-    A re-iterable sequence of ``(data, reference_weartime)`` pairs. Each tuple contains the raw IMU data of a single
-    sensor and reference periods for that recording. The reference has a mandatory unordered categorical
-    ``label`` column with categories ``["wear", "uncertain"]``. ``uncertain`` marks regions where wear versus
-    non-wear could not be determined; the unlabeled complement is known non-wear.
-    Windows intersecting uncertain samples are excluded from training.
-    Reference periods use the same ``[start, end)``
-    convention as ``weartime_list_``.
-    This can be a lazy dataset-backed iterator so recordings are loaded only while training consumes them.
-    The optimization is performed over all recordings combined.
-sampling_rate_hz
-    The sampling rate of the IMU data in Hz.
-    All recordings passed to one training call must use this sampling rate.
-""",
-        "self_optimize_return": """
-Returns
--------
-self
-    The instance of the class with the internal parameters optimized.
-""",
         **timer_doc_filler._dict,
     },
     doc_summary="Decorator to fill common parts of the docstring for subclasses of :class:`BaseWeartimeDetector`.",
@@ -212,26 +191,6 @@ class BaseWeartimeDetector(Algorithm):
         %(detect_return)s
         """
         raise NotImplementedError
-
-    @base_weartime_docfiller
-    def self_optimize(
-        self,
-        training_data: TrainingData,
-        *,
-        sampling_rate_hz: float,
-    ) -> Self:
-        """Optimize the internal parameters of the algorithm.
-
-        This is only relevant for algorithms that have a special internal optimization approach (like ML based algos).
-
-        Parameters
-        ----------
-        %(self_optimize_paras)s
-
-        %(self_optimize_return)s
-
-        """
-        raise NotImplementedError("This algorithm does not implement a internal optimization.")
 
 
 def get_weartime_df_dtypes(expected_id_name: str = "wt_id") -> dict[str, str]:

@@ -190,6 +190,17 @@ class TestWtdMegaritisXGBoost:
         assert result.total_weartime_min_ == pytest.approx(80 / 60)
         assert result.total_weartime_during_waking_min_ == pytest.approx(80 / 60)
 
+    def test_probability_at_threshold_counts_as_wear(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Use the same inclusive probability threshold as the CNN detector."""
+        _patch_simple_features(monkeypatch)
+        _FixedProbabilityClassifier.batch_sizes = []
+        result = WtdMegaritisXGBoost(
+            clf=_FixedProbabilityClassifier([0.5]),
+            model_config=WearTimeModelConfig(1, 20, feature_names=("window_start",)),
+            overlap=0,
+        ).detect(_sensor_data(20), sampling_rate_hz=1)
+        assert_array_equal(result.window_predictions_, [1])
+
     def test_localized_signal_adds_interval_datetimes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Attach local timestamps to detected intervals."""
         _patch_simple_features(monkeypatch)

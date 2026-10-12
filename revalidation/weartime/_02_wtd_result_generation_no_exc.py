@@ -40,8 +40,8 @@ from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV, save_evaluation_results
 from mobgap.utils.misc import get_env_var
 from mobgap.weartime import (
-    MegaritisCnnWeartimeModel,
     WtdMegaritisCNN,
+    WtdMegaritisCNNTrainer,
     WtdMegaritisSignal,
     WtdMegaritisXGBoost,
     WtdMegaritisXGBoostTrainer,
@@ -95,10 +95,8 @@ optimizers = {
         n_trials=40,
     ),
     "WtdMegaritisCNN": WearTimeOptunaSearch(
-        WtdEmulationPipeline(
-            WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())
-        ),
-        **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
+        WtdMegaritisCNNTrainer(),
+        **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
     ),
 }
 

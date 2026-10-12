@@ -14,23 +14,24 @@
 
 from __future__ import annotations
 
+import json
 from datetime import time
+from importlib.resources import files
 from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from tpcp import OptimizableParameter, PureParameter, make_action_safe, make_optimize_safe
+from tpcp import cf, clone, make_action_safe
 from tpcp.misc import classproperty
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.utils.array_handling import bool_array_to_start_end_array
-from mobgap.weartime._keras_weartime_model import BaseKerasWeartimeModel, MegaritisCnnWeartimeModel
-from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
+from mobgap.weartime._keras_weartime_model import KerasWeartimeModel, _load_keras_model_resource
+from mobgap.weartime._model_config import WearTimeModelConfig
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
-    TrainingData,
     _unify_weartime_df,
     base_weartime_docfiller,
 )
@@ -59,10 +60,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
 
     Parameters
     ----------
-    model : BaseKerasWeartimeModel, optional
-        Low-level Keras window classifier. Detection requires a trained model. If ``None``,
-        ``self_optimize`` creates a fresh, untrained CNN. Pass a model explicitly to use another architecture or
-        training configuration.
+    model : KerasWeartimeModel
+        Fitted low-level window classifier carrying the native model input configuration.
+        Use WtdMegaritisCNNTrainer to create and fit a new network.
     waking_hours : tuple[datetime.time, datetime.time]
         Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
 
@@ -94,8 +94,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     **Model Architecture**
     The low-level model operates on raw windowed IMU data with per-window standardization
     (features scaled to zero mean, unit variance per window). Supply a trained low-level model for detection.
-    The fixed SUSTAIN preset loads its model and selected
-    hyperparameters from packaged artifacts.
+    The fixed SUSTAIN preset loads its model and native input configuration from packaged artifacts.
 
     Model architecture: 3-layer 1D CNN with progressively increasing filters [32, 64, 128],
     kernel size 9, max pooling (size 2), batch normalization, and dropout (0.3). Fully
@@ -103,38 +102,32 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     batch size 1024). CNN-LSTM variant includes 64-unit LSTM layer before dense layer.
     """
 
-    model: OptimizableParameter[Optional[Any]]  # noqa: UP045 - tpcp 2.1 needs Python 3.9-evaluable strings.
-    waking_hours: PureParameter[tuple[time, time]]
+    model: KerasWeartimeModel
 
-    class OptimizationPresets:
-        """Dataset-specific search settings for an explicit untrained CNN model in WtdEmulationPipeline.
-
-        The SUSTAIN search uses log-scale Adam learning rates from 1e-4 to 1e-2,
-        dropout rates of 0.2, 0.3 or 0.5, and batch sizes of 256, 512 or 1024.
-        Architecture, windows and epochs stay configured on the model. These
-        are initial search ranges, not ranges from a published tuning study.
-        """
-
-        @staticmethod
-        def _create_search_space(trial: Any) -> None:
-            trial.suggest_float("algo__model__learning_rate", 1e-4, 1e-2, log=True)
-            trial.suggest_categorical("algo__model__dropout_rate", [0.2, 0.3, 0.5])
-            trial.suggest_categorical("algo__model__batch_size", [256, 512, 1024])
+    class PredefinedParameters:
+        """Fitted SUSTAIN network and native input requirements."""
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Human-only three-fold ranking with 40% human and five seeded simulated non-wear training days."""
+            """Load the fitted network without exposing training configuration on the detector."""
+            with (
+                files("mobgap.weartime.production_models")
+                .joinpath("cnn_sustain_weartime_model_config.json")
+                .open() as file
+            ):
+                config = WearTimeModelConfig.from_dict(json.load(file))
             return MappingProxyType(
                 {
-                    "create_search_space": cls._create_search_space,
-                    **_sustain_weartime_optimization_defaults(),
+                    "model": KerasWeartimeModel(
+                        model=clone(_load_keras_model_resource("cnn_sustain_weartime_model.keras")), model_config=config
+                    )
                 }
             )
 
     def __init__(
         self,
         *,
-        model: BaseKerasWeartimeModel | None = None,
+        model: KerasWeartimeModel = cf(KerasWeartimeModel()),
         waking_hours: tuple[time, time] = (time(7), time(22)),
     ) -> None:
         self.model = model
@@ -173,8 +166,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         data_length = len(data)
         _validate_waking_hours(self.waking_hours)
 
-        model = self.model or MegaritisCnnWeartimeModel()
-        self.model_ = model.clone().run(data, sampling_rate_hz=sampling_rate_hz)
+        self.model_ = self.model.clone().run(data, sampling_rate_hz=sampling_rate_hz)
 
         # Post-processing: convert window predictions to sample-level weartime
         weartime_flags, vote_counts = overlapping_window_predictions_to_sample_labels(
@@ -208,26 +200,4 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self.weartime_list_ = _unify_weartime_df(self.weartime_list_)
         self.weartime_list_ = _with_local_datetimes(self.weartime_list_, data, sampling_rate_hz)
 
-        return self
-
-    @make_optimize_safe
-    def self_optimize(
-        self,
-        training_data: TrainingData,
-        *,
-        sampling_rate_hz: float,
-    ) -> Self:
-        """Train the Keras model from lazy labeled-reference pairs.
-
-        Records are ``(data, reference_weartime)`` pairs. The reference has a mandatory unordered categorical
-        ``label`` column with categories ``["wear", "uncertain"]``. Uncertain means wear versus non-wear could not
-        be determined; the unlabeled complement is known non-wear.
-        References use half-open sample boundaries; windows intersecting uncertain intervals are excluded,
-        retaining known windows on their original recording grid.
-        """
-        model = self.model or MegaritisCnnWeartimeModel()
-        self.model = model.self_optimize(
-            training_data,
-            sampling_rate_hz=sampling_rate_hz,
-        )
         return self

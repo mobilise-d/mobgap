@@ -1,0 +1,286 @@
+"""Dataset pipeline for training CNN wear-time detectors."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp evaluates annotations at runtime.
+from importlib import import_module
+from importlib.resources import files
+from types import MappingProxyType
+from typing import Any, Literal
+
+import numpy as np  # noqa: TC002 - tpcp evaluates annotations at runtime.
+from tpcp import (
+    HyperParameter,
+    OptimizableParameter,
+    OptimizablePipeline,
+    Parameter,
+    PureParameter,
+    cf,
+    make_optimize_safe,
+)
+from tpcp.misc import classproperty
+from typing_extensions import Self
+
+from mobgap.consts import BF_SENSOR_COLS
+from mobgap.data.base import BaseGaitDataset
+from mobgap.weartime._keras_weartime_model import (
+    _MODEL_STANDARDIZATION_LAYER_NAME,
+    KerasWeartimeModel,
+    _get_per_window_standardization_layer_class,
+    _iter_window_batches,
+)
+from mobgap.weartime._model_config import WearTimeModelConfig
+from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
+from mobgap.weartime._training import _single_sampling_rate_hz, _TrainingDataFromDataset
+from mobgap.weartime._wtd_megaritis_cnn import WtdMegaritisCNN
+from mobgap.weartime.base import TrainingData  # noqa: TC001 - tpcp evaluates annotations at runtime.
+from mobgap.weartime.pipeline import WtdEmulationPipeline
+from mobgap.weartime.utils.ml_feature_extraction import labels_from_interval_arrays, reference_weartime_interval_arrays
+
+
+class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitDataset]):
+    """Build and fit a CNN on dataset recordings, exposing the fitted detector through ``algo``.
+
+    Training consumes labeled reference regions on their original sample grid. Windows intersecting uncertain
+    regions are excluded. Recordings load lazily on demand; raw windows are not cached. Standardization is always
+    serialized inside the network. Architecture and fitting controls belong here; thresholds and prediction
+    batching belong on ``algo.model``. ``random_seed`` seeds network initialization, dropout and window shuffling.
+
+    ``PredefinedParameters.sustain_weartime`` restores selected fitting settings without loading weights.
+    ``OptimizationPresets.sustain_weartime`` supplies the search space, grouped inner CV and training subsampling.
+
+    Parameters
+    ----------
+    algo
+        Inference detector to fill with a fitted network; its execution settings are preserved.
+    window_sec, sensor_cols
+        Window duration and ordered channels used to build the model input configuration.
+    training_overlap
+        Training window overlap, independent of inference overlap on algo.model.
+    architecture
+        Three convolution blocks followed by flattening ("cnn") or an LSTM ("cnn_lstm").
+    filters, kernel_size, pool_size
+        Filter counts for the three convolution blocks, convolution kernel size and pooling size.
+    dropout_rate, dense_units, lstm_units
+        Dropout probability and widths of the dense and optional LSTM layers.
+    learning_rate
+        Adam learning rate. CNN-LSTM also clips gradient norm at 1.
+    batch_size, epochs
+        Optimizer batch size and number of passes through the recording dataset.
+    shuffle_buffer_size
+        Maximum number of raw windows buffered for shuffling. Zero disables shuffling.
+    random_seed
+        Seed for network initialization, dropout and training-window shuffling.
+    fit_verbose
+        Keras fit verbosity; does not affect fitted parameters.
+    convert_to_body_frame
+        Convert each recording to body-frame columns when it is loaded.
+
+    Examples
+    --------
+    Train a new detector through TPCP and use it independently of the trainer:
+
+    >>> from tpcp.optimize import Optimize
+    >>> trained = (
+    ...     Optimize(WtdMegaritisCNNTrainer()).optimize(dataset).optimized_pipeline_
+    ... )  # doctest: +SKIP
+    >>> detector = trained.algo  # doctest: +SKIP
+    >>> detector.detect(data, sampling_rate_hz=100)  # doctest: +SKIP
+    """
+
+    algo: Parameter[WtdMegaritisCNN]
+    algo__model: OptimizableParameter[KerasWeartimeModel]
+    algo__model__overlap: PureParameter[float]
+    algo__model__prediction_threshold: PureParameter[float]
+    algo__model__predict_batch_size: PureParameter[int]
+    algo__model__window_batch_size: PureParameter[int]
+    algo__waking_hours: PureParameter[tuple]
+    window_sec: HyperParameter[float]
+    sensor_cols: HyperParameter[Sequence[str]]
+    training_overlap: HyperParameter[float]
+    architecture: HyperParameter[Literal["cnn", "cnn_lstm"]]
+    filters: HyperParameter[Sequence[int]]
+    kernel_size: HyperParameter[int]
+    pool_size: HyperParameter[int]
+    dropout_rate: HyperParameter[float]
+    dense_units: HyperParameter[int]
+    lstm_units: HyperParameter[int]
+    learning_rate: HyperParameter[float]
+    batch_size: HyperParameter[int]
+    epochs: HyperParameter[int]
+    shuffle_buffer_size: HyperParameter[int]
+    random_seed: HyperParameter[int]
+    convert_to_body_frame: HyperParameter[bool]
+    fit_verbose: PureParameter[int]
+
+    class OptimizationPresets:
+        """SUSTAIN inner-CV and sampling settings with an initial CNN search space."""
+
+        @staticmethod
+        def _create_search_space(trial: Any) -> None:
+            trial.suggest_float("learning_rate", 1e-4, 1e-2, log=True)
+            trial.suggest_categorical("dropout_rate", [0.2, 0.3, 0.5])
+            trial.suggest_categorical("batch_size", [256, 512, 1024])
+
+        @classproperty
+        def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Rank human participant folds with sampled human and simulated training days."""
+            return MappingProxyType(
+                {"create_search_space": cls._create_search_space, **_sustain_weartime_optimization_defaults()}
+            )
+
+    class PredefinedParameters:
+        """Selected SUSTAIN fitting settings, without fitted weights."""
+
+        @classproperty
+        def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Load selected fitting parameters and input requirements for retraining."""
+            resources = files("mobgap.weartime.production_models")
+            with resources.joinpath("cnn_sustain_weartime_best_params.json").open() as file:
+                params = json.load(file)
+            with resources.joinpath("cnn_sustain_weartime_model_config.json").open() as file:
+                config = WearTimeModelConfig.from_dict(json.load(file))
+            return MappingProxyType({**params, "window_sec": config.window_sec, "sensor_cols": config.sensor_cols})
+
+    def __init__(
+        self,
+        algo: WtdMegaritisCNN = cf(WtdMegaritisCNN()),
+        *,
+        window_sec: float = 5.0,
+        sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
+        training_overlap: float = 0.75,
+        architecture: Literal["cnn", "cnn_lstm"] = "cnn",
+        filters: Sequence[int] = (32, 64, 128),
+        kernel_size: int = 9,
+        pool_size: int = 2,
+        dropout_rate: float = 0.3,
+        dense_units: int = 64,
+        lstm_units: int = 64,
+        learning_rate: float = 0.001,
+        batch_size: int = 1024,
+        epochs: int = 60,
+        shuffle_buffer_size: int = 8192,
+        random_seed: int = 42,
+        fit_verbose: int = 1,
+        convert_to_body_frame: bool = True,
+    ) -> None:
+        super().__init__(algo, convert_to_body_frame=convert_to_body_frame)
+        self.window_sec = window_sec
+        self.sensor_cols = sensor_cols
+        self.training_overlap = training_overlap
+        self.architecture = architecture
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.pool_size = pool_size
+        self.dropout_rate = dropout_rate
+        self.dense_units = dense_units
+        self.lstm_units = lstm_units
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.shuffle_buffer_size = shuffle_buffer_size
+        self.random_seed = random_seed
+        self.fit_verbose = fit_verbose
+
+    @make_optimize_safe
+    def self_optimize(self, dataset: BaseGaitDataset) -> Self:
+        """Fit a new network and store it in a cloned inference detector."""
+        tf = import_module("tensorflow")
+        tf.keras.utils.set_random_seed(self.random_seed)
+        config = WearTimeModelConfig(_single_sampling_rate_hz(dataset), self.window_sec, tuple(self.sensor_cols))
+        window_samples, _ = config.window_parameters(self.training_overlap)
+        model = self._create_model((window_samples, len(config.sensor_cols)))
+        training_data = _TrainingDataFromDataset(dataset, convert_to_body_frame=self.convert_to_body_frame)
+        model.fit(
+            self._make_tf_dataset(
+                training_data, config=config, batch_size=self.batch_size, window_samples=window_samples
+            ),
+            epochs=self.epochs,
+            shuffle=False,
+            verbose=self.fit_verbose,
+        )
+        self.algo = self.algo.clone().set_params(model__model=model, model__model_config=config)
+        return self
+
+    def _iter_training_window_batches(
+        self, training_data: TrainingData, config: WearTimeModelConfig
+    ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+        window_samples, _ = config.window_parameters(self.training_overlap)
+        for data, reference_weartime in training_data:
+            reference_interval_arrays = reference_weartime_interval_arrays(reference_weartime)
+            for windows, starts in _iter_window_batches(
+                data,
+                config,
+                overlap=self.training_overlap,
+                window_batch_size=self.algo.model.window_batch_size,
+                reference=reference_weartime,
+            ):
+                centers = starts + window_samples // 2
+                yield windows, labels_from_interval_arrays(centers, *reference_interval_arrays)
+
+    def _make_tf_dataset(
+        self,
+        training_data: TrainingData,
+        *,
+        config: WearTimeModelConfig,
+        batch_size: int,
+        window_samples: int,
+    ) -> Any:
+        tf = import_module("tensorflow")
+        output_signature = (
+            tf.TensorSpec(shape=(None, window_samples, len(config.sensor_cols)), dtype=tf.float32),
+            tf.TensorSpec(shape=(None,), dtype=tf.int32),
+        )
+        dataset = tf.data.Dataset.from_generator(
+            lambda: self._iter_training_window_batches(training_data, config),
+            output_signature=output_signature,
+        )
+        dataset = dataset.unbatch()
+        if self.shuffle_buffer_size > 0:
+            dataset = dataset.shuffle(self.shuffle_buffer_size, seed=self.random_seed, reshuffle_each_iteration=True)
+        return dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
+    def _create_model(self, input_shape: tuple[int, int]) -> Any:
+        keras = import_module("tensorflow.keras")
+        layers = import_module("tensorflow.keras.layers")
+
+        model = keras.Sequential(
+            [
+                layers.Input(shape=input_shape),
+                _get_per_window_standardization_layer_class()(name=_MODEL_STANDARDIZATION_LAYER_NAME),
+                layers.Conv1D(self.filters[0], self.kernel_size, padding="same"),
+                layers.BatchNormalization(),
+                layers.Activation("relu"),
+                layers.MaxPooling1D(self.pool_size),
+                layers.Dropout(self.dropout_rate),
+                layers.Conv1D(self.filters[1], self.kernel_size, padding="same"),
+                layers.BatchNormalization(),
+                layers.Activation("relu"),
+                layers.MaxPooling1D(self.pool_size),
+                layers.Dropout(self.dropout_rate),
+                layers.Conv1D(self.filters[2], self.kernel_size, padding="same"),
+                layers.BatchNormalization(),
+                layers.Activation("relu"),
+                layers.MaxPooling1D(self.pool_size),
+                layers.Dropout(self.dropout_rate),
+                *(
+                    [layers.LSTM(self.lstm_units, return_sequences=False), layers.Dropout(self.dropout_rate)]
+                    if self.architecture == "cnn_lstm"
+                    else [layers.Flatten()]
+                ),
+                layers.Dense(self.dense_units),
+                layers.BatchNormalization(),
+                layers.Activation("relu"),
+                layers.Dropout(self.dropout_rate),
+                layers.Dense(1, activation="sigmoid"),
+            ]
+        )
+        model.compile(
+            optimizer=keras.optimizers.Adam(
+                learning_rate=self.learning_rate, **({"clipnorm": 1.0} if self.architecture == "cnn_lstm" else {})
+            ),
+            loss="binary_crossentropy",
+            metrics=["accuracy"],
+        )
+        return model

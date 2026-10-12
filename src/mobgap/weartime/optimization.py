@@ -11,8 +11,11 @@ from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
 from tpcp.validate import cross_validate
 
+from mobgap.weartime._wtd_megaritis_cnn_trainer import WtdMegaritisCNNTrainer
+from mobgap.weartime._wtd_megaritis_xgboost_trainer import WtdMegaritisXGBoostTrainer
 from mobgap.weartime.evaluation import wtd_score
-from mobgap.weartime.pipeline import WtdEmulationPipeline
+
+WearTimeTrainer = WtdMegaritisXGBoostTrainer | WtdMegaritisCNNTrainer
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -30,7 +33,7 @@ def _seeded_study_params(seed: int) -> StudyParamsDict:
     return {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)}
 
 
-class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitDataset"]):
+class WearTimeOptunaSearch(CustomOptunaOptimize[WearTimeTrainer, "BaseGaitDataset"]):
     """Search parameters with inner CV, then refit the winner on the provided dataset.
 
     ``create_search_space`` calls Optuna's ``trial.suggest_*`` methods using pipeline parameter names.
@@ -46,7 +49,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
 
     Examples
     --------
-    Use the SUSTAIN preset with an explicitly untrained detector:
+    Use the SUSTAIN search preset with a trainer:
 
     >>> from mobgap.weartime import WtdMegaritisXGBoostTrainer
     >>> pipeline = WtdMegaritisXGBoostTrainer(
@@ -70,14 +73,13 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
 
     Replace ``cv__parts__human__selector`` to change human-day selection, or
     ``cv__parts__simulated_non_wear__splitter__train`` to change the simulated
-    training pool. For CNN, use an explicit untrained
-    :class:`~mobgap.weartime.MegaritisCnnWeartimeModel` with
-    ``WtdMegaritisCNN.OptimizationPresets.sustain_weartime``.
+    training pool. For CNN, pass :class:`~mobgap.weartime.WtdMegaritisCNNTrainer` with
+    ``WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime``.
 
     Parameters
     ----------
     pipeline
-        Trainable wear-time emulation pipeline. Each trial and CV fold uses a clone.
+        Wear-time trainer pipeline. Each trial and CV fold uses a clone.
     create_search_space
         Callable that suggests parameters on the trial, using pipeline parameter names.
     scoring
@@ -111,11 +113,11 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
 
     def __init__(
         self,
-        pipeline: WtdEmulationPipeline,
+        pipeline: WearTimeTrainer,
         create_search_space: Callable[[Trial], None],
         *,
-        scoring: Scorer[WtdEmulationPipeline, BaseGaitDataset]
-        | Callable[[WtdEmulationPipeline, BaseGaitDataset], ScoreType] = cf(wtd_score),
+        scoring: Scorer[WearTimeTrainer, BaseGaitDataset]
+        | Callable[[WearTimeTrainer, BaseGaitDataset], ScoreType] = cf(wtd_score),
         score_name: str = "combined__accuracy",
         cv: BaseDatasetSplitter | int = 3,
         train_dataset_transform: Callable[[BaseGaitDataset], BaseGaitDataset] | None = None,
@@ -149,10 +151,10 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WtdEmulationPipeline, "BaseGaitD
             return_optimized=return_optimized,
         )
 
-    def create_objective(self) -> Callable[[Trial, WtdEmulationPipeline, BaseGaitDataset], float]:
+    def create_objective(self) -> Callable[[Trial, WearTimeTrainer, BaseGaitDataset], float]:
         """Rank candidates using the configured inner CV objective."""
 
-        def objective(trial: Trial, candidate: WtdEmulationPipeline, dataset: BaseGaitDataset) -> float:
+        def objective(trial: Trial, candidate: WearTimeTrainer, dataset: BaseGaitDataset) -> float:
             self.create_search_space(trial)
             candidate.set_params(**self.sanitize_params(trial.params))
             scores = cross_validate(

@@ -11,13 +11,15 @@ Algorithms
 
 .. autosummary::
    :toctree: generated/weartime
-   :template: class.rst
+   :template: class_without_presets.rst
 
     WtdMegaritisSignal
     WtdMegaritisXGBoost
     WtdMegaritisXGBoostTrainer
     WearTimeModelConfig
     WtdMegaritisCNN
+    WtdMegaritisCNNTrainer
+    KerasWeartimeModel
 
 Base classes
 ++++++++++++

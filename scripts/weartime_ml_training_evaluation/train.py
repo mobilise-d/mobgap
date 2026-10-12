@@ -8,9 +8,8 @@ from joblib import Memory
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime import MegaritisCnnWeartimeModel, WtdMegaritisCNN, WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
+from mobgap.weartime import WtdMegaritisCNN, WtdMegaritisCNNTrainer, WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
 from mobgap.weartime.optimization import WearTimeOptunaSearch
-from mobgap.weartime.pipeline import WtdEmulationPipeline
 
 # Edit paths and optimizer configuration here before running.
 DATASET_PATH = None  # Defaults to MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH.
@@ -38,8 +37,8 @@ def main() -> None:
             **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
-            WtdEmulationPipeline(WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())),
-            **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
+            WtdMegaritisCNNTrainer(),
+            **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
         ),
     }
 
@@ -54,14 +53,15 @@ def main() -> None:
         with (output_dir / f"{artifact_name}_best_params.json").open("w") as file:
             json.dump(optimizer.best_params_, file, indent=2)
             file.write("\n")
+        model_config = detector.model.model_config if isinstance(detector, WtdMegaritisCNN) else detector.model_config
+        with (output_dir / f"{artifact_name}_model_config.json").open("w") as file:
+            json.dump(model_config.to_dict(), file, indent=2)
+            file.write("\n")
         if isinstance(detector, WtdMegaritisCNN):
-            detector.model._model.save(output_dir / f"{artifact_name}_model.keras")
+            detector.model.model.save(output_dir / f"{artifact_name}_model.keras")
         else:
             with (output_dir / f"{artifact_name}_model.pkl").open("wb") as file:
                 pickle.dump(detector.clf, file)
-            with (output_dir / f"{artifact_name}_model_config.json").open("w") as file:
-                json.dump(detector.model_config.to_dict(), file, indent=2)
-                file.write("\n")
 
 
 if __name__ == "__main__":

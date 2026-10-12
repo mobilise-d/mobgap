@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from joblib import Memory, parallel_config
 from sklearn.utils.validation import check_is_fitted
-from tpcp import clone, make_action_safe
+from tpcp import cf, clone, make_action_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
 from tpcp.parallel import Parallel, delayed
@@ -152,6 +152,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     The detector extracts time-domain and frequency-domain features from overlapping 5-second windows and classifies
     each window with a sklearn-compatible classifier. The full extractor computes 230 features; the lightweight
     extractor uses 79 features selected from 90%% SHAP importance. Supply a trained classifier for detection.
+    ``PredefinedParameters.sustain_weartime`` loads the packaged fitted classifier and its input configuration.
 
     Parameters
     ----------
@@ -224,7 +225,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         prediction_threshold: float = 0.5,
         window_batch_size: int = 4096,
         n_jobs_features: int = 4,
-        memory: Memory = Memory(None),
+        memory: Memory = cf(Memory(None)),
         waking_hours: tuple[time, time] = (time(7), time(22)),
     ) -> None:
         self.clf = clf

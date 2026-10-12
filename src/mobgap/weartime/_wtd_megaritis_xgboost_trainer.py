@@ -31,13 +31,13 @@ from mobgap.consts import BF_SENSOR_COLS
 from mobgap.data.base import BaseGaitDataset
 from mobgap.weartime._model_config import WearTimeModelConfig
 from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
+from mobgap.weartime._training import _single_sampling_rate_hz, _TrainingDataFromDataset
 from mobgap.weartime._wtd_megaritis_xgboost import (
     WtdMegaritisXGBoost,
     _FeatureExtractionKwargs,
     _recording_feature_batches,
 )
-from mobgap.weartime.base import TrainingData  # noqa: TC001 - tpcp resolves annotations at runtime.
-from mobgap.weartime.pipeline import WtdEmulationPipeline, _single_sampling_rate_hz, _TrainingDataFromDataset
+from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils.feature_extraction import FEATURE_ORDER_90PCT
 from mobgap.weartime.utils.ml_feature_extraction import (
     known_window_mask,
@@ -48,7 +48,6 @@ from mobgap.weartime.utils.ml_feature_extraction import (
 
 class _TrainingFeatureKwargs(_FeatureExtractionKwargs):
     memory: Memory
-    window_sec: float
     n_jobs_features: int
 
 
@@ -76,7 +75,6 @@ def _iter_training_recording_feature_batches(
     reference_weartime: pd.DataFrame,
     *,
     memory: Memory,
-    window_sec: float,
     n_jobs_features: int,
     **feature_kwargs: Unpack[_FeatureExtractionKwargs],
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
@@ -101,7 +99,7 @@ def _iter_training_recording_feature_batches(
 
 
 def _extract_training_data_recording_features(
-    training_data: Any,
+    training_data: _TrainingDataFromDataset,
     datapoint_index: int,
     **kwargs: Unpack[_TrainingFeatureKwargs],
 ) -> list[tuple[np.ndarray, np.ndarray]]:
@@ -110,12 +108,12 @@ def _extract_training_data_recording_features(
 
 
 def _iter_training_feature_results(
-    training_data: TrainingData,
+    training_data: _TrainingDataFromDataset,
     *,
     n_jobs: int,
     **kwargs: Unpack[_TrainingFeatureKwargs],
 ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
-    if n_jobs != 1 and hasattr(training_data, "load_recording") and hasattr(training_data, "__len__"):
+    if n_jobs != 1:
         recording_batches = Parallel(
             n_jobs=n_jobs,
             backend="loky",
@@ -139,6 +137,34 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
     classifier and immutable input configuration after optimization. Recording processes and training overlap are
     independent of the detector's feature threads and inference overlap. To search classifier parameters, supply
     a configured template, for example ``classifier=XGBClassifier(...)``.
+
+    ``PredefinedParameters.sustain_weartime`` restores selected fitting settings without loading weights.
+    ``OptimizationPresets.sustain_weartime`` supplies the search space, grouped inner CV and training subsampling.
+
+    Parameters
+    ----------
+    algo
+        Inference detector to fill with a fitted classifier and input configuration.
+    classifier
+        Untrained sklearn classifier template. A clone is fitted; None creates the baseline XGBoost classifier.
+        Configure the classifier's n_jobs to control its native training and prediction threads.
+    window_sec, sensor_cols, feature_names
+        Trained window duration, ordered sensor channels and ordered feature columns.
+    training_overlap
+        Fractional training window overlap, independent of algo.overlap during inference.
+    n_jobs
+        Joblib processes over training recordings. algo.n_jobs_features controls feature threads per recording.
+    convert_to_body_frame
+        Convert recording columns to the body frame lazily while loading training data.
+
+    Examples
+    --------
+    >>> from tpcp.optimize import Optimize
+    >>> trained = (
+    ...     Optimize(WtdMegaritisXGBoostTrainer()).optimize(dataset).optimized_pipeline_
+    ... )  # doctest: +SKIP
+    >>> detector = trained.algo  # doctest: +SKIP
+    >>> detector.detect(data, sampling_rate_hz=100)  # doctest: +SKIP
     """
 
     algo: Parameter[WtdMegaritisXGBoost]
@@ -248,7 +274,6 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
             sampling_rate_hz=sampling_rate_hz,
             window_samples=window_samples,
             step_samples=step_samples,
-            window_sec=config.window_sec,
             window_batch_size=self.algo.window_batch_size,
             version="lightweight" if set(config.feature_names).issubset(FEATURE_ORDER_90PCT) else "full",
             sensor_cols=config.sensor_cols,
