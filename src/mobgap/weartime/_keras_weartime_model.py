@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import pandas as pd  # noqa: TC002 - tpcp 2.1 resolves class annotations at runtime.
-from tpcp import Algorithm, OptimizableParameter, make_action_safe, make_optimize_safe
+from tpcp import Algorithm, OptimizableParameter, PureParameter, make_action_safe, make_optimize_safe
 from tpcp.misc import classproperty
 from typing_extensions import Self
 
@@ -124,6 +124,11 @@ class BaseKerasWeartimeModel(Algorithm):
 
     _model: OptimizableParameter[Optional[Any]]  # noqa: UP045 - tpcp 2.1 needs Python 3.9-evaluable strings.
     _trained_sampling_rate_hz: OptimizableParameter[Optional[float]]  # noqa: UP045
+    prediction_threshold: PureParameter[float]
+    allow_sampling_rate_mismatch: PureParameter[bool]
+    predict_batch_size: PureParameter[int]
+    fit_verbose: PureParameter[int]
+    window_batch_size: PureParameter[int]
 
     data: pd.DataFrame
     sampling_rate_hz: float

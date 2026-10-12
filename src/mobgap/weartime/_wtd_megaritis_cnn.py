@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
+from tpcp import OptimizableParameter, PureParameter, make_action_safe, make_optimize_safe
 from tpcp.misc import classproperty
 from typing_extensions import Self, Unpack
 
@@ -103,6 +103,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     """
 
     model: OptimizableParameter[Optional[Any]]  # noqa: UP045 - tpcp 2.1 needs Python 3.9-evaluable strings.
+    waking_hours: PureParameter[tuple[time, time]]
 
     class OptimizationPresets:
         """Dataset-specific search settings for an explicit untrained CNN model in WtdEmulationPipeline.

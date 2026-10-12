@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from joblib import Memory, parallel_config
 from sklearn.utils.validation import check_is_fitted
-from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
+from tpcp import OptimizableParameter, PureParameter, make_action_safe, make_optimize_safe
 from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
 from tpcp.parallel import Parallel, delayed
@@ -326,6 +326,13 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     clf: OptimizableParameter[Optional[_SklearnWearTimeClassifier]]  # noqa: UP045 - tpcp 2.1 resolves annotations.
     feature_names: OptimizableParameter[Optional[Sequence[str]]]  # noqa: UP045 - tpcp 2.1 resolves annotations.
     trained_sampling_rate_hz: OptimizableParameter[Optional[float]]  # noqa: UP045 - tpcp 2.1 resolves annotations.
+    prediction_threshold: PureParameter[float]
+    waking_hours: PureParameter[tuple[time, time]]
+    allow_sampling_rate_mismatch: PureParameter[bool]
+    memory: PureParameter[Memory]
+    n_jobs: PureParameter[int]
+    n_jobs_features: PureParameter[int]
+    window_batch_size: PureParameter[int]
     window_predictions_: np.ndarray
     window_probabilities_: np.ndarray
     window_start_end_: np.ndarray
