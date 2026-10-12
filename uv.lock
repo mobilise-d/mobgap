@@ -1653,11 +1653,6 @@ test = [
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
 ]
-test-weartime-ml = [
-    { name = "optuna" },
-    { name = "tensorflow", marker = "python_full_version < '3.13'" },
-    { name = "xgboost" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -1729,11 +1724,6 @@ test = [
     { name = "pytest", specifier = ">=7.4.0,<8" },
     { name = "pytest-cov", specifier = ">=4.1.0,<5" },
     { name = "pytest-xdist", specifier = ">=3.8.0,<4" },
-]
-test-weartime-ml = [
-    { name = "optuna", specifier = ">=4.0,<5" },
-    { name = "tensorflow", marker = "python_full_version < '3.13'", specifier = ">=2.18,<2.19" },
-    { name = "xgboost", specifier = ">=2.1.4,<3.0" },
 ]
 
 [[package]]

@@ -40,7 +40,7 @@ jobs:
       run: uv sync --locked --no-dev --group test
     - name: Install the project with wear-time ML dependencies
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
-      run: uv sync --locked --no-dev --group test --group test-weartime-ml
+      run: uv sync --locked --no-dev --group test --extra weartime
     - name: Testing with coverage
       if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' }}
       run: uv run --no-sync poe test_ci
