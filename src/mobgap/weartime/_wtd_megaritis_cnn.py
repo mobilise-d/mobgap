@@ -113,6 +113,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     (features scaled to zero mean, unit variance per window). Supply a trained low-level model for detection.
     The independent SUSTAIN CNN and CNN-LSTM presets load their model definitions, native inputs and fitted weights.
     Their untrained counterparts load only model definitions and inputs for retraining.
+    ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` create fresh model blueprints
+    without loading any packaged artifacts.
 
     Model architecture: 3-layer 1D CNN with progressively increasing filters [32, 64, 128],
     kernel size 9, max pooling (size 2), batch normalization, and dropout (0.3). Fully
@@ -123,7 +125,17 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     model: KerasWeartimeModel
 
     class PredefinedParameters:
-        """Independent fitted and untrained SUSTAIN model definitions for CNN and CNN-LSTM."""
+        """Fresh blueprints and independent SUSTAIN model definitions for CNN and CNN-LSTM."""
+
+        @classproperty
+        def empty_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Create a fresh CNN blueprint with default structure and no fitted weights."""
+            return MappingProxyType({"model": MegaritisCnnWeartimeModel()})
+
+        @classproperty
+        def empty_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Create a fresh CNN-LSTM blueprint with default structure and no fitted weights."""
+            return MappingProxyType({"model": MegaritisCnnLstmWeartimeModel()})
 
         @classproperty
         def sustain_weartime_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805

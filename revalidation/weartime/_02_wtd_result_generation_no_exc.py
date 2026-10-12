@@ -95,7 +95,10 @@ optimizers = {
         n_trials=40,
     ),
     "WtdMegaritisCNN": WearTimeOptunaSearch(
-        WtdMegaritisCNNTrainer(WtdMegaritisCNN()),
+        WtdMegaritisCNNTrainer(
+            WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn),
+            **WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn,
+        ),
         **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
     ),
 }

@@ -45,7 +45,8 @@ are supported.
 `train.py` tunes and refits XGBoost, CNN and CNN-LSTM on the complete selected dataset.
 There is no outer CV or held-out metric export. Inner search uses the SUSTAIN presets;
 final refitting uses all supplied human and simulated days. Edit the optimizer dictionary
-before running. CNN uses 60 epochs; CNN-LSTM uses 57 epochs and Adam gradient clipping at 1.
+before running. The artifact-free `empty_cnn` fitting recipe uses 60 epochs;
+`empty_cnn_lstm` uses 57 epochs and Adam gradient clipping at 1.
 
 The supplied untrained detector owns its classifier/network type, structure and input
 configuration. `MegaritisCnnWeartimeModel` and `MegaritisCnnLstmWeartimeModel` build their
@@ -79,6 +80,16 @@ require those freshly trained artifacts; none are generated automatically on imp
 - `WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` loads fitted weights and inputs.
   `untrained_sustain_weartime` loads the selected untrained template and inputs;
   `baseline_sustain_weartime` creates the canonical fresh baseline before artifacts exist.
+- `WtdMegaritisCNN.PredefinedParameters.empty_cnn` and `empty_cnn_lstm` create fresh
+  model blueprints with their default architecture and input configuration, without packaged files.
+  The matching `WtdMegaritisCNNTrainer.PredefinedParameters` presets supply only the initial
+  fitting settings. For example:
+
+  ```python
+  algo = WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn_lstm)
+  trainer = WtdMegaritisCNNTrainer(algo, **WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm)
+  ```
+
 - `WtdMegaritisCNN.PredefinedParameters.sustain_weartime_cnn` and `sustain_weartime_cnn_lstm`
   load their respective fitted models. `untrained_sustain_weartime_cnn` and
   `untrained_sustain_weartime_cnn_lstm` load the respective model definitions without weights.
