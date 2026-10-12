@@ -185,7 +185,24 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
 
     @make_optimize_safe
     def self_optimize(self, dataset: BaseGaitDataset) -> Self:
-        """Fit a new network and store it in a cloned inference detector."""
+        """Fit a new network and store it in a cloned inference detector.
+
+        Parameters
+        ----------
+        dataset
+            Dataset whose individual datapoints expose ``data_ss`` (one sensor DataFrame), ``sampling_rate_hz``
+            and ``reference_weartime_``. All datapoints must share a common sampling rate. Reference rows are
+            half-open ``[start, end)`` sample intervals on the original recording grid, with integer ``start``
+            and ``end`` columns and a mandatory unordered categorical ``label`` column with categories
+            ``["wear", "uncertain"]``, including empty/all-wear reference frames. ``uncertain`` means wear versus
+            non-wear could not be determined; the complement of labeled intervals is known non-wear.
+            Entire windows intersecting uncertain regions are excluded from fitting. Recordings are loaded lazily.
+
+        Returns
+        -------
+        self
+            Trainer with the fitted inference detector available as ``algo``.
+        """
         tf = import_module("tensorflow")
         tf.keras.utils.set_random_seed(self.random_seed)
         config = WearTimeModelConfig(_single_sampling_rate_hz(dataset), self.window_sec, tuple(self.sensor_cols))

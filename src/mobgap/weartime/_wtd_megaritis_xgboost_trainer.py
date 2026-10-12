@@ -256,7 +256,27 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
 
     @make_optimize_safe
     def self_optimize(self, dataset: BaseGaitDataset, **kwargs: Unpack[dict[str, Any]]) -> Self:
-        """Clone and fit the classifier template, retaining the detector's inference configuration."""
+        """Clone and fit the classifier template, retaining the detector's inference configuration.
+
+        Parameters
+        ----------
+        dataset
+            Dataset whose individual datapoints expose ``data_ss`` (one sensor DataFrame), ``sampling_rate_hz``
+            and ``reference_weartime_``. All datapoints must share a common sampling rate. Reference rows are
+            half-open ``[start, end)`` sample intervals on the original recording grid, with integer ``start``
+            and ``end`` columns and a mandatory unordered categorical ``label`` column with categories
+            ``["wear", "uncertain"]``, including empty/all-wear reference frames. ``uncertain`` means wear versus
+            non-wear could not be determined; the complement of labeled intervals is known non-wear.
+            Entire windows intersecting uncertain regions are excluded from fitting. Recordings are loaded lazily.
+
+        **kwargs
+            Additional keyword arguments passed to the cloned classifier's ``fit`` method.
+
+        Returns
+        -------
+        self
+            Trainer with the fitted inference detector available as ``algo``.
+        """
         sampling_rate_hz = _single_sampling_rate_hz(dataset)
         config = WearTimeModelConfig(
             sampling_rate_hz, self.window_sec, tuple(self.sensor_cols), tuple(self.feature_names)
