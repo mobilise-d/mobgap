@@ -477,6 +477,21 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         assert np.isnan(legacy.kurtosis).all()
 
     @pytest.mark.parametrize("version", ["lightweight", "full"])
+    def test_symmetric_gyro_mean_preserves_dominant_axis_ratio(self, version: str) -> None:
+        """Do not amplify summation residuals through a near-zero dominant-axis denominator."""
+        amplitude = 1024 + 2**-39
+        values = np.zeros((500, 6), dtype=np.float64)
+        values[:, 3] = np.tile([amplitude, -amplitude], 250)
+        features = extract_features_batched(
+            values,
+            np.array([[0, 500]]),
+            feature_names=("gyr_is_mean", "time_gyr_norm_to_dominant_ratio"),
+            version=version,
+        )
+        assert features.iloc[0, 0] == 0
+        assert_allclose(features.iloc[0, 1], amplitude / 1e-12, rtol=1e-12)
+
+    @pytest.mark.parametrize("version", ["lightweight", "full"])
     def test_small_axis_motion_survives_float32_storage(self, version: str) -> None:
         """Calculate norms wide enough to retain representable low-intensity axis movements."""
         values = np.zeros((500, 6), dtype=np.float32)

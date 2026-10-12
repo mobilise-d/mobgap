@@ -43,19 +43,23 @@ def _batched_time_statistics(
     for row in range(values.shape[0]):
         origin = np.float64(values[row, 0])
         total = 0.0
+        compensation = 0.0
         square_sum = 0.0
         minimum = np.inf
         maximum = -np.inf
         has_nan = False
         for col in range(n_values):
             value = np.float64(values[row, col])
-            total += value - origin
+            adjusted = value - compensation
+            updated = total + adjusted
+            compensation = (updated - total) - adjusted
+            total = updated
             square_sum += value * value
             minimum = min(minimum, value)
             maximum = max(maximum, value)
             has_nan = has_nan or np.isnan(value)
-        mean_offset = total / n_values
-        mean = origin + mean_offset
+        mean = total / n_values
+        mean_offset = mean - origin
         sum2 = 0.0
         sum3 = 0.0
         sum4 = 0.0

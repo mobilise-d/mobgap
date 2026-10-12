@@ -145,6 +145,7 @@ def _extract_recording_feature_batches(
     sensor_cols: tuple[str, ...],
     feature_names: tuple[str, ...],
 ) -> list[np.ndarray]:
+    """Extract ordered float32 batches with shared signals and compensated time statistics."""
     window_start_end_ = window_start_end(len(data), window_samples, step_samples)
     if len(window_start_end_) == 0:
         return []
