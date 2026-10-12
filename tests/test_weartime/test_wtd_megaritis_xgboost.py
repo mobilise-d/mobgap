@@ -12,6 +12,7 @@ from joblib import Memory
 from numpy.testing import assert_allclose, assert_array_equal
 from pandas.testing import assert_frame_equal
 from scipy.signal import welch
+from scipy.stats import kurtosis, skew
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 from tpcp.testing import TestAlgorithmMixin
@@ -24,6 +25,7 @@ from mobgap.weartime.utils.feature_extraction import (
     FULL_FEATURE_ORDER,
     _batched_iqr,
     _batched_spectral_slope,
+    _batched_time_statistics,
     _batched_top_peak_freqs,
     _batched_welch,
     extract_features_90pct_batched,
@@ -32,7 +34,7 @@ from mobgap.weartime.utils.feature_extraction import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
     from pathlib import Path
 
 
@@ -112,7 +114,7 @@ def _weartime_list(intervals: list[tuple[int, int]]) -> pd.DataFrame:
     return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index="wt_id").astype("int64")
 
 
-def _reference(intervals, uncertain=()):
+def _reference(intervals: Iterable[tuple[int, int]], uncertain: Iterable[tuple[int, int]] = ()) -> pd.DataFrame:
     reference = pd.concat(
         [_weartime_list(intervals).assign(label="wear"), _weartime_list(uncertain).assign(label="uncertain")],
         ignore_index=True,
@@ -204,6 +206,7 @@ class TestWtdMegaritisXGBoost:
         assert result.total_weartime_during_waking_min_ == pytest.approx(80 / 60)
 
     def test_localized_signal_adds_interval_datetimes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Attach local timestamps to detected intervals."""
         _patch_simple_features(monkeypatch)
         _FixedProbabilityClassifier.batch_sizes = []
         data = _sensor_data(120)
@@ -322,7 +325,11 @@ class TestWtdMegaritisXGBoost:
         ],
     )
     def test_self_optimize_fits_classifier_from_window_center_labels(
-        self, monkeypatch: pytest.MonkeyPatch, uncertain, expected_starts, expected_labels
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        uncertain: list[tuple[int, int]] | None,
+        expected_starts: list[int],
+        expected_labels: list[int],
     ) -> None:
         """Exclude intersecting windows without shifting centers; skip entirely unknown recordings."""
         calls = []
@@ -436,6 +443,56 @@ class TestWtdMegaritisXGBoost:
 class TestWtdMegaritisXGBoostFeatureExtraction:
     """Verify extracted feature contracts."""
 
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+    def test_fused_statistics_match_reference(self, dtype: type) -> None:
+        """Preserve corrected moments, sample variance and constant/unknown windows."""
+        values = np.random.default_rng(42).normal(size=(8, 500)).astype(dtype)
+        values[0] = 0
+        values[1] = 7
+        values[2] += 1e6
+        values[3, 0] = np.nan
+        values[4] = 0.1
+        reference = values.astype(np.float64)
+        with np.errstate(invalid="ignore"):
+            expected = (
+                reference.mean(axis=1),
+                reference.std(axis=1, ddof=1),
+                np.sqrt((reference * reference).mean(axis=1)),
+                reference.min(axis=1),
+                reference.max(axis=1),
+                skew(reference, axis=1, bias=False),
+                kurtosis(reference, axis=1, bias=False, fisher=False),
+            )
+        for actual, target in zip(_batched_time_statistics(values), expected):
+            assert_allclose(actual, target, rtol=1e-8, atol=1e-8)
+
+    @pytest.mark.parametrize("step", [125, 500])
+    @pytest.mark.parametrize("dtype", [np.float32, np.float64])
+    def test_recording_features_match_independent_windows(self, step: int, dtype: type) -> None:
+        """Reuse overlapping and non-overlapping intermediates without shifting batches or ordinal patterns."""
+        values = np.random.default_rng(42).normal(size=(1750, 6)).astype(dtype)
+        values[300:400] = 0  # Repeated values exercise the ordinal tie-breaking rules.
+        data = pd.DataFrame(values, columns=BF_SENSOR_COLS)
+        starts = np.arange(0, len(data) - 499, step)
+        windows = np.column_stack([starts, starts + 500])
+        expected = extract_features_batched(data, windows).to_numpy(dtype=np.float32)
+        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT, window_batch_size=2, overlap=1 - step / 500)
+        assert_array_equal(algo.extract_features(data, 100).to_numpy(), expected)
+        parallel = algo.clone().set_params(n_jobs=2)
+        assert_array_equal(parallel.extract_features(data, 100).to_numpy(), expected)
+
+    def test_worker_count_shares_recording_cache(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A threaded cache hit reuses features previously extracted serially."""
+        data = pd.DataFrame(np.zeros((625, 6), dtype=np.float32), columns=BF_SENSOR_COLS)
+        algo = WtdMegaritisXGBoost(feature_names=FEATURE_ORDER_90PCT, memory=Memory(tmp_path, verbose=0))
+        expected = algo.extract_features(data, 100)
+
+        def unexpected_extraction(*_args: object, **_kwargs: object) -> None:
+            pytest.fail("Worker count must not invalidate the recording cache")
+
+        monkeypatch.setattr(xgb_module, "_prepare_lightweight_recording", unexpected_extraction)
+        assert_frame_equal(algo.clone().set_params(n_jobs=2).extract_features(data, 100), expected)
+
     def test_pretrained_feature_names_are_available_without_xgboost(self) -> None:
         """Load feature-order resources without importing the optional model package."""
         feature_names = xgb_module._load_pickle_resource("xgboost_90pct_lowback_feature_order.pkl")
@@ -461,10 +518,11 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         assert list(lightweight.columns) == FEATURE_ORDER_90PCT
         assert_allclose(lightweight.to_numpy(), full_subset.to_numpy(), rtol=1e-10, atol=1e-10)
 
-    def test_batched_features_match_for_integer_array_and_dataframe(self) -> None:
+    @pytest.mark.parametrize("dtype", [np.int16, np.float16])
+    def test_batched_features_match_for_numeric_array_and_dataframe(self, dtype: type) -> None:
         """Array input uses the same floating-point feature calculations as a DataFrame."""
         rng = np.random.default_rng(42)
-        values = rng.integers(900, 1100, size=(625, len(BF_SENSOR_COLS)), dtype=np.int16)
+        values = rng.integers(900, 1100, size=(625, len(BF_SENSOR_COLS))).astype(dtype)
         data = pd.DataFrame(values, columns=BF_SENSOR_COLS)
         windows = np.array([[0, 500], [125, 625]])
         feature_names = ("acc_norm_rms", "gyr_pa_rms")
@@ -473,6 +531,22 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         from_array = extract_features_batched(values, windows, feature_names=feature_names)
 
         assert_allclose(from_array.to_numpy(), from_dataframe.to_numpy(), rtol=1e-12, atol=1e-12)
+
+    @pytest.mark.parametrize(("column", "baseline"), [(3, 100.0), (0, 9.81)])
+    def test_full_features_preserve_small_float32_rolling_variance(self, column: int, baseline: float) -> None:
+        """Retain small movement variability around a large baseline with float32 sensor storage."""
+        values = np.zeros((500, len(BF_SENSOR_COLS)), dtype=np.float32)
+        values[:, column] = baseline
+        values[::3, column] += 2**-10
+        gyr_windows = np.lib.stride_tricks.sliding_window_view(values[:, 3].astype(np.float64), 10)
+        acc_windows = np.lib.stride_tricks.sliding_window_view(values[:, 0].astype(np.float64), 10)
+        expected = [np.var(gyr_windows, axis=1, ddof=1).mean(), np.var(acc_windows, axis=1, ddof=1).std(ddof=1)]
+        features = extract_full_features_batched(
+            values,
+            np.array([[0, 500]]),
+            feature_names=("rolling_var_mean_norm", "rolling_var_std_norm"),
+        )
+        assert_allclose(features.iloc[0], expected, rtol=1e-8, atol=1e-14)
 
     def test_batched_full_features_cover_full_feature_order(self) -> None:
         """Extract every full-model feature without falling back to scalar feature calculators."""

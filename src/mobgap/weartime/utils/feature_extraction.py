@@ -6,13 +6,80 @@ import warnings
 from collections.abc import Sequence  # noqa: TC003 - Keep annotations available for runtime inspection.
 from functools import lru_cache
 from math import log2
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
-from numba import njit, prange
+from numba import njit
 from scipy.fft import rfft, rfftfreq
 from scipy.signal import find_peaks, get_window
 from scipy.stats import kurtosis, skew
+
+
+class _TimeStatistics(NamedTuple):
+    mean: np.ndarray
+    std: np.ndarray
+    rms: np.ndarray
+    minimum: np.ndarray
+    maximum: np.ndarray
+    skew: np.ndarray
+    kurtosis: np.ndarray
+
+
+@njit(cache=True, nogil=True)
+def _batched_time_statistics(values: np.ndarray, higher_moments: bool = True) -> _TimeStatistics:
+    """Share two passes over each window; match SciPy's unbiased moment corrections."""
+    n_values = values.shape[1]
+    result = np.empty((values.shape[0], 7), dtype=np.float64)
+    for row in range(values.shape[0]):
+        origin = np.float64(values[row, 0])
+        total = 0.0
+        square_sum = 0.0
+        minimum = np.inf
+        maximum = -np.inf
+        has_nan = False
+        for col in range(n_values):
+            value = np.float64(values[row, col])
+            total += value - origin
+            square_sum += value * value
+            minimum = min(minimum, value)
+            maximum = max(maximum, value)
+            has_nan = has_nan or np.isnan(value)
+        mean_offset = total / n_values
+        mean = origin + mean_offset
+        sum2 = 0.0
+        sum3 = 0.0
+        sum4 = 0.0
+        for col in range(n_values):
+            centered = (np.float64(values[row, col]) - origin) - mean_offset
+            centered2 = centered * centered
+            sum2 += centered2
+            if higher_moments:
+                sum3 += centered2 * centered
+                sum4 += centered2 * centered2
+        variance = sum2 / n_values
+        result[row, 0] = mean
+        result[row, 1] = np.sqrt(sum2 / (n_values - 1)) if n_values > 1 else np.nan
+        result[row, 2] = np.sqrt(square_sum / n_values)
+        result[row, 3] = np.nan if has_nan else minimum
+        result[row, 4] = np.nan if has_nan else maximum
+        result[row, 5] = np.nan
+        result[row, 6] = np.nan
+        # SciPy considers variance below this threshold indistinguishable from zero.
+        if higher_moments and variance > (np.finfo(np.float64).eps * mean) ** 2:
+            skewness = (sum3 / n_values) / variance**1.5
+            kurt = (sum4 / n_values) / (variance * variance)
+            if n_values > 2:
+                skewness *= np.sqrt(n_values * (n_values - 1)) / (n_values - 2)
+            if n_values > 3:
+                kurt = ((n_values * n_values - 1) * kurt - 3 * (n_values - 1) ** 2) / (
+                    (n_values - 2) * (n_values - 3)
+                ) + 3
+            result[row, 5] = skewness
+            result[row, 6] = kurt
+    return _TimeStatistics(
+        result[:, 0], result[:, 1], result[:, 2], result[:, 3], result[:, 4], result[:, 5], result[:, 6]
+    )
 
 
 def _safe_divide(numerator: np.ndarray, denominator: np.ndarray) -> np.ndarray:
@@ -82,7 +149,7 @@ def _batched_spectral_slope(frequencies: np.ndarray, power: np.ndarray) -> np.nd
         if denominator == 0:
             return np.zeros(power.shape[0], dtype=np.float64)
         sum_y = np.sum(log_power, axis=1)
-        sum_xy = log_power @ log_frequencies
+        sum_xy = np.einsum("ij,j->i", log_power, log_frequencies)
         return (sum_xy - (sum_x * sum_y / count)) / denominator
 
     log_power = np.zeros_like(positive_power, dtype=np.float64)
@@ -127,7 +194,7 @@ def _batched_top_peak_freqs(frequencies: np.ndarray, power: np.ndarray, n_peaks:
     return peak_freqs
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, nogil=True)
 def _numba_permutation_entropy_order3(values: np.ndarray) -> np.ndarray:  # noqa: C901, PLR0912
     n_windows = values.shape[0]
     n_values = values.shape[1]
@@ -137,7 +204,7 @@ def _numba_permutation_entropy_order3(values: np.ndarray) -> np.ndarray:  # noqa
 
     n_patterns = n_values - 2
     inv_log2_6 = 1.0 / log2(6.0)
-    for row in prange(n_windows):
+    for row in range(n_windows):
         count_012 = 0
         count_021 = 0
         count_102 = 0
@@ -201,7 +268,7 @@ def _batched_moving_range_mean(values: np.ndarray, rolling_win: int) -> np.ndarr
         return np.full(values.shape[0], np.nan)
 
     weights = _rolling_mean_weights(diff_abs.shape[1], rolling_win)
-    return (diff_abs @ weights) / (rolling_win * (diff_abs.shape[1] - rolling_win + 1))
+    return (np.einsum("ij,j->i", diff_abs, weights)) / (rolling_win * (diff_abs.shape[1] - rolling_win + 1))
 
 
 def _batched_rolling_var_mean_std(values: np.ndarray, rolling_win: int) -> tuple[np.ndarray, np.ndarray]:
@@ -209,7 +276,10 @@ def _batched_rolling_var_mean_std(values: np.ndarray, rolling_win: int) -> tuple
         missing = np.full(values.shape[0], np.nan)
         return missing, missing.copy()
 
-    padded = np.pad(values, ((0, 0), (1, 0)), mode="constant", constant_values=0.0)
+    # Center before prefix sums to preserve small variances around a large offset.
+    # Promote only this calculation, leaving the sensor recording in its native dtype.
+    centered = np.subtract(values, values[:, :1], dtype=np.float64)
+    padded = np.pad(centered, ((0, 0), (1, 0)), mode="constant", constant_values=0.0)
     cumsum = np.cumsum(padded, axis=1)
     cumsum_sq = np.cumsum(padded * padded, axis=1)
     rolling_sum = cumsum[:, rolling_win:] - cumsum[:, :-rolling_win]
@@ -221,13 +291,13 @@ def _batched_rolling_var_mean_std(values: np.ndarray, rolling_win: int) -> tuple
     return rolling_var_mean, np.std(rolling_var, axis=1, ddof=1)
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, nogil=True)
 def _numba_true_run_median_max(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     n_windows = mask.shape[0]
     n_values = mask.shape[1]
     medians = np.zeros(n_windows, dtype=np.float64)
     maximums = np.zeros(n_windows, dtype=np.float64)
-    for row in prange(n_windows):
+    for row in range(n_windows):
         run_lengths = np.empty(n_values, dtype=np.int64)
         n_runs = 0
         run_length = 0
@@ -281,8 +351,8 @@ def _batched_corrcoef(first: np.ndarray, second: np.ndarray) -> np.ndarray:
 
 def _batched_coherence_mean(first: np.ndarray, second: np.ndarray, fs: float) -> np.ndarray:
     frequencies, window, _ = _welch_frequencies_and_window(first.shape[1], fs)
-    first_spectrum = rfft((first - np.mean(first, axis=1, keepdims=True)) * window[None, :], axis=1, workers=-1)
-    second_spectrum = rfft((second - np.mean(second, axis=1, keepdims=True)) * window[None, :], axis=1, workers=-1)
+    first_spectrum = rfft((first - np.mean(first, axis=1, keepdims=True)) * window[None, :], axis=1, workers=1)
+    second_spectrum = rfft((second - np.mean(second, axis=1, keepdims=True)) * window[None, :], axis=1, workers=1)
     numerator = np.abs(first_spectrum.conj() * second_spectrum) ** 2
     denominator = np.abs(first_spectrum) ** 2 * np.abs(second_spectrum) ** 2
     coherence = np.full((first.shape[0], len(frequencies)), np.nan, dtype=np.float64)
@@ -301,7 +371,7 @@ def _batched_welch(values: np.ndarray, fs: float) -> tuple[np.ndarray, np.ndarra
     n_values = values.shape[1]
     frequencies, window, scale = _welch_frequencies_and_window(n_values, fs)
     detrended = values - np.mean(values, axis=1, keepdims=True)
-    spectrum = rfft(detrended * window[None, :], axis=1, workers=-1)
+    spectrum = rfft(detrended * window[None, :], axis=1, workers=1)
     power = np.real(spectrum * spectrum.conj()) * scale
     if n_values % 2 == 0:
         power[:, 1:-1] *= 2.0
@@ -731,6 +801,83 @@ FEATURE_ORDER_90PCT = [
 ]
 
 
+@njit(cache=True, nogil=True)
+def _recording_permutation_entropy(  # noqa: C901, PLR0912 - Explicit ordinal tie-breaking matches the window kernel.
+    values: np.ndarray, window: int, step: int
+) -> np.ndarray:
+    """Reuse ordinal patterns across overlapping windows without changing their tie-breaking."""
+    if window < 3:
+        return np.zeros((len(values) - window) // step + 1)
+    patterns = np.empty(len(values) - 2, dtype=np.uint8)
+    for i in range(len(patterns)):
+        a = values[i]
+        b = values[i + 1]
+        c = values[i + 2]
+        if a <= b <= c:
+            patterns[i] = 0
+        elif a <= c < b:
+            patterns[i] = 1
+        elif b < a <= c:
+            patterns[i] = 2
+        elif b <= c < a:
+            patterns[i] = 3
+        elif c < a <= b:
+            patterns[i] = 4
+        else:
+            patterns[i] = 5
+    count = np.zeros(6, dtype=np.int64)
+    for i in range(window - 2):
+        count[patterns[i]] += 1
+    out = np.empty((len(values) - window) // step + 1)
+    for row in range(len(out)):
+        start = row * step
+        if row:
+            old = start - step
+            for i in range(old, min(start, old + window - 2)):
+                count[patterns[i]] -= 1
+            for i in range(max(start, old + window - 2), start + window - 2):
+                count[patterns[i]] += 1
+        result = 0.0
+        for i in range(6):
+            if count[i]:
+                p = count[i] / (window - 2)
+                result -= p * log2(p)
+        out[row] = result / log2(6.0)
+    return out
+
+
+class _PreparedRecording(NamedTuple):
+    """Recording intermediates shared by lightweight feature batches."""
+
+    signals: dict[str, np.ndarray]
+    entropies: dict[str, np.ndarray]
+    step_samples: int
+
+    def window(self, name: str, starts: np.ndarray, width: int) -> np.ndarray:
+        windows = np.lib.stride_tricks.sliding_window_view(self.signals[name], width)
+        return windows[starts[0] : starts[-1] + 1 : self.step_samples]
+
+
+def _prepare_lightweight_recording(
+    sensor_data: np.ndarray, window_samples: int, step_samples: int, dt: float
+) -> _PreparedRecording:
+    """Calculate norms, jerk and ordinal patterns once before splitting a recording into batches."""
+    signals = {
+        name: sensor_data[:, col]
+        for col, name in enumerate(("acc_is", "acc_ml", "acc_pa", "gyr_is", "gyr_ml", "gyr_pa"))
+    }
+    for prefix in ("acc", "gyr"):
+        first, second, third = (signals[f"{prefix}_{axis}"] for axis in ("is", "ml", "pa"))
+        signals[f"{prefix}_norm"] = np.sqrt(first * first + second * second + third * third)
+    entropies = {
+        name: _recording_permutation_entropy(signals[name], window_samples, step_samples)
+        for name in ("gyr_is", "acc_is", "acc_ml", "acc_pa", "gyr_norm")
+    }
+    for name in ("acc_is", "acc_norm", "gyr_is", "gyr_ml", "gyr_pa"):
+        signals[f"jerk_{name}"] = np.diff(signals[name]) / dt
+    return _PreparedRecording(signals, entropies, step_samples)
+
+
 def _windowed_sensor_arrays(
     data: pd.DataFrame | np.ndarray,
     starts: np.ndarray,
@@ -740,9 +887,11 @@ def _windowed_sensor_arrays(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Build window views from six columns ordered as acceleration, then gyroscope."""
     if isinstance(data, pd.DataFrame):
-        sensor_values = data.loc[:, [*acc_axes, *gyr_axes]].to_numpy(dtype=float, copy=False)
+        sensor_values = data.loc[:, [*acc_axes, *gyr_axes]].to_numpy(copy=False)
     else:
-        sensor_values = np.asarray(data, dtype=float)
+        sensor_values = np.asarray(data)
+    if sensor_values.dtype not in (np.float32, np.float64):
+        sensor_values = sensor_values.astype(float)
 
     step = int(starts[1] - starts[0]) if len(starts) > 1 else 1
     if (
@@ -768,6 +917,8 @@ def extract_features_90pct_batched(  # noqa: PLR0915, PLR0917 - Preserve the est
     lf_band: tuple[float, float] = (0.0, 0.5),
     rolling_win: int = 10,
     feature_names: Sequence[str] = (),
+    *,
+    _prepared: _PreparedRecording | None = None,
 ) -> pd.DataFrame:
     """Extract the 90% XGBoost feature set for a batch of fixed-size windows."""
     if len(window_start_end) == 0:
@@ -795,8 +946,26 @@ def extract_features_90pct_batched(  # noqa: PLR0915, PLR0917 - Preserve the est
     gyr_is = gyr_data[:, :, 0]
     gyr_ml = gyr_data[:, :, 1]
     gyr_pa = gyr_data[:, :, 2]
-    acc_norm = np.sqrt(acc_is * acc_is + acc_ml * acc_ml + acc_pa * acc_pa)
-    gyr_norm = np.sqrt(gyr_is * gyr_is + gyr_ml * gyr_ml + gyr_pa * gyr_pa)
+    if _prepared is None:
+        acc_norm = np.sqrt(acc_is * acc_is + acc_ml * acc_ml + acc_pa * acc_pa)
+        gyr_norm = np.sqrt(gyr_is * gyr_is + gyr_ml * gyr_ml + gyr_pa * gyr_pa)
+    else:
+        acc_norm = _prepared.window("acc_norm", starts, window_samples)
+        gyr_norm = _prepared.window("gyr_norm", starts, window_samples)
+
+    stats = {
+        name: _batched_time_statistics(values, name in {"gyr_is", "gyr_norm"})
+        for name, values in (
+            ("acc_is", acc_is),
+            ("acc_ml", acc_ml),
+            ("acc_pa", acc_pa),
+            ("acc_norm", acc_norm),
+            ("gyr_is", gyr_is),
+            ("gyr_ml", gyr_ml),
+            ("gyr_pa", gyr_pa),
+            ("gyr_norm", gyr_norm),
+        )
+    }
 
     f_acc_is, pxx_acc_is = _batched_welch(acc_is, fs)
     f_acc_ml, pxx_acc_ml = _batched_welch(acc_ml, fs)
@@ -807,16 +976,38 @@ def extract_features_90pct_batched(  # noqa: PLR0915, PLR0917 - Preserve the est
     _, pxx_gyr_pa = _batched_welch(gyr_pa, fs)
     f_gyr_norm, pxx_gyr_norm = _batched_welch(gyr_norm, fs)
 
-    acc_fft = np.abs(rfft(acc_data, axis=1, workers=-1)).sum(axis=1)
-    gyr_fft = np.abs(rfft(gyr_data, axis=1, workers=-1)).sum(axis=1)
+    acc_fft = np.abs(rfft(acc_data, axis=1, workers=1)).sum(axis=1)
+    gyr_fft = np.abs(rfft(gyr_data, axis=1, workers=1)).sum(axis=1)
     acc_abs_sum = np.abs(acc_data).sum(axis=1)
     gyr_abs_sum = np.abs(gyr_data).sum(axis=1)
 
-    jerk_acc_is = np.diff(acc_is, axis=1) / dt
-    jerk_acc_norm = np.diff(acc_norm, axis=1) / dt
-    jerk_gyr_is = np.diff(gyr_is, axis=1) / dt
-    jerk_gyr_ml = np.diff(gyr_ml, axis=1) / dt
-    jerk_gyr_pa = np.diff(gyr_pa, axis=1) / dt
+    if _prepared is None:
+        jerk_acc_is = np.diff(acc_is, axis=1) / dt
+        jerk_acc_norm = np.diff(acc_norm, axis=1) / dt
+        jerk_gyr_is = np.diff(gyr_is, axis=1) / dt
+        jerk_gyr_ml = np.diff(gyr_ml, axis=1) / dt
+        jerk_gyr_pa = np.diff(gyr_pa, axis=1) / dt
+    else:
+        jerk_acc_is = _prepared.window("jerk_acc_is", starts, window_samples - 1)
+        jerk_acc_norm = _prepared.window("jerk_acc_norm", starts, window_samples - 1)
+        jerk_gyr_is = _prepared.window("jerk_gyr_is", starts, window_samples - 1)
+        jerk_gyr_ml = _prepared.window("jerk_gyr_ml", starts, window_samples - 1)
+        jerk_gyr_pa = _prepared.window("jerk_gyr_pa", starts, window_samples - 1)
+
+    permutation_entropies = {
+        name: (
+            _batched_permutation_entropy_order3(values)
+            if _prepared is None
+            else _prepared.entropies[name][starts // _prepared.step_samples]
+        )
+        for name, values in (
+            ("gyr_is", gyr_is),
+            ("acc_is", acc_is),
+            ("acc_ml", acc_ml),
+            ("acc_pa", acc_pa),
+            ("gyr_norm", gyr_norm),
+        )
+    }
 
     acc_axis_energy = np.mean(acc_data**2, axis=1)
     acc_dominant_idx = np.argmax(acc_axis_energy, axis=1)
@@ -836,69 +1027,69 @@ def extract_features_90pct_batched(  # noqa: PLR0915, PLR0917 - Preserve the est
     gyr_ml_hf_power = pxx_gyr_ml[:, hf_mask].sum(axis=1)
 
     features = {
-        "acc_pa_std": np.std(acc_pa, axis=1, ddof=1),
+        "acc_pa_std": stats["acc_pa"].std,
         "gyr_ml_spectral_centroid": _batched_spectral_centroid(f_gyr_ml, pxx_gyr_ml),
         "gyr_is_spectral_centroid": _batched_spectral_centroid(f_gyr_is, pxx_gyr_is),
-        "time_acc_norm_to_dominant_ratio": np.mean(acc_norm, axis=1)
+        "time_acc_norm_to_dominant_ratio": stats["acc_norm"].mean
         / (acc_axis_mean[np.arange(len(acc_axis_mean)), acc_dominant_idx] + 1e-12),
         "gyr_ml_lf_power": gyr_ml_lf_power,
         "gyr_ml_spectral_slope": _batched_spectral_slope(f_gyr_ml, pxx_gyr_ml),
         "acc_pa_spectral_centroid": _batched_spectral_centroid(f_acc_pa, pxx_acc_pa),
         "gyr_is_spectral_slope": _batched_spectral_slope(f_gyr_is, pxx_gyr_is),
-        "gyr_pa_mean": np.mean(gyr_pa, axis=1),
+        "gyr_pa_mean": stats["gyr_pa"].mean,
         "acc_is_jerk_mean": np.mean(np.abs(jerk_acc_is), axis=1),
-        "gyr_is_std": np.std(gyr_is, axis=1, ddof=1),
+        "gyr_is_std": stats["gyr_is"].std,
         "gyr_is_gyr_pa_energy_ratio": gyr_abs_sum[:, 0] / (gyr_abs_sum[:, 2] + 1e-12),
-        "gyr_ml_mean": np.mean(gyr_ml, axis=1),
-        "acc_is_mean": np.mean(acc_is, axis=1),
+        "gyr_ml_mean": stats["gyr_ml"].mean,
+        "acc_is_mean": stats["acc_is"].mean,
         "axis_dominance_ratio": _safe_divide(np.max(gyr_axis_energy, axis=1), np.sum(gyr_axis_energy, axis=1)),
-        "gyr_pa_rms": _batched_rms(gyr_pa),
+        "gyr_pa_rms": stats["gyr_pa"].rms,
         "gyr_ml_iqr": _batched_iqr(gyr_ml),
-        "acc_is_min": np.min(acc_is, axis=1),
-        "acc_pa_rms": _batched_rms(acc_pa),
+        "acc_is_min": stats["acc_is"].minimum,
+        "acc_pa_rms": stats["acc_pa"].rms,
         "acc_is_acc_pa_psd_ratio": acc_fft[:, 0] / (acc_fft[:, 2] + 1e-12),
         "acc_is_median": np.median(acc_is, axis=1),
         "acc_jerk_std_norm": np.std(jerk_acc_norm, axis=1, ddof=1),
-        "gyr_is_mean": np.mean(gyr_is, axis=1),
+        "gyr_is_mean": stats["gyr_is"].mean,
         "gyr_ml_lf_hf_ratio": _safe_divide(gyr_ml_lf_power, gyr_ml_hf_power),
-        "acc_is_max": np.max(acc_is, axis=1),
+        "acc_is_max": stats["acc_is"].maximum,
         "acc_norm_spectral_centroid": _batched_spectral_centroid(f_acc_norm, pxx_acc_norm),
         "gyr_ml_gyr_pa_energy_ratio": gyr_abs_sum[:, 1] / (gyr_abs_sum[:, 2] + 1e-12),
         "acc_pa_median": np.median(acc_pa, axis=1),
         "acc_pa_second_peak_freq": acc_pa_peak_freqs[:, 1],
         "acc_is_spectral_slope": _batched_spectral_slope(f_acc_is, pxx_acc_is),
         "acc_is_acc_ml_psd_ratio": acc_fft[:, 0] / (acc_fft[:, 1] + 1e-12),
-        "gyr_is_perm_entropy": _batched_permutation_entropy_order3(gyr_is),
+        "gyr_is_perm_entropy": (permutation_entropies["gyr_is"]),
         "gyr_is_gyr_pa_psd_ratio": gyr_fft[:, 0] / (gyr_fft[:, 2] + 1e-12),
         "moving_range_mean_norm": _batched_moving_range_mean(gyr_norm, rolling_win),
         "acc_norm_dom_freq": acc_norm_peak_freqs[:, 0],
         "gyr_pa_jerk_mean": np.mean(np.abs(jerk_gyr_pa), axis=1),
-        "acc_is_perm_entropy": _batched_permutation_entropy_order3(acc_is),
-        "acc_ml_mean": np.mean(acc_ml, axis=1),
+        "acc_is_perm_entropy": (permutation_entropies["acc_is"]),
+        "acc_ml_mean": stats["acc_ml"].mean,
         "gyr_is_jerk_mean": np.mean(np.abs(jerk_gyr_is), axis=1),
         "acc_jerk_rms_norm": _batched_rms(jerk_acc_norm),
         "acc_pa_dom_freq": acc_pa_peak_freqs[:, 0],
         "acc_norm_median": np.median(acc_norm, axis=1),
-        "gyr_is_kurtosis": kurtosis(gyr_is, axis=1, fisher=False, bias=False),
+        "gyr_is_kurtosis": stats["gyr_is"].kurtosis,
         "acc_ml_median": np.median(acc_ml, axis=1),
         "gyr_pa_iqr": _batched_iqr(gyr_pa),
-        "acc_ml_perm_entropy": _batched_permutation_entropy_order3(acc_ml),
-        "acc_pa_mean": np.mean(acc_pa, axis=1),
+        "acc_ml_perm_entropy": (permutation_entropies["acc_ml"]),
+        "acc_pa_mean": stats["acc_pa"].mean,
         "acc_jerk_peak_norm": np.max(np.abs(jerk_acc_norm), axis=1),
         "acc_ml_acc_pa_energy_ratio": acc_abs_sum[:, 1] / (acc_abs_sum[:, 2] + 1e-12),
         "gyr_norm_spectral_slope": _batched_spectral_slope(f_gyr_norm, pxx_gyr_norm),
         "gyr_is_gyr_ml_energy_ratio": gyr_abs_sum[:, 0] / (gyr_abs_sum[:, 1] + 1e-12),
-        "acc_pa_max": np.max(acc_pa, axis=1),
+        "acc_pa_max": stats["acc_pa"].maximum,
         "gyr_is_zcr": _batched_zero_crossing_rate(gyr_is),
-        "acc_pa_perm_entropy": _batched_permutation_entropy_order3(acc_pa),
+        "acc_pa_perm_entropy": (permutation_entropies["acc_pa"]),
         "acc_is_acc_ml_energy_ratio": acc_abs_sum[:, 0] / (acc_abs_sum[:, 1] + 1e-12),
         "gyr_is_jerk_rms": _batched_rms(jerk_gyr_is),
         "acc_norm_second_peak_freq": acc_norm_peak_freqs[:, 1],
         "acc_is_jerk_std": np.std(jerk_acc_is, axis=1, ddof=1),
-        "gyr_norm_skew": skew(gyr_norm, axis=1, bias=False),
+        "gyr_norm_skew": stats["gyr_norm"].skew,
         "acc_ml_spectral_slope": _batched_spectral_slope(f_acc_ml, pxx_acc_ml),
-        "acc_pa_min": np.min(acc_pa, axis=1),
-        "acc_norm_mean": np.mean(acc_norm, axis=1),
+        "acc_pa_min": stats["acc_pa"].minimum,
+        "acc_norm_mean": stats["acc_norm"].mean,
         "acc_pa_psd_total": total_acc_pa,
         "acc_pa_third_peak_freq": acc_pa_peak_freqs[:, 2],
         "burst_count_norm": np.sum(
@@ -906,20 +1097,20 @@ def extract_features_90pct_batched(  # noqa: PLR0915, PLR0917 - Preserve the est
             axis=1,
         ),
         "acc_is_zcr": _batched_zero_crossing_rate(acc_is),
-        "acc_norm_rms": _batched_rms(acc_norm),
+        "acc_norm_rms": stats["acc_norm"].rms,
         "gyr_pa_zcr": _batched_zero_crossing_rate(gyr_pa),
-        "acc_ml_rms": _batched_rms(acc_ml),
+        "acc_ml_rms": stats["acc_ml"].rms,
         "acc_pa_spectral_slope": _batched_spectral_slope(f_acc_pa, pxx_acc_pa),
         "acc_norm_spectral_slope": _batched_spectral_slope(f_acc_norm, pxx_acc_norm),
         "gyr_ml_jerk_rms": _batched_rms(jerk_gyr_ml),
         "gyr_ml_gyr_pa_psd_ratio": gyr_fft[:, 1] / (gyr_fft[:, 2] + 1e-12),
         "gyr_pa_spectral_entropy": _batched_spectral_entropy(pxx_gyr_pa),
-        "time_gyr_norm_to_dominant_ratio": np.mean(gyr_norm, axis=1)
+        "time_gyr_norm_to_dominant_ratio": stats["gyr_norm"].mean
         / (gyr_axis_mean[np.arange(len(gyr_axis_mean)), gyr_dominant_idx] + 1e-12),
         "acc_ml_acc_pa_psd_ratio": acc_fft[:, 1] / (acc_fft[:, 2] + 1e-12),
         "gyr_ml_dom_freq": gyr_ml_peak_freqs[:, 0],
-        "gyr_is_rms": _batched_rms(gyr_is),
-        "gyr_norm_perm_entropy": _batched_permutation_entropy_order3(gyr_norm),
+        "gyr_is_rms": stats["gyr_is"].rms,
+        "gyr_norm_perm_entropy": (permutation_entropies["gyr_norm"]),
     }
 
     feature_names = feature_names or FEATURE_ORDER_90PCT
@@ -1004,8 +1195,8 @@ def extract_full_features_batched(  # noqa: PLR0915, PLR0917 - Preserve the esta
 
     acc_abs_sum = np.abs(acc_data).sum(axis=1)
     gyr_abs_sum = np.abs(gyr_data).sum(axis=1)
-    acc_fft = np.abs(rfft(acc_data, axis=1, workers=-1)).sum(axis=1)
-    gyr_fft = np.abs(rfft(gyr_data, axis=1, workers=-1)).sum(axis=1)
+    acc_fft = np.abs(rfft(acc_data, axis=1, workers=1)).sum(axis=1)
+    gyr_fft = np.abs(rfft(gyr_data, axis=1, workers=1)).sum(axis=1)
 
     acc_axis_energy = np.mean(acc_data**2, axis=1)
     gyr_axis_energy = np.mean(gyr_data**2, axis=1)
@@ -1148,6 +1339,8 @@ def extract_features_batched(  # noqa: PLR0917 - Preserve the established featur
     rolling_win: int = 10,
     feature_names: Sequence[str] = (),
     version: str = "lightweight",
+    *,
+    _prepared: _PreparedRecording | None = None,
 ) -> pd.DataFrame:
     """Extract XGBoost wear-time features using only batched feature calculators."""
     if version == "full":
@@ -1180,4 +1373,5 @@ def extract_features_batched(  # noqa: PLR0917 - Preserve the established featur
         lf_band=lf_band,
         rolling_win=rolling_win,
         feature_names=requested_features,
+        _prepared=_prepared,
     )

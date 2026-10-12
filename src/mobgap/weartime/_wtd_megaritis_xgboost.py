@@ -25,7 +25,7 @@ from typing import Any, Final, Literal, Optional, Protocol
 
 import numpy as np
 import pandas as pd
-from joblib import Memory, Parallel, delayed
+from joblib import Memory, Parallel, delayed, parallel_config
 from sklearn.utils.validation import check_is_fitted
 from tpcp import OptimizableParameter, make_action_safe, make_optimize_safe
 from tpcp.caching import hybrid_cache
@@ -47,6 +47,7 @@ from mobgap.weartime.utils._intervals import _validate_waking_hours, _with_local
 from mobgap.weartime.utils.feature_extraction import (
     FEATURE_ORDER_90PCT,
     FULL_FEATURE_ORDER,
+    _prepare_lightweight_recording,
     extract_features_batched,
 )
 from mobgap.weartime.utils.ml_feature_extraction import (
@@ -144,33 +145,47 @@ def _extract_recording_feature_batches(
     feature_names: tuple[str, ...],
 ) -> list[np.ndarray]:
     window_start_end_ = window_start_end(len(data), window_samples, step_samples)
+    if len(window_start_end_) == 0:
+        return []
     dt = 1.0 / sampling_rate_hz
-    sensor_data = data.loc[:, list(sensor_cols)].to_numpy(dtype=float, copy=False)
-    feature_batches = []
-    for batch_start in range(0, len(window_start_end_), window_batch_size):
-        batch_start_end = window_start_end_[batch_start : batch_start + window_batch_size]
-        feature_batches.append(
-            extract_features_batched(
-                sensor_data,
-                batch_start_end,
-                acc_axes=sensor_cols[:3],
-                gyr_axes=sensor_cols[3:],
-                fs=sampling_rate_hz,
-                dt=dt,
-                feature_names=feature_names,
-                version=version,
-            ).to_numpy(dtype=np.float32, copy=False)
-        )
-    return feature_batches
+    sensor_data = data.loc[:, list(sensor_cols)].to_numpy(copy=False)
+    if sensor_data.dtype not in (np.float32, np.float64):
+        sensor_data = sensor_data.astype(float)
+    prepared = (
+        _prepare_lightweight_recording(sensor_data, window_samples, step_samples, dt)
+        if version == "lightweight"
+        else None
+    )
+
+    def extract_batch(batch_start_end: np.ndarray) -> np.ndarray:
+        return extract_features_batched(
+            sensor_data,
+            batch_start_end,
+            acc_axes=sensor_cols[:3],
+            gyr_axes=sensor_cols[3:],
+            fs=sampling_rate_hz,
+            dt=dt,
+            feature_names=feature_names,
+            version=version,
+            _prepared=prepared,
+        ).to_numpy(dtype=np.float32, copy=False)
+
+    return Parallel(require="sharedmem")(
+        delayed(extract_batch)(window_start_end_[start : start + window_batch_size])
+        for start in range(0, len(window_start_end_), window_batch_size)
+    )
 
 
 def _recording_feature_batches(
-    data: pd.DataFrame, *, memory: Memory, feature_kwargs: _FeatureExtractionKwargs
+    data: pd.DataFrame, *, memory: Memory, feature_kwargs: _FeatureExtractionKwargs, n_jobs: int = 1
 ) -> list[np.ndarray]:
     extract = _extract_recording_feature_batches
     if memory.location is not None:
         extract = hybrid_cache(memory, False, fast_inaccurate_hashing=True)(extract)
-    return extract(data, **feature_kwargs)
+    # Execution policy stays outside the cached arguments: training and inference
+    # share features even when they use different numbers of workers.
+    with parallel_config(backend="threading", n_jobs=n_jobs):
+        return extract(data, **feature_kwargs)
 
 
 def _iter_training_recording_feature_batches(
@@ -261,12 +276,13 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     window_batch_size
         Number of windows feature-extracted before one classifier prediction call.
     n_jobs
-        Number of process workers used to extract dataset-backed training datapoints in ``self_optimize``. ``1``
-        disables parallel training feature extraction; ``-1`` uses all available workers. Parallelism is only over
-        indexed datapoints; generic training iterables without indexed loading still run sequentially.
+        Number of joblib workers. Detection and ``extract_features`` use threads over window batches. Dataset-backed
+        training uses processes over recordings, with one batch worker per recording. Generic training iterables
+        remain sequential. ``1`` disables parallel extraction; ``-1`` uses all available workers. Use ``1`` when
+        an outer evaluation already parallelizes folds. Worker count does not change recording feature cache keys.
     memory
         Optional joblib cache for complete recording-level feature batches shared by training and detection. Disabled
-        by default. Cache entries use float32 features; feature calculations retain their original precision.
+        by default. Float32 sensor inputs retain their dtype during extraction; cached features are float32.
     waking_hours
         Local waking-hours window used for ``total_weartime_during_waking_min_`` as ``(start, end)``.
     trained_sampling_rate_hz
@@ -624,5 +640,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
             "sensor_cols": tuple(self.sensor_cols),
             "feature_names": tuple(feature_names),
         }
-        for feature_values in _recording_feature_batches(data, memory=self.memory, feature_kwargs=feature_kwargs):
+        for feature_values in _recording_feature_batches(
+            data, memory=self.memory, feature_kwargs=feature_kwargs, n_jobs=self.n_jobs
+        ):
             yield pd.DataFrame(feature_values, columns=feature_names)
