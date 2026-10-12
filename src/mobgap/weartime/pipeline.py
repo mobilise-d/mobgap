@@ -51,8 +51,8 @@ class _TrainingDataFromDataset:
 
     def load_recording(self, datapoint_index: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         datapoint = self.dataset[datapoint_index]
-        uncertain = getattr(datapoint, "reference_uncertain_", None)
-        if uncertain is not None and not uncertain.empty:
+        uncertain = datapoint.reference_weartime_.query("label == 'uncertain'")
+        if not uncertain.empty:
             raise ValueError(
                 "Cannot optimize a binary wear-time detector on a datapoint with uncertain ground truth. "
                 "Select recordings with fully labeled wear and non-wear references."
@@ -96,7 +96,7 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
 
     This wraps any wear-time detector and allows it to be evaluated or optimized through tpcp's validation and
     optimization utilities.
-    Optimization rejects datapoints with nonempty ``reference_uncertain_`` because the paired training interface
+    Optimization rejects datapoints with uncertain reference regions because the paired training interface
     cannot distinguish uncertain samples from non-wear.
 
     Parameters
@@ -173,7 +173,13 @@ class WtdEmulationPipeline(OptimizablePipeline[BaseGaitDataset]):
 
     @make_optimize_safe
     def self_optimize(self, dataset: BaseGaitDataset) -> Self:
-        """Run a detector's internal optimization routine, if implemented."""
+        """Run a detector's internal optimization routine, if implemented.
+
+        Each datapoint's ``reference_weartime_`` must contain half-open sample ``start`` and ``end`` columns
+        and an unordered categorical ``label`` column with categories ``["wear", "uncertain"]``, even when all
+        regions are wear. The unlabeled complement is known non-wear. This paired training interface rejects
+        recordings containing uncertain regions; those regions cannot be assigned a binary training label.
+        """
         sampling_rate_hz = _single_sampling_rate_hz(dataset)
         training_data = _TrainingDataFromDataset(dataset, convert_to_body_frame=self.convert_to_body_frame)
         self.algo = self.algo.clone().self_optimize(
