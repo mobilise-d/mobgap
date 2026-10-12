@@ -17,7 +17,14 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
-from mobgap.weartime import KerasWeartimeModel, WearTimeModelConfig, WtdMegaritisCNN, WtdMegaritisCNNTrainer
+from mobgap.weartime import (
+    KerasWeartimeModel,
+    MegaritisCnnLstmWeartimeModel,
+    MegaritisCnnWeartimeModel,
+    WearTimeModelConfig,
+    WtdMegaritisCNN,
+    WtdMegaritisCNNTrainer,
+)
 from mobgap.weartime import _keras_weartime_model as keras_model_module
 from mobgap.weartime import _wtd_megaritis_cnn as cnn_module
 from mobgap.weartime import _wtd_megaritis_cnn_trainer as trainer_module
@@ -173,7 +180,7 @@ class TestKerasWeartimeModel:
 
         assert np.allclose(result, expected, rtol=1e-6, atol=1e-6)
 
-        model = WtdMegaritisCNNTrainer()._create_model((20, len(BF_SENSOR_COLS)))
+        model = MegaritisCnnWeartimeModel()._create_model(WearTimeModelConfig(1, 20))
         model_path = tmp_path / "model.keras"
         model.save(model_path)
         loaded_model = keras_models.load_model(model_path)
@@ -183,7 +190,7 @@ class TestKerasWeartimeModel:
     def test_model_with_standardization_loads_in_fresh_process(self, tmp_path: Path) -> None:
         """A saved training artifact can be loaded without prior layer registration."""
         pytest.importorskip("tensorflow")
-        model = WtdMegaritisCNNTrainer()._create_model((20, len(BF_SENSOR_COLS)))
+        model = MegaritisCnnWeartimeModel()._create_model(WearTimeModelConfig(1, 20))
         model_path = tmp_path / "trained.keras"
         model.save(model_path)
 
@@ -295,7 +302,10 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
     ) -> None:
         """Keep original window positions after uncertainty removes partial or complete batches."""
         model = WtdMegaritisCNNTrainer(
-            WtdMegaritisCNN(model=KerasWeartimeModel(window_batch_size=2)), window_sec=20, training_overlap=0.5
+            WtdMegaritisCNN(
+                model=MegaritisCnnWeartimeModel(model_config=WearTimeModelConfig(window_sec=20), window_batch_size=2)
+            ),
+            training_overlap=0.5,
         )
         data = pd.DataFrame(
             np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
@@ -402,35 +412,50 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
 class TestWtdMegaritisCNN:
     """Test the CNN detector behavior with deterministic model outputs."""
 
-    def test_sustain_preset_loads_selected_hyperparameters(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize(
+        ("model_type", "prefix", "preset_name"),
+        [
+            (MegaritisCnnWeartimeModel, "cnn_sustain_weartime", "sustain_weartime_cnn"),
+            (MegaritisCnnLstmWeartimeModel, "cnn_lstm_sustain_weartime", "sustain_weartime_cnn_lstm"),
+        ],
+    )
+    def test_sustain_presets_separate_model_and_training_settings(
+        self, model_type, prefix, preset_name, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Restore selected training settings alongside a model with built-in standardization."""
+        """Load each fitted model and its untrained blueprint independently of the fitting recipe."""
         pytest.importorskip("tensorflow")
-        parameters = {
-            "learning_rate": 0.007,
-            "batch_size": 512,
-            "dropout_rate": 0.5,
-        }
-        (tmp_path / "cnn_sustain_weartime_best_params.json").write_text(json.dumps(parameters))
-        model = WtdMegaritisCNNTrainer(dropout_rate=0.5)._create_model((20, len(BF_SENSOR_COLS)))
-        model.save(tmp_path / "cnn_sustain_weartime_model.keras")
-        monkeypatch.setattr(keras_model_module, "files", lambda _: tmp_path)
-        keras_model_module._load_keras_model_resource.cache_clear()
-        (tmp_path / "cnn_sustain_weartime_model_config.json").write_text(
-            json.dumps(WearTimeModelConfig(1, 20).to_dict())
+        config = WearTimeModelConfig(1, 20)
+        blueprint = model_type(dropout_rate=0.5, filters=(2, 2, 2), dense_units=2)
+        model = blueprint._create_model(config)
+        model.save(tmp_path / f"{prefix}_model.keras")
+        (tmp_path / f"{prefix}_model_config.json").write_text(json.dumps(config.to_dict()))
+        (tmp_path / f"{prefix}_model_params.json").write_text(
+            json.dumps(
+                {
+                    name: value
+                    for name, value in blueprint.get_params(deep=False).items()
+                    if name not in ("model", "model_config")
+                }
+            )
         )
+        recipe = {"learning_rate": 0.007, "batch_size": 512, "gradient_clipnorm": 1}
+        (tmp_path / f"{prefix}_training_params.json").write_text(json.dumps(recipe))
+        monkeypatch.setattr(keras_model_module, "files", lambda _: tmp_path)
         monkeypatch.setattr(cnn_module, "files", lambda _: tmp_path)
         monkeypatch.setattr(trainer_module, "files", lambda _: tmp_path)
-        configured_trainer = WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.sustain_weartime)
-        configured = WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.sustain_weartime).model
-        assert configured_trainer.learning_rate == 0.007
-        assert configured_trainer.batch_size == 512
-        assert configured_trainer.dropout_rate == 0.5
-        assert configured.model_config == WearTimeModelConfig(1, 20)
-        assert any(layer.name == "per_window_standardization" for layer in configured.model.layers)
+        keras_model_module._load_keras_model_resource.cache_clear()
+        parameters = getattr(WtdMegaritisCNN.PredefinedParameters, preset_name)
+        fitted = WtdMegaritisCNN(**parameters).model
+        untrained = WtdMegaritisCNN(**getattr(WtdMegaritisCNN.PredefinedParameters, "untrained_" + preset_name)).model
+        trainer_params = getattr(WtdMegaritisCNNTrainer.PredefinedParameters, preset_name)
+        assert dict(trainer_params) == recipe
+        assert type(fitted) is model_type
+        assert type(untrained) is model_type
+        assert untrained.model is None
+        assert untrained.dropout_rate == 0.5
+        assert fitted.model_config == config
         windows = np.random.default_rng(42).normal(size=(2, 20, 6)).astype(np.float32)
-        assert np.allclose(configured.model(windows, training=False).numpy(), model(windows, training=False).numpy())
+        assert np.allclose(fitted.model(windows, training=False).numpy(), model(windows, training=False).numpy())
         keras_model_module._load_keras_model_resource.cache_clear()
 
     def test_fixed_window_predictions_regression(self) -> None:

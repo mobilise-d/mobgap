@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence  # noqa: TC003 - tpcp resolves parameter annotations.
 from functools import lru_cache
 from importlib import import_module
 from importlib.resources import files
@@ -9,10 +10,10 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import pandas as pd  # noqa: TC002 - tpcp 2.1 resolves class annotations at runtime.
-from tpcp import Algorithm, make_action_safe
+from tpcp import Algorithm, cf, make_action_safe
 from typing_extensions import Self
 
-from mobgap.weartime._model_config import WearTimeModelConfig  # noqa: TC001 - tpcp evaluates annotations.
+from mobgap.weartime._model_config import WearTimeModelConfig
 from mobgap.weartime.utils.ml_feature_extraction import (
     known_window_mask,
     window_count_from_sample_count,
@@ -161,13 +162,13 @@ class KerasWeartimeModel(Algorithm):
 
     _action_methods = ("run",)
     model: Optional[Any]  # noqa: UP045 - tpcp evaluates annotations at runtime.
-    model_config: Optional[WearTimeModelConfig]  # noqa: UP045
+    model_config: WearTimeModelConfig
 
     def __init__(
         self,
         *,
         model: Any | None = None,
-        model_config: WearTimeModelConfig | None = None,
+        model_config: WearTimeModelConfig = cf(WearTimeModelConfig()),
         overlap: float = 0.75,
         prediction_threshold: float = 0.5,
         predict_batch_size: int = 256,
@@ -201,3 +202,135 @@ class KerasWeartimeModel(Algorithm):
         )
         self.window_predictions_ = (self.window_probabilities_ >= self.prediction_threshold).astype(np.int32)
         return self
+
+    def _create_model(self, config: WearTimeModelConfig) -> Any:  # noqa: ARG002 - Same factory interface as blueprints.
+        """Clone a supplied native untrained network; concrete blueprints build their own graph."""
+        return import_module("tensorflow").keras.models.clone_model(self.model)
+
+
+class MegaritisCnnWeartimeModel(KerasWeartimeModel):
+    """CNN model blueprint owning its graph structure and input configuration.
+
+    Parameters
+    ----------
+    model, model_config
+        Native fitted network and input configuration. Leave model unset for a fresh training blueprint.
+    filters, kernel_size, pool_size
+        Filter counts for three convolution blocks, convolution kernel width and max-pooling size.
+    dropout_rate, dense_units
+        Dropout probability and dense hidden-layer width.
+    overlap, prediction_threshold, predict_batch_size, window_batch_size
+        Inference execution settings; see KerasWeartimeModel.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: Any | None = None,
+        model_config: WearTimeModelConfig = cf(WearTimeModelConfig()),
+        filters: Sequence[int] = (32, 64, 128),
+        kernel_size: int = 9,
+        pool_size: int = 2,
+        dropout_rate: float = 0.3,
+        dense_units: int = 64,
+        overlap: float = 0.75,
+        prediction_threshold: float = 0.5,
+        predict_batch_size: int = 256,
+        window_batch_size: int = 1024,
+    ) -> None:
+        super().__init__(
+            model=model,
+            model_config=model_config,
+            overlap=overlap,
+            prediction_threshold=prediction_threshold,
+            predict_batch_size=predict_batch_size,
+            window_batch_size=window_batch_size,
+        )
+        self.filters = filters
+        self.kernel_size = kernel_size
+        self.pool_size = pool_size
+        self.dropout_rate = dropout_rate
+        self.dense_units = dense_units
+
+    def _sequence_layers(self) -> list[Any]:
+        layers = import_module("tensorflow.keras.layers")
+        return [layers.Flatten()]
+
+    def _create_model(self, config: WearTimeModelConfig) -> Any:
+        keras = import_module("tensorflow.keras")
+        layers = import_module("tensorflow.keras.layers")
+        window_samples, _ = config.window_parameters(0)
+        network_layers = [
+            layers.Input(shape=(window_samples, len(config.sensor_cols))),
+            _get_per_window_standardization_layer_class()(name=_MODEL_STANDARDIZATION_LAYER_NAME),
+        ]
+        for filters in self.filters:
+            network_layers.extend(
+                [
+                    layers.Conv1D(filters, self.kernel_size, padding="same"),
+                    layers.BatchNormalization(),
+                    layers.Activation("relu"),
+                    layers.MaxPooling1D(self.pool_size),
+                    layers.Dropout(self.dropout_rate),
+                ]
+            )
+        network_layers.extend(
+            [
+                *self._sequence_layers(),
+                layers.Dense(self.dense_units),
+                layers.BatchNormalization(),
+                layers.Activation("relu"),
+                layers.Dropout(self.dropout_rate),
+                layers.Dense(1, activation="sigmoid"),
+            ]
+        )
+        return keras.Sequential(network_layers)
+
+
+class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
+    """CNN-LSTM model blueprint with an LSTM between the convolution and dense blocks.
+
+    Parameters
+    ----------
+    lstm_units
+        Width of the LSTM layer.
+    model, model_config, filters, kernel_size, pool_size, dropout_rate, dense_units
+        Native network, model inputs and shared structural parameters; see MegaritisCnnWeartimeModel.
+    overlap, prediction_threshold, predict_batch_size, window_batch_size
+        Inference execution settings; see KerasWeartimeModel.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: Any | None = None,
+        model_config: WearTimeModelConfig = cf(WearTimeModelConfig()),
+        filters: Sequence[int] = (32, 64, 128),
+        kernel_size: int = 9,
+        pool_size: int = 2,
+        dropout_rate: float = 0.3,
+        dense_units: int = 64,
+        lstm_units: int = 64,
+        overlap: float = 0.75,
+        prediction_threshold: float = 0.5,
+        predict_batch_size: int = 256,
+        window_batch_size: int = 1024,
+    ) -> None:
+        super().__init__(
+            model=model,
+            model_config=model_config,
+            filters=filters,
+            kernel_size=kernel_size,
+            pool_size=pool_size,
+            dropout_rate=dropout_rate,
+            dense_units=dense_units,
+            overlap=overlap,
+            prediction_threshold=prediction_threshold,
+            predict_batch_size=predict_batch_size,
+            window_batch_size=window_batch_size,
+        )
+        self.lstm_units = lstm_units
+
+    def _sequence_layers(self) -> list[Any]:
+        layers = import_module("tensorflow.keras.layers")
+        return [layers.LSTM(self.lstm_units, return_sequences=False), layers.Dropout(self.dropout_rate)]

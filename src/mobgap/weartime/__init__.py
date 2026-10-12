@@ -2,6 +2,8 @@
 
 from mobgap.weartime._keras_weartime_model import (
     KerasWeartimeModel,
+    MegaritisCnnLstmWeartimeModel,
+    MegaritisCnnWeartimeModel,
     load_keras_weartime_model,
 )
 from mobgap.weartime._model_config import WearTimeModelConfig
@@ -14,6 +16,8 @@ from mobgap.weartime.base import TrainingData
 
 __all__ = [
     "KerasWeartimeModel",
+    "MegaritisCnnLstmWeartimeModel",
+    "MegaritisCnnWeartimeModel",
     "TrainingData",
     "WearTimeModelConfig",
     "WtdMegaritisCNN",

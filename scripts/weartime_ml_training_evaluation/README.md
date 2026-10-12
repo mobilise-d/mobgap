@@ -42,40 +42,61 @@ are supported.
 
 ## Production training
 
-`train.py` tunes and refits XGBoost and CNN on the complete selected dataset.
-There is no outer CV or held-out metric export. Inner search uses the same
-SUSTAIN presets; final refitting uses all provided human and simulated days.
-Edit its optimizer dictionary to choose algorithms and override model/search
-settings. Final artifacts are exported under `.cache/weartime_models`:
+`train.py` tunes and refits XGBoost, CNN and CNN-LSTM on the complete selected dataset.
+There is no outer CV or held-out metric export. Inner search uses the SUSTAIN presets;
+final refitting uses all supplied human and simulated days. Edit the optimizer dictionary
+before running. CNN uses 60 epochs; CNN-LSTM uses 57 epochs and Adam gradient clipping at 1.
 
-- XGBoost: `WtdMegaritisXGBoost/xgboost_sustain_weartime_model.pkl` and
-  `xgboost_sustain_weartime_model_config.json`. Its untrained selected classifier is saved as
-  `xgboost_sustain_weartime_classifier_template.pkl`; fitting settings are in
-  `xgboost_sustain_weartime_training_params.json`
-- CNN: `WtdMegaritisCNN/cnn_sustain_weartime_model.keras` and
-  `cnn_sustain_weartime_model_config.json`
+The supplied untrained detector owns its classifier/network type, structure and input
+configuration. `MegaritisCnnWeartimeModel` and `MegaritisCnnLstmWeartimeModel` build their
+own graphs. The CNN trainer owns Adam settings, epochs, batch/shuffle settings, seed,
+training overlap and dataset conversion. XGBoost's trainer owns training overlap,
+recording processes and dataset conversion; native estimator parameters stay on `algo.clf`.
+Inference overlap, thresholds and batching remain on the detector/model. An untrained input
+configuration may have no sampling rate; fitting fills the dataset's actual rate. Fitted
+inference requires that native rate, so resample explicitly if needed.
 
-Each model directory also contains its `*_best_params.json` with the selected
-Optuna hyperparameters, using pipeline parameter names such as
-`algo__clf__max_depth`. These are the searched settings, not a complete dump of
-fixed model configuration.
+Final artifacts under `.cache/weartime_models` use these independent folders/prefixes:
 
-To package a production run, copy these exported files into
-`src/mobgap/weartime/production_models/`, retaining their names. The fixed
-`WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` and
-`WtdMegaritisCNN.PredefinedParameters.sustain_weartime` presets load
-fitted models with their native sampling rates, window durations and ordered
-inputs. The trainers' `PredefinedParameters.sustain_weartime` presets restore
-fitting settings without loading weights. XGBoost's detector preset
-`PredefinedParameters.untrained_sustain_weartime` restores the selected classifier
-structure and inputs; `baseline_sustain_weartime` creates the canonical fresh baseline
-for tuning before production artifacts exist. They require the freshly
-trained artifacts to be packaged. Detection otherwise requires an explicitly
-trained classifier/model, for example from
-`Optimize(WtdMegaritisXGBoostTrainer()).optimize(dataset).optimized_pipeline_.algo`.
-XGBoost classifier and input/feature settings belong to the supplied untrained detector. Its trainer owns
-training overlap, recording processes and dataset conversion. Training overlap is independent of inference overlap.
-Model inputs must use the native training rate; resample explicitly if needed.
+| Configuration | Folder | Artifact prefix |
+| --- | --- | --- |
+| XGBoost | `WtdMegaritisXGBoost` | `xgboost_sustain_weartime` |
+| CNN | `WtdMegaritisCNN` | `cnn_sustain_weartime` |
+| CNN-LSTM | `WtdMegaritisCNNLSTM` | `cnn_lstm_sustain_weartime` |
+
+Each exports `*_model_config.json` (native rate and ordered inputs),
+`*_best_params.json` (winning searched values, including nested model parameters) and
+`*_training_params.json` (complete fitting recipe, excluding the algorithm).
+CNN variants export `*_model.keras` and `*_model_params.json` (complete window-model
+constructor settings, excluding fitted weights and input configuration).
+XGBoost exports `*_model.pkl` and `*_classifier_template.pkl`; the latter contains
+selected estimator constructor parameters with fitted state removed by sklearn cloning.
+
+To package a production run, copy its exported files into
+`src/mobgap/weartime/production_models/`, retaining their names. Fitted preset loaders
+require those freshly trained artifacts; none are generated automatically on import.
+
+- `WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` loads fitted weights and inputs.
+  `untrained_sustain_weartime` loads the selected untrained template and inputs;
+  `baseline_sustain_weartime` creates the canonical fresh baseline before artifacts exist.
+- `WtdMegaritisCNN.PredefinedParameters.sustain_weartime_cnn` and `sustain_weartime_cnn_lstm`
+  load their respective fitted models. `untrained_sustain_weartime_cnn` and
+  `untrained_sustain_weartime_cnn_lstm` load the respective model definitions without weights.
+- Trainer presets load only fitting recipes: XGBoost's `sustain_weartime`, and CNN's
+  `sustain_weartime_cnn` / `sustain_weartime_cnn_lstm`. Supply the matching untrained detector
+  when constructing a trainer from a recipe. Search spaces and inner CV remain in
+  `OptimizationPresets.sustain_weartime`.
+
+For example, retrain the selected CNN-LSTM definition through TPCP:
+
+```python
+algo = WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.untrained_sustain_weartime_cnn_lstm)
+trainer = WtdMegaritisCNNTrainer(
+    algo,
+    **WtdMegaritisCNNTrainer.PredefinedParameters.sustain_weartime_cnn_lstm,
+)
+fitted_detector = Optimize(trainer).optimize(dataset).optimized_pipeline_.algo
+```
 
 Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).
 Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time

@@ -20,6 +20,8 @@ Algorithms
     WtdMegaritisCNN
     WtdMegaritisCNNTrainer
     KerasWeartimeModel
+    MegaritisCnnWeartimeModel
+    MegaritisCnnLstmWeartimeModel
 
 Base classes
 ++++++++++++
