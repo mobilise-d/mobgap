@@ -40,7 +40,7 @@ def main() -> None:
             **WtdMegaritisXGBoost.OptimizationPresets.sustain_weartime,
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
-            WtdEmulationPipeline(WtdMegaritisCNN(model=MegaritisCnnWeartimeModel(standardize_in_model=True))),
+            WtdEmulationPipeline(WtdMegaritisCNN(model=MegaritisCnnWeartimeModel())),
             **WtdMegaritisCNN.OptimizationPresets.sustain_weartime,
         ),
     }

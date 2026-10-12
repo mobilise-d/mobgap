@@ -224,7 +224,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         References use half-open sample boundaries; windows intersecting uncertain intervals are excluded,
         retaining known windows on their original recording grid.
         """
-        model = self.model or MegaritisCnnWeartimeModel(standardize_in_model=True)
+        model = self.model or MegaritisCnnWeartimeModel()
         self.model = model.self_optimize(
             training_data,
             sampling_rate_hz=sampling_rate_hz,

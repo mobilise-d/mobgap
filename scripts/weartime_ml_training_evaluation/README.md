@@ -63,7 +63,8 @@ with MobGap. Both workflows use local calendar days with at least eight hours
 of recorded data.
 
 XGBoost extracts float32 features per supplied recording/day using TPCP hybrid
-caching. CNN prepares windows lazily without feature caching. Load exported CNN
+caching. CNN prepares raw windows lazily without feature caching; per-window
+standardization always runs inside its Keras model. Load exported CNN
 artifacts in a fresh process with
 `mobgap.weartime.load_keras_weartime_model(path)` to register its standardization
 layer before deserialization.

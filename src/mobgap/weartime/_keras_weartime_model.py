@@ -48,17 +48,6 @@ def _validate_model_sampling_rate(
         )
 
 
-def _standardize_windows(windows: np.ndarray) -> np.ndarray:
-    # The caller passes freshly materialized window batches, so standardize in place to avoid extra copies.
-    windows = windows.astype(np.float32, copy=False)
-    mean = windows.mean(axis=1, keepdims=True)
-    windows -= mean
-    variance = np.einsum("ijk,ijk->ik", windows, windows, optimize=True)[:, None, :] / windows.shape[1]
-    variance[variance < 1e-16] = 1e-16
-    windows /= np.sqrt(variance, dtype=np.float32)
-    return windows
-
-
 def _as_model_input_sensor_array(sensor_data: np.ndarray) -> np.ndarray:
     return np.asarray(sensor_data, dtype=np.float32, order="C")
 
@@ -111,14 +100,25 @@ def _load_keras_model_resource(file_name: str) -> Any:
 
 
 def load_keras_weartime_model(model_path: str | PathLike[str]) -> Any:
-    """Load a wear-time Keras artifact, registering the optional model standardization layer first."""
-    _get_per_window_standardization_layer_class()
+    """Load a wear-time artifact whose graph standardizes raw windows, adding the layer when needed."""
+    standardization_layer = _get_per_window_standardization_layer_class()
     keras_models = import_module("tensorflow.keras.models")
-    return keras_models.load_model(model_path)
+    model = keras_models.load_model(model_path)
+    # Packaged models trained with externally standardized inputs need the same preprocessing in their graph.
+    if not any(isinstance(layer, standardization_layer) for layer in model.layers):
+        layers = import_module("tensorflow.keras.layers")
+        model = keras_models.Sequential(
+            [
+                layers.Input(shape=model.input_shape[1:]),
+                standardization_layer(name=_MODEL_STANDARDIZATION_LAYER_NAME),
+                model,
+            ]
+        )
+    return model
 
 
 class BaseKerasWeartimeModel(Algorithm):
-    """Base class for Keras models that classify wear-time windows."""
+    """Base class for Keras wear-time models with per-window standardization in their input graph."""
 
     _action_methods = ("run",)
 
@@ -154,7 +154,6 @@ class BaseKerasWeartimeModel(Algorithm):
         window_batch_size: int = 1024,
         shuffle_buffer_size: int = 8192,
         allow_sampling_rate_mismatch: bool = False,
-        standardize_in_model: bool = False,
     ) -> None:
         self._model = _model
         self._trained_sampling_rate_hz = _trained_sampling_rate_hz
@@ -169,7 +168,6 @@ class BaseKerasWeartimeModel(Algorithm):
         self.window_batch_size = window_batch_size
         self.shuffle_buffer_size = shuffle_buffer_size
         self.allow_sampling_rate_mismatch = allow_sampling_rate_mismatch
-        self.standardize_in_model = standardize_in_model
 
     @make_action_safe
     def run(self, data: pd.DataFrame, *, sampling_rate_hz: float) -> Self:
@@ -243,8 +241,7 @@ class BaseKerasWeartimeModel(Algorithm):
     def _model_input_layers(self, input_shape: tuple[int, int]) -> list[Any]:
         layers = import_module("tensorflow.keras.layers")
         input_layers = [layers.Input(shape=input_shape)]
-        if self.standardize_in_model:
-            input_layers.append(_get_per_window_standardization_layer_class()(name=_MODEL_STANDARDIZATION_LAYER_NAME))
+        input_layers.append(_get_per_window_standardization_layer_class()(name=_MODEL_STANDARDIZATION_LAYER_NAME))
         return input_layers
 
     def _window_parameters(self, sampling_rate_hz: float) -> tuple[int, int]:
@@ -289,12 +286,10 @@ class BaseKerasWeartimeModel(Algorithm):
             batch_window_view = window_view[batch_start : batch_start + len(starts)]
             if not known.all():
                 batch_window_view = batch_window_view[known]
-            if self.standardize_in_model and batch_window_view.flags.c_contiguous:
+            if batch_window_view.flags.c_contiguous:
                 windows = batch_window_view
             else:
                 windows = np.array(batch_window_view, dtype=np.float32, order="C")
-            if not self.standardize_in_model:
-                windows = _standardize_windows(windows)
             yield windows, starts[known]
 
     def _iter_training_window_batches(
@@ -357,15 +352,11 @@ class MegaritisCnnWeartimeModel(BaseKerasWeartimeModel):
     predict_batch_size
         Keras prediction batch size.
     window_batch_size
-        Number of windows materialized and standardized at once while iterating over a recording.
+        Number of raw windows prepared at once while iterating over a recording. Standardization runs in the model.
     shuffle_buffer_size
         Buffer size used to shuffle training windows in the TensorFlow dataset.
     allow_sampling_rate_mismatch
         If ``True``, allow inference at a different sampling rate than the loaded or trained model.
-    standardize_in_model
-        If ``True``, add a Keras preprocessing layer that standardizes each window per channel and skip NumPy-side
-        standardization while iterating windows. Keep ``False`` for existing pretrained models that already expect
-        standardized inputs.
     filters
         Number of convolution filters in the three CNN blocks.
     kernel_size
@@ -428,7 +419,6 @@ class MegaritisCnnWeartimeModel(BaseKerasWeartimeModel):
         window_batch_size: int = 1024,
         shuffle_buffer_size: int = 8192,
         allow_sampling_rate_mismatch: bool = False,
-        standardize_in_model: bool = False,
         filters: Sequence[int] = (32, 64, 128),
         kernel_size: int = 9,
         pool_size: int = 2,
@@ -450,7 +440,6 @@ class MegaritisCnnWeartimeModel(BaseKerasWeartimeModel):
             window_batch_size=window_batch_size,
             shuffle_buffer_size=shuffle_buffer_size,
             allow_sampling_rate_mismatch=allow_sampling_rate_mismatch,
-            standardize_in_model=standardize_in_model,
         )
         self.filters = filters
         self.kernel_size = kernel_size
@@ -524,15 +513,11 @@ class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
     predict_batch_size
         Keras prediction batch size.
     window_batch_size
-        Number of windows materialized and standardized at once while iterating over a recording.
+        Number of raw windows prepared at once while iterating over a recording. Standardization runs in the model.
     shuffle_buffer_size
         Buffer size used to shuffle training windows in the TensorFlow dataset.
     allow_sampling_rate_mismatch
         If ``True``, allow inference at a different sampling rate than the loaded or trained model.
-    standardize_in_model
-        If ``True``, add a Keras preprocessing layer that standardizes each window per channel and skip NumPy-side
-        standardization while iterating windows. Keep ``False`` for existing pretrained models that already expect
-        standardized inputs.
     filters
         Number of convolution filters in the three CNN blocks.
     kernel_size
@@ -597,7 +582,6 @@ class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
         window_batch_size: int = 1024,
         shuffle_buffer_size: int = 8192,
         allow_sampling_rate_mismatch: bool = False,
-        standardize_in_model: bool = False,
         filters: Sequence[int] = (32, 64, 128),
         kernel_size: int = 9,
         pool_size: int = 2,
@@ -620,7 +604,6 @@ class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
             window_batch_size=window_batch_size,
             shuffle_buffer_size=shuffle_buffer_size,
             allow_sampling_rate_mismatch=allow_sampling_rate_mismatch,
-            standardize_in_model=standardize_in_model,
             filters=filters,
             kernel_size=kernel_size,
             pool_size=pool_size,

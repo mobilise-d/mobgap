@@ -175,24 +175,6 @@ class TestMegaritisCnnWeartimeModel:
                 sampling_rate_hz=1.0,
             )
 
-    def test_standardize_windows_matches_mean_std_formula(self) -> None:
-        """Standardize windows without changing the numerical result."""
-        rng = np.random.default_rng(42)
-        windows = rng.normal(loc=9.81, scale=0.2, size=(8, 20, len(BF_SENSOR_COLS))).astype(np.float32)
-        windows[0] = 3.0
-        original_windows = windows.copy()
-
-        expected = original_windows - original_windows.mean(axis=1, keepdims=True)
-        expected_std = original_windows.std(axis=1, keepdims=True)
-        expected_std[expected_std < 1e-8] = 1e-8
-        expected = (expected / expected_std).astype(np.float32, copy=False)
-
-        result = keras_model_module._standardize_windows(windows)
-
-        assert result.dtype == np.float32
-        assert np.allclose(result, expected)
-        assert_array_equal(result[0], np.zeros_like(result[0]))
-
     def test_model_input_sensor_array_is_float32_and_contiguous(self) -> None:
         """Prepare recording-level sensor arrays once before batching windows."""
         source = np.arange(20 * len(BF_SENSOR_COLS) * 2, dtype=np.float64).reshape(20, len(BF_SENSOR_COLS) * 2)
@@ -214,23 +196,44 @@ class TestMegaritisCnnWeartimeModel:
         layer_cls = keras_model_module._get_per_window_standardization_layer_class()
         rng = np.random.default_rng(42)
         windows = rng.normal(loc=9.81, scale=0.2, size=(8, 20, len(BF_SENSOR_COLS))).astype(np.float32)
+        windows[0] = 3.0
 
         result = layer_cls()(tf.constant(windows)).numpy()
-        expected = keras_model_module._standardize_windows(windows.copy())
+        centered = windows - windows.mean(axis=1, keepdims=True)
+        expected = centered / np.sqrt(np.maximum(np.mean(centered**2, axis=1, keepdims=True), 1e-16))
 
         assert np.allclose(result, expected, rtol=1e-6, atol=1e-6)
 
-        model = MegaritisCnnWeartimeModel(standardize_in_model=True)._create_model((20, len(BF_SENSOR_COLS)))
+        model = MegaritisCnnWeartimeModel()._create_model((20, len(BF_SENSOR_COLS)))
         model_path = tmp_path / "model.keras"
         model.save(model_path)
         loaded_model = keras_models.load_model(model_path)
 
         assert any(layer.name == "per_window_standardization" for layer in loaded_model.layers)
 
+    def test_load_model_embeds_standardization_for_existing_artifacts(self, tmp_path: Path) -> None:
+        """Existing models accept raw windows after loading, without changing their predictions."""
+        tf = pytest.importorskip("tensorflow")
+        windows = np.random.default_rng(42).normal(loc=9.81, scale=0.2, size=(2, 20, 6)).astype(np.float32)
+        model = tf.keras.Sequential(
+            [tf.keras.layers.Input((20, 6)), tf.keras.layers.Flatten(), tf.keras.layers.Dense(1)]
+        )
+        centered = windows - windows.mean(axis=1, keepdims=True)
+        standardized = centered / np.sqrt(np.maximum(np.mean(centered**2, axis=1, keepdims=True), 1e-16))
+        expected = model(standardized, training=False).numpy()
+        model_path = tmp_path / "model.keras"
+        model.save(model_path)
+
+        loaded = keras_model_module.load_keras_weartime_model(model_path)
+        assert np.allclose(loaded(windows, training=False).numpy(), expected, rtol=1e-5, atol=1e-5)
+        loaded.save(model_path)
+        reloaded = keras_model_module.load_keras_weartime_model(model_path)
+        assert np.allclose(reloaded(windows, training=False).numpy(), expected, rtol=1e-5, atol=1e-5)
+
     def test_model_with_standardization_loads_in_fresh_process(self, tmp_path: Path) -> None:
         """A saved training artifact can be loaded without prior layer registration."""
         pytest.importorskip("tensorflow")
-        model = MegaritisCnnWeartimeModel(standardize_in_model=True)._create_model((20, len(BF_SENSOR_COLS)))
+        model = MegaritisCnnWeartimeModel()._create_model((20, len(BF_SENSOR_COLS)))
         model_path = tmp_path / "trained.keras"
         model.save(model_path)
 
@@ -287,20 +290,15 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         assert not result.flags.writeable
         assert np.shares_memory(result, sensor_data)
 
-    def test_model_standardization_skips_cpu_standardization(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_window_batches_preserve_raw_sensor_values(self) -> None:
         """Yield raw windows when the Keras model owns standardization."""
         data = pd.DataFrame(
             np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
             columns=BF_SENSOR_COLS,
         )
 
-        def _raise_if_called(_windows: np.ndarray) -> np.ndarray:
-            raise AssertionError("CPU standardization should be skipped.")
-
-        monkeypatch.setattr(keras_model_module, "_standardize_windows", _raise_if_called)
-
         result = list(
-            MegaritisCnnWeartimeModel(standardize_in_model=True, window_sec=20.0, overlap=0.0)._iter_window_batches(
+            MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.0)._iter_window_batches(
                 data,
                 sampling_rate_hz=1.0,
             )
@@ -317,7 +315,7 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         )
 
         result = list(
-            MegaritisCnnWeartimeModel(standardize_in_model=True, window_sec=20.0, overlap=0.0)._iter_window_batches(
+            MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.0)._iter_window_batches(
                 data,
                 sampling_rate_hz=1.0,
             )
@@ -342,7 +340,7 @@ assert any(layer.name == 'per_window_standardization' for layer in model.layers)
         self, monkeypatch: pytest.MonkeyPatch, uncertain, expected_starts, first_labels, batch_sizes
     ) -> None:
         """Keep original window positions after uncertainty removes partial or complete batches."""
-        model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2, standardize_in_model=True)
+        model = MegaritisCnnWeartimeModel(window_sec=20.0, overlap=0.5, window_batch_size=2)
         data = pd.DataFrame(
             np.arange(60 * len(BF_SENSOR_COLS), dtype=np.float32).reshape(60, len(BF_SENSOR_COLS)),
             columns=BF_SENSOR_COLS,
@@ -481,7 +479,6 @@ class TestWtdMegaritisCNN:
         result = WtdMegaritisCNN().self_optimize(training_data, sampling_rate_hz=1.0)
 
         assert isinstance(result.model, MegaritisCnnWeartimeModel)
-        assert result.model.standardize_in_model is True
         assert calls == [(training_data, 1.0)]
 
     def test_self_optimize_delegates_to_configured_window_model(self) -> None:
