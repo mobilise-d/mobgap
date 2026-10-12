@@ -48,7 +48,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
     This trainer only controls fitting; thresholds and prediction batching remain on ``algo.model``.
     ``random_seed`` seeds network initialization, dropout and window shuffling.
 
-    ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` supply fixed initial fitting recipes.
+    ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` configure fresh algorithms and initial fitting settings.
     ``PredefinedParameters.sustain_weartime_cnn`` and ``sustain_weartime_cnn_lstm`` restore selected fitting recipes
     without loading model structure or weights.
     ``OptimizationPresets.sustain_weartime`` supplies the search space, grouped inner CV and training subsampling.
@@ -120,13 +120,14 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
             )
 
     class PredefinedParameters:
-        """Initial and selected SUSTAIN fitting settings, without model structure or weights."""
+        """Complete empty trainer configurations and selected SUSTAIN fitting recipes."""
 
         @classproperty
         def empty_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Provide the initial CNN fitting recipe without loading packaged artifacts."""
+            """Configure a fresh CNN algorithm and initial fitting settings without packaged artifacts."""
             return MappingProxyType(
                 {
+                    "algo": WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn),
                     "training_overlap": 0.75,
                     "learning_rate": 0.001,
                     "gradient_clipnorm": None,
@@ -141,8 +142,15 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
 
         @classproperty
         def empty_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Provide the initial CNN-LSTM fitting recipe with 57 epochs and gradient clipping at 1."""
-            return MappingProxyType({**cls.empty_cnn, "epochs": 57, "gradient_clipnorm": 1})
+            """Configure a fresh CNN-LSTM algorithm with 57 epochs and gradient clipping at 1."""
+            return MappingProxyType(
+                {
+                    **cls.empty_cnn,
+                    "algo": WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn_lstm),
+                    "epochs": 57,
+                    "gradient_clipnorm": 1,
+                }
+            )
 
         @classproperty
         def sustain_weartime_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805

@@ -46,17 +46,11 @@ def main() -> None:
             **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
-            WtdMegaritisCNNTrainer(
-                WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn),
-                **WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn,
-            ),
+            WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn),
             **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
         ),
         "WtdMegaritisCNNLSTM": WearTimeOptunaSearch(
-            WtdMegaritisCNNTrainer(
-                WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn_lstm),
-                **WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm,
-            ),
+            WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm),
             **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
         ),
     }

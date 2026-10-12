@@ -82,18 +82,17 @@ require those freshly trained artifacts; none are generated automatically on imp
   `baseline_sustain_weartime` creates the canonical fresh baseline before artifacts exist.
 - `WtdMegaritisCNN.PredefinedParameters.empty_cnn` and `empty_cnn_lstm` create fresh
   model blueprints with their default architecture and input configuration, without packaged files.
-  The matching `WtdMegaritisCNNTrainer.PredefinedParameters` presets supply only the initial
-  fitting settings. For example:
+  The matching `WtdMegaritisCNNTrainer.PredefinedParameters` presets include the empty
+  algorithm and initial fitting settings, so a single preset configures the trainer:
 
   ```python
-  algo = WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.empty_cnn_lstm)
-  trainer = WtdMegaritisCNNTrainer(algo, **WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm)
+  trainer = WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm)
   ```
 
 - `WtdMegaritisCNN.PredefinedParameters.sustain_weartime_cnn` and `sustain_weartime_cnn_lstm`
   load their respective fitted models. `untrained_sustain_weartime_cnn` and
   `untrained_sustain_weartime_cnn_lstm` load the respective model definitions without weights.
-- Trainer presets load only fitting recipes: XGBoost's `sustain_weartime`, and CNN's
+- Artifact-backed trainer presets load only fitting recipes: XGBoost's `sustain_weartime`, and CNN's
   `sustain_weartime_cnn` / `sustain_weartime_cnn_lstm`. Supply the matching untrained detector
   when constructing a trainer from a recipe. Search spaces and inner CV remain in
   `OptimizationPresets.sustain_weartime`.
