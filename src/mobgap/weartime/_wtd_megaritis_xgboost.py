@@ -279,10 +279,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     window_batch_size
         Number of windows feature-extracted before one classifier prediction call.
     n_jobs
-        Number of joblib workers. Detection and ``extract_features`` use threads over window batches. Dataset-backed
-        training uses processes over recordings, with one batch worker per recording. Generic training iterables
-        remain sequential. ``1`` disables parallel extraction; ``-1`` uses all available workers. Use ``1`` when
-        an outer evaluation already parallelizes folds. Worker count does not change recording feature cache keys.
+        Number of joblib workers, default 4. Detection and ``extract_features`` use threads over window
+        batches. Dataset-backed training uses processes over recordings, with one batch worker per recording.
+        Generic training iterables remain sequential. ``1`` disables parallel extraction; ``-1`` uses all
+        available workers. Use ``1`` when an outer evaluation already parallelizes folds. Worker count does
+        not change recording feature cache keys.
     memory
         Optional joblib cache for complete recording-level feature batches shared by training and detection. Disabled
         by default. Float32 sensor inputs retain their dtype during extraction; cached features are float32.
@@ -422,7 +423,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         sensor_cols: Sequence[str] = tuple(BF_SENSOR_COLS),
         prediction_threshold: float = 0.5,
         window_batch_size: int = 4096,
-        n_jobs: int = 1,
+        n_jobs: int = 4,
         memory: Memory = Memory(None),
         waking_hours: tuple[time, time] = (time(7), time(22)),
         trained_sampling_rate_hz: Optional[float] = 100.0,  # noqa: UP045 - tpcp 2.1 resolves annotations.

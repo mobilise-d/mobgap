@@ -85,6 +85,7 @@ optimizers = {
         WtdEmulationPipeline(
             WtdMegaritisXGBoost(
                 **WtdMegaritisXGBoost.PredefinedParameters.untrained_lightweight,
+                n_jobs=1,
                 memory=Memory(
                     cache_dir / "xgboost_features", compress=3, verbose=0
                 ),
