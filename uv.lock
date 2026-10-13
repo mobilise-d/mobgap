@@ -1673,7 +1673,7 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.12.0" },
     { name = "statsmodels", specifier = ">=0.14.3" },
     { name = "tensorflow", marker = "python_full_version < '3.13' and extra == 'weartime'", specifier = ">=2.18,<2.19" },
-    { name = "tpcp", git = "https://github.com/mad-lab-fau/tpcp.git?rev=fix%2Foptuna-worker-only-trials" },
+    { name = "tpcp", specifier = ">=3.4.0" },
     { name = "xgboost", marker = "extra == 'weartime'", specifier = ">=2.1.4,<3.0" },
 ]
 provides-extras = ["ax6", "weartime"]
@@ -3421,8 +3421,8 @@ wheels = [
 
 [[package]]
 name = "tpcp"
-version = "3.3.0"
-source = { git = "https://github.com/mad-lab-fau/tpcp.git?rev=fix%2Foptuna-worker-only-trials#b79519c76e6df829b2cd9a6419aa870277bb3f66" }
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "joblib" },
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
@@ -3431,6 +3431,10 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "tqdm" },
     { name = "xxhash" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/cf/020a4b6be5df3c85b1d8b05c24b91ab8bf9f023aae42afe53b6502b2a1a5/tpcp-3.4.0.tar.gz", hash = "sha256:2277dd3076294635e7c92ad0c4bc3c0a8364924045931973ab8ef4e316a1713a", size = 115709, upload-time = "2026-10-13T15:09:54.542Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/56/ee9ac8dc25e2b5c591b190306c9bc85a468d61f84f150c0141f2fb201417/tpcp-3.4.0-py3-none-any.whl", hash = "sha256:2950b84f0f0429dd9a08b0b056ded552b8c8b1e42e5b9c66b61cc6d6a910c8f7", size = 131389, upload-time = "2026-10-13T15:09:53.164Z" },
 ]
 
 [[package]]
