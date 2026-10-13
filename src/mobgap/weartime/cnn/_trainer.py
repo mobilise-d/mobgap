@@ -25,15 +25,15 @@ from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDataset
-from mobgap.weartime._megaritis_cnn._detector import WtdMegaritisCNN
-from mobgap.weartime._megaritis_cnn._model import (
-    KerasWeartimeModel,
-    _iter_window_batches,
-)
 from mobgap.weartime._model_config import WearTimeModelConfig  # noqa: TC001 - tpcp resolves method annotations.
 from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
 from mobgap.weartime._training import _single_sampling_rate_hz, _TrainingDataFromDataset
 from mobgap.weartime.base import TrainingData  # noqa: TC001 - tpcp evaluates annotations at runtime.
+from mobgap.weartime.cnn._detector import WtdMegaritisCNN
+from mobgap.weartime.cnn._model import (
+    KerasWeartimeModel,
+    _iter_window_batches,
+)
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils.ml_feature_extraction import labels_from_interval_arrays, reference_weartime_interval_arrays
 
@@ -158,7 +158,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
         def sustain_weartime_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load the CNN fitting recipe without model structure or weights."""
             with (
-                files("mobgap.weartime._megaritis_cnn._models")
+                files("mobgap.weartime.cnn._models")
                 .joinpath("cnn_sustain_weartime_training_params.json")
                 .open() as file
             ):
@@ -168,7 +168,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
         def sustain_weartime_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load the CNN-LSTM fitting recipe without model structure or weights."""
             with (
-                files("mobgap.weartime._megaritis_cnn._models")
+                files("mobgap.weartime.cnn._models")
                 .joinpath("cnn_lstm_sustain_weartime_training_params.json")
                 .open() as file
             ):

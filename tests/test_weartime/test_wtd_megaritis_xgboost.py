@@ -21,8 +21,8 @@ pytest.importorskip("xgboost")
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.weartime import WearTimeModelConfig
-from mobgap.weartime._megaritis_xgboost import _detector as xgb_module
-from mobgap.weartime._megaritis_xgboost._features import (
+from mobgap.weartime.xgboost import _detector as xgb_module
+from mobgap.weartime.xgboost._features import (
     FEATURE_ORDER_90PCT,
     FULL_FEATURE_ORDER,
     _batched_iqr,

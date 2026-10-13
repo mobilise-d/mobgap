@@ -88,8 +88,8 @@ directory, retaining their names:
 
 | Algorithm | Resource directory |
 | --- | --- |
-| CNN and CNN-LSTM | `src/mobgap/weartime/_megaritis_cnn/_models/` |
-| XGBoost | `src/mobgap/weartime/_megaritis_xgboost/_models/` |
+| CNN and CNN-LSTM | `src/mobgap/weartime/cnn/_models/` |
+| XGBoost | `src/mobgap/weartime/xgboost/_models/` |
 
 Fitted preset loaders require those freshly trained artifacts; none are generated
 automatically on import.

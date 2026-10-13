@@ -22,9 +22,9 @@ pytest.importorskip("tensorflow")
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime import WearTimeModelConfig
-from mobgap.weartime._megaritis_cnn import _detector as cnn_module
-from mobgap.weartime._megaritis_cnn import _model as keras_model_module
-from mobgap.weartime._megaritis_cnn import _trainer as trainer_module
+from mobgap.weartime.cnn import _detector as cnn_module
+from mobgap.weartime.cnn import _model as keras_model_module
+from mobgap.weartime.cnn import _trainer as trainer_module
 from mobgap.weartime.cnn import (
     KerasWeartimeModel,
     MegaritisCnnLstmWeartimeModel,
