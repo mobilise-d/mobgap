@@ -41,15 +41,15 @@ def main() -> None:
                     memory=Memory(cache_dir, compress=3, verbose=0),
                 ),
             ),
-            **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
+            **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
             WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn),
-            **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
+            **WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime,
         ),
         "WtdMegaritisCNNLSTM": WearTimeOptunaSearch(
             WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm),
-            **WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime,
+            **WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime,
         ),
     }
 

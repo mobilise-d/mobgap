@@ -31,7 +31,7 @@ class WtdEmulationPipeline(Pipeline[BaseGaitDataset]):
 
     For training with hyperparameter optimization, wrap the trainer in
     :class:`~mobgap.weartime.optimization.WearTimeOptunaSearch`. The trainer's
-    ``OptimizationPresets.sustain_weartime`` configures the search for SUSTAIN data.
+    ``HyperparameterSearchPresets.sustain_weartime`` configures the search for SUSTAIN data.
     In evaluation cross-validation, use this Optuna search as the optimizer so that tuning and fitting
     run within each outer training fold, keeping the outer test data out of hyperparameter selection.
 

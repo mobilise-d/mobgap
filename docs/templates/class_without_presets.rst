@@ -4,7 +4,7 @@
 .. currentmodule:: {{ module }}
 
 .. autoclass:: {{ objname }}
-   :exclude-members: PredefinedParameters, OptimizationPresets
+   :exclude-members: PredefinedParameters, HyperparameterSearchPresets
 
    {% block methods %}
    .. automethod:: __init__

@@ -62,7 +62,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
     ... )
     >>> optimizer = WearTimeOptunaSearch(
     ...     pipeline,
-    ...     **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
+    ...     **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
     ... )
 
     The preset supplies human-only, participant-grouped inner validation and a
@@ -79,7 +79,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
     Replace ``cv__parts__human__selector`` to change human-day selection, or
     ``cv__parts__simulated_non_wear__splitter__train`` to change the simulated
     training pool. For CNN, pass :class:`~mobgap.weartime.cnn.WtdMegaritisCNNTrainer` with
-    ``WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime``.
+    ``WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime``.
 
     Parameters
     ----------

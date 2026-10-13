@@ -28,7 +28,7 @@ import pytest
             "from mobgap.weartime.optimization import WearTimeOptunaSearch\n"
             "trainer = WtdMegaritisXGBoostTrainer(WtdMegaritisXGBoost())\n"
             "WearTimeOptunaSearch(trainer, "
-            "**WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime).clone().create_objective()",
+            "**WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime).clone().create_objective()",
         ),
         (
             ("tensorflow", "optuna"),
@@ -37,7 +37,7 @@ import pytest
             "from mobgap.weartime.optimization import WearTimeOptunaSearch\n"
             "trainer = WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn)\n"
             "WearTimeOptunaSearch(trainer, "
-            "**WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime).clone().create_objective()",
+            "**WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime).clone().create_objective()",
         ),
         (
             (),

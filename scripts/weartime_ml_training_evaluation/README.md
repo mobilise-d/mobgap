@@ -14,7 +14,7 @@ source recordings use one seed-42 50/50 split of complete original recordings;
 all days of a recording stay in the same half. The same training and test
 recordings repeat across outer fold models. The signal detector uses
 `DummyOptimize`; CNN and XGBoost use `WearTimeOptunaSearch` with the trainers'
-`OptimizationPresets.sustain_weartime`.
+`HyperparameterSearchPresets.sustain_weartime`.
 
 The inner presets rank three human participant folds. Each inner training set
 independently samples 40% of human days and five seed-42 simulated non-wear days
@@ -113,7 +113,7 @@ automatically on import.
 - Artifact-backed trainer presets load only fitting recipes: XGBoost's `sustain_weartime`, and CNN's
   `sustain_weartime_cnn` / `sustain_weartime_cnn_lstm`. Supply the matching untrained detector
   when constructing a trainer from a recipe. Search spaces and inner CV remain in
-  `OptimizationPresets.sustain_weartime`.
+  `HyperparameterSearchPresets.sustain_weartime`.
 
 For example, retrain the selected CNN-LSTM definition through TPCP:
 
