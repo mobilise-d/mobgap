@@ -37,6 +37,21 @@ def _sample_sustain_training_days(
 
 
 def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
+    """Configure inner validation and training subsets for the SUSTAIN search presets.
+
+    ``SustainWearTimeDataset`` contains human-movement days and simulated non-wear days.
+    Hyperparameter selection uses human-movement days, which contain real movement data.
+    Simulated non-wear days can help the algorithms learn specificity, so they are included
+    in training but never used to rank hyperparameter candidates.
+
+    The combined splitter groups human-movement days by participant for cross-validation.
+    It also includes the supplied simulated non-wear pool in every fold's training set,
+    keeping those days out of the validation sets.
+
+    The training transform then independently subsamples human and simulated non-wear days
+    to limit computation during hyperparameter optimization. These sampling settings can
+    be adjusted independently of the splitter to run a more complete search.
+    """
     from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
     from mobgap.weartime.optimization import _seeded_study_params  # noqa: PLC0415 - Resolve after trainer imports.
 

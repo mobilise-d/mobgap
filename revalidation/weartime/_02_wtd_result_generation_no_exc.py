@@ -99,33 +99,23 @@ optimizers = {
 # %%
 # Hold out every day of one human participant per fold
 # ---------------------------------------------------
-# The dataset contains two parts: human recordings and simulated non-wear
-# recordings.
-# The human recordings are the most important part of our evaluation.
-# We use a leave one participant out (LOSO) cross-validation scheme to
-# estimate the performance on independent human participants.
+# The dataset contains human recordings and simulated non-wear recordings.
+# Human recordings are the main evaluation population. Participant LOSO holds
+# out all days from one person to estimate performance on unseen participants.
 #
-# The dataset further contains simulated non-wear recordings.
-# As this part of the data contans "unrealistic" distributions of wear vs.
-# non-wear, we would not expect during real deployments,
-# we try to keep this part seperated during the evaluation.
-# However, this data might still be usefull for the training of the models to
-# provide them with examples of non-wear "movements".
+# Simulated non-wear recordings contain movement patterns that differ from
+# everyday human recordings, so their evaluation results are analyzed separately.
+# They can still provide useful non-wear examples when training the models.
 #
-# For this reason we use a very unusal cross-validation approach.
-# We split the actual human recordings using a LOSO scheme.
-# Then we add a fixed subset of the simulated non-wear recordings to each fold
-# train data, so that the models can learn from this data.
+# We combine participant LOSO with a fixed split of simulated source recordings.
+# Every human fold receives the same simulated training recordings, while the
+# remaining simulated recordings are added to every fold's test set. All days
+# from a simulated recording stay together in either training or testing.
 #
-# To allow evaluation on the non-wear recordings, we add the remaining
-# the simulated non-wear recordings to each fold test data.
-# This means each test set contains one unique human participant and the same
-# held-out simulated non-wear recordings.
-# We will later sperate the two parts of the test data again before
-# calculating the metrics.
-# But this approach allows us to get all results in a single run of the
-# evaluation, without complex managment of intermediate model artifacts or
-# similar.
+# Each test set therefore contains an unseen human participant and the same
+# held-out simulated recordings. The analysis separates these populations again
+# before calculating their metrics. This gives us both sets of predictions in
+# one evaluation run without managing intermediate trained models separately.
 splitter = CombinedSplitter(
     parts=[
         (
@@ -141,6 +131,8 @@ splitter = CombinedSplitter(
                 lambda days: days.get_subset(
                     recording_type="simulated_movements"
                 ),
+                # This is a fixed split of the simulated non-wear recordings.
+                # The same split is used for each fold of the human recordings.
                 NoSplit(
                     None,
                     train=lambda days: days.get_subset(
