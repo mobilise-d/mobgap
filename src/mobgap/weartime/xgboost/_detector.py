@@ -140,7 +140,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     """
     XGBoost-based wear-time detection for lower-back worn IMU sensors.
 
-    The detector extracts time-domain and frequency-domain features from overlapping 5-second windows and classifies
+    The detector extracts time-domain and frequency-domain features from overlapping windows and classifies
     each window with a sklearn-compatible classifier. The full extractor computes 230 features; the lightweight
     extractor uses 79 features selected from 90%% SHAP importance. Supply a trained classifier for detection.
     ``PredefinedParameters.sustain_weartime`` loads the packaged fitted classifier and its input configuration.
@@ -160,7 +160,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     window_batch_size
         Number of feature windows processed in one batch.
     n_jobs_features
-        Number of joblib threads over feature batches within a recording, default 4.
+        Number of joblib threads over feature batches within a recording.
     memory
         Optional joblib cache for complete recording feature batches. Worker count does not change cache keys.
     waking_hours

@@ -64,7 +64,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
     learning_rate
         Adam learning rate.
     gradient_clipnorm
-        Optional gradient norm limit passed to Adam. The SUSTAIN CNN-LSTM recipe uses 1.
+        Optional gradient norm limit passed to Adam.
     batch_size, epochs
         Optimizer batch size and number of passes through the recording dataset.
     shuffle_buffer_size
@@ -116,7 +116,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Search 50 trials with human participant folds and sampled training days."""
+            """Search with human participant folds and sampled training days."""
             return MappingProxyType(
                 {"create_search_space": cls._create_search_space, **_sustain_weartime_optimization_defaults()}
             )
@@ -144,7 +144,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
 
         @classproperty
         def empty_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Configure a fresh CNN-LSTM algorithm with 57 epochs and gradient clipping at 1."""
+            """Configure a fresh CNN-LSTM algorithm with its fitting recipe."""
             return MappingProxyType(
                 {
                     **cls.empty_cnn,

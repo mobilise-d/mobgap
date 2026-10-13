@@ -43,7 +43,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
 
     Dataset selection belongs to the supplied ``cv`` and ``train_dataset_transform``.
 
-    The default study maximizes the score with seeded TPE sampling. ``cv=3`` uses ordinary three-fold
+    The default study maximizes the score with seeded TPE sampling. An integer ``cv`` uses ordinary
     splitting; pass a grouped splitter when datapoints from one participant must stay together.
     This module requires the optional Optuna dependency.
 
@@ -66,9 +66,9 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
     ... )
 
     The preset supplies human-only, participant-grouped inner validation and a
-    training transform sampling 40% of human days plus five simulated non-wear
-    days with seed 42. Supply at least five simulated days. These sampling
-    settings limit computation; they are not a validated tuning protocol.
+    seeded training transform that samples human and simulated non-wear days.
+    Supply enough simulated days for the configured sample size. These settings
+    limit computation; they are not a validated tuning protocol.
     ``train_dataset_transform=None`` keeps complete inner training subsets.
     Named splitter parts allow direct overrides:
 
@@ -94,7 +94,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         ``test__agg__<score_name>`` across folds. The default ranks ``combined__accuracy``.
         Set ``"score"`` when using a scalar scorer.
     cv
-        Inner CV splitter or fold count. The default integer uses ordinary three-fold splitting.
+        Inner CV splitter or fold count. An integer uses ordinary splitting.
         Supply a grouped splitter for participant separation.
     train_dataset_transform
         Optional transform of each inner training subset before fitting. ``None`` keeps it unchanged.
@@ -104,7 +104,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         the selected metric with seeded TPE. Supply a factory to configure direction, storage
         or other study settings.
     n_trials, random_seed
-        Trial budget and sampler seed, defaulting to 50 and 42.
+        Trial budget and sampler seed.
     n_jobs
         Parallel trial workers. The shared objective always runs inner CV sequentially.
         Multiple trial workers require persistent study storage supplied by ``get_study_params``;

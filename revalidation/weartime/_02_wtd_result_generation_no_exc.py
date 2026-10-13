@@ -8,7 +8,7 @@ This script evaluates signal, XGBoost and CNN detectors on SUSTAIN human
 recordings
 with participant LOSO. Each held-out participant contributes daily datapoints
 with at least eight hours of recorded data. Simulated non-wear source recordings
-use one fixed seed-42 50/50 train/test split, repeated in every human fold.
+use a fixed, seeded train/test split, repeated in every human fold.
 All evaluated days from one simulated recording remain in the same half.
 The signal detector uses ``DummyOptimize``. XGBoost and CNN use the SUSTAIN
 Optuna presets to tune on human-only inner validation and refit each outer
@@ -114,13 +114,13 @@ optimizers = {
 #
 # For this reason we use a very unusal cross-validation approach.
 # We split the actual human recordings using a LOSO scheme.
-# Then we add a fixed 50% of the simulated non-wear recordings to eachs fold
+# Then we add a fixed subset of the simulated non-wear recordings to each fold
 # train data, so that the models can learn from this data.
 #
-# To allow evaluation on the non-wear recordings, we add the remaining 50% of
+# To allow evaluation on the non-wear recordings, we add the remaining
 # the simulated non-wear recordings to each fold test data.
 # This means each test set contains one unique human participant and the same
-# 50% of the simulated non-wear recordings.
+# held-out simulated non-wear recordings.
 # We will later sperate the two parts of the test data again before
 # calculating the metrics.
 # But this approach allows us to get all results in a single run of the

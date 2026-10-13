@@ -199,7 +199,7 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Search 50 trials with three human participant folds and sampled training days."""
+            """Search with human participant folds and sampled training days."""
             return MappingProxyType(
                 {"create_search_space": cls._create_search_space, **_sustain_weartime_optimization_defaults()}
             )

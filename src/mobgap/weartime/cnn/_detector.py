@@ -71,10 +71,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     Post-processing steps:
 
     1. Majority voting across overlapping windows to obtain sample-level predictions
-    2. Removal of wear bouts shorter than 15 seconds
-    3. Confidence filtering for interior wear bouts under 20 minutes, requiring at least 90%%
-       wear vote agreement. Recording-boundary bouts are exempt from this confidence filter.
-    4. Merging of short non-wear gaps (<15s) between wear periods
+    2. Removal of short wear bouts
+    3. Confidence filtering for short interior wear bouts using wear vote agreement. Recording-boundary bouts are exempt from this confidence filter.
+    4. Merging of short non-wear gaps between wear periods
 
     These duration and confidence thresholds are empirical post-processing heuristics.
 
@@ -103,8 +102,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     Notes
     -----
     **Waking Hours Calculation**
-    In addition to total wear-time, this algorithm calculates wear-time during waking hours
-    (07:00-22:00 by default), required for Mobilise-D DMO weekly aggregation. The waking hours value is
+    In addition to total wear-time, this algorithm calculates wear-time during the configured waking hours,
+    required for Mobilise-D DMO weekly aggregation. The waking hours value is
     extracted from the post-processed sample-level predictions by filtering wear-time to the
     configured waking-hours window.
 
@@ -119,10 +118,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` create fresh model blueprints
     without loading any packaged artifacts.
 
-    Model architecture: 3-layer 1D CNN with progressively increasing filters [32, 64, 128],
-    kernel size 9, max pooling (size 2), batch normalization, and dropout (0.3). Fully
-    connected layer with 64 units. Trained with Adam optimizer (learning rate 0.001,
-    batch size 1024). CNN-LSTM variant includes 64-unit LSTM layer before dense layer.
+    Built-in graphs combine convolution, pooling, batch normalization and dropout before a dense output.
+    The CNN-LSTM variant adds a recurrent layer. The model blueprint owns the architecture settings;
+    the Trainer owns the Adam optimizer and fitting settings.
     """
 
     model: KerasWeartimeModel
