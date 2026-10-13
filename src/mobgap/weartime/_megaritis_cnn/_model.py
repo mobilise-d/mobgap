@@ -14,6 +14,7 @@ import pandas as pd  # noqa: TC002 - tpcp 2.1 resolves class annotations at runt
 from tpcp import Algorithm, cf, make_action_safe
 from typing_extensions import Self
 
+from mobgap.utils.array_handling import sliding_window_view
 from mobgap.weartime._model_config import WearTimeModelConfig
 from mobgap.weartime.utils.ml_feature_extraction import (
     known_window_mask,
@@ -50,27 +51,6 @@ def _get_per_window_standardization_layer_class() -> type[Any]:
             return centered / tf.sqrt(variance)
 
     return PerWindowStandardization
-
-
-def _stepped_window_view(sensor_data: np.ndarray, window_samples: int, step_samples: int, n_windows: int) -> np.ndarray:
-    if n_windows == 0:
-        return np.empty((0, window_samples, sensor_data.shape[1]), dtype=sensor_data.dtype)
-
-    if step_samples == window_samples:
-        window_view = sensor_data[: n_windows * window_samples].reshape(
-            n_windows,
-            window_samples,
-            sensor_data.shape[1],
-        )
-    else:
-        window_view = np.lib.stride_tricks.as_strided(
-            sensor_data,
-            shape=(n_windows, window_samples, sensor_data.shape[1]),
-            strides=(step_samples * sensor_data.strides[0], sensor_data.strides[0], sensor_data.strides[1]),
-            writeable=False,
-        )
-    window_view.setflags(write=False)
-    return window_view
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -111,7 +91,9 @@ def _iter_window_batches(
                 else data[list(config.sensor_cols)].to_numpy(copy=False)
             )
             sensor_data = _as_model_input_sensor_array(sensor_data)
-            window_view = _stepped_window_view(sensor_data, window_samples, step_samples, n_windows)
+            window_view = sliding_window_view(
+                sensor_data, window_samples, overlap_samples=window_samples - step_samples
+            )
         batch_window_view = window_view[batch_start : batch_start + len(starts)]
         if not known.all():
             batch_window_view = batch_window_view[known]
