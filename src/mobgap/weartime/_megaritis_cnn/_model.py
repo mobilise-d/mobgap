@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence  # noqa: TC003 - tpcp resolves parameter annotations.
 from functools import lru_cache
-from importlib import import_module
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
-import pandas as pd  # noqa: TC002 - tpcp 2.1 resolves class annotations at runtime.
+import pandas as pd  # noqa: TC002 - tpcp resolves class annotations at runtime.
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 from tpcp import Algorithm, cf, make_action_safe
 from typing_extensions import Self
 
@@ -33,30 +35,17 @@ def _as_model_input_sensor_array(sensor_data: np.ndarray) -> np.ndarray:
     return np.asarray(sensor_data, dtype=np.float32, order="C")
 
 
-@lru_cache(maxsize=1)
-def _get_per_window_standardization_layer_class() -> type[Any]:
-    """Create and register the serializable Keras per-window standardization layer."""
-    tf = import_module("tensorflow")
-    layers = import_module("tensorflow.keras.layers")
-    register_keras_serializable = import_module("tensorflow.keras.utils").register_keras_serializable
+@keras.utils.register_keras_serializable(package="mobgap")
+class PerWindowStandardization(layers.Layer):
+    """Standardize each input channel independently within a window."""
 
-    @register_keras_serializable(package="mobgap")
-    class PerWindowStandardization(layers.Layer):  # type: ignore[misc, valid-type]
-        def call(self, inputs: Any) -> Any:
-            windows = tf.cast(inputs, tf.float32)
-            centered = windows - tf.reduce_mean(windows, axis=1, keepdims=True)
-            variance = tf.reduce_mean(tf.square(centered), axis=1, keepdims=True)
-            variance = tf.maximum(variance, tf.constant(1e-16, dtype=variance.dtype))
-            return centered / tf.sqrt(variance)
-
-    return PerWindowStandardization
-
-
-def _restore_keras_model_wrapper(model_type: type[KerasWeartimeModel], has_model: bool) -> KerasWeartimeModel:
-    """Register MobGap layers before pickle restores the wrapper's native graph state."""
-    if has_model:
-        _get_per_window_standardization_layer_class()
-    return model_type.__new__(model_type)
+    def call(self, inputs: Any) -> Any:
+        """Center and scale each channel over its window samples."""
+        windows = tf.cast(inputs, tf.float32)
+        centered = windows - tf.reduce_mean(windows, axis=1, keepdims=True)
+        variance = tf.reduce_mean(tf.square(centered), axis=1, keepdims=True)
+        variance = tf.maximum(variance, tf.constant(1e-16, dtype=variance.dtype))
+        return centered / tf.sqrt(variance)
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -68,9 +57,7 @@ def _load_keras_model_resource(file_name: str) -> Any:
 
 def load_keras_weartime_model(model_path: str | PathLike[str]) -> Any:
     """Load a wear-time artifact with a serialized per-window standardization layer."""
-    _get_per_window_standardization_layer_class()
-    keras_models = import_module("tensorflow.keras.models")
-    return keras_models.load_model(model_path)
+    return keras.models.load_model(model_path)
 
 
 def _iter_window_batches(
@@ -173,10 +160,6 @@ class KerasWeartimeModel(Algorithm):
         self.predict_batch_size = predict_batch_size
         self.window_batch_size = window_batch_size
 
-    def __reduce__(self) -> tuple[Any, tuple[type[KerasWeartimeModel], bool], dict[str, Any]]:
-        """Keep native graphs visible to TPCP's hasher and register layers before process restoration."""
-        return _restore_keras_model_wrapper, (type(self), self.model is not None), self.__dict__
-
     @make_action_safe
     def run(self, data: pd.DataFrame, *, sampling_rate_hz: float) -> Self:
         """Classify one recording at the fitted model's native sampling rate."""
@@ -201,7 +184,7 @@ class KerasWeartimeModel(Algorithm):
 
     def _create_model(self, config: WearTimeModelConfig) -> Any:  # noqa: ARG002 - Same factory interface as blueprints.
         """Clone a supplied native untrained network; concrete blueprints build their own graph."""
-        return import_module("tensorflow").keras.models.clone_model(self.model)
+        return keras.models.clone_model(self.model)
 
 
 class MegaritisCnnWeartimeModel(KerasWeartimeModel):
@@ -249,16 +232,13 @@ class MegaritisCnnWeartimeModel(KerasWeartimeModel):
         self.dense_units = dense_units
 
     def _sequence_layers(self) -> list[Any]:
-        layers = import_module("tensorflow.keras.layers")
         return [layers.Flatten()]
 
     def _create_model(self, config: WearTimeModelConfig) -> Any:
-        keras = import_module("tensorflow.keras")
-        layers = import_module("tensorflow.keras.layers")
         window_samples, _ = config.window_parameters(0)
         network_layers = [
             layers.Input(shape=(window_samples, len(config.sensor_cols))),
-            _get_per_window_standardization_layer_class()(name=_MODEL_STANDARDIZATION_LAYER_NAME),
+            PerWindowStandardization(name=_MODEL_STANDARDIZATION_LAYER_NAME),
         ]
         for filters in self.filters:
             network_layers.extend(
@@ -328,5 +308,4 @@ class MegaritisCnnLstmWeartimeModel(MegaritisCnnWeartimeModel):
         self.lstm_units = lstm_units
 
     def _sequence_layers(self) -> list[Any]:
-        layers = import_module("tensorflow.keras.layers")
         return [layers.LSTM(self.lstm_units, return_sequences=False), layers.Dropout(self.dropout_rate)]

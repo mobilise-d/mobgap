@@ -126,6 +126,17 @@ trainer = WtdMegaritisCNNTrainer(
 fitted_detector = Optimize(trainer).optimize(dataset).optimized_pipeline_.algo
 ```
 
+Import ML algorithms through their explicit dependency modules:
+
+```python
+from mobgap.weartime.cnn import WtdMegaritisCNN, WtdMegaritisCNNTrainer
+from mobgap.weartime.xgboost import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
+```
+
+Importing `cnn` requires TensorFlow/Keras; importing `xgboost` requires XGBoost.
+`mobgap.weartime` exports the signal detector and shared interfaces without these dependencies.
+The shared `mobgap.weartime.optimization` module requires Optuna and does not import either ML family.
+
 Install MobGap with its `weartime` extra (TensorFlow requires Python below 3.13).
 Set `DATASET_PATH` or `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` to the SUSTAIN wear-time
 folder. `MOBGAP_CACHE_DIR_PATH` configures dataset/feature caches; evaluation
@@ -139,8 +150,8 @@ standardization runs inside the built-in Megaritis CNN and CNN-LSTM graphs.
 Supplied native Keras graphs receive raw windows during fitting and prediction
 and must contain their own required preprocessing. Load exported CNN
 artifacts in a fresh process with
-`mobgap.weartime.load_keras_weartime_model(path)` to register its standardization
-layer before deserialization.
+`mobgap.weartime.cnn.load_keras_weartime_model(path)`. Importing the CNN module
+registers its standardization layer before model deserialization.
 
 The lightweight XGBoost feature list was selected from SHAP results pooled
 across the historical SUSTAIN LOSO folds. This revalidation evaluates that

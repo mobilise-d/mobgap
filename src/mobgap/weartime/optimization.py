@@ -11,11 +11,7 @@ from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
 from tpcp.validate import cross_validate
 
-from mobgap.weartime._megaritis_cnn._trainer import WtdMegaritisCNNTrainer
-from mobgap.weartime._megaritis_xgboost._trainer import WtdMegaritisXGBoostTrainer
 from mobgap.weartime.evaluation import wtd_score
-
-WearTimeTrainer = WtdMegaritisXGBoostTrainer | WtdMegaritisCNNTrainer
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -27,13 +23,17 @@ if TYPE_CHECKING:
     from tpcp.validate._scorer import ScoreType
 
     from mobgap.data.base import BaseGaitDataset
+    from mobgap.weartime.cnn import WtdMegaritisCNNTrainer
+    from mobgap.weartime.xgboost import WtdMegaritisXGBoostTrainer
+
+    WearTimeTrainer = WtdMegaritisXGBoostTrainer | WtdMegaritisCNNTrainer
 
 
 def _seeded_study_params(seed: int) -> StudyParamsDict:
     return {"direction": "maximize", "sampler": optuna.samplers.TPESampler(seed=seed)}
 
 
-class WearTimeOptunaSearch(CustomOptunaOptimize[WearTimeTrainer, "BaseGaitDataset"]):
+class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitDataset"]):
     """Search parameters with inner CV, then refit the winner on the provided dataset.
 
     ``create_search_space`` calls Optuna's ``trial.suggest_*`` methods using pipeline parameter names.
@@ -51,7 +51,10 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WearTimeTrainer, "BaseGaitDatase
     --------
     Use the SUSTAIN search preset with a trainer:
 
-    >>> from mobgap.weartime import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
+    >>> from mobgap.weartime.xgboost import (
+    ...     WtdMegaritisXGBoost,
+    ...     WtdMegaritisXGBoostTrainer,
+    ... )
     >>> pipeline = WtdMegaritisXGBoostTrainer(
     ...     WtdMegaritisXGBoost(
     ...         **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime
@@ -75,7 +78,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize[WearTimeTrainer, "BaseGaitDatase
 
     Replace ``cv__parts__human__selector`` to change human-day selection, or
     ``cv__parts__simulated_non_wear__splitter__train`` to change the simulated
-    training pool. For CNN, pass :class:`~mobgap.weartime.WtdMegaritisCNNTrainer` with
+    training pool. For CNN, pass :class:`~mobgap.weartime.cnn.WtdMegaritisCNNTrainer` with
     ``WtdMegaritisCNNTrainer.OptimizationPresets.sustain_weartime``.
 
     Parameters

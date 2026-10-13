@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator  # noqa: TC003 - tpcp evaluates annotations at runtime.
 from dataclasses import replace
-from importlib import import_module
 from importlib.resources import files
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Optional
 
 import numpy as np  # noqa: TC002 - tpcp evaluates annotations at runtime.
+import tensorflow as tf
 from tpcp import (
     HyperParameter,
     OptimizableParameter,
@@ -245,7 +245,6 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
         self
             Trainer with the fitted inference detector available as ``algo``.
         """
-        tf = import_module("tensorflow")
         sampling_rate_hz = _single_sampling_rate_hz(dataset)
         algo = self.algo.clone()
         if algo.model.model_config.sampling_rate_hz is not None:
@@ -295,7 +294,6 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
         batch_size: int,
         window_samples: int,
     ) -> Any:
-        tf = import_module("tensorflow")
         output_signature = (
             tf.TensorSpec(shape=(None, window_samples, len(config.sensor_cols)), dtype=tf.float32),
             tf.TensorSpec(shape=(None,), dtype=tf.int32),

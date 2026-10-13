@@ -39,9 +39,9 @@ from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV, save_evaluation_results
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime import (
-    WtdMegaritisCNNTrainer,
-    WtdMegaritisSignal,
+from mobgap.weartime.cnn import WtdMegaritisCNNTrainer
+from mobgap.weartime import WtdMegaritisSignal
+from mobgap.weartime.xgboost import (
     WtdMegaritisXGBoost,
     WtdMegaritisXGBoostTrainer,
 )

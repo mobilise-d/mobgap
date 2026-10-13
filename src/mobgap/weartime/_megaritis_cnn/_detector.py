@@ -71,6 +71,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     native graphs receive raw windows and must contain their required preprocessing.
 
     Post-processing steps:
+
     1. Majority voting across overlapping windows to obtain sample-level predictions
     2. Removal of wear bouts shorter than 15 seconds
     3. Confidence filtering for interior wear bouts under 20 minutes, requiring at least 90%%

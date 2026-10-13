@@ -7,12 +7,9 @@ from joblib import Memory
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime import (
-    WtdMegaritisCNNTrainer,
-    WtdMegaritisXGBoost,
-    WtdMegaritisXGBoostTrainer,
-)
+from mobgap.weartime.cnn import WtdMegaritisCNNTrainer
 from mobgap.weartime.optimization import WearTimeOptunaSearch
+from mobgap.weartime.xgboost import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
 
 # Edit paths and optimizer configuration here before running.
 DATASET_PATH = None  # Defaults to MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH.

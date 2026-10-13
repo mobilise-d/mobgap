@@ -20,7 +20,6 @@ from collections.abc import Iterator, Sequence  # noqa: TC003 - tpcp resolves al
 from dataclasses import replace
 from datetime import time
 from functools import lru_cache
-from importlib import import_module
 from importlib.resources import files
 from types import MappingProxyType
 from typing import Any, Literal, Optional
@@ -35,6 +34,7 @@ from tpcp.caching import hybrid_cache
 from tpcp.misc import classproperty
 from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, TypedDict, Unpack
+from xgboost import XGBClassifier
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.consts import BF_SENSOR_COLS
@@ -63,14 +63,7 @@ _SklearnWearTimeClassifier = BaseEstimator
 
 
 def _new_xgboost_classifier() -> BaseEstimator:
-    try:
-        xgboost = import_module("xgboost")
-    except ImportError as exc:
-        raise ImportError(
-            "The optional dependency `xgboost` is required to train an XGBoost wear-time model. "
-            "Install MobGap with the `weartime` extra to use `WtdMegaritisXGBoost`."
-        ) from exc
-    return xgboost.XGBClassifier(
+    return XGBClassifier(
         n_estimators=100,
         max_depth=5,
         learning_rate=0.1,
@@ -84,16 +77,8 @@ def _new_xgboost_classifier() -> BaseEstimator:
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
 def _load_pickle_resource(file_name: str) -> Any:
     resource = files("mobgap.weartime._megaritis_xgboost._models").joinpath(file_name)
-    try:
-        with resource.open("rb") as file:
-            return pickle.load(file)
-    except ModuleNotFoundError as exc:
-        if exc.name == "xgboost":
-            raise ImportError(
-                "The optional dependency `xgboost` is required to load the pretrained XGBoost wear-time models. "
-                "Install MobGap with the `weartime` extra to use `WtdMegaritisXGBoost`."
-            ) from exc
-        raise
+    with resource.open("rb") as file:
+        return pickle.load(file)
 
 
 class _FeatureExtractionKwargs(TypedDict):

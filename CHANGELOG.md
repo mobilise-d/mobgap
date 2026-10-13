@@ -29,7 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wear-time detection as a new algorithm category, including `mobgap.weartime.base.BaseWeartimeDetector` and
   the signal-based `WtdMegaritisSignal` algorithm. (https://github.com/mobilise-d/mobgap/pull/253)
 - Inference-only `WtdMegaritisXGBoost` and `WtdMegaritisCNN` detectors with dataset-based
-  `WtdMegaritisXGBoostTrainer` and `WtdMegaritisCNNTrainer` pipelines. Supplied untrained algorithms own their
+  `WtdMegaritisXGBoostTrainer` and `WtdMegaritisCNNTrainer` pipelines, imported through
+  `mobgap.weartime.xgboost` and `mobgap.weartime.cnn` with their dependencies checked at import time.
+  Supplied untrained algorithms own their
   classifier/network type, structure and inputs; Trainers own fitting settings. Separate CNN and CNN-LSTM model
   blueprints and SUSTAIN presets have independent artifacts; empty presets configure fresh models and fitting recipes
   without packaged weights. Training supports uncertain reference regions,

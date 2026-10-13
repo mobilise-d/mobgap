@@ -17,20 +17,22 @@ from pandas._testing import assert_frame_equal
 from tpcp.misc import custom_hash
 from tpcp.testing import TestAlgorithmMixin
 
+pytest.importorskip("tensorflow")
+
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
-from mobgap.weartime import (
+from mobgap.weartime import WearTimeModelConfig
+from mobgap.weartime._megaritis_cnn import _detector as cnn_module
+from mobgap.weartime._megaritis_cnn import _model as keras_model_module
+from mobgap.weartime._megaritis_cnn import _trainer as trainer_module
+from mobgap.weartime.cnn import (
     KerasWeartimeModel,
     MegaritisCnnLstmWeartimeModel,
     MegaritisCnnWeartimeModel,
-    WearTimeModelConfig,
     WtdMegaritisCNN,
     WtdMegaritisCNNTrainer,
     load_keras_weartime_model,
 )
-from mobgap.weartime._megaritis_cnn import _detector as cnn_module
-from mobgap.weartime._megaritis_cnn import _model as keras_model_module
-from mobgap.weartime._megaritis_cnn import _trainer as trainer_module
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,
@@ -148,7 +150,7 @@ class TestKerasWeartimeModel:
     def test_model_standardization_layer_matches_numpy_and_serializes(self, tmp_path: Path) -> None:
         """Run model-side standardization through Keras and keep it loadable."""
         tf = pytest.importorskip("tensorflow")
-        layer_cls = keras_model_module._get_per_window_standardization_layer_class()
+        layer_cls = keras_model_module.PerWindowStandardization
         rng = np.random.default_rng(42)
         windows = rng.normal(loc=9.81, scale=0.2, size=(8, 20, len(BF_SENSOR_COLS))).astype(np.float32)
         windows[0] = 3.0
@@ -185,7 +187,7 @@ class TestKerasWeartimeModel:
                 """import sys
 from pathlib import Path
 import numpy as np
-from mobgap.weartime import load_keras_weartime_model
+from mobgap.weartime.cnn import load_keras_weartime_model
 model = load_keras_weartime_model(sys.argv[1])
 root = Path(sys.argv[1]).parent
 actual = model(np.load(root / 'windows.npy'), training=False).numpy()

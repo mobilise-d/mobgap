@@ -19,8 +19,10 @@ from sklearn.base import BaseEstimator
 from tpcp.misc import warning_error_context
 from tpcp.testing import TestAlgorithmMixin
 
+pytest.importorskip("xgboost")
+
 from mobgap.consts import BF_SENSOR_COLS
-from mobgap.weartime import WearTimeModelConfig, WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
+from mobgap.weartime import WearTimeModelConfig
 from mobgap.weartime._megaritis_xgboost import _detector as xgb_module
 from mobgap.weartime._megaritis_xgboost import _trainer as trainer_module
 from mobgap.weartime._megaritis_xgboost._features import (
@@ -35,6 +37,7 @@ from mobgap.weartime._megaritis_xgboost._features import (
     extract_features_batched,
     extract_full_features_batched,
 )
+from mobgap.weartime.xgboost import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
 
 if TYPE_CHECKING:
     from pathlib import Path

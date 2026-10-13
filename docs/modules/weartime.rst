@@ -14,14 +14,14 @@ Algorithms
    :template: class_without_presets.rst
 
     WtdMegaritisSignal
-    WtdMegaritisXGBoost
-    WtdMegaritisXGBoostTrainer
+    xgboost.WtdMegaritisXGBoost
+    xgboost.WtdMegaritisXGBoostTrainer
     WearTimeModelConfig
-    WtdMegaritisCNN
-    WtdMegaritisCNNTrainer
-    KerasWeartimeModel
-    MegaritisCnnWeartimeModel
-    MegaritisCnnLstmWeartimeModel
+    cnn.WtdMegaritisCNN
+    cnn.WtdMegaritisCNNTrainer
+    cnn.KerasWeartimeModel
+    cnn.MegaritisCnnWeartimeModel
+    cnn.MegaritisCnnLstmWeartimeModel
 
 Base classes
 ++++++++++++
