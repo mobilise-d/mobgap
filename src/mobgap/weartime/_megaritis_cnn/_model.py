@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pickle
 from collections.abc import Sequence  # noqa: TC003 - tpcp resolves parameter annotations.
 from functools import lru_cache
 from importlib import import_module
@@ -51,6 +50,13 @@ def _get_per_window_standardization_layer_class() -> type[Any]:
             return centered / tf.sqrt(variance)
 
     return PerWindowStandardization
+
+
+def _restore_keras_model_wrapper(model_type: type[KerasWeartimeModel], has_model: bool) -> KerasWeartimeModel:
+    """Register MobGap layers before pickle restores the wrapper's native graph state."""
+    if has_model:
+        _get_per_window_standardization_layer_class()
+    return model_type.__new__(model_type)
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -167,19 +173,9 @@ class KerasWeartimeModel(Algorithm):
         self.predict_batch_size = predict_batch_size
         self.window_batch_size = window_batch_size
 
-    def __getstate__(self) -> dict[str, Any]:
-        """Defer native graph restoration until the receiving process has registered MobGap layers."""
-        state = self.__dict__.copy()
-        if self.model is not None:
-            state["model"] = pickle.dumps(self.model)
-        return state
-
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        """Restore model weights and state while retaining lazy TensorFlow imports for empty blueprints."""
-        if state["model"] is not None:
-            _get_per_window_standardization_layer_class()
-            state["model"] = pickle.loads(state["model"])
-        self.__dict__.update(state)
+    def __reduce__(self) -> tuple[Any, tuple[type[KerasWeartimeModel], bool], dict[str, Any]]:
+        """Keep native graphs visible to TPCP's hasher and register layers before process restoration."""
+        return _restore_keras_model_wrapper, (type(self), self.model is not None), self.__dict__
 
     @make_action_safe
     def run(self, data: pd.DataFrame, *, sampling_rate_hz: float) -> Self:

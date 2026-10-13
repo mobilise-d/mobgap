@@ -5,6 +5,7 @@ from __future__ import annotations
 import pickle
 import subprocess
 import sys
+import time as clock
 from datetime import time
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 from pandas._testing import assert_frame_equal
+from tpcp.misc import custom_hash
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
@@ -197,6 +199,19 @@ np.testing.assert_allclose(actual, np.load(root / 'expected.npy'), rtol=1e-6)
             timeout=60,
         )
         assert result.returncode == 0, result.stderr
+
+    @pytest.mark.parametrize("model_type", [MegaritisCnnWeartimeModel, MegaritisCnnLstmWeartimeModel])
+    def test_native_model_parameters_hash_stably_across_inference(self, model_type: type) -> None:
+        """Native graph serialization timestamps must not look like parameter mutation during detection."""
+        pytest.importorskip("tensorflow")
+        config = WearTimeModelConfig(1, 20)
+        window_model = model_type(filters=(2, 2, 2), dense_units=2, model_config=config, overlap=0)
+        window_model.model = window_model._create_model(config)
+        detector = WtdMegaritisCNN(model=window_model)
+        before = custom_hash(detector.get_params())
+        clock.sleep(1.1)
+        detector.detect(_sensor_data(40), sampling_rate_hz=1)
+        assert custom_hash(detector.get_params()) == before
 
     @pytest.mark.parametrize("model_type", [MegaritisCnnWeartimeModel, MegaritisCnnLstmWeartimeModel])
     def test_native_model_transfers_through_fresh_process(self, model_type: type, tmp_path: Path) -> None:
