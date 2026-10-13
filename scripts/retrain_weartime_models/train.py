@@ -1,9 +1,16 @@
 """Tune wear-time models with inner CV and refit on all eligible SUSTAIN days."""
 
 import json
+from contextlib import nullcontext
+from functools import partial
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
 
-from joblib import Memory
+import optuna
+import tensorflow as tf
+from joblib import Memory, effective_n_jobs
+from sqlalchemy.pool import NullPool
 
 from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
@@ -31,6 +38,20 @@ ARTIFACTS = {
 }
 
 
+def get_study_params(seed: int, *, database: Path, study_name: str) -> dict:
+    """Create a fresh persistent study shared by this model's trial workers."""
+    return {
+        "storage": optuna.storages.RDBStorage(
+            f"sqlite:///{database.resolve().as_posix()}",
+            engine_kwargs={"poolclass": NullPool},
+        ),
+        "study_name": study_name,
+        "load_if_exists": False,
+        "direction": "maximize",
+        "sampler": optuna.samplers.TPESampler(seed=seed),
+    }
+
+
 def main() -> None:
     """Export selected hyperparameters and models refitted on all indexed days."""
     cache_dir = Path(CACHE_DIR or get_env_var("MOBGAP_CACHE_DIR_PATH", ".cache/mobgap")).expanduser()
@@ -40,6 +61,12 @@ def main() -> None:
         additional_sensors_enabled=(),
         memory=Memory(cache_dir, verbose=0),
     )
+
+    # Cap independent CNN trial workers at the scheduler-visible GPU count.
+    gpu_count = len(tf.config.list_physical_devices("GPU"))
+    cnn_n_jobs = min(effective_n_jobs(n_jobs), gpu_count) if gpu_count else effective_n_jobs(n_jobs)
+    gpu_ids = tuple(range(cnn_n_jobs)) if gpu_count else None
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
     # Rank candidates on participant-grouped human validation folds only.
     # The preset samples human and simulated non-wear days in each inner training set.
@@ -66,13 +93,28 @@ def main() -> None:
     # Refit the winner on all indexed human and simulated days, without inner subsampling.
     # Windows with uncertain labels remain excluded. There is no outer evaluation here.
     for name, optimizer in optimizers.items():
-        optimizer.optimize(dataset)
-        trainer = optimizer.optimized_pipeline_
-        output_dir, artifact_name = ARTIFACTS[name]
-        trainer.save_model(output_dir, prefix=artifact_name)
-        with (output_dir / f"{artifact_name}_best_params.json").open("w") as file:
-            json.dump(optimizer.best_params_, file, indent=2)
-            file.write("\n")
+        if name != "WtdMegaritisXGBoost":
+            optimizer.set_params(gpu_ids=gpu_ids, n_jobs=cnn_n_jobs)
+
+        # Parallel trials share a fresh local study; remove it after fitting/export or failure.
+        with (
+            TemporaryDirectory(prefix="weartime-study-", dir=cache_dir) if optimizer.n_jobs > 1 else nullcontext(None)
+        ) as study_dir:
+            if study_dir is not None:
+                optimizer.set_params(
+                    get_study_params=partial(
+                        get_study_params,
+                        database=Path(study_dir) / "study.sqlite3",
+                        study_name=f"{name}-{uuid4().hex}",
+                    ),
+                )
+            optimizer.optimize(dataset)
+            trainer = optimizer.optimized_pipeline_
+            output_dir, artifact_name = ARTIFACTS[name]
+            trainer.save_model(output_dir, prefix=artifact_name)
+            with (output_dir / f"{artifact_name}_best_params.json").open("w") as file:
+                json.dump(optimizer.best_params_, file, indent=2)
+                file.write("\n")
 
 
 if __name__ == "__main__":

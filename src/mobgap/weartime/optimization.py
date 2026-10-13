@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, nullcontext
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -109,6 +110,13 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         Parallel trial workers. The shared objective always runs inner CV sequentially.
         Multiple trial workers require persistent study storage supplied by ``get_study_params``;
         see :class:`~tpcp.optimize.optuna.CustomOptunaOptimize`.
+    gpu_ids
+        Optional nonempty sequence of distinct TensorFlow-visible GPU indices. Use one trial
+        worker per entry (``n_jobs=len(gpu_ids)``) and persistent study storage. Each logical
+        worker selects its GPU inside the objective; final refitting uses the first GPU.
+        Models must be constructed during optimization, inside this device scope. Memory
+        growth is enabled before GPU initialization; run in a fresh process. ``None`` leaves
+        device selection unchanged and does not import TensorFlow.
     return_optimized
         Refit the best pipeline on the complete optimization dataset when True.
     timeout, callbacks, gc_after_trial, eval_str_paras, show_progress_bar
@@ -133,6 +141,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         callbacks: list[Callable[[Study, FrozenTrial], None]] | None = None,
         gc_after_trial: bool = False,
         n_jobs: int = 1,
+        gpu_ids: Sequence[int] | None = None,
         eval_str_paras: Sequence[str] = (),
         show_progress_bar: bool = False,
         return_optimized: bool = True,
@@ -140,6 +149,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         self.create_search_space = create_search_space
         self.scoring = scoring
         self.score_name = score_name
+        self.gpu_ids = gpu_ids
         self.cv = cv
         self.train_dataset_transform = train_dataset_transform
         super().__init__(
@@ -156,24 +166,42 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
             return_optimized=return_optimized,
         )
 
-    def create_objective(self) -> Callable[[Trial, WearTimeTrainer, BaseGaitDataset], float]:
+    def _device_scope(self, worker_id: int) -> AbstractContextManager:
+        if self.gpu_ids is None:
+            return nullcontext()
+
+        import tensorflow as tf  # noqa: PLC0415 - Keep CPU/XGBoost searches independent of TensorFlow.
+
+        for gpu in tf.config.list_physical_devices("GPU"):
+            tf.config.experimental.set_memory_growth(gpu, True)
+        return tf.device(f"/GPU:{self.gpu_ids[worker_id]}")
+
+    def create_objective(self) -> Callable[..., float]:
         """Rank candidates using the configured inner CV objective."""
 
-        def objective(trial: Trial, candidate: WearTimeTrainer, dataset: BaseGaitDataset) -> float:
-            self.create_search_space(trial)
-            candidate.set_params(**self.sanitize_params(trial.params))
-            scores = cross_validate(
-                Optimize(candidate, train_dataset_transform=self.train_dataset_transform),
-                dataset,
-                scoring=self.scoring,
-                cv=self.cv,
-                n_jobs=1,
-                return_train_score=False,
-                progress_bar=False,
-            )
-            return float(np.mean(scores[f"test__agg__{self.score_name}"]))
+        def objective(trial: Trial, candidate: WearTimeTrainer, dataset: BaseGaitDataset, *, worker_id: int) -> float:
+            with self._device_scope(worker_id):
+                self.create_search_space(trial)
+                candidate.set_params(**self.sanitize_params(trial.params))
+                scores = cross_validate(
+                    Optimize(candidate, train_dataset_transform=self.train_dataset_transform),
+                    dataset,
+                    scoring=self.scoring,
+                    cv=self.cv,
+                    n_jobs=1,
+                    return_train_score=False,
+                    progress_bar=False,
+                )
+                return float(np.mean(scores[f"test__agg__{self.score_name}"]))
 
         return objective
+
+    def return_optimized_pipeline(
+        self, pipeline: WearTimeTrainer, dataset: BaseGaitDataset, study: Study
+    ) -> WearTimeTrainer:
+        """Refit the selected trainer on the first configured GPU, when supplied."""
+        with self._device_scope(0):
+            return super().return_optimized_pipeline(pipeline, dataset, study)
 
 
 __all__ = ["WearTimeOptunaSearch"]

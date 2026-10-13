@@ -84,6 +84,7 @@ def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
         "callbacks": None,
         "gc_after_trial": False,
         "n_jobs": 1,
+        "gpu_ids": None,
         "eval_str_paras": (),
         "show_progress_bar": False,
         "return_optimized": True,
