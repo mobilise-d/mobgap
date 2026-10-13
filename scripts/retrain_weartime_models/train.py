@@ -5,6 +5,7 @@ from pathlib import Path
 
 from joblib import Memory
 
+from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
 from mobgap.weartime.cnn import WtdMegaritisCNNTrainer
@@ -14,11 +15,19 @@ from mobgap.weartime.xgboost import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrai
 # Edit paths and optimizer configuration here before running.
 DATASET_PATH = None  # Defaults to MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH.
 CACHE_DIR = None  # Defaults to MOBGAP_CACHE_DIR_PATH or .cache/mobgap.
-OUTPUT_DIR = Path(".cache/weartime_models")
-ARTIFACT_PREFIXES = {
-    "WtdMegaritisXGBoost": "xgboost_sustain_weartime",
-    "WtdMegaritisCNN": "cnn_sustain_weartime",
-    "WtdMegaritisCNNLSTM": "cnn_lstm_sustain_weartime",
+ARTIFACTS = {
+    "WtdMegaritisXGBoost": (
+        PROJECT_ROOT / "src/mobgap/weartime/xgboost/_models",
+        "xgboost_sustain_weartime",
+    ),
+    "WtdMegaritisCNN": (
+        PROJECT_ROOT / "src/mobgap/weartime/cnn/_models",
+        "cnn_sustain_weartime",
+    ),
+    "WtdMegaritisCNNLSTM": (
+        PROJECT_ROOT / "src/mobgap/weartime/cnn/_models",
+        "cnn_lstm_sustain_weartime",
+    ),
 }
 
 
@@ -31,8 +40,8 @@ def main() -> None:
         memory=Memory(cache_dir, verbose=0),
     )
 
-    # Rank candidates on three participant-grouped human validation folds only.
-    # Each inner training set samples 40% of its human days and five simulated non-wear days.
+    # Rank candidates on participant-grouped human validation folds only.
+    # The preset samples human and simulated non-wear days in each inner training set.
     optimizers = {
         "WtdMegaritisXGBoost": WearTimeOptunaSearch(
             WtdMegaritisXGBoostTrainer(
@@ -57,8 +66,7 @@ def main() -> None:
     for name, optimizer in optimizers.items():
         optimizer.optimize(dataset)
         trainer = optimizer.optimized_pipeline_
-        output_dir = OUTPUT_DIR / name
-        artifact_name = ARTIFACT_PREFIXES[name]
+        output_dir, artifact_name = ARTIFACTS[name]
         trainer.save_model(output_dir, prefix=artifact_name)
         with (output_dir / f"{artifact_name}_best_params.json").open("w") as file:
             json.dump(optimizer.best_params_, file, indent=2)
