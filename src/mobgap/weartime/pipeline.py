@@ -25,8 +25,15 @@ def _conditionally_to_bf(data: pd.DataFrame, convert: bool) -> pd.DataFrame:
 class WtdEmulationPipeline(Pipeline[BaseGaitDataset]):
     """Run a wear-time detection algorithm on a single dataset datapoint.
 
-    Wrap any fitted detector for tpcp validation. Use WtdMegaritisXGBoostTrainer or WtdMegaritisCNNTrainer
-    for optimization and cross-validation involving fitting.
+    Wrap a fitted detector for tpcp validation. For fitting, supply an untrained detector to
+    :class:`~mobgap.weartime.xgboost.WtdMegaritisXGBoostTrainer` or
+    :class:`~mobgap.weartime.cnn.WtdMegaritisCNNTrainer`.
+
+    For training with hyperparameter optimization, wrap the trainer in
+    :class:`~mobgap.weartime.optimization.WearTimeOptunaSearch`. The trainer's
+    ``OptimizationPresets.sustain_weartime`` configures the search for SUSTAIN data.
+    In evaluation cross-validation, use this Optuna search as the optimizer so that tuning and fitting
+    run within each outer training fold, keeping the outer test data out of hyperparameter selection.
 
     Parameters
     ----------
