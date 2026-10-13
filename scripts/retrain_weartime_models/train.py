@@ -34,6 +34,7 @@ ARTIFACTS = {
 def main() -> None:
     """Export selected hyperparameters and models refitted on all indexed days."""
     cache_dir = Path(CACHE_DIR or get_env_var("MOBGAP_CACHE_DIR_PATH", ".cache/mobgap")).expanduser()
+    n_jobs = int(get_env_var("MOBGAP_N_JOBS", 1))
     dataset = SustainWearTimeDataset(
         Path(DATASET_PATH or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser(),
         additional_sensors_enabled=(),
@@ -47,7 +48,8 @@ def main() -> None:
             WtdMegaritisXGBoostTrainer(
                 algo=WtdMegaritisXGBoost(
                     memory=Memory(cache_dir, compress=3, verbose=0),
-                ),
+                ).set_params(clf__n_jobs=n_jobs),
+                n_jobs=n_jobs,
             ),
             **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
         ),

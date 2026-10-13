@@ -16,7 +16,7 @@ Create a repository-local `.env` file with paths for this machine:
 | `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` | Local SUSTAIN wear-time dataset directory. |
 | `MOBGAP_CACHE_DIR_PATH` | Writable disk cache, preferably shared across worktrees. |
 | `MOBGAP_VALIDATION_DATA_PATH` | Local checkout of the companion evaluation-results repository, for revalidation. |
-| `MOBGAP_N_JOBS` | Evaluation worker count appropriate for the available CPU and memory. |
+| `MOBGAP_N_JOBS` | CPU worker count for XGBoost retraining and evaluation, appropriate for the available CPU and memory. |
 
 The raw dataset is not included in this repository. When using a worktree, copy
 the main checkout's `.env` and adjust its paths. For a code branch, use a matching
@@ -25,6 +25,8 @@ branch and worktree in the companion results repository.
 Review the selected algorithms and resource settings in the scripts before
 starting. Change configuration in the scripts; there are no command-line options.
 Full runs can take a long time. CNN runs should use a machine with a GPU.
+Set `CUDA_VISIBLE_DEVICES` in the launch environment to select GPUs, or use the
+devices assigned by the scheduler. Set it before starting Python.
 
 ## Revalidation
 
