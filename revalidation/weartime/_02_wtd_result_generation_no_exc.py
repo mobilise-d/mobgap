@@ -87,8 +87,10 @@ optimizers = {
                 memory=Memory(cache_dir, compress=3, verbose=0),
             ),
         ),
-        **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
-        n_trials=40,
+        **{
+            **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
+            "n_trials": 40,
+        },
     ),
     "WtdMegaritisCNN": WearTimeOptunaSearch(
         WtdMegaritisCNNTrainer(

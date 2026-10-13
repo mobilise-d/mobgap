@@ -38,6 +38,7 @@ def _sample_sustain_training_days(
 
 def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
     from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
+    from mobgap.weartime.optimization import _seeded_study_params  # noqa: PLC0415 - Resolve after trainer imports.
 
     return {
         "scoring": wtd_score,
@@ -61,4 +62,14 @@ def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
             ]
         ),
         "train_dataset_transform": _sample_sustain_training_days,
+        "get_study_params": _seeded_study_params,
+        "n_trials": 20,
+        "random_seed": 42,
+        "timeout": None,
+        "callbacks": None,
+        "gc_after_trial": False,
+        "n_jobs": 1,
+        "eval_str_paras": (),
+        "show_progress_bar": False,
+        "return_optimized": True,
     }
