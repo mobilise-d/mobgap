@@ -66,14 +66,18 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     1D CNN-based wear-time detection for lower-back worn IMU sensors.
 
     Uses a pre-trained 1D Convolutional Neural Network trained on raw windowed
-    IMU data (accelerometer and gyroscope). Processes overlapping 5-second windows
-    with per-window scaling and includes biomechanically-informed post-processing.
+    IMU data (accelerometer and gyroscope). Processes overlapping windows at the configured
+    duration. Built-in CNN and CNN-LSTM graphs standardize each window internally; supplied
+    native graphs receive raw windows and must contain their required preprocessing.
 
     Post-processing steps:
     1. Majority voting across overlapping windows to obtain sample-level predictions
-    2. Removal of wear bouts shorter than 15 seconds (biomechanically implausible)
-    3. Confidence filtering for wear bouts under 20 minutes (requires >90%% vote agreement)
+    2. Removal of wear bouts shorter than 15 seconds
+    3. Confidence filtering for interior wear bouts under 20 minutes, requiring at least 90%%
+       wear vote agreement. Recording-boundary bouts are exempt from this confidence filter.
     4. Merging of short non-wear gaps (<15s) between wear periods
+
+    These duration and confidence thresholds are empirical post-processing heuristics.
 
     Parameters
     ----------
@@ -109,8 +113,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     Otherwise, sample zero is assumed to be midnight with a warning, and DST cannot be considered.
 
     **Model Architecture**
-    The low-level model operates on raw windowed IMU data with per-window standardization
-    (features scaled to zero mean, unit variance per window). Supply a trained low-level model for detection.
+    The low-level model passes raw windowed IMU data to the native graph. Built-in Megaritis graphs
+    standardize each channel to zero mean and unit variance per window; supplied graphs own their preprocessing.
+    Supply a trained low-level model for detection.
     The independent SUSTAIN CNN and CNN-LSTM presets load their model definitions, native inputs and fitted weights.
     Their untrained counterparts load only model definitions and inputs for retraining.
     ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` create fresh model blueprints
@@ -178,10 +183,9 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     ) -> Self:
         """%(detect_short)s using 1D CNN with overlapping windows.
 
-        Processes raw IMU data in overlapping windows with per-window standardization,
-        applies the pre-trained CNN model, and converts window-level predictions to
-        sample-level wear-time segments using majority voting and biomechanical
-        post-processing rules.
+        Passes raw IMU windows to the trained native graph and converts window-level
+        predictions to sample-level wear-time segments using majority voting and
+        empirical post-processing rules.
 
         Parameters
         ----------
@@ -191,8 +195,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
 
         Notes
         -----
-        Each window is independently standardized (zero mean, unit variance) before
-        being fed to the CNN, matching the training preprocessing.
+        Built-in CNN and CNN-LSTM graphs perform per-window standardization internally.
+        Supplied native graphs receive raw windows and must implement their required preprocessing.
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz

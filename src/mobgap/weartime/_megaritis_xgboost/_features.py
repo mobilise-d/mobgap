@@ -1,4 +1,10 @@
-"""Utility functions for IMU feature extraction from windowed data."""
+"""IMU feature extraction preserving the original feature definitions.
+
+The historical ``*_energy_ratio`` keys calculate ``sum(abs(x)) / (sum(abs(y)) + 1e-12)``.
+The ``*_psd_ratio`` keys calculate ``sum(abs(rfft(x))) / (sum(abs(rfft(y))) + 1e-12)``.
+These are amplitude ratios, not ratios of squared energy or power spectral density.
+Both extraction variants retain these names and formulas from the original implementation.
+"""
 
 from __future__ import annotations
 
