@@ -209,7 +209,14 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
                         colsample_bytree=0.8,
                         min_child_weight=3,
                         random_state=42,
-                    )
+                    ),
+                    "model_config": WearTimeModelConfig(feature_names=tuple(FEATURE_ORDER_90PCT)),
+                    "overlap": 0.75,
+                    "prediction_threshold": 0.5,
+                    "window_batch_size": 4096,
+                    "n_jobs_features": 4,
+                    "memory": Memory(None),
+                    "waking_hours": (time(7), time(22)),
                 }
             )
 
@@ -231,13 +238,13 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self,
         *,
         clf: _SklearnWearTimeClassifier,
-        model_config: WearTimeModelConfig = cf(WearTimeModelConfig(feature_names=tuple(FEATURE_ORDER_90PCT))),
-        overlap: float = 0.75,
-        prediction_threshold: float = 0.5,
-        window_batch_size: int = 4096,
-        n_jobs_features: int = 4,
-        memory: Memory = cf(Memory(None)),
-        waking_hours: tuple[time, time] = (time(7), time(22)),
+        model_config: WearTimeModelConfig,
+        overlap: float,
+        prediction_threshold: float,
+        window_batch_size: int,
+        n_jobs_features: int,
+        memory: Memory,
+        waking_hours: tuple[time, time],
     ) -> None:
         self.clf = clf
         self.model_config = model_config

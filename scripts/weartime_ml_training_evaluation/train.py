@@ -37,7 +37,6 @@ def main() -> None:
         "WtdMegaritisXGBoost": WearTimeOptunaSearch(
             WtdMegaritisXGBoostTrainer(
                 algo=WtdMegaritisXGBoost(
-                    **WtdMegaritisXGBoost.PredefinedParameters.empty_xgboost,
                     memory=Memory(cache_dir, compress=3, verbose=0),
                 ),
             ),

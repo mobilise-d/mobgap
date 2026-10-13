@@ -133,12 +133,12 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         @classproperty
         def empty_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Create a fresh CNN blueprint with default structure and no fitted weights."""
-            return MappingProxyType({"model": MegaritisCnnWeartimeModel()})
+            return MappingProxyType({"model": MegaritisCnnWeartimeModel(), "waking_hours": (time(7), time(22))})
 
         @classproperty
         def empty_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Create a fresh CNN-LSTM blueprint with default structure and no fitted weights."""
-            return MappingProxyType({"model": MegaritisCnnLstmWeartimeModel()})
+            return MappingProxyType({**cls.empty_cnn, "model": MegaritisCnnLstmWeartimeModel()})
 
         @classproperty
         def sustain_weartime_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
@@ -155,7 +155,7 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         self,
         *,
         model: KerasWeartimeModel,
-        waking_hours: tuple[time, time] = (time(7), time(22)),
+        waking_hours: tuple[time, time],
     ) -> None:
         self.model = model
         self.waking_hours = waking_hours
