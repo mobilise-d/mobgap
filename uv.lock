@@ -1603,7 +1603,6 @@ ax6 = [
 weartime = [
     { name = "cwa-reader-rs" },
     { name = "optuna" },
-    { name = "pyentrp" },
     { name = "tensorflow", marker = "python_full_version < '3.13'" },
     { name = "xgboost" },
 ]
@@ -1667,7 +1666,6 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.0" },
     { name = "pingouin", specifier = ">=0.6.1" },
     { name = "pooch", specifier = ">=1.8.1" },
-    { name = "pyentrp", marker = "extra == 'weartime'", specifier = ">=2.1.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "pywavelets", specifier = ">=1.9.0" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
@@ -2406,19 +2404,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/00/20/bb50f9de3a6de69e6abd6b087b52fa2418a0418b19597601605f855ad044/pydata_sphinx_theme-0.16.1.tar.gz", hash = "sha256:a08b7f0b7f70387219dc659bff0893a7554d5eb39b59d3b8ef37b8401b7642d7", size = 2412693, upload-time = "2024-12-17T10:53:39.537Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e2/0d/8ba33fa83a7dcde13eb3c1c2a0c1cc29950a048bfed6d9b0d8b6bd710b4c/pydata_sphinx_theme-0.16.1-py3-none-any.whl", hash = "sha256:225331e8ac4b32682c18fcac5a57a6f717c4e632cea5dd0e247b55155faeccde", size = 6723264, upload-time = "2024-12-17T10:53:35.645Z" },
-]
-
-[[package]]
-name = "pyentrp"
-version = "2.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3a/7f/b9022e49a48bb2b7ea275aa81415978680be38d82e4eeae1cd9ab8799293/pyentrp-2.2.0.tar.gz", hash = "sha256:fc379673b548befcfae68268de1d43341e140701f14c1f078c86df32e29ccb5b", size = 10249, upload-time = "2026-09-15T08:29:54.633Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1c/2f/f7d43ff20d99d1acc901f0f0c23959f254cd3d96a840dcfccbfd4bc3b10c/pyentrp-2.2.0-py3-none-any.whl", hash = "sha256:ccb41417a85ef0ee85990e895f8d72879827cac849f2cb5955bc33ab8ca8d4f9", size = 10866, upload-time = "2026-09-15T08:29:55.375Z" },
 ]
 
 [[package]]
