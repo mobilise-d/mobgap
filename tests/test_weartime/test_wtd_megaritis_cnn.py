@@ -25,9 +25,9 @@ from mobgap.weartime import (
     WtdMegaritisCNNTrainer,
     load_keras_weartime_model,
 )
-from mobgap.weartime import _keras_weartime_model as keras_model_module
-from mobgap.weartime import _wtd_megaritis_cnn as cnn_module
-from mobgap.weartime import _wtd_megaritis_cnn_trainer as trainer_module
+from mobgap.weartime._megaritis_cnn import _detector as cnn_module
+from mobgap.weartime._megaritis_cnn import _model as keras_model_module
+from mobgap.weartime._megaritis_cnn import _trainer as trainer_module
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,

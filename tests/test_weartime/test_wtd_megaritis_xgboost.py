@@ -21,9 +21,9 @@ from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.weartime import WearTimeModelConfig, WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
-from mobgap.weartime import _wtd_megaritis_xgboost as xgb_module
-from mobgap.weartime import _wtd_megaritis_xgboost_trainer as trainer_module
-from mobgap.weartime.utils.feature_extraction import (
+from mobgap.weartime._megaritis_xgboost import _detector as xgb_module
+from mobgap.weartime._megaritis_xgboost import _trainer as trainer_module
+from mobgap.weartime._megaritis_xgboost._features import (
     FEATURE_ORDER_90PCT,
     FULL_FEATURE_ORDER,
     _batched_iqr,

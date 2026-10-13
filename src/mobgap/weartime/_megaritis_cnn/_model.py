@@ -75,7 +75,7 @@ def _stepped_window_view(sensor_data: np.ndarray, window_samples: int, step_samp
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
 def _load_keras_model_resource(file_name: str) -> Any:
     """Load a Keras model from packaged production model resources."""
-    model_file = files("mobgap.weartime.production_models").joinpath(file_name)
+    model_file = files("mobgap.weartime._megaritis_cnn._models").joinpath(file_name)
     return load_keras_weartime_model(model_file)
 
 

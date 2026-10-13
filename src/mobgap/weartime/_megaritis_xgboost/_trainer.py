@@ -31,16 +31,16 @@ from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, Unpack
 
 from mobgap.data.base import BaseGaitDataset
-from mobgap.weartime._model_config import WearTimeModelConfig  # noqa: TC001 - tpcp evaluates field annotations.
-from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
-from mobgap.weartime._training import _single_sampling_rate_hz, _TrainingDataFromDataset
-from mobgap.weartime._wtd_megaritis_xgboost import (
+from mobgap.weartime._megaritis_xgboost._detector import (
     WtdMegaritisXGBoost,
     _FeatureExtractionKwargs,
     _recording_feature_batches,
 )
+from mobgap.weartime._megaritis_xgboost._features import FEATURE_ORDER_90PCT
+from mobgap.weartime._model_config import WearTimeModelConfig  # noqa: TC001 - tpcp evaluates field annotations.
+from mobgap.weartime._optimization_presets import _sustain_weartime_optimization_defaults
+from mobgap.weartime._training import _single_sampling_rate_hz, _TrainingDataFromDataset
 from mobgap.weartime.pipeline import WtdEmulationPipeline
-from mobgap.weartime.utils.feature_extraction import FEATURE_ORDER_90PCT
 from mobgap.weartime.utils.ml_feature_extraction import (
     known_window_mask,
     labels_from_interval_centers,
@@ -163,7 +163,7 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load fitting settings without constructing or loading a model."""
             with (
-                files("mobgap.weartime.production_models")
+                files("mobgap.weartime._megaritis_xgboost._models")
                 .joinpath("xgboost_sustain_weartime_training_params.json")
                 .open() as file
             ):

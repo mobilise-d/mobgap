@@ -28,7 +28,7 @@ from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.utils.array_handling import bool_array_to_start_end_array
-from mobgap.weartime._keras_weartime_model import (
+from mobgap.weartime._megaritis_cnn._model import (
     KerasWeartimeModel,
     MegaritisCnnLstmWeartimeModel,
     MegaritisCnnWeartimeModel,
@@ -51,7 +51,7 @@ from mobgap.weartime.utils.windows_to_weartime import (
 def _load_cnn_parameters(
     prefix: str, model_type: type[KerasWeartimeModel], *, trained: bool
 ) -> MappingProxyType[str, Any]:
-    resources = files("mobgap.weartime.production_models")
+    resources = files("mobgap.weartime._megaritis_cnn._models")
     with resources.joinpath(f"{prefix}_model_config.json").open() as file:
         config = WearTimeModelConfig.from_dict(json.load(file))
     with resources.joinpath(f"{prefix}_model_params.json").open() as file:

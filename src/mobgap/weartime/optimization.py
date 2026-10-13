@@ -11,8 +11,8 @@ from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
 from tpcp.validate import cross_validate
 
-from mobgap.weartime._wtd_megaritis_cnn_trainer import WtdMegaritisCNNTrainer
-from mobgap.weartime._wtd_megaritis_xgboost_trainer import WtdMegaritisXGBoostTrainer
+from mobgap.weartime._megaritis_cnn._trainer import WtdMegaritisCNNTrainer
+from mobgap.weartime._megaritis_xgboost._trainer import WtdMegaritisXGBoostTrainer
 from mobgap.weartime.evaluation import wtd_score
 
 WearTimeTrainer = WtdMegaritisXGBoostTrainer | WtdMegaritisCNNTrainer

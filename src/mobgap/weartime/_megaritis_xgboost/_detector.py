@@ -39,6 +39,11 @@ from typing_extensions import Self, TypedDict, Unpack
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.utils.dtypes import assert_is_sensor_data
+from mobgap.weartime._megaritis_xgboost._features import (
+    FEATURE_ORDER_90PCT,
+    _prepare_lightweight_recording,
+    extract_features_batched,
+)
 from mobgap.weartime._model_config import WearTimeModelConfig
 from mobgap.weartime.base import (
     BaseWeartimeDetector,
@@ -46,11 +51,6 @@ from mobgap.weartime.base import (
     base_weartime_docfiller,
 )
 from mobgap.weartime.utils._intervals import _validate_waking_hours, _with_local_datetimes
-from mobgap.weartime.utils.feature_extraction import (
-    FEATURE_ORDER_90PCT,
-    _prepare_lightweight_recording,
-    extract_features_batched,
-)
 from mobgap.weartime.utils.ml_feature_extraction import window_start_end
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
@@ -82,7 +82,7 @@ def _new_xgboost_classifier() -> BaseEstimator:
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
 def _load_pickle_resource(file_name: str) -> Any:
-    resource = files("mobgap.weartime.production_models").joinpath(file_name)
+    resource = files("mobgap.weartime._megaritis_xgboost._models").joinpath(file_name)
     try:
         with resource.open("rb") as file:
             return pickle.load(file)
@@ -232,7 +232,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         def untrained_sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load selected model structure for retraining, without fitted weights."""
             with (
-                files("mobgap.weartime.production_models")
+                files("mobgap.weartime._megaritis_xgboost._models")
                 .joinpath("xgboost_sustain_weartime_model_config.json")
                 .open() as file
             ):
@@ -248,7 +248,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load the fitted classifier and its exact trained input requirements."""
             with (
-                files("mobgap.weartime.production_models")
+                files("mobgap.weartime._megaritis_xgboost._models")
                 .joinpath("xgboost_sustain_weartime_model_config.json")
                 .open() as file
             ):

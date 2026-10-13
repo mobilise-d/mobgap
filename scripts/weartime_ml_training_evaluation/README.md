@@ -84,9 +84,16 @@ constructor settings, excluding fitted weights and input configuration).
 XGBoost exports `*_model.pkl` and `*_classifier_template.pkl`; the latter contains
 selected estimator constructor parameters with fitted state removed by sklearn cloning.
 
-To package a production run, copy its exported files into
-`src/mobgap/weartime/production_models/`, retaining their names. Fitted preset loaders
-require those freshly trained artifacts; none are generated automatically on import.
+To package a production run, copy its exported files into the algorithm's resource
+directory, retaining their names:
+
+| Algorithm | Resource directory |
+| --- | --- |
+| CNN and CNN-LSTM | `src/mobgap/weartime/_megaritis_cnn/_models/` |
+| XGBoost | `src/mobgap/weartime/_megaritis_xgboost/_models/` |
+
+Fitted preset loaders require those freshly trained artifacts; none are generated
+automatically on import.
 
 - `WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` loads fitted weights and inputs.
   `untrained_sustain_weartime` loads the selected untrained template and inputs;
