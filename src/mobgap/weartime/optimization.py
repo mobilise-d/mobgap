@@ -104,7 +104,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         the selected metric with seeded TPE. Supply a factory to configure direction, storage
         or other study settings.
     n_trials, random_seed
-        Trial budget and sampler seed, defaulting to 20 and 42.
+        Trial budget and sampler seed, defaulting to 50 and 42.
     n_jobs
         Parallel trial workers. The shared objective always runs inner CV sequentially.
         Multiple trial workers require persistent study storage supplied by ``get_study_params``;
@@ -127,7 +127,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         cv: BaseDatasetSplitter | int = 3,
         train_dataset_transform: Callable[[BaseGaitDataset], BaseGaitDataset] | None = None,
         get_study_params: Callable[[int], StudyParamsDict] = _seeded_study_params,
-        n_trials: int = 20,
+        n_trials: int = 50,
         random_seed: int = 42,
         timeout: float | None = None,
         callbacks: list[Callable[[Study, FrozenTrial], None]] | None = None,

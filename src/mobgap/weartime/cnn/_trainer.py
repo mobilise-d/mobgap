@@ -116,7 +116,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
 
         @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Rank human participant folds with sampled human and simulated training days."""
+            """Search 50 trials with human participant folds and sampled training days."""
             return MappingProxyType(
                 {"create_search_space": cls._create_search_space, **_sustain_weartime_optimization_defaults()}
             )

@@ -63,7 +63,7 @@ def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
         ),
         "train_dataset_transform": _sample_sustain_training_days,
         "get_study_params": _seeded_study_params,
-        "n_trials": 20,
+        "n_trials": 50,
         "random_seed": 42,
         "timeout": None,
         "callbacks": None,

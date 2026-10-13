@@ -12,8 +12,7 @@ use one fixed seed-42 50/50 train/test split, repeated in every human fold.
 All evaluated days from one simulated recording remain in the same half.
 The signal detector uses ``DummyOptimize``. XGBoost and CNN use the SUSTAIN
 Optuna presets to tune on human-only inner validation and refit each outer
-training fold. The default CNN fits 60 epochs with 20 trials; XGBoost uses
-40 trials.
+training fold.
 
 Per-day and per-fold metrics and raw interval matches are saved locally. The
 analysis summarizes labeled-sample confusion counts with day, participant and
@@ -87,10 +86,7 @@ optimizers = {
                 memory=Memory(cache_dir, compress=3, verbose=0),
             ),
         ),
-        **{
-            **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
-            "n_trials": 40,
-        },
+        **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
     ),
     "WtdMegaritisCNN": WearTimeOptunaSearch(
         WtdMegaritisCNNTrainer(
@@ -145,6 +141,8 @@ splitter = CombinedSplitter(
                 lambda days: days.get_subset(
                     recording_type="simulated_movements"
                 ),
+                # This is a fixed 50/50 split of the simulated non-wear recordings.
+                # The same split is used for each fold of the human recordings.
                 NoSplit(
                     None,
                     train=lambda days: days.get_subset(
