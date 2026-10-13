@@ -16,6 +16,8 @@ from scipy.fft import rfft, rfftfreq
 from scipy.signal import find_peaks, get_window
 from scipy.stats import kurtosis, skew
 
+from mobgap.consts import BF_SENSOR_COLS
+
 # SciPy changed its near-constant convention when adding array API support in 1.14.
 _MOMENT_ZERO_TOLERANCE = (
     np.finfo(np.float64).resolution if np.lib.NumpyVersion(scipy_version) < "1.14.0" else np.finfo(np.float64).eps
@@ -870,9 +872,9 @@ def _windowed_sensor_arrays(
     acc_axes: tuple[str, str, str],
     gyr_axes: tuple[str, str, str],
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Build window views from six columns ordered as acceleration, then gyroscope."""
+    """Build window views in anatomical order, using axis names to interpret array columns."""
     if isinstance(data, pd.DataFrame):
-        sensor_frame = data.loc[:, [*acc_axes, *gyr_axes]]
+        sensor_frame = data.loc[:, BF_SENSOR_COLS]
         sensor_values = sensor_frame.to_numpy(copy=False)
         if sensor_values.dtype not in (np.float32, np.float64):
             sensor_values = sensor_frame.to_numpy(dtype=float, copy=False, na_value=np.nan)
@@ -880,6 +882,9 @@ def _windowed_sensor_arrays(
         sensor_values = np.asarray(data)
         if sensor_values.dtype not in (np.float32, np.float64):
             sensor_values = sensor_values.astype(float)
+        columns = (*acc_axes, *gyr_axes)
+        if columns != tuple(BF_SENSOR_COLS):
+            sensor_values = sensor_values[:, [columns.index(name) for name in BF_SENSOR_COLS]]
 
     step = int(starts[1] - starts[0]) if len(starts) > 1 else 1
     if (
@@ -1166,6 +1171,7 @@ def extract_full_features_batched(  # noqa: PLR0915, PLR0917 - Preserve the esta
         )
 
     acc_data, gyr_data = _windowed_sensor_arrays(df, starts, window_samples, acc_axes, gyr_axes)
+    acc_axes, gyr_axes = tuple(BF_SENSOR_COLS[:3]), tuple(BF_SENSOR_COLS[3:])
 
     acc_is = acc_data[:, :, 0]
     acc_ml = acc_data[:, :, 1]

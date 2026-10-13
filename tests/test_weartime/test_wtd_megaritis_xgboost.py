@@ -307,6 +307,35 @@ class TestWtdMegaritisXGBoostFeatureExtraction:
         assert np.isnan(legacy.kurtosis).all()
 
     @pytest.mark.parametrize("version", ["lightweight", "full"])
+    def test_feature_axes_follow_names_under_reordered_channels(self, version: str, tmp_path: Path) -> None:
+        """Reordered native inputs retain anatomical features, including cached recording intermediates."""
+        data = pd.DataFrame(np.random.default_rng(42).normal(size=(1000, 6)).astype(np.float32), columns=BF_SENSOR_COLS)
+        columns = ("acc_pa", "acc_ml", "acc_is", "gyr_pa", "gyr_is", "gyr_ml")
+        names = ("acc_pa_std", "gyr_is_mean", "acc_is_acc_pa_psd_ratio", "gyr_is_gyr_pa_energy_ratio")
+        if version == "full":
+            names += ("gyr_norm_range",)
+        windows = np.array([[0, 500], [500, 1000]])
+        expected = extract_features_batched(data, windows, feature_names=names, version=version)
+        reordered = extract_features_batched(
+            data[list(columns)].to_numpy(),
+            windows,
+            acc_axes=columns[:3],
+            gyr_axes=columns[3:],
+            feature_names=names,
+            version=version,
+        )
+        assert_frame_equal(reordered, expected)
+        algo = WtdMegaritisXGBoost(
+            model_config=WearTimeModelConfig(100, 5, sensor_cols=columns, feature_names=names),
+            overlap=0,
+            window_batch_size=1,
+            n_jobs_features=1,
+            memory=Memory(tmp_path, verbose=0),
+        )
+        for _ in range(2):
+            assert_frame_equal(algo.extract_features(data, 100), expected.astype(np.float32))
+
+    @pytest.mark.parametrize("version", ["lightweight", "full"])
     def test_symmetric_gyro_mean_preserves_dominant_axis_ratio(self, version: str) -> None:
         """Do not amplify summation residuals through a near-zero dominant-axis denominator."""
         amplitude = 1024 + 2**-39

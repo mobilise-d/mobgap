@@ -37,6 +37,7 @@ from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, TypedDict, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
+from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.utils.dtypes import assert_is_sensor_data
 from mobgap.weartime._megaritis_xgboost._features import (
@@ -121,7 +122,8 @@ def _extract_recording_feature_batches(
     if len(window_start_end_) == 0:
         return []
     dt = 1.0 / sampling_rate_hz
-    sensor_frame = data.loc[:, list(sensor_cols)]
+    # Named features use anatomical axes, independently of the configured input order.
+    sensor_frame = data.loc[:, sorted(sensor_cols, key=BF_SENSOR_COLS.index)]
     sensor_data = sensor_frame.to_numpy(copy=False)
     if sensor_data.dtype not in (np.float32, np.float64):
         sensor_data = sensor_frame.to_numpy(dtype=float, copy=False, na_value=np.nan)
@@ -135,8 +137,6 @@ def _extract_recording_feature_batches(
         return extract_features_batched(
             sensor_data,
             batch_start_end,
-            acc_axes=sensor_cols[:3],
-            gyr_axes=sensor_cols[3:],
             fs=sampling_rate_hz,
             dt=dt,
             feature_names=feature_names,
