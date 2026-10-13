@@ -7,6 +7,7 @@ from collections.abc import Iterator  # noqa: TC003 - tpcp evaluates annotations
 from dataclasses import replace
 from importlib import import_module
 from importlib.resources import files
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Optional
 
@@ -195,6 +196,34 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
         self.shuffle_buffer_size = shuffle_buffer_size
         self.random_seed = random_seed
         self.fit_verbose = fit_verbose
+
+    def save_model(self, directory: str | Path, *, prefix: str) -> None:
+        """Persist the configured native model, input settings and fitting recipe.
+
+        Call after optimization, when ``algo.model.model`` holds the fitted Keras network.
+        Write ``<prefix>_model.keras``, ``_model_config.json``, ``_model_params.json`` and
+        ``_training_params.json`` into ``directory``, creating it when needed. Existing files are overwritten.
+        The model definition excludes weights and input configuration; the fitting recipe excludes ``algo``.
+        Optuna search results are saved separately by the caller. Use the matching SUSTAIN artifact prefix
+        when packaging files for the predefined model and trainer loaders.
+        """
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        model = self.algo.model
+        model.model.save(directory / f"{prefix}_model.keras")
+        metadata = {
+            "model_config": model.model_config.to_dict(),
+            "model_params": {
+                key: value
+                for key, value in model.get_params(deep=False).items()
+                if key not in ("model", "model_config")
+            },
+            "training_params": {key: value for key, value in self.get_params(deep=False).items() if key != "algo"},
+        }
+        for suffix, values in metadata.items():
+            with (directory / f"{prefix}_{suffix}.json").open("w") as file:
+                json.dump(values, file, indent=2)
+                file.write("\n")
 
     @make_optimize_safe
     def self_optimize(self, dataset: BaseGaitDataset) -> Self:

@@ -1,17 +1,13 @@
 """Tune wear-time models with inner CV and refit on all eligible SUSTAIN days."""
 
 import json
-import pickle
 from pathlib import Path
 
 from joblib import Memory
-from sklearn.base import clone as clone_untrained_estimator
 
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.misc import get_env_var
 from mobgap.weartime import (
-    MegaritisCnnLstmWeartimeModel,
-    WtdMegaritisCNN,
     WtdMegaritisCNNTrainer,
     WtdMegaritisXGBoost,
     WtdMegaritisXGBoostTrainer,
@@ -22,6 +18,11 @@ from mobgap.weartime.optimization import WearTimeOptunaSearch
 DATASET_PATH = None  # Defaults to MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH.
 CACHE_DIR = None  # Defaults to MOBGAP_CACHE_DIR_PATH or .cache/mobgap.
 OUTPUT_DIR = Path(".cache/weartime_models")
+ARTIFACT_PREFIXES = {
+    "WtdMegaritisXGBoost": "xgboost_sustain_weartime",
+    "WtdMegaritisCNN": "cnn_sustain_weartime",
+    "WtdMegaritisCNNLSTM": "cnn_lstm_sustain_weartime",
+}
 
 
 def main() -> None:
@@ -60,47 +61,12 @@ def main() -> None:
     for name, optimizer in optimizers.items():
         optimizer.optimize(dataset)
         trainer = optimizer.optimized_pipeline_
-        detector = trainer.algo
         output_dir = OUTPUT_DIR / name
-        output_dir.mkdir(parents=True, exist_ok=True)
-        if isinstance(detector, WtdMegaritisCNN):
-            artifact_name = (
-                "cnn_lstm_sustain_weartime"
-                if isinstance(detector.model, MegaritisCnnLstmWeartimeModel)
-                else "cnn_sustain_weartime"
-            )
-        else:
-            artifact_name = "xgboost_sustain_weartime"
+        artifact_name = ARTIFACT_PREFIXES[name]
+        trainer.save_model(output_dir, prefix=artifact_name)
         with (output_dir / f"{artifact_name}_best_params.json").open("w") as file:
             json.dump(optimizer.best_params_, file, indent=2)
             file.write("\n")
-        model_config = detector.model.model_config if isinstance(detector, WtdMegaritisCNN) else detector.model_config
-        with (output_dir / f"{artifact_name}_model_config.json").open("w") as file:
-            json.dump(model_config.to_dict(), file, indent=2)
-            file.write("\n")
-        with (output_dir / f"{artifact_name}_training_params.json").open("w") as file:
-            json.dump(
-                {key: value for key, value in trainer.get_params(deep=False).items() if key != "algo"}, file, indent=2
-            )
-            file.write("\n")
-        if isinstance(detector, WtdMegaritisCNN):
-            with (output_dir / f"{artifact_name}_model_params.json").open("w") as file:
-                json.dump(
-                    {
-                        key: value
-                        for key, value in detector.model.get_params(deep=False).items()
-                        if key not in ("model", "model_config")
-                    },
-                    file,
-                    indent=2,
-                )
-                file.write("\n")
-            detector.model.model.save(output_dir / f"{artifact_name}_model.keras")
-        else:
-            with (output_dir / f"{artifact_name}_classifier_template.pkl").open("wb") as file:
-                pickle.dump(clone_untrained_estimator(detector.clf), file)
-            with (output_dir / f"{artifact_name}_model.pkl").open("wb") as file:
-                pickle.dump(detector.clf, file)
 
 
 if __name__ == "__main__":

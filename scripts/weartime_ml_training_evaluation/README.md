@@ -65,6 +65,17 @@ Final artifacts under `.cache/weartime_models` use these independent folders/pre
 | CNN | `WtdMegaritisCNN` | `cnn_sustain_weartime` |
 | CNN-LSTM | `WtdMegaritisCNNLSTM` | `cnn_lstm_sustain_weartime` |
 
+The optimized trainer owns artifact persistence:
+
+```python
+trainer.save_model(output_directory, prefix="cnn_lstm_sustain_weartime")
+```
+
+`save_model` creates the directory and saves the native model, complete model definition,
+input configuration and fitting recipe, overwriting matching files. `train.py` delegates to
+this method and separately writes Optuna's `*_best_params.json`; `ARTIFACT_PREFIXES`
+configures the filenames used for each run.
+
 Each exports `*_model_config.json` (native rate and ordered inputs),
 `*_best_params.json` (winning searched values, including nested model parameters) and
 `*_training_params.json` (complete fitting recipe, excluding the algorithm).

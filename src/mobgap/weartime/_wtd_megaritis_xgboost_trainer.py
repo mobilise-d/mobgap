@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import pickle
 from collections.abc import Iterator  # noqa: TC003 - tpcp resolves annotations at runtime.
 from dataclasses import replace
 from importlib.resources import files
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Optional
 
@@ -14,6 +16,7 @@ import pandas as pd
 from joblib import Memory  # noqa: TC002 - tpcp resolves annotations at runtime.
 from sklearn.base import BaseEstimator
 from sklearn.base import clone as clone_untrained_estimator
+from sklearn.utils.validation import check_is_fitted
 from tpcp import (
     HyperParameter,
     OptimizableParameter,
@@ -199,6 +202,32 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         super().__init__(algo, convert_to_body_frame=convert_to_body_frame)
         self.training_overlap = training_overlap
         self.n_jobs = n_jobs
+
+    def save_model(self, directory: str | Path, *, prefix: str) -> None:
+        """Persist the fitted estimator, its untrained template, input settings and fitting recipe.
+
+        Call after optimization. Write ``<prefix>_model.pkl``, ``_classifier_template.pkl``,
+        ``_model_config.json`` and ``_training_params.json`` into ``directory``, creating it when needed.
+        Existing files are overwritten. The template retains constructor parameters with learned state
+        removed using sklearn cloning; the fitting recipe excludes ``algo``. Optuna search results are
+        saved separately by the caller. Use the matching SUSTAIN artifact prefix when packaging files for
+        the predefined model and trainer loaders.
+        """
+        check_is_fitted(self.algo.clf)
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+        with (directory / f"{prefix}_model.pkl").open("wb") as file:
+            pickle.dump(self.algo.clf, file)
+        with (directory / f"{prefix}_classifier_template.pkl").open("wb") as file:
+            pickle.dump(clone_untrained_estimator(self.algo.clf), file)
+        metadata = {
+            "model_config": self.algo.model_config.to_dict(),
+            "training_params": {key: value for key, value in self.get_params(deep=False).items() if key != "algo"},
+        }
+        for suffix, values in metadata.items():
+            with (directory / f"{prefix}_{suffix}.json").open("w") as file:
+                json.dump(values, file, indent=2)
+                file.write("\n")
 
     @make_optimize_safe
     def self_optimize(self, dataset: BaseGaitDataset, **kwargs: Unpack[dict[str, Any]]) -> Self:

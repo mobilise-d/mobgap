@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from datetime import time
@@ -243,19 +242,11 @@ class TestWtdMegaritisCNN:
         config = WearTimeModelConfig(1, 20)
         blueprint = model_type(dropout_rate=0.5, filters=(2, 2, 2), dense_units=2)
         model = blueprint._create_model(config)
-        model.save(tmp_path / f"{prefix}_model.keras")
-        (tmp_path / f"{prefix}_model_config.json").write_text(json.dumps(config.to_dict()))
-        (tmp_path / f"{prefix}_model_params.json").write_text(
-            json.dumps(
-                {
-                    name: value
-                    for name, value in blueprint.get_params(deep=False).items()
-                    if name not in ("model", "model_config")
-                }
-            )
+        recipe = {"learning_rate": 0.007, "batch_size": 512, "gradient_clipnorm": 1, "epochs": 7}
+        writer = WtdMegaritisCNNTrainer(
+            WtdMegaritisCNN(model=blueprint.set_params(model=model, model_config=config)), **recipe
         )
-        recipe = {"learning_rate": 0.007, "batch_size": 512, "gradient_clipnorm": 1}
-        (tmp_path / f"{prefix}_training_params.json").write_text(json.dumps(recipe))
+        writer.save_model(tmp_path, prefix=prefix)
         monkeypatch.setattr(keras_model_module, "files", lambda _: tmp_path)
         monkeypatch.setattr(cnn_module, "files", lambda _: tmp_path)
         monkeypatch.setattr(trainer_module, "files", lambda _: tmp_path)
@@ -264,7 +255,11 @@ class TestWtdMegaritisCNN:
         fitted = WtdMegaritisCNN(**parameters).model
         untrained = WtdMegaritisCNN(**getattr(WtdMegaritisCNN.PredefinedParameters, "untrained_" + preset_name)).model
         trainer_params = getattr(WtdMegaritisCNNTrainer.PredefinedParameters, preset_name)
-        assert dict(trainer_params) == recipe
+        restored_trainer = WtdMegaritisCNNTrainer(WtdMegaritisCNN(model=untrained), **trainer_params)
+        assert restored_trainer.learning_rate == 0.007
+        assert restored_trainer.batch_size == 512
+        assert restored_trainer.gradient_clipnorm == 1
+        assert restored_trainer.epochs == 7
         assert type(fitted) is model_type
         assert type(untrained) is model_type
         assert untrained.model is None
