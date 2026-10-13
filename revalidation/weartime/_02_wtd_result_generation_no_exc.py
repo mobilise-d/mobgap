@@ -141,8 +141,6 @@ splitter = CombinedSplitter(
                 lambda days: days.get_subset(
                     recording_type="simulated_movements"
                 ),
-                # This is a fixed 50/50 split of the simulated non-wear recordings.
-                # The same split is used for each fold of the human recordings.
                 NoSplit(
                     None,
                     train=lambda days: days.get_subset(
