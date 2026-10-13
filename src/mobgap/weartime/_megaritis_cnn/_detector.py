@@ -23,7 +23,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from tpcp import cf, clone, make_action_safe
-from tpcp.misc import classproperty
+from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
@@ -48,15 +48,13 @@ from mobgap.weartime.utils.windows_to_weartime import (
 )
 
 
-def _load_cnn_parameters(
-    prefix: str, model_type: type[KerasWeartimeModel], *, trained: bool
-) -> MappingProxyType[str, Any]:
+def _load_cnn_parameters(prefix: str, model_type: type[KerasWeartimeModel]) -> MappingProxyType[str, Any]:
     resources = files("mobgap.weartime._megaritis_cnn._models")
     with resources.joinpath(f"{prefix}_model_config.json").open() as file:
         config = WearTimeModelConfig.from_dict(json.load(file))
     with resources.joinpath(f"{prefix}_model_params.json").open() as file:
         model_params = json.load(file)
-    model = clone(_load_keras_model_resource(f"{prefix}_model.keras")) if trained else None
+    model = clone(_load_keras_model_resource(f"{prefix}_model.keras"))
     return MappingProxyType({"model": model_type(model=model, model_config=config, **model_params)})
 
 
@@ -118,7 +116,6 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
     standardize each channel to zero mean and unit variance per window; supplied graphs own their preprocessing.
     Supply a trained low-level model for detection.
     The independent SUSTAIN CNN and CNN-LSTM presets load their model definitions, native inputs and fitted weights.
-    Their untrained counterparts load only model definitions and inputs for retraining.
     ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` create fresh model blueprints
     without loading any packaged artifacts.
 
@@ -146,27 +143,18 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
         @classproperty
         def sustain_weartime_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load the fitted CNN and its complete model definition."""
-            return _load_cnn_parameters("cnn_sustain_weartime", MegaritisCnnWeartimeModel, trained=True)
+            return _load_cnn_parameters("cnn_sustain_weartime", MegaritisCnnWeartimeModel)
 
         @classproperty
         def sustain_weartime_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load the fitted CNN-LSTM and its complete model definition."""
-            return _load_cnn_parameters("cnn_lstm_sustain_weartime", MegaritisCnnLstmWeartimeModel, trained=True)
+            return _load_cnn_parameters("cnn_lstm_sustain_weartime", MegaritisCnnLstmWeartimeModel)
 
-        @classproperty
-        def untrained_sustain_weartime_cnn(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Load the selected CNN blueprint without fitted weights."""
-            return _load_cnn_parameters("cnn_sustain_weartime", MegaritisCnnWeartimeModel, trained=False)
-
-        @classproperty
-        def untrained_sustain_weartime_cnn_lstm(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Load the selected CNN-LSTM blueprint without fitted weights."""
-            return _load_cnn_parameters("cnn_lstm_sustain_weartime", MegaritisCnnLstmWeartimeModel, trained=False)
-
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.empty_cnn.items()})
     def __init__(
         self,
         *,
-        model: KerasWeartimeModel = cf(MegaritisCnnWeartimeModel()),
+        model: KerasWeartimeModel,
         waking_hours: tuple[time, time] = (time(7), time(22)),
     ) -> None:
         self.model = model

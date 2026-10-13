@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import pickle
 from datetime import time
 from typing import TYPE_CHECKING, ClassVar
 
@@ -24,7 +22,6 @@ pytest.importorskip("xgboost")
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.weartime import WearTimeModelConfig
 from mobgap.weartime._megaritis_xgboost import _detector as xgb_module
-from mobgap.weartime._megaritis_xgboost import _trainer as trainer_module
 from mobgap.weartime._megaritis_xgboost._features import (
     FEATURE_ORDER_90PCT,
     FULL_FEATURE_ORDER,
@@ -37,7 +34,7 @@ from mobgap.weartime._megaritis_xgboost._features import (
     extract_features_batched,
     extract_full_features_batched,
 )
-from mobgap.weartime.xgboost import WtdMegaritisXGBoost, WtdMegaritisXGBoostTrainer
+from mobgap.weartime.xgboost import WtdMegaritisXGBoost
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -233,33 +230,6 @@ class TestWtdMegaritisXGBoost:
 
         assert len(calls) == 1
         assert_array_equal(calls[0], np.array([[0, 20], [20, 40]]))
-
-    def test_untrained_sustain_preset_loads_selected_parameters(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Restore the selected estimator and input settings separately from its fitting recipe."""
-        xgboost = pytest.importorskip("xgboost")
-        classifier = xgboost.XGBClassifier(n_estimators=17, max_depth=2, n_jobs=1)
-        with (tmp_path / "xgboost_sustain_weartime_classifier_template.pkl").open("wb") as file:
-            pickle.dump(classifier, file)
-        (tmp_path / "xgboost_sustain_weartime_model_config.json").write_text(
-            json.dumps(WearTimeModelConfig(50, feature_names=("acc_pa_std",)).to_dict())
-        )
-        (tmp_path / "xgboost_sustain_weartime_training_params.json").write_text(
-            json.dumps({"training_overlap": 0.5, "n_jobs": 2})
-        )
-        monkeypatch.setattr(xgb_module, "files", lambda _: tmp_path)
-        monkeypatch.setattr(trainer_module, "files", lambda _: tmp_path)
-        xgb_module._load_pickle_resource.cache_clear()
-        algo = WtdMegaritisXGBoost(**WtdMegaritisXGBoost.PredefinedParameters.untrained_sustain_weartime)
-        assert algo.clf.max_depth == 2
-        assert algo.clf.n_estimators == 17
-        assert algo.model_config == WearTimeModelConfig(50, feature_names=("acc_pa_std",))
-        assert dict(WtdMegaritisXGBoostTrainer.PredefinedParameters.sustain_weartime) == {
-            "training_overlap": 0.5,
-            "n_jobs": 2,
-        }
-        xgb_module._load_pickle_resource.cache_clear()
 
 
 class TestWtdMegaritisXGBoostFeatureExtraction:

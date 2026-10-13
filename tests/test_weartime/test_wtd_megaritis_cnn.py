@@ -293,7 +293,7 @@ class TestWtdMegaritisCNN:
     def test_sustain_presets_separate_model_and_training_settings(
         self, model_type, prefix, preset_name, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Load each fitted model and its untrained blueprint independently of the fitting recipe."""
+        """Load each fitted model independently of its fitting recipe."""
         pytest.importorskip("tensorflow")
         config = WearTimeModelConfig(1, 20)
         blueprint = model_type(dropout_rate=0.5, filters=(2, 2, 2), dense_units=2)
@@ -309,17 +309,14 @@ class TestWtdMegaritisCNN:
         keras_model_module._load_keras_model_resource.cache_clear()
         parameters = getattr(WtdMegaritisCNN.PredefinedParameters, preset_name)
         fitted = WtdMegaritisCNN(**parameters).model
-        untrained = WtdMegaritisCNN(**getattr(WtdMegaritisCNN.PredefinedParameters, "untrained_" + preset_name)).model
         trainer_params = getattr(WtdMegaritisCNNTrainer.PredefinedParameters, preset_name)
-        restored_trainer = WtdMegaritisCNNTrainer(WtdMegaritisCNN(model=untrained), **trainer_params)
+        restored_trainer = WtdMegaritisCNNTrainer(WtdMegaritisCNN(model=model_type()), **trainer_params)
         assert restored_trainer.learning_rate == 0.007
         assert restored_trainer.batch_size == 512
         assert restored_trainer.gradient_clipnorm == 1
         assert restored_trainer.epochs == 7
         assert type(fitted) is model_type
-        assert type(untrained) is model_type
-        assert untrained.model is None
-        assert untrained.dropout_rate == 0.5
+        assert fitted.dropout_rate == 0.5
         assert fitted.model_config == config
         windows = np.random.default_rng(42).normal(size=(2, 20, 6)).astype(np.float32)
         assert np.allclose(fitted.model(windows, training=False).numpy(), model(windows, training=False).numpy())

@@ -22,7 +22,7 @@ from datetime import time
 from functools import lru_cache
 from importlib.resources import files
 from types import MappingProxyType
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -31,7 +31,7 @@ from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 from tpcp import cf, clone, make_action_safe
 from tpcp.caching import hybrid_cache
-from tpcp.misc import classproperty
+from tpcp.misc import classproperty, set_defaults
 from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, TypedDict, Unpack
 from xgboost import XGBClassifier
@@ -60,18 +60,6 @@ from mobgap.weartime.utils.windows_to_weartime import (
 )
 
 _SklearnWearTimeClassifier = BaseEstimator
-
-
-def _new_xgboost_classifier() -> BaseEstimator:
-    return XGBClassifier(
-        n_estimators=100,
-        max_depth=5,
-        learning_rate=0.1,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        min_child_weight=3,
-        random_state=42,
-    )
 
 
 @lru_cache(maxsize=None)  # noqa: UP033 - Use the Python 3.8-compatible spelling.
@@ -199,7 +187,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
     %(perf_)s
     """
 
-    clf: Optional[_SklearnWearTimeClassifier]  # noqa: UP045
+    clf: _SklearnWearTimeClassifier
     model_config: WearTimeModelConfig
     window_predictions_: np.ndarray
     window_probabilities_: np.ndarray
@@ -209,23 +197,19 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         """Fitted SUSTAIN model artifacts and their native input configuration."""
 
         @classproperty
-        def baseline_sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Fresh canonical baseline for a first training run, without packaged artifacts."""
-            return MappingProxyType({"clf": _new_xgboost_classifier()})
-
-        @classproperty
-        def untrained_sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
-            """Load selected model structure for retraining, without fitted weights."""
-            with (
-                files("mobgap.weartime._megaritis_xgboost._models")
-                .joinpath("xgboost_sustain_weartime_model_config.json")
-                .open() as file
-            ):
-                config = WearTimeModelConfig.from_dict(json.load(file))
+        def empty_xgboost(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Create a fresh XGBoost classifier with baseline settings and no fitted state."""
             return MappingProxyType(
                 {
-                    "clf": clone(_load_pickle_resource("xgboost_sustain_weartime_classifier_template.pkl")),
-                    "model_config": config,
+                    "clf": XGBClassifier(
+                        n_estimators=100,
+                        max_depth=5,
+                        learning_rate=0.1,
+                        subsample=0.8,
+                        colsample_bytree=0.8,
+                        min_child_weight=3,
+                        random_state=42,
+                    )
                 }
             )
 
@@ -242,10 +226,11 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
                 {"clf": clone(_load_pickle_resource("xgboost_sustain_weartime_model.pkl")), "model_config": config}
             )
 
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.empty_xgboost.items()})
     def __init__(
         self,
         *,
-        clf: Optional[_SklearnWearTimeClassifier] = None,  # noqa: UP045
+        clf: _SklearnWearTimeClassifier,
         model_config: WearTimeModelConfig = cf(WearTimeModelConfig(feature_names=tuple(FEATURE_ORDER_90PCT))),
         overlap: float = 0.75,
         prediction_threshold: float = 0.5,
@@ -262,10 +247,6 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
         self.n_jobs_features = n_jobs_features
         self.memory = memory
         self.waking_hours = waking_hours
-
-    @staticmethod
-    def _create_classifier() -> BaseEstimator:
-        return _new_xgboost_classifier()
 
     @make_action_safe
     @timed_action_method

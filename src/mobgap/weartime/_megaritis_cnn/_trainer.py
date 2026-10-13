@@ -21,7 +21,7 @@ from tpcp import (
     cf,
     make_optimize_safe,
 )
-from tpcp.misc import classproperty
+from tpcp.misc import classproperty, set_defaults
 from typing_extensions import Self
 
 from mobgap.data.base import BaseGaitDataset
@@ -174,19 +174,20 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
             ):
                 return MappingProxyType(json.load(file))
 
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.empty_cnn.items()})
     def __init__(
         self,
-        algo: WtdMegaritisCNN = cf(WtdMegaritisCNN()),
+        algo: WtdMegaritisCNN,
         *,
-        training_overlap: float = 0.75,
-        learning_rate: float = 0.001,
-        gradient_clipnorm: float | None = None,
-        batch_size: int = 1024,
-        epochs: int = 60,
-        shuffle_buffer_size: int = 8192,
-        random_seed: int = 42,
-        fit_verbose: int = 1,
-        convert_to_body_frame: bool = True,
+        training_overlap: float,
+        learning_rate: float,
+        gradient_clipnorm: float | None,
+        batch_size: int,
+        epochs: int,
+        shuffle_buffer_size: int,
+        random_seed: int,
+        fit_verbose: int,
+        convert_to_body_frame: bool,
     ) -> None:
         super().__init__(algo, convert_to_body_frame=convert_to_body_frame)
         self.training_overlap = training_overlap

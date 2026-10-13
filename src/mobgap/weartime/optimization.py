@@ -57,7 +57,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
     ... )
     >>> pipeline = WtdMegaritisXGBoostTrainer(
     ...     WtdMegaritisXGBoost(
-    ...         **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime
+    ...         **WtdMegaritisXGBoost.PredefinedParameters.empty_xgboost
     ...     )
     ... )
     >>> optimizer = WearTimeOptunaSearch(

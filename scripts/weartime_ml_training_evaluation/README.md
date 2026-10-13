@@ -81,8 +81,7 @@ Each exports `*_model_config.json` (native rate and ordered inputs),
 `*_training_params.json` (complete fitting recipe, excluding the algorithm).
 CNN variants export `*_model.keras` and `*_model_params.json` (complete window-model
 constructor settings, excluding fitted weights and input configuration).
-XGBoost exports `*_model.pkl` and `*_classifier_template.pkl`; the latter contains
-selected estimator constructor parameters with fitted state removed by sklearn cloning.
+XGBoost exports its fitted estimator as `*_model.pkl`.
 
 To package a production run, copy its exported files into the algorithm's resource
 directory, retaining their names:
@@ -96,8 +95,8 @@ Fitted preset loaders require those freshly trained artifacts; none are generate
 automatically on import.
 
 - `WtdMegaritisXGBoost.PredefinedParameters.sustain_weartime` loads fitted weights and inputs.
-  `untrained_sustain_weartime` loads the selected untrained template and inputs;
-  `baseline_sustain_weartime` creates the canonical fresh baseline before artifacts exist.
+  `empty_xgboost` creates a fresh baseline classifier without packaged files.
+  The matching Trainer preset includes the empty detector and initial fitting settings.
 - `WtdMegaritisCNN.PredefinedParameters.empty_cnn` and `empty_cnn_lstm` create fresh
   model blueprints with their default architecture and input configuration, without packaged files.
   The matching `WtdMegaritisCNNTrainer.PredefinedParameters` presets include the empty
@@ -108,23 +107,11 @@ automatically on import.
   ```
 
 - `WtdMegaritisCNN.PredefinedParameters.sustain_weartime_cnn` and `sustain_weartime_cnn_lstm`
-  load their respective fitted models. `untrained_sustain_weartime_cnn` and
-  `untrained_sustain_weartime_cnn_lstm` load the respective model definitions without weights.
+  load their respective fitted models.
 - Artifact-backed trainer presets load only fitting recipes: XGBoost's `sustain_weartime`, and CNN's
-  `sustain_weartime_cnn` / `sustain_weartime_cnn_lstm`. Supply the matching untrained detector
+  `sustain_weartime_cnn` / `sustain_weartime_cnn_lstm`. Supply a fresh detector
   when constructing a trainer from a recipe. Search spaces and inner CV remain in
   `HyperparameterSearchPresets.sustain_weartime`.
-
-For example, retrain the selected CNN-LSTM definition through TPCP:
-
-```python
-algo = WtdMegaritisCNN(**WtdMegaritisCNN.PredefinedParameters.untrained_sustain_weartime_cnn_lstm)
-trainer = WtdMegaritisCNNTrainer(
-    algo,
-    **WtdMegaritisCNNTrainer.PredefinedParameters.sustain_weartime_cnn_lstm,
-)
-fitted_detector = Optimize(trainer).optimize(dataset).optimized_pipeline_.algo
-```
 
 Import ML algorithms through their explicit dependency modules:
 

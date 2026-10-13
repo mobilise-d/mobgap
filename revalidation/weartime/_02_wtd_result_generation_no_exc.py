@@ -39,15 +39,15 @@ from mobgap import PROJECT_ROOT
 from mobgap.data import SustainWearTimeDataset
 from mobgap.utils.evaluation import EvaluationCV, save_evaluation_results
 from mobgap.utils.misc import get_env_var
-from mobgap.weartime.cnn import WtdMegaritisCNNTrainer
 from mobgap.weartime import WtdMegaritisSignal
+from mobgap.weartime.cnn import WtdMegaritisCNNTrainer
+from mobgap.weartime.evaluation import wtd_score
+from mobgap.weartime.optimization import WearTimeOptunaSearch
+from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.xgboost import (
     WtdMegaritisXGBoost,
     WtdMegaritisXGBoostTrainer,
 )
-from mobgap.weartime.evaluation import wtd_score
-from mobgap.weartime.optimization import WearTimeOptunaSearch
-from mobgap.weartime.pipeline import WtdEmulationPipeline
 from sklearn.model_selection import LeaveOneGroupOut
 from tpcp.optimize import DummyOptimize
 from tpcp.validate import (
@@ -84,7 +84,7 @@ optimizers = {
     "WtdMegaritisXGBoost": WearTimeOptunaSearch(
         WtdMegaritisXGBoostTrainer(
             algo=WtdMegaritisXGBoost(
-                **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime,
+                **WtdMegaritisXGBoost.PredefinedParameters.empty_xgboost,
                 memory=Memory(cache_dir, compress=3, verbose=0),
             ),
         ),

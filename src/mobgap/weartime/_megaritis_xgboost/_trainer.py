@@ -26,7 +26,7 @@ from tpcp import (
     cf,
     make_optimize_safe,
 )
-from tpcp.misc import classproperty
+from tpcp.misc import classproperty, set_defaults
 from tpcp.parallel import Parallel, delayed
 from typing_extensions import Self, Unpack
 
@@ -161,6 +161,18 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         """Templates for new training and the selected settings of a packaged SUSTAIN run."""
 
         @classproperty
+        def empty_xgboost(cls) -> MappingProxyType[str, Any]:  # noqa: N805
+            """Configure a fresh XGBoost detector and initial fitting settings."""
+            return MappingProxyType(
+                {
+                    "algo": WtdMegaritisXGBoost(**WtdMegaritisXGBoost.PredefinedParameters.empty_xgboost),
+                    "training_overlap": 0.75,
+                    "n_jobs": 1,
+                    "convert_to_body_frame": True,
+                }
+            )
+
+        @classproperty
         def sustain_weartime(cls) -> MappingProxyType[str, Any]:  # noqa: N805
             """Load fitting settings without constructing or loading a model."""
             with (
@@ -192,25 +204,25 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
                 {"create_search_space": cls._create_search_space, **_sustain_weartime_optimization_defaults()}
             )
 
+    @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.empty_xgboost.items()})
     def __init__(
         self,
-        algo: WtdMegaritisXGBoost = cf(WtdMegaritisXGBoost()),
+        algo: WtdMegaritisXGBoost,
         *,
-        training_overlap: float = 0.75,
-        n_jobs: int = 1,
-        convert_to_body_frame: bool = True,
+        training_overlap: float,
+        n_jobs: int,
+        convert_to_body_frame: bool,
     ) -> None:
         super().__init__(algo, convert_to_body_frame=convert_to_body_frame)
         self.training_overlap = training_overlap
         self.n_jobs = n_jobs
 
     def save_model(self, directory: str | Path, *, prefix: str) -> None:
-        """Persist the fitted estimator, its untrained template, input settings and fitting recipe.
+        """Persist the fitted estimator, input settings and fitting recipe.
 
-        Call after optimization. Write ``<prefix>_model.pkl``, ``_classifier_template.pkl``,
+        Call after optimization. Write ``<prefix>_model.pkl``,
         ``_model_config.json`` and ``_training_params.json`` into ``directory``, creating it when needed.
-        Existing files are overwritten. The template retains constructor parameters with learned state
-        removed using sklearn cloning; the fitting recipe excludes ``algo``. Optuna search results are
+        Existing files are overwritten. The fitting recipe excludes ``algo``. Optuna search results are
         saved separately by the caller. Use the matching SUSTAIN artifact prefix when packaging files for
         the predefined model and trainer loaders.
         """
@@ -219,8 +231,6 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
         directory.mkdir(parents=True, exist_ok=True)
         with (directory / f"{prefix}_model.pkl").open("wb") as file:
             pickle.dump(self.algo.clf, file)
-        with (directory / f"{prefix}_classifier_template.pkl").open("wb") as file:
-            pickle.dump(clone_untrained_estimator(self.algo.clf), file)
         metadata = {
             "model_config": self.algo.model_config.to_dict(),
             "training_params": {key: value for key, value in self.get_params(deep=False).items() if key != "algo"},
@@ -259,7 +269,7 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
             algo.model_config.validate_sampling_rate(sampling_rate_hz)
         config = replace(algo.model_config, sampling_rate_hz=sampling_rate_hz)
         window_samples, step_samples = config.window_parameters(self.training_overlap)
-        classifier = clone_untrained_estimator(algo.clf) if algo.clf is not None else algo._create_classifier()
+        classifier = clone_untrained_estimator(algo.clf)
         training_data = _TrainingDataFromDataset(dataset, convert_to_body_frame=self.convert_to_body_frame)
         feature_batches = []
         label_batches = []
