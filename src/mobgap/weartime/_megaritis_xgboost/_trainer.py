@@ -120,7 +120,8 @@ class WtdMegaritisXGBoostTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseG
     Recording processes and training overlap belong to this trainer; inference settings remain on the algorithm.
 
     ``PredefinedParameters.sustain_weartime`` restores selected fitting settings without loading weights.
-    ``HyperparameterSearchPresets.sustain_weartime`` supplies the search space, grouped inner CV and training subsampling.
+    ``HyperparameterSearchPresets.sustain_weartime`` supplies the search space,
+    grouped inner CV and training subsampling.
 
     Parameters
     ----------

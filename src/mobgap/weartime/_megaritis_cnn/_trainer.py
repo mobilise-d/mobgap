@@ -52,7 +52,8 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
     ``PredefinedParameters.empty_cnn`` and ``empty_cnn_lstm`` configure fresh algorithms and initial fitting settings.
     ``PredefinedParameters.sustain_weartime_cnn`` and ``sustain_weartime_cnn_lstm`` restore selected fitting recipes
     without loading model structure or weights.
-    ``HyperparameterSearchPresets.sustain_weartime`` supplies the search space, grouped inner CV and training subsampling.
+    ``HyperparameterSearchPresets.sustain_weartime`` supplies the search space,
+    grouped inner CV and training subsampling.
 
     Parameters
     ----------
