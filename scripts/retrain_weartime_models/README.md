@@ -16,7 +16,7 @@ Create a repository-local `.env` file with paths for this machine:
 | `MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH` | Local SUSTAIN wear-time dataset directory. |
 | `MOBGAP_CACHE_DIR_PATH` | Writable disk cache, preferably shared across worktrees. |
 | `MOBGAP_VALIDATION_DATA_PATH` | Local checkout of the companion evaluation-results repository, for revalidation. |
-| `MOBGAP_N_JOBS` | CPU worker count for retraining and evaluation, appropriate for the available CPU and memory. |
+| `MOBGAP_N_JOBS` | Parallel trial count for retraining and CPU worker count for evaluation, appropriate for the available CPU and memory. |
 
 The raw dataset is not included in this repository. When using a worktree, copy
 the main checkout's `.env` and adjust its paths. For a code branch, use a matching

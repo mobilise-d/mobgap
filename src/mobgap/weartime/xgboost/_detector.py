@@ -209,6 +209,7 @@ class WtdMegaritisXGBoost(BaseWeartimeDetector):
                         colsample_bytree=0.8,
                         min_child_weight=3,
                         random_state=42,
+                        n_jobs=4,
                     ),
                     "model_config": WearTimeModelConfig(feature_names=tuple(FEATURE_ORDER_90PCT)),
                     "overlap": 0.75,

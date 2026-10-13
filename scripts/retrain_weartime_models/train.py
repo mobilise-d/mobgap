@@ -55,7 +55,7 @@ def get_study_params(seed: int, *, database: Path, study_name: str) -> dict:
 def main() -> None:
     """Export selected hyperparameters and models refitted on all indexed days."""
     cache_dir = Path(CACHE_DIR or get_env_var("MOBGAP_CACHE_DIR_PATH", ".cache/mobgap")).expanduser()
-    n_jobs = int(get_env_var("MOBGAP_N_JOBS", 1))
+    n_jobs = effective_n_jobs(int(get_env_var("MOBGAP_N_JOBS", 1)))
     dataset = SustainWearTimeDataset(
         Path(DATASET_PATH or get_env_var("MOBGAP_SUSTAIN_WEARTIME_DATASET_PATH")).expanduser(),
         additional_sensors_enabled=(),
@@ -64,10 +64,11 @@ def main() -> None:
 
     # Cap independent CNN trial workers at the scheduler-visible GPU count.
     gpu_count = len(tf.config.list_physical_devices("GPU"))
-    cnn_n_jobs = min(effective_n_jobs(n_jobs), gpu_count) if gpu_count else effective_n_jobs(n_jobs)
+    cnn_n_jobs = min(n_jobs, gpu_count) if gpu_count else n_jobs
     gpu_ids = tuple(range(cnn_n_jobs)) if gpu_count else None
     cache_dir.mkdir(parents=True, exist_ok=True)
 
+    # Run trials in separate processes; XGBoost extracts recordings serially with feature threads.
     # Rank candidates on participant-grouped human validation folds only.
     # The preset samples human and simulated non-wear days in each inner training set.
     optimizers = {
@@ -75,27 +76,35 @@ def main() -> None:
             WtdMegaritisXGBoostTrainer(
                 algo=WtdMegaritisXGBoost(
                     memory=Memory(cache_dir, compress=3, verbose=0),
-                ).set_params(clf__n_jobs=n_jobs),
-                n_jobs=n_jobs,
+                ),
+                n_jobs=1,
             ),
-            **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
+            **{
+                **WtdMegaritisXGBoostTrainer.HyperparameterSearchPresets.sustain_weartime,
+                "n_jobs": n_jobs,
+            },
         ),
         "WtdMegaritisCNN": WearTimeOptunaSearch(
             WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn),
-            **WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime,
+            **{
+                **WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime,
+                "n_jobs": cnn_n_jobs,
+                "gpu_ids": gpu_ids,
+            },
         ),
         "WtdMegaritisCNNLSTM": WearTimeOptunaSearch(
             WtdMegaritisCNNTrainer(**WtdMegaritisCNNTrainer.PredefinedParameters.empty_cnn_lstm),
-            **WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime,
+            **{
+                **WtdMegaritisCNNTrainer.HyperparameterSearchPresets.sustain_weartime,
+                "n_jobs": cnn_n_jobs,
+                "gpu_ids": gpu_ids,
+            },
         ),
     }
 
     # Refit the winner on all indexed human and simulated days, without inner subsampling.
     # Windows with uncertain labels remain excluded. There is no outer evaluation here.
     for name, optimizer in optimizers.items():
-        if name != "WtdMegaritisXGBoost":
-            optimizer.set_params(gpu_ids=gpu_ids, n_jobs=cnn_n_jobs)
-
         # Parallel trials share a fresh local study; remove it after fitting/export or failure.
         with (
             TemporaryDirectory(prefix="weartime-study-", dir=cache_dir) if optimizer.n_jobs > 1 else nullcontext(None)
