@@ -72,7 +72,8 @@ class WtdMegaritisCNN(BaseWeartimeDetector):
 
     1. Majority voting across overlapping windows to obtain sample-level predictions
     2. Removal of short wear bouts
-    3. Confidence filtering for short interior wear bouts using wear vote agreement. Recording-boundary bouts are exempt from this confidence filter.
+    3. Confidence filtering for short interior wear bouts using wear vote agreement.
+       Recording-boundary bouts are exempt from this confidence filter.
     4. Merging of short non-wear gaps between wear periods
 
     These duration and confidence thresholds are empirical post-processing heuristics.
