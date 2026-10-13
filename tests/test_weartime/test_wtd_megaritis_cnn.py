@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pickle
 import subprocess
 import sys
 from datetime import time
@@ -196,6 +197,44 @@ np.testing.assert_allclose(actual, np.load(root / 'expected.npy'), rtol=1e-6)
             timeout=60,
         )
         assert result.returncode == 0, result.stderr
+
+    @pytest.mark.parametrize("model_type", [MegaritisCnnWeartimeModel, MegaritisCnnLstmWeartimeModel])
+    def test_native_model_transfers_through_fresh_process(self, model_type: type, tmp_path: Path) -> None:
+        """Process transfer preserves a trainer's model and predictions without prior layer registration."""
+        pytest.importorskip("tensorflow")
+        config = WearTimeModelConfig(1, 20)
+        window_model = model_type(filters=(2, 2, 2), dense_units=2, model_config=config)
+        window_model.model = window_model._create_model(config)
+        trainer = WtdMegaritisCNNTrainer(algo=WtdMegaritisCNN(model=window_model))
+        model_path = tmp_path / "trainer.pkl"
+        model_path.write_bytes(pickle.dumps(trainer))
+        windows = np.random.default_rng(42).normal(size=(2, 20, len(BF_SENSOR_COLS))).astype(np.float32)
+        expected = window_model.model(windows, training=False).numpy()
+        np.save(tmp_path / "windows.npy", windows)
+        np.save(tmp_path / "expected.npy", expected)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                """import pickle, sys
+from pathlib import Path
+import numpy as np
+root = Path(sys.argv[1])
+trainer = pickle.loads((root / 'trainer.pkl').read_bytes())
+actual = trainer.algo.model.model(np.load(root / 'windows.npy'), training=False).numpy()
+np.testing.assert_allclose(actual, np.load(root / 'expected.npy'), rtol=1e-6)
+(root / 'returned.pkl').write_bytes(pickle.dumps(trainer))
+""",
+                str(tmp_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        restored = pickle.loads((tmp_path / "returned.pkl").read_bytes())
+        np.testing.assert_allclose(restored.algo.model.model(windows, training=False).numpy(), expected, rtol=1e-6)
 
     def test_no_window_predictions_leave_short_recording_nonwear(self) -> None:
         """Short recordings without a classified window remain nonwear."""

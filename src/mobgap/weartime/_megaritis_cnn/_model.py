@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pickle
 from collections.abc import Sequence  # noqa: TC003 - tpcp resolves parameter annotations.
 from functools import lru_cache
 from importlib import import_module
@@ -183,6 +184,20 @@ class KerasWeartimeModel(Algorithm):
         self.prediction_threshold = prediction_threshold
         self.predict_batch_size = predict_batch_size
         self.window_batch_size = window_batch_size
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Defer native graph restoration until the receiving process has registered MobGap layers."""
+        state = self.__dict__.copy()
+        if self.model is not None:
+            state["model"] = pickle.dumps(self.model)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """Restore model weights and state while retaining lazy TensorFlow imports for empty blueprints."""
+        if state["model"] is not None:
+            _get_per_window_standardization_layer_class()
+            state["model"] = pickle.loads(state["model"])
+        self.__dict__.update(state)
 
     @make_action_safe
     def run(self, data: pd.DataFrame, *, sampling_rate_hz: float) -> Self:
