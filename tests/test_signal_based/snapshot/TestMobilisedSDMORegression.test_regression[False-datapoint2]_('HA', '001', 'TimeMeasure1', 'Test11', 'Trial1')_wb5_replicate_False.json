@@ -66,15 +66,23 @@
                 "type":"number"
             },
             {
-                "name":"angular_acceleration_gyr_is",
+                "name":"jerk_gyr_is",
                 "type":"number"
             },
             {
-                "name":"angular_acceleration_gyr_ml",
+                "name":"jerk_gyr_ml",
                 "type":"number"
             },
             {
-                "name":"angular_acceleration_gyr_pa",
+                "name":"jerk_gyr_pa",
+                "type":"number"
+            },
+            {
+                "name":"jerk_ratio_ml_is",
+                "type":"number"
+            },
+            {
+                "name":"jerk_ratio_pa_is",
                 "type":"number"
             },
             {
@@ -82,23 +90,7 @@
                 "type":"number"
             },
             {
-                "name":"amplitude_ml",
-                "type":"number"
-            },
-            {
-                "name":"amplitude_pa",
-                "type":"number"
-            },
-            {
                 "name":"freq_is",
-                "type":"number"
-            },
-            {
-                "name":"freq_ml",
-                "type":"number"
-            },
-            {
-                "name":"freq_pa",
                 "type":"number"
             },
             {
@@ -106,7 +98,23 @@
                 "type":"number"
             },
             {
+                "name":"amplitude_ml",
+                "type":"number"
+            },
+            {
+                "name":"freq_ml",
+                "type":"number"
+            },
+            {
                 "name":"width_ml",
+                "type":"number"
+            },
+            {
+                "name":"amplitude_pa",
+                "type":"number"
+            },
+            {
+                "name":"freq_pa",
                 "type":"number"
             },
             {
@@ -194,11 +202,15 @@
                 "type":"number"
             },
             {
+                "name":"cv_stride_duration_s",
+                "type":"number"
+            },
+            {
                 "name":"cv_cadence_spm",
                 "type":"number"
             },
             {
-                "name":"cv_stride_duration_s",
+                "name":"cv_speed_mps",
                 "type":"number"
             },
             {
@@ -238,20 +250,22 @@
             "sd_gyr_is":5.4427713244,
             "sd_gyr_ml":36.8669474328,
             "sd_gyr_pa":4.2982725903,
-            "jerk_acc_is":8.4379429293,
-            "jerk_acc_ml":3.9455811591,
-            "jerk_acc_pa":8.9931837964,
-            "angular_acceleration_gyr_is":53.5500568556,
-            "angular_acceleration_gyr_ml":162.5598840742,
-            "angular_acceleration_gyr_pa":57.5507221403,
+            "jerk_acc_is":-4.2208646151,
+            "jerk_acc_ml":-6.1160587605,
+            "jerk_acc_pa":-3.4923482709,
+            "jerk_gyr_is":-15.9896237279,
+            "jerk_gyr_ml":-13.5227436283,
+            "jerk_gyr_pa":-16.4089144922,
+            "jerk_ratio_ml_is":-3.3012560259,
+            "jerk_ratio_pa_is":0.2767688564,
             "amplitude_is":null,
-            "amplitude_ml":0.1173505768,
-            "amplitude_pa":0.0018820576,
             "freq_is":null,
-            "freq_ml":0.537109375,
-            "freq_pa":2.63671875,
             "width_is":null,
+            "amplitude_ml":0.115700922,
+            "freq_ml":0.5859375,
             "width_ml":null,
+            "amplitude_pa":0.0018388941,
+            "freq_pa":2.734375,
             "width_pa":null,
             "step_regularity_is":null,
             "stride_regularity_is":null,
@@ -273,12 +287,13 @@
             "rms_ratio_acc_ml":0.0771063492,
             "rms_ratio_acc_pa":0.8497950581,
             "cv_stride_length_m":42.7737457939,
-            "cv_cadence_spm":23.4735464931,
             "cv_stride_duration_s":37.6903141593,
-            "turn_mean_ang_vel":-2.8460871794,
+            "cv_cadence_spm":23.4735464931,
+            "cv_speed_mps":47.2217499262,
+            "turn_mean_ang_vel":4.0896715246,
             "turn_peak_ang_vel":8.7356965164,
-            "turn_smoothness":77.9633279138,
-            "turn_dur_percentage_from_wb_dur":7.1338383838
+            "turn_smoothness":7.7963327914,
+            "turn_dur_percentage_from_wb_dur":42.803030303
         }
     ]
 }

@@ -2,11 +2,11 @@
 
 __all__ = [
     "RMS",
-    "AngularAcceleration",
-    "FrequencyAmplitudeWidthSlope",
+    "FrequencyAmplitudeWidth",
     "HarmonicRatio",
-    "Jerk",
+    "LogDimensionlessJerk",
     "MobilisedSDMO",
+    "RMSJerkRatio",
     "RegularitySymmetry",
     "SDRange",
     "SampleEntropy",
@@ -17,11 +17,11 @@ __all__ = [
 from mobgap.signal_based._mobilised_sdmo import MobilisedSDMO
 from mobgap.signal_based._sdmo import (
     RMS,
-    AngularAcceleration,
-    FrequencyAmplitudeWidthSlope,
+    FrequencyAmplitudeWidth,
     HarmonicRatio,
-    Jerk,
+    LogDimensionlessJerk,
     RegularitySymmetry,
+    RMSJerkRatio,
     SampleEntropy,
     SDRange,
     StrideLevelSDMO,

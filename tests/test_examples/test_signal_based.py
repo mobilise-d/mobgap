@@ -1,15 +1,15 @@
 def test_signal_based_algorithms(snapshot):
     from examples.signal_based._01_signal_based_algorithms import (
-        turn,
-        stride_level,
-        rms,
-        regularity_symmetry,
-        frequency_amplitude,
-        sample_entropy,
-        harmonic_ratio,
-        sd_range,
-        jerk,
         angular_acceleration,
+        frequency_amplitude,
+        harmonic_ratio,
+        jerk,
+        regularity_symmetry,
+        rms,
+        sample_entropy,
+        sd_range,
+        stride_level,
+        turn,
     )
 
     snapshot.assert_match(turn.signal_based_parameters_, "turn_sdmo")
@@ -25,7 +25,7 @@ def test_signal_based_algorithms(snapshot):
 
 
 def test_signal_based_mobilised_pipeline(snapshot):
-    from examples.signal_based._02_signal_based_mobilised_pipeline import sdmo_only_available, sdmo_full_output
+    from examples.signal_based._02_signal_based_mobilised_pipeline import sdmo_full_output, sdmo_only_available
 
     snapshot.assert_match(sdmo_only_available.signal_based_parameters_, "only_available_sdmos")
     snapshot.assert_match(sdmo_full_output.signal_based_parameters_, "full_mobilised_sdmos")
