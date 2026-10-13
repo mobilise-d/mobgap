@@ -38,7 +38,7 @@ def main() -> None:
             WtdMegaritisXGBoostTrainer(
                 algo=WtdMegaritisXGBoost(
                     **WtdMegaritisXGBoost.PredefinedParameters.baseline_sustain_weartime,
-                    memory=Memory(cache_dir / "xgboost_features", compress=3, verbose=0),
+                    memory=Memory(cache_dir, compress=3, verbose=0),
                 ),
             ),
             **WtdMegaritisXGBoostTrainer.OptimizationPresets.sustain_weartime,
