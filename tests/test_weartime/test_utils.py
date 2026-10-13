@@ -14,9 +14,25 @@ from mobgap.weartime.utils.ml_feature_extraction import (
     window_start_end,
 )
 from mobgap.weartime.utils.windows_to_weartime import (
+    overlapping_window_predictions_to_sample_labels,
     remove_isolated_short_periods_from_intervals,
     remove_short_wear_bouts_by_ratio_from_intervals,
 )
+
+
+def test_training_labels_use_union_of_nested_and_duplicate_wear_regions():
+    reference = _intervals([(20, 40), (0, 100), (20, 30), (0, 10)])
+    reference["label"] = pd.Categorical(["wear"] * 4, categories=["wear", "uncertain"])
+
+    assert_array_equal(labels_from_interval_centers(np.array([-1, 0, 25, 50, 99, 100]), reference), [0, 1, 1, 1, 1, 0])
+
+
+@pytest.mark.parametrize("extend_tail, expected", [(False, [1, 1, 0]), (True, [1, 1, 1])])
+def test_window_voting_only_extends_wear_into_uncovered_tail_when_requested(extend_tail, expected):
+    labels, votes = overlapping_window_predictions_to_sample_labels([1], 3, 2, 2, extend_tail=extend_tail)
+
+    assert_array_equal(labels, expected)
+    assert_array_equal(votes[-1], [0, 0])
 
 
 def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:

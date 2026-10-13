@@ -16,7 +16,9 @@ def overlapping_window_predictions_to_sample_labels(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert binary overlapping window predictions to sample labels using majority voting.
 
-    Ties are treated as wear, matching the conservative behavior of the original ML wear-time post-processing.
+    Ties with at least one vote are treated as wear, matching the conservative behavior of the original ML
+    wear-time post-processing. Uncovered samples remain non-wear unless ``extend_tail`` applies the last
+    prediction to the uncovered recording tail.
     """
     if data_length < 0:
         raise ValueError("`data_length` must be non-negative.")
@@ -46,7 +48,7 @@ def overlapping_window_predictions_to_sample_labels(
 
     vote_counts = np.cumsum(vote_count_diffs[:-1], axis=0)
     # Keep the original conservative tie-breaking behavior: equal votes are treated as wear.
-    sample_labels = (vote_counts[:, 1] >= vote_counts[:, 0]).astype(np.int32)
+    sample_labels = ((vote_counts.sum(axis=1) > 0) & (vote_counts[:, 1] >= vote_counts[:, 0])).astype(np.int32)
 
     uncovered_samples = data_length - (last_covered_idx + 1)
     if extend_tail and uncovered_samples > 0 and len(predictions) > 0:

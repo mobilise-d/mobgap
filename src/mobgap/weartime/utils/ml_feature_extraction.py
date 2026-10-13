@@ -60,7 +60,8 @@ def labels_from_interval_arrays(
     interval_indices = np.searchsorted(interval_starts, centers, side="right") - 1
     labels = np.zeros(len(centers), dtype=np.int32)
     valid = interval_indices >= 0
-    labels[valid] = centers[valid] < interval_ends[interval_indices[valid]]
+    # Earlier intervals can contain later ones; use the union's furthest end.
+    labels[valid] = centers[valid] < np.maximum.accumulate(interval_ends)[interval_indices[valid]]
     return labels
 
 
