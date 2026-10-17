@@ -1,0 +1,8 @@
+{
+  "algo__clf__n_estimators": 200,
+  "algo__clf__max_depth": 3,
+  "algo__clf__learning_rate": 0.1,
+  "algo__clf__subsample": 0.9,
+  "algo__clf__colsample_bytree": 0.8,
+  "algo__clf__min_child_weight": 1
+}
