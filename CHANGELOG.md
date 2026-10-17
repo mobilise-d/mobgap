@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (https://github.com/mobilise-d/mobgap/issues/238, https://github.com/mobilise-d/mobgap/pull/251)
 - Wear-time detection as a new algorithm category, including `mobgap.weartime.base.BaseWeartimeDetector` and
   the signal-based `WtdMegaritisSignal` algorithm. (https://github.com/mobilise-d/mobgap/pull/253)
+- Inference-only `WtdMegaritisXGBoost` and `WtdMegaritisCNN` detectors with dataset-based
+  `WtdMegaritisXGBoostTrainer` and `WtdMegaritisCNNTrainer` pipelines, imported through
+  `mobgap.weartime.xgboost` and `mobgap.weartime.cnn` with their dependencies checked at import time.
+  Supplied untrained algorithms own their
+  classifier/network type, structure and inputs; Trainers own fitting settings. Separate CNN and CNN-LSTM model
+  blueprints and SUSTAIN presets have independent artifacts; empty presets configure fresh models and fitting recipes
+  without packaged weights. Training supports uncertain reference regions,
+  independent training/inference overlap, recording feature caches for XGBoost and lazy CNN windows with in-model
+  standardization. Fitted artifacts carry their native sampling rate and ordered inputs.
+  (https://github.com/mobilise-d/mobgap/pull/259)
 - `WtdEmulationPipeline` for running wear-time algorithms on datasets, with scoring and evaluation helpers.
   (https://github.com/mobilise-d/mobgap/pull/253)
 - Direct loading and splitting of raw AX6 files using our custom loader library (https://github.com/mobilise-d/cwa_reader_rs)
@@ -55,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accelerometer data can now run when those channels are absent, including on acceleration-only data. Sensor and body
   frame conversion also supports these partial inputs. (https://github.com/mobilise-d/mobgap/issues/172,
   https://github.com/mobilise-d/mobgap/issues/46)
-- The minimum supported `tpcp` version is now 3.3.0. Environments pinned to an older version must upgrade `tpcp`
+- The minimum supported `tpcp` version is now 3.4.0. Environments pinned to an older version must upgrade `tpcp`
   before updating mobgap. This does not change mobgap's public APIs, but warnings and exceptions produced during tpcp
   validation and optimization can now include structured fold, parameter, and datapoint context. Bounded hybrid
   caches now evict before loading a replacement by default; a failed load does not restore the old entry.
