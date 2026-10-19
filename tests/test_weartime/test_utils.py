@@ -6,11 +6,33 @@ import pytest
 from numpy.testing import assert_array_equal
 from pandas.testing import assert_frame_equal
 
+from mobgap.weartime import WearTimeModelConfig
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
+from mobgap.weartime.utils.ml_feature_extraction import (
+    known_window_mask,
+    labels_from_interval_centers,
+    window_start_end,
+)
 from mobgap.weartime.utils.windows_to_weartime import (
+    overlapping_window_predictions_to_sample_labels,
     remove_isolated_short_periods_from_intervals,
     remove_short_wear_bouts_by_ratio_from_intervals,
 )
+
+
+def test_training_labels_use_union_of_nested_and_duplicate_wear_regions():
+    reference = _intervals([(20, 40), (0, 100), (20, 30), (0, 10)])
+    reference["label"] = pd.Categorical(["wear"] * 4, categories=["wear", "uncertain"])
+
+    assert_array_equal(labels_from_interval_centers(np.array([-1, 0, 25, 50, 99, 100]), reference), [0, 1, 1, 1, 1, 0])
+
+
+@pytest.mark.parametrize("extend_tail, expected", [(False, [1, 1, 0]), (True, [1, 1, 1])])
+def test_window_voting_only_extends_wear_into_uncovered_tail_when_requested(extend_tail, expected):
+    labels, votes = overlapping_window_predictions_to_sample_labels([1], 3, 2, 2, extend_tail=extend_tail)
+
+    assert_array_equal(labels, expected)
+    assert_array_equal(votes[-1], [0, 0])
 
 
 def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:
@@ -254,3 +276,38 @@ class TestRemoveShortWearBoutsByRatio:
         )
 
         assert_array_equal(result, np.array([[5, 9]]))
+
+
+@pytest.mark.parametrize(
+    ("uncertain", "expected_starts", "expected_labels"),
+    [
+        ([], [0, 10, 20, 30, 40], [1, 1, 1, 0, 0]),
+        ([(35, 60)], [0, 10], [1, 1]),
+        ([(20, 30)], [0, 30, 40], [1, 0, 0]),
+        ([(10, 40)], [40], [0]),
+        ([(0, 60)], [], []),
+    ],
+)
+def test_uncertainty_excludes_intersecting_windows_without_shifting_labels(
+    uncertain: list[tuple[int, int]], expected_starts: list[int], expected_labels: list[int]
+) -> None:
+    """Remove unknown regions while keeping known windows on the original recording grid."""
+    reference = pd.concat(
+        [_intervals([(0, 40)]).assign(label="wear"), _intervals(uncertain).assign(label="uncertain")],
+        ignore_index=True,
+    )
+    reference["label"] = pd.Categorical(reference["label"], categories=["wear", "uncertain"])
+    windows = window_start_end(60, 20, 10)
+    selected = windows[known_window_mask(windows[:, 0], windows[:, 1], reference)]
+    assert_array_equal(selected[:, 0], expected_starts)
+    assert_array_equal(labels_from_interval_centers(selected[:, 0] + 10, reference), expected_labels)
+
+
+def test_fractional_sampling_rate_labels_the_rounded_window_center() -> None:
+    """A 5-second window at 99.9 Hz has 500 samples, with its midpoint at sample 250."""
+    config = WearTimeModelConfig(99.9, 5)
+    window_samples, step_samples = config.window_parameters(0)
+    windows = window_start_end(500, window_samples, step_samples)
+    reference = _intervals([(250, 500)]).assign(label=pd.Categorical(["wear"], categories=["wear", "uncertain"]))
+    assert_array_equal(windows, [[0, 500]])
+    assert_array_equal(labels_from_interval_centers(windows[:, 0] + window_samples // 2, reference), [1])

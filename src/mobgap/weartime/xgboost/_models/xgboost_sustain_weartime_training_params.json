@@ -1,0 +1,5 @@
+{
+  "convert_to_body_frame": true,
+  "n_jobs": 1,
+  "training_overlap": 0.75
+}

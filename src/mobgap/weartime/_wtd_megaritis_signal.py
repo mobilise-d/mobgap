@@ -23,26 +23,13 @@ from typing_extensions import Self, Unpack
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
-from mobgap.weartime.utils._intervals import _validate_waking_hours
+from mobgap.weartime.utils._intervals import _validate_waking_hours, _with_local_datetimes
 from mobgap.weartime.utils.windows_to_weartime import (
     remove_isolated_short_periods_from_intervals,
     remove_short_wear_bouts_by_ratio_from_intervals,
 )
 
 _MIN_SAMPLING_RATE_HZ = 50.0
-
-
-def _with_local_datetimes(intervals: pd.DataFrame, data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
-    if not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
-        return intervals
-    boundaries = data.index
-    if len(data):
-        # The final exclusive sample boundary is one sampling period after the last sample.
-        boundaries = boundaries.append(pd.DatetimeIndex([boundaries[-1] + pd.Timedelta(seconds=1 / sampling_rate_hz)]))
-    return intervals.assign(
-        local_datetime_start=boundaries.take(intervals["start"].to_numpy()),
-        local_datetime_end=boundaries.take(intervals["end"].to_numpy()),
-    )
 
 
 def _window_starts(n_samples: int, window_samples: int, step_samples: int) -> np.ndarray:
