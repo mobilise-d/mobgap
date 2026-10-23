@@ -158,13 +158,12 @@ class TestFixedFilter:
 
 
 class TestEpflGaitFilter:
-    def test_coefficients_are_independent(self):
+    def test_coefficients_are_read_only(self):
         filter_ = EpflGaitFilter()
         expected_b, expected_a = filter_.coefficients
         b, a = filter_.coefficients
-        assert not b.flags.writeable
-        b.setflags(write=True)
-        b[:] = 0
+        with pytest.raises(ValueError, match="read-only"):
+            b[:] = 0
         a[...] = 2
 
         for instance in (filter_, filter_.clone(), EpflGaitFilter()):
