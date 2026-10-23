@@ -4,7 +4,6 @@ from typing import Any, Optional, Self, Unpack
 import pandas as pd
 from pandas.core.dtypes.common import is_datetime64_any_dtype, is_numeric_dtype
 from scipy import signal
-from tpcp import clone
 
 from mobgap.data_transform.base import BaseTransformer
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
@@ -75,10 +74,6 @@ class Resample(BaseTransformer):
 
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-
-        if sampling_rate_hz == self.target_sampling_rate_hz:
-            # No need to resample if the sampling rates match
-            self.transformed_data_ = clone(data)  # clone effectively deep copies the data
 
         # This converts DataFrames, Series, or arrays all into a unified shaped np.ndarray
         data_as_array, index, transformation_func = dflike_as_2d_array(data)
