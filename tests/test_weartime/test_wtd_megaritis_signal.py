@@ -100,6 +100,49 @@ class TestWtdMegaritisSignal:
 
         assert result.diagnostics_["sample_votes"]["non_wear_votes"].max() == 2
 
+    @pytest.mark.parametrize("store_sample_votes", [False, True])
+    def test_tied_macro_votes_favor_wear(self, store_sample_votes):
+        rng = np.random.default_rng(42)
+        data = pd.DataFrame(rng.normal(size=(4500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        data.iloc[:1500] = 0
+
+        result = WtdMegaritisSignal(
+            macro_win_size_min=1,
+            macro_win_step_min=0.5,
+            micro_win_size_s=5,
+            store_sample_votes=store_sample_votes,
+        ).detect(data, sampling_rate_hz=50.0)
+
+        expected = pd.DataFrame({"start": [1500], "end": [4500]}).rename_axis(index="wt_id")
+        assert_frame_equal(result.weartime_list_, expected)
+        assert result.diagnostics_["macro"]["macro_non_wear"].to_list() == [True, False]
+        if store_sample_votes:
+            expected_votes = pd.DataFrame(
+                {
+                    "wear_votes": np.repeat([0, 1, 1], 1500),
+                    "non_wear_votes": np.repeat([1, 1, 0], 1500),
+                    "vote_margin": np.repeat([-1, 0, 1], 1500),
+                }
+            )
+            assert_frame_equal(result.diagnostics_["sample_votes"], expected_votes)
+
+    @pytest.mark.parametrize("store_sample_votes", [False, True])
+    def test_samples_without_macro_votes_remain_nonwear(self, store_sample_votes):
+        rng = np.random.default_rng(42)
+        data = pd.DataFrame(rng.normal(size=(10500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+
+        result = WtdMegaritisSignal(
+            macro_win_size_min=1,
+            macro_win_step_min=1.5,
+            micro_win_size_s=5,
+            store_sample_votes=store_sample_votes,
+        ).detect(data, sampling_rate_hz=50.0)
+
+        expected = pd.DataFrame({"start": [0, 4500], "end": [3000, 10500]}).rename_axis(index="wt_id")
+        assert_frame_equal(result.weartime_list_, expected)
+        if store_sample_votes:
+            assert not result.diagnostics_["sample_votes"].iloc[3000:4500].to_numpy().any()
+
     def test_exactly_tiled_recording_has_no_extra_boundary_vote(self):
         data = pd.DataFrame(np.zeros((3750, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
 
@@ -151,6 +194,25 @@ class TestWtdMegaritisSignal:
         assert result.weartime_list_.iloc[0].local_datetime_start == pd.Timestamp("2026-03-29 00:59:00+00:00")
         assert result.weartime_list_.iloc[0].local_datetime_end == pd.Timestamp("2026-03-29 02:03:00+01:00")
         assert str(result.weartime_list_.local_datetime_start.dt.tz) == "Europe/London"
+
+    @pytest.mark.parametrize("unit", ["ms", "us", "ns"])
+    def test_interval_timestamps_preserve_resolution_and_irregular_final_sample(self, unit):
+        rng = np.random.default_rng(42)
+        data = pd.DataFrame(rng.normal(size=(4500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        regular_index = pd.date_range("2026-03-29 00:59:00", periods=len(data), freq="20ms", tz="Europe/London")
+        data.index = regular_index[:-1].append(pd.DatetimeIndex([regular_index[-1] + pd.Timedelta(milliseconds=3)]))
+        data.index = data.index.as_unit(unit)
+        expected_end = data.index[-1] + pd.Timedelta(seconds=1 / 50.0)
+
+        result = WtdMegaritisSignal(macro_win_size_min=1, macro_win_step_min=0.5, micro_win_size_s=5).detect(
+            data, sampling_rate_hz=50.0
+        )
+
+        assert result.weartime_list_["local_datetime_start"].iloc[0] == data.index[0]
+        assert result.weartime_list_["local_datetime_end"].iloc[0] == expected_end
+        expected_dtype = pd.DatetimeIndex([expected_end]).dtype
+        assert result.weartime_list_["local_datetime_start"].dtype == expected_dtype
+        assert result.weartime_list_["local_datetime_end"].dtype == expected_dtype
 
     def test_waking_hours_rejects_recordings_longer_than_one_day(self):
         result = WtdMegaritisSignal(waking_hours=(time(0), time(1)))
