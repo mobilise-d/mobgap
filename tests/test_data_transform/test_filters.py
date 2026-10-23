@@ -158,6 +158,21 @@ class TestFixedFilter:
 
 
 class TestEpflGaitFilter:
+    def test_coefficients_are_independent(self):
+        filter_ = EpflGaitFilter()
+        expected_b, expected_a = filter_.coefficients
+        b, a = filter_.coefficients
+        assert not b.flags.writeable
+        b.setflags(write=True)
+        b[:] = 0
+        a[...] = 2
+
+        for instance in (filter_, filter_.clone(), EpflGaitFilter()):
+            actual_b, actual_a = instance.coefficients
+            assert not actual_b.flags.writeable
+            np.testing.assert_array_equal(actual_b, expected_b)
+            np.testing.assert_array_equal(actual_a, expected_a)
+
     def test_matlab_comparison(self):
         """This actually tests if the output is identical to the output of the matlab code."""
         HERE = Path(__file__).parent

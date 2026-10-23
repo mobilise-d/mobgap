@@ -1,3 +1,4 @@
+from functools import cache
 from importlib.resources import files
 from typing import Any, ClassVar, Literal, Optional, Self, Union, Unpack
 
@@ -17,6 +18,12 @@ from mobgap.data_transform.base import (
     scipy_filter_docfiller,
 )
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
+
+
+@cache
+def _load_epfl_gait_filter_coefficients(file_name: str) -> np.ndarray:
+    with (files("mobgap") / "data_transform/_filter_coeffs" / file_name).open() as coefficient_data:
+        return pd.read_csv(coefficient_data, header=0)["coefficients"].to_numpy()
 
 
 @fixed_filter_docfiller
@@ -47,9 +54,11 @@ class EpflGaitFilter(FixedFilter):
     @property
     @inherit_docstring_from(FixedFilter)
     def coefficients(self) -> tuple[np.ndarray, np.ndarray]:
-        with (files("mobgap") / "data_transform/_filter_coeffs" / self._COEFFS_FILE_NAME).open() as test_data:
-            coeffs = pd.read_csv(test_data, header=0)["coefficients"].to_numpy()
-        return coeffs, np.array(1)
+        # Each caller still receives independent coefficients, including across clones.
+        coefficients = _load_epfl_gait_filter_coefficients(self._COEFFS_FILE_NAME)
+        independent_coefficients = coefficients.copy()
+        independent_coefficients.setflags(write=coefficients.flags.writeable)
+        return independent_coefficients, np.array(1)
 
 
 @fixed_filter_docfiller
