@@ -27,7 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reorientation in the healthy pipeline. The sensor axis aligned with PA must still be known.
   (https://github.com/mobilise-d/mobgap/issues/238, https://github.com/mobilise-d/mobgap/pull/251)
 - Wear-time detection as a new algorithm category, including `mobgap.weartime.base.BaseWeartimeDetector` and
-  the signal-based `WtdMegaritisSignal` algorithm. (https://github.com/mobilise-d/mobgap/pull/253)
+  the signal-based `WtdMegaritisSignal` algorithm. Vote aggregation uses macro-window boundaries and expands
+  sample votes only when diagnostics are requested. Local timestamps are gathered only for interval endpoints.
+  (https://github.com/mobilise-d/mobgap/pull/253, https://github.com/mobilise-d/mobgap/pull/273)
 - `WtdEmulationPipeline` for running wear-time algorithms on datasets, with scoring and evaluation helpers.
   (https://github.com/mobilise-d/mobgap/pull/253)
 - Direct loading and splitting of raw AX6 files using our custom loader library (https://github.com/mobilise-d/cwa_reader_rs)
@@ -37,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reduce repeated work and temporary allocations in EPFL filtering, resampling, Ionescu and ILUZ gait detection,
+  walking-bout raw-contact counting, Madgwick orientation estimation, and DMO threshold checks while preserving
+  results. Threshold checks retain the existing path for empty inputs and alternative numeric dtypes.
+  (https://github.com/mobilise-d/mobgap/pull/273)
 - **Breaking:** The default Hampel smoothing in `CadFromIc`, `CadFromIcDetector`, and `SlZijlstra` now preserves
   deviations of up to 0.075 s in step time and 0.05 m in step length (0.10 m in reported stride length), respectively.
   This can change cadence and stride-length results. To reproduce the previous behavior, pass
