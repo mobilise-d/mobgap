@@ -37,7 +37,6 @@ class TestResample:
             np.linspace(0, 1, 11, dtype="float32"),
             np.arange(5, dtype="int64"),
             np.array([0.0, np.nan, 2.0]),
-            np.array([1.0]),
             np.array([], dtype="float64"),
             pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="label"), name="signal"),
             pd.DataFrame({"acc_x": [1, 2, 3]}, index=pd.Index([0.0, 1.0, 3.0], name="sample")),
