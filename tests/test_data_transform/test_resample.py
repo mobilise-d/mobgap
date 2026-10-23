@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 from scipy.signal import resample
@@ -28,6 +29,44 @@ class TestMetaResample(TestAlgorithmMixin):
 
 
 class TestResample:
+    @pytest.mark.parametrize("attempt_index_resample", [True, False])
+    @pytest.mark.parametrize(
+        "data",
+        [
+            np.linspace(0, 1, 11),
+            np.linspace(0, 1, 11, dtype="float32"),
+            np.arange(5, dtype="int64"),
+            np.array([0.0, np.nan, 2.0]),
+            np.array([1.0]),
+            np.array([], dtype="float64"),
+            pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="label"), name="signal"),
+            pd.DataFrame({"acc_x": [1, 2, 3]}, index=pd.Index([0.0, 1.0, 3.0], name="sample")),
+            pd.DataFrame(
+                {"acc_x": [0.1, 0.2, 0.3]},
+                index=pd.date_range("2026-01-01", periods=3, freq="10ms", tz="Europe/Berlin", name="time"),
+            ),
+        ],
+    )
+    def test_same_rate_returns_an_independent_exact_copy(self, data, attempt_index_resample):
+        expected = data.copy()
+        result = Resample(100, attempt_index_resample=attempt_index_resample).transform(data, sampling_rate_hz=100)
+        output = result.transformed_data_
+
+        assert output is not data
+        if isinstance(data, pd.DataFrame):
+            pd.testing.assert_frame_equal(output, expected, check_exact=True)
+            output.iloc[0, 0] = 99
+            pd.testing.assert_frame_equal(data, expected, check_exact=True)
+        elif isinstance(data, pd.Series):
+            pd.testing.assert_series_equal(output, expected, check_exact=True)
+            output.iloc[0] = 99
+            pd.testing.assert_series_equal(data, expected, check_exact=True)
+        else:
+            np.testing.assert_array_equal(output, expected, strict=True)
+            if len(output):
+                output.flat[0] = 99
+                np.testing.assert_array_equal(data, expected, strict=True)
+
     @pytest.mark.parametrize(
         ("source_sampling_rate", "target_sampling_rate"), [(100.0, 100.0), (50.0, 100.0), (100.0, 50.0)]
     )
@@ -52,13 +91,14 @@ class TestResample:
 
         # Calculate the expected output using scipy.signal.resample
         resampling_factor = target_sampling_rate / source_sampling_rate
-        if attempt_index_resample:
+        if source_sampling_rate == target_sampling_rate:
+            expected_output = sample_data.copy()
+        elif attempt_index_resample:
             data, index = resample(sample_data, int(len(sample_data) * resampling_factor), t=sample_data.index)
+            expected_output = pd.DataFrame(data, index=index, columns=sample_data.columns)
         else:
             data = resample(sample_data, int(len(sample_data) * resampling_factor))
-            index = None
-        expected_output = pd.DataFrame(data, index=index)
-        expected_output.columns = ["acc_x", "acc_y"]
+            expected_output = pd.DataFrame(data, columns=sample_data.columns)
 
         # Compare the shapes of the transformed data with the expected output
         assert transformed_data.transformed_data_.shape == expected_output.shape
@@ -68,7 +108,7 @@ class TestResample:
 
         # Check if the transformed data is not the same object when source and target sampling rates are identical
         if source_sampling_rate == target_sampling_rate:
-            assert transformed_data is not sample_data
+            assert transformed_data.transformed_data_ is not sample_data
 
     def test_warn_non_numeric_index(self):
         input_data = pd.DataFrame({"column1": [1, 2, 3], "column2": [4, 5, 6]}, index=["a", "b", "c"])

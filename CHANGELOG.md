@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Reduce repeated work and temporary allocations in EPFL filtering, resampling, Ionescu and ILUZ gait detection,
+- Reduce repeated work and temporary allocations in EPFL filtering, Ionescu and ILUZ gait detection,
   walking-bout raw-contact counting, Madgwick orientation estimation, and DMO threshold checks while preserving
   results. Threshold checks retain the existing path for empty inputs and alternative numeric dtypes.
   (https://github.com/mobilise-d/mobgap/pull/273)
@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `Resample` to return an independent, unchanged copy when the input and target sampling rates are equal,
+  as documented. Previously, a missing early return still ran FFT resampling, introducing floating-point roundoff,
+  converting integer data to floats, rebuilding the index, and spreading NaNs across the signal. Equal-rate calls
+  now preserve the original values, dtype, and index, including when `attempt_index_resample=False`.
+  To reproduce the previous FFT round trip, call `scipy.signal.resample` directly.
+  (https://github.com/mobilise-d/mobgap/pull/273)
 - Construct sliding-window views at their requested hop to avoid an oversized intermediate view on 32-bit NumPy,
   preserving values and read-only view behavior. (https://github.com/mobilise-d/mobgap/pull/268)
 - Release the previous AX6 in-memory cache entry before loading a replacement, reducing peak memory for sequential
