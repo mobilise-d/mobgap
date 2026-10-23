@@ -144,19 +144,27 @@ def apply_thresholds(
         max_sl = _max_allowable_stride_length(height_m)
         dmo_type_threshold.loc["stride_length_m", "max"] = max(max_sl, dmo_type_threshold.loc["stride_length_m", "max"])
 
-    # We stack the actual values so that we can perform the comparison in one step
-    data_flag = input_data[required_columns].stack()
-
-    # Get the dmo for each row
-    dmo_vals = data_flag.index.get_level_values(-1)
-    # Get the cohort for each row
-    per_row_thresholds = dmo_type_threshold.loc[dmo_vals]
-    # Check if the value is within the threshold
-    data_flag = data_flag.between(
-        per_row_thresholds["min"].to_numpy(), per_row_thresholds["max"].to_numpy(), inclusive="both"
-    )
-    # Unstack the data
-    data_flag = data_flag.unstack()  # noqa: PD010
+    dmo_data = input_data[required_columns]
+    if (
+        not dmo_data.empty
+        and input_data.index.is_unique
+        and input_data.columns.is_unique
+        and all(dtype == np.dtype("float64") for dtype in dmo_data.dtypes)
+    ):
+        # Compare columns without expanding the thresholds to one row per DMO value.
+        column_thresholds = dmo_type_threshold.loc[required_columns]
+        data_flag = dmo_data.ge(column_thresholds["min"], axis="columns") & dmo_data.le(
+            column_thresholds["max"], axis="columns"
+        )
+    else:
+        # Keep stack's dtype coercion and empty-input behavior for other input types.
+        data_flag = dmo_data.stack()
+        dmo_vals = data_flag.index.get_level_values(-1)
+        per_row_thresholds = dmo_type_threshold.loc[dmo_vals]
+        data_flag = data_flag.between(
+            per_row_thresholds["min"].to_numpy(), per_row_thresholds["max"].to_numpy(), inclusive="both"
+        )
+        data_flag = data_flag.unstack()  # noqa: PD010
 
     data_flag = data_flag.reindex(input_data.index).reindex(input_data.columns, axis=1)
 

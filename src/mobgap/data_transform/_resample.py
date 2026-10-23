@@ -4,7 +4,6 @@ from typing import Any, Optional, Self, Unpack
 import pandas as pd
 from pandas.core.dtypes.common import is_datetime64_any_dtype, is_numeric_dtype
 from scipy import signal
-from tpcp import clone
 
 from mobgap.data_transform.base import BaseTransformer
 from mobgap.utils.dtypes import DfLike, dflike_as_2d_array
@@ -18,6 +17,7 @@ class Resample(BaseTransformer):
     target_sampling_rate_hz
         The target sampling rate in Hertz.
         If the target sampling rate is equal to the sampling rate of the input data, no resampling is performed.
+        An independent copy is returned with the input values, dtype, and index unchanged.
     attempt_index_resample
         Whether to attempt to resample the index of the input data.
         This is only used if the input data is a DataFrame or Series with a numeric index.
@@ -25,6 +25,7 @@ class Resample(BaseTransformer):
         If the index is neither numeric nor a datetime objects, we can not resample it and this parameter is ignored.
         In case you index does not represent the time (either in actual time or samples), you should set this parameter
         to False.
+        This parameter has no effect when the input and target sampling rates are equal.
 
     Attributes
     ----------
@@ -77,8 +78,8 @@ class Resample(BaseTransformer):
         self.sampling_rate_hz = sampling_rate_hz
 
         if sampling_rate_hz == self.target_sampling_rate_hz:
-            # No need to resample if the sampling rates match
-            self.transformed_data_ = clone(data)  # clone effectively deep copies the data
+            self.transformed_data_ = data.copy()
+            return self
 
         # This converts DataFrames, Series, or arrays all into a unified shaped np.ndarray
         data_as_array, index, transformation_func = dflike_as_2d_array(data)

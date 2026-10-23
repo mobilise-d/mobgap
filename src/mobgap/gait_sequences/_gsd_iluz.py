@@ -638,24 +638,20 @@ def _find_n_peaks_2d(signal: np.ndarray, threshold: float, distance: float, n_pe
     if signal.max() < threshold:
         return
 
-    # Step 1: Find all local maxima
-    peaks = []
-    n = len(signal)
-
-    for i in range(1, n - 1):
-        if (signal[i - 1] < signal[i] > signal[i + 1]) and signal[i] >= threshold:
-            peaks.append(i)
-
-    # Step 2: Enforce the minimum distance constraint
-    if len(peaks) > 1:
-        filtered_peaks = [peaks[0]]  # Always take the first peak
-        for peak in peaks[1:]:
-            if peak - filtered_peaks[-1] >= distance:
-                filtered_peaks.append(peak)
-        peaks = filtered_peaks
+    # Count local maxima while enforcing the same greedy minimum distance constraint.
+    count = 0
+    last_peak = 0
+    for i in range(1, len(signal) - 1):
+        if (
+            (signal[i - 1] < signal[i] > signal[i + 1])
+            and signal[i] >= threshold
+            and (count == 0 or i - last_peak >= distance)
+        ):
+            count += 1
+            last_peak = i
 
     # Set the output n_peaks to the number of peaks found
-    n_peaks[0] = len(peaks)
+    n_peaks[0] = count
 
 
 @guvectorize([(float64[:], float32, float32, int32[:])], "(n),(),()->()", target="parallel", cache=True)
@@ -736,7 +732,7 @@ def _find_n_peaks_exact_matlab_replication(  # noqa: C901, PLR0912
         return
 
     # Find peaks between interval boundaries
-    peak_locations = []
+    count = 0
     for i in range(num_intervals):
         start = interval_boundaries[i] + 1
         end = interval_boundaries[i + 1] - 1
@@ -747,10 +743,10 @@ def _find_n_peaks_exact_matlab_replication(  # noqa: C901, PLR0912
                 location = start + np.argmax(segment)
                 # This step is done outside the find peaks function in the original implementation
                 if normalized_signal[location] > threshold:
-                    peak_locations.append(location)
+                    count += 1
 
     # Set output
-    peaks_out[0] = len(peak_locations)
+    peaks_out[0] = count
 
 
 def vec_find_n_peaks(signal: np.ndarray, threshold: float, distance: float) -> np.ndarray:

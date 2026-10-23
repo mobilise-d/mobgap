@@ -134,8 +134,10 @@ class _BaseGsdIonescu(BaseGsDetector):
             return self
 
         # Find all max_peaks within each final gs
-        steps_per_gs = [[x for x in max_peaks if gs[0] <= x <= gs[1]] for gs in combined_final]
-        n_steps_per_gs = np.array([len(steps) for steps in steps_per_gs])
+        step_starts = np.searchsorted(max_peaks, combined_final[:, 0], side="left")
+        step_ends = np.searchsorted(max_peaks, combined_final[:, 1], side="right")
+        steps_per_gs = [max_peaks[start:end] for start, end in zip(step_starts, step_ends)]
+        n_steps_per_gs = step_ends - step_starts
         # It can happen that we only have one step in a gs, in this case we can not calculate the mean step time
         # Numpy will output NaN and throw a warning.
         # We don't want ot see the warning, so we suppress it.
@@ -466,22 +468,12 @@ class GsdAdaptiveIonescu(_BaseGsdIonescu):
             # processing, for which we can better predict the threshold.
             warnings.warn("No active periods detected, using fallback threshold", stacklevel=1)
             active_peak_threshold = self.active_signal_fallback_threshold
-            fallback_filter_chain = [
-                ("resampling", Resample(self._INTERNAL_FILTER_SAMPLING_RATE_HZ)),
-                ("padding", padding),
-                (
-                    "savgol_1",
-                    savgol_1,
-                ),
-                ("epfl_gait_filter", EpflDedriftedGaitFilter()),
-                ("cwt_1", cwt),
-                (
-                    "savol_2",
-                    savgol_2,
-                ),
-                ("padding_remove", padding.get_inverse_transformer()),
-            ]
-            signal = chain_transformers(acc_norm, fallback_filter_chain, sampling_rate_hz=sampling_rate_hz)
+            # The initial chain already computed the less filtered signal used by the fallback.
+            signal = chain_transformers(
+                savgol_2.transformed_data_,
+                [("padding_remove", padding.get_inverse_transformer())],
+                sampling_rate_hz=self._INTERNAL_FILTER_SAMPLING_RATE_HZ,
+            )
 
         self.filtered_signal_ = signal
         self.threshold_ = active_peak_threshold
@@ -541,6 +533,7 @@ def active_regions_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, dur
 
     # Initialize Buffers
     noise_buff = np.zeros(len(env) - duration + 1)
+    noise_buff_any = False
 
     if np.isnan(threshold_sig):
         return active.astype(bool)
@@ -558,11 +551,13 @@ def active_regions_from_hilbert_envelop(sig: np.ndarray, smooth_window: int, dur
             update_threshold = True
         elif mean_win < threshold_sig:
             noise = mean_win
-        elif noise_buff.any():
+        elif noise_buff_any:
             noise = np.mean(noise_buff)
         # NOTE: no else case in the original implementation
 
         noise_buff[i] = noise
+        # Each buffer entry is written once, so a nonzero entry remains present.
+        noise_buff_any = noise_buff_any or bool(noise)
 
         # Update threshold
         if update_threshold:

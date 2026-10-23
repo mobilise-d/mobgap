@@ -43,7 +43,7 @@ def _madgwick_update(gyro, acc, initial_orientation, sampling_rate_hz, beta):
         s = np.array([s1, s2, s3, s0])
         mag_s = np.sqrt(np.sum(s**2))
         if mag_s != 0.0:
-            s /= np.sqrt(np.sum(s**2))
+            s /= mag_s
 
         # Apply feedback step
         qdot -= beta * s

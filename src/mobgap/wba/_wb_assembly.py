@@ -165,10 +165,12 @@ class WbAssembly(Algorithm):
         )
         if self.raw_initial_contacts is not None:
             n_initial_contacts = pd.Series(index=df.index, dtype="Int64")
+            initial_contacts = self.raw_initial_contacts["ic"].dropna().sort_values()
             for wb_id, wb in df.iterrows():
-                n_initial_contacts[wb_id] = self.raw_initial_contacts[
-                    self.raw_initial_contacts["ic"].between(wb["start"], wb["end"])
-                ].shape[0]
+                # Include contacts on either boundary, including duplicate contacts.
+                first = initial_contacts.searchsorted(wb["start"], side="left")
+                last = initial_contacts.searchsorted(wb["end"], side="right")
+                n_initial_contacts[wb_id] = max(last - first, 0)
             df["n_raw_initial_contacts"] = n_initial_contacts
 
         return df

@@ -35,13 +35,19 @@ _MIN_SAMPLING_RATE_HZ = 50.0
 def _with_local_datetimes(intervals: pd.DataFrame, data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
     if not isinstance(data.index, pd.DatetimeIndex) or data.index.tz is None:
         return intervals
+    positions = intervals[["start", "end"]].to_numpy().ravel()
     boundaries = data.index
     if len(data):
+        # Gather only the requested endpoints before appending the final boundary. Appending also retains pandas'
+        # datetime resolution promotion when the sampling period needs a finer unit than the original index.
+        boundaries = boundaries.take(np.minimum(positions, len(data) - 1))
         # The final exclusive sample boundary is one sampling period after the last sample.
-        boundaries = boundaries.append(pd.DatetimeIndex([boundaries[-1] + pd.Timedelta(seconds=1 / sampling_rate_hz)]))
+        boundaries = boundaries.append(pd.DatetimeIndex([data.index[-1] + pd.Timedelta(seconds=1 / sampling_rate_hz)]))
+        positions = np.where(positions == len(data), len(positions), np.arange(len(positions)))
+    timestamps = boundaries.take(positions)
     return intervals.assign(
-        local_datetime_start=boundaries.take(intervals["start"].to_numpy()),
-        local_datetime_end=boundaries.take(intervals["end"].to_numpy()),
+        local_datetime_start=timestamps[::2],
+        local_datetime_end=timestamps[1::2],
     )
 
 
@@ -49,6 +55,20 @@ def _window_starts(n_samples: int, window_samples: int, step_samples: int) -> np
     if n_samples < window_samples:
         return np.array([], dtype=np.int64)
     return np.arange(0, n_samples - window_samples + 1, step_samples, dtype=np.int64)
+
+
+def _aggregate_macro_votes(macro_decisions: list[dict[str, Any]], data_length: int) -> tuple[np.ndarray, np.ndarray]:
+    """Count wear and non-wear votes on segments between macro-window boundaries."""
+    macro_bounds = np.array([(row["start"], row["end"]) for row in macro_decisions], dtype=np.int64)
+    boundaries, boundary_indices = np.unique(
+        np.concatenate(([0, data_length], macro_bounds.ravel())), return_inverse=True
+    )
+    macro_indices = boundary_indices[2:].reshape(-1, 2)
+    vote_columns = np.array([row["macro_non_wear"] for row in macro_decisions], dtype=np.intp)
+    vote_diff = np.zeros((len(boundaries), 2), dtype=np.int32)
+    np.add.at(vote_diff, (macro_indices[:, 0], vote_columns), 1)
+    np.add.at(vote_diff, (macro_indices[:, 1], vote_columns), -1)
+    return boundaries, np.cumsum(vote_diff[:-1], axis=0)
 
 
 def _spectral_centroid_batched(
@@ -275,18 +295,11 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         if self.feature_batch_size <= 0:
             raise ValueError("`feature_batch_size` must be a positive integer.")
 
-        # Difference arrays let each macro-window decision vote for a full sample range without materializing all
-        # overlapping per-sample updates immediately.
-        wear_vote_diff = np.zeros(data_length + 1, dtype=np.int32)
-        non_wear_vote_diff = np.zeros(data_length + 1, dtype=np.int32)
-
         if data_length < window_samples:
             self._process_single_macro_window(
                 data=data,
                 start_idx=0,
                 end_idx=data_length,
-                wear_vote_diff=wear_vote_diff,
-                non_wear_vote_diff=non_wear_vote_diff,
                 sampling_rate_hz=sampling_rate_hz,
                 micro_window_samples=micro_window_samples,
                 micro_step_samples=micro_step_samples,
@@ -301,8 +314,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                 window_samples=window_samples,
                 micro_window_samples=micro_window_samples,
                 micro_step_samples=micro_step_samples,
-                wear_vote_diff=wear_vote_diff,
-                non_wear_vote_diff=non_wear_vote_diff,
                 sampling_rate_hz=sampling_rate_hz,
             )
 
@@ -314,8 +325,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                     data=data,
                     start_idx=max(0, data_length - window_samples),
                     end_idx=data_length,
-                    wear_vote_diff=wear_vote_diff,
-                    non_wear_vote_diff=non_wear_vote_diff,
                     sampling_rate_hz=sampling_rate_hz,
                     micro_window_samples=micro_window_samples,
                     micro_step_samples=micro_step_samples,
@@ -323,11 +332,13 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                     is_short_recording=False,
                 )
 
-        wear_votes = np.cumsum(wear_vote_diff[:-1])
-        non_wear_votes = np.cumsum(non_wear_vote_diff[:-1])
+        # Votes are constant between macro-window boundaries, so aggregate those segments without per-sample arrays.
+        boundaries, votes = _aggregate_macro_votes(self.diagnostics_["macro"], data_length)
+        wear_votes, non_wear_votes = votes.T
         # Equal votes favor wear when a window has voted; samples without evidence remain non-wear.
-        weartime_flags = ((wear_votes >= non_wear_votes) & ((wear_votes + non_wear_votes) > 0)).astype(int)
-        weartime_intervals = bool_array_to_start_end_array(weartime_flags).astype(np.int64, copy=False).reshape(-1, 2)
+        weartime_flags = (wear_votes >= non_wear_votes) & ((wear_votes + non_wear_votes) > 0)
+        interval_indices = bool_array_to_start_end_array(weartime_flags).astype(np.int64, copy=False).reshape(-1, 2)
+        weartime_intervals = boundaries[interval_indices]
 
         # Stage 1 removes brief isolated periods caused by sensor noise, voting edge effects, or transient artifacts.
         weartime_intervals = remove_isolated_short_periods_from_intervals(
@@ -348,6 +359,8 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         self.diagnostics_["macro"].sort(key=lambda row: row["start"])
         self.diagnostics_["macro"] = pd.DataFrame(self.diagnostics_["macro"])
         if self.store_sample_votes:
+            wear_votes = np.repeat(wear_votes, np.diff(boundaries))
+            non_wear_votes = np.repeat(non_wear_votes, np.diff(boundaries))
             self.diagnostics_["sample_votes"] = pd.DataFrame(
                 {
                     "wear_votes": wear_votes,
@@ -371,8 +384,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         window_samples: int,
         micro_window_samples: int,
         micro_step_samples: int,
-        wear_vote_diff: np.ndarray,
-        non_wear_vote_diff: np.ndarray,
         sampling_rate_hz: float,
     ) -> None:
         if len(macro_starts) == 0:
@@ -413,8 +424,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
                     end_idx=end_idx,
                     n_micro_windows=n_micro_per_macro,
                     n_non_wear=n_non_wear,
-                    wear_vote_diff=wear_vote_diff,
-                    non_wear_vote_diff=non_wear_vote_diff,
                     is_boundary=False,
                     is_short_recording=False,
                 )
@@ -425,8 +434,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         data: pd.DataFrame,
         start_idx: int,
         end_idx: int,
-        wear_vote_diff: np.ndarray,
-        non_wear_vote_diff: np.ndarray,
         sampling_rate_hz: float,
         micro_window_samples: int,
         micro_step_samples: int,
@@ -448,8 +455,6 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
             end_idx=end_idx,
             n_micro_windows=len(micro_wear_flags),
             n_non_wear=int((~micro_wear_flags).sum()),
-            wear_vote_diff=wear_vote_diff,
-            non_wear_vote_diff=non_wear_vote_diff,
             is_boundary=is_boundary,
             is_short_recording=is_short_recording,
         )
@@ -513,21 +518,12 @@ class WtdMegaritisSignal(BaseWeartimeDetector):
         end_idx: int,
         n_micro_windows: int,
         n_non_wear: int,
-        wear_vote_diff: np.ndarray,
-        non_wear_vote_diff: np.ndarray,
         is_boundary: bool,
         is_short_recording: bool,
     ) -> None:
         n_wear = n_micro_windows - n_non_wear
         macro_score = n_non_wear / n_micro_windows
         macro_non_wear = macro_score >= self.macro_nonwear_thresh
-
-        if macro_non_wear:
-            non_wear_vote_diff[start_idx] += 1
-            non_wear_vote_diff[end_idx] -= 1
-        else:
-            wear_vote_diff[start_idx] += 1
-            wear_vote_diff[end_idx] -= 1
 
         self.diagnostics_["macro"].append(
             {
