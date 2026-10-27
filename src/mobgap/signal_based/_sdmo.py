@@ -36,8 +36,6 @@ class TurnSDMO(BaseSDMOCalculator):
     %(perf_)s
     """
 
-    result_level = "turn"
-
     @timed_action_method
     @base_sdmo_docfiller
     def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:

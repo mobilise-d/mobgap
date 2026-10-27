@@ -1,6 +1,6 @@
 """Base class for signal-based digital mobility outcome calculations."""
 
-from typing import Any, ClassVar, Literal, Optional
+from typing import Any
 
 import pandas as pd
 from tpcp import Algorithm
@@ -56,8 +56,7 @@ class BaseSDMOCalculator(Algorithm):
     Algorithms should implement the ``calculate`` method.
     The method should return the instance of the class with the ``signal_based_parameters_`` attribute.
     Every calculator consumes one prepared signal window and returns all of its scalar parameters in a Series.
-    Callers select windows, preserve interval metadata and assemble results. ``result_level`` identifies a calculator's
-    intended window kind for orchestration; it does not make the calculator select or iterate windows itself.
+    Callers select windows, preserve interval metadata and assemble results.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     Subclasses may specify further parameters for their calculate methods because individual signal-based parameters
@@ -88,9 +87,6 @@ class BaseSDMOCalculator(Algorithm):
 
     _action_methods = ("calculate",)
 
-    # Composite pipelines use this to choose the calculation window.
-    result_level: ClassVar[Literal["wb", "turn"]] = "wb"
-
     # Other Parameters
     data: pd.DataFrame
 
@@ -117,26 +113,3 @@ class BaseSDMOCalculator(Algorithm):
 
 
 __all__ = ["BaseSDMOCalculator", "base_sdmo_docfiller"]
-
-
-def _turn_metadata(turn_list: Optional[pd.DataFrame]) -> pd.DataFrame:
-    """Supplied turn metadata, or the canonical empty standalone schema."""
-    if turn_list is None or len(turn_list.columns) == 0:
-        turn_list = pd.DataFrame(
-            {
-                "start": pd.Series(dtype="int64"),
-                "end": pd.Series(dtype="int64"),
-                "duration_s": pd.Series(dtype=float),
-                "angle_deg": pd.Series(dtype=float),
-                "direction": pd.Series(dtype=str),
-            }
-        ).rename_axis("turn_id")
-    return turn_list
-
-
-def _empty_turn_parameters(turn_list: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-    """Empty per-turn result, preserving supplied metadata and index schema."""
-    result = _turn_metadata(turn_list).iloc[:0].copy()
-    for column in ("turn_mean_ang_vel", "turn_peak_ang_vel", "turn_smoothness"):
-        result[column] = pd.Series(index=result.index, dtype=float)
-    return result

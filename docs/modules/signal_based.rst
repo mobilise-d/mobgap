@@ -26,16 +26,6 @@ Algorithms
     StrideLevelSDMO
     TurnSDMO
 
-Convenience compositions
-++++++++++++++++++++++++
-.. currentmodule:: mobgap.signal_based
-
-.. autosummary::
-   :toctree: generated/signal_based
-   :template: class.rst
-
-    MobilisedSDMO
-
 Calculator presets
 ++++++++++++++++++
 

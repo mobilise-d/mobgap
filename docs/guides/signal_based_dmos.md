@@ -206,9 +206,6 @@ and `turn_smoothness`, angular LDLJ over the entire supplied turn. Mean yaw is n
 its sign changes. Smoothness is dimensionless, may be negative and depends strongly on turn duration. It needs
 at least three samples and is undefined for constant yaw. Empty data returns an empty Series.
 
-The existing `MobilisedSDMO` composition keeps its bulk `per_turn_parameters_` table, with metadata, by slicing
-turn windows before calling individual calculators. This table is assembled by the caller, not by `TurnSDMO`.
-
 The primary pipeline exposes raw detections in `raw_turn_list_`, with recording-local intervals and the
 `(gs_id, turn_id)` detector index. Process every detected turn afterwards, including turns crossing or outside
 accepted WBs. Turn identity and metadata remain aligned to the parameter table by that index; WB association is

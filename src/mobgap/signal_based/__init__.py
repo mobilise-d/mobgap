@@ -7,7 +7,6 @@ __all__ = [
     "HarmonicRatio",
     "HarmonicRatioFourier",
     "LogDimensionlessJerk",
-    "MobilisedSDMO",
     "RMSJerkRatio",
     "RegularitySymmetry",
     "SDRange",
@@ -17,7 +16,6 @@ __all__ = [
 ]
 
 from mobgap.signal_based._harmonic_ratio import HarmonicRatioFourier
-from mobgap.signal_based._mobilised_sdmo import MobilisedSDMO
 from mobgap.signal_based._presets import DEFAULT_WB_SDMO_CALCULATORS
 from mobgap.signal_based._sdmo import (
     RMS,
