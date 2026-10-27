@@ -1,5 +1,6 @@
 import gc
 import weakref
+from enum import IntEnum
 from typing import Any, Self
 
 import numpy as np
@@ -24,6 +25,11 @@ from mobgap.re_orientation import ReorientationMethodDM
 from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.wba import StrideSelection, WbAssembly
+
+
+class _ReplayCorrection(IntEnum):
+    ALIGNED = 1
+    FLIPPED = -1
 
 
 class _FullRecordingGsDetector(BaseGsDetector):
@@ -330,6 +336,53 @@ class TestFullPipelineEdgeCases:
         # A later run with correction disabled returns the unextended detector table.
         pipeline.set_params(per_gs_reorientation=None).run(dataset)
         assert pipeline.gs_list_.columns.tolist() == (["gs_id", "start", "end"] if column_ids else ["start", "end"])
+
+    @pytest.mark.parametrize("retain", [True, False])
+    @pytest.mark.parametrize("scalar_kind", ["enum", "large_int"])
+    def test_gs_list_preserves_opaque_scalar_correction_types(self, retain, scalar_kind):
+        from mobgap.utils.conversions import to_body_frame
+
+        corrections = (
+            [_ReplayCorrection.ALIGNED, _ReplayCorrection.FLIPPED] if scalar_kind == "enum" else [-1, 2**63 + 1]
+        )
+
+        class TwoGsDetector(BaseGsDetector):
+            def detect(self, data, *, sampling_rate_hz, **kwargs):
+                self.gs_list_ = pd.DataFrame({"start": [0, 150], "end": [150, 300]}).rename_axis("gs_id")
+                return self
+
+        class ScalarCorrector(BaseReorientationCorrector):
+            def detect_correct(self, data, *, sampling_rate_hz, **kwargs):
+                self.correction_ = corrections[int(data.index[0] >= 150)]
+                self.correction_applied_ = data.index[0] >= 150
+                self.corrected_data_ = self.apply_correction(data, self.correction_)
+                return self
+
+            @staticmethod
+            def apply_correction(data, correction):
+                sign = correction.value if scalar_kind == "enum" else {-1: 1, 2**63 + 1: -1}[correction]
+                result = to_body_frame(data)
+                result[["acc_ml", "acc_pa", "gyr_ml", "gyr_pa"]] *= sign
+                return result
+
+        dataset = _sensor_frame_test_dataset()
+        pipeline = _minimal_pipeline(
+            gait_sequence_detection=TwoGsDetector(),
+            initial_contact_detection=_EmptyIcDetector(),
+            per_gs_reorientation=ScalarCorrector(),
+            retain_intermediate_results=retain,
+        ).run(dataset)
+        for gs_id, expected_correction in enumerate(corrections):
+            correction = pipeline.gs_list_.loc[gs_id, "orientation"]
+            assert correction == expected_correction
+            if scalar_kind == "enum":
+                assert correction is expected_correction
+            start, end = [(0, 150), (150, 300)][gs_id]
+            data = dataset.data_ss.iloc[start:end]
+            expected = to_body_frame(data)
+            if gs_id == 1:
+                expected[["acc_ml", "acc_pa", "gyr_ml", "gyr_pa"]] *= -1
+            pd.testing.assert_frame_equal(pipeline.per_gs_reorientation.apply_correction(data, correction), expected)
 
     def test_empty_gs_list_retains_reorientation_schema(self):
         class NoGsDetector(BaseGsDetector):

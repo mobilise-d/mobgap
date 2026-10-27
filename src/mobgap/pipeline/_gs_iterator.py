@@ -276,6 +276,12 @@ def create_aggregate_df(
     return aggregate_df
 
 
+def _aggregate_reorientation_corrections(results: list["GsIterator.IteratorResult[Any]"]) -> pd.DataFrame:
+    """Collect correction rows while preserving custom result types without this optional field."""
+    applicable = [r for r in results if hasattr(r.result, "reorientation")]
+    return create_aggregate_df("reorientation", [])(applicable)
+
+
 def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> Union[pd.DataFrame, list]:
     """Aggregate reorientation results from iterator results."""
     reorientation_results = [
@@ -405,7 +411,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                             "walking_speed_per_sec",
                             create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True),
                         ),
-                        ("reorientation", create_aggregate_df("reorientation", [])),
+                        ("reorientation", _aggregate_reorientation_corrections),
                         (
                             "reorientation_result",
                             _aggregate_reorientation_results,
@@ -424,7 +430,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                         ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [])),
                         ("stride_length_per_sec", create_aggregate_df("stride_length", [])),
                         ("walking_speed_per_sec", create_aggregate_df("gait_speed", [])),
-                        ("reorientation", create_aggregate_df("reorientation", [])),
+                        ("reorientation", _aggregate_reorientation_corrections),
                     ]
                 ),
             }

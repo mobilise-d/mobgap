@@ -399,7 +399,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                     gs_data = reorient.corrected_data_  # noqa: PLW2901
                     r.reorientation_result = getattr(reorient, "result_", None)
                     r.reorientation = pd.DataFrame(
-                        {"orientation": [reorient.correction_], "correction_applied": [reorient.correction_applied_]}
+                        {
+                            "orientation": pd.Series([reorient.correction_], dtype=object),
+                            "correction_applied": [reorient.correction_applied_],
+                        }
                     )
 
                 icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
