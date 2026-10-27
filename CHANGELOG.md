@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `HarmonicRatioFourier` provides an opt-in per-stride Fourier-amplitude method with distinct
+  `harmonic_ratio_fourier_acc_{is,pa,ml}` outputs and arithmetic averaging of stride ratios. The existing
+  `HarmonicRatio` remains the default, allowing both estimators to be calculated together.
+
 ### Changed
 
 - **Breaking SDMO migration:** `TurnSDMO`, `MobilisedSDMO` and the full Mobilise-D pipelines now expose individual
@@ -17,8 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `HarmonicRatio` now honors every supplied half-open stride start/end interval without rebasing starts,
-  reconstructing strides or moving endpoints. Its
-  peak/trough coefficient extraction and coefficient averaging are retained, but boundary corrections can change values.
+  reconstructing strides or moving endpoints. Its peak/trough coefficient extraction and coefficient averaging are retained, but boundary corrections can change values.
 
 - Configured SDMO aggregation now proceeds when primary DMO aggregation is disabled. Existing SDMO bout weighting,
   duration groups and masking behavior are retained; raw per-turn rows are never fed to WB aggregation.

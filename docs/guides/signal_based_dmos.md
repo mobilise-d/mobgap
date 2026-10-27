@@ -121,6 +121,52 @@ NaN if a crossing is absent or outside the band. A pure tone has nonzero finite-
 axes are omitted; constant, nonfinite or fewer-than-two-sample axes and absent peaks give NaN outputs. Each axis
 works independently. No slopes or alternate spectral estimator are introduced.
 
+## Harmonic-ratio methods
+
+Two independently selectable calculators use every supplied stride's actual `[start, end)` sample interval relative
+to the supplied signal. Both preserve nonzero offsets, gaps, overlapping left/right rows and input row order during
+calculation. Neither reconstructs strides from alternating starts nor moves endpoints. In the full pipeline,
+these are the retained stride rows within the accepted WB, expressed in WB-local coordinates.
+
+`HarmonicRatio` retains the existing `harmonic_ratio_acc_{is,pa,ml}` names, spectral peak/trough extraction,
+normalization and coefficient averaging. Its IS/PA targets use k/T, and it searches neighborhoods of plus/minus 1/T
+for maxima in even slots and minima in odd slots, with slot 2 fixed to 1. The retained optional ML path uses 2k/T,
+fixes slot 1 to 1 and reverses the extrema groups. It averages normalized coefficients across strides, then returns
+even/odd for all axes, omitting missing coefficients independently. This differs from the conventional method.
+The stride-boundary fix can change existing values; the spectral estimator is otherwise retained.
+
+`HarmonicRatioFourier` follows the per-stride Fourier-amplitude definition described by
+[Bellanca et al. (2013)](https://doi.org/10.1016/j.jbiomech.2012.12.008). Its distinct outputs are
+`harmonic_ratio_fourier_acc_{is,pa,ml}`. Each stride is mean-centered and analyzed by an N-point DFT, with T=N/fs.
+The first 20 amplitudes at k/T are used directly. IS/PA use even/odd, ML uses odd/even, and the individual stride
+ratios are averaged with equal weight. No additional filtering, tapering, zero padding, resampling, frequency
+search or endpoint adjustment is applied. This implements the harmonic definition without claiming to reproduce
+all preprocessing or recording protocols of the paper.
+
+All 20 harmonics must be strictly below Nyquist, requiring more than 40 samples per stride. Short, constant or
+nonfinite stride-axis signals give undefined ratios and are omitted from that axis's mean; if none contributes,
+the result is NaN. Exact positive numerator/zero denominator yields infinity and remains in the mean. Small
+numerical denominators can produce very large finite ratios. No clipping or additional QC threshold is introduced.
+Missing/unconfigured axes are omitted and empty stride lists give an empty table. Boundary accuracy, available
+bandwidth and the number of contributing strides affect interpretation; software checks do not establish clinical
+reliability on short bouts.
+
+The current default remains `HarmonicRatio`. To calculate both methods in `MobilisedSDMO`, append the new calculator:
+
+```python
+from mobgap.signal_based import HarmonicRatioFourier, MobilisedSDMO
+
+calculators = MobilisedSDMO.PredefinedParameters.default["calculators"] + (
+    ("harmonic_ratio_fourier", HarmonicRatioFourier(acc_columns=["acc_is", "acc_pa", "acc_ml"])),
+)
+sdmos = MobilisedSDMO(calculators=calculators)
+# Supply data and its WB-local stride start/end positions to sdmos.calculate(...).
+```
+
+The distinct output names allow both methods to coexist in WB results and aggregation. For a one-second stride
+`sin(4*pi*t) + 0.4*sin(6*pi*t)`, Fourier IS/PA HR is 2.5. The retained peak/trough extraction gives approximately
+25.1953 on 100 samples, demonstrating why these results are not interchangeable.
+
 ## Aggregation and validation limits
 
 `SDMOAggregator` summarizes the distribution of per-WB values with equal weight per contributing bout and NaNs
@@ -132,8 +178,9 @@ to proceed independently; disabling both aggregators gives `aggregated_parameter
 has no WB outcomes to aggregate. No new QC thresholds, missing-IC repair or clinical weighting are applied.
 
 The historical cohort recommendations below describe research outcomes. Passing software checks does not establish
-clinical validity for these modified estimators or new cohorts, placements or protocols. Harmonic ratio remains
-deferred. The regularity/symmetry algorithm is retained, with its additional implementation choices documented above.
+clinical validity for these modified estimators or new cohorts, placements or protocols. The regularity/symmetry
+algorithm is retained, with its additional implementation choices documented above. Both harmonic-ratio definitions
+and their stride-window behavior are documented above.
 The supplied MATLAB PCI, step outcomes, slopes, missing helper and other MATLAB-only findings are outside this
 implementation.
 
@@ -151,7 +198,7 @@ The entropy common-pool correction is applied in Python only. Python deliberatel
 and default 50 Hz resampling, whereas the supplied MATLAB estimator uses sample SD and the native input rate.
 The RMS jerk ratios deliberately remain different from MATLAB's differences of LDLJ scores. Per-turn values are
 reported without inferring an aggregation rule from an unavailable MATLAB caller. No MATLAB files are repaired;
-MATLAB-only outcomes and the deferred harmonic-ratio questions remain outside this change.
+MATLAB-only outcomes remain outside this change.
 
 ## Turn result migration
 

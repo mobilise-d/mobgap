@@ -259,3 +259,35 @@ def test_custom_wb_calculator_keeps_required_wb_local_turn_context():
     expected.loc[:, ["start", "end"]] -= wb.start
     pd.testing.assert_frame_equal(result.sdmo_calculation_.turn_list, expected)
     assert result.per_turn_parameters_.empty
+
+
+def test_fourier_harmonic_ratio_uses_pipeline_stride_bounds_and_aggregates():
+    from mobgap.signal_based import HarmonicRatioFourier
+    from mobgap.utils.conversions import to_body_frame
+
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(
+        sdmo_calculation=HarmonicRatioFourier(acc_columns=["acc_is", "acc_pa", "acc_ml"])
+    ).run(dataset)
+    wb_id = result.per_wb_parameters_.index[0]
+    wb = result.per_wb_parameters_.loc[wb_id]
+    strides = result.per_stride_parameters_.loc[wb_id].copy()
+    strides.loc[:, ["start", "end"]] -= int(wb.start)
+    expected = (
+        HarmonicRatioFourier(acc_columns=["acc_is", "acc_pa", "acc_ml"])
+        .calculate(
+            to_body_frame(dataset.data_ss.iloc[int(wb.start) : int(wb.end)]),
+            stride_list=strides,
+            sampling_rate_hz=dataset.sampling_rate_hz,
+        )
+        .signal_based_parameters_.iloc[0]
+    )
+    pd.testing.assert_series_equal(
+        result.per_wb_signal_based_parameters_.loc[wb_id, expected.index],
+        expected,
+        check_names=False,
+    )
+    assert expected.notna().all()
+    assert "all__harmonic_ratio_fourier_acc_is__median" in result.aggregated_parameters_

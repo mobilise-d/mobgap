@@ -776,20 +776,17 @@ class SampleEntropy(BaseSDMOCalculator):
 
 @base_sdmo_docfiller
 class HarmonicRatio(BaseSDMOCalculator):
-    """Calculate the Harmonic Ratio (HR) based on accelerometer data.
+    """Calculate the retained peak/trough variant of harmonic ratio from acceleration.
 
-    HR is defined as the ratio of the summed amplitudes of even harmonics to odd harmonics (first 20 harmonics). It is
-    a measure of gait smoothness developed to discriminate between walking patterns of individuals with and without
-    stability problems [1]_. A larger ratio represents a smoother gait pattern.
+    Each supplied stride uses its own half-open start/end sample positions relative to the input signal, including
+    strides from both feet. No offset subtraction, pairing of starts or endpoint adjustment is performed.
+    The output names remain ``harmonic_ratio_acc_is``, ``harmonic_ratio_acc_pa`` and ``harmonic_ratio_acc_ml``.
 
-    Each supplied stride uses its own half-open start/end boundaries relative to the input signal, including strides
-    from both feet. Stride time defines the fundamental frequency. We calculate the first 20 harmonic coefficients
-    using a finite Fourier transform, normalise them by the fundamental amplitude, average the coefficients across
-    strides, and then compute the ratio of even to odd harmonics.
-
-    The vertical and antero-posterior acceleration components have biphasic patterns (two cycles per stride). Thus,
-    even harmonics dominate, and HR should be > 1. The medio-lateral component has a monophasic pattern (one cycle
-    per stride), making the first harmonic dominant. HR should be < 1.
+    This estimator differs from the per-stride Fourier-amplitude definition of HR [1]_. It searches for spectral
+    maxima for one harmonic group and minima for the other, averages normalized coefficients across strides,
+    then divides summed even by summed odd coefficients. See :class:`HarmonicRatioFourier` for actual harmonic
+    amplitudes and averaging of individual stride ratios. Existing outputs retain this variant for continuity;
+    correcting the stride intervals can change their values.
 
     Parameters
     ----------
@@ -808,23 +805,22 @@ class HarmonicRatio(BaseSDMOCalculator):
 
     Notes
     -----
-    This implementation was based on the original Matlab implementation. There are deviations from the paper [1]_.
-    Although these deviations did not drastically change how HR is computed, they are documented below:
-    - To avoid picking the wrong fundamental (e.g., DC or high-frequency noise), the search for the fundamental
-    frequency was restricted to 0.5-3.0 Hz for IS/AP axes and 0.25-1.5 Hz for the ML axis. The original paper did not
-    specify such bands.
-    - Each supplied stride is sliced directly using its half-open start/end sample positions relative to data.
-    No contact-offset subtraction, pairing of alternating starts or endpoint adjustment is performed.
-    - In the paper, the harmonic ratio was calculated per stride and then averaged across strides. Here, the harmonic
-    coefficients are averaged across strides first, and then the ratio is computed from the averaged coefficients. This
-    differs mathematically but should produce similar results in practice.
-    - The paper used exactly 10 strides per subject. In this implementation, all available strides in the provided
-    `stride_list` are used. This is more suitable for variable-length walking bouts.
+    The mean-centered stride is transformed using an FFT padded to 16 times the next power of two of its length.
+    The largest local maximum in 0.5-3.0 Hz for IS/PA or 0.25-1.5 Hz for ML provides amplitude normalization.
+    For IS/PA, slot 2 is fixed to 1 and target frequencies are k/T. Other even slots select local maxima within
+    plus/minus 1/T; odd slots select local minima in that neighborhood, ignoring minima below 0.25 Hz.
+    The retained optional ML path instead uses targets 2k/T, fixes slot 1 to 1, and reverses the maxima/minima groups.
+    It still returns even/odd, unlike the odd/even orientation of the Fourier method for ML.
+    Missing coefficients are omitted separately when averaging each slot, and missing averaged slots are omitted
+    from the sums. A zero odd sum gives NaN. A single supplied stride can contribute. No clipping is applied.
+    These extraction and aggregation rules define a different statistic from conventional Fourier HR; their
+    numerical results should not be treated as interchangeable. No claim of equivalent clinical validity is made.
 
-
-    ..[1] H. J. Yack and R. C. Berger, "Dynamic stability in the elderly: identifying a possible measure,"
-        J Gerontol, vol. 48, no. 5, pp. M225-M230, 1993.
-
+    References
+    ----------
+    .. [1] J. L. Bellanca, K. A. Lowry, J. M. VanSwearingen, J. S. Brach and M. S. Redfern,
+       "Harmonic ratios: A quantification of step to step symmetry," J Biomech, 46(4), 828-831, 2013.
+       https://doi.org/10.1016/j.jbiomech.2012.12.008
     """
 
     def __init__(
