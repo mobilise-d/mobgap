@@ -147,7 +147,7 @@ All 20 harmonics must be strictly below Nyquist, requiring more than 40 samples 
 nonfinite stride-axis signals give undefined ratios and are omitted from that axis's mean; if none contributes,
 the result is NaN. Exact positive numerator/zero denominator yields infinity and remains in the mean. Small
 numerical denominators can produce very large finite ratios. No clipping or additional QC threshold is introduced.
-Missing/unconfigured axes are omitted and empty stride lists give an empty table. Boundary accuracy, available
+Missing/unconfigured axes are omitted and empty stride lists give an empty Series. Boundary accuracy, available
 bandwidth and the number of contributing strides affect interpretation; software checks do not establish clinical
 reliability on short bouts.
 
