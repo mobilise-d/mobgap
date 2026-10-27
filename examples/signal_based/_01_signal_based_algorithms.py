@@ -168,7 +168,9 @@ harmonic_ratio.signal_based_parameters_
 # The default pipeline continues to use the peak/trough estimator above.
 from mobgap.signal_based import HarmonicRatioFourier
 
-harmonic_ratio_fourier = HarmonicRatioFourier(acc_columns=["acc_is", "acc_pa", "acc_ml"])
+harmonic_ratio_fourier = HarmonicRatioFourier(
+    acc_columns=["acc_is", "acc_pa", "acc_ml"]
+)
 harmonic_ratio_fourier.calculate(data=data_in_wb_bf, **params)
 harmonic_ratio_fourier.signal_based_parameters_
 
