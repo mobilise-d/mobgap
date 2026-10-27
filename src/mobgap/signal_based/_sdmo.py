@@ -263,12 +263,12 @@ class RegularitySymmetry(BaseSDMOCalculator):
     """Compute step/stride regularity and symmetry metrics from accelerations.
 
     Step regularity
-        Expresses the regularity of the acceleration signal between neighboring steps. Values range between 0 and 1,
-        where values close to 1 indicate greater regularity of the gait pattern. For the mediolateral axis, the absolute
+        Expresses the regularity of the acceleration signal between neighboring steps. Values close to 1 indicate
+        greater regularity of the gait pattern. For the mediolateral axis, the absolute
         value of the first negative peak is reported. Implemented from [1]_.
     Stride regularity
-        Expresses the regularity of the acceleration signal between neighboring strides. Values range between 0 and 1,
-        where values close to 1 indicate greater regularity of the gait pattern.  Implemented from [1]_.
+        Expresses the regularity of the acceleration signal between neighboring strides. Values close to 1 indicate
+        greater regularity of the gait pattern. Implemented from [1]_.
 
     This class outputs the step and stride regularity for all available acceleration signals in the principal
     directions.
@@ -286,19 +286,31 @@ class RegularitySymmetry(BaseSDMOCalculator):
         larger values depicting greater levels of step asymmetry in the accelerometer waveform. Implemented from [2]_.
 
     Asymmetry_G
-        It is defined on a linear scale, with different formulations for different axes in [3]_. For the vertical and
-        antero-posterior axes, it is calculated as ``(stride regularity-step regularity)/2``. For the medio-lateral
-        axis, it is ``(stride regularity+step regularity)/2``. The metric ranges between -1 and 1, where 0 indicates
-        perfect symmetry. Positive values reflect a gait pattern with higher regularity of strides than steps, while
-        negative values indicate the opposite. Note that the original matlab implementation uses the same formulation
-        for all axes `(stride regularity-step regularity)/2``.
+        The exported IS result uses the linear formula ``(stride regularity-step regularity)/2`` from [3]_.
+        Zero indicates equal step and stride regularity. Positive values indicate higher stride regularity,
+        while negative values indicate the opposite. Other asymmetry axes are not exported.
+
+    Notes
+    -----
+    The cited references define autocovariance-based regularity and the derived symmetry formulas. Additional
+    implementation choices smooth the normalized autocovariance over approximately 0.2 s for IS/PA and 0.1 s for ML,
+    detect peaks with a minimum separation of ``floor(sampling_rate_hz / 4) + 1`` samples, and adjust them against the
+    unsmoothed curve. IS/PA use the first two nonnegative candidates; ML uses a negative trough and a positive peak,
+    with lower lag bounds guided by the IS step lag or PA fallback. No ICs, cadence or other outcome estimates are used.
+    For two or more candidates, correction uses a window derived from 20 percent of median candidate spacing,
+    extending farther backward than forward, excludes boundary candidates and merges nearby corrected peaks.
+    With fewer than two candidates, correction is skipped and smoothed heights are retained. These selection and
+    correction details are implementation choices, not procedures established by the cited studies.
+    Normalization of unbiased autocovariance does not guarantee values within [-1, 1]; outputs are not clipped.
+    Short or irregular bouts can yield ambiguous periods, and ratio-based asymmetry is sensitive to small denominators.
 
     Other Parameters
     ----------------
     %(data_param)s
     %(sampling_rate_param)s
     replicate_matlab
-        If True, use MATLAB-compatible smoothing, otherwise the direct pandas-based moving average smoothing.
+        If True, use an odd centered moving average with shrinking symmetric edge windows; otherwise use a
+        centered pandas rolling mean with truncated edge windows.
 
     Attributes
     ----------
@@ -328,7 +340,8 @@ class RegularitySymmetry(BaseSDMOCalculator):
         %(data_param)s
         %(sampling_rate_param)s
         replicate_matlab
-            If True, use MATLAB-compatible smoothing, otherwise the direct pandas-based moving average smoothing.
+            If True, use an odd centered moving average with shrinking symmetric edge windows; otherwise use a
+            centered pandas rolling mean with truncated edge windows.
 
         %(calculate_return)s
 
