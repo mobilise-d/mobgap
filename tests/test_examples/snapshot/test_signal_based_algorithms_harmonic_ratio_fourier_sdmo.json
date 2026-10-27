@@ -1,0 +1,34 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"index",
+                "type":"integer"
+            },
+            {
+                "name":"harmonic_ratio_fourier_acc_is",
+                "type":"number"
+            },
+            {
+                "name":"harmonic_ratio_fourier_acc_pa",
+                "type":"number"
+            },
+            {
+                "name":"harmonic_ratio_fourier_acc_ml",
+                "type":"number"
+            }
+        ],
+        "primaryKey":[
+            "index"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "index":0,
+            "harmonic_ratio_fourier_acc_is":1.1283106269,
+            "harmonic_ratio_fourier_acc_pa":0.9134061813,
+            "harmonic_ratio_fourier_acc_ml":1.6032612835
+        }
+    ]
+}

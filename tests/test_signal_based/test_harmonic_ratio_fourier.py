@@ -118,3 +118,23 @@ def test_exact_missing_harmonic_group_has_unclipped_ratio(axis, expected):
         .signal_based_parameters_.iloc[0]
     )
     assert row[f"harmonic_ratio_fourier_{axis}"] == expected
+
+
+def test_composite_calculates_both_estimators_without_overwriting_either():
+    from mobgap.signal_based import HarmonicRatio, MobilisedSDMO
+
+    phase = np.arange(100) / 100
+    data = pd.DataFrame({"acc_is": np.sin(4 * np.pi * phase) + 0.4 * np.sin(6 * np.pi * phase)})
+    strides = pd.DataFrame({"start": [0], "end": [100]})
+    row = (
+        MobilisedSDMO(
+            calculators=(
+                ("harmonic_ratio", HarmonicRatio(acc_columns=["acc_is"])),
+                ("harmonic_ratio_fourier", HarmonicRatioFourier(acc_columns=["acc_is"])),
+            )
+        )
+        .calculate(data, stride_list=strides, sampling_rate_hz=100)
+        .signal_based_parameters_.iloc[0]
+    )
+    assert row.harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
+    assert row.harmonic_ratio_acc_is == pytest.approx(25.195295004095286)

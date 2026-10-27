@@ -162,6 +162,16 @@ harmonic_ratio.calculate(data=data_in_wb_bf, **params)
 
 harmonic_ratio.signal_based_parameters_
 
+# %%
+# The separate Fourier method reads the same supplied stride intervals, uses actual Fourier amplitudes,
+# and averages per-stride ratios. Its distinct output names allow both methods to be used together.
+# The default pipeline continues to use the peak/trough estimator above.
+from mobgap.signal_based import HarmonicRatioFourier
+
+harmonic_ratio_fourier = HarmonicRatioFourier(acc_columns=["acc_is", "acc_pa", "acc_ml"])
+harmonic_ratio_fourier.calculate(data=data_in_wb_bf, **params)
+harmonic_ratio_fourier.signal_based_parameters_
+
 
 # %%
 # the :class:`.SDRange` algorithm.

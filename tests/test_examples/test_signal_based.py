@@ -4,6 +4,7 @@ def test_signal_based_algorithms(snapshot):
         rms_jerk_ratio,
         frequency_amplitude,
         harmonic_ratio,
+        harmonic_ratio_fourier,
         regularity_symmetry,
         rms,
         sample_entropy,
@@ -19,6 +20,7 @@ def test_signal_based_algorithms(snapshot):
     snapshot.assert_match(frequency_amplitude.signal_based_parameters_, "frequency_amplitude_sdmo")
     snapshot.assert_match(sample_entropy.signal_based_parameters_, "sample_entropy_sdmo")
     snapshot.assert_match(harmonic_ratio.signal_based_parameters_, "harmonic_ratio_sdmo")
+    snapshot.assert_match(harmonic_ratio_fourier.signal_based_parameters_, "harmonic_ratio_fourier_sdmo")
     snapshot.assert_match(sd_range.signal_based_parameters_, "sd_range_sdmo")
     snapshot.assert_match(log_dimensionless_jerk.signal_based_parameters_, "ldlj_sdmo")
     snapshot.assert_match(rms_jerk_ratio.signal_based_parameters_, "rms_jerk_ratio_sdmo")
