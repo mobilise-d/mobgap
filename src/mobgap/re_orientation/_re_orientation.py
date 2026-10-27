@@ -70,7 +70,9 @@ class ReorientationResult:
 
     ``orientation_resolved`` is ``False`` when either gravity or the PA direction could not be detected. In non-raising
     modes, ``unresolved_reason`` identifies which part failed and ``data_corrected`` contains the documented fallback
-    output.
+    output. ``correction_rotations`` can be replayed with
+    :meth:`ReorientationMethodDM.apply_correction`. Replaying a fallback does not
+    establish that orientation was resolved.
     """
 
     where_grav: Optional[GravityAxis]  # which device axis captured gravity
@@ -86,7 +88,7 @@ class ReorientationResult:
 
 
 @base_reorientation_docfiller
-class ReorientationMethodDM(BaseReorientationCorrector):
+class ReorientationMethodDM(BaseReorientationCorrector[tuple[Rotation, Rotation]]):
     """
     Detects and corrects IMU sensor orientation for lower-back-worn devices.
 
@@ -253,12 +255,11 @@ class ReorientationMethodDM(BaseReorientationCorrector):
                 orientation_resolved=False,
                 unresolved_reason="gravity",
                 correction_rotations=(_IDENTITY_ROTATION, _IDENTITY_ROTATION),
-                data_corrected=to_body_frame(data.copy()),
+                data_corrected=self.apply_correction(data, (_IDENTITY_ROTATION, _IDENTITY_ROTATION)),
             )
             return self
 
         gravity_rotation, gravity_actions = _GRAVITY_CORRECTIONS[family]
-        corrected = flip_dataset(data, gravity_rotation)
 
         # trust_gravity: skip ML/PA correction when gravity is already correctly
         # aligned (is_up), as front/back flips are intentionally ignored
@@ -274,11 +275,12 @@ class ReorientationMethodDM(BaseReorientationCorrector):
                 orientation_resolved=True,
                 unresolved_reason=None,
                 correction_rotations=(gravity_rotation, _IDENTITY_ROTATION),
-                data_corrected=to_body_frame(corrected),
+                data_corrected=self.apply_correction(data, (gravity_rotation, _IDENTITY_ROTATION)),
             )
             return self
 
         # Stage 3: compute x-z phase on gravity-corrected data
+        corrected = flip_dataset(data, gravity_rotation)
         phase = _cross_spec_x_z_phase_power_weighted(corrected, sampling_rate_hz, self.gait_frequency_band_filter)
 
         # ML/PA correction based on family and phase sign
@@ -287,7 +289,6 @@ class ReorientationMethodDM(BaseReorientationCorrector):
 
         pa_direction_key = "reversed" if phase is not None and phase < 0 else "correct"
         pa_direction_rotation, pa_direction_actions = _PA_DIRECTION_CORRECTIONS[pa_direction_key]
-        corrected = flip_dataset(corrected, pa_direction_rotation)
         correction_actions = (*gravity_actions, *pa_direction_actions)
 
         correction_action = " and ".join(correction_actions) if correction_actions else "none"
@@ -302,10 +303,47 @@ class ReorientationMethodDM(BaseReorientationCorrector):
             orientation_resolved=phase is not None,
             unresolved_reason=None if phase is not None else "pa_direction",
             correction_rotations=(gravity_rotation, pa_direction_rotation),
-            data_corrected=to_body_frame(corrected),
+            # Gravity has already been applied for phase estimation. Replay only
+            # the remaining step to avoid rotating the full signal twice.
+            data_corrected=self.apply_correction(corrected, (_IDENTITY_ROTATION, pa_direction_rotation)),
         )
 
         return self
+
+    @staticmethod
+    def apply_correction(data: pd.DataFrame, correction: tuple[Rotation, Rotation]) -> pd.DataFrame:
+        """Replay DM gravity and PA corrections on sensor-frame data.
+
+        Parameters
+        ----------
+        data
+            Sensor-frame IMU data with ``acc_x``, ``acc_y``, ``acc_z``, ``gyr_x``,
+            ``gyr_y``, and ``gyr_z`` columns.
+        correction
+            The ``result_.correction_rotations`` tuple returned by this method.
+            Its first rotation aligns gravity; its second corrects the PA direction
+            around the gravity-corrected sensor x-axis. Both are single right-angle
+            rotations. Use two identity rotations for the nominal mounting.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Body-frame acceleration and gyroscope data with the original index.
+            The input is not modified. This operation performs no detection and
+            needs no executed algorithm instance.
+
+        Notes
+        -----
+        Unresolved gravity uses two identity rotations and assumes nominal mounting.
+        Unresolved PA direction keeps the gravity correction and assumes the PA
+        direction is correct. Replaying either fallback reproduces the returned
+        data, but does not establish that orientation was resolved.
+        """
+        corrected = data
+        for rotation in correction:
+            if rotation.magnitude() != 0:
+                corrected = flip_dataset(corrected, rotation)
+        return to_body_frame(corrected)
 
     @property
     def corrected_data_(self) -> pd.DataFrame:

@@ -35,11 +35,17 @@ class _FullRecordingGsDetector(BaseGsDetector):
         return self
 
 
-class _SensorToBodyFrameReorientation(BaseReorientationCorrector):
+class _SensorToBodyFrameReorientation(BaseReorientationCorrector[None]):
     def detect_correct(self, data: pd.DataFrame, *, sampling_rate_hz: float, **_kwargs: Any) -> Self:
         del sampling_rate_hz
         self.input_columns_ = tuple(data.columns)
-        self.corrected_data_ = pd.DataFrame(
+        self.corrected_data_ = self.apply_correction(data, None)
+        self.result_ = self.input_columns_
+        return self
+
+    @staticmethod
+    def apply_correction(data: pd.DataFrame, correction: None) -> pd.DataFrame:
+        return pd.DataFrame(
             {
                 "acc_is": data["acc_x"],
                 "acc_ml": data["acc_y"],
@@ -50,8 +56,6 @@ class _SensorToBodyFrameReorientation(BaseReorientationCorrector):
             },
             index=data.index,
         )
-        self.result_ = self.input_columns_
-        return self
 
 
 class _EmptyIcDetector(BaseIcDetector):

@@ -455,6 +455,10 @@ class TestReorientationMethodDMRegression:
 
         for (gs, wb_data), result in iterator.iterate(data, ref_walk_bouts):
             reorientation_result = reorientation.detect_correct(wb_data, sampling_rate_hz=datapoint.sampling_rate_hz)
+            assert_frame_equal(
+                ReorientationMethodDM.apply_correction(wb_data, reorientation_result.result_.correction_rotations),
+                reorientation_result.corrected_data_,
+            )
             families.append(reorientation_result.result_.family)
             corrections_applied.append(reorientation_result.result_.correction_applied)
             correction_actions.append(reorientation_result.result_.correction_action)
@@ -488,6 +492,10 @@ class TestReorientationMethodDMRegression:
 
         for (gs, wb_data), result in iterator.iterate(data, ref_walk_bouts):
             reorientation_result = reorientation.detect_correct(wb_data, sampling_rate_hz=datapoint.sampling_rate_hz)
+            assert_frame_equal(
+                ReorientationMethodDM.apply_correction(wb_data, reorientation_result.result_.correction_rotations),
+                reorientation_result.corrected_data_,
+            )
             families.append(reorientation_result.result_.family)
             corrections_applied.append(reorientation_result.result_.correction_applied)
             correction_actions.append(reorientation_result.result_.correction_action)

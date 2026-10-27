@@ -1,6 +1,7 @@
 """Base class for reorientation correction algorithms."""
 
-from typing import Any, Self, Unpack
+from abc import ABC, abstractmethod
+from typing import Any, Generic, Self, TypeVar, Unpack
 
 import pandas as pd
 from tpcp import Algorithm
@@ -42,8 +43,11 @@ self
 )
 
 
+CorrectionT = TypeVar("CorrectionT")
+
+
 @base_reorientation_docfiller
-class BaseReorientationCorrector(Algorithm):
+class BaseReorientationCorrector(Algorithm, Generic[CorrectionT], ABC):
     """Base class for sensor reorientation correction algorithms.
 
     This base class should be used for all reorientation correction algorithms.
@@ -55,6 +59,11 @@ class BaseReorientationCorrector(Algorithm):
     - z → posterior-anterior, pointing forward
 
     The method should return the instance with the ``corrected_data_`` attribute set to body-frame data.
+    Each method defines its own correction value type through ``CorrectionT`` and must
+    implement the static ``apply_correction(data, correction)`` operation. This operation
+    replays the method's correction on sensor-frame data without estimating orientation
+    or needing an executed algorithm instance. Correction values can describe fallback
+    behavior, so applying one does not prove that orientation was resolved.
 
     Other Parameters
     ----------------
@@ -89,6 +98,28 @@ class BaseReorientationCorrector(Algorithm):
 
     # Results
     corrected_data_: pd.DataFrame
+
+    @staticmethod
+    @abstractmethod
+    def apply_correction(data: pd.DataFrame, correction: CorrectionT) -> pd.DataFrame:
+        """Apply a method-specific correction without estimating orientation.
+
+        Parameters
+        ----------
+        data
+            Sensor-frame IMU data with the columns supported by the concrete method.
+        correction
+            A correction value provided by this method, in its own representation.
+            Other methods may define different correction types.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Corrected body-frame data with the same index as ``data``. The input
+            must not be modified. Applying a fallback correction does not imply
+            that orientation was resolved.
+        """
+        raise NotImplementedError
 
     @base_reorientation_docfiller
     def detect_correct(self, data: pd.DataFrame, *, sampling_rate_hz: float, **kwargs: Unpack[dict[str, Any]]) -> Self:
