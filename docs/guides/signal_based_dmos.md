@@ -64,6 +64,45 @@ and fewer than two extendible templates give NaN. Changing the sampling rate cha
 therefore the statistic. The internal rate is deliberately different from the supplied native-rate MATLAB estimator.
 The corrected common pool can change existing Python values, independently of that rate difference.
 
+## Regularity and symmetry
+
+`RegularitySymmetry` measures repetition in the acceleration waveform independently of ICs, retained strides,
+cadence or other outcome estimates. The normalized unbiased autocovariance and regularity definitions follow
+[Moe-Nilssen and Helbostad (2004)](https://doi.org/10.1016/S0021-9290(03)00233-1).
+The IS asymmetry outputs use the regularity ratio expressed as `abs(1 - step/stride)`, the absolute difference divided
+by the mean attributed to [Kobsar et al. (2014)](https://doi.org/10.1016/j.gaitpost.2013.09.008), and the linear
+`(stride - step)/2` formula from [van Gelder et al. (2021)](https://doi.org/10.3390/sym13091560).
+`symmetry_k_is` is a fraction, without multiplication by 100.
+
+The following signal-processing and peak-selection details are implementation choices beyond those outcome
+definitions. The cited studies do not establish these particular windows, thresholds or correction rules:
+
+1. Each body-axis acceleration is mean-centered. Autocovariance at lag k is divided by N-k overlapping pairs and
+   normalized by its zero-lag value. The full accepted WB is used, with no additional acceleration filtering here.
+2. A moving average smooths the autocovariance to suppress small competing peaks. The nominal span is
+   `max(1, floor(0.2 * sampling_rate_hz))` samples for IS/PA and `max(1, floor(0.1 * sampling_rate_hz))` for ML.
+   The default uses odd spans, reducing an even span by one, with shrinking symmetric windows at the edges.
+   The alternative uses a centered pandas rolling mean with the nominal span and truncated edge windows.
+3. Candidate peaks must be separated by at least `floor(sampling_rate_hz / 4) + 1` samples. IS/PA keep nonnegative
+   peaks and use the first two corrected candidates as step and stride regularity. ML keeps negative troughs for
+   step regularity, reporting their positive magnitude, and positive peaks for stride regularity.
+4. The IS step lag supplies a timing reference for ML, falling back to PA when IS has no usable step peak.
+   Before correction, ML step candidates earlier than half that lag and stride candidates earlier than 1.5 times
+   that lag are excluded. With no timing reference these lower bounds are omitted.
+5. With at least two candidates in a peak search, a correction radius is `ceil(0.2 * median(candidate spacing))`.
+   Candidates within that radius of either array boundary are excluded. Each remaining candidate is moved to
+   the maximum of the unsmoothed curve from one radius before it through half a radius after it, rounding the
+   latter down. For negative ML troughs, the sign-reversed curve is used.
+6. Corrected candidates less than one radius from the first candidate of their group are merged, retaining the
+   strongest. If fewer than two candidates were initially found, correction is skipped and their smoothed
+   positions and heights are retained. Thus that fallback uses a different amplitude representation.
+
+These rules are retained as the current method. Their numerical choices are not claimed as independently
+validated by the cited papers. In short or irregular bouts, selected peaks can represent a different period from
+one step or stride. Normalized unbiased autocovariance can exceed [-1, 1], and values are not clipped; consequently
+strict 0–1 regularity or -1–1 linear-asymmetry bounds are not guaranteed. Ratio-based asymmetry can become unstable
+near zero denominators. These limitations should be considered when interpreting individual bouts.
+
 ## Spectral outcomes
 
 `FrequencyAmplitudeWidth` standardizes each configured anatomical axis with sample SD and retains two-second
@@ -93,9 +132,10 @@ to proceed independently; disabling both aggregators gives `aggregated_parameter
 has no WB outcomes to aggregate. No new QC thresholds, missing-IC repair or clinical weighting are applied.
 
 The historical cohort recommendations below describe research outcomes. Passing software checks does not establish
-clinical validity for these modified estimators or new cohorts, placements or protocols. Harmonic ratio and
-regularity/symmetry remain unchanged and deferred, including `replicate_matlab` smoothing. The supplied MATLAB
-PCI, step outcomes, slopes, missing helper and other MATLAB-only findings are outside this implementation.
+clinical validity for these modified estimators or new cohorts, placements or protocols. Harmonic ratio remains
+deferred. The regularity/symmetry algorithm is retained, with its additional implementation choices documented above.
+The supplied MATLAB PCI, step outcomes, slopes, missing helper and other MATLAB-only findings are outside this
+implementation.
 
 ## Relationship to the supplied MATLAB reference
 
@@ -111,7 +151,7 @@ The entropy common-pool correction is applied in Python only. Python deliberatel
 and default 50 Hz resampling, whereas the supplied MATLAB estimator uses sample SD and the native input rate.
 The RMS jerk ratios deliberately remain different from MATLAB's differences of LDLJ scores. Per-turn values are
 reported without inferring an aggregation rule from an unavailable MATLAB caller. No MATLAB files are repaired;
-MATLAB-only outcomes and the deferred harmonic-ratio/regularity questions remain outside this change.
+MATLAB-only outcomes and the deferred harmonic-ratio questions remain outside this change.
 
 ## Turn result migration
 
