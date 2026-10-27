@@ -26,10 +26,10 @@ def test_signal_based_algorithms(snapshot):
     snapshot.assert_match(rms_jerk_ratio.signal_based_parameters_.to_frame().T, "rms_jerk_ratio_sdmo")
 
 
-def test_signal_based_mobilised_pipeline():
+def test_secondary_outcomes_after_pipeline():
     from pandas.testing import assert_frame_equal, assert_index_equal
 
-    from examples.signal_based._02_signal_based_mobilised_pipeline import (
+    from examples.signal_based._02_secondary_outcomes_after_pipeline import (
         aggregated_sdmos,
         per_turn_metadata,
         per_turn_sdmos,

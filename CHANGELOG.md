@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add standalone secondary outcome calculators for stride CV, signal magnitude, entropy, spectral parameters,
   regularity/symmetry, smoothness, harmonic ratios and individual turns. Each exposes a parameter-indexed Series
   for one prepared window. Calculate these after primary analysis and optionally summarize WB outcomes with
-  `SDMOAggregator`; primary pipeline processing and result tables remain unchanged.
+  `SDMOAggregator`; primary pipeline processing and result tables remain unchanged. A pipeline-first example uses
+  the shared `DEFAULT_WB_SDMO_CALCULATORS` preset with explicit WB/turn processing.
 - Add `RegionIterator` to collect caller-defined Series result fields into DataFrames while preserving region
   identities and hierarchical parameter labels. Signal preparation and metadata access remain in the caller's loop.
 - Add generic interval-containment and sequence-orientation helpers. Reorientation methods enforce static

@@ -1,6 +1,7 @@
 """Methods to calculate signal-based DMOs."""
 
 __all__ = [
+    "DEFAULT_WB_SDMO_CALCULATORS",
     "RMS",
     "FrequencyAmplitudeWidth",
     "HarmonicRatio",
@@ -17,6 +18,7 @@ __all__ = [
 
 from mobgap.signal_based._harmonic_ratio import HarmonicRatioFourier
 from mobgap.signal_based._mobilised_sdmo import MobilisedSDMO
+from mobgap.signal_based._presets import DEFAULT_WB_SDMO_CALCULATORS
 from mobgap.signal_based._sdmo import (
     RMS,
     FrequencyAmplitudeWidth,

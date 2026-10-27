@@ -61,7 +61,8 @@ reorientation_sections = pipeline.gs_list_.assign(
         {
             gs_id: correction.correction_applied
             for gs_id, correction in gs_corrections.items()
-        }
+        },
+        dtype=bool,
     ).reindex(rows.index),
 )
 identity_correction = (Rotation.identity(), Rotation.identity())
@@ -94,7 +95,7 @@ turns = pipeline.raw_turn_list_.assign(
 # rebasing. Retain the full accepted WB signal, including turns and gaps between retained strides.
 from dataclasses import dataclass
 
-from mobgap.signal_based import MobilisedSDMO, TurnSDMO
+from mobgap.signal_based import DEFAULT_WB_SDMO_CALCULATORS, TurnSDMO
 
 
 @dataclass
@@ -103,13 +104,7 @@ class OutcomeResult:
 
 
 # The general iterator assembles each Series field into a DataFrame. The result type belongs to this example.
-wb_calculators = {
-    name: calculator
-    for name, calculator in MobilisedSDMO.PredefinedParameters.default[
-        "calculators"
-    ]
-    if calculator.result_level == "wb"
-}
+wb_calculators = dict(DEFAULT_WB_SDMO_CALCULATORS)
 wb_iterator = RegionIterator(OutcomeResult)
 for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
     correction = wbs.loc[wb.id, "orientation"]
@@ -177,14 +172,19 @@ from mobgap.aggregation import SDMOAggregator
 
 # Aggregate each algorithm's parameter table with the existing flat-column aggregator, then retain the algorithm
 # keys as the outer column level. No parameter names are flattened or merged across algorithms.
-aggregated_sdmos = pd.concat(
-    {
-        name: SDMOAggregator()
-        .aggregate(per_wb_sdmos[name].join(wbs[["duration_s"]]))
-        .aggregated_data_
-        for name in per_wb_sdmos.columns.get_level_values("algorithm").unique()
-    },
-    axis=1,
-    names=["algorithm", "parameter"],
-)
+if per_wb_sdmos.empty:
+    aggregated_sdmos = pd.DataFrame()
+else:
+    aggregated_sdmos = pd.concat(
+        {
+            name: SDMOAggregator()
+            .aggregate(per_wb_sdmos[name].join(wbs[["duration_s"]]))
+            .aggregated_data_
+            for name in per_wb_sdmos.columns.get_level_values(
+                "algorithm"
+            ).unique()
+        },
+        axis=1,
+        names=["algorithm", "parameter"],
+    )
 aggregated_sdmos

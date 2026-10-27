@@ -19,7 +19,9 @@ The WB duration categories used for the aggregation were all WBs, WBs > 10 s, WB
 Secondary outcomes are calculated after running the primary pipeline, from its accepted WBs, retained strides
 and raw detected turns. Each individual calculator exposes a Series for one prepared window. `RegionIterator`
 assembles these into tables, and `SDMOAggregator` optionally summarizes WB outcomes. Secondary calculations and
-aggregation are independent operations; they are not configured on the primary pipeline.
+aggregation are independent operations; they are not configured on the primary pipeline. The
+{ref}`sphx_glr_auto_examples_signal_based__02_secondary_outcomes_after_pipeline.py` example shows the complete flow.
+`DEFAULT_WB_SDMO_CALCULATORS` supplies named prototypes for the WB calculator dictionary.
 
 The clinical reliability and validity of these SDMOs differ by cohort; the current per-cohort recommendations are
 listed below.

@@ -26,8 +26,8 @@ Algorithms
     StrideLevelSDMO
     TurnSDMO
 
-Pipelines
-+++++++++
+Convenience compositions
+++++++++++++++++++++++++
 .. currentmodule:: mobgap.signal_based
 
 .. autosummary::
@@ -35,6 +35,12 @@ Pipelines
    :template: class.rst
 
     MobilisedSDMO
+
+Calculator presets
+++++++++++++++++++
+
+.. autodata:: mobgap.signal_based.DEFAULT_WB_SDMO_CALCULATORS
+    :no-value:
 
 Base Classes
 ++++++++++++
