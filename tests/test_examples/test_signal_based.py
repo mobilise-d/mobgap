@@ -37,6 +37,8 @@ def test_secondary_outcomes_after_pipeline():
         pipeline,
     )
 
+    assert not hasattr(pipeline, "gs_iterator_")
+    assert {"orientation", "correction_applied"}.issubset(pipeline.gs_list_.columns)
     assert per_wb_sdmos.columns.names == ["algorithm", "parameter"]
     assert per_turn_sdmos.columns.names == ["algorithm", "parameter"]
     assert_index_equal(per_wb_sdmos.index, pipeline.per_wb_parameters_.index)

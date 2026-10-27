@@ -20,6 +20,14 @@ corrected_data_
     The reoriented IMU data in the body frame.
     The dataframe has the same index as the input data and body-frame columns.
 """,
+        "correction_outputs": """
+correction_
+    The method-specific value that replays this run's correction through ``apply_correction``.
+    It must not retain the input or corrected signal data. Fallback corrections are included.
+correction_applied_
+    Whether this run applied a non-nominal orientation correction. False still permits the nominal
+    sensor-to-body-frame conversion. This flag does not indicate whether orientation was resolved.
+""",
         "detect_correct_short": """
 Detect sensor orientation and apply correction to the body frame
 """,
@@ -71,6 +79,7 @@ class BaseReorientationCorrector(Algorithm, Generic[CorrectionT]):
     Attributes
     ----------
     %(corrected_data_)s
+    %(correction_outputs)s
 
     Notes
     -----
@@ -97,6 +106,8 @@ class BaseReorientationCorrector(Algorithm, Generic[CorrectionT]):
 
     # Results
     corrected_data_: pd.DataFrame
+    correction_: CorrectionT
+    correction_applied_: bool
 
     @staticmethod
     def apply_correction(data: pd.DataFrame, correction: CorrectionT) -> pd.DataFrame:

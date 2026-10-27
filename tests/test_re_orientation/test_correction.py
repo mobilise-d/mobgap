@@ -37,6 +37,7 @@ class _SignedCorrector(BaseReorientationCorrector[dict[str, int]]):
     @make_action_safe
     def detect_correct(self, data, *, sampling_rate_hz, **kwargs):
         self.correction_ = {"ml_sign": self.ml_sign}
+        self.correction_applied_ = self.ml_sign != 1
         self.corrected_data_ = self.apply_correction(data, self.correction_)
         return self
 

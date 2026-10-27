@@ -14,8 +14,8 @@ stays in the source DataFrame and is read by the region's identifier inside the 
 # Run the primary pipeline
 # ------------------------
 # This trial includes several walking bouts and turns. Run the primary pipeline first, then calculate secondary
-# outcomes from its results. Keep intermediate results to access the recorded
-# per-GS corrections. With per-GS reorientation, gait detection must support sensor-frame inputs.
+# outcomes from its results. Corrections are retained in the raw GS table even when intermediate retention is
+# disabled. With per-GS reorientation, gait detection must support sensor-frame inputs.
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdIluzAdaptiveGravity
 from mobgap.pipeline import MobilisedPipelineHealthy, RegionIterator
@@ -32,39 +32,18 @@ sensor_data = short_trial.data_ss
 pipeline = MobilisedPipelineHealthy(
     gait_sequence_detection=GsdIluzAdaptiveGravity(),
     per_gs_reorientation=ReorientationMethodDM(),
-    retain_intermediate_results=True,
+    retain_intermediate_results=False,
 ).safe_run(short_trial)
 
 # %%
 # Prepare corrections once, outside the loops
 # -------------------------------------------
-# The per-GS iterator's public raw results retain the correction belonging to each detected GS. Sub-iterations are
-# excluded here. Correction values remain specific to ReorientationMethodDM, which returns two scipy rotations.
-# Do not re-estimate orientation independently for each WB or turn.
+# The pipeline's raw GS table contains the method-specific correction and applied flag for each detected GS.
+# ReorientationMethodDM provides two scipy rotations. Do not re-estimate orientation for each WB or turn.
 import pandas as pd
 from scipy.spatial.transform import Rotation
 
-gs_corrections = {
-    entry.input.region.id: entry.result.reorientation_result
-    for entry in pipeline.gs_iterator_.raw_results_
-    if entry.iteration_name == "__main__"
-}
-reorientation_sections = pipeline.gs_list_.assign(
-    orientation=lambda rows: pd.Series(
-        {
-            gs_id: correction.correction_rotations
-            for gs_id, correction in gs_corrections.items()
-        },
-        dtype=object,
-    ).reindex(rows.index),
-    correction_applied=lambda rows: pd.Series(
-        {
-            gs_id: correction.correction_applied
-            for gs_id, correction in gs_corrections.items()
-        },
-        dtype=bool,
-    ).reindex(rows.index),
-)
+reorientation_sections = pipeline.gs_list_
 identity_correction = (Rotation.identity(), Rotation.identity())
 wbs = pipeline.per_wb_parameters_.assign(
     orientation=lambda rows: get_orientation_for_sequences(

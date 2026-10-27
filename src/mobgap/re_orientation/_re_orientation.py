@@ -125,6 +125,7 @@ class ReorientationMethodDM(BaseReorientationCorrector[tuple[Rotation, Rotation]
     Attributes
     ----------
     %(corrected_data_)s
+    %(correction_outputs)s
     result_ : ReorientationResult
         Full detection and correction diagnostics including family, phase, correction flags, unresolved detection
         reason, and the gravity/PA correction rotations.
@@ -344,6 +345,16 @@ class ReorientationMethodDM(BaseReorientationCorrector[tuple[Rotation, Rotation]
             if rotation.magnitude() != 0:
                 corrected = flip_dataset(corrected, rotation)
         return to_body_frame(corrected)
+
+    @property
+    def correction_(self) -> tuple[Rotation, Rotation]:
+        """Gravity and PA rotations applied by this run, including fallback rotations."""
+        return self.result_.correction_rotations
+
+    @property
+    def correction_applied_(self) -> bool:
+        """Whether a non-nominal correction was applied, independently of detection success."""
+        return self.result_.correction_applied
 
     @property
     def corrected_data_(self) -> pd.DataFrame:

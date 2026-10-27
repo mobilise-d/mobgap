@@ -271,10 +271,11 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         sampling_rate_hz = datapoint.sampling_rate_hz
 
         self.gait_sequence_detection_ = self.gait_sequence_detection.clone().detect(imu_data, **self._all_action_kwargs)
-        self.gs_list_ = self.gait_sequence_detection_.gs_list_
-        self.gs_iterator_ = self._run_per_gs(self.gs_list_, imu_data, self._all_action_kwargs)
+        self.gs_iterator_ = self._run_per_gs(self.gait_sequence_detection_.gs_list_, imu_data, self._all_action_kwargs)
 
         results = self.gs_iterator_.results_
+
+        self.gs_list_ = self._get_gs_list_with_reorientation(results.reorientation)
 
         self.raw_per_sec_parameters_ = pd.concat(
             [
@@ -363,6 +364,23 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         del self._all_action_kwargs
         return self
 
+    def _get_gs_list_with_reorientation(self, corrections: pd.DataFrame) -> pd.DataFrame:
+        """Attach replayable per-GS corrections without retaining algorithms or signal data."""
+        gs_list = self.gait_sequence_detection_.gs_list_
+        if self.per_gs_reorientation is None:
+            return gs_list
+        if corrections.empty:
+            corrections = pd.DataFrame(index=gs_list.index, columns=["orientation", "correction_applied"])
+        else:
+            # Align using the identifier selected by the iterator, which may live in a column.
+            corrections = corrections.droplevel(-1)
+            gs_ids = gs_list.reset_index()[corrections.index.name]
+            corrections = corrections.reindex(gs_ids).set_axis(gs_list.index)
+        return gs_list.assign(
+            orientation=corrections["orientation"].astype(object),
+            correction_applied=corrections["correction_applied"].astype(bool),
+        )
+
     def _run_per_gs(
         self,
         gait_sequences: pd.DataFrame,
@@ -379,7 +397,10 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                         gs_data, sampling_rate_hz=action_kwargs["sampling_rate_hz"]
                     )
                     gs_data = reorient.corrected_data_  # noqa: PLW2901
-                    r.reorientation_result = reorient.result_
+                    r.reorientation_result = getattr(reorient, "result_", None)
+                    r.reorientation = pd.DataFrame(
+                        {"orientation": [reorient.correction_], "correction_applied": [reorient.correction_applied_]}
+                    )
 
                 icd = self.initial_contact_detection.clone().detect(gs_data, **action_kwargs)
                 lrc = self.laterality_classification.clone().predict(gs_data, icd.ic_list_, **action_kwargs)

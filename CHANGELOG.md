@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   identities and hierarchical parameter labels. Signal preparation and metadata access remain in the caller's loop.
 - Add generic interval-containment and sequence-orientation helpers. Reorientation methods provide static
   `apply_correction(data, correction)` while defining their own correction type; `ReorientationMethodDM` replays
-  its gravity/PA rotations, including documented unresolved fallbacks.
+  its gravity/PA rotations, including documented unresolved fallbacks. With per-GS reorientation enabled, the
+  primary pipeline exposes replayable `orientation` and `correction_applied` columns in `gs_list_`, including when
+  intermediate retention is disabled.
 
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level

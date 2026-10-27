@@ -39,7 +39,8 @@ class _SensorToBodyFrameReorientation(BaseReorientationCorrector[None]):
         del sampling_rate_hz
         self.input_columns_ = tuple(data.columns)
         self.corrected_data_ = self.apply_correction(data, None)
-        self.result_ = self.input_columns_
+        self.correction_ = None
+        self.correction_applied_ = False
         return self
 
     @staticmethod
@@ -242,8 +243,116 @@ class TestFullPipelineEdgeCases:
         )
 
         assert pipeline.gait_sequence_detection_.data_columns_ == tuple(SF_SENSOR_COLS)
-        assert pipeline.gs_iterator_.results_.reorientation_result[0] == tuple(SF_SENSOR_COLS)
+        assert pipeline.gs_list_.loc[0, "orientation"] is None
+        assert not pipeline.gs_list_.loc[0, "correction_applied"]
         assert pipeline.raw_per_sec_parameters_["stride_length_m"].iloc[0] == pytest.approx(9.81)
+
+    @pytest.mark.parametrize("retain", [True, False])
+    def test_gs_list_exposes_replayable_correction_without_retaining_intermediates(self, retain):
+        from scipy.spatial.transform import Rotation
+
+        from mobgap.utils.conversions import to_body_frame
+        from mobgap.utils.rotations import flip_dataset
+
+        nominal = _sensor_frame_test_dataset()
+        rotated = flip_dataset(nominal.data_ss, Rotation.from_euler("z", 90, degrees=True))
+        dataset = GaitDatasetFromData(
+            {"test": {"LowerBack": rotated}},
+            100.0,
+            _participant_metadata={"test": nominal.participant_metadata},
+            _recording_metadata={"test": nominal.recording_metadata},
+        )[0]
+        pipeline = _minimal_pipeline(
+            per_gs_reorientation=ReorientationMethodDM(
+                correction_mode="trust_gravity", pa_direction_detection_error_type="ignore"
+            ),
+            retain_intermediate_results=retain,
+        ).run(dataset)
+
+        assert pipeline.gs_list_.loc[0, "correction_applied"]
+        correction = pipeline.gs_list_.loc[0, "orientation"]
+        replayed = pipeline.per_gs_reorientation.apply_correction(rotated, correction)
+        pd.testing.assert_frame_equal(replayed, to_body_frame(nominal.data_ss))
+        pd.testing.assert_frame_equal(
+            pipeline.gs_list_[["start", "end"]],
+            pd.DataFrame({"start": [0], "end": [300]}).rename_axis("gs_id"),
+        )
+        assert hasattr(pipeline, "gs_iterator_") is retain
+        if retain:
+            assert pipeline.gait_sequence_detection_.gs_list_.columns.tolist() == ["start", "end"]
+
+    @pytest.mark.parametrize("column_ids", [False, True])
+    def test_gs_corrections_keep_original_identifiers_and_recording_intervals(self, column_ids):
+        from scipy.spatial.transform import Rotation
+
+        from mobgap.re_orientation import get_orientation_for_sequences
+        from mobgap.utils.conversions import to_body_frame
+        from mobgap.utils.rotations import flip_dataset
+
+        class SplitGsDetector(BaseGsDetector):
+            def detect(self, data, *, sampling_rate_hz, **kwargs):
+                self.gs_list_ = pd.DataFrame(
+                    {"start": [0, 150], "end": [150, 300]}, index=pd.Index([42, 7], name="gs_id")
+                )
+                if column_ids:
+                    self.gs_list_ = self.gs_list_.reset_index().set_axis(pd.Index([7, 42], name="detector_row"))
+                return self
+
+        nominal = _sensor_frame_test_dataset()
+        data = pd.concat(
+            [
+                nominal.data_ss.iloc[:150],
+                flip_dataset(nominal.data_ss.iloc[150:], Rotation.from_euler("z", 90, degrees=True)),
+            ]
+        )
+        dataset = GaitDatasetFromData(
+            {"test": {"LowerBack": data}},
+            100.0,
+            _participant_metadata={"test": nominal.participant_metadata},
+            _recording_metadata={"test": nominal.recording_metadata},
+        )[0]
+        pipeline = _minimal_pipeline(
+            gait_sequence_detection=SplitGsDetector(),
+            initial_contact_detection=_EmptyIcDetector(),
+            per_gs_reorientation=ReorientationMethodDM(pa_direction_detection_error_type="ignore"),
+            retain_intermediate_results=False,
+        ).run(dataset)
+
+        expected_index = pd.Index([7, 42], name="detector_row") if column_ids else pd.Index([42, 7], name="gs_id")
+        pd.testing.assert_index_equal(pipeline.gs_list_.index, expected_index)
+        assert pipeline.gs_list_.correction_applied.tolist() == [False, True]
+        sequences = pd.DataFrame({"start": [160], "end": [200]}, index=pd.Index(["query"]))
+        correction = get_orientation_for_sequences(sequences, pipeline.gs_list_, default=None).loc["query"]
+        pd.testing.assert_frame_equal(
+            pipeline.per_gs_reorientation.apply_correction(data.iloc[160:200], correction),
+            to_body_frame(nominal.data_ss.iloc[160:200]),
+        )
+        # A later run with correction disabled returns the unextended detector table.
+        pipeline.set_params(per_gs_reorientation=None).run(dataset)
+        assert pipeline.gs_list_.columns.tolist() == (["gs_id", "start", "end"] if column_ids else ["start", "end"])
+
+    def test_empty_gs_list_retains_reorientation_schema(self):
+        class NoGsDetector(BaseGsDetector):
+            def detect(self, data, *, sampling_rate_hz, **kwargs):
+                self.gs_list_ = pd.DataFrame(
+                    {"start": pd.Series(dtype="int64"), "end": pd.Series(dtype="int64")}
+                ).rename_axis("gs_id")
+                return self
+
+        pipeline = _minimal_pipeline(
+            gait_sequence_detection=NoGsDetector(),
+            per_gs_reorientation=ReorientationMethodDM(),
+            retain_intermediate_results=False,
+        ).run(_sensor_frame_test_dataset())
+        expected = pd.DataFrame(
+            {
+                "start": pd.Series(dtype="int64"),
+                "end": pd.Series(dtype="int64"),
+                "orientation": pd.Series(dtype=object),
+                "correction_applied": pd.Series(dtype=bool),
+            }
+        ).rename_axis("gs_id")
+        pd.testing.assert_frame_equal(pipeline.gs_list_, expected)
 
     def test_healthy_pipeline_with_per_gs_reorientation_fails_because_gsd_iluz_requires_body_frame(self) -> None:
         dataset = LabExampleDataset().get_subset(cohort="HA", participant_id="001", test="Test5", trial="Trial2")[0]
