@@ -223,8 +223,8 @@
         {
             "index":0,
             "sample_entropy_acc_is":0.8618218235,
-            "harmonic_ratio_acc_is":3.1904720108,
-            "harmonic_ratio_acc_pa":3.5842793618,
+            "harmonic_ratio_acc_is":5.4639066108,
+            "harmonic_ratio_acc_pa":4.5998440032,
             "sd_acc_is":1.3711734674,
             "range_acc_is":6.6305354509,
             "sd_acc_ml":1.0600575426,
