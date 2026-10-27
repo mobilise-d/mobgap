@@ -68,6 +68,15 @@ pipeline_ha.per_wb_parameters_
 pipeline_ha.per_stride_parameters_
 
 # %%
+# Signal outcomes for each accepted WB are separate from the individual detected turns.
+pipeline_ha.per_wb_signal_based_parameters_
+
+# %%
+# Every turn detected within a gait sequence is retained, with recording-local coordinates and a nullable WB ID.
+# Turn rows are never automatically aggregated.
+pipeline_ha.per_turn_parameters_
+
+# %%
 # For other results, see the documentation of the pipeline class itself.
 
 # %%
@@ -181,12 +190,13 @@ aggregated_paras
 from mobgap.pipeline import MobilisedPipelineHealthy
 
 pipe_no_agg = MobilisedPipelineHealthy(
-    dmo_thresholds=None, dmo_aggregation=None
+    dmo_thresholds=None, dmo_aggregation=None, sdmo_aggregation=None
 )
 pipe_no_agg.safe_run(long_test_ha)
 
 # %%
-# Now, the aggregated parameters are empty.
+# Both aggregators are disabled, so the aggregate result is None.
+# Keeping sdmo_aggregation configured would aggregate SDMOs independently of primary DMOs.
 pipe_no_agg.aggregated_parameters_
 
 # %%

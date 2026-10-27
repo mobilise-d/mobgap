@@ -352,51 +352,83 @@
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_is__median",
+                "name":"all__jerk_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_is__std",
+                "name":"all__jerk_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_is__p10",
+                "name":"all__jerk_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_is__p90",
+                "name":"all__jerk_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_ml__median",
+                "name":"all__jerk_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_ml__std",
+                "name":"all__jerk_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_ml__p10",
+                "name":"all__jerk_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_ml__p90",
+                "name":"all__jerk_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_pa__median",
+                "name":"all__jerk_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_pa__std",
+                "name":"all__jerk_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_pa__p10",
+                "name":"all__jerk_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"all__angular_acceleration_gyr_pa__p90",
+                "name":"all__jerk_gyr_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_ml_is__median",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_ml_is__std",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_ml_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_ml_is__p90",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_pa_is__median",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_pa_is__std",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_pa_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__jerk_ratio_pa_is__p90",
                 "type":"number"
             },
             {
@@ -416,38 +448,6 @@
                 "type":"number"
             },
             {
-                "name":"all__amplitude_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__amplitude_pa__p90",
-                "type":"number"
-            },
-            {
                 "name":"all__freq_is__median",
                 "type":"number"
             },
@@ -461,38 +461,6 @@
             },
             {
                 "name":"all__freq_is__p90",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -512,6 +480,38 @@
                 "type":"number"
             },
             {
+                "name":"all__amplitude_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_ml__p90",
+                "type":"number"
+            },
+            {
                 "name":"all__width_ml__median",
                 "type":"number"
             },
@@ -525,6 +525,38 @@
             },
             {
                 "name":"all__width_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__amplitude_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -864,6 +896,22 @@
                 "type":"number"
             },
             {
+                "name":"all__cv_stride_duration_s__median",
+                "type":"number"
+            },
+            {
+                "name":"all__cv_stride_duration_s__std",
+                "type":"number"
+            },
+            {
+                "name":"all__cv_stride_duration_s__p10",
+                "type":"number"
+            },
+            {
+                "name":"all__cv_stride_duration_s__p90",
+                "type":"number"
+            },
+            {
                 "name":"all__cv_cadence_spm__median",
                 "type":"number"
             },
@@ -880,19 +928,19 @@
                 "type":"number"
             },
             {
-                "name":"all__cv_stride_duration_s__median",
+                "name":"all__cv_walking_speed_mps__median",
                 "type":"number"
             },
             {
-                "name":"all__cv_stride_duration_s__std",
+                "name":"all__cv_walking_speed_mps__std",
                 "type":"number"
             },
             {
-                "name":"all__cv_stride_duration_s__p10",
+                "name":"all__cv_walking_speed_mps__p10",
                 "type":"number"
             },
             {
-                "name":"all__cv_stride_duration_s__p90",
+                "name":"all__cv_walking_speed_mps__p90",
                 "type":"number"
             },
             {
@@ -1136,51 +1184,83 @@
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_is__median",
+                "name":"wb_10_30__jerk_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_is__std",
+                "name":"wb_10_30__jerk_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_is__p10",
+                "name":"wb_10_30__jerk_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_is__p90",
+                "name":"wb_10_30__jerk_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_ml__median",
+                "name":"wb_10_30__jerk_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_ml__std",
+                "name":"wb_10_30__jerk_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_ml__p10",
+                "name":"wb_10_30__jerk_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_ml__p90",
+                "name":"wb_10_30__jerk_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_pa__median",
+                "name":"wb_10_30__jerk_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_pa__std",
+                "name":"wb_10_30__jerk_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_pa__p10",
+                "name":"wb_10_30__jerk_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__angular_acceleration_gyr_pa__p90",
+                "name":"wb_10_30__jerk_gyr_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_ml_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_ml_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_ml_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_ml_is__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_pa_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_pa_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_pa_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__jerk_ratio_pa_is__p90",
                 "type":"number"
             },
             {
@@ -1200,38 +1280,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_10_30__amplitude_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__amplitude_pa__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_10_30__freq_is__median",
                 "type":"number"
             },
@@ -1245,38 +1293,6 @@
             },
             {
                 "name":"wb_10_30__freq_is__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -1296,6 +1312,38 @@
                 "type":"number"
             },
             {
+                "name":"wb_10_30__amplitude_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_ml__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_10_30__width_ml__median",
                 "type":"number"
             },
@@ -1309,6 +1357,38 @@
             },
             {
                 "name":"wb_10_30__width_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__amplitude_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -1648,6 +1728,22 @@
                 "type":"number"
             },
             {
+                "name":"wb_10_30__cv_stride_duration_s__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__cv_stride_duration_s__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__cv_stride_duration_s__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10_30__cv_stride_duration_s__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_10_30__cv_cadence_spm__median",
                 "type":"number"
             },
@@ -1664,19 +1760,19 @@
                 "type":"number"
             },
             {
-                "name":"wb_10_30__cv_stride_duration_s__median",
+                "name":"wb_10_30__cv_walking_speed_mps__median",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__cv_stride_duration_s__std",
+                "name":"wb_10_30__cv_walking_speed_mps__std",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__cv_stride_duration_s__p10",
+                "name":"wb_10_30__cv_walking_speed_mps__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10_30__cv_stride_duration_s__p90",
+                "name":"wb_10_30__cv_walking_speed_mps__p90",
                 "type":"number"
             },
             {
@@ -1920,51 +2016,83 @@
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_is__median",
+                "name":"wb_10__jerk_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_is__std",
+                "name":"wb_10__jerk_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_is__p10",
+                "name":"wb_10__jerk_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_is__p90",
+                "name":"wb_10__jerk_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_ml__median",
+                "name":"wb_10__jerk_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_ml__std",
+                "name":"wb_10__jerk_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_ml__p10",
+                "name":"wb_10__jerk_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_ml__p90",
+                "name":"wb_10__jerk_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_pa__median",
+                "name":"wb_10__jerk_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_pa__std",
+                "name":"wb_10__jerk_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_pa__p10",
+                "name":"wb_10__jerk_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__angular_acceleration_gyr_pa__p90",
+                "name":"wb_10__jerk_gyr_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_ml_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_ml_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_ml_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_ml_is__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_pa_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_pa_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_pa_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__jerk_ratio_pa_is__p90",
                 "type":"number"
             },
             {
@@ -1984,38 +2112,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_10__amplitude_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__amplitude_pa__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_10__freq_is__median",
                 "type":"number"
             },
@@ -2029,38 +2125,6 @@
             },
             {
                 "name":"wb_10__freq_is__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -2080,6 +2144,38 @@
                 "type":"number"
             },
             {
+                "name":"wb_10__amplitude_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_ml__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_10__width_ml__median",
                 "type":"number"
             },
@@ -2093,6 +2189,38 @@
             },
             {
                 "name":"wb_10__width_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__amplitude_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -2432,6 +2560,22 @@
                 "type":"number"
             },
             {
+                "name":"wb_10__cv_stride_duration_s__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__cv_stride_duration_s__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__cv_stride_duration_s__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_10__cv_stride_duration_s__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_10__cv_cadence_spm__median",
                 "type":"number"
             },
@@ -2448,19 +2592,19 @@
                 "type":"number"
             },
             {
-                "name":"wb_10__cv_stride_duration_s__median",
+                "name":"wb_10__cv_walking_speed_mps__median",
                 "type":"number"
             },
             {
-                "name":"wb_10__cv_stride_duration_s__std",
+                "name":"wb_10__cv_walking_speed_mps__std",
                 "type":"number"
             },
             {
-                "name":"wb_10__cv_stride_duration_s__p10",
+                "name":"wb_10__cv_walking_speed_mps__p10",
                 "type":"number"
             },
             {
-                "name":"wb_10__cv_stride_duration_s__p90",
+                "name":"wb_10__cv_walking_speed_mps__p90",
                 "type":"number"
             },
             {
@@ -2704,51 +2848,83 @@
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_is__median",
+                "name":"wb_30__jerk_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_is__std",
+                "name":"wb_30__jerk_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_is__p10",
+                "name":"wb_30__jerk_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_is__p90",
+                "name":"wb_30__jerk_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_ml__median",
+                "name":"wb_30__jerk_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_ml__std",
+                "name":"wb_30__jerk_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_ml__p10",
+                "name":"wb_30__jerk_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_ml__p90",
+                "name":"wb_30__jerk_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_pa__median",
+                "name":"wb_30__jerk_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_pa__std",
+                "name":"wb_30__jerk_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_pa__p10",
+                "name":"wb_30__jerk_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__angular_acceleration_gyr_pa__p90",
+                "name":"wb_30__jerk_gyr_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_ml_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_ml_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_ml_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_ml_is__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_pa_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_pa_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_pa_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__jerk_ratio_pa_is__p90",
                 "type":"number"
             },
             {
@@ -2768,38 +2944,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_30__amplitude_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__amplitude_pa__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_30__freq_is__median",
                 "type":"number"
             },
@@ -2813,38 +2957,6 @@
             },
             {
                 "name":"wb_30__freq_is__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -2864,6 +2976,38 @@
                 "type":"number"
             },
             {
+                "name":"wb_30__amplitude_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_ml__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_30__width_ml__median",
                 "type":"number"
             },
@@ -2877,6 +3021,38 @@
             },
             {
                 "name":"wb_30__width_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__amplitude_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -3216,6 +3392,22 @@
                 "type":"number"
             },
             {
+                "name":"wb_30__cv_stride_duration_s__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__cv_stride_duration_s__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__cv_stride_duration_s__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30__cv_stride_duration_s__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_30__cv_cadence_spm__median",
                 "type":"number"
             },
@@ -3232,19 +3424,19 @@
                 "type":"number"
             },
             {
-                "name":"wb_30__cv_stride_duration_s__median",
+                "name":"wb_30__cv_walking_speed_mps__median",
                 "type":"number"
             },
             {
-                "name":"wb_30__cv_stride_duration_s__std",
+                "name":"wb_30__cv_walking_speed_mps__std",
                 "type":"number"
             },
             {
-                "name":"wb_30__cv_stride_duration_s__p10",
+                "name":"wb_30__cv_walking_speed_mps__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30__cv_stride_duration_s__p90",
+                "name":"wb_30__cv_walking_speed_mps__p90",
                 "type":"number"
             },
             {
@@ -3488,51 +3680,83 @@
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_is__median",
+                "name":"wb_30_60__jerk_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_is__std",
+                "name":"wb_30_60__jerk_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_is__p10",
+                "name":"wb_30_60__jerk_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_is__p90",
+                "name":"wb_30_60__jerk_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_ml__median",
+                "name":"wb_30_60__jerk_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_ml__std",
+                "name":"wb_30_60__jerk_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_ml__p10",
+                "name":"wb_30_60__jerk_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_ml__p90",
+                "name":"wb_30_60__jerk_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_pa__median",
+                "name":"wb_30_60__jerk_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_pa__std",
+                "name":"wb_30_60__jerk_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_pa__p10",
+                "name":"wb_30_60__jerk_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__angular_acceleration_gyr_pa__p90",
+                "name":"wb_30_60__jerk_gyr_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_ml_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_ml_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_ml_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_ml_is__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_pa_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_pa_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_pa_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__jerk_ratio_pa_is__p90",
                 "type":"number"
             },
             {
@@ -3552,38 +3776,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_30_60__amplitude_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__amplitude_pa__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_30_60__freq_is__median",
                 "type":"number"
             },
@@ -3597,38 +3789,6 @@
             },
             {
                 "name":"wb_30_60__freq_is__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -3648,6 +3808,38 @@
                 "type":"number"
             },
             {
+                "name":"wb_30_60__amplitude_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_ml__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_30_60__width_ml__median",
                 "type":"number"
             },
@@ -3661,6 +3853,38 @@
             },
             {
                 "name":"wb_30_60__width_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__amplitude_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -4000,6 +4224,22 @@
                 "type":"number"
             },
             {
+                "name":"wb_30_60__cv_stride_duration_s__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__cv_stride_duration_s__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__cv_stride_duration_s__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_30_60__cv_stride_duration_s__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_30_60__cv_cadence_spm__median",
                 "type":"number"
             },
@@ -4016,19 +4256,19 @@
                 "type":"number"
             },
             {
-                "name":"wb_30_60__cv_stride_duration_s__median",
+                "name":"wb_30_60__cv_walking_speed_mps__median",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__cv_stride_duration_s__std",
+                "name":"wb_30_60__cv_walking_speed_mps__std",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__cv_stride_duration_s__p10",
+                "name":"wb_30_60__cv_walking_speed_mps__p10",
                 "type":"number"
             },
             {
-                "name":"wb_30_60__cv_stride_duration_s__p90",
+                "name":"wb_30_60__cv_walking_speed_mps__p90",
                 "type":"number"
             },
             {
@@ -4272,51 +4512,83 @@
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_is__median",
+                "name":"wb_60__jerk_gyr_is__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_is__std",
+                "name":"wb_60__jerk_gyr_is__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_is__p10",
+                "name":"wb_60__jerk_gyr_is__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_is__p90",
+                "name":"wb_60__jerk_gyr_is__p90",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_ml__median",
+                "name":"wb_60__jerk_gyr_ml__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_ml__std",
+                "name":"wb_60__jerk_gyr_ml__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_ml__p10",
+                "name":"wb_60__jerk_gyr_ml__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_ml__p90",
+                "name":"wb_60__jerk_gyr_ml__p90",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_pa__median",
+                "name":"wb_60__jerk_gyr_pa__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_pa__std",
+                "name":"wb_60__jerk_gyr_pa__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_pa__p10",
+                "name":"wb_60__jerk_gyr_pa__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__angular_acceleration_gyr_pa__p90",
+                "name":"wb_60__jerk_gyr_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_ml_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_ml_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_ml_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_ml_is__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_pa_is__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_pa_is__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_pa_is__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__jerk_ratio_pa_is__p90",
                 "type":"number"
             },
             {
@@ -4336,38 +4608,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_60__amplitude_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__amplitude_pa__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_60__freq_is__median",
                 "type":"number"
             },
@@ -4381,38 +4621,6 @@
             },
             {
                 "name":"wb_60__freq_is__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_ml__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_ml__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_ml__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_ml__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_pa__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_pa__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_pa__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -4432,6 +4640,38 @@
                 "type":"number"
             },
             {
+                "name":"wb_60__amplitude_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_ml__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_ml__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_ml__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_ml__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_60__width_ml__median",
                 "type":"number"
             },
@@ -4445,6 +4685,38 @@
             },
             {
                 "name":"wb_60__width_ml__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__amplitude_pa__p90",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_pa__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_pa__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_pa__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__freq_pa__p90",
                 "type":"number"
             },
             {
@@ -4784,6 +5056,22 @@
                 "type":"number"
             },
             {
+                "name":"wb_60__cv_stride_duration_s__median",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__cv_stride_duration_s__std",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__cv_stride_duration_s__p10",
+                "type":"number"
+            },
+            {
+                "name":"wb_60__cv_stride_duration_s__p90",
+                "type":"number"
+            },
+            {
                 "name":"wb_60__cv_cadence_spm__median",
                 "type":"number"
             },
@@ -4800,19 +5088,19 @@
                 "type":"number"
             },
             {
-                "name":"wb_60__cv_stride_duration_s__median",
+                "name":"wb_60__cv_walking_speed_mps__median",
                 "type":"number"
             },
             {
-                "name":"wb_60__cv_stride_duration_s__std",
+                "name":"wb_60__cv_walking_speed_mps__std",
                 "type":"number"
             },
             {
-                "name":"wb_60__cv_stride_duration_s__p10",
+                "name":"wb_60__cv_walking_speed_mps__p10",
                 "type":"number"
             },
             {
-                "name":"wb_60__cv_stride_duration_s__p90",
+                "name":"wb_60__cv_walking_speed_mps__p90",
                 "type":"number"
             }
         ],
@@ -4849,10 +5137,6 @@
             "wb_30__walking_speed_mps__var":null,
             "wb_30__stride_length_m__var":null,
             "wb_60__count":0,
-            "all__sample_entropy_acc_is__median":1.0427080758,
-            "all__sample_entropy_acc_is__std":0.0800377021,
-            "all__sample_entropy_acc_is__p10":0.9377532801,
-            "all__sample_entropy_acc_is__p90":1.0851096158,
             "all__harmonic_ratio_acc_is__median":3.2847933161,
             "all__harmonic_ratio_acc_is__std":0.4887293029,
             "all__harmonic_ratio_acc_is__p10":2.5604330784,
@@ -4897,66 +5181,6 @@
             "all__sd_gyr_pa__std":2.0245287146,
             "all__sd_gyr_pa__p10":10.7702040033,
             "all__sd_gyr_pa__p90":14.6482277333,
-            "all__jerk_acc_is__median":40.3870261091,
-            "all__jerk_acc_is__std":7.1537569025,
-            "all__jerk_acc_is__p10":29.2155679634,
-            "all__jerk_acc_is__p90":42.8323593642,
-            "all__jerk_acc_ml__median":39.2511445017,
-            "all__jerk_acc_ml__std":7.7142363914,
-            "all__jerk_acc_ml__p10":29.3313984402,
-            "all__jerk_acc_ml__p90":44.9165752506,
-            "all__jerk_acc_pa__median":28.3406417458,
-            "all__jerk_acc_pa__std":7.2477063109,
-            "all__jerk_acc_pa__p10":17.9658889167,
-            "all__jerk_acc_pa__p90":32.3165949016,
-            "all__angular_acceleration_gyr_is__median":342.6094700384,
-            "all__angular_acceleration_gyr_is__std":40.7702384486,
-            "all__angular_acceleration_gyr_is__p10":284.4986225767,
-            "all__angular_acceleration_gyr_is__p90":366.0509800876,
-            "all__angular_acceleration_gyr_ml__median":321.3786058198,
-            "all__angular_acceleration_gyr_ml__std":35.556464351,
-            "all__angular_acceleration_gyr_ml__p10":275.0097034835,
-            "all__angular_acceleration_gyr_ml__p90":328.5684676535,
-            "all__angular_acceleration_gyr_pa__median":282.7071127447,
-            "all__angular_acceleration_gyr_pa__std":45.509947445,
-            "all__angular_acceleration_gyr_pa__p10":204.8220155074,
-            "all__angular_acceleration_gyr_pa__p90":292.0180102668,
-            "all__amplitude_is__median":0.4180808425,
-            "all__amplitude_is__std":0.2315333789,
-            "all__amplitude_is__p10":0.2160109275,
-            "all__amplitude_is__p90":0.648975549,
-            "all__amplitude_ml__median":0.5873906099,
-            "all__amplitude_ml__std":0.0800440284,
-            "all__amplitude_ml__p10":0.5394380095,
-            "all__amplitude_ml__p90":0.6813998978,
-            "all__amplitude_pa__median":0.1512006257,
-            "all__amplitude_pa__std":0.2723416079,
-            "all__amplitude_pa__p10":0.0474661426,
-            "all__amplitude_pa__p90":0.5801898993,
-            "all__freq_is__median":1.7211914062,
-            "all__freq_is__std":0.3646205701,
-            "all__freq_is__p10":1.26953125,
-            "all__freq_is__p90":1.845703125,
-            "all__freq_ml__median":0.7690429688,
-            "all__freq_ml__std":0.0734453562,
-            "all__freq_ml__p10":0.68359375,
-            "all__freq_ml__p90":0.830078125,
-            "all__freq_pa__median":1.7578125,
-            "all__freq_pa__std":0.2355039744,
-            "all__freq_pa__p10":1.474609375,
-            "all__freq_pa__p90":1.8896484375,
-            "all__width_is__median":0.7568359375,
-            "all__width_is__std":0.0345266983,
-            "all__width_is__p10":0.7373046875,
-            "all__width_is__p90":0.7763671875,
-            "all__width_ml__median":0.78125,
-            "all__width_ml__std":0.0690533966,
-            "all__width_ml__p10":0.7421875,
-            "all__width_ml__p90":0.8203125,
-            "all__width_pa__median":0.8178710938,
-            "all__width_pa__std":0.0172633492,
-            "all__width_pa__p10":0.8081054688,
-            "all__width_pa__p90":0.8276367188,
             "all__step_regularity_is__median":0.2486419151,
             "all__step_regularity_is__std":0.2032257422,
             "all__step_regularity_is__p10":0.099670704,
@@ -5045,10 +5269,6 @@
             "all__cv_stride_duration_s__std":12.0104192816,
             "all__cv_stride_duration_s__p10":35.1185816794,
             "all__cv_stride_duration_s__p90":57.9698081619,
-            "wb_10_30__sample_entropy_acc_is__median":1.0383919224,
-            "wb_10_30__sample_entropy_acc_is__std":0.0415487465,
-            "wb_10_30__sample_entropy_acc_is__p10":1.0148884021,
-            "wb_10_30__sample_entropy_acc_is__p90":1.0618954427,
             "wb_10_30__harmonic_ratio_acc_is__median":3.4574272703,
             "wb_10_30__harmonic_ratio_acc_is__std":0.2441412794,
             "wb_10_30__harmonic_ratio_acc_is__p10":3.3193201069,
@@ -5093,66 +5313,6 @@
             "wb_10_30__sd_gyr_pa__std":2.6563688097,
             "wb_10_30__sd_gyr_pa__p10":10.9818520585,
             "wb_10_30__sd_gyr_pa__p90":13.9871902964,
-            "wb_10_30__jerk_acc_is__median":42.1100046756,
-            "wb_10_30__jerk_acc_is__std":2.4366596565,
-            "wb_10_30__jerk_acc_is__p10":40.7316218224,
-            "wb_10_30__jerk_acc_is__p90":43.4883875289,
-            "wb_10_30__jerk_acc_ml__median":42.6265223139,
-            "wb_10_30__jerk_acc_ml__std":4.7735050801,
-            "wb_10_30__jerk_acc_ml__p10":39.9262200642,
-            "wb_10_30__jerk_acc_ml__p90":45.3268245636,
-            "wb_10_30__jerk_acc_pa__median":30.254181182,
-            "wb_10_30__jerk_acc_pa__std":2.7061534228,
-            "wb_10_30__jerk_acc_pa__p10":28.723349633,
-            "wb_10_30__jerk_acc_pa__p90":31.7850127309,
-            "wb_10_30__angular_acceleration_gyr_is__median":351.5156222249,
-            "wb_10_30__angular_acceleration_gyr_is__std":12.5952012107,
-            "wb_10_30__angular_acceleration_gyr_is__p10":344.3907004757,
-            "wb_10_30__angular_acceleration_gyr_is__p90":358.6405439741,
-            "wb_10_30__angular_acceleration_gyr_ml__median":322.9353450047,
-            "wb_10_30__angular_acceleration_gyr_ml__std":2.2015616683,
-            "wb_10_30__angular_acceleration_gyr_ml__p10":321.6899536568,
-            "wb_10_30__angular_acceleration_gyr_ml__p90":324.1807363526,
-            "wb_10_30__angular_acceleration_gyr_pa__median":283.1582291568,
-            "wb_10_30__angular_acceleration_gyr_pa__std":0.6379749482,
-            "wb_10_30__angular_acceleration_gyr_pa__p10":282.7973360271,
-            "wb_10_30__angular_acceleration_gyr_pa__p90":283.5191222865,
-            "wb_10_30__amplitude_is__median":0.3353733403,
-            "wb_10_30__amplitude_is__std":0.1611780745,
-            "wb_10_30__amplitude_is__p10":0.2441972527,
-            "wb_10_30__amplitude_is__p90":0.4265494278,
-            "wb_10_30__amplitude_ml__median":0.5695495863,
-            "wb_10_30__amplitude_ml__std":0.0252310175,
-            "wb_10_30__amplitude_ml__p10":0.5552767674,
-            "wb_10_30__amplitude_ml__p90":0.5838224051,
-            "wb_10_30__amplitude_pa__median":0.2815583172,
-            "wb_10_30__amplitude_pa__std":0.31768326,
-            "wb_10_30__amplitude_pa__p10":0.1018495272,
-            "wb_10_30__amplitude_pa__p90":0.4612671071,
-            "wb_10_30__freq_is__median":1.7150878906,
-            "wb_10_30__freq_is__std":0.0086316746,
-            "wb_10_30__freq_is__p10":1.7102050781,
-            "wb_10_30__freq_is__p90":1.7199707031,
-            "wb_10_30__freq_ml__median":0.7995605469,
-            "wb_10_30__freq_ml__std":0.0431583729,
-            "wb_10_30__freq_ml__p10":0.7751464844,
-            "wb_10_30__freq_ml__p90":0.8239746094,
-            "wb_10_30__freq_pa__median":1.7517089844,
-            "wb_10_30__freq_pa__std":0.060421722,
-            "wb_10_30__freq_pa__p10":1.7175292969,
-            "wb_10_30__freq_pa__p90":1.7858886719,
-            "wb_10_30__width_is__median":0.78125,
-            "wb_10_30__width_is__std":null,
-            "wb_10_30__width_is__p10":0.78125,
-            "wb_10_30__width_is__p90":0.78125,
-            "wb_10_30__width_ml__median":0.732421875,
-            "wb_10_30__width_ml__std":null,
-            "wb_10_30__width_ml__p10":0.732421875,
-            "wb_10_30__width_ml__p90":0.732421875,
-            "wb_10_30__width_pa__median":0.8056640625,
-            "wb_10_30__width_pa__std":null,
-            "wb_10_30__width_pa__p10":0.8056640625,
-            "wb_10_30__width_pa__p90":0.8056640625,
             "wb_10_30__step_regularity_is__median":0.3524026168,
             "wb_10_30__step_regularity_is__std":0.1467397916,
             "wb_10_30__step_regularity_is__p10":0.2693940554,
@@ -5241,10 +5401,6 @@
             "wb_10_30__cv_stride_duration_s__std":1.6648467027,
             "wb_10_30__cv_stride_duration_s__p10":48.0004001342,
             "wb_10_30__cv_stride_duration_s__p90":49.8839591632,
-            "wb_10__sample_entropy_acc_is__median":1.0383919224,
-            "wb_10__sample_entropy_acc_is__std":0.0415487465,
-            "wb_10__sample_entropy_acc_is__p10":1.0148884021,
-            "wb_10__sample_entropy_acc_is__p90":1.0618954427,
             "wb_10__harmonic_ratio_acc_is__median":3.4574272703,
             "wb_10__harmonic_ratio_acc_is__std":0.2441412794,
             "wb_10__harmonic_ratio_acc_is__p10":3.3193201069,
@@ -5289,66 +5445,6 @@
             "wb_10__sd_gyr_pa__std":2.6563688097,
             "wb_10__sd_gyr_pa__p10":10.9818520585,
             "wb_10__sd_gyr_pa__p90":13.9871902964,
-            "wb_10__jerk_acc_is__median":42.1100046756,
-            "wb_10__jerk_acc_is__std":2.4366596565,
-            "wb_10__jerk_acc_is__p10":40.7316218224,
-            "wb_10__jerk_acc_is__p90":43.4883875289,
-            "wb_10__jerk_acc_ml__median":42.6265223139,
-            "wb_10__jerk_acc_ml__std":4.7735050801,
-            "wb_10__jerk_acc_ml__p10":39.9262200642,
-            "wb_10__jerk_acc_ml__p90":45.3268245636,
-            "wb_10__jerk_acc_pa__median":30.254181182,
-            "wb_10__jerk_acc_pa__std":2.7061534228,
-            "wb_10__jerk_acc_pa__p10":28.723349633,
-            "wb_10__jerk_acc_pa__p90":31.7850127309,
-            "wb_10__angular_acceleration_gyr_is__median":351.5156222249,
-            "wb_10__angular_acceleration_gyr_is__std":12.5952012107,
-            "wb_10__angular_acceleration_gyr_is__p10":344.3907004757,
-            "wb_10__angular_acceleration_gyr_is__p90":358.6405439741,
-            "wb_10__angular_acceleration_gyr_ml__median":322.9353450047,
-            "wb_10__angular_acceleration_gyr_ml__std":2.2015616683,
-            "wb_10__angular_acceleration_gyr_ml__p10":321.6899536568,
-            "wb_10__angular_acceleration_gyr_ml__p90":324.1807363526,
-            "wb_10__angular_acceleration_gyr_pa__median":283.1582291568,
-            "wb_10__angular_acceleration_gyr_pa__std":0.6379749482,
-            "wb_10__angular_acceleration_gyr_pa__p10":282.7973360271,
-            "wb_10__angular_acceleration_gyr_pa__p90":283.5191222865,
-            "wb_10__amplitude_is__median":0.3353733403,
-            "wb_10__amplitude_is__std":0.1611780745,
-            "wb_10__amplitude_is__p10":0.2441972527,
-            "wb_10__amplitude_is__p90":0.4265494278,
-            "wb_10__amplitude_ml__median":0.5695495863,
-            "wb_10__amplitude_ml__std":0.0252310175,
-            "wb_10__amplitude_ml__p10":0.5552767674,
-            "wb_10__amplitude_ml__p90":0.5838224051,
-            "wb_10__amplitude_pa__median":0.2815583172,
-            "wb_10__amplitude_pa__std":0.31768326,
-            "wb_10__amplitude_pa__p10":0.1018495272,
-            "wb_10__amplitude_pa__p90":0.4612671071,
-            "wb_10__freq_is__median":1.7150878906,
-            "wb_10__freq_is__std":0.0086316746,
-            "wb_10__freq_is__p10":1.7102050781,
-            "wb_10__freq_is__p90":1.7199707031,
-            "wb_10__freq_ml__median":0.7995605469,
-            "wb_10__freq_ml__std":0.0431583729,
-            "wb_10__freq_ml__p10":0.7751464844,
-            "wb_10__freq_ml__p90":0.8239746094,
-            "wb_10__freq_pa__median":1.7517089844,
-            "wb_10__freq_pa__std":0.060421722,
-            "wb_10__freq_pa__p10":1.7175292969,
-            "wb_10__freq_pa__p90":1.7858886719,
-            "wb_10__width_is__median":0.78125,
-            "wb_10__width_is__std":null,
-            "wb_10__width_is__p10":0.78125,
-            "wb_10__width_is__p90":0.78125,
-            "wb_10__width_ml__median":0.732421875,
-            "wb_10__width_ml__std":null,
-            "wb_10__width_ml__p10":0.732421875,
-            "wb_10__width_ml__p90":0.732421875,
-            "wb_10__width_pa__median":0.8056640625,
-            "wb_10__width_pa__std":null,
-            "wb_10__width_pa__p10":0.8056640625,
-            "wb_10__width_pa__p90":0.8056640625,
             "wb_10__step_regularity_is__median":0.3524026168,
             "wb_10__step_regularity_is__std":0.1467397916,
             "wb_10__step_regularity_is__p10":0.2693940554,
@@ -5437,10 +5533,6 @@
             "wb_10__cv_stride_duration_s__std":1.6648467027,
             "wb_10__cv_stride_duration_s__p10":48.0004001342,
             "wb_10__cv_stride_duration_s__p90":49.8839591632,
-            "wb_30__sample_entropy_acc_is__median":null,
-            "wb_30__sample_entropy_acc_is__std":null,
-            "wb_30__sample_entropy_acc_is__p10":null,
-            "wb_30__sample_entropy_acc_is__p90":null,
             "wb_30__harmonic_ratio_acc_is__median":null,
             "wb_30__harmonic_ratio_acc_is__std":null,
             "wb_30__harmonic_ratio_acc_is__p10":null,
@@ -5485,66 +5577,6 @@
             "wb_30__sd_gyr_pa__std":null,
             "wb_30__sd_gyr_pa__p10":null,
             "wb_30__sd_gyr_pa__p90":null,
-            "wb_30__jerk_acc_is__median":null,
-            "wb_30__jerk_acc_is__std":null,
-            "wb_30__jerk_acc_is__p10":null,
-            "wb_30__jerk_acc_is__p90":null,
-            "wb_30__jerk_acc_ml__median":null,
-            "wb_30__jerk_acc_ml__std":null,
-            "wb_30__jerk_acc_ml__p10":null,
-            "wb_30__jerk_acc_ml__p90":null,
-            "wb_30__jerk_acc_pa__median":null,
-            "wb_30__jerk_acc_pa__std":null,
-            "wb_30__jerk_acc_pa__p10":null,
-            "wb_30__jerk_acc_pa__p90":null,
-            "wb_30__angular_acceleration_gyr_is__median":null,
-            "wb_30__angular_acceleration_gyr_is__std":null,
-            "wb_30__angular_acceleration_gyr_is__p10":null,
-            "wb_30__angular_acceleration_gyr_is__p90":null,
-            "wb_30__angular_acceleration_gyr_ml__median":null,
-            "wb_30__angular_acceleration_gyr_ml__std":null,
-            "wb_30__angular_acceleration_gyr_ml__p10":null,
-            "wb_30__angular_acceleration_gyr_ml__p90":null,
-            "wb_30__angular_acceleration_gyr_pa__median":null,
-            "wb_30__angular_acceleration_gyr_pa__std":null,
-            "wb_30__angular_acceleration_gyr_pa__p10":null,
-            "wb_30__angular_acceleration_gyr_pa__p90":null,
-            "wb_30__amplitude_is__median":null,
-            "wb_30__amplitude_is__std":null,
-            "wb_30__amplitude_is__p10":null,
-            "wb_30__amplitude_is__p90":null,
-            "wb_30__amplitude_ml__median":null,
-            "wb_30__amplitude_ml__std":null,
-            "wb_30__amplitude_ml__p10":null,
-            "wb_30__amplitude_ml__p90":null,
-            "wb_30__amplitude_pa__median":null,
-            "wb_30__amplitude_pa__std":null,
-            "wb_30__amplitude_pa__p10":null,
-            "wb_30__amplitude_pa__p90":null,
-            "wb_30__freq_is__median":null,
-            "wb_30__freq_is__std":null,
-            "wb_30__freq_is__p10":null,
-            "wb_30__freq_is__p90":null,
-            "wb_30__freq_ml__median":null,
-            "wb_30__freq_ml__std":null,
-            "wb_30__freq_ml__p10":null,
-            "wb_30__freq_ml__p90":null,
-            "wb_30__freq_pa__median":null,
-            "wb_30__freq_pa__std":null,
-            "wb_30__freq_pa__p10":null,
-            "wb_30__freq_pa__p90":null,
-            "wb_30__width_is__median":null,
-            "wb_30__width_is__std":null,
-            "wb_30__width_is__p10":null,
-            "wb_30__width_is__p90":null,
-            "wb_30__width_ml__median":null,
-            "wb_30__width_ml__std":null,
-            "wb_30__width_ml__p10":null,
-            "wb_30__width_ml__p90":null,
-            "wb_30__width_pa__median":null,
-            "wb_30__width_pa__std":null,
-            "wb_30__width_pa__p10":null,
-            "wb_30__width_pa__p90":null,
             "wb_30__step_regularity_is__median":null,
             "wb_30__step_regularity_is__std":null,
             "wb_30__step_regularity_is__p10":null,
@@ -5633,10 +5665,6 @@
             "wb_30__cv_stride_duration_s__std":null,
             "wb_30__cv_stride_duration_s__p10":null,
             "wb_30__cv_stride_duration_s__p90":null,
-            "wb_30_60__sample_entropy_acc_is__median":null,
-            "wb_30_60__sample_entropy_acc_is__std":null,
-            "wb_30_60__sample_entropy_acc_is__p10":null,
-            "wb_30_60__sample_entropy_acc_is__p90":null,
             "wb_30_60__harmonic_ratio_acc_is__median":null,
             "wb_30_60__harmonic_ratio_acc_is__std":null,
             "wb_30_60__harmonic_ratio_acc_is__p10":null,
@@ -5681,66 +5709,6 @@
             "wb_30_60__sd_gyr_pa__std":null,
             "wb_30_60__sd_gyr_pa__p10":null,
             "wb_30_60__sd_gyr_pa__p90":null,
-            "wb_30_60__jerk_acc_is__median":null,
-            "wb_30_60__jerk_acc_is__std":null,
-            "wb_30_60__jerk_acc_is__p10":null,
-            "wb_30_60__jerk_acc_is__p90":null,
-            "wb_30_60__jerk_acc_ml__median":null,
-            "wb_30_60__jerk_acc_ml__std":null,
-            "wb_30_60__jerk_acc_ml__p10":null,
-            "wb_30_60__jerk_acc_ml__p90":null,
-            "wb_30_60__jerk_acc_pa__median":null,
-            "wb_30_60__jerk_acc_pa__std":null,
-            "wb_30_60__jerk_acc_pa__p10":null,
-            "wb_30_60__jerk_acc_pa__p90":null,
-            "wb_30_60__angular_acceleration_gyr_is__median":null,
-            "wb_30_60__angular_acceleration_gyr_is__std":null,
-            "wb_30_60__angular_acceleration_gyr_is__p10":null,
-            "wb_30_60__angular_acceleration_gyr_is__p90":null,
-            "wb_30_60__angular_acceleration_gyr_ml__median":null,
-            "wb_30_60__angular_acceleration_gyr_ml__std":null,
-            "wb_30_60__angular_acceleration_gyr_ml__p10":null,
-            "wb_30_60__angular_acceleration_gyr_ml__p90":null,
-            "wb_30_60__angular_acceleration_gyr_pa__median":null,
-            "wb_30_60__angular_acceleration_gyr_pa__std":null,
-            "wb_30_60__angular_acceleration_gyr_pa__p10":null,
-            "wb_30_60__angular_acceleration_gyr_pa__p90":null,
-            "wb_30_60__amplitude_is__median":null,
-            "wb_30_60__amplitude_is__std":null,
-            "wb_30_60__amplitude_is__p10":null,
-            "wb_30_60__amplitude_is__p90":null,
-            "wb_30_60__amplitude_ml__median":null,
-            "wb_30_60__amplitude_ml__std":null,
-            "wb_30_60__amplitude_ml__p10":null,
-            "wb_30_60__amplitude_ml__p90":null,
-            "wb_30_60__amplitude_pa__median":null,
-            "wb_30_60__amplitude_pa__std":null,
-            "wb_30_60__amplitude_pa__p10":null,
-            "wb_30_60__amplitude_pa__p90":null,
-            "wb_30_60__freq_is__median":null,
-            "wb_30_60__freq_is__std":null,
-            "wb_30_60__freq_is__p10":null,
-            "wb_30_60__freq_is__p90":null,
-            "wb_30_60__freq_ml__median":null,
-            "wb_30_60__freq_ml__std":null,
-            "wb_30_60__freq_ml__p10":null,
-            "wb_30_60__freq_ml__p90":null,
-            "wb_30_60__freq_pa__median":null,
-            "wb_30_60__freq_pa__std":null,
-            "wb_30_60__freq_pa__p10":null,
-            "wb_30_60__freq_pa__p90":null,
-            "wb_30_60__width_is__median":null,
-            "wb_30_60__width_is__std":null,
-            "wb_30_60__width_is__p10":null,
-            "wb_30_60__width_is__p90":null,
-            "wb_30_60__width_ml__median":null,
-            "wb_30_60__width_ml__std":null,
-            "wb_30_60__width_ml__p10":null,
-            "wb_30_60__width_ml__p90":null,
-            "wb_30_60__width_pa__median":null,
-            "wb_30_60__width_pa__std":null,
-            "wb_30_60__width_pa__p10":null,
-            "wb_30_60__width_pa__p90":null,
             "wb_30_60__step_regularity_is__median":null,
             "wb_30_60__step_regularity_is__std":null,
             "wb_30_60__step_regularity_is__p10":null,
@@ -5829,10 +5797,6 @@
             "wb_30_60__cv_stride_duration_s__std":null,
             "wb_30_60__cv_stride_duration_s__p10":null,
             "wb_30_60__cv_stride_duration_s__p90":null,
-            "wb_60__sample_entropy_acc_is__median":null,
-            "wb_60__sample_entropy_acc_is__std":null,
-            "wb_60__sample_entropy_acc_is__p10":null,
-            "wb_60__sample_entropy_acc_is__p90":null,
             "wb_60__harmonic_ratio_acc_is__median":null,
             "wb_60__harmonic_ratio_acc_is__std":null,
             "wb_60__harmonic_ratio_acc_is__p10":null,
@@ -5877,66 +5841,6 @@
             "wb_60__sd_gyr_pa__std":null,
             "wb_60__sd_gyr_pa__p10":null,
             "wb_60__sd_gyr_pa__p90":null,
-            "wb_60__jerk_acc_is__median":null,
-            "wb_60__jerk_acc_is__std":null,
-            "wb_60__jerk_acc_is__p10":null,
-            "wb_60__jerk_acc_is__p90":null,
-            "wb_60__jerk_acc_ml__median":null,
-            "wb_60__jerk_acc_ml__std":null,
-            "wb_60__jerk_acc_ml__p10":null,
-            "wb_60__jerk_acc_ml__p90":null,
-            "wb_60__jerk_acc_pa__median":null,
-            "wb_60__jerk_acc_pa__std":null,
-            "wb_60__jerk_acc_pa__p10":null,
-            "wb_60__jerk_acc_pa__p90":null,
-            "wb_60__angular_acceleration_gyr_is__median":null,
-            "wb_60__angular_acceleration_gyr_is__std":null,
-            "wb_60__angular_acceleration_gyr_is__p10":null,
-            "wb_60__angular_acceleration_gyr_is__p90":null,
-            "wb_60__angular_acceleration_gyr_ml__median":null,
-            "wb_60__angular_acceleration_gyr_ml__std":null,
-            "wb_60__angular_acceleration_gyr_ml__p10":null,
-            "wb_60__angular_acceleration_gyr_ml__p90":null,
-            "wb_60__angular_acceleration_gyr_pa__median":null,
-            "wb_60__angular_acceleration_gyr_pa__std":null,
-            "wb_60__angular_acceleration_gyr_pa__p10":null,
-            "wb_60__angular_acceleration_gyr_pa__p90":null,
-            "wb_60__amplitude_is__median":null,
-            "wb_60__amplitude_is__std":null,
-            "wb_60__amplitude_is__p10":null,
-            "wb_60__amplitude_is__p90":null,
-            "wb_60__amplitude_ml__median":null,
-            "wb_60__amplitude_ml__std":null,
-            "wb_60__amplitude_ml__p10":null,
-            "wb_60__amplitude_ml__p90":null,
-            "wb_60__amplitude_pa__median":null,
-            "wb_60__amplitude_pa__std":null,
-            "wb_60__amplitude_pa__p10":null,
-            "wb_60__amplitude_pa__p90":null,
-            "wb_60__freq_is__median":null,
-            "wb_60__freq_is__std":null,
-            "wb_60__freq_is__p10":null,
-            "wb_60__freq_is__p90":null,
-            "wb_60__freq_ml__median":null,
-            "wb_60__freq_ml__std":null,
-            "wb_60__freq_ml__p10":null,
-            "wb_60__freq_ml__p90":null,
-            "wb_60__freq_pa__median":null,
-            "wb_60__freq_pa__std":null,
-            "wb_60__freq_pa__p10":null,
-            "wb_60__freq_pa__p90":null,
-            "wb_60__width_is__median":null,
-            "wb_60__width_is__std":null,
-            "wb_60__width_is__p10":null,
-            "wb_60__width_is__p90":null,
-            "wb_60__width_ml__median":null,
-            "wb_60__width_ml__std":null,
-            "wb_60__width_ml__p10":null,
-            "wb_60__width_ml__p90":null,
-            "wb_60__width_pa__median":null,
-            "wb_60__width_pa__std":null,
-            "wb_60__width_pa__p10":null,
-            "wb_60__width_pa__p90":null,
             "wb_60__step_regularity_is__median":null,
             "wb_60__step_regularity_is__std":null,
             "wb_60__step_regularity_is__p10":null,
@@ -6024,7 +5928,463 @@
             "wb_60__cv_stride_duration_s__median":null,
             "wb_60__cv_stride_duration_s__std":null,
             "wb_60__cv_stride_duration_s__p10":null,
-            "wb_60__cv_stride_duration_s__p90":null
+            "wb_60__cv_stride_duration_s__p90":null,
+            "all__sample_entropy_acc_is__median":1.0463438601,
+            "all__sample_entropy_acc_is__std":0.0841333153,
+            "all__sample_entropy_acc_is__p10":0.933568136,
+            "all__sample_entropy_acc_is__p90":1.0866071092,
+            "all__jerk_acc_is__median":-8.1814524069,
+            "all__jerk_acc_is__std":0.9688502854,
+            "all__jerk_acc_is__p10":-9.4100263115,
+            "all__jerk_acc_is__p90":-7.4818630776,
+            "all__jerk_acc_ml__median":-8.2692480015,
+            "all__jerk_acc_ml__std":0.8460941406,
+            "all__jerk_acc_ml__p10":-9.2764249365,
+            "all__jerk_acc_ml__p90":-7.6248379144,
+            "all__jerk_acc_pa__median":-8.080437667,
+            "all__jerk_acc_pa__std":0.9790927513,
+            "all__jerk_acc_pa__p10":-9.3184105661,
+            "all__jerk_acc_pa__p90":-7.3531720618,
+            "all__jerk_gyr_is__median":-18.8681107042,
+            "all__jerk_gyr_is__std":1.4238155119,
+            "all__jerk_gyr_is__p10":-21.0304625539,
+            "all__jerk_gyr_is__p90":-18.2127373884,
+            "all__jerk_gyr_ml__median":-20.9525972911,
+            "all__jerk_gyr_ml__std":2.1076894429,
+            "all__jerk_gyr_ml__p10":-23.0199856394,
+            "all__jerk_gyr_ml__p90":-18.9665934283,
+            "all__jerk_gyr_pa__median":-20.1852626733,
+            "all__jerk_gyr_pa__std":2.3544123503,
+            "all__jerk_gyr_pa__p10":-23.4804192043,
+            "all__jerk_gyr_pa__p90":-18.7885029193,
+            "all__jerk_ratio_ml_is__median":0.2009305585,
+            "all__jerk_ratio_ml_is__std":0.2182719695,
+            "all__jerk_ratio_ml_is__p10":-0.1911841959,
+            "all__jerk_ratio_ml_is__p90":0.2184006391,
+            "all__jerk_ratio_pa_is__median":-1.429822834,
+            "all__jerk_ratio_pa_is__std":0.713108924,
+            "all__jerk_ratio_pa_is__p10":-2.3464304376,
+            "all__jerk_ratio_pa_is__p90":-1.1706611107,
+            "all__amplitude_is__median":0.4180808425,
+            "all__amplitude_is__std":0.231652398,
+            "all__amplitude_is__p10":0.2153371565,
+            "all__amplitude_is__p90":0.6471139827,
+            "all__freq_is__median":1.7578125,
+            "all__freq_is__std":0.3807341541,
+            "all__freq_is__p10":1.2890625,
+            "all__freq_is__p90":1.875,
+            "all__width_is__median":0.7443196968,
+            "all__width_is__std":0.0369190058,
+            "all__width_is__p10":0.7234351533,
+            "all__width_is__p90":0.7652042403,
+            "all__amplitude_ml__median":0.5762058148,
+            "all__amplitude_ml__std":0.0746822399,
+            "all__amplitude_ml__p10":0.5433874435,
+            "all__amplitude_ml__p90":0.6687934863,
+            "all__freq_ml__median":0.78125,
+            "all__freq_ml__std":0.254656344,
+            "all__freq_ml__p10":0.3515625,
+            "all__freq_ml__p90":0.78125,
+            "all__width_ml__median":0.7654265077,
+            "all__width_ml__std":0.0487902302,
+            "all__width_ml__p10":0.7378265856,
+            "all__width_ml__p90":0.7930264299,
+            "all__amplitude_pa__median":0.1508293528,
+            "all__amplitude_pa__std":0.2716771577,
+            "all__amplitude_pa__p10":0.0467455701,
+            "all__amplitude_pa__p90":0.5783228061,
+            "all__freq_pa__median":1.7578125,
+            "all__freq_pa__std":0.4279082481,
+            "all__freq_pa__p10":1.5234375,
+            "all__freq_pa__p90":2.2265625,
+            "all__width_pa__median":0.7988471055,
+            "all__width_pa__std":0.0213669708,
+            "all__width_pa__p10":0.7867601215,
+            "all__width_pa__p90":0.8109340894,
+            "all__cv_walking_speed_mps__median":25.7022365815,
+            "all__cv_walking_speed_mps__std":8.7857523573,
+            "all__cv_walking_speed_mps__p10":17.3443714455,
+            "all__cv_walking_speed_mps__p90":33.827595178,
+            "wb_10_30__sample_entropy_acc_is__median":1.0377779263,
+            "wb_10_30__sample_entropy_acc_is__std":0.0387237611,
+            "wb_10_30__sample_entropy_acc_is__p10":1.0158724591,
+            "wb_10_30__sample_entropy_acc_is__p90":1.0596833936,
+            "wb_10_30__jerk_acc_is__median":-9.3821892056,
+            "wb_10_30__jerk_acc_is__std":0.1968380642,
+            "wb_10_30__jerk_acc_is__p10":-9.4935376295,
+            "wb_10_30__jerk_acc_is__p90":-9.2708407816,
+            "wb_10_30__jerk_acc_ml__median":-9.2371225236,
+            "wb_10_30__jerk_acc_ml__std":0.2779100271,
+            "wb_10_30__jerk_acc_ml__p10":-9.3943321754,
+            "wb_10_30__jerk_acc_ml__p90":-9.0799128718,
+            "wb_10_30__jerk_acc_pa__median":-9.3148470707,
+            "wb_10_30__jerk_acc_pa__std":0.0251977175,
+            "wb_10_30__jerk_acc_pa__p10":-9.3291010523,
+            "wb_10_30__jerk_acc_pa__p90":-9.3005930892,
+            "wb_10_30__jerk_gyr_is__median":-20.9919958997,
+            "wb_10_30__jerk_gyr_is__std":0.2720003201,
+            "wb_10_30__jerk_gyr_is__p10":-21.1458625164,
+            "wb_10_30__jerk_gyr_is__p90":-20.8381292831,
+            "wb_10_30__jerk_gyr_ml__median":-22.9120768989,
+            "wb_10_30__jerk_gyr_ml__std":0.7630300209,
+            "wb_10_30__jerk_gyr_ml__p10":-23.3437118606,
+            "wb_10_30__jerk_gyr_ml__p90":-22.4804419373,
+            "wb_10_30__jerk_gyr_pa__median":-23.4580017025,
+            "wb_10_30__jerk_gyr_pa__std":0.158515675,
+            "wb_10_30__jerk_gyr_pa__p10":-23.5476717095,
+            "wb_10_30__jerk_gyr_pa__p90":-23.3683316955,
+            "wb_10_30__jerk_ratio_ml_is__median":0.0429259538,
+            "wb_10_30__jerk_ratio_ml_is__std":0.2359211702,
+            "wb_10_30__jerk_ratio_ml_is__p10":-0.0905312136,
+            "wb_10_30__jerk_ratio_ml_is__p90":0.1763831213,
+            "wb_10_30__jerk_ratio_pa_is__median":-1.441064681,
+            "wb_10_30__jerk_ratio_pa_is__std":0.1375425483,
+            "wb_10_30__jerk_ratio_pa_is__p10":-1.5188704959,
+            "wb_10_30__jerk_ratio_pa_is__p90":-1.3632588662,
+            "wb_10_30__amplitude_is__median":0.3328329176,
+            "wb_10_30__amplitude_is__std":0.1581891439,
+            "wb_10_30__amplitude_is__p10":0.2433476246,
+            "wb_10_30__amplitude_is__p90":0.4223182107,
+            "wb_10_30__freq_is__median":1.7578125,
+            "wb_10_30__freq_is__std":0.0,
+            "wb_10_30__freq_is__p10":1.7578125,
+            "wb_10_30__freq_is__p90":1.7578125,
+            "wb_10_30__width_is__median":0.7704253762,
+            "wb_10_30__width_is__std":null,
+            "wb_10_30__width_is__p10":0.7704253762,
+            "wb_10_30__width_is__p90":0.7704253762,
+            "wb_10_30__amplitude_ml__median":0.5758083158,
+            "wb_10_30__amplitude_ml__std":0.0005621485,
+            "wb_10_30__amplitude_ml__p10":0.5754903166,
+            "wb_10_30__amplitude_ml__p90":0.576126315,
+            "wb_10_30__freq_ml__median":0.48828125,
+            "wb_10_30__freq_ml__std":0.4143203796,
+            "wb_10_30__freq_ml__p10":0.25390625,
+            "wb_10_30__freq_ml__p90":0.72265625,
+            "wb_10_30__width_ml__median":0.7309266051,
+            "wb_10_30__width_ml__std":null,
+            "wb_10_30__width_ml__p10":0.7309266051,
+            "wb_10_30__width_ml__p90":0.7309266051,
+            "wb_10_30__amplitude_pa__median":0.2791503925,
+            "wb_10_30__amplitude_pa__std":0.3144874083,
+            "wb_10_30__amplitude_pa__p10":0.1012494493,
+            "wb_10_30__amplitude_pa__p90":0.4570513357,
+            "wb_10_30__freq_pa__median":1.7578125,
+            "wb_10_30__freq_pa__std":0.0,
+            "wb_10_30__freq_pa__p10":1.7578125,
+            "wb_10_30__freq_pa__p90":1.7578125,
+            "wb_10_30__width_pa__median":0.8139558354,
+            "wb_10_30__width_pa__std":null,
+            "wb_10_30__width_pa__p10":0.8139558354,
+            "wb_10_30__width_pa__p90":0.8139558354,
+            "wb_10_30__cv_walking_speed_mps__median":25.9582209507,
+            "wb_10_30__cv_walking_speed_mps__std":0.3620165666,
+            "wb_10_30__cv_walking_speed_mps__p10":25.7534334554,
+            "wb_10_30__cv_walking_speed_mps__p90":26.163008446,
+            "wb_10__sample_entropy_acc_is__median":1.0377779263,
+            "wb_10__sample_entropy_acc_is__std":0.0387237611,
+            "wb_10__sample_entropy_acc_is__p10":1.0158724591,
+            "wb_10__sample_entropy_acc_is__p90":1.0596833936,
+            "wb_10__jerk_acc_is__median":-9.3821892056,
+            "wb_10__jerk_acc_is__std":0.1968380642,
+            "wb_10__jerk_acc_is__p10":-9.4935376295,
+            "wb_10__jerk_acc_is__p90":-9.2708407816,
+            "wb_10__jerk_acc_ml__median":-9.2371225236,
+            "wb_10__jerk_acc_ml__std":0.2779100271,
+            "wb_10__jerk_acc_ml__p10":-9.3943321754,
+            "wb_10__jerk_acc_ml__p90":-9.0799128718,
+            "wb_10__jerk_acc_pa__median":-9.3148470707,
+            "wb_10__jerk_acc_pa__std":0.0251977175,
+            "wb_10__jerk_acc_pa__p10":-9.3291010523,
+            "wb_10__jerk_acc_pa__p90":-9.3005930892,
+            "wb_10__jerk_gyr_is__median":-20.9919958997,
+            "wb_10__jerk_gyr_is__std":0.2720003201,
+            "wb_10__jerk_gyr_is__p10":-21.1458625164,
+            "wb_10__jerk_gyr_is__p90":-20.8381292831,
+            "wb_10__jerk_gyr_ml__median":-22.9120768989,
+            "wb_10__jerk_gyr_ml__std":0.7630300209,
+            "wb_10__jerk_gyr_ml__p10":-23.3437118606,
+            "wb_10__jerk_gyr_ml__p90":-22.4804419373,
+            "wb_10__jerk_gyr_pa__median":-23.4580017025,
+            "wb_10__jerk_gyr_pa__std":0.158515675,
+            "wb_10__jerk_gyr_pa__p10":-23.5476717095,
+            "wb_10__jerk_gyr_pa__p90":-23.3683316955,
+            "wb_10__jerk_ratio_ml_is__median":0.0429259538,
+            "wb_10__jerk_ratio_ml_is__std":0.2359211702,
+            "wb_10__jerk_ratio_ml_is__p10":-0.0905312136,
+            "wb_10__jerk_ratio_ml_is__p90":0.1763831213,
+            "wb_10__jerk_ratio_pa_is__median":-1.441064681,
+            "wb_10__jerk_ratio_pa_is__std":0.1375425483,
+            "wb_10__jerk_ratio_pa_is__p10":-1.5188704959,
+            "wb_10__jerk_ratio_pa_is__p90":-1.3632588662,
+            "wb_10__amplitude_is__median":0.3328329176,
+            "wb_10__amplitude_is__std":0.1581891439,
+            "wb_10__amplitude_is__p10":0.2433476246,
+            "wb_10__amplitude_is__p90":0.4223182107,
+            "wb_10__freq_is__median":1.7578125,
+            "wb_10__freq_is__std":0.0,
+            "wb_10__freq_is__p10":1.7578125,
+            "wb_10__freq_is__p90":1.7578125,
+            "wb_10__width_is__median":0.7704253762,
+            "wb_10__width_is__std":null,
+            "wb_10__width_is__p10":0.7704253762,
+            "wb_10__width_is__p90":0.7704253762,
+            "wb_10__amplitude_ml__median":0.5758083158,
+            "wb_10__amplitude_ml__std":0.0005621485,
+            "wb_10__amplitude_ml__p10":0.5754903166,
+            "wb_10__amplitude_ml__p90":0.576126315,
+            "wb_10__freq_ml__median":0.48828125,
+            "wb_10__freq_ml__std":0.4143203796,
+            "wb_10__freq_ml__p10":0.25390625,
+            "wb_10__freq_ml__p90":0.72265625,
+            "wb_10__width_ml__median":0.7309266051,
+            "wb_10__width_ml__std":null,
+            "wb_10__width_ml__p10":0.7309266051,
+            "wb_10__width_ml__p90":0.7309266051,
+            "wb_10__amplitude_pa__median":0.2791503925,
+            "wb_10__amplitude_pa__std":0.3144874083,
+            "wb_10__amplitude_pa__p10":0.1012494493,
+            "wb_10__amplitude_pa__p90":0.4570513357,
+            "wb_10__freq_pa__median":1.7578125,
+            "wb_10__freq_pa__std":0.0,
+            "wb_10__freq_pa__p10":1.7578125,
+            "wb_10__freq_pa__p90":1.7578125,
+            "wb_10__width_pa__median":0.8139558354,
+            "wb_10__width_pa__std":null,
+            "wb_10__width_pa__p10":0.8139558354,
+            "wb_10__width_pa__p90":0.8139558354,
+            "wb_10__cv_walking_speed_mps__median":25.9582209507,
+            "wb_10__cv_walking_speed_mps__std":0.3620165666,
+            "wb_10__cv_walking_speed_mps__p10":25.7534334554,
+            "wb_10__cv_walking_speed_mps__p90":26.163008446,
+            "wb_30__sample_entropy_acc_is__median":null,
+            "wb_30__sample_entropy_acc_is__std":null,
+            "wb_30__sample_entropy_acc_is__p10":null,
+            "wb_30__sample_entropy_acc_is__p90":null,
+            "wb_30__jerk_acc_is__median":null,
+            "wb_30__jerk_acc_is__std":null,
+            "wb_30__jerk_acc_is__p10":null,
+            "wb_30__jerk_acc_is__p90":null,
+            "wb_30__jerk_acc_ml__median":null,
+            "wb_30__jerk_acc_ml__std":null,
+            "wb_30__jerk_acc_ml__p10":null,
+            "wb_30__jerk_acc_ml__p90":null,
+            "wb_30__jerk_acc_pa__median":null,
+            "wb_30__jerk_acc_pa__std":null,
+            "wb_30__jerk_acc_pa__p10":null,
+            "wb_30__jerk_acc_pa__p90":null,
+            "wb_30__jerk_gyr_is__median":null,
+            "wb_30__jerk_gyr_is__std":null,
+            "wb_30__jerk_gyr_is__p10":null,
+            "wb_30__jerk_gyr_is__p90":null,
+            "wb_30__jerk_gyr_ml__median":null,
+            "wb_30__jerk_gyr_ml__std":null,
+            "wb_30__jerk_gyr_ml__p10":null,
+            "wb_30__jerk_gyr_ml__p90":null,
+            "wb_30__jerk_gyr_pa__median":null,
+            "wb_30__jerk_gyr_pa__std":null,
+            "wb_30__jerk_gyr_pa__p10":null,
+            "wb_30__jerk_gyr_pa__p90":null,
+            "wb_30__jerk_ratio_ml_is__median":null,
+            "wb_30__jerk_ratio_ml_is__std":null,
+            "wb_30__jerk_ratio_ml_is__p10":null,
+            "wb_30__jerk_ratio_ml_is__p90":null,
+            "wb_30__jerk_ratio_pa_is__median":null,
+            "wb_30__jerk_ratio_pa_is__std":null,
+            "wb_30__jerk_ratio_pa_is__p10":null,
+            "wb_30__jerk_ratio_pa_is__p90":null,
+            "wb_30__amplitude_is__median":null,
+            "wb_30__amplitude_is__std":null,
+            "wb_30__amplitude_is__p10":null,
+            "wb_30__amplitude_is__p90":null,
+            "wb_30__freq_is__median":null,
+            "wb_30__freq_is__std":null,
+            "wb_30__freq_is__p10":null,
+            "wb_30__freq_is__p90":null,
+            "wb_30__width_is__median":null,
+            "wb_30__width_is__std":null,
+            "wb_30__width_is__p10":null,
+            "wb_30__width_is__p90":null,
+            "wb_30__amplitude_ml__median":null,
+            "wb_30__amplitude_ml__std":null,
+            "wb_30__amplitude_ml__p10":null,
+            "wb_30__amplitude_ml__p90":null,
+            "wb_30__freq_ml__median":null,
+            "wb_30__freq_ml__std":null,
+            "wb_30__freq_ml__p10":null,
+            "wb_30__freq_ml__p90":null,
+            "wb_30__width_ml__median":null,
+            "wb_30__width_ml__std":null,
+            "wb_30__width_ml__p10":null,
+            "wb_30__width_ml__p90":null,
+            "wb_30__amplitude_pa__median":null,
+            "wb_30__amplitude_pa__std":null,
+            "wb_30__amplitude_pa__p10":null,
+            "wb_30__amplitude_pa__p90":null,
+            "wb_30__freq_pa__median":null,
+            "wb_30__freq_pa__std":null,
+            "wb_30__freq_pa__p10":null,
+            "wb_30__freq_pa__p90":null,
+            "wb_30__width_pa__median":null,
+            "wb_30__width_pa__std":null,
+            "wb_30__width_pa__p10":null,
+            "wb_30__width_pa__p90":null,
+            "wb_30__cv_walking_speed_mps__median":null,
+            "wb_30__cv_walking_speed_mps__std":null,
+            "wb_30__cv_walking_speed_mps__p10":null,
+            "wb_30__cv_walking_speed_mps__p90":null,
+            "wb_30_60__sample_entropy_acc_is__median":null,
+            "wb_30_60__sample_entropy_acc_is__std":null,
+            "wb_30_60__sample_entropy_acc_is__p10":null,
+            "wb_30_60__sample_entropy_acc_is__p90":null,
+            "wb_30_60__jerk_acc_is__median":null,
+            "wb_30_60__jerk_acc_is__std":null,
+            "wb_30_60__jerk_acc_is__p10":null,
+            "wb_30_60__jerk_acc_is__p90":null,
+            "wb_30_60__jerk_acc_ml__median":null,
+            "wb_30_60__jerk_acc_ml__std":null,
+            "wb_30_60__jerk_acc_ml__p10":null,
+            "wb_30_60__jerk_acc_ml__p90":null,
+            "wb_30_60__jerk_acc_pa__median":null,
+            "wb_30_60__jerk_acc_pa__std":null,
+            "wb_30_60__jerk_acc_pa__p10":null,
+            "wb_30_60__jerk_acc_pa__p90":null,
+            "wb_30_60__jerk_gyr_is__median":null,
+            "wb_30_60__jerk_gyr_is__std":null,
+            "wb_30_60__jerk_gyr_is__p10":null,
+            "wb_30_60__jerk_gyr_is__p90":null,
+            "wb_30_60__jerk_gyr_ml__median":null,
+            "wb_30_60__jerk_gyr_ml__std":null,
+            "wb_30_60__jerk_gyr_ml__p10":null,
+            "wb_30_60__jerk_gyr_ml__p90":null,
+            "wb_30_60__jerk_gyr_pa__median":null,
+            "wb_30_60__jerk_gyr_pa__std":null,
+            "wb_30_60__jerk_gyr_pa__p10":null,
+            "wb_30_60__jerk_gyr_pa__p90":null,
+            "wb_30_60__jerk_ratio_ml_is__median":null,
+            "wb_30_60__jerk_ratio_ml_is__std":null,
+            "wb_30_60__jerk_ratio_ml_is__p10":null,
+            "wb_30_60__jerk_ratio_ml_is__p90":null,
+            "wb_30_60__jerk_ratio_pa_is__median":null,
+            "wb_30_60__jerk_ratio_pa_is__std":null,
+            "wb_30_60__jerk_ratio_pa_is__p10":null,
+            "wb_30_60__jerk_ratio_pa_is__p90":null,
+            "wb_30_60__amplitude_is__median":null,
+            "wb_30_60__amplitude_is__std":null,
+            "wb_30_60__amplitude_is__p10":null,
+            "wb_30_60__amplitude_is__p90":null,
+            "wb_30_60__freq_is__median":null,
+            "wb_30_60__freq_is__std":null,
+            "wb_30_60__freq_is__p10":null,
+            "wb_30_60__freq_is__p90":null,
+            "wb_30_60__width_is__median":null,
+            "wb_30_60__width_is__std":null,
+            "wb_30_60__width_is__p10":null,
+            "wb_30_60__width_is__p90":null,
+            "wb_30_60__amplitude_ml__median":null,
+            "wb_30_60__amplitude_ml__std":null,
+            "wb_30_60__amplitude_ml__p10":null,
+            "wb_30_60__amplitude_ml__p90":null,
+            "wb_30_60__freq_ml__median":null,
+            "wb_30_60__freq_ml__std":null,
+            "wb_30_60__freq_ml__p10":null,
+            "wb_30_60__freq_ml__p90":null,
+            "wb_30_60__width_ml__median":null,
+            "wb_30_60__width_ml__std":null,
+            "wb_30_60__width_ml__p10":null,
+            "wb_30_60__width_ml__p90":null,
+            "wb_30_60__amplitude_pa__median":null,
+            "wb_30_60__amplitude_pa__std":null,
+            "wb_30_60__amplitude_pa__p10":null,
+            "wb_30_60__amplitude_pa__p90":null,
+            "wb_30_60__freq_pa__median":null,
+            "wb_30_60__freq_pa__std":null,
+            "wb_30_60__freq_pa__p10":null,
+            "wb_30_60__freq_pa__p90":null,
+            "wb_30_60__width_pa__median":null,
+            "wb_30_60__width_pa__std":null,
+            "wb_30_60__width_pa__p10":null,
+            "wb_30_60__width_pa__p90":null,
+            "wb_30_60__cv_walking_speed_mps__median":null,
+            "wb_30_60__cv_walking_speed_mps__std":null,
+            "wb_30_60__cv_walking_speed_mps__p10":null,
+            "wb_30_60__cv_walking_speed_mps__p90":null,
+            "wb_60__sample_entropy_acc_is__median":null,
+            "wb_60__sample_entropy_acc_is__std":null,
+            "wb_60__sample_entropy_acc_is__p10":null,
+            "wb_60__sample_entropy_acc_is__p90":null,
+            "wb_60__jerk_acc_is__median":null,
+            "wb_60__jerk_acc_is__std":null,
+            "wb_60__jerk_acc_is__p10":null,
+            "wb_60__jerk_acc_is__p90":null,
+            "wb_60__jerk_acc_ml__median":null,
+            "wb_60__jerk_acc_ml__std":null,
+            "wb_60__jerk_acc_ml__p10":null,
+            "wb_60__jerk_acc_ml__p90":null,
+            "wb_60__jerk_acc_pa__median":null,
+            "wb_60__jerk_acc_pa__std":null,
+            "wb_60__jerk_acc_pa__p10":null,
+            "wb_60__jerk_acc_pa__p90":null,
+            "wb_60__jerk_gyr_is__median":null,
+            "wb_60__jerk_gyr_is__std":null,
+            "wb_60__jerk_gyr_is__p10":null,
+            "wb_60__jerk_gyr_is__p90":null,
+            "wb_60__jerk_gyr_ml__median":null,
+            "wb_60__jerk_gyr_ml__std":null,
+            "wb_60__jerk_gyr_ml__p10":null,
+            "wb_60__jerk_gyr_ml__p90":null,
+            "wb_60__jerk_gyr_pa__median":null,
+            "wb_60__jerk_gyr_pa__std":null,
+            "wb_60__jerk_gyr_pa__p10":null,
+            "wb_60__jerk_gyr_pa__p90":null,
+            "wb_60__jerk_ratio_ml_is__median":null,
+            "wb_60__jerk_ratio_ml_is__std":null,
+            "wb_60__jerk_ratio_ml_is__p10":null,
+            "wb_60__jerk_ratio_ml_is__p90":null,
+            "wb_60__jerk_ratio_pa_is__median":null,
+            "wb_60__jerk_ratio_pa_is__std":null,
+            "wb_60__jerk_ratio_pa_is__p10":null,
+            "wb_60__jerk_ratio_pa_is__p90":null,
+            "wb_60__amplitude_is__median":null,
+            "wb_60__amplitude_is__std":null,
+            "wb_60__amplitude_is__p10":null,
+            "wb_60__amplitude_is__p90":null,
+            "wb_60__freq_is__median":null,
+            "wb_60__freq_is__std":null,
+            "wb_60__freq_is__p10":null,
+            "wb_60__freq_is__p90":null,
+            "wb_60__width_is__median":null,
+            "wb_60__width_is__std":null,
+            "wb_60__width_is__p10":null,
+            "wb_60__width_is__p90":null,
+            "wb_60__amplitude_ml__median":null,
+            "wb_60__amplitude_ml__std":null,
+            "wb_60__amplitude_ml__p10":null,
+            "wb_60__amplitude_ml__p90":null,
+            "wb_60__freq_ml__median":null,
+            "wb_60__freq_ml__std":null,
+            "wb_60__freq_ml__p10":null,
+            "wb_60__freq_ml__p90":null,
+            "wb_60__width_ml__median":null,
+            "wb_60__width_ml__std":null,
+            "wb_60__width_ml__p10":null,
+            "wb_60__width_ml__p90":null,
+            "wb_60__amplitude_pa__median":null,
+            "wb_60__amplitude_pa__std":null,
+            "wb_60__amplitude_pa__p10":null,
+            "wb_60__amplitude_pa__p90":null,
+            "wb_60__freq_pa__median":null,
+            "wb_60__freq_pa__std":null,
+            "wb_60__freq_pa__p10":null,
+            "wb_60__freq_pa__p90":null,
+            "wb_60__width_pa__median":null,
+            "wb_60__width_pa__std":null,
+            "wb_60__width_pa__p10":null,
+            "wb_60__width_pa__p90":null,
+            "wb_60__cv_walking_speed_mps__median":null,
+            "wb_60__cv_walking_speed_mps__std":null,
+            "wb_60__cv_walking_speed_mps__p10":null,
+            "wb_60__cv_walking_speed_mps__p90":null
         }
     ]
 }

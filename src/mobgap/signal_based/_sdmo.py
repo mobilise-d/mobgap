@@ -535,12 +535,9 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
 
     Notes
     -----
-    - The implementation here differs from [1]_ regarding the frequency bands. Although a single frequency band
-    (0.5-3.0 Hz) for the width calculation is specified in the paper, this class provides default values for each axis
-    as:
-        - Vertical: 0.4 Hz to 3.1 Hz
-        - Antero-posterior: 0.4 Hz to 3.1 Hz
-        - Medio-lateral: 0.15 Hz to 1.6 Hz
+    The default search bands differ from the single 0.5-3.0 Hz band specified in [1]_. They are 0.4-3.1 Hz for
+    vertical and anteroposterior acceleration and 0.15-1.6 Hz for mediolateral acceleration.
+
     - Axes are standardized with sample SD before Welch PSD estimation. Two-second periodic Hamming windows
       (or the available shorter signal), default 50%% overlap, no further detrending and a window-based FFT length
       of twice the next power of two are retained. Total-length zero padding is also valid Welch configuration;
@@ -554,13 +551,16 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
       Frequency and width are in Hz. Constant, nonfinite or fewer-than-two-sample axes give NaN values. Missing
       or unconfigured axes are omitted; each configured anatomical axis can be calculated independently.
 
+    References
+    ----------
     .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman,
-    "Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a Body-Worn
-    Accelerometer," Neurorehabil Neural Repair, vol. 25, no. 9, pp. 810-818, 2011.
-    https://doi.org/10.1177/1545968311424869
+       "Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a Body-Worn
+       Accelerometer," Neurorehabil Neural Repair, vol. 25, no. 9, pp. 810-818, 2011.
+       https://doi.org/10.1177/1545968311424869
+
     .. [2] D. Pradeep Kumar, N. Toosizadeh, J. Mohler, H. Ehsani, C. Mannier, and K. Laksari,
-    "Sensor-based characterization of daily walking: a new paradigm in pre-frailty/frailty assessment,"
-    BMC Geriatr, vol. 20, no. 1, p. 164, 2020.
+       "Sensor-based characterization of daily walking: a new paradigm in pre-frailty/frailty assessment,"
+       BMC Geriatr, vol. 20, no. 1, p. 164, 2020.
 
     """
 

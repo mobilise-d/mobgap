@@ -17,8 +17,8 @@ Algorithms
     SampleEntropy
     HarmonicRatio
     SDRange
-    Jerk
-    AngularAcceleration
+    LogDimensionlessJerk
+    RMSJerkRatio
     FrequencyAmplitudeWidth
     RegularitySymmetry
     RMS

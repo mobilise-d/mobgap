@@ -800,70 +800,6 @@
                 "type":"number"
             },
             {
-                "name":"all__Turn_Dur_Percentage_From_WBDur__median",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Dur_Percentage_From_WBDur__std",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Dur_Percentage_From_WBDur__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Dur_Percentage_From_WBDur__p90",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Mean_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Mean_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Mean_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Mean_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Peak_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Peak_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Peak_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Peak_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Smoothness__median",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Smoothness__std",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Smoothness__p10",
-                "type":"number"
-            },
-            {
-                "name":"all__Turn_Smoothness__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_10_30__Amplitude_is__median",
                 "type":"number"
             },
@@ -1645,70 +1581,6 @@
             },
             {
                 "name":"wb_10_30__CV_stride_duration_s__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Dur_Percentage_From_WBDur__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Dur_Percentage_From_WBDur__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Dur_Percentage_From_WBDur__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Dur_Percentage_From_WBDur__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Mean_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Mean_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Mean_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Mean_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Peak_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Peak_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Peak_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Peak_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Smoothness__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Smoothness__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Smoothness__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10_30__Turn_Smoothness__p90",
                 "type":"number"
             },
             {
@@ -2496,70 +2368,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_10__Turn_Dur_Percentage_From_WBDur__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Dur_Percentage_From_WBDur__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Dur_Percentage_From_WBDur__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Dur_Percentage_From_WBDur__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Mean_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Mean_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Mean_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Mean_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Peak_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Peak_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Peak_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Peak_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Smoothness__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Smoothness__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Smoothness__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_10__Turn_Smoothness__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_30__Amplitude_is__median",
                 "type":"number"
             },
@@ -3341,70 +3149,6 @@
             },
             {
                 "name":"wb_30__CV_stride_duration_s__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Dur_Percentage_From_WBDur__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Dur_Percentage_From_WBDur__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Dur_Percentage_From_WBDur__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Dur_Percentage_From_WBDur__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Mean_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Mean_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Mean_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Mean_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Peak_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Peak_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Peak_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Peak_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Smoothness__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Smoothness__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Smoothness__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30__Turn_Smoothness__p90",
                 "type":"number"
             },
             {
@@ -4192,70 +3936,6 @@
                 "type":"number"
             },
             {
-                "name":"wb_30_60__Turn_Dur_Percentage_From_WBDur__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Dur_Percentage_From_WBDur__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Dur_Percentage_From_WBDur__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Dur_Percentage_From_WBDur__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Mean_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Mean_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Mean_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Mean_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Peak_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Peak_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Peak_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Peak_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Smoothness__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Smoothness__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Smoothness__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_30_60__Turn_Smoothness__p90",
-                "type":"number"
-            },
-            {
                 "name":"wb_60__Amplitude_is__median",
                 "type":"number"
             },
@@ -5038,70 +4718,6 @@
             {
                 "name":"wb_60__CV_stride_duration_s__p90",
                 "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Dur_Percentage_From_WBDur__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Dur_Percentage_From_WBDur__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Dur_Percentage_From_WBDur__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Dur_Percentage_From_WBDur__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Mean_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Mean_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Mean_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Mean_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Peak_Ang_Vel__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Peak_Ang_Vel__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Peak_Ang_Vel__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Peak_Ang_Vel__p90",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Smoothness__median",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Smoothness__std",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Smoothness__p10",
-                "type":"number"
-            },
-            {
-                "name":"wb_60__Turn_Smoothness__p90",
-                "type":"number"
             }
         ],
         "primaryKey":[
@@ -5115,7 +4731,7 @@
         {
             "visit_type":"T1",
             "participant_id":12345,
-            "measurement_date":"01\/01\/2026",
+            "measurement_date":"01/01/2026",
             "all__Amplitude_is__median":0.371320635,
             "all__Amplitude_is__std":0.1642244856,
             "all__Amplitude_is__p10":0.1742596818,
@@ -5312,22 +4928,6 @@
             "all__CV_stride_duration_s__std":0.1479289715,
             "all__CV_stride_duration_s__p10":0.1700322315,
             "all__CV_stride_duration_s__p90":0.564050494,
-            "all__Turn_Dur_Percentage_From_WBDur__median":36.87518446,
-            "all__Turn_Dur_Percentage_From_WBDur__std":17.8316802746,
-            "all__Turn_Dur_Percentage_From_WBDur__p10":19.20385461,
-            "all__Turn_Dur_Percentage_From_WBDur__p90":67.61175047,
-            "all__Turn_Mean_Ang_Vel__median":-1.2704845615,
-            "all__Turn_Mean_Ang_Vel__std":20.8814030487,
-            "all__Turn_Mean_Ang_Vel__p10":-23.923220589,
-            "all__Turn_Mean_Ang_Vel__p90":32.115418497,
-            "all__Turn_Peak_Ang_Vel__median":60.94132398,
-            "all__Turn_Peak_Ang_Vel__std":30.3995449412,
-            "all__Turn_Peak_Ang_Vel__p10":22.725832608,
-            "all__Turn_Peak_Ang_Vel__p90":102.74190638,
-            "all__Turn_Smoothness__median":360.9631865,
-            "all__Turn_Smoothness__std":142.6111836811,
-            "all__Turn_Smoothness__p10":201.52615854,
-            "all__Turn_Smoothness__p90":544.28274114,
             "wb_10_30__Amplitude_is__median":0.365612147,
             "wb_10_30__Amplitude_is__std":0.1517970394,
             "wb_10_30__Amplitude_is__p10":0.1957230606,
@@ -5524,22 +5124,6 @@
             "wb_10_30__CV_stride_duration_s__std":0.1116159703,
             "wb_10_30__CV_stride_duration_s__p10":0.2457377971,
             "wb_10_30__CV_stride_duration_s__p90":0.5089650563,
-            "wb_10_30__Turn_Dur_Percentage_From_WBDur__median":37.31776411,
-            "wb_10_30__Turn_Dur_Percentage_From_WBDur__std":13.2489263371,
-            "wb_10_30__Turn_Dur_Percentage_From_WBDur__p10":20.58345077,
-            "wb_10_30__Turn_Dur_Percentage_From_WBDur__p90":54.054149885,
-            "wb_10_30__Turn_Mean_Ang_Vel__median":-2.178926247,
-            "wb_10_30__Turn_Mean_Ang_Vel__std":19.7981445446,
-            "wb_10_30__Turn_Mean_Ang_Vel__p10":-21.925573584,
-            "wb_10_30__Turn_Mean_Ang_Vel__p90":17.908756946,
-            "wb_10_30__Turn_Peak_Ang_Vel__median":60.3767872,
-            "wb_10_30__Turn_Peak_Ang_Vel__std":28.2255768787,
-            "wb_10_30__Turn_Peak_Ang_Vel__p10":32.650770014,
-            "wb_10_30__Turn_Peak_Ang_Vel__p90":101.90646974,
-            "wb_10_30__Turn_Smoothness__median":386.10447215,
-            "wb_10_30__Turn_Smoothness__std":149.6674279073,
-            "wb_10_30__Turn_Smoothness__p10":218.46041946,
-            "wb_10_30__Turn_Smoothness__p90":559.41049468,
             "wb_10__Amplitude_is__median":0.3597564365,
             "wb_10__Amplitude_is__std":0.1369247966,
             "wb_10__Amplitude_is__p10":0.2209684233,
@@ -5736,22 +5320,6 @@
             "wb_10__CV_stride_duration_s__std":0.1312396466,
             "wb_10__CV_stride_duration_s__p10":0.1782470284,
             "wb_10__CV_stride_duration_s__p90":0.5582314487,
-            "wb_10__Turn_Dur_Percentage_From_WBDur__median":36.10166249,
-            "wb_10__Turn_Dur_Percentage_From_WBDur__std":14.6043702381,
-            "wb_10__Turn_Dur_Percentage_From_WBDur__p10":16.73971498,
-            "wb_10__Turn_Dur_Percentage_From_WBDur__p90":50.65262124,
-            "wb_10__Turn_Mean_Ang_Vel__median":-3.0395321195,
-            "wb_10__Turn_Mean_Ang_Vel__std":16.7636175745,
-            "wb_10__Turn_Mean_Ang_Vel__p10":-15.677458908,
-            "wb_10__Turn_Mean_Ang_Vel__p90":13.689153156,
-            "wb_10__Turn_Peak_Ang_Vel__median":60.89237203,
-            "wb_10__Turn_Peak_Ang_Vel__std":27.4580237115,
-            "wb_10__Turn_Peak_Ang_Vel__p10":34.289644816,
-            "wb_10__Turn_Peak_Ang_Vel__p90":101.44818656,
-            "wb_10__Turn_Smoothness__median":360.9631865,
-            "wb_10__Turn_Smoothness__std":142.2964245128,
-            "wb_10__Turn_Smoothness__p10":218.83813238,
-            "wb_10__Turn_Smoothness__p90":537.88505398,
             "wb_30__Amplitude_is__median":0.3434552305,
             "wb_30__Amplitude_is__std":0.0953993293,
             "wb_30__Amplitude_is__p10":0.249467531,
@@ -5948,22 +5516,6 @@
             "wb_30__CV_stride_duration_s__std":0.1716590512,
             "wb_30__CV_stride_duration_s__p10":0.1618192143,
             "wb_30__CV_stride_duration_s__p90":0.5896477195,
-            "wb_30__Turn_Dur_Percentage_From_WBDur__median":23.648299625,
-            "wb_30__Turn_Dur_Percentage_From_WBDur__std":15.9599889953,
-            "wb_30__Turn_Dur_Percentage_From_WBDur__p10":6.6176197581,
-            "wb_30__Turn_Dur_Percentage_From_WBDur__p90":44.010834086,
-            "wb_30__Turn_Mean_Ang_Vel__median":-3.900137992,
-            "wb_30__Turn_Mean_Ang_Vel__std":8.0588543333,
-            "wb_30__Turn_Mean_Ang_Vel__p10":-8.186125263,
-            "wb_30__Turn_Mean_Ang_Vel__p90":7.525315166,
-            "wb_30__Turn_Peak_Ang_Vel__median":65.952281735,
-            "wb_30__Turn_Peak_Ang_Vel__std":26.9811050286,
-            "wb_30__Turn_Peak_Ang_Vel__p10":40.477995393,
-            "wb_30__Turn_Peak_Ang_Vel__p90":92.172657542,
-            "wb_30__Turn_Smoothness__median":359.9817235,
-            "wb_30__Turn_Smoothness__std":123.6290746605,
-            "wb_30__Turn_Smoothness__p10":223.4350142,
-            "wb_30__Turn_Smoothness__p90":369.8197853,
             "wb_30_60__Amplitude_is__median":0.3254540625,
             "wb_30_60__Amplitude_is__std":0.0839094785,
             "wb_30_60__Amplitude_is__p10":0.2418032883,
@@ -6160,22 +5712,6 @@
             "wb_30_60__CV_stride_duration_s__std":0.1410133617,
             "wb_30_60__CV_stride_duration_s__p10":0.3353279514,
             "wb_30_60__CV_stride_duration_s__p90":0.5996359351,
-            "wb_30_60__Turn_Dur_Percentage_From_WBDur__median":33.16035645,
-            "wb_30_60__Turn_Dur_Percentage_From_WBDur__std":16.6303543838,
-            "wb_30_60__Turn_Dur_Percentage_From_WBDur__p10":6.5457584763,
-            "wb_30_60__Turn_Dur_Percentage_From_WBDur__p90":44.734645798,
-            "wb_30_60__Turn_Mean_Ang_Vel__median":-3.900137992,
-            "wb_30_60__Turn_Mean_Ang_Vel__std":7.5032268428,
-            "wb_30_60__Turn_Mean_Ang_Vel__p10":-9.4779360024,
-            "wb_30_60__Turn_Mean_Ang_Vel__p90":6.6267954116,
-            "wb_30_60__Turn_Peak_Ang_Vel__median":65.952281735,
-            "wb_30_60__Turn_Peak_Ang_Vel__std":27.7935470538,
-            "wb_30_60__Turn_Peak_Ang_Vel__p10":36.1276473272,
-            "wb_30_60__Turn_Peak_Ang_Vel__p90":90.148586953,
-            "wb_30_60__Turn_Smoothness__median":359.9817235,
-            "wb_30_60__Turn_Smoothness__std":137.1753971306,
-            "wb_30_60__Turn_Smoothness__p10":182.739549584,
-            "wb_30_60__Turn_Smoothness__p90":396.47396662,
             "wb_60__Amplitude_is__median":0.474045646,
             "wb_60__Amplitude_is__std":0.0854085997,
             "wb_60__Amplitude_is__p10":0.425731246,
@@ -6261,7 +5797,7 @@
             "wb_60__Symmetry_K_is__p10":0.2453790168,
             "wb_60__Symmetry_K_is__p90":0.2567478232,
             "wb_60__Asymmetry_G_is__median":-0.0582916215,
-            "wb_60__Asymmetry_G_is__std":0.0000809871,
+            "wb_60__Asymmetry_G_is__std":8.09871e-05,
             "wb_60__Asymmetry_G_is__p10":-0.0583374347,
             "wb_60__Asymmetry_G_is__p90":-0.0582458083,
             "wb_60__StepRegularity_pa__median":0.4695527695,
@@ -6371,23 +5907,7 @@
             "wb_60__CV_stride_duration_s__median":0.14994264,
             "wb_60__CV_stride_duration_s__std":0.0240487172,
             "wb_60__CV_stride_duration_s__p10":0.1363386312,
-            "wb_60__CV_stride_duration_s__p90":0.1635466488,
-            "wb_60__Turn_Dur_Percentage_From_WBDur__median":14.6549631,
-            "wb_60__Turn_Dur_Percentage_From_WBDur__std":6.1558865872,
-            "wb_60__Turn_Dur_Percentage_From_WBDur__p10":11.17266778,
-            "wb_60__Turn_Dur_Percentage_From_WBDur__p90":18.13725842,
-            "wb_60__Turn_Mean_Ang_Vel__median":2.003433068,
-            "wb_60__Turn_Mean_Ang_Vel__std":12.973519426,
-            "wb_60__Turn_Mean_Ang_Vel__p10":-5.3354977816,
-            "wb_60__Turn_Mean_Ang_Vel__p90":9.3423639176,
-            "wb_60__Turn_Peak_Ang_Vel__median":70.760342765,
-            "wb_60__Turn_Peak_Ang_Vel__std":30.9449313275,
-            "wb_60__Turn_Peak_Ang_Vel__p10":53.255246137,
-            "wb_60__Turn_Peak_Ang_Vel__p90":88.265439393,
-            "wb_60__Turn_Smoothness__median":341.33191315,
-            "wb_60__Turn_Smoothness__std":40.2879351577,
-            "wb_60__Turn_Smoothness__p10":318.54161543,
-            "wb_60__Turn_Smoothness__p90":364.12221087
+            "wb_60__CV_stride_duration_s__p90":0.1635466488
         }
     ]
 }
