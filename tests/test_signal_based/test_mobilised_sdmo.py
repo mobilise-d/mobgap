@@ -154,5 +154,5 @@ def test_composite_retains_turn_metadata_once_for_distinct_calculators():
     )
     assert result.columns.is_unique
     pd.testing.assert_frame_equal(result[turns.columns], turns)
-    assert result.sample_count.tolist() == [3, 3]
+    pd.testing.assert_series_equal(result.sample_count, pd.Series([3, 3], index=turns.index, name="sample_count"))
     assert result.turn_peak_ang_vel.tolist() == [2.0, 3.0]

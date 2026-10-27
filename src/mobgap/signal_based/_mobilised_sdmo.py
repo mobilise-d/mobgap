@@ -163,12 +163,11 @@ def _calculate_turn_parameters(
     metadata = _turn_metadata(turn_list)
     if metadata.empty or not calculators:
         return _empty_turn_parameters(turn_list)
-    rows = []
+    rows_per_calculator = [[] for _ in calculators]
     for start, end in metadata[["start", "end"]].itertuples(index=False, name=None):
         window = data.iloc[int(start) : int(end)]
-        rows.append(
-            pd.concat(
-                [calc.clone().calculate(window, **params).signal_based_parameters_ for _name, calc in calculators]
-            )
-        )
-    return pd.concat([metadata, pd.DataFrame(rows, index=metadata.index)], axis=1)
+        for rows, (_name, calculator) in zip(rows_per_calculator, calculators, strict=True):
+            rows.append(calculator.clone().calculate(window, **params).signal_based_parameters_)
+    # Assemble each calculator separately so floating-point metrics do not coerce integer feature columns.
+    frames = [pd.DataFrame(rows, index=metadata.index) for rows in rows_per_calculator]
+    return pd.concat([metadata, *frames], axis=1)
