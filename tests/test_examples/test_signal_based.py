@@ -1,9 +1,9 @@
 def test_signal_based_algorithms(snapshot):
     from examples.signal_based._01_signal_based_algorithms import (
-        angular_acceleration,
+        log_dimensionless_jerk,
+        rms_jerk_ratio,
         frequency_amplitude,
         harmonic_ratio,
-        jerk,
         regularity_symmetry,
         rms,
         sample_entropy,
@@ -12,7 +12,7 @@ def test_signal_based_algorithms(snapshot):
         turn,
     )
 
-    snapshot.assert_match(turn.signal_based_parameters_, "turn_sdmo")
+    snapshot.assert_match(turn.per_turn_parameters_, "turn_sdmo")
     snapshot.assert_match(stride_level.signal_based_parameters_, "stride_level_sdmo")
     snapshot.assert_match(rms.signal_based_parameters_, "rms_sdmo")
     snapshot.assert_match(regularity_symmetry.signal_based_parameters_, "regularity_symmetry_sdmo")
@@ -20,8 +20,8 @@ def test_signal_based_algorithms(snapshot):
     snapshot.assert_match(sample_entropy.signal_based_parameters_, "sample_entropy_sdmo")
     snapshot.assert_match(harmonic_ratio.signal_based_parameters_, "harmonic_ratio_sdmo")
     snapshot.assert_match(sd_range.signal_based_parameters_, "sd_range_sdmo")
-    snapshot.assert_match(jerk.signal_based_parameters_, "jerk_sdmo")
-    snapshot.assert_match(angular_acceleration.signal_based_parameters_, "angular_acceleration_sdmo")
+    snapshot.assert_match(log_dimensionless_jerk.signal_based_parameters_, "ldlj_sdmo")
+    snapshot.assert_match(rms_jerk_ratio.signal_based_parameters_, "rms_jerk_ratio_sdmo")
 
 
 def test_signal_based_mobilised_pipeline(snapshot):
@@ -29,3 +29,5 @@ def test_signal_based_mobilised_pipeline(snapshot):
 
     snapshot.assert_match(sdmo_only_available.signal_based_parameters_, "only_available_sdmos")
     snapshot.assert_match(sdmo_full_output.signal_based_parameters_, "full_mobilised_sdmos")
+
+    snapshot.assert_match(sdmo_full_output.per_turn_parameters_, "turn_sdmos")

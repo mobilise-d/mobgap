@@ -10,23 +10,7 @@
                 "type":"number"
             },
             {
-                "name":"amplitude_ml",
-                "type":"number"
-            },
-            {
-                "name":"amplitude_pa",
-                "type":"number"
-            },
-            {
                 "name":"freq_is",
-                "type":"number"
-            },
-            {
-                "name":"freq_ml",
-                "type":"number"
-            },
-            {
-                "name":"freq_pa",
                 "type":"number"
             },
             {
@@ -34,7 +18,23 @@
                 "type":"number"
             },
             {
+                "name":"amplitude_ml",
+                "type":"number"
+            },
+            {
+                "name":"freq_ml",
+                "type":"number"
+            },
+            {
                 "name":"width_ml",
+                "type":"number"
+            },
+            {
+                "name":"amplitude_pa",
+                "type":"number"
+            },
+            {
+                "name":"freq_pa",
                 "type":"number"
             },
             {
@@ -50,14 +50,14 @@
     "data":[
         {
             "index":0,
-            "amplitude_is":0.3791825656,
-            "amplitude_ml":0.5627254678,
-            "amplitude_pa":0.1122288023,
-            "freq_is":1.7578125,
-            "freq_ml":0.8056640625,
-            "freq_pa":1.708984375,
-            "width_is":0.78125,
+            "amplitude_is":0.4786595706,
+            "freq_is":1.5625,
+            "width_is":1.171875,
+            "amplitude_ml":null,
+            "freq_ml":null,
             "width_ml":null,
+            "amplitude_pa":0.2915831612,
+            "freq_pa":1.171875,
             "width_pa":null
         }
     ]

@@ -88,7 +88,7 @@ sdmo_only_available.signal_based_parameters_
 
 # %%
 # Note that the ``calculate`` method raises warning regarding the availability of stride parameters and this
-# results in 46 parameters calculated in total.
+# leaves the unavailable stride CV columns out of the result.
 # We miss three more parameters because the expected stride list parameters
 # (['stride_length_m', 'cadence_spm', 'stride_duration_s']) are given with a different name or not available in
 # the reference list. We can rename and calculate the missing ones.
@@ -97,7 +97,7 @@ reference_strides = reference_strides.rename(
     columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
 )
 reference_strides["cadence_spm"] = (
-    60 * reference_strides["speed_mps"] / reference_strides["stride_length_m"]
+    120 * reference_strides["speed_mps"] / reference_strides["stride_length_m"]
 )
 params["stride_list"] = reference_strides
 
@@ -110,3 +110,10 @@ sdmo_full_output = MobilisedSDMO(
 
 sdmo_full_output.calculate(data=data_in_wb_bf, **params)
 sdmo_full_output.signal_based_parameters_
+
+
+# %%
+# Turns remain individual rows with their supplied metadata and WB-local sample coordinates.
+# In a full Mobilise-D pipeline these intervals are recording-local and include every turn detected
+# within gait sequences, even when a turn is outside an accepted WB. No turn summaries are aggregated.
+sdmo_full_output.per_turn_parameters_

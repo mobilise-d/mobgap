@@ -19,10 +19,10 @@ def example_walking_bout():
     stride_list = data.reference_parameters_relative_to_wb_.stride_parameters.loc[wb_id].rename(
         columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
     )
-    stride_list["cadence_spm"] = 60 * stride_list["speed_mps"] / stride_list["stride_length_m"]
+    stride_list["cadence_spm"] = 120 * stride_list["speed_mps"] / stride_list["stride_length_m"]
     sampling_rate_hz = data.sampling_rate_hz
-    data_start = data.reference_parameters_.stride_parameters.loc[wb_id][["start", "end"]].min().min()
-    data_end = data.reference_parameters_.stride_parameters.loc[wb_id][["start", "end"]].max().max()
+    data_start = int(data.reference_parameters_.wb_list.loc[wb_id, "start"])
+    data_end = int(data.reference_parameters_.wb_list.loc[wb_id, "end"])
     data = to_body_frame(data.data_ss.iloc[data_start:data_end])
     return data, stride_list, turn_list, sampling_rate_hz
 
@@ -59,15 +59,15 @@ class TestMobilisedSDMORegression:
             )
             if stride_list.empty:
                 continue
-            stride_list["cadence_spm"] = 60 * stride_list["speed_mps"] / stride_list["stride_length_m"]
+            stride_list["cadence_spm"] = 120 * stride_list["speed_mps"] / stride_list["stride_length_m"]
             turn_meta = datapoint.reference_parameters_relative_to_wb_.turn_parameters
             if not turn_meta.empty and wb_id in turn_meta.index.get_level_values(0):
                 turn_list = turn_meta.loc[wb_id]
             else:
                 turn_list = pd.DataFrame([])
             sampling_rate_hz = datapoint.sampling_rate_hz
-            data_start = stride_list["start"].min()
-            data_end = stride_list["end"].max()
+            data_start = int(datapoint.reference_parameters_.wb_list.loc[wb_id, "start"])
+            data_end = int(datapoint.reference_parameters_.wb_list.loc[wb_id, "end"])
             imu_data = to_body_frame(datapoint.data_ss.iloc[data_start:data_end])
 
             result = MobilisedSDMO().calculate(
@@ -113,3 +113,19 @@ class TestMobilisedSDMO:
             replicate_matlab=True,
         )
         assert result.signal_based_parameters_.empty
+
+
+def test_composite_keeps_turn_rows_separate_from_bout_values():
+    from mobgap.signal_based import RMS
+
+    data = pd.DataFrame({"gyr_is": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0]})
+    turns = pd.DataFrame(
+        {"start": [0, 3], "end": [3, 6], "duration_s": [0.3, 0.3]}, index=pd.Index([4, 8], name="turn_id")
+    )
+    result = MobilisedSDMO(calculators=(("rms", RMS(gyr_columns=["gyr_is"])), ("turn", TurnSDMO()))).calculate(
+        data, sampling_rate_hz=10, turn_list=turns
+    )
+    assert len(result.signal_based_parameters_) == 1
+    assert result.per_turn_parameters_.index.tolist() == [4, 8]
+    assert result.per_turn_parameters_.turn_peak_ang_vel.tolist() == [2.0, 3.0]
+    assert not any(c.startswith("turn_") for c in result.signal_based_parameters_)

@@ -50,15 +50,15 @@
     "data":[
         {
             "index":0,
-            "step_regularity_is":0.4216094991,
-            "stride_regularity_is":0.1782189226,
-            "asymmetry_mn_is":1.3656831328,
-            "symmetry_k_is":0.8115339911,
-            "asymmetry_g_is":-0.1216952882,
-            "step_regularity_pa":0.1381937535,
-            "stride_regularity_pa":0.0618330304,
-            "step_regularity_ml":0.4964548772,
-            "stride_regularity_ml":0.1419691942
+            "step_regularity_is":0.1986400494,
+            "stride_regularity_is":0.0713882131,
+            "asymmetry_mn_is":1.7825328678,
+            "symmetry_k_is":0.9425075367,
+            "asymmetry_g_is":-0.0636259181,
+            "step_regularity_pa":0.2677020058,
+            "stride_regularity_pa":0.0677619637,
+            "step_regularity_ml":0.0732209159,
+            "stride_regularity_ml":0.1609909655
         }
     ]
 }

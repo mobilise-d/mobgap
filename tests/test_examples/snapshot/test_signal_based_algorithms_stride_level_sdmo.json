@@ -6,11 +6,7 @@
                 "type":"integer"
             },
             {
-                "name":"cv_length_m",
-                "type":"number"
-            },
-            {
-                "name":"cv_duration_s",
+                "name":"cv_speed_mps",
                 "type":"number"
             }
         ],
@@ -22,8 +18,7 @@
     "data":[
         {
             "index":0,
-            "cv_length_m":38.0132669,
-            "cv_duration_s":24.9090218786
+            "cv_speed_mps":39.703173073
         }
     ]
 }

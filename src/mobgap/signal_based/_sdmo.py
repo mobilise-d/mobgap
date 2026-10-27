@@ -10,32 +10,41 @@ from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.data_transform import Resample
-from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
+from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, base_sdmo_docfiller
 
 
 @base_sdmo_docfiller
 class TurnSDMO(BaseSDMOCalculator):
     """Extract various features from the angular velocity signal around the Yaw axis during turns.
 
-    `turn_mean_ang_vel` is the duration-weighted mean of the absolute mean angular velocity per turn,
-    equivalent to the grand mean of |ω| over all turn samples.
-    `turn_peak_ang_vel` is the unweighted mean of the per-turn peak absolute angular velocity.
-    `turn_smoothness` is the unweighted mean of the per-turn log dimensionless jerk (LDLJ-V) of the
-    angular velocity signal. Higher values indicate smoother turns.
+    Each row describes one turn. ``turn_mean_ang_vel`` is abs(mean(yaw)) and ``turn_peak_ang_vel`` is
+    max(abs(yaw)), in degrees/s. ``turn_smoothness`` is dimensionless angular LDLJ over that individual turn,
+    with the current mean-centered peak normalization. Negative values are expected. Turn duration can dominate
+    smoothness differences between different-length turns; see :class:`LogDimensionlessJerk`.
+    No averaging, walking-bout percentage or recording summary is calculated.
 
     Other Parameters
     ----------------
     %(data_param)s
     %(sampling_rate_param)s
     turn_list
-        The turn list associated with the ``data`` passed to the ``calculate`` method.
+        The turn list associated with ``data``, with half-open start/end sample positions. ``data`` requires ``gyr_is``.
 
     Attributes
     ----------
-    %(signal_based_parameters_)s
+    per_turn_parameters_
+        One row per supplied turn, indexed as ``turn_list`` with all original metadata and three turn features.
+        Start/end are half-open sample positions relative to ``data``; the pipeline supplies recording-local values.
+        An empty input produces the same metadata schema with empty feature columns. Smoothness requires at least
+        three samples; constant yaw has undefined smoothness. Mean and peak require a nonempty interval.
+    signal_based_parameters_
+        Empty. Turn outcomes are available only in ``per_turn_parameters_``.
     %(perf_)s
 
     """
+
+    result_level = "turn"
+    per_turn_parameters_: pd.DataFrame
 
     @timed_action_method
     @base_sdmo_docfiller
@@ -49,37 +58,34 @@ class TurnSDMO(BaseSDMOCalculator):
         %(data_param)s
         %(sampling_rate_param)s
         turn_list
-            The turn list associated with the ``data`` passed to the ``calculate`` method.
+            The turn list associated with ``data``, with half-open start/end sample positions.
+            ``data`` requires ``gyr_is``.
 
-        %(calculate_return)s
+        Returns
+        -------
+        self
+            The instance with ``per_turn_parameters_`` set.
 
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.turn_list = turn_list
         self.signal_based_parameters_ = pd.DataFrame()
+        self.per_turn_parameters_ = _empty_turn_parameters(turn_list)
         if turn_list is None or turn_list.empty:
             return self
-        turn_list = turn_list.copy()
         gyr = data["gyr_is"].to_numpy()
-        means, maxs, smoothness, durations = [], [], [], []
-        for start, end, dur in turn_list[["start", "end", "duration_s"]].itertuples(index=False):
+        rows = []
+        for start, end in turn_list[["start", "end"]].itertuples(index=False):
             seg = gyr[int(start) : int(end)]
-            means.append(np.abs(seg.mean()))
-            maxs.append(np.max(np.abs(seg)))
-            smoothness.append(_log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0])
-            durations.append(float(dur))
-
-        turn_params = {
-            "turn_mean_ang_vel": _weighted_nanmean(means, durations),
-            "turn_peak_ang_vel": _nanmean(maxs),
-            "turn_smoothness": _nanmean(smoothness),
-        }
-
-        wb_dur = (len(data) - 1) / sampling_rate_hz
-        turn_dur = turn_list["duration_s"].sum()
-        turn_params["turn_dur_percentage_from_wb_dur"] = 100 * (turn_dur / wb_dur)
-        self.signal_based_parameters_ = pd.DataFrame([turn_params])
+            rows.append(
+                {
+                    "turn_mean_ang_vel": np.abs(seg.mean()),
+                    "turn_peak_ang_vel": np.max(np.abs(seg)),
+                    "turn_smoothness": _log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0],
+                }
+            )
+        self.per_turn_parameters_ = turn_list.join(pd.DataFrame(rows, index=turn_list.index))
         return self
 
 
@@ -989,6 +995,9 @@ class HarmonicRatio(BaseSDMOCalculator):
 class SDRange(BaseSDMOCalculator):
     """Calculate standard deviation of acceleration and gyroscope signals and range of acceleration signals.
 
+    SD is the sample standard deviation (ddof=1); range is maximum minus minimum. Acceleration outputs are in
+    m/s² and gyroscope SD in degrees/s, without hidden unit conversion.
+
     Other Parameters
     ----------------
     %(data_param)s
@@ -1274,20 +1283,3 @@ def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
 
 def _pd_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     return pd.Series(y).rolling(span, center=True, min_periods=1).mean().to_numpy()
-
-
-def _nanmean(values: np.ndarray | list[float]) -> float:
-    """Mean of finite values, ignoring NaNs. Returns NaN if no finite values."""
-    values = np.asarray(values, dtype=float)
-    finite = values[np.isfinite(values)]
-    return float(np.mean(finite)) if finite.size else np.nan
-
-
-def _weighted_nanmean(values: np.ndarray | list[float], weights: np.ndarray | list[float]) -> float:
-    """Weighted mean of finite values with finite positive weights. NaN otherwise."""
-    values = np.asarray(values, dtype=float)
-    weights = np.asarray(weights, dtype=float)
-    mask = np.isfinite(values) & np.isfinite(weights) & (weights > 0)
-    if not mask.any():
-        return np.nan
-    return float(np.average(values[mask], weights=weights[mask]))
