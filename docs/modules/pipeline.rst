@@ -107,6 +107,7 @@ Gait Sequence Iteration
    :template: class.rst
 
     GsIterator
+    SdmoIterator
 
 .. autosummary::
    :toctree: generated/pipeline
@@ -133,4 +134,5 @@ Datatypes
    :template: class.rst
 
     FullPipelinePerGsResult
+    SdmoResult
 
