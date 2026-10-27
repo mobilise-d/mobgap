@@ -135,12 +135,10 @@ def test_composite_keeps_turn_rows_separate_from_bout_values():
 class _ExtraTurnFeature(BaseSDMOCalculator):
     result_level = "turn"
 
-    def calculate(self, data, sampling_rate_hz, turn_list, **kwargs):
+    def calculate(self, data, sampling_rate_hz, **kwargs):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.turn_list = turn_list
-        self.signal_based_parameters_ = pd.DataFrame()
-        self.per_turn_parameters_ = turn_list.assign(sample_count=turn_list.end - turn_list.start)
+        self.signal_based_parameters_ = pd.Series({"sample_count": len(data)})
         return self
 
 

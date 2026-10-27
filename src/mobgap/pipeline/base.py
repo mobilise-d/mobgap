@@ -102,9 +102,9 @@ mobilised_pipeline_docfiller = make_filldoc(
     sdmo_calculation
         A signal-based calculator or MobilisedSDMO composite. Calculators with result_level="wb" run on each full
         accepted WB with WB-local stride and contained-turn metadata. Their results are concatenated in
-        ``per_wb_signal_based_parameters_``. Calculators with result_level="turn" run once on the recording signal
-        with all existing gait-sequence turn detections and recording-local intervals. Their individual rows are
-        available in ``per_turn_parameters_`` and never enter WB aggregation.
+        ``per_wb_signal_based_parameters_``. Calculators with result_level="turn" receive one full detected turn
+        window at a time. The pipeline assembles their Series results with existing turn metadata and recording-local
+        intervals in ``per_turn_parameters_``. Turn rows never enter WB aggregation.
     """,
         "aggregation_parameters": """
     dmo_thresholds

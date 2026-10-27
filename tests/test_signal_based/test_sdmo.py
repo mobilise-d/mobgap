@@ -44,7 +44,10 @@ class TestMetaTurnSDMO(TestAlgorithmMixin):
     @pytest.fixture
     def after_action_instance(self, example_walking_bout):
         data, stride_list, turn_list, sampling_rate_hz = example_walking_bout
-        return self.ALGORITHM_CLASS().calculate(data, sampling_rate_hz=sampling_rate_hz, turn_list=turn_list)
+        turn = turn_list.iloc[0]
+        return self.ALGORITHM_CLASS().calculate(
+            data.iloc[int(turn.start) : int(turn.end)], sampling_rate_hz=sampling_rate_hz
+        )
 
 
 class TestMetaStrideLevelSDMO(TestAlgorithmMixin):
@@ -165,67 +168,29 @@ def test_result_attributes_are_created_by_calculate(algorithm):
 
 
 class TestTurnSDMO:
-    def test_result_is_created_by_calculate(self):
-        algo = TurnSDMO()
+    def test_empty_window_returns_empty_series(self):
+        result = TurnSDMO().calculate(pd.DataFrame({"gyr_is": []}), sampling_rate_hz=100)
+        pd.testing.assert_series_equal(result.signal_based_parameters_, pd.Series(dtype=float))
 
-        assert not hasattr(algo, "per_turn_parameters_")
+    @pytest.mark.parametrize("yaw,mean,peak", [([-3.0, -1.0, 1.0, 3.0], 0.0, 3.0), ([2.0, 2.0, 6.0, 6.0], 4.0, 6.0)])
+    def test_one_window_retains_all_turn_values_and_signed_mean(self, yaw, mean, peak):
+        row = TurnSDMO().calculate(pd.DataFrame({"gyr_is": yaw}), sampling_rate_hz=10).signal_based_parameters_
+        assert row["turn_mean_ang_vel"] == mean
+        assert row["turn_peak_ang_vel"] == peak
+        assert "turn_smoothness" in row.index
+        if mean == 0:
+            assert np.isnan(row["turn_smoothness"])
 
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS),
-            sampling_rate_hz=100,
-            turn_list=pd.DataFrame(),
-        )
-        assert result.per_turn_parameters_.empty
-
-    def test_no_turns(self):
-        algo = TurnSDMO()
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(1000, 6), columns=BF_SENSOR_COLS),
-            sampling_rate_hz=100,
-            turn_list=pd.DataFrame([]),
-        )
-        assert result is algo
-        assert result.per_turn_parameters_.empty
-
-    def test_pipe_data(self):
-        data = [[0, 20, 72, 0.51, -52.0, "right"]]
-        columns = ["turn_id", "start", "end", "duration_s", "angle_deg", "direction"]
-        turn_list = pd.DataFrame(data, columns=columns).set_index("turn_id")
-        algo = TurnSDMO()
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100, turn_list=turn_list
-        )
-        row = result.per_turn_parameters_.iloc[0]
-        assert not np.isnan(row["turn_mean_ang_vel"])
-        assert not np.isnan(row["turn_peak_ang_vel"])
-        assert np.isfinite(row["turn_smoothness"])
-
-    @pytest.mark.parametrize("turn_ids", [[7, 9], [0, 0]])
-    def test_individual_turn_rows_preserve_identity_metadata_and_signed_mean(self, turn_ids):
-        turns = pd.DataFrame(
-            {
-                "start": [0, 4],
-                "end": [4, 8],
-                "duration_s": [0.4, 0.4],
-                "angle_deg": [0.0, 16.0],
-                "direction": ["left", "right"],
-            },
-            index=pd.Index(turn_ids, name="turn_id"),
-        )
-        result = TurnSDMO().calculate(
-            pd.DataFrame({"gyr_is": [-3.0, -1.0, 1.0, 3.0, 2.0, 2.0, 6.0, 6.0]}), sampling_rate_hz=10, turn_list=turns
-        )
-        out = result.per_turn_parameters_
-        pd.testing.assert_frame_equal(out[turns.columns], turns)
-        assert out.turn_mean_ang_vel.tolist() == [0.0, 4.0]
-        assert out.turn_peak_ang_vel.tolist() == [3.0, 6.0]
-        assert np.isnan(out.iloc[0]["turn_smoothness"])
-        assert result.signal_based_parameters_.empty
+    @pytest.mark.parametrize("yaw,mean,peak", [([2.0], 2.0, 2.0), ([2.0, 4.0], 3.0, 4.0), ([2.0] * 4, 2.0, 2.0)])
+    def test_short_or_constant_turn_retains_velocities_with_undefined_smoothness(self, yaw, mean, peak):
+        row = TurnSDMO().calculate(pd.DataFrame({"gyr_is": yaw}), sampling_rate_hz=10).signal_based_parameters_
+        assert row.turn_mean_ang_vel == mean
+        assert row.turn_peak_ang_vel == peak
+        assert np.isnan(row.turn_smoothness)
 
     def test_turn_smoothness_is_angular_ldlj(self):
         data = pd.DataFrame({"gyr_is": [999.0, *((np.arange(11) / 10) ** 2), 999.0]})
-        turns = pd.DataFrame({"start": [1], "end": [12], "duration_s": [1.1]})
-        row = TurnSDMO().calculate(data, sampling_rate_hz=10, turn_list=turns).per_turn_parameters_.iloc[0]
+        row = TurnSDMO().calculate(data.iloc[1:12], sampling_rate_hz=10).signal_based_parameters_
         assert row.turn_smoothness == pytest.approx(-np.log(3.35 / 0.65**2))
 
 

@@ -10,82 +10,60 @@ from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
 from mobgap.data_transform import Resample
-from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, base_sdmo_docfiller
+from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
 
 
 @base_sdmo_docfiller
 class TurnSDMO(BaseSDMOCalculator):
-    """Extract various features from the angular velocity signal around the Yaw axis during turns.
+    """Calculate angular-velocity outcomes for one already-sliced turn window.
 
-    Each row describes one turn. ``turn_mean_ang_vel`` is abs(mean(yaw)) and ``turn_peak_ang_vel`` is
-    max(abs(yaw)), in degrees/s. ``turn_smoothness`` is dimensionless angular LDLJ over that individual turn,
-    with the current mean-centered peak normalization. Negative values are expected. Turn duration can dominate
-    smoothness differences between different-length turns; see :class:`LogDimensionlessJerk`.
-    No averaging, walking-bout percentage or recording summary is calculated.
+    The caller supplies correctly oriented body-frame data containing exactly the turn to analyze. No turn table,
+    interval selection, metadata assembly, WB percentage or averaging across turns is performed here.
+    ``turn_mean_ang_vel`` is abs(mean(yaw)), while ``turn_peak_ang_vel`` is max(abs(yaw)), both in degrees/s.
+    ``turn_smoothness`` is dimensionless angular LDLJ over this full window, with mean-centered peak normalization.
+    Negative values are expected. Duration can dominate smoothness differences between different-length turns;
+    see :class:`LogDimensionlessJerk`. Smoothness requires at least three samples and is undefined for constant yaw.
+    Empty data produces an empty Series.
 
     Other Parameters
     ----------------
     %(data_param)s
     %(sampling_rate_param)s
-    turn_list
-        The turn list associated with ``data``, with half-open start/end sample positions. ``data`` requires ``gyr_is``.
 
     Attributes
     ----------
-    per_turn_parameters_
-        One row per supplied turn, indexed as ``turn_list`` with all original metadata and three turn features.
-        Start/end are half-open sample positions relative to ``data``; the pipeline supplies recording-local values.
-        An empty input produces the same metadata schema with empty feature columns. Smoothness requires at least
-        three samples; constant yaw has undefined smoothness. Mean and peak require a nonempty interval.
-    signal_based_parameters_
-        Empty. Turn outcomes are available only in ``per_turn_parameters_``.
+    %(signal_based_parameters_)s
     %(perf_)s
-
     """
 
     result_level = "turn"
-    per_turn_parameters_: pd.DataFrame
 
     @timed_action_method
     @base_sdmo_docfiller
-    def calculate(
-        self, data: pd.DataFrame, sampling_rate_hz: float, turn_list: pd.DataFrame, **_kwargs: Unpack[dict[str, Any]]
-    ) -> Self:
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
         %(data_param)s
         %(sampling_rate_param)s
-        turn_list
-            The turn list associated with ``data``, with half-open start/end sample positions.
-            ``data`` requires ``gyr_is``.
 
-        Returns
-        -------
-        self
-            The instance with ``per_turn_parameters_`` set.
-
+        %(calculate_return)s
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.turn_list = turn_list
-        self.signal_based_parameters_ = pd.DataFrame()
-        self.per_turn_parameters_ = _empty_turn_parameters(turn_list)
-        if turn_list is None or turn_list.empty:
+        self.signal_based_parameters_ = pd.Series(dtype=float)
+        if data.empty:
             return self
-        gyr = data["gyr_is"].to_numpy()
-        rows = []
-        for start, end in turn_list[["start", "end"]].itertuples(index=False):
-            seg = gyr[int(start) : int(end)]
-            rows.append(
-                {
-                    "turn_mean_ang_vel": np.abs(seg.mean()),
-                    "turn_peak_ang_vel": np.max(np.abs(seg)),
-                    "turn_smoothness": _log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0],
-                }
-            )
-        self.per_turn_parameters_ = pd.concat([turn_list, pd.DataFrame(rows, index=turn_list.index)], axis=1)
+        yaw = data["gyr_is"].to_numpy()
+        self.signal_based_parameters_ = pd.Series(
+            {
+                "turn_mean_ang_vel": np.abs(yaw.mean()),
+                "turn_peak_ang_vel": np.max(np.abs(yaw)),
+                "turn_smoothness": _log_dimensionless_jerk(yaw[:, None], sampling_rate_hz, derivative_order=2)[0],
+            },
+            dtype=float,
+        )
         return self
 
 

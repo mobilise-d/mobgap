@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Window-based secondary outcome calculators return a Series indexed by parameter name, containing all values
-  for the supplied signal window. Callers assemble results across windows.
+  for the supplied signal window. `TurnSDMO` receives one prepared turn window directly; callers retain metadata
+  and assemble results across windows. Bulk composition and pipeline callers assemble `per_turn_parameters_` tables.
+  Full pipelines preserve detected turn identities, recording-local coordinates and optional WB association. There are no
+  per-WB turn summaries or automatic recording-level turn summaries.
 - Add `RegionIterator` to assemble typed Series results from arbitrary signal regions into DataFrames while
   preserving the source table's full index. Signal preparation and metadata access remain explicit in the loop.
 - Add `mobgap.utils.intervals.map_intervals_to_regions` for full interval containment and
@@ -115,14 +118,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `HarmonicRatioFourier` provides an opt-in per-stride Fourier-amplitude method with distinct
   `harmonic_ratio_fourier_acc_{is,pa,ml}` outputs and arithmetic averaging of stride ratios. The existing
   `HarmonicRatio` remains the default, allowing both estimators to be calculated together.
-
-### Changed
-
-- **Breaking SDMO migration:** `TurnSDMO`, `MobilisedSDMO` and the full Mobilise-D pipelines now expose individual
-  turn records through `per_turn_parameters_`. Read turn outcomes there instead of the WB tables. All per-WB turn
-  metrics, including `turn_dur_percentage_from_wb_dur`, and automatic recording-level turn summaries are removed.
-  Full pipelines preserve all existing gait-sequence turn detections with recording-local coordinates and a nullable
-  `wb_id` for uniquely contained turns. Detection coverage and per-turn formulas are unchanged.
 
 ### Fixed
 

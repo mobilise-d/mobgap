@@ -200,20 +200,20 @@ The RMS jerk ratios deliberately remain different from MATLAB's differences of L
 reported without inferring an aggregation rule from an unavailable MATLAB caller. No MATLAB files are repaired;
 MATLAB-only outcomes remain outside this change.
 
-## Turn result migration
+## Turn outcomes
 
-`TurnSDMO` and `MobilisedSDMO` expose `per_turn_parameters_`. Read turn values from this table instead of
-`signal_based_parameters_`. The latter contains only bout-level values and is empty for a turn-only configuration.
-All per-WB turn outputs have been removed, including `turn_dur_percentage_from_wb_dur`. There are no automatic
-recording-level turn summaries. Previous cohort lists below omit those removed summaries.
+`TurnSDMO.calculate` consumes one already-sliced, correctly oriented turn window and returns a
+`signal_based_parameters_` Series indexed by parameter name. The caller selects half-open start/end intervals,
+keeps turn identity and metadata, and assembles the per-turn table. No per-WB turn percentage or automatic
+recording-level turn summary is calculated.
 
-Each row retains the input turn ID/index and start/end, duration, direction and angle metadata as available, plus
-`turn_mean_ang_vel = abs(mean(yaw))`, `turn_peak_ang_vel = max(abs(yaw))`, both in degrees/s, and `turn_smoothness`,
-angular LDLJ over that individual interval. Mean yaw is not the mean of absolute yaw when yaw changes sign.
-Smoothness is dimensionless, may be negative, and depends strongly on the individual turn duration.
-Start/end are half-open sample positions relative to the supplied signal; they require a nonempty interval, with
-at least three samples for smoothness. Constant yaw has undefined smoothness. Empty input returns an empty table
-with metadata and feature columns.
+The parameters are `turn_mean_ang_vel = abs(mean(yaw))`, `turn_peak_ang_vel = max(abs(yaw))`, both in degrees/s,
+and `turn_smoothness`, angular LDLJ over the entire supplied turn. Mean yaw is not the mean of absolute yaw when
+its sign changes. Smoothness is dimensionless, may be negative and depends strongly on turn duration. It needs
+at least three samples and is undefined for constant yaw. Empty data returns an empty Series.
+
+The existing `MobilisedSDMO` composition keeps its bulk `per_turn_parameters_` table, with metadata, by slicing
+turn windows before calling individual calculators. This table is assembled by the caller, not by `TurnSDMO`.
 
 The full pipeline exposes the same `per_turn_parameters_` with recording-local intervals and the existing
 `(gs_id, turn_id)` detector index. It retains every turn already detected within gait sequences, including turns

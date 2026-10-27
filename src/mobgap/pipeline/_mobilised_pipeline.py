@@ -23,6 +23,7 @@ from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobili
 from mobgap.re_orientation import ReorientationMethodDM  # noqa: F401
 from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.signal_based import MobilisedSDMO
+from mobgap.signal_based._mobilised_sdmo import _calculate_turn_parameters
 from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, _turn_metadata
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
@@ -444,13 +445,16 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     def _calculate_per_turn_sdmos(self, imu_data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
         calculator = self._get_sdmo_calculator("turn")
-        result = (
-            calculator.calculate(
+        if isinstance(calculator, BaseSDMOCalculator):
+            result = _calculate_turn_parameters(
+                imu_data, self.raw_turn_list_, (("turn", calculator),), sampling_rate_hz=sampling_rate_hz
+            )
+        elif calculator is not None:
+            result = calculator.calculate(
                 imu_data, sampling_rate_hz=sampling_rate_hz, turn_list=self.raw_turn_list_
             ).per_turn_parameters_
-            if calculator is not None
-            else _empty_turn_parameters(self.raw_turn_list_)
-        )
+        else:
+            result = _empty_turn_parameters(self.raw_turn_list_)
         if result.empty:
             result.index = pd.MultiIndex.from_arrays([[], []], names=["gs_id", "turn_id"])
         # Keep detector identity and recording-local intervals, even outside or across accepted WBs.

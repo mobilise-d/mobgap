@@ -60,7 +60,7 @@ data_in_wb_bf = to_body_frame(data_in_wb)
 # Although there might be some additional parameters in the algorithm init functions, the calculate methods are provided
 # ``**kwargs`` so that they can all be called and executed in the same manner. Note that you must explicitly provide
 # ``data`` argument to all algorithms.
-# The output (``signal_based_parameters_``) attribute contains the calculated parameters.
+# The output ``signal_based_parameters_`` is a Series containing all scalar parameters for one prepared window.
 # Below, we define the extra parameters and we provide examples to all algorithms.
 params = dict(
     stride_list=reference_strides,
@@ -76,9 +76,14 @@ from mobgap.signal_based import TurnSDMO
 
 turn = TurnSDMO()
 
-turn.calculate(data=data_in_wb_bf, **params)
+# Select one turn window explicitly. Metadata and iteration over turns belong to the caller.
+first_turn = reference_turns.iloc[0]
+turn.calculate(
+    data=data_in_wb_bf.iloc[int(first_turn.start) : int(first_turn.end)],
+    sampling_rate_hz=short_trial.sampling_rate_hz,
+)
 
-turn.per_turn_parameters_
+turn.signal_based_parameters_
 
 # %%
 # the :class:`.StrideLevelSDMO` algorithm calculates parameters related to the stride parameters.

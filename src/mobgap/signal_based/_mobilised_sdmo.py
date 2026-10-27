@@ -138,18 +138,37 @@ class MobilisedSDMO(Pipeline):
             "turn_list": turn_list,
             **kwargs,
         }
-        results = []
-        turn_results = []
-        for _name, calculator in self.calculators:
-            calculator_ = calculator.clone().calculate(data, **params)
-            if calculator.result_level == "turn":
-                turn_results.append(calculator_.per_turn_parameters_)
-            else:
-                results.append(calculator_.signal_based_parameters_)
+        results = [
+            calculator.clone().calculate(data, **params).signal_based_parameters_
+            for _name, calculator in self.calculators
+            if calculator.result_level != "turn"
+        ]
         self.signal_based_parameters_ = pd.concat(results) if results else pd.Series(dtype=float)
-        if turn_results:
-            metadata = _turn_metadata(turn_list)
-            self.per_turn_parameters_ = pd.concat(
-                [metadata, *(result.drop(columns=metadata.columns) for result in turn_results)], axis=1
-            )
+        self.per_turn_parameters_ = _calculate_turn_parameters(
+            data,
+            turn_list,
+            tuple((name, calc) for name, calc in self.calculators if calc.result_level == "turn"),
+            **{key: value for key, value in params.items() if key != "turn_list"},
+        )
         return self
+
+
+def _calculate_turn_parameters(
+    data: pd.DataFrame,
+    turn_list: Optional[pd.DataFrame],
+    calculators: tuple[tuple[str, BaseSDMOCalculator], ...],
+    **params: Any,
+) -> pd.DataFrame:
+    """Assemble single-window calculators for the existing bulk composition/pipeline interfaces."""
+    metadata = _turn_metadata(turn_list)
+    if metadata.empty or not calculators:
+        return _empty_turn_parameters(turn_list)
+    rows = []
+    for start, end in metadata[["start", "end"]].itertuples(index=False, name=None):
+        window = data.iloc[int(start) : int(end)]
+        rows.append(
+            pd.concat(
+                [calc.clone().calculate(window, **params).signal_based_parameters_ for _name, calc in calculators]
+            )
+        )
+    return pd.concat([metadata, pd.DataFrame(rows, index=metadata.index)], axis=1)

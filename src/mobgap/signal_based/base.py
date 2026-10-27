@@ -55,10 +55,9 @@ class BaseSDMOCalculator(Algorithm):
     This base class should be used for all SDMO calculation procedures.
     Algorithms should implement the ``calculate`` method.
     The method should return the instance of the class with the ``signal_based_parameters_`` attribute.
-    By default ``result_level="wb"`` selects the full accepted WB in the main pipeline. Turn calculators declare
-    ``result_level="turn"``, return their indexed metadata/features in ``per_turn_parameters_`` and leave the
-    ``signal_based_parameters_`` empty. They run once over all detected turns on the recording signal.
-    Turn calculators preserve the supplied turn-list index, row order and metadata, and use distinct feature names.
+    Every calculator consumes one prepared signal window and returns all of its scalar parameters in a Series.
+    Callers select windows, preserve interval metadata and assemble results. ``result_level`` identifies a calculator's
+    intended window kind for orchestration; it does not make the calculator select or iterate windows itself.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     Subclasses may specify further parameters for their calculate methods because individual signal-based parameters
@@ -69,8 +68,6 @@ class BaseSDMOCalculator(Algorithm):
     %(data_param)s
     %(sampling_rate_param)s
     %(stride_list_param)s
-    turn_list
-        The turn list associated with the ``data`` passed to the ``calculate`` method.
     replicate_matlab
         If True, use MATLAB-compatible smoothing, otherwise the direct pandas-based moving average smoothing.
 

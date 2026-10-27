@@ -138,8 +138,8 @@ per_wb_sdmos
 # ------------------------
 # Every detected turn is processed, including turns outside accepted WBs. Its full identity remains
 # ``(gs_id, turn_id)``; we do not infer WB membership from the GS identifier.
-# TurnSDMO currently accepts a turn table, so supply the one turn spanning the prepared local window. Only its
-# outcome columns are assembled. Recording-local start/end and other metadata are joined back from the source.
+# TurnSDMO receives exactly one prepared turn window and returns its parameter Series. Recording-local start/end
+# and other metadata are joined back from the source after iteration.
 turn_calculator = TurnSDMO()
 turn_iterator = RegionIterator(OutcomeResult)
 for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
@@ -147,16 +147,10 @@ for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
     prepared = pipeline.per_gs_reorientation.apply_correction(
         window, correction
     )
-    local_turn = turns.loc[[turn.id]].drop(columns="orientation").copy()
-    local_turn.loc[:, "start"] = 0
-    local_turn.loc[:, "end"] = len(window)
     result.parameters = (
         turn_calculator.clone()
-        .calculate(
-            prepared, sampling_rate_hz=sampling_rate_hz, turn_list=local_turn
-        )
-        .per_turn_parameters_.drop(columns=local_turn.columns)
-        .iloc[0]
+        .calculate(prepared, sampling_rate_hz=sampling_rate_hz)
+        .signal_based_parameters_
     )
 
 per_turn_sdmos = turns.drop(columns="orientation").join(

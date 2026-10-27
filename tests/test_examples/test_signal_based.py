@@ -13,7 +13,7 @@ def test_signal_based_algorithms(snapshot):
         turn,
     )
 
-    snapshot.assert_match(turn.per_turn_parameters_, "turn_sdmo")
+    snapshot.assert_match(turn.signal_based_parameters_.to_frame().T, "turn_sdmo")
     snapshot.assert_match(stride_level.signal_based_parameters_.to_frame().T, "stride_level_sdmo")
     snapshot.assert_match(rms.signal_based_parameters_.to_frame().T, "rms_sdmo")
     snapshot.assert_match(regularity_symmetry.signal_based_parameters_.to_frame().T, "regularity_symmetry_sdmo")
