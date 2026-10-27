@@ -55,6 +55,15 @@ with raw first derivatives. The common RMS duration factor cancels, so the LDLJ 
 to these ratios. Window composition still affects them. Missing required axes produce no corresponding ratio;
 zero vertical jerk or other nonfinite ratios give NaN. These differ intentionally from MATLAB's differences of LDLJ.
 
+`SampleEntropy` defaults to 50 Hz internally. Resampling precedes entropy and the >200-sample threshold, so the
+minimum is more than 4 s, not 200 steps. At this rate adjacent samples are 20 ms apart; `dim=2`, `r=0.15`,
+population-SD tolerance and inclusive Chebyshev matching are retained. Both lengths use the same N-dim extendible
+starting positions, excluding self matches. SampEn is `-ln(A/B)`, the ratio of matching pairs at lengths dim+1 and dim.
+No dim matches gives NaN; dim matches without extensions give positive infinity; constants give zero. Nonfinite axes
+and fewer than two extendible templates give NaN. Changing the sampling rate changes the physical time scale and
+therefore the statistic. The internal rate is deliberately different from the supplied native-rate MATLAB estimator.
+The corrected common pool can change existing Python values, independently of that rate difference.
+
 ## Recommended SDMOs Per-Cohort
 
 ### MS

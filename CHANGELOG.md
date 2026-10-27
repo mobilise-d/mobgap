@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Total acceleration RMS now requires all three anatomical axes to be configured and present. Partial-axis RMS
+  remains available; incomplete totals and their ratios are NaN. Gyro RMS remains uncentered.
+- Sample entropy now counts matches from the same extendible template pool at both lengths, excluding self matches.
+  Existing values can change. The default internal rate remains 50 Hz, with the threshold applied after resampling.
+
+
 ## [1.2.0] - 2026-04-01
 
 ### Added
