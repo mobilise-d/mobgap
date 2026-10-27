@@ -599,7 +599,7 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
                 continue
             values = data[column]
             amplitude, frequency, width = np.nan, np.nan, np.nan
-            if len(values) >= 2 and np.isfinite(values).all() and values.std() > 0:
+            if len(values) >= 2 and np.isfinite(values).all() and values.min() != values.max() and values.std() > 0:
                 values = (values - values.mean()) / values.std()
                 win_size = min(int(sampling_rate_hz * 2), len(values))
                 fft_length = 2 ** (int(np.ceil(np.log2(win_size))) + 1)
@@ -737,7 +737,7 @@ class SampleEntropy(BaseSDMOCalculator):
             )
             return self
 
-        accs = data[acc_columns]
+        accs = data[acc_columns].astype(float)
         if sampling_rate_hz != self.internal_sampling_rate_hz:
             accs = (
                 Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
