@@ -782,9 +782,10 @@ class HarmonicRatio(BaseSDMOCalculator):
     a measure of gait smoothness developed to discriminate between walking patterns of individuals with and without
     stability problems [1]_. A larger ratio represents a smoother gait pattern.
 
-    Stride time defines the fundamental frequency. We calculate the first 20 harmonic coefficients using a finite
-    Fourier transform, normalise them by the fundamental amplitude, average the coefficients across strides, and then
-    compute the ratio of even to odd harmonics.
+    Each supplied stride uses its own half-open start/end boundaries relative to the input signal, including strides
+    from both feet. Stride time defines the fundamental frequency. We calculate the first 20 harmonic coefficients
+    using a finite Fourier transform, normalise them by the fundamental amplitude, average the coefficients across
+    strides, and then compute the ratio of even to odd harmonics.
 
     The vertical and antero-posterior acceleration components have biphasic patterns (two cycles per stride). Thus,
     even harmonics dominate, and HR should be > 1. The medio-lateral component has a monophasic pattern (one cycle
@@ -812,8 +813,8 @@ class HarmonicRatio(BaseSDMOCalculator):
     - To avoid picking the wrong fundamental (e.g., DC or high-frequency noise), the search for the fundamental
     frequency was restricted to 0.5-3.0 Hz for IS/AP axes and 0.25-1.5 Hz for the ML axis. The original paper did not
     specify such bands.
-    - An optional adjustment of the stride end point is performed to align with a similar acceleration value, reducing
-    spectral leakage caused by amplitude mismatch at stride boundaries. This heuristic is not described in the paper.
+    - Each supplied stride is sliced directly using its half-open start/end sample positions relative to data.
+    No contact-offset subtraction, pairing of alternating starts or endpoint adjustment is performed.
     - In the paper, the harmonic ratio was calculated per stride and then averaged across strides. Here, the harmonic
     coefficients are averaged across strides first, and then the ratio is computed from the averaged coefficients. This
     differs mathematically but should produce similar results in practice.
@@ -854,13 +855,12 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.signal_based_parameters_ = pd.DataFrame()
         if stride_list is None or stride_list.empty:
             return self
-        ic_list = (stride_list["start"] - stride_list["start"].iloc[0]).to_numpy()
-        acc_columns = [c for c in self.acc_columns if c in data.columns]
+        acc_columns = [c for c in self.acc_columns or [] if c in data.columns]
         hr_results = {}
-        if len(ic_list) < 3 or not acc_columns:
+        if not acc_columns:
             return self
 
-        stride_pairs = list(zip(ic_list[::2], ic_list[2::2]))
+        stride_pairs = list(stride_list[["start", "end"]].itertuples(index=False, name=None))
 
         for col_name in acc_columns:
             hr_val = self._process_single_accelerometer(data[col_name], stride_pairs, sampling_rate_hz)
@@ -877,12 +877,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         gait_band = (0.25, 1.5) if is_ml else (0.5, 3.0)
 
         for stride_idx, (start, end) in enumerate(stride_pairs):
-            # adjust endpoint
-            current_end = self._adjust_ic_endpoint(acc, start, end)
-            if start >= current_end:
-                continue  # skip invalid stride
-
-            stride_data = acc[start : current_end + 1] - np.mean(acc[start : current_end + 1])
+            stride_data = acc[start:end] - np.mean(acc[start:end])
             fft_vals, fft_freqs = self._compute_fft_spectrum(stride_data, sampling_rate_hz)
 
             fundamental_idx, fundamental_amp = self._find_fundamental(fft_vals, fft_freqs, gait_band)
@@ -908,18 +903,6 @@ class HarmonicRatio(BaseSDMOCalculator):
             even_sum = np.nansum(avg[1::2])
             odd_sum = np.nansum(avg[0::2])
         return even_sum / odd_sum if odd_sum else np.nan
-
-    @staticmethod
-    def _adjust_ic_endpoint(acc: np.ndarray, start: int, end: int) -> int:
-        """Flex IC end point to eliminate high-frequency noise from amplitude mismatch."""
-        current_end = end
-        start_points_in_data = np.where((acc[:-1] < acc[start]) & (acc[1:] >= acc[start]))[0]
-        if start_points_in_data.size:
-            new_end = start_points_in_data[np.argmin(np.abs(start_points_in_data - current_end))]
-            stride_len = end - start + 1
-            if (current_end - new_end) <= 0.1 * stride_len:
-                current_end = new_end
-        return current_end
 
     @staticmethod
     def _compute_fft_spectrum(stride_data: np.ndarray, sampling_rate_hz: float) -> tuple[np.ndarray, np.ndarray]:
