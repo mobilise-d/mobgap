@@ -466,3 +466,31 @@ def test_single_turn_calculator_preserves_all_detected_turns():
     assert len(result.per_turn_parameters_) == len(result.raw_turn_list_)
     assert result.per_turn_parameters_.turn_peak_ang_vel.notna().all()
     assert list(result.per_wb_signal_based_parameters_) == ["duration_s"]
+
+
+def test_sdmo_aggregation_is_independent_of_primary_aggregation():
+    from mobgap.signal_based import RMS
+
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(dmo_aggregation=None, sdmo_calculation=RMS(gyr_columns=["gyr_is"])).run(dataset)
+    assert result.dmo_aggregation_ is None
+    assert result.sdmo_aggregation_ is not None
+    pd.testing.assert_frame_equal(result.aggregated_parameters_, result.sdmo_aggregation_.aggregated_data_)
+    assert result.aggregated_parameters_.loc["all_wbs", "all__rms_gyr_is__median"] > 0
+
+
+def test_disabling_both_aggregators_returns_no_aggregated_result():
+    from mobgap.signal_based import RMS
+
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(
+        dmo_aggregation=None, sdmo_aggregation=None, sdmo_calculation=RMS(gyr_columns=["gyr_is"])
+    ).run(dataset)
+    assert result.aggregated_parameters_ is None
+    assert result.dmo_aggregation_ is None
+    assert result.sdmo_aggregation_ is None
+    assert not result.per_wb_signal_based_parameters_.empty

@@ -82,6 +82,20 @@ NaN if a crossing is absent or outside the band. A pure tone has nonzero finite-
 axes are omitted; constant, nonfinite or fewer-than-two-sample axes and absent peaks give NaN outputs. Each axis
 works independently. No slopes or alternate spectral estimator are introduced.
 
+## Aggregation and validation limits
+
+`SDMOAggregator` summarizes the distribution of per-WB values with equal weight per contributing bout and NaNs
+omitted separately for each metric. SD is sample SD. Duration groups use exclusive lower and inclusive upper bounds.
+These statistics are bout-summary distributions, not pooled whole-recording features. The pipeline does not pass
+primary-DMO validity masks to SDMO aggregation. Setting `dmo_aggregation=None` allows configured SDMO aggregation
+to proceed independently; disabling both aggregators gives `aggregated_parameters_=None`. A turn-only configuration
+has no WB outcomes to aggregate. No new QC thresholds, missing-IC repair or clinical weighting are applied.
+
+The historical cohort recommendations below describe research outcomes. Passing software checks does not establish
+clinical validity for these modified estimators or new cohorts, placements or protocols. Harmonic ratio and
+regularity/symmetry remain unchanged and deferred, including `replicate_matlab` smoothing. The supplied MATLAB
+PCI, step outcomes, slopes, missing helper and other MATLAB-only findings are outside this implementation.
+
 ## Turn result migration
 
 `TurnSDMO` and `MobilisedSDMO` expose `per_turn_parameters_`. Read turn values from this table instead of

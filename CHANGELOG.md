@@ -112,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Configured SDMO aggregation now proceeds when primary DMO aggregation is disabled. Existing SDMO bout weighting,
+  duration groups and masking behavior are retained; raw per-turn rows are never fed to WB aggregation.
+
 - Total acceleration RMS now requires all three anatomical axes to be configured and present. Partial-axis RMS
   remains available; incomplete totals and their ratios are NaN. Gyro RMS remains uncentered.
 - Spectral peak extraction now supports configured axes independently and local peaks on inclusive search-band

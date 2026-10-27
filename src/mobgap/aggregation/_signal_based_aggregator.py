@@ -34,6 +34,12 @@ class SDMOAggregator(BaseAggregator):
     and grouping columns. It computes the median, standard deviation, and 10th and 90th percentiles for each default
     duration group: all WBs, WBs greater than 10, 30, or 60 seconds, and the bounded 10-30 and 30-60 second groups.
 
+    Each contributing WB has equal weight in each metric; NaNs are omitted per metric. SD is sample SD (ddof=1).
+    These are distributions of bout summaries, not pooled signal estimates. Duration filters use an exclusive lower
+    and inclusive upper bound. The full pipeline passes no primary-DMO validity mask to this aggregator and permits
+    it to run independently of primary aggregation. It passes only non-turn WB outcomes; raw turn records belong in
+    ``per_turn_parameters_`` and are not inputs to this WB aggregator.
+
     Depending on available columns in the input data, calculated parameters will be added to a distinct column
     in the aggregated data.
 
