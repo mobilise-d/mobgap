@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SdmoIterator` to assemble one outcome row per WB or turn while preserving the source table's full index.
-  Window preparation and metadata access remain explicit in the loop.
+- Add `RegionIterator` to assemble typed Series results from arbitrary signal regions into DataFrames while
+  preserving the source table's full index. Signal preparation and metadata access remain explicit in the loop.
 - Add `mobgap.utils.intervals.map_intervals_to_regions` for full interval containment and
   `mobgap.re_orientation.get_orientation_for_sequences` to select method-specific corrections for walking bouts,
   turns, or other sequences. Partial overlaps with sections requiring correction raise an error.

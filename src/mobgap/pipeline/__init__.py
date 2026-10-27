@@ -13,7 +13,7 @@ from mobgap.pipeline._mobilised_pipeline import (
     MobilisedPipelineImpaired,
     MobilisedPipelineUniversal,
 )
-from mobgap.pipeline._sdmo_iterator import SdmoIterator, SdmoResult
+from mobgap.pipeline._region_iterator import RegionIterator
 
 __all__ = [
     "FullPipelinePerGsResult",
@@ -23,8 +23,7 @@ __all__ = [
     "MobilisedPipelineImpaired",
     "MobilisedPipelineUniversal",
     "Region",
-    "SdmoIterator",
-    "SdmoResult",
+    "RegionIterator",
     "create_aggregate_df",
     "iter_gs",
 ]

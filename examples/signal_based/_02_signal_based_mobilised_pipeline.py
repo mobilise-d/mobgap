@@ -4,7 +4,7 @@ Secondary outcomes after the primary pipeline
 
 Calculate secondary outcomes after detecting walking bouts and turns. The primary pipeline supplies accepted WBs,
 retained strides, detected turns and the recorded orientation corrections. Two explicit loops prepare the WB and turn
-signals, while :class:`~mobgap.pipeline.SdmoIterator` assembles one outcome row per window.
+signals, while :class:`~mobgap.pipeline.RegionIterator` assembles Series results into DataFrames.
 
 The iterator returns the existing ``Region`` type. Extra metadata, including the method-specific correction value,
 stays in the source DataFrame and is read by the region's identifier inside the loop.
@@ -18,7 +18,7 @@ stays in the source DataFrame and is read by the region's identifier inside the 
 # per-GS corrections. With per-GS reorientation, gait detection must support sensor-frame inputs.
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdIluzAdaptiveGravity
-from mobgap.pipeline import MobilisedPipelineHealthy, SdmoIterator
+from mobgap.pipeline import MobilisedPipelineHealthy, RegionIterator
 from mobgap.re_orientation import (
     ReorientationMethodDM,
     get_orientation_for_sequences,
@@ -94,8 +94,17 @@ turns = pipeline.raw_turn_list_.assign(
 # ---------------------
 # Select the non-turn calculators from the composition. The loop owns signal preparation and stride-coordinate
 # rebasing. Retain the full accepted WB signal, including turns and gaps between retained strides.
+from dataclasses import dataclass
+
 from mobgap.signal_based import MobilisedSDMO, TurnSDMO
 
+
+@dataclass
+class OutcomeResult:
+    parameters: pd.Series
+
+
+# The general iterator assembles each Series field into a DataFrame. The result type belongs to this example.
 wb_calculator = MobilisedSDMO(
     calculators=tuple(
         (name, calculator)
@@ -105,7 +114,7 @@ wb_calculator = MobilisedSDMO(
         if calculator.result_level == "wb"
     )
 )
-wb_iterator = SdmoIterator()
+wb_iterator = RegionIterator(OutcomeResult)
 for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
     correction = wbs.loc[wb.id, "orientation"]
     prepared = pipeline.per_gs_reorientation.apply_correction(
@@ -118,7 +127,7 @@ for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
         .calculate(
             prepared, sampling_rate_hz=sampling_rate_hz, stride_list=strides
         )
-        .signal_based_parameters_
+        .signal_based_parameters_.iloc[0]
     )
 
 per_wb_sdmos = wb_iterator.results_.parameters
@@ -132,7 +141,7 @@ per_wb_sdmos
 # TurnSDMO currently accepts a turn table, so supply the one turn spanning the prepared local window. Only its
 # outcome columns are assembled. Recording-local start/end and other metadata are joined back from the source.
 turn_calculator = TurnSDMO()
-turn_iterator = SdmoIterator()
+turn_iterator = RegionIterator(OutcomeResult)
 for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
     correction = turns.loc[turn.id, "orientation"]
     prepared = pipeline.per_gs_reorientation.apply_correction(
@@ -147,6 +156,7 @@ for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
             prepared, sampling_rate_hz=sampling_rate_hz, turn_list=local_turn
         )
         .per_turn_parameters_.drop(columns=local_turn.columns)
+        .iloc[0]
     )
 
 per_turn_sdmos = turns.drop(columns="orientation").join(
