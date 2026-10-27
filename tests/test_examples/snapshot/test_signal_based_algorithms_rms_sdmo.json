@@ -54,16 +54,16 @@
     "data":[
         {
             "index":0,
-            "rms_acc_is":1.5229194497,
-            "rms_acc_ml":0.7255224332,
-            "rms_acc_pa":2.0227146726,
-            "rms_gyr_is":14.4891588407,
-            "rms_gyr_ml":28.7661317277,
-            "rms_gyr_pa":7.5140610003,
-            "rms_total_acc":2.6338263227,
-            "rms_ratio_acc_is":0.5782155933,
-            "rms_ratio_acc_ml":0.2754632783,
-            "rms_ratio_acc_pa":0.7679757223
+            "rms_acc_is":1.441215362,
+            "rms_acc_ml":1.9203565412,
+            "rms_acc_pa":1.4654749487,
+            "rms_gyr_is":58.722457534,
+            "rms_gyr_ml":21.4225793616,
+            "rms_gyr_pa":24.6746449812,
+            "rms_total_acc":2.8129144655,
+            "rms_ratio_acc_is":0.512356625,
+            "rms_ratio_acc_ml":0.6826928315,
+            "rms_ratio_acc_pa":0.5209809849
         }
     ]
 }

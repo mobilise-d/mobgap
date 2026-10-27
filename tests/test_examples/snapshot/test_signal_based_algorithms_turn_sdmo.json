@@ -2,8 +2,35 @@
     "schema":{
         "fields":[
             {
-                "name":"index",
+                "name":"turn_id",
                 "type":"integer"
+            },
+            {
+                "name":"start",
+                "type":"integer"
+            },
+            {
+                "name":"end",
+                "type":"integer"
+            },
+            {
+                "name":"duration_s",
+                "type":"number"
+            },
+            {
+                "name":"angle_deg",
+                "type":"number"
+            },
+            {
+                "name":"direction",
+                "type":"any",
+                "constraints":{
+                    "enum":[
+                        "left",
+                        "right"
+                    ]
+                },
+                "ordered":false
             },
             {
                 "name":"turn_mean_ang_vel",
@@ -16,24 +43,35 @@
             {
                 "name":"turn_smoothness",
                 "type":"number"
-            },
-            {
-                "name":"turn_dur_percentage_from_wb_dur",
-                "type":"number"
             }
         ],
         "primaryKey":[
-            "index"
+            "turn_id"
         ],
         "pandas_version":"1.4.0"
     },
     "data":[
         {
-            "index":0,
-            "turn_mean_ang_vel":5.6741149022,
-            "turn_peak_ang_vel":39.4080371491,
-            "turn_smoothness":150.0493098754,
-            "turn_dur_percentage_from_wb_dur":3.9231601732
+            "turn_id":0,
+            "start":659,
+            "end":711,
+            "duration_s":0.51,
+            "angle_deg":-55.5411639121,
+            "direction":"right",
+            "turn_mean_ang_vel":29.8702731756,
+            "turn_peak_ang_vel":50.1108887621,
+            "turn_smoothness":-9.2464043902
+        },
+        {
+            "turn_id":1,
+            "start":710,
+            "end":950,
+            "duration_s":2.39,
+            "angle_deg":89.7691461458,
+            "direction":"left",
+            "turn_mean_ang_vel":65.2720682185,
+            "turn_peak_ang_vel":170.386189116,
+            "turn_smoothness":-13.4190667067
         }
     ]
 }

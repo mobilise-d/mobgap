@@ -99,6 +99,7 @@ class TestFullPipelineEdgeCases:
         result = MobilisedPipelineImpaired(sdmo_calculation=None).run(dataset)
 
         assert result.per_wb_signal_based_parameters_ is None
+        assert result.per_turn_parameters_ is None
         assert result.sdmo_calculation_ is None
         assert result.sdmo_aggregation_ is None
 
@@ -123,3 +124,65 @@ class TestFullPipelineEdgeCases:
         assert result.per_wb_signal_based_parameters_.empty
         assert result.sdmo_calculation_ is None
         assert result.sdmo_aggregation_ is None
+
+
+def test_turn_results_retain_all_gait_sequence_detections_without_accepted_wbs():
+    from mobgap.signal_based import MobilisedSDMO, TurnSDMO
+
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(
+        initial_contact_detection=_EmptyIcDetector(),
+        laterality_classification=_PassthroughLrc(),
+        sdmo_calculation=MobilisedSDMO(calculators=(("turn", TurnSDMO()),)),
+    ).run(dataset)
+    assert result.per_wb_parameters_.empty
+    assert len(result.raw_turn_list_) > 0
+    pd.testing.assert_frame_equal(result.per_turn_parameters_[result.raw_turn_list_.columns], result.raw_turn_list_)
+    assert result.per_turn_parameters_.wb_id.isna().all()
+    assert not any(c.startswith("turn_") for c in result.per_wb_signal_based_parameters_)
+    assert result.sdmo_aggregation_ is None
+
+
+def test_turn_results_preserve_detection_intervals_and_associate_containing_wbs():
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired().run(dataset)
+    turns = result.per_turn_parameters_
+    pd.testing.assert_frame_equal(turns[result.raw_turn_list_.columns], result.raw_turn_list_)
+    assert turns.index.is_unique
+    assert turns.wb_id.notna().any()
+    for turn in turns.itertuples():
+        wbs = result.per_wb_parameters_
+        contained = wbs[(wbs.start <= turn.start) & (wbs.end >= turn.end)]
+        if len(contained) == 1:
+            assert turn.wb_id == contained.index[0]
+        else:
+            assert pd.isna(turn.wb_id)
+    assert not any("turn_" in c for c in result.aggregated_parameters_)
+
+
+def test_single_sdmo_calculator_remains_supported():
+    from mobgap.signal_based import RMS
+
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(sdmo_calculation=RMS(gyr_columns=["gyr_is"])).run(dataset)
+    assert result.per_wb_signal_based_parameters_.rms_gyr_is.notna().all()
+    assert isinstance(result.sdmo_calculation_, RMS)
+    assert result.per_turn_parameters_.empty
+
+
+def test_single_turn_calculator_preserves_all_detected_turns():
+    from mobgap.signal_based import TurnSDMO
+
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(sdmo_calculation=TurnSDMO()).run(dataset)
+    assert len(result.per_turn_parameters_) == len(result.raw_turn_list_)
+    assert result.per_turn_parameters_.turn_peak_ang_vel.notna().all()
+    assert list(result.per_wb_signal_based_parameters_) == ["duration_s"]

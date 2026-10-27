@@ -1,6 +1,6 @@
 """Base class for signal-based digital mobility outcome calculations."""
 
-from typing import Any
+from typing import Any, ClassVar, Literal, Optional
 
 import pandas as pd
 from tpcp import Algorithm
@@ -55,6 +55,9 @@ class BaseSDMOCalculator(Algorithm):
     This base class should be used for all SDMO calculation procedures.
     Algorithms should implement the ``calculate`` method.
     The method should return the instance of the class with the ``signal_based_parameters_`` attribute.
+    By default ``result_level="wb"`` selects the full accepted WB in the main pipeline. Turn calculators declare
+    ``result_level="turn"``, return their indexed metadata/features in ``per_turn_parameters_`` and leave the
+    single-row ``signal_based_parameters_`` empty. They run once over all detected turns on the recording signal.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     Subclasses may specify further parameters for their calculate methods because individual signal-based parameters
@@ -82,6 +85,9 @@ class BaseSDMOCalculator(Algorithm):
 
     _action_methods = ("calculate",)
 
+    # Composite pipelines use this to choose the calculation window.
+    result_level: ClassVar[Literal["wb", "turn"]] = "wb"
+
     # Other Parameters
     data: pd.DataFrame
 
@@ -108,3 +114,21 @@ class BaseSDMOCalculator(Algorithm):
 
 
 __all__ = ["BaseSDMOCalculator", "base_sdmo_docfiller"]
+
+
+def _empty_turn_parameters(turn_list: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+    """Empty per-turn result, preserving supplied metadata and index schema."""
+    if turn_list is None or len(turn_list.columns) == 0:
+        turn_list = pd.DataFrame(
+            {
+                "start": pd.Series(dtype="int64"),
+                "end": pd.Series(dtype="int64"),
+                "duration_s": pd.Series(dtype=float),
+                "angle_deg": pd.Series(dtype=float),
+                "direction": pd.Series(dtype=str),
+            }
+        ).rename_axis("turn_id")
+    result = turn_list.iloc[:0].copy()
+    for column in ("turn_mean_ang_vel", "turn_peak_ang_vel", "turn_smoothness"):
+        result[column] = pd.Series(index=result.index, dtype=float)
+    return result

@@ -16,6 +16,18 @@
             {
                 "name":"jerk_acc_pa",
                 "type":"number"
+            },
+            {
+                "name":"jerk_gyr_is",
+                "type":"number"
+            },
+            {
+                "name":"jerk_gyr_ml",
+                "type":"number"
+            },
+            {
+                "name":"jerk_gyr_pa",
+                "type":"number"
             }
         ],
         "primaryKey":[
@@ -26,9 +38,12 @@
     "data":[
         {
             "index":0,
-            "jerk_acc_is":24.2220181714,
-            "jerk_acc_ml":16.6459361707,
-            "jerk_acc_pa":16.9790619488
+            "jerk_acc_is":-7.8131114827,
+            "jerk_acc_ml":-8.2674544197,
+            "jerk_acc_pa":-8.0605144551,
+            "jerk_gyr_is":-18.6596219473,
+            "jerk_gyr_ml":-20.5974655139,
+            "jerk_gyr_pa":-19.6437327297
         }
     ]
 }

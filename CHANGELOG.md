@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking SDMO migration:** `TurnSDMO`, `MobilisedSDMO` and the full Mobilise-D pipelines now expose individual
+  turn records through `per_turn_parameters_`. Read turn outcomes there instead of the WB tables. All per-WB turn
+  metrics, including `turn_dur_percentage_from_wb_dur`, and automatic recording-level turn summaries are removed.
+  Full pipelines preserve all existing gait-sequence turn detections with recording-local coordinates and a nullable
+  `wb_id` for uniquely contained turns. Detection coverage and per-turn formulas are unchanged.
+
 ### Fixed
 
 - Total acceleration RMS now requires all three anatomical axes to be configured and present. Partial-axis RMS

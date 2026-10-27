@@ -29,10 +29,10 @@ def example_walking_bout():
     stride_list = data.reference_parameters_relative_to_wb_.stride_parameters.loc[wb_id].rename(
         columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
     )
-    stride_list["cadence_spm"] = 60 * stride_list["speed_mps"] / stride_list["stride_length_m"]
+    stride_list["cadence_spm"] = 120 * stride_list["speed_mps"] / stride_list["stride_length_m"]
     sampling_rate_hz = data.sampling_rate_hz
-    data_start = data.reference_parameters_.stride_parameters.loc[wb_id][["start", "end"]].min().min()
-    data_end = data.reference_parameters_.stride_parameters.loc[wb_id][["start", "end"]].max().max()
+    data_start = int(data.reference_parameters_.wb_list.loc[wb_id, "start"])
+    data_end = int(data.reference_parameters_.wb_list.loc[wb_id, "end"])
     data = to_body_frame(data.data_ss.iloc[data_start:data_end])
     return data, stride_list, turn_list, sampling_rate_hz
 
@@ -168,14 +168,14 @@ class TestTurnSDMO:
     def test_result_is_created_by_calculate(self):
         algo = TurnSDMO()
 
-        assert not hasattr(algo, "signal_based_parameters_")
+        assert not hasattr(algo, "per_turn_parameters_")
 
         result = algo.calculate(
             pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS),
             sampling_rate_hz=100,
             turn_list=pd.DataFrame(),
         )
-        assert result.signal_based_parameters_.empty
+        assert result.per_turn_parameters_.empty
 
     def test_no_turns(self):
         algo = TurnSDMO()
@@ -185,7 +185,7 @@ class TestTurnSDMO:
             turn_list=pd.DataFrame([]),
         )
         assert result is algo
-        assert result.signal_based_parameters_.empty
+        assert result.per_turn_parameters_.empty
 
     def test_pipe_data(self):
         data = [[0, 20, 72, 0.51, -52.0, "right"]]
@@ -195,11 +195,37 @@ class TestTurnSDMO:
         result = algo.calculate(
             pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100, turn_list=turn_list
         )
-        row = result.signal_based_parameters_.iloc[0]
+        row = result.per_turn_parameters_.iloc[0]
         assert not np.isnan(row["turn_mean_ang_vel"])
         assert not np.isnan(row["turn_peak_ang_vel"])
-        assert row["turn_smoothness"] >= 0
-        assert 0 <= row["turn_dur_percentage_from_wb_dur"] <= 100
+        assert np.isfinite(row["turn_smoothness"])
+
+    def test_individual_turn_rows_preserve_identity_metadata_and_signed_mean(self):
+        turns = pd.DataFrame(
+            {
+                "start": [0, 4],
+                "end": [4, 8],
+                "duration_s": [0.4, 0.4],
+                "angle_deg": [0.0, 16.0],
+                "direction": ["left", "right"],
+            },
+            index=pd.Index([7, 9], name="turn_id"),
+        )
+        result = TurnSDMO().calculate(
+            pd.DataFrame({"gyr_is": [-3.0, -1.0, 1.0, 3.0, 2.0, 2.0, 6.0, 6.0]}), sampling_rate_hz=10, turn_list=turns
+        )
+        out = result.per_turn_parameters_
+        pd.testing.assert_frame_equal(out[turns.columns], turns)
+        assert out.turn_mean_ang_vel.tolist() == [0.0, 4.0]
+        assert out.turn_peak_ang_vel.tolist() == [3.0, 6.0]
+        assert np.isnan(out.loc[7, "turn_smoothness"])
+        assert result.signal_based_parameters_.empty
+
+    def test_turn_smoothness_is_angular_ldlj(self):
+        data = pd.DataFrame({"gyr_is": [999.0, *((np.arange(11) / 10) ** 2), 999.0]})
+        turns = pd.DataFrame({"start": [1], "end": [12], "duration_s": [1.1]})
+        row = TurnSDMO().calculate(data, sampling_rate_hz=10, turn_list=turns).per_turn_parameters_.iloc[0]
+        assert row.turn_smoothness == pytest.approx(-np.log(3.35 / 0.65**2))
 
 
 class TestStrideLevelSDMO:

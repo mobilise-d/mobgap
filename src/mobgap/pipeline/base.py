@@ -120,7 +120,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         "primary_results": """
     per_stride_parameters_
         The final list of all strides including their parameters that are part of a valid WB.
-        Note, that all per-stride parameters are interpolated based on the per-sec output of the other algorithms.
+        Cadence, stride length and speed are mapped from per-second estimates. Stride duration comes from
+        same-foot initial-contact boundaries and remains sensitive to contact errors after stride selection.
         Check out the pipeline examples to learn more about this.
     per_wb_parameters_
         Aggregated parameters for each WB.
@@ -130,6 +131,13 @@ mobilised_pipeline_docfiller = make_filldoc(
         A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
         It indicates for each WB which DMOs are valid.
         NaN indicates that the value has not been checked
+    per_turn_parameters_
+        One row per turn from the current gait-sequence detector, retaining the raw (gs_id, turn_id) index and
+        recording-local half-open start/end sample positions, duration, direction and angle metadata. Turn mean and
+        peak yaw velocity are in degrees/s and smoothness is angular LDLJ over the individual turn interval.
+        Nullable wb_id associates a turn only when exactly one accepted WB fully contains it. Cross-boundary and
+        outside turns remain present with missing association. No turn rows enter WB aggregation. Empty if no turns
+        or turn calculator, None if SDMO calculation is disabled. Detection coverage is unchanged.
     per_wb_signal_based_parameters_
         Signal-based parameters for each WB.
         This contains the duration of the walking bout and all signal-based parameters that can be calculated depending
@@ -231,6 +239,7 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
     per_stride_parameters_: pd.DataFrame
     per_wb_parameters_: pd.DataFrame
     per_wb_signal_based_parameters_: Optional[pd.DataFrame]
+    per_turn_parameters_: Optional[pd.DataFrame]
     per_wb_parameter_mask_: Optional[pd.DataFrame]
     aggregated_parameters_: Optional[pd.DataFrame]
 

@@ -11,7 +11,7 @@ evaluated. These outcomes aim to capture complementary aspects of daily living m
 Variability (22 SDMOs), Magnitude (13 SDMOs), Postural Control (6 SDMOs), Symmetry (5 SDMOs), Turns (4 SDMOs), and
 Rhythm (3 SDMOs).
 
-These 53 parameters are computed per walking bout (WB). To obtain SDMOs as a single measure (e.g., per trial/day/week),
+Non-turn parameters are computed per walking bout (WB). Turns are returned as individual records. To obtain SDMOs as a single measure (e.g., per trial/day/week),
 the per-WB parameters are aggregated using various statistical methods including median, 10th percentile, 90th percentile and standard deviation.
 In addition, the parameters can be summarised across different WB duration categories since short and long WBs might capture distinct aspects of mobility and offer different clinical insights.
 The WB duration categories used for the aggregation were all WBs, WBs > 10 s, WBs 10–30 s, WBs > 30 s, WBs 30–60 s, and WBs > 60 s.
@@ -64,6 +64,27 @@ and fewer than two extendible templates give NaN. Changing the sampling rate cha
 therefore the statistic. The internal rate is deliberately different from the supplied native-rate MATLAB estimator.
 The corrected common pool can change existing Python values, independently of that rate difference.
 
+## Turn result migration
+
+`TurnSDMO` and `MobilisedSDMO` expose `per_turn_parameters_`. Read turn values from this table instead of
+`signal_based_parameters_`. The latter contains only bout-level values and is empty for a turn-only configuration.
+All per-WB turn outputs have been removed, including `turn_dur_percentage_from_wb_dur`. There are no automatic
+recording-level turn summaries. Previous cohort lists below omit those removed summaries.
+
+Each row retains the input turn ID/index and start/end, duration, direction and angle metadata as available, plus
+`turn_mean_ang_vel = abs(mean(yaw))`, `turn_peak_ang_vel = max(abs(yaw))`, both in degrees/s, and `turn_smoothness`,
+angular LDLJ over that individual interval. Mean yaw is not the mean of absolute yaw when yaw changes sign.
+Smoothness is dimensionless, may be negative, and depends strongly on the individual turn duration.
+Start/end are half-open sample positions relative to the supplied signal; they require a nonempty interval, with
+at least three samples for smoothness. Constant yaw has undefined smoothness. Empty input returns an empty table
+with metadata and feature columns.
+
+The full pipeline exposes the same `per_turn_parameters_` with recording-local intervals and the existing
+`(gs_id, turn_id)` detector index. It retains every turn already detected within gait sequences, including turns
+crossing or outside accepted WBs. Nullable `wb_id` is present only for a unique fully containing accepted WB.
+This does not extend turn detection to the whole recording. Disabling SDMO calculation gives None; disabling the
+turn calculator or having no turns gives an empty table. Raw turns never enter `SDMOAggregator`.
+
 ## Recommended SDMOs Per-Cohort
 
 ### MS
@@ -83,9 +104,6 @@ The corrected common pool can change existing Python values, independently of th
 - `wb_10__stride_regularity_is__p90`
 - `wb_30__stride_regularity_is__std`
 - `wb_10__symmetry_k_is__p90`
-- `wb_10__turn_dur_percentage_from_wb_dur__median`
-- `wb_10__turn_dur_percentage_from_wb_dur__std`
-- `wb_60__turn_dur_percentage_from_wb_dur__p90`
 
 ### PD
 - `wb_30__amplitude_is__std`
@@ -114,10 +132,6 @@ The corrected common pool can change existing Python values, independently of th
 - `wb_60__range_acc_ml__p10`
 - `wb_30__sd_gyr_ml__std`
 - `wb_30__stride_regularity_is__std`
-- `wb_60__turn_smoothness__median`
-- `wb_10__turn_dur_percentage_from_wb_dur__median`
-- `wb_30__turn_dur_percentage_from_wb_dur__median`
-- `wb_30__turn_dur_percentage_from_wb_dur__std`
 
 ### COPD
 - `wb_30__amplitude_is__std`

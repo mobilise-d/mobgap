@@ -78,7 +78,7 @@ turn = TurnSDMO()
 
 turn.calculate(data=data_in_wb_bf, **params)
 
-turn.signal_based_parameters_
+turn.per_turn_parameters_
 
 # %%
 # the :class:`.StrideLevelSDMO` algorithm calculates parameters related to the stride parameters.
@@ -104,7 +104,10 @@ stride_level.signal_based_parameters_
 
 from mobgap.signal_based import RMS
 
-rms = RMS()
+rms = RMS(
+    acc_columns=["acc_is", "acc_ml", "acc_pa"],
+    gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
+)
 
 rms.calculate(data=data_in_wb_bf, **params)
 

@@ -19,7 +19,7 @@ from mobgap.signal_based._sdmo import (
     StrideLevelSDMO,
     TurnSDMO,
 )
-from mobgap.signal_based.base import BaseSDMOCalculator, base_sdmo_docfiller
+from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, base_sdmo_docfiller
 
 
 @base_sdmo_docfiller
@@ -46,6 +46,10 @@ class MobilisedSDMO(Pipeline):
     Attributes
     ----------
     %(signal_based_parameters_)s
+    per_turn_parameters_
+        Separate rows for supplied turns, preserving their index, metadata and coordinates relative to ``data``.
+        Only calculators with ``result_level="turn"`` contribute; no per-turn values enter the bout result.
+        Empty when no turn calculator is configured or no turns are supplied.
     %(perf_)s
 
     """
@@ -55,6 +59,7 @@ class MobilisedSDMO(Pipeline):
 
     calculators: tuple[tuple[str, BaseSDMOCalculator]]
     signal_based_parameters_: pd.DataFrame
+    per_turn_parameters_: pd.DataFrame
     perf_: MeasureTimeResults
 
     class PredefinedParameters:
@@ -79,7 +84,10 @@ class MobilisedSDMO(Pipeline):
                         FrequencyAmplitudeWidth(acc_columns=["acc_is", "acc_ml", "acc_pa"]),
                     ),
                     ("regularity_symmetry", RegularitySymmetry()),
-                    ("rms", RMS(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])),
+                    (
+                        "rms",
+                        RMS(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]),
+                    ),
                     (
                         "stride_level",
                         StrideLevelSDMO(
@@ -118,6 +126,7 @@ class MobilisedSDMO(Pipeline):
         self.turn_list = turn_list
         self.replicate_matlab = replicate_matlab
 
+        self.per_turn_parameters_ = _empty_turn_parameters(turn_list)
         if not self.calculators:
             self.signal_based_parameters_ = pd.DataFrame()
             return self
@@ -130,8 +139,14 @@ class MobilisedSDMO(Pipeline):
             **kwargs,
         }
         results = []
+        turn_results = []
         for _name, calculator in self.calculators:
             calculator_ = calculator.clone().calculate(data, **params)
-            results.append(calculator_.signal_based_parameters_)
-        self.signal_based_parameters_ = pd.concat(results, axis=1)
+            if calculator.result_level == "turn":
+                turn_results.append(calculator_.per_turn_parameters_)
+            else:
+                results.append(calculator_.signal_based_parameters_)
+        self.signal_based_parameters_ = pd.concat(results, axis=1) if results else pd.DataFrame()
+        if turn_results:
+            self.per_turn_parameters_ = pd.concat(turn_results, axis=1)
         return self
