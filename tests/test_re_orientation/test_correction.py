@@ -11,16 +11,6 @@ from mobgap.re_orientation.base import BaseReorientationCorrector
 from mobgap.utils.conversions import to_body_frame
 
 
-def test_corrector_without_application_operation_cannot_be_instantiated():
-    class IncompleteCorrector(BaseReorientationCorrector):
-        def detect_correct(self, data, *, sampling_rate_hz, **kwargs):
-            self.corrected_data_ = to_body_frame(data)
-            return self
-
-    with pytest.raises(TypeError, match="apply_correction"):
-        IncompleteCorrector()
-
-
 def test_dm_application_replays_gravity_then_pa_with_known_axis_values():
     data = pd.DataFrame([[1, 2, 3, 4, 5, 6]], columns=SF_SENSOR_COLS, index=pd.Index([42], name="sample"))
     original = data.copy(deep=True)

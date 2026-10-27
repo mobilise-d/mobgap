@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the shared `DEFAULT_WB_SDMO_CALCULATORS` preset with explicit WB/turn processing.
 - Add `RegionIterator` to collect caller-defined Series result fields into DataFrames while preserving region
   identities and hierarchical parameter labels. Signal preparation and metadata access remain in the caller's loop.
-- Add generic interval-containment and sequence-orientation helpers. Reorientation methods enforce static
+- Add generic interval-containment and sequence-orientation helpers. Reorientation methods provide static
   `apply_correction(data, correction)` while defining their own correction type; `ReorientationMethodDM` replays
   its gravity/PA rotations, including documented unresolved fallbacks.
 

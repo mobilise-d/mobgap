@@ -1,6 +1,5 @@
 """Base class for reorientation correction algorithms."""
 
-from abc import ABC, abstractmethod
 from typing import Any, Generic, Self, TypeVar, Unpack
 
 import pandas as pd
@@ -47,7 +46,7 @@ CorrectionT = TypeVar("CorrectionT")
 
 
 @base_reorientation_docfiller
-class BaseReorientationCorrector(Algorithm, Generic[CorrectionT], ABC):
+class BaseReorientationCorrector(Algorithm, Generic[CorrectionT]):
     """Base class for sensor reorientation correction algorithms.
 
     This base class should be used for all reorientation correction algorithms.
@@ -100,7 +99,6 @@ class BaseReorientationCorrector(Algorithm, Generic[CorrectionT], ABC):
     corrected_data_: pd.DataFrame
 
     @staticmethod
-    @abstractmethod
     def apply_correction(data: pd.DataFrame, correction: CorrectionT) -> pd.DataFrame:
         """Apply a method-specific correction without estimating orientation.
 
