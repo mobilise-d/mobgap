@@ -1,119 +1,170 @@
 """
-Signal-based parameters
-=======================
+Secondary outcomes after the primary pipeline
+=============================================
 
-This example shows how to use the :class:`.MobilisedSDMO` for calculating signal-based parameters.
+Calculate secondary outcomes after detecting walking bouts and turns. The primary pipeline supplies accepted WBs,
+retained strides, detected turns and the recorded orientation corrections. Two explicit loops prepare the WB and turn
+signals, while :class:`~mobgap.pipeline.SdmoIterator` assembles one outcome row per window.
 
-First we load some data.
-
-Example Data
-------------
-We load example data from the lab dataset together with the INDIP reference system.
-We will use a single short-trail from the "HA" participant for this example. This trial contains turning as well.
-The signal-based parameters are calculated for each walking bout in the Mobilise-D pipelines, however, the calculator
-(algorithm) classes are designed to work with any signal window (although note that some parameters require to have
-some characteristics such as certain number of strides).
-
+The iterator returns the existing ``Region`` type. Extra metadata, including the method-specific correction value,
+stays in the source DataFrame and is read by the region's identifier inside the loop.
 """
 
+# %%
+# Run the primary pipeline
+# ------------------------
+# This trial includes several walking bouts and turns. Disable secondary calculation and aggregation inside the
+# primary pipeline so that we can calculate them afterwards. Keep intermediate results to access the recorded
+# per-GS corrections. With per-GS reorientation, gait detection must support sensor-frame inputs.
 from mobgap.data import LabExampleDataset
+from mobgap.gait_sequences import GsdIluzAdaptiveGravity
+from mobgap.pipeline import MobilisedPipelineHealthy, SdmoIterator
+from mobgap.re_orientation import (
+    ReorientationMethodDM,
+    get_orientation_for_sequences,
+)
 
-lab_example_data = LabExampleDataset(reference_system="INDIP")
-short_trial = lab_example_data.get_subset(
+short_trial = LabExampleDataset(reference_system="INDIP").get_subset(
     cohort="HA", participant_id="001", test="Test11", trial="Trial1"
 )
+sampling_rate_hz = short_trial.sampling_rate_hz
+sensor_data = short_trial.data_ss
+pipeline = MobilisedPipelineHealthy(
+    gait_sequence_detection=GsdIluzAdaptiveGravity(),
+    per_gs_reorientation=ReorientationMethodDM(),
+    retain_intermediate_results=True,
+    sdmo_calculation=None,
+    sdmo_aggregation=None,
+).safe_run(short_trial)
 
 # %%
-# MobilisedSDMO
-# -------------
-# To demonstrate the usage of the pipeline :class:`.MobilisedSDMO`, we use the detected walking bout from the reference
-# system as input.
-reference_strides = (
-    short_trial.reference_parameters_relative_to_wb_.stride_parameters
+# Prepare corrections once, outside the loops
+# -------------------------------------------
+# The per-GS iterator's public raw results retain the correction belonging to each detected GS. Sub-iterations are
+# excluded here. Correction values remain specific to ReorientationMethodDM, which returns two scipy rotations.
+# Do not re-estimate orientation independently for each WB or turn.
+import pandas as pd
+from scipy.spatial.transform import Rotation
+
+gs_corrections = {
+    entry.input.region.id: entry.result.reorientation_result
+    for entry in pipeline.gs_iterator_.raw_results_
+    if entry.iteration_name == "__main__"
+}
+reorientation_sections = pipeline.gs_list_.assign(
+    orientation=lambda rows: pd.Series(
+        {
+            gs_id: correction.correction_rotations
+            for gs_id, correction in gs_corrections.items()
+        },
+        dtype=object,
+    ).reindex(rows.index),
+    correction_applied=lambda rows: pd.Series(
+        {
+            gs_id: correction.correction_applied
+            for gs_id, correction in gs_corrections.items()
+        }
+    ).reindex(rows.index),
 )
-reference_strides
-
-# %%
-# We may also use the turn data. We select the example data with turns.
-reference_turns = (
-    short_trial.reference_parameters_relative_to_wb_.turn_parameters
+identity_correction = (Rotation.identity(), Rotation.identity())
+wbs = pipeline.per_wb_parameters_.assign(
+    orientation=lambda rows: get_orientation_for_sequences(
+        rows, reorientation_sections, default=identity_correction
+    )
 )
-reference_turns
-
-# %%
-# We pick the walking bout for this example with turns.
-wb_id = 2
-reference_strides = reference_strides.loc[wb_id]
-reference_turns = reference_turns.loc[wb_id]
-wb = short_trial.reference_parameters_relative_to_wb_.wb_list.loc[wb_id]
-data_in_wb = short_trial.data["LowerBack"].iloc[wb.start : wb.end]
-
-# %%
-# The data is required to be in body frame coordinates.
-# As we know the sensor was well aligned, we can just use ``to_body_frame`` to transform the data.
-from mobgap.utils.conversions import to_body_frame
-
-data_in_wb_bf = to_body_frame(data_in_wb)
-
-# %%
-# Here, we provide the algorithms the data, stride list, turn list, the sampling rate of the measurement and a bool to
-# replicate matlab behaviour for a certain algorithm.
-# See :class:`.MobilisedSDMO` for default parameters and details.
-
-params = dict(
-    stride_list=reference_strides,
-    sampling_rate_hz=short_trial.sampling_rate_hz,
-    turn_list=reference_turns,
-    replicate_matlab=True,
-)
-
-# %%
-# We can initialize the pipeline and call the ``calculate`` method similar to the individual algorithms.
-
-from mobgap.signal_based import MobilisedSDMO
-
-sdmo_only_available = MobilisedSDMO(
-    **dict(
-        MobilisedSDMO.PredefinedParameters.default,
+turns = pipeline.raw_turn_list_.assign(
+    orientation=lambda rows: get_orientation_for_sequences(
+        rows, reorientation_sections, default=identity_correction
     )
 )
 
-sdmo_only_available.calculate(data=data_in_wb_bf, **params)
+# %%
+# .. warning::
+#    Signal outcomes require correctly oriented body-frame data. Nominal column conversion alone cannot correct a
+#    misoriented sensor. A WB need not be fully contained in a GS: the helper raises if it only partly overlaps any
+#    section requiring correction. It does not extend that correction into gaps or across other sections. Selecting
+#    or replaying a recorded fallback also does not establish that orientation was resolved; inspect the correction
+#    metadata when this matters for your analysis.
+#
+# On this aligned example recording, the recorded corrections are nominal. With reorientation disabled, callers who
+# know their sensor is correctly aligned can use ``to_body_frame(window)`` directly instead.
 
 # %%
-# We get the signal-based parameters that can be calculated depending on the availability of the inputs.
-# This output can be used within the gait sequence iterator to append results of each walking bout.
-sdmo_only_available.signal_based_parameters_
+# Walking-bout outcomes
+# ---------------------
+# Select the non-turn calculators from the composition. The loop owns signal preparation and stride-coordinate
+# rebasing. Retain the full accepted WB signal, including turns and gaps between retained strides.
+from mobgap.signal_based import MobilisedSDMO, TurnSDMO
 
-
-# %%
-# Note that the ``calculate`` method raises warning regarding the availability of stride parameters and this
-# leaves the unavailable stride CV columns out of the result.
-# We miss three more parameters because the expected stride list parameters
-# (['stride_length_m', 'cadence_spm', 'stride_duration_s']) are given with a different name or not available in
-# the reference list. We can rename and calculate the missing ones.
-# Finally, the below output is the full list of SDMOs that can be computed using the :class:`.MobilisedSDMO`
-reference_strides = reference_strides.rename(
-    columns={"duration_s": "stride_duration_s", "length_m": "stride_length_m"}
-)
-reference_strides["cadence_spm"] = (
-    120 * reference_strides["speed_mps"] / reference_strides["stride_length_m"]
-)
-params["stride_list"] = reference_strides
-
-
-sdmo_full_output = MobilisedSDMO(
-    **dict(
-        MobilisedSDMO.PredefinedParameters.default,
+wb_calculator = MobilisedSDMO(
+    calculators=tuple(
+        (name, calculator)
+        for name, calculator in MobilisedSDMO.PredefinedParameters.default[
+            "calculators"
+        ]
+        if calculator.result_level == "wb"
     )
 )
+wb_iterator = SdmoIterator()
+for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
+    correction = wbs.loc[wb.id, "orientation"]
+    prepared = pipeline.per_gs_reorientation.apply_correction(
+        window, correction
+    )
+    strides = pipeline.per_stride_parameters_.loc[wb.id].copy()
+    strides.loc[:, ["start", "end"]] -= wb.start
+    result.parameters = (
+        wb_calculator.clone()
+        .calculate(
+            prepared, sampling_rate_hz=sampling_rate_hz, stride_list=strides
+        )
+        .signal_based_parameters_
+    )
 
-sdmo_full_output.calculate(data=data_in_wb_bf, **params)
-sdmo_full_output.signal_based_parameters_
-
+per_wb_sdmos = wb_iterator.results_.parameters
+per_wb_sdmos
 
 # %%
-# Turns remain individual rows with their supplied metadata and WB-local sample coordinates.
-# In a full Mobilise-D pipeline these intervals are recording-local and include every turn detected
-# within gait sequences, even when a turn is outside an accepted WB. No turn summaries are aggregated.
-sdmo_full_output.per_turn_parameters_
+# Individual turn outcomes
+# ------------------------
+# Every detected turn is processed, including turns outside accepted WBs. Its full identity remains
+# ``(gs_id, turn_id)``; we do not infer WB membership from the GS identifier.
+# TurnSDMO currently accepts a turn table, so supply the one turn spanning the prepared local window. Only its
+# outcome columns are assembled. Recording-local start/end and other metadata are joined back from the source.
+turn_calculator = TurnSDMO()
+turn_iterator = SdmoIterator()
+for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
+    correction = turns.loc[turn.id, "orientation"]
+    prepared = pipeline.per_gs_reorientation.apply_correction(
+        window, correction
+    )
+    local_turn = turns.loc[[turn.id]].drop(columns="orientation").copy()
+    local_turn.loc[:, "start"] = 0
+    local_turn.loc[:, "end"] = len(window)
+    result.parameters = (
+        turn_calculator.clone()
+        .calculate(
+            prepared, sampling_rate_hz=sampling_rate_hz, turn_list=local_turn
+        )
+        .per_turn_parameters_.drop(columns=local_turn.columns)
+    )
+
+per_turn_sdmos = turns.drop(columns="orientation").join(
+    turn_iterator.results_.parameters
+)
+per_turn_sdmos
+
+# %%
+# Optional aggregation across WBs
+# -------------------------------
+# Iterator assembly and statistical aggregation are separate operations. Supply only outcome columns and required
+# duration/grouping metadata to SDMOAggregator; the orientation payload is not an outcome. Each WB has equal weight.
+# Primary-DMO validity thresholds are not automatically applied to secondary outcomes. Turn rows remain separate.
+from mobgap.aggregation import SDMOAggregator
+
+aggregated_sdmos = (
+    SDMOAggregator()
+    .aggregate(per_wb_sdmos.join(wbs[["duration_s"]]))
+    .aggregated_data_
+)
+aggregated_sdmos

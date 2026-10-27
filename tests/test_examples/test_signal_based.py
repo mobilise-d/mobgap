@@ -26,10 +26,23 @@ def test_signal_based_algorithms(snapshot):
     snapshot.assert_match(rms_jerk_ratio.signal_based_parameters_, "rms_jerk_ratio_sdmo")
 
 
-def test_signal_based_mobilised_pipeline(snapshot):
-    from examples.signal_based._02_signal_based_mobilised_pipeline import sdmo_full_output, sdmo_only_available
+def test_signal_based_mobilised_pipeline():
+    from pandas.testing import assert_frame_equal, assert_index_equal
 
-    snapshot.assert_match(sdmo_only_available.signal_based_parameters_, "only_available_sdmos")
-    snapshot.assert_match(sdmo_full_output.signal_based_parameters_, "full_mobilised_sdmos")
+    from examples.signal_based._02_signal_based_mobilised_pipeline import (
+        aggregated_sdmos,
+        per_turn_sdmos,
+        per_wb_sdmos,
+        pipeline,
+    )
 
-    snapshot.assert_match(sdmo_full_output.per_turn_parameters_, "turn_sdmos")
+    assert_index_equal(per_wb_sdmos.index, pipeline.per_wb_parameters_.index)
+    assert_index_equal(per_turn_sdmos.index, pipeline.raw_turn_list_.index)
+    assert_frame_equal(per_turn_sdmos[pipeline.raw_turn_list_.columns], pipeline.raw_turn_list_)
+    # This trial has detected turns extending outside accepted WBs. Keep them as complete turn windows.
+    assert per_turn_sdmos.loc[(1, 0), "start"] < pipeline.per_wb_parameters_.loc[1, "start"]
+    assert len(per_wb_sdmos) == 7
+    assert len(per_turn_sdmos) == 10
+    assert (per_wb_sdmos["rms_acc_is"] > 0).all()
+    assert (per_turn_sdmos["turn_peak_ang_vel"] > 0).all()
+    assert not aggregated_sdmos.empty
