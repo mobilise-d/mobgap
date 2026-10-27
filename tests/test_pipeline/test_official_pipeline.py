@@ -13,6 +13,7 @@ from mobgap.data import GaitDatasetFromData, LabExampleDataset
 from mobgap.gait_sequences.base import BaseGsDetector
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.laterality import LrcBenMansour
+from mobgap.signal_based.base import BaseSDMOCalculator
 from mobgap.laterality.base import BaseLRClassifier
 from mobgap.pipeline import (
     GenericMobilisedPipeline,
@@ -494,3 +495,46 @@ def test_disabling_both_aggregators_returns_no_aggregated_result():
     assert result.dmo_aggregation_ is None
     assert result.sdmo_aggregation_ is None
     assert not result.per_wb_signal_based_parameters_.empty
+
+
+class _EmptyGsDetector(BaseGsDetector):
+    def detect(self, data, sampling_rate_hz, **kwargs):
+        self.gs_list_ = pd.DataFrame({"start": pd.Series(dtype="int64"), "end": pd.Series(dtype="int64")}).rename_axis(
+            "gs_id"
+        )
+        return self
+
+
+class _TurnContextCalculator(BaseSDMOCalculator):
+    def calculate(self, data, turn_list, **kwargs):
+        self.data = data
+        self.turn_list = turn_list
+        self.signal_based_parameters_ = pd.DataFrame({"custom_metric": [1.0]})
+        return self
+
+
+@pytest.mark.parametrize("no_gs", [True, False])
+def test_empty_recording_turn_result_has_recording_index(no_gs):
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    config = {"gait_sequence_detection": _EmptyGsDetector()} if no_gs else {"turn_detection": None}
+    result = MobilisedPipelineImpaired(**config).run(dataset)
+    assert result.per_turn_parameters_.empty
+    assert result.per_turn_parameters_.index.names == ["gs_id", "turn_id"]
+    assert "turn_peak_ang_vel" in result.per_turn_parameters_
+
+
+def test_custom_wb_calculator_keeps_required_wb_local_turn_context():
+    dataset = LabExampleDataset(reference_system="INDIP").get_subset(
+        cohort="MS", participant_id="001", test="Test11", trial="Trial1"
+    )
+    result = MobilisedPipelineImpaired(sdmo_calculation=_TurnContextCalculator()).run(dataset)
+    wb = result.per_wb_parameters_.iloc[-1]
+    expected = result.raw_turn_list_[
+        (result.raw_turn_list_.start >= wb.start) & (result.raw_turn_list_.end <= wb.end)
+    ].copy()
+    assert not expected.empty
+    expected.loc[:, ["start", "end"]] -= wb.start
+    pd.testing.assert_frame_equal(result.sdmo_calculation_.turn_list, expected)
+    assert result.per_turn_parameters_.empty
