@@ -16,6 +16,7 @@ Algorithms
 
     SampleEntropy
     HarmonicRatio
+    HarmonicRatioFourier
     SDRange
     LogDimensionlessJerk
     RMSJerkRatio

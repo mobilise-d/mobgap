@@ -4,6 +4,7 @@ __all__ = [
     "RMS",
     "FrequencyAmplitudeWidth",
     "HarmonicRatio",
+    "HarmonicRatioFourier",
     "LogDimensionlessJerk",
     "MobilisedSDMO",
     "RMSJerkRatio",
@@ -14,6 +15,7 @@ __all__ = [
     "TurnSDMO",
 ]
 
+from mobgap.signal_based._harmonic_ratio import HarmonicRatioFourier
 from mobgap.signal_based._mobilised_sdmo import MobilisedSDMO
 from mobgap.signal_based._sdmo import (
     RMS,
