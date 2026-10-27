@@ -10,9 +10,8 @@ Example Data
 ------------
 We load example data from the lab dataset together with the INDIP reference system.
 We will use a single short-trail from the "HA" participant for this example, as it only contains a single gait sequence.
-The signal-based parameters are calculated for each walking bout in the Mobilise-D pipelines, however, the algorithms
-are designed to work with any signal window (although note that some parameters require to have some characteristics such
-as certain number of strides).
+The algorithms operate on prepared signal windows after primary analysis. Some parameters require additional inputs,
+such as retained stride boundaries, or a minimum amount of data.
 
 """
 
@@ -170,7 +169,7 @@ harmonic_ratio.signal_based_parameters_
 # %%
 # The separate Fourier method reads the same supplied stride intervals, uses actual Fourier amplitudes,
 # and averages per-stride ratios. Its distinct output names allow both methods to be used together.
-# The default pipeline continues to use the peak/trough estimator above.
+# The default WB calculator configuration uses the peak/trough estimator above.
 from mobgap.signal_based import HarmonicRatioFourier
 
 harmonic_ratio_fourier = HarmonicRatioFourier(

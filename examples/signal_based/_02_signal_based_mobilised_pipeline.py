@@ -13,8 +13,8 @@ stays in the source DataFrame and is read by the region's identifier inside the 
 # %%
 # Run the primary pipeline
 # ------------------------
-# This trial includes several walking bouts and turns. Disable secondary calculation and aggregation inside the
-# primary pipeline so that we can calculate them afterwards. Keep intermediate results to access the recorded
+# This trial includes several walking bouts and turns. Run the primary pipeline first, then calculate secondary
+# outcomes from its results. Keep intermediate results to access the recorded
 # per-GS corrections. With per-GS reorientation, gait detection must support sensor-frame inputs.
 from mobgap.data import LabExampleDataset
 from mobgap.gait_sequences import GsdIluzAdaptiveGravity
@@ -33,8 +33,6 @@ pipeline = MobilisedPipelineHealthy(
     gait_sequence_detection=GsdIluzAdaptiveGravity(),
     per_gs_reorientation=ReorientationMethodDM(),
     retain_intermediate_results=True,
-    sdmo_calculation=None,
-    sdmo_aggregation=None,
 ).safe_run(short_trial)
 
 # %%

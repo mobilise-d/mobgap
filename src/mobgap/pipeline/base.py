@@ -98,14 +98,6 @@ mobilised_pipeline_docfiller = make_filldoc(
         attribute.
         The aggregated parameters for each WB are available via the ``per_wb_parameters_`` attribute.
     """,
-        "signal_based_calculation": """
-    sdmo_calculation
-        A signal-based calculator or MobilisedSDMO composite. Calculators with result_level="wb" run on each full
-        accepted WB with WB-local stride and contained-turn metadata. Their results are concatenated in
-        ``per_wb_signal_based_parameters_``. Calculators with result_level="turn" receive one full detected turn
-        window at a time. The pipeline assembles their Series results with existing turn metadata and recording-local
-        intervals in ``per_turn_parameters_``. Turn rows never enter WB aggregation.
-    """,
         "aggregation_parameters": """
     dmo_thresholds
         A DataFrame with the thresholds for the individual DMOs.
@@ -115,12 +107,6 @@ mobilised_pipeline_docfiller = make_filldoc(
         A valid instance of a DMO aggregation algorithm.
         This will be called with the aggregated parameters for each WB and the mask of the DMOs.
         The final aggregated parameters are available via the ``aggregated_parameters_`` attribute.
-    sdmo_aggregation
-        A valid instance of a SDMO aggregation algorithm.
-        This will be called with the signal-based parameters for each WB. Unlike the ``dmo_aggregation`` no masking is
-        applied.
-        The final aggregated parameters are available via the ``aggregated_data_`` attribute.
-        These aggregated parameters are appended to the primary parameters.
     """,
         "additional_parameters": """
     retain_intermediate_results
@@ -152,25 +138,12 @@ mobilised_pipeline_docfiller = make_filldoc(
         A "valid" mask calculated using the :func:`~mobgap.aggregation.apply_thresholds` function.
         It indicates for each WB which DMOs are valid.
         NaN indicates that the value has not been checked
-    per_turn_parameters_
-        One row per turn from the current gait-sequence detector, retaining the raw (gs_id, turn_id) index and
-        recording-local half-open start/end sample positions, duration, direction and angle metadata. Turn mean and
-        peak yaw velocity are in degrees/s and smoothness is angular LDLJ over the individual turn interval.
-        Nullable wb_id associates a turn only when exactly one accepted WB fully contains it. Cross-boundary and
-        outside turns remain present with missing association. No turn rows enter WB aggregation. Empty if no turns
-        or turn calculator, None if SDMO calculation is disabled. Detection coverage is unchanged.
-    per_wb_signal_based_parameters_
-        Signal-based parameters for each WB.
-        This contains the duration of the walking bout and all signal-based parameters that can be calculated depending
-        on the availability of the data.
     aggregated_parameters_
         The final aggregated parameters.
         They are calculated based on the per WB parameters and the DMO mask.
         Invalid parameters are (depending on the implementation in the provided Aggregation algorithm) excluded.
         This output can either be a dataframe with a single row (all WBs were aggregated to a single value, default),
         or a dataframe with multiple rows, if the aggregation algorithm uses a different aggregation approach.
-        The per WB signal-based parameters are also aggregated, and if available, appended to the aggregated parameters
-        for the primary DMOs.
     """,
         "intermediate_results": """
     gs_list_
@@ -201,12 +174,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         The instance of the stride selection algorithm that was run with all of its results.
     wba_
         The instance of the WBA algorithm that was run with all of its results.
-    sdmo_calculation_
-        The instance of the signal based DMO algorithm that was run with all of its results.
     dmo_aggregation_
-        The instance of the DMO aggregation algorithm that was run with all of its results.
-    sdmo_aggregation_
-        The instance of the SDMO aggregation algorithm that was run with all of its results.
+        The executed DMO aggregation algorithm, or None when aggregation is disabled for the current run.
     """,
         "step_by_step": """
     The Mobilise-D pipeline consists of the following steps:
@@ -221,12 +190,10 @@ mobilised_pipeline_docfiller = make_filldoc(
     6. The stride selection algorithm is used to filter out strides that don't fulfill certain criteria.
     7. The WBA algorithm is used to assemble the strides into walking bouts.
        This is done independent of the original gait sequences.
-    8. Signal-based parameters are calculated for each WB.
-    9. Aggregated parameters for each WB are calculated.
-    10. If DMO thresholds are provided, these WB-level parameters are filtered based on physiological valid thresholds.
-    11. The DMO aggregation algorithm is used to aggregate the WB-level parameters to either a set of values
+    8. Aggregated parameters for each WB are calculated.
+    9. If DMO thresholds are provided, these WB-level parameters are filtered based on physiological valid thresholds.
+    10. The DMO aggregation algorithm is used to aggregate the WB-level parameters to either a set of values
         per-recording or any other granularity (i.e. one value per hour), depending on the aggregation algorithm.
-    12. Per WB signal-based parameters are aggregated with the default aggregator.
 
     For a step-by-step example of how these steps are executed, check out :ref:`mobilised_pipeline_step_by_step`.
     """,
@@ -259,8 +226,6 @@ class BaseMobilisedPipeline(Pipeline[BaseGaitDatasetT], Generic[BaseGaitDatasetT
 
     per_stride_parameters_: pd.DataFrame
     per_wb_parameters_: pd.DataFrame
-    per_wb_signal_based_parameters_: Optional[pd.DataFrame]
-    per_turn_parameters_: Optional[pd.DataFrame]
     per_wb_parameter_mask_: Optional[pd.DataFrame]
     aggregated_parameters_: Optional[pd.DataFrame]
 

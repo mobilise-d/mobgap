@@ -1,14 +1,14 @@
 import warnings
 from itertools import combinations
 from types import MappingProxyType
-from typing import Any, Final, Generic, Optional, Self, Union
+from typing import Any, Final, Generic, Optional, Self
 
 import pandas as pd
 from tpcp import cf
 from tpcp.misc import iter_with_warning_error_context, set_defaults
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.aggregation import MobilisedAggregator, SDMOAggregator, apply_thresholds, get_mobilised_dmo_thresholds
+from mobgap.aggregation import MobilisedAggregator, apply_thresholds, get_mobilised_dmo_thresholds
 from mobgap.aggregation.base import BaseAggregator
 from mobgap.cadence import CadFromIcDetector
 from mobgap.cadence.base import BaseCadCalculator
@@ -18,13 +18,10 @@ from mobgap.initial_contacts import IcdIonescu, refine_gs
 from mobgap.initial_contacts.base import BaseIcDetector
 from mobgap.laterality import LrcUllrich, strides_list_from_ic_lr_list
 from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
-from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator, iter_gs
+from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
 from mobgap.re_orientation import ReorientationMethodDM  # noqa: F401
 from mobgap.re_orientation.base import BaseReorientationCorrector
-from mobgap.signal_based import MobilisedSDMO
-from mobgap.signal_based._mobilised_sdmo import _calculate_turn_parameters
-from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, _turn_metadata
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -59,7 +56,6 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
-    %(signal_based_calculation)s
     %(aggregation_parameters)s
     %(additional_parameters)s
 
@@ -95,10 +91,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     turn_detection: Optional[BaseTurnDetector]
     stride_selection: StrideSelection
     wba: WbAssembly
-    sdmo_calculation: Optional[Union[MobilisedSDMO, BaseSDMOCalculator]]
     dmo_thresholds: Optional[pd.DataFrame]
     dmo_aggregation: BaseAggregator
-    sdmo_aggregation: BaseAggregator
 
     retain_intermediate_results: bool
 
@@ -109,9 +103,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
     gs_iterator_: GsIterator[FullPipelinePerGsResult]
     stride_selection_: StrideSelection
     wba_: WbAssembly
-    sdmo_calculation_: Optional[Union[MobilisedSDMO, BaseSDMOCalculator]]
     dmo_aggregation_: Optional[BaseAggregator]
-    sdmo_aggregation_: Optional[BaseAggregator]
 
     # Intermediate results
     gs_list_: pd.DataFrame
@@ -137,10 +129,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "turn_detection": TdElGohary(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
-                "sdmo_calculation": MobilisedSDMO(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
-                "sdmo_aggregation": SDMOAggregator(None),
                 "recommended_cohorts": ("HA", "COPD", "CHF"),
             }
         )
@@ -159,10 +149,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 "turn_detection": TdElGohary(),
                 "stride_selection": StrideSelection(),
                 "wba": WbAssembly(),
-                "sdmo_calculation": MobilisedSDMO(),
                 "dmo_thresholds": get_mobilised_dmo_thresholds(),
                 "dmo_aggregation": MobilisedAggregator(groupby=None),
-                "sdmo_aggregation": SDMOAggregator(None),
                 "recommended_cohorts": ("PD", "MS", "PFF"),
             }
         )
@@ -180,10 +168,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
-        sdmo_calculation: Optional[Union[MobilisedSDMO, BaseSDMOCalculator]],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: Optional[BaseAggregator],
-        sdmo_aggregation: Optional[BaseAggregator],
         recommended_cohorts: Optional[tuple[str, ...]] = None,
         retain_intermediate_results: bool = True,
     ) -> None:
@@ -197,10 +183,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
         self.turn_detection = turn_detection
         self.stride_selection = stride_selection
         self.wba = wba
-        self.sdmo_calculation = sdmo_calculation
         self.dmo_thresholds = dmo_thresholds
         self.dmo_aggregation = dmo_aggregation
-        self.sdmo_aggregation = sdmo_aggregation
         self.recommended_cohorts = recommended_cohorts
         self.retain_intermediate_results = retain_intermediate_results
 
@@ -216,7 +200,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
 
     @timed_action_method
     @mobilised_pipeline_docfiller
-    def run(self, datapoint: BaseGaitDatasetT) -> Self:  # noqa: PLR0915
+    def run(self, datapoint: BaseGaitDatasetT) -> Self:
         """%(run_short)s.
 
         Parameters
@@ -368,104 +352,16 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
                 measurement_condition=datapoint.recording_metadata["measurement_condition"],
             )
 
-        self.sdmo_calculation_ = None
-        self.sdmo_aggregation_ = None
-        self.per_wb_signal_based_parameters_ = None
-        self.per_turn_parameters_ = None
-        if self.sdmo_calculation is not None:
-            self.per_wb_signal_based_parameters_ = self._calculate_per_wb_sdmos(imu_data, sampling_rate_hz)
-            self.per_turn_parameters_ = self._calculate_per_turn_sdmos(imu_data, sampling_rate_hz)
-
         self.dmo_aggregation_ = None
-        aggregated = []
+        self.aggregated_parameters_ = None
         if self.dmo_aggregation is not None:
             self.dmo_aggregation_ = self.dmo_aggregation.clone().aggregate(
                 self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
             )
-            aggregated.append(self.dmo_aggregation_.aggregated_data_)
-
-        # aggregations for the signal based parameters
-        has_sdmo_values = (
-            self.per_wb_signal_based_parameters_ is not None
-            and len(self.per_wb_signal_based_parameters_.columns.difference(["duration_s"])) > 0
-        )
-        if has_sdmo_values and self.sdmo_aggregation is not None:
-            self.sdmo_aggregation_ = self.sdmo_aggregation.clone().aggregate(
-                self.per_wb_signal_based_parameters_, wb_dmos_mask=None
-            )
-            aggregated.append(self.sdmo_aggregation_.aggregated_data_)
-        self.aggregated_parameters_ = pd.concat(aggregated, axis=1) if aggregated else None
+            self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
 
         del self._all_action_kwargs
         return self
-
-    def _get_sdmo_calculator(self, result_level: str) -> Optional[Union[MobilisedSDMO, BaseSDMOCalculator]]:
-        calculator = self.sdmo_calculation
-        if isinstance(calculator, BaseSDMOCalculator):
-            return calculator.clone() if calculator.result_level == result_level else None
-        return calculator.clone().set_params(
-            calculators=tuple(
-                (name, calc) for name, calc in calculator.calculators if calc.result_level == result_level
-            )
-        )
-
-    def _calculate_per_wb_sdmos(self, imu_data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
-        sdmo_results = []
-        index_name = self.per_wb_parameters_.index.name
-        calculator = self._get_sdmo_calculator("wb")
-        if calculator is None:
-            return self.per_wb_parameters_.loc[:, ["duration_s"]].copy()
-
-        for wb_region, wb_data in iter_gs(imu_data, self.per_wb_parameters_):
-            stride_list = self.per_stride_parameters_.loc[wb_region.id].copy()
-            if not stride_list.empty:
-                stride_list.loc[:, ["start", "end"]] -= wb_region.start
-            turn_list = _turn_metadata(self.raw_turn_list_).copy()
-            if not turn_list.empty:
-                turn_list = turn_list.query("start >= @wb_region.start and end <= @wb_region.end").copy()
-                turn_list.loc[:, ["start", "end"]] -= wb_region.start
-            self.sdmo_calculation_ = calculator.clone().calculate(
-                wb_data,
-                stride_list=stride_list,
-                turn_list=turn_list,
-                sampling_rate_hz=sampling_rate_hz,
-                replicate_matlab=True,
-            )
-            result = self.sdmo_calculation_.signal_based_parameters_.copy()
-            if result.empty:
-                continue
-            result = result.to_frame().T
-            result.index = pd.Index([wb_region.id], name=index_name)
-            sdmo_results.append(result)
-
-        duration = self.per_wb_parameters_.loc[:, ["duration_s"]]
-        if not sdmo_results:
-            return duration.copy()
-        return duration.join(pd.concat(sdmo_results))
-
-    def _calculate_per_turn_sdmos(self, imu_data: pd.DataFrame, sampling_rate_hz: float) -> pd.DataFrame:
-        calculator = self._get_sdmo_calculator("turn")
-        if isinstance(calculator, BaseSDMOCalculator):
-            result = _calculate_turn_parameters(
-                imu_data, self.raw_turn_list_, (("turn", calculator),), sampling_rate_hz=sampling_rate_hz
-            )
-        elif calculator is not None:
-            result = calculator.calculate(
-                imu_data, sampling_rate_hz=sampling_rate_hz, turn_list=self.raw_turn_list_
-            ).per_turn_parameters_
-        else:
-            result = _empty_turn_parameters(self.raw_turn_list_)
-        if result.empty:
-            result.index = pd.MultiIndex.from_arrays([[], []], names=["gs_id", "turn_id"])
-        # Keep detector identity and recording-local intervals, even outside or across accepted WBs.
-        associations = []
-        for turn in result.itertuples():
-            matches = self.per_wb_parameters_.index[
-                (self.per_wb_parameters_["start"] <= turn.start) & (self.per_wb_parameters_["end"] >= turn.end)
-            ]
-            associations.append(matches[0] if len(matches) == 1 else pd.NA)
-        result["wb_id"] = pd.array(associations, dtype="Int64")
-        return result
 
     def _run_per_gs(
         self,
@@ -603,7 +499,6 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
-    %(signal_based_calculation)s
     %(aggregation_parameters)s
     %(additional_parameters)s
 
@@ -658,10 +553,8 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
         turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
-        sdmo_calculation: Optional[Union[MobilisedSDMO, BaseSDMOCalculator]],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
-        sdmo_aggregation: BaseAggregator,
         recommended_cohorts: Optional[tuple[str, ...]],
         retain_intermediate_results: bool = True,
     ) -> None:
@@ -676,10 +569,8 @@ class MobilisedPipelineHealthy(GenericMobilisedPipeline[BaseGaitDatasetT], Gener
             turn_detection=turn_detection,
             stride_selection=stride_selection,
             wba=wba,
-            sdmo_calculation=sdmo_calculation,
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
-            sdmo_aggregation=sdmo_aggregation,
             recommended_cohorts=recommended_cohorts,
             retain_intermediate_results=retain_intermediate_results,
         )
@@ -706,7 +597,6 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
     %(core_parameters)s
     %(turn_detection)s
     %(wba_parameters)s
-    %(signal_based_calculation)s
     %(aggregation_parameters)s
     %(additional_parameters)s
 
@@ -753,10 +643,8 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
         turn_detection: Optional[BaseTurnDetector],
         stride_selection: StrideSelection,
         wba: WbAssembly,
-        sdmo_calculation: Optional[Union[MobilisedSDMO, BaseSDMOCalculator]],
         dmo_thresholds: Optional[pd.DataFrame],
         dmo_aggregation: BaseAggregator,
-        sdmo_aggregation: BaseAggregator,
         recommended_cohorts: Optional[tuple[str, ...]],
         retain_intermediate_results: bool = True,
     ) -> None:
@@ -771,10 +659,8 @@ class MobilisedPipelineImpaired(GenericMobilisedPipeline[BaseGaitDatasetT], Gene
             turn_detection=turn_detection,
             stride_selection=stride_selection,
             wba=wba,
-            sdmo_calculation=sdmo_calculation,
             dmo_thresholds=dmo_thresholds,
             dmo_aggregation=dmo_aggregation,
-            sdmo_aggregation=sdmo_aggregation,
             recommended_cohorts=recommended_cohorts,
             retain_intermediate_results=retain_intermediate_results,
         )
@@ -885,14 +771,6 @@ class MobilisedPipelineUniversal(BaseMobilisedPipeline[BaseGaitDatasetT], Generi
     @property
     def raw_per_stride_parameters_(self) -> pd.DataFrame:
         return self.pipeline_.raw_per_stride_parameters_
-
-    @property
-    def per_wb_signal_based_parameters_(self) -> pd.DataFrame:
-        return self.pipeline_.per_wb_signal_based_parameters_
-
-    @property
-    def per_turn_parameters_(self) -> Optional[pd.DataFrame]:
-        return self.pipeline_.per_turn_parameters_
 
     @timed_action_method
     @mobilised_pipeline_docfiller

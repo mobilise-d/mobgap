@@ -8,19 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Window-based secondary outcome calculators return a Series indexed by parameter name, containing all values
-  for the supplied signal window. `TurnSDMO` receives one prepared turn window directly; callers retain metadata
-  and assemble results across windows. Bulk composition and pipeline callers assemble `per_turn_parameters_` tables.
-  Full pipelines preserve detected turn identities, recording-local coordinates and optional WB association. There are no
-  per-WB turn summaries or automatic recording-level turn summaries.
-- Add `RegionIterator` to assemble typed Series results from arbitrary signal regions into DataFrames while
-  preserving the source table's full index. Signal preparation and metadata access remain explicit in the loop.
-- Add `mobgap.utils.intervals.map_intervals_to_regions` for full interval containment and
-  `mobgap.re_orientation.get_orientation_for_sequences` to select method-specific corrections for walking bouts,
-  turns, or other sequences. Partial overlaps with sections requiring correction raise an error.
-- Reorientation methods now provide a static `apply_correction(data, correction)` operation enforced by
-  `BaseReorientationCorrector`. Each method defines its own correction type. `ReorientationMethodDM` replays its
-  existing gravity/PA rotation tuple without re-estimating orientation, including documented unresolved fallbacks.
+- Add standalone secondary outcome calculators for stride CV, signal magnitude, entropy, spectral parameters,
+  regularity/symmetry, smoothness, harmonic ratios and individual turns. Each exposes a parameter-indexed Series
+  for one prepared window. Calculate these after primary analysis and optionally summarize WB outcomes with
+  `SDMOAggregator`; primary pipeline processing and result tables remain unchanged.
+- Add `RegionIterator` to collect caller-defined Series result fields into DataFrames while preserving region
+  identities and hierarchical parameter labels. Signal preparation and metadata access remain in the caller's loop.
+- Add generic interval-containment and sequence-orientation helpers. Reorientation methods enforce static
+  `apply_correction(data, correction)` while defining their own correction type; `ReorientationMethodDM` replays
+  its gravity/PA rotations, including documented unresolved fallbacks.
 
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level
@@ -88,6 +84,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear the executed primary aggregator and aggregate result when aggregation is disabled, including when reusing
+  a pipeline after an aggregated run, while still releasing temporary action arguments.
+
 - Fix `Resample` to return an independent, unchanged copy when the input and target sampling rates are equal,
   as documented. Previously, a missing early return still ran FFT resampling, introducing floating-point roundoff,
   converting integer data to floats, rebuilding the index, and spreading NaNs across the signal. Equal-rate calls
@@ -114,27 +113,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MisorientedDataset` now preserves the wrapped dataset's grouping and appends its orientation column instead of
   resetting iteration to every source-index row. Callers that intentionally need the previous row-level grouping can
   pass all source-index columns plus the orientation column explicitly via `groupby_cols`.
-
-- `HarmonicRatioFourier` provides an opt-in per-stride Fourier-amplitude method with distinct
-  `harmonic_ratio_fourier_acc_{is,pa,ml}` outputs and arithmetic averaging of stride ratios. The existing
-  `HarmonicRatio` remains the default, allowing both estimators to be calculated together.
-
-### Fixed
-
-- `HarmonicRatio` now honors every supplied half-open stride start/end interval without rebasing starts,
-  reconstructing strides or moving endpoints. Its peak/trough coefficient extraction and coefficient averaging are retained, but boundary corrections can change values.
-
-- Configured SDMO aggregation now proceeds when primary DMO aggregation is disabled. Existing SDMO bout weighting,
-  duration groups and masking behavior are retained; raw per-turn rows are never fed to WB aggregation.
-
-- Total acceleration RMS now requires all three anatomical axes to be configured and present. Partial-axis RMS
-  remains available; incomplete totals and their ratios are NaN. Gyro RMS remains uncentered.
-- Spectral peak extraction now supports configured axes independently and local peaks on inclusive search-band
-  boundaries. Half-height widths use interpolated crossings, so existing widths can change. Welch configuration
-  and default bands remain unchanged. PSD peak heights are documented in 1/Hz.
-- Sample entropy now counts matches from the same extendible template pool at both lengths, excluding self matches.
-  Existing values can change. The default internal rate remains 50 Hz, with the threshold applied after resampling.
-
 
 ## [1.2.0] - 2026-04-01
 

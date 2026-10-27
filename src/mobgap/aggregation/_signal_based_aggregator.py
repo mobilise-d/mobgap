@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 import warnings
 from types import MappingProxyType
@@ -36,9 +38,9 @@ class SDMOAggregator(BaseAggregator):
 
     Each contributing WB has equal weight in each metric; NaNs are omitted per metric. SD is sample SD (ddof=1).
     These are distributions of bout summaries, not pooled signal estimates. Duration filters use an exclusive lower
-    and inclusive upper bound. The full pipeline passes no primary-DMO validity mask to this aggregator and permits
-    it to run independently of primary aggregation. It passes only non-turn WB outcomes; raw turn records belong in
-    ``per_turn_parameters_`` and are not inputs to this WB aggregator.
+    and inclusive upper bound. Run this aggregator explicitly after calculating secondary outcomes; primary-DMO
+    validity masks are not applied automatically. Supply only non-turn WB outcomes. Keep raw turn metadata and
+    individual turn outcomes in separate tables rather than passing them to this WB aggregator.
 
     Depending on available columns in the input data, calculated parameters will be added to a distinct column
     in the aggregated data.
@@ -91,7 +93,7 @@ class SDMOAggregator(BaseAggregator):
         ``filtered_wb_dmos_`` will have the groupby columns and the ``unique_wb_id_column`` set as index.
     """
 
-    groupby: typing.Optional[typing.Sequence[str]]
+    groupby: typing.Sequence[str] | None
     unique_wb_id_column: str
     wb_dmos_mask: pd.DataFrame
     filtered_wb_dmos_: pd.DataFrame
@@ -133,7 +135,7 @@ class SDMOAggregator(BaseAggregator):
     @set_defaults(**{k: cf(v) for k, v in PredefinedParameters.single_recording.items()})
     def __init__(
         self,
-        groupby: typing.Optional[typing.Sequence[str]],
+        groupby: typing.Sequence[str] | None,
         *,
         duration_filters: dict[str, tuple[float, float]],
         metrics: dict[str, typing.Callable | str],

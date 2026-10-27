@@ -16,10 +16,10 @@ the per-WB parameters are aggregated using various statistical methods including
 In addition, the parameters can be summarised across different WB duration categories since short and long WBs might capture distinct aspects of mobility and offer different clinical insights.
 The WB duration categories used for the aggregation were all WBs, WBs > 10 s, WBs 10–30 s, WBs > 30 s, WBs 30–60 s, and WBs > 60 s.
 
-The `MobilisedSDMO` pipeline combines independent calculator objects to calculate the full set of SDMOs irrespective
-of the cohort. The calculator list can be changed through the `calculators` parameter, which makes individual outcomes
-easy to add, remove, or configure without modifying the composition pipeline. `SDMOAggregator` aggregates the per-WB
-results and can be configured through its `metrics` and `duration_filters` parameters.
+Secondary outcomes are calculated after running the primary pipeline, from its accepted WBs, retained strides
+and raw detected turns. Each individual calculator exposes a Series for one prepared window. `RegionIterator`
+assembles these into tables, and `SDMOAggregator` optionally summarizes WB outcomes. Secondary calculations and
+aggregation are independent operations; they are not configured on the primary pipeline.
 
 The clinical reliability and validity of these SDMOs differ by cohort; the current per-cohort recommendations are
 listed below.
@@ -125,8 +125,8 @@ works independently. No slopes or alternate spectral estimator are introduced.
 
 Two independently selectable calculators use every supplied stride's actual `[start, end)` sample interval relative
 to the supplied signal. Both preserve nonzero offsets, gaps, overlapping left/right rows and input row order during
-calculation. Neither reconstructs strides from alternating starts nor moves endpoints. In the full pipeline,
-these are the retained stride rows within the accepted WB, expressed in WB-local coordinates.
+calculation. Neither reconstructs strides from alternating starts nor moves endpoints. Select the primary pipeline's
+retained stride rows for each accepted WB and rebase their recording-local boundaries to the supplied WB window.
 
 `HarmonicRatio` retains the existing `harmonic_ratio_acc_{is,pa,ml}` names, spectral peak/trough extraction,
 normalization and coefficient averaging. Its IS/PA targets use k/T, and it searches neighborhoods of plus/minus 1/T
@@ -151,17 +151,10 @@ Missing/unconfigured axes are omitted and empty stride lists give an empty Serie
 bandwidth and the number of contributing strides affect interpretation; software checks do not establish clinical
 reliability on short bouts.
 
-The current default remains `HarmonicRatio`. To calculate both methods in `MobilisedSDMO`, append the new calculator:
+The standard WB calculator configuration uses `HarmonicRatio`. Both estimators can be included under distinct
+algorithm names in the configured dictionary used for post-processing. Their internal parameter names remain
+separate in the resulting two-level column index.
 
-```python
-from mobgap.signal_based import HarmonicRatioFourier, MobilisedSDMO
-
-calculators = MobilisedSDMO.PredefinedParameters.default["calculators"] + (
-    ("harmonic_ratio_fourier", HarmonicRatioFourier(acc_columns=["acc_is", "acc_pa", "acc_ml"])),
-)
-sdmos = MobilisedSDMO(calculators=calculators)
-# Supply data and its WB-local stride start/end positions to sdmos.calculate(...).
-```
 
 The distinct output names allow both methods to coexist in WB results and aggregation. For a one-second stride
 `sin(4*pi*t) + 0.4*sin(6*pi*t)`, Fourier IS/PA HR is 2.5. The retained peak/trough extraction gives approximately
@@ -172,10 +165,9 @@ The distinct output names allow both methods to coexist in WB results and aggreg
 `SDMOAggregator` summarizes the distribution of per-WB values with equal weight per contributing bout and NaNs
 omitted separately for each metric. With finite observations, medians and percentiles need at least one contributor; sample SD needs
 two. Groups without contributing values return NaN. Duration groups use exclusive lower and inclusive upper bounds.
-These statistics are bout-summary distributions, not pooled whole-recording features. The pipeline does not pass
-primary-DMO validity masks to SDMO aggregation. Setting `dmo_aggregation=None` allows configured SDMO aggregation
-to proceed independently; disabling both aggregators gives `aggregated_parameters_=None`. A turn-only configuration
-has no WB outcomes to aggregate. No new QC thresholds, missing-IC repair or clinical weighting are applied.
+These statistics are bout-summary distributions, not pooled whole-recording features. Run aggregation explicitly
+after calculating secondary outcomes; primary-DMO validity masks are not applied automatically. Turn outcomes have
+no default statistical aggregation. No new QC thresholds, missing-IC repair or clinical weighting are applied.
 
 The historical cohort recommendations below describe research outcomes. Passing software checks does not establish
 clinical validity for these modified estimators or new cohorts, placements or protocols. The regularity/symmetry
@@ -215,11 +207,11 @@ at least three samples and is undefined for constant yaw. Empty data returns an 
 The existing `MobilisedSDMO` composition keeps its bulk `per_turn_parameters_` table, with metadata, by slicing
 turn windows before calling individual calculators. This table is assembled by the caller, not by `TurnSDMO`.
 
-The full pipeline exposes the same `per_turn_parameters_` with recording-local intervals and the existing
-`(gs_id, turn_id)` detector index. It retains every turn already detected within gait sequences, including turns
-crossing or outside accepted WBs. Nullable `wb_id` is present only for a unique fully containing accepted WB.
-This does not extend turn detection to the whole recording. Disabling SDMO calculation gives None; disabling the
-turn calculator or having no turns gives an empty table. Raw turns never enter `SDMOAggregator`.
+The primary pipeline exposes raw detections in `raw_turn_list_`, with recording-local intervals and the
+`(gs_id, turn_id)` detector index. Process every detected turn afterwards, including turns crossing or outside
+accepted WBs. Turn identity and metadata remain aligned to the parameter table by that index; WB association is
+optional caller-owned interval matching. This does not extend detection beyond the gait sequences. Raw turn
+records and individual turn outcomes do not enter `SDMOAggregator`.
 
 ## Recommended SDMOs Per-Cohort
 

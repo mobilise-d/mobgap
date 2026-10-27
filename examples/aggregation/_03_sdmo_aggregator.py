@@ -28,7 +28,7 @@ data = (
     .rename(columns={"n_steps": "n_raw_initial_contacts"})
 )
 # The stored historical table includes removed per-WB turn summaries. Exclude those legacy columns;
-# current pipeline turns are individual rows in per_turn_parameters_ and are never inputs to this aggregator.
+# turn outcomes are calculated separately after primary analysis and are never inputs to this WB aggregator.
 data = data.drop(columns=data.filter(regex="^Turn_").columns)
 data.head()
 

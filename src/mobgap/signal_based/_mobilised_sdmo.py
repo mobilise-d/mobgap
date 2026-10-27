@@ -159,7 +159,7 @@ def _calculate_turn_parameters(
     calculators: tuple[tuple[str, BaseSDMOCalculator], ...],
     **params: Any,
 ) -> pd.DataFrame:
-    """Assemble single-window calculators for the existing bulk composition/pipeline interfaces."""
+    """Assemble single-window turn calculators for the optional bulk composition interface."""
     metadata = _turn_metadata(turn_list)
     if metadata.empty or not calculators:
         return _empty_turn_parameters(turn_list)

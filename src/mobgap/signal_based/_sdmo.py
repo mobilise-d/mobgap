@@ -1005,7 +1005,7 @@ class LogDimensionlessJerk(BaseSDMOCalculator):
     This removes a constant gravity projection from the peak amplitude; changing body-axis gravity projections remain.
     The result is dimensionless and independent of the unit of the signal (g or m/s², deg/s or rad/s).
 
-    The pipeline uses the FULL accepted walking bout, including turning and samples between retained strides.
+    The post-processing example uses the FULL accepted walking bout, including turns and gaps between retained strides.
     Raw body axes are differentiated with finite differences; no additional filtering or gravity correction is applied.
     Results depend on input bandwidth, orientation and movement boundaries. Constant signals, fewer than three samples
     and nonfinite normalization yield NaN. Values may be negative and are dimensionless natural logarithms.
