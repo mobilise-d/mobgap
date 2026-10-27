@@ -9,6 +9,7 @@ from mobgap.signal_based import (
     TurnSDMO,
 )
 from mobgap.utils.conversions import to_body_frame
+from mobgap.signal_based.base import BaseSDMOCalculator
 
 
 @pytest.fixture
@@ -129,3 +130,31 @@ def test_composite_keeps_turn_rows_separate_from_bout_values():
     assert result.per_turn_parameters_.index.tolist() == [4, 8]
     assert result.per_turn_parameters_.turn_peak_ang_vel.tolist() == [2.0, 3.0]
     assert not any(c.startswith("turn_") for c in result.signal_based_parameters_)
+
+
+class _ExtraTurnFeature(BaseSDMOCalculator):
+    result_level = "turn"
+
+    def calculate(self, data, sampling_rate_hz, turn_list, **kwargs):
+        self.data = data
+        self.sampling_rate_hz = sampling_rate_hz
+        self.turn_list = turn_list
+        self.signal_based_parameters_ = pd.DataFrame()
+        self.per_turn_parameters_ = turn_list.assign(sample_count=turn_list.end - turn_list.start)
+        return self
+
+
+def test_composite_retains_turn_metadata_once_for_distinct_calculators():
+    data = pd.DataFrame({"gyr_is": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0]})
+    turns = pd.DataFrame(
+        {"start": [0, 3], "end": [3, 6], "duration_s": [0.3, 0.3]}, index=pd.Index([4, 8], name="turn_id")
+    )
+    result = (
+        MobilisedSDMO(calculators=(("turn", TurnSDMO()), ("extra", _ExtraTurnFeature())))
+        .calculate(data, sampling_rate_hz=10, turn_list=turns)
+        .per_turn_parameters_
+    )
+    assert result.columns.is_unique
+    pd.testing.assert_frame_equal(result[turns.columns], turns)
+    assert result.sample_count.tolist() == [3, 3]
+    assert result.turn_peak_ang_vel.tolist() == [2.0, 3.0]
