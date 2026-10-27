@@ -19,7 +19,7 @@ from mobgap.signal_based._sdmo import (
     StrideLevelSDMO,
     TurnSDMO,
 )
-from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, base_sdmo_docfiller
+from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, _turn_metadata, base_sdmo_docfiller
 
 
 @base_sdmo_docfiller
@@ -148,5 +148,8 @@ class MobilisedSDMO(Pipeline):
                 results.append(calculator_.signal_based_parameters_)
         self.signal_based_parameters_ = pd.concat(results, axis=1) if results else pd.DataFrame()
         if turn_results:
-            self.per_turn_parameters_ = pd.concat(turn_results, axis=1)
+            metadata = _turn_metadata(turn_list)
+            self.per_turn_parameters_ = pd.concat(
+                [metadata, *(result.drop(columns=metadata.columns) for result in turn_results)], axis=1
+            )
         return self

@@ -200,7 +200,8 @@ class TestTurnSDMO:
         assert not np.isnan(row["turn_peak_ang_vel"])
         assert np.isfinite(row["turn_smoothness"])
 
-    def test_individual_turn_rows_preserve_identity_metadata_and_signed_mean(self):
+    @pytest.mark.parametrize("turn_ids", [[7, 9], [0, 0]])
+    def test_individual_turn_rows_preserve_identity_metadata_and_signed_mean(self, turn_ids):
         turns = pd.DataFrame(
             {
                 "start": [0, 4],
@@ -209,7 +210,7 @@ class TestTurnSDMO:
                 "angle_deg": [0.0, 16.0],
                 "direction": ["left", "right"],
             },
-            index=pd.Index([7, 9], name="turn_id"),
+            index=pd.Index(turn_ids, name="turn_id"),
         )
         result = TurnSDMO().calculate(
             pd.DataFrame({"gyr_is": [-3.0, -1.0, 1.0, 3.0, 2.0, 2.0, 6.0, 6.0]}), sampling_rate_hz=10, turn_list=turns
@@ -218,7 +219,7 @@ class TestTurnSDMO:
         pd.testing.assert_frame_equal(out[turns.columns], turns)
         assert out.turn_mean_ang_vel.tolist() == [0.0, 4.0]
         assert out.turn_peak_ang_vel.tolist() == [3.0, 6.0]
-        assert np.isnan(out.loc[7, "turn_smoothness"])
+        assert np.isnan(out.iloc[0]["turn_smoothness"])
         assert result.signal_based_parameters_.empty
 
     def test_turn_smoothness_is_angular_ldlj(self):

@@ -58,6 +58,7 @@ class BaseSDMOCalculator(Algorithm):
     By default ``result_level="wb"`` selects the full accepted WB in the main pipeline. Turn calculators declare
     ``result_level="turn"``, return their indexed metadata/features in ``per_turn_parameters_`` and leave the
     single-row ``signal_based_parameters_`` empty. They run once over all detected turns on the recording signal.
+    Turn calculators preserve the supplied turn-list index, row order and metadata, and use distinct feature names.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
     Subclasses may specify further parameters for their calculate methods because individual signal-based parameters
@@ -116,8 +117,8 @@ class BaseSDMOCalculator(Algorithm):
 __all__ = ["BaseSDMOCalculator", "base_sdmo_docfiller"]
 
 
-def _empty_turn_parameters(turn_list: Optional[pd.DataFrame] = None) -> pd.DataFrame:
-    """Empty per-turn result, preserving supplied metadata and index schema."""
+def _turn_metadata(turn_list: Optional[pd.DataFrame]) -> pd.DataFrame:
+    """Supplied turn metadata, or the canonical empty standalone schema."""
     if turn_list is None or len(turn_list.columns) == 0:
         turn_list = pd.DataFrame(
             {
@@ -128,7 +129,12 @@ def _empty_turn_parameters(turn_list: Optional[pd.DataFrame] = None) -> pd.DataF
                 "direction": pd.Series(dtype=str),
             }
         ).rename_axis("turn_id")
-    result = turn_list.iloc[:0].copy()
+    return turn_list
+
+
+def _empty_turn_parameters(turn_list: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+    """Empty per-turn result, preserving supplied metadata and index schema."""
+    result = _turn_metadata(turn_list).iloc[:0].copy()
     for column in ("turn_mean_ang_vel", "turn_peak_ang_vel", "turn_smoothness"):
         result[column] = pd.Series(index=result.index, dtype=float)
     return result

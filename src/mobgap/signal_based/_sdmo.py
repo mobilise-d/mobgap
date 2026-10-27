@@ -85,7 +85,7 @@ class TurnSDMO(BaseSDMOCalculator):
                     "turn_smoothness": _log_dimensionless_jerk(seg[:, None], sampling_rate_hz, derivative_order=2)[0],
                 }
             )
-        self.per_turn_parameters_ = turn_list.join(pd.DataFrame(rows, index=turn_list.index))
+        self.per_turn_parameters_ = pd.concat([turn_list, pd.DataFrame(rows, index=turn_list.index)], axis=1)
         return self
 
 
