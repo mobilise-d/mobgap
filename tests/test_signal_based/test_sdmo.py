@@ -226,6 +226,13 @@ class TestStrideLevelSDMO:
 
         assert result.signal_based_parameters_.loc[0, "cv_stride_duration_s"] == pytest.approx(50.0)
 
+    def test_missing_contact_can_distort_retained_stride_cv(self):
+        algo = StrideLevelSDMO(stride_list_columns=["stride_duration_s"])
+        true = algo.clone().calculate(pd.DataFrame(), stride_list=pd.DataFrame({"stride_duration_s": [1.0] * 10}))
+        missed = algo.calculate(pd.DataFrame(), stride_list=pd.DataFrame({"stride_duration_s": [1.0] * 8 + [2.0]}))
+        assert true.signal_based_parameters_.iloc[0, 0] == 0
+        assert missed.signal_based_parameters_.iloc[0, 0] == pytest.approx(30.0)
+
     def test_no_columns(self):
         algo = StrideLevelSDMO(stride_list_columns=None)
         result = algo.calculate(
@@ -289,15 +296,26 @@ class TestRMS:
         expected = pd.DataFrame({"rms_gyr_is": [3.0], "rms_gyr_ml": [4.0]})
         pd.testing.assert_frame_equal(result, expected)
 
-    def test_constant_signal(self):
+    @pytest.mark.parametrize("level", [1.0, 0.1])
+    def test_constant_signal(self, level):
         algo = RMS(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
-        result = algo.calculate(pd.DataFrame(np.ones((100, 6)), columns=BF_SENSOR_COLS))
+        result = algo.calculate(pd.DataFrame(np.full((100, 6), level), columns=BF_SENSOR_COLS))
         df = result.signal_based_parameters_
 
         for col in ["rms_acc_is", "rms_acc_ml", "rms_acc_pa"]:
             assert df[col].iloc[0] == pytest.approx(0.0, abs=1e-12)
         for col in ["rms_gyr_is", "rms_gyr_ml", "rms_gyr_pa"]:
-            assert df[col].iloc[0] == pytest.approx(1.0, abs=1e-12)
+            assert df[col].iloc[0] == pytest.approx(level, abs=1e-12)
+        assert df["rms_total_acc"].iloc[0] == 0
+        assert df.filter(like="rms_ratio_").isna().all().all()
+
+    def test_integer_inputs_are_promoted_before_centering_and_squaring(self):
+        data = pd.DataFrame(
+            {"acc_is": np.array([-100, 100], dtype=np.int8), "gyr_is": np.array([100, 100], dtype=np.int8)}
+        )
+        row = RMS(acc_columns=["acc_is"], gyr_columns=["gyr_is"]).calculate(data).signal_based_parameters_.iloc[0]
+        assert row.rms_acc_is == 100
+        assert row.rms_gyr_is == 100
 
     def test_acceleration_total_and_ratios_exclude_gyroscope(self):
         acc_is = np.array([1.0, -1.0, -1.0, 1.0])
@@ -312,9 +330,11 @@ class TestRMS:
             }
         )
 
-        result = RMS(
-            acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"]
-        ).calculate(data).signal_based_parameters_.iloc[0]
+        result = (
+            RMS(acc_columns=["acc_is", "acc_ml", "acc_pa"], gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"])
+            .calculate(data)
+            .signal_based_parameters_.iloc[0]
+        )
 
         expected_total = np.sqrt(5)
         assert result["rms_total_acc"] == pytest.approx(expected_total)
@@ -329,8 +349,8 @@ class TestRMS:
 
         expected_rms = np.sqrt(2 / 3)
         assert result["rms_acc_is"] == pytest.approx(expected_rms)
-        assert result["rms_total_acc"] == pytest.approx(expected_rms)
-        assert result["rms_ratio_acc_is"] == pytest.approx(1)
+        assert np.isnan(result["rms_total_acc"])
+        assert np.isnan(result["rms_ratio_acc_is"])
 
     def test_unrelated_columns_are_ignored(self):
         data = pd.DataFrame({"acc_is": [1.0, -1.0], "temperature": [20.0, 22.0]})
@@ -338,6 +358,14 @@ class TestRMS:
         result = RMS(acc_columns=["acc_is"]).calculate(data).signal_based_parameters_
 
         assert list(result.columns) == ["rms_acc_is", "rms_total_acc", "rms_ratio_acc_is"]
+
+    def test_missing_anatomical_axis_does_not_publish_partial_total(self):
+        data = pd.DataFrame({"acc_is": [1.0, -1.0], "acc_ml": [2.0, -2.0]})
+        row = RMS(acc_columns=["acc_is", "acc_ml", "acc_pa"]).calculate(data).signal_based_parameters_.iloc[0]
+        assert row["rms_acc_is"] == 1
+        assert row["rms_acc_ml"] == 2
+        assert np.isnan(row["rms_total_acc"])
+        assert np.isnan(row["rms_ratio_acc_is"])
 
     def test_signal_with_dc_offset(self):
         t = np.linspace(0, 1, 200)
@@ -351,8 +379,8 @@ class TestRMS:
 
         expected = A / np.sqrt(2)
         assert df["rms_acc_is"].iloc[0] == pytest.approx(expected, rel=1e-1)
-        assert df["rms_total_acc"].iloc[0] == pytest.approx(expected, rel=1e-1)
-        assert df["rms_ratio_acc_is"].iloc[0] == pytest.approx(1.0, rel=1e-2)
+        assert np.isnan(df["rms_total_acc"].iloc[0])
+        assert np.isnan(df["rms_ratio_acc_is"].iloc[0])
 
 
 class TestRegularitySymmetry:
@@ -564,6 +592,16 @@ class TestHarmonicRatio:
 
 
 class TestSDRange:
+    def test_sample_sd_range_and_units_have_known_values(self):
+        row = (
+            SDRange()
+            .calculate(pd.DataFrame({"acc_is": [0.0, 2.0, 4.0], "gyr_is": [1.0, 3.0, 5.0]}))
+            .signal_based_parameters_.iloc[0]
+        )
+        assert row.sd_acc_is == 2
+        assert row.range_acc_is == 4
+        assert row.sd_gyr_is == 2
+
     def test_output_has_correct_columns(self):
         algo = SDRange()
         data = pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS)
@@ -675,6 +713,25 @@ class TestLogDimensionlessJerk:
         data = pd.DataFrame({"acc_is": [1.0, 2.0]})
         result = algo.calculate(data, sampling_rate_hz=10.0)
         assert np.isnan(result.signal_based_parameters_.loc[0, "jerk_acc_is"])
+
+
+@pytest.mark.parametrize(
+    "duration,acc_expected,gyr_expected",
+    [(5, -6.20017, -13.09348), (10, -7.58646, -15.86607), (20, -8.97276, -18.63866)],
+)
+def test_repeated_motion_changes_ldlj_but_preserves_rms_jerk_ratio(duration, acc_expected, gyr_expected):
+    t = np.arange(duration * 100 + 1) / 100
+    sine = np.sin(2 * np.pi * t)
+    data = pd.DataFrame({"acc_is": sine, "acc_ml": 3 * sine, "gyr_is": sine})
+    row = (
+        LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"])
+        .calculate(data, sampling_rate_hz=100)
+        .signal_based_parameters_.iloc[0]
+    )
+    assert row["jerk_acc_is"] == pytest.approx(acc_expected, abs=1e-5)
+    assert row["jerk_gyr_is"] == pytest.approx(gyr_expected, abs=1e-5)
+    ratio = RMSJerkRatio().calculate(data, sampling_rate_hz=100).signal_based_parameters_.iloc[0]
+    assert ratio["jerk_ratio_ml_is"] == pytest.approx(4.771212547)
 
 
 class TestRMSJerkRatio:

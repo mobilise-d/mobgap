@@ -24,6 +24,37 @@ results and can be configured through its `metrics` and `duration_filters` param
 The clinical reliability and validity of these SDMOs differ by cohort; the current per-cohort recommendations are
 listed below.
 
+## Input conventions and interpretation
+
+Inputs use body-frame acceleration in m/s² and angular velocity in degrees/s. No implicit conversion to g or radians
+is applied. Signal outcomes use the continuous accepted WB, including turns and samples between retained strides.
+SD uses sample standard deviation, `ddof=1`. Range is maximum minus minimum. Acceleration RMS removes only the mean;
+gyro RMS uses raw angular velocity. RMS divides by N. Total acceleration RMS is the Euclidean norm of the three
+anatomical axis RMS values and is NaN if any axis is unavailable or unconfigured. Axis/total ratios are fractions;
+a zero total gives NaN ratios. Valid configured per-axis RMS remains available with partial input.
+
+Stride CV is `100 * sample_SD / mean` in percent, pooling retained strides from both feet. Cadence, stride length and
+speed are processed per-second estimates mapped to strides. Their CV describes variability of those mapped estimates;
+interpolation and processing can suppress or alter it. Stride duration comes from same-foot IC boundaries directly.
+Missing, spurious or misclassified ICs can distort its CV even after stride selection. Ten true 1 s intervals have
+0% CV; losing one IC can leave eight 1 s intervals and one 2 s interval, giving 30% CV. The current default selection
+can retain all these intervals. This limitation does not imply automatic repair or tighter duration thresholds.
+
+`jerk_acc_*` and `jerk_gyr_*` are dimensionless natural-log LDLJ scores over the FULL accepted WB. Acceleration is
+differentiated once, angular velocity twice, using raw body axes without additional filtering. Both normalize by
+`max(abs(signal - mean(signal)))`; this removes constant offsets from the peak, including a constant gravity
+projection, but changing projections and noise bandwidth still affect the result. Constant signals and fewer than
+three samples give NaN. Negative values are expected.
+
+**Duration warning:** duration can dominate actual smoothness differences when comparing different-length bouts.
+The same repeated 1 Hz sine for 5/10/20 s gives acceleration LDLJ -6.20017/-7.58646/-8.97276 and angular LDLJ
+-13.09348/-15.86607/-18.63866. Report duration alongside LDLJ and account for it when interpreting comparisons.
+
+`jerk_ratio_ml_is` and `jerk_ratio_pa_is` instead use `10*log10(RMS(horizontal jerk)/RMS(vertical jerk))` in dB,
+with raw first derivatives. The common RMS duration factor cancels, so the LDLJ duration-power warning does not apply
+to these ratios. Window composition still affects them. Missing required axes produce no corresponding ratio;
+zero vertical jerk or other nonfinite ratios give NaN. These differ intentionally from MATLAB's differences of LDLJ.
+
 ## Recommended SDMOs Per-Cohort
 
 ### MS

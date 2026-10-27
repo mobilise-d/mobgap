@@ -76,7 +76,7 @@ class TurnSDMO(BaseSDMOCalculator):
             "turn_smoothness": _nanmean(smoothness),
         }
 
-        wb_dur = (len(data)-1) / sampling_rate_hz
+        wb_dur = (len(data) - 1) / sampling_rate_hz
         turn_dur = turn_list["duration_s"].sum()
         turn_params["turn_dur_percentage_from_wb_dur"] = 100 * (turn_dur / wb_dur)
         self.signal_based_parameters_ = pd.DataFrame([turn_params])
@@ -97,6 +97,13 @@ class StrideLevelSDMO(BaseSDMOCalculator):
     The standard deviation is the **sample standard deviation** (``ddof=1``, Bessel-corrected). This is not the same as
     the population standard deviation (``ddof=0``, the :func:`numpy.std` default). The two differ by a factor of
     :math:`\sqrt{n/(n-1)}`, and get closer as n grows.
+
+    The pipeline pools retained strides from both feet. Cadence, stride length and speed are processed per-second
+    estimates mapped to strides. Their CV describes variability of those mapped estimates, not direct stride-to-stride
+    variability; interpolation and processing can suppress or alter it. Stride duration instead comes from same-foot
+    initial-contact boundaries. Missing, spurious or misclassified contacts can heavily distort durations and their CV
+    even after stride selection. For example, losing one contact can replace two 1 s intervals by one 2 s interval.
+    Eight 1 s intervals and one 2 s interval give 30%% CV, although the true ten 1 s intervals have 0%% CV.
 
     Parameters
     ----------
@@ -139,7 +146,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         self.signal_based_parameters_ = pd.DataFrame()
         if stride_list is None or stride_list.empty or len(stride_list) < 2 or self.stride_list_columns is None:
             warnings.warn(
-                f"Stride-level SDMOs are not calculated because stride list is not valid.",
+                "Stride-level SDMOs are not calculated because stride list is not valid.",
                 stacklevel=1,
             )
             return self
@@ -165,9 +172,10 @@ class RMS(BaseSDMOCalculator):
     RMS divided by that total. Gyroscope signals are not mean-centered and are reported as independent per-axis RMS
     parameters; they do not contribute to the total acceleration RMS or acceleration ratios.
 
-    The total acceleration RMS is meaningful when ``acc_columns`` lists orthogonal axes (``acc_is``, ``acc_ml``,
-    ``acc_pa``). Including non-orthogonal columns (e.g. a pre-computed magnitude) in ``acc_columns`` will
-    double-count the signal.
+    Total RMS requires all three anatomical axes (``acc_is``, ``acc_ml``, ``acc_pa``) to be configured and present.
+    Otherwise the total and ratios are NaN; configured per-axis RMS values remain available. Extra configured
+    channels never contribute to the anatomical total. Zero-total ratios are also NaN. RMS divides by N,
+    acceleration is in m/s² and angular velocity in degrees/s. There is no unit conversion or linear detrending.
 
     The acceleration RMS ratios follow:
     A gait abnormality measure based on root mean square of trunk acceleration.
@@ -190,10 +198,11 @@ class RMS(BaseSDMOCalculator):
     %(perf_)s
 
     """
+
     def __init__(
-            self,
-            acc_columns: Optional[list[str]] = None,
-            gyr_columns: Optional[list[str]] = None,
+        self,
+        acc_columns: Optional[list[str]] = None,
+        gyr_columns: Optional[list[str]] = None,
     ) -> None:
         self.acc_columns = acc_columns
         self.gyr_columns = gyr_columns
@@ -220,15 +229,22 @@ class RMS(BaseSDMOCalculator):
             )
             return self
 
-        signals = data[[*acc_columns, *gyr_columns]].copy()
+        signals = data[[*acc_columns, *gyr_columns]].astype(float)
         # Remove the DC component of the acceleration signals.
         if acc_columns:
+            # A preliminary constant shift makes constant floating-point axes exactly zero. This is still
+            # mean removal, (x-c)-mean(x-c) == x-mean(x), without a numerical threshold for zero RMS.
+            signals[acc_columns] = signals[acc_columns].subtract(signals[acc_columns].min(), axis=1)
             signals[acc_columns] = signals[acc_columns].subtract(signals[acc_columns].mean(), axis=1)
 
         rms = np.sqrt(signals.pow(2).mean()).add_prefix("rms_")
         if acc_columns:
             acc_rms_columns = [f"rms_{column}" for column in acc_columns]
-            rms_total_acc = np.linalg.norm(rms[acc_rms_columns])
+            rms_total_acc = (
+                np.linalg.norm(rms[["rms_acc_is", "rms_acc_ml", "rms_acc_pa"]])
+                if {"acc_is", "acc_ml", "acc_pa"}.issubset(acc_columns)
+                else np.nan
+            )
             rms["rms_total_acc"] = rms_total_acc
             for column, rms_column in zip(acc_columns, acc_rms_columns):
                 rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else np.nan
@@ -1013,8 +1029,19 @@ class LogDimensionlessJerk(BaseSDMOCalculator):
 
     with :math:`T` the duration of the signal and :math:`x_{peak} = \max |x - \bar{x}|`.
     The mean is only removed for the peak (it has no effect on the derivative).
-    This removes the static gravity component of the accelerometer from the peak amplitude.
+    This removes a constant gravity projection from the peak amplitude; changing body-axis gravity projections remain.
     The result is dimensionless and independent of the unit of the signal (g or m/s², deg/s or rad/s).
+
+    The pipeline uses the FULL accepted walking bout, including turning and samples between retained strides.
+    Raw body axes are differentiated with finite differences; no additional filtering or gravity correction is applied.
+    Results depend on input bandwidth, orientation and movement boundaries. Constant signals, fewer than three samples
+    and nonfinite normalization yield NaN. Values may be negative and are dimensionless natural logarithms.
+
+    .. warning::
+
+        Duration can dominate smoothness differences when comparing bouts of different lengths. Repeating the same
+        1 Hz motion for 5, 10 and 20 s changes acceleration LDLJ from approximately -6.20 to -7.59 to -8.97, and angular
+        LDLJ from -13.09 to -15.87 to -18.64, despite unchanged per-cycle motion. Report duration alongside LDLJ.
 
     Parameters
     ----------
@@ -1088,12 +1115,16 @@ class RMSJerkRatio(BaseSDMOCalculator):
 
         Ratio_{ML/IS} = 10 \log_{10}\left(\frac{RMS_{ML}(jerk)}{RMS_{IS}(jerk)}\right)
 
-    and likewise for the posterior-anterior axis (``jerk_ratio_pa_is_db``).
+    and likewise for the posterior-anterior axis (``jerk_ratio_pa_is``).
     A ratio below 0 dB means less jerk in the horizontal than in the vertical axis.
     The ratios are dimensionless and independent of the unit of the acceleration.
     Each ratio is only calculated if both of its axes are available.
     The un-normalised jerk is used on purpose: the amplitude of each axis is the information this ratio is supposed to
     capture, and the amplitude normalisation of :class:`LogDimensionlessJerk` would remove it.
+    Raw body-axis acceleration is differentiated without additional filtering or gravity correction. The common RMS
+    duration factor cancels in the ratio, so LDLJ's strong duration-power dependence does not apply here. Window
+    composition still matters. A zero denominator or other nonfinite ratio gives NaN; fewer than three samples
+    produce no values. These RMS ratios intentionally differ from differences of LDLJ scores.
 
     Other Parameters
     ----------------
@@ -1234,6 +1265,7 @@ def _matlab_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
 
 def _pd_smooth_moving_ave(y: np.ndarray, span: int) -> np.ndarray:
     return pd.Series(y).rolling(span, center=True, min_periods=1).mean().to_numpy()
+
 
 def _nanmean(values: np.ndarray | list[float]) -> float:
     """Mean of finite values, ignoring NaNs. Returns NaN if no finite values."""
