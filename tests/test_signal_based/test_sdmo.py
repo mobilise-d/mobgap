@@ -496,7 +496,7 @@ class TestFrequencyAmplitudeWidthSlope:
         assert row.freq_is == 2
         assert np.isnan(row.width_is)
 
-    @pytest.mark.parametrize("values", [[], [1.0], [1.0] * 128, [np.nan] * 128])
+    @pytest.mark.parametrize("values", [[], [1.0], [1.0] * 128, [0.1] * 1000, [np.nan] * 128])
     def test_undefined_spectrum_is_explicit(self, values):
         out = (
             FrequencyAmplitudeWidth(acc_columns=["acc_is"])
@@ -536,12 +536,13 @@ class TestSampleEntropy:
         ],
     )
     @pytest.mark.parametrize("acc_columns", [["acc_is"], ["acc_is", "acc_ml"]])
-    def test_exact_common_extendible_template_counts(self, values, expected, acc_columns):
+    @pytest.mark.parametrize("dtype", [np.float64, np.float16])
+    def test_exact_common_extendible_template_counts(self, values, expected, acc_columns, dtype):
         # For 000010: m=2 has 3 unordered matching pairs, m=3 has 1.
         # 00010 has one matching pair at m=2 and none at m=3.
         row = (
             SampleEntropy(acc_columns=acc_columns, r=0.15, num_samples_threshold=0)
-            .calculate(pd.DataFrame({"acc_is": values}), sampling_rate_hz=50)
+            .calculate(pd.DataFrame({"acc_is": np.asarray(values, dtype=dtype)}), sampling_rate_hz=50)
             .signal_based_parameters_.iloc[0]
         )
         if np.isnan(expected):
