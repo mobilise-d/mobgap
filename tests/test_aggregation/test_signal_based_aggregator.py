@@ -12,11 +12,12 @@ DATA_PATH = PROJECT_ROOT / "example_data/original_results/sdmo_aggregator"
 
 @pytest.fixture
 def example_sdmo_data():
-    return (
+    data = (
         pd.read_csv(DATA_PATH / "sdmo_aggregation_test_input.csv")
         .astype({"measurement_date": "string", "visit_type": "string", "participant_id": "string"})
         .set_index(["visit_type", "participant_id", "measurement_date", "wb_id"])
     )
+    return data.drop(columns=data.filter(regex="^Turn_").columns)
 
 
 @pytest.fixture

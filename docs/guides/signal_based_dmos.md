@@ -85,7 +85,8 @@ works independently. No slopes or alternate spectral estimator are introduced.
 ## Aggregation and validation limits
 
 `SDMOAggregator` summarizes the distribution of per-WB values with equal weight per contributing bout and NaNs
-omitted separately for each metric. SD is sample SD. Duration groups use exclusive lower and inclusive upper bounds.
+omitted separately for each metric. With finite observations, medians and percentiles need at least one contributor; sample SD needs
+two. Groups without contributing values return NaN. Duration groups use exclusive lower and inclusive upper bounds.
 These statistics are bout-summary distributions, not pooled whole-recording features. The pipeline does not pass
 primary-DMO validity masks to SDMO aggregation. Setting `dmo_aggregation=None` allows configured SDMO aggregation
 to proceed independently; disabling both aggregators gives `aggregated_parameters_=None`. A turn-only configuration
@@ -95,6 +96,22 @@ The historical cohort recommendations below describe research outcomes. Passing 
 clinical validity for these modified estimators or new cohorts, placements or protocols. Harmonic ratio and
 regularity/symmetry remain unchanged and deferred, including `replicate_matlab` smoothing. The supplied MATLAB
 PCI, step outcomes, slopes, missing helper and other MATLAB-only findings are outside this implementation.
+
+## Relationship to the supplied MATLAB reference
+
+Python retains mean removal for acceleration RMS; the supplied MATLAB `detrend` removes a linear trend. Dimensional
+acceleration outcomes use m/s² here, so values from reference inputs expressed in g require explicit conversion.
+Raw gyro RMS, sample SD, acceleration range, current LDLJ formulas and individual turn formulas are retained.
+Python stride-duration CV uses the same retained duration records for SD and mean, avoiding the supplied MATLAB
+step-versus-stride SD mismatch. The MATLAB ML spectral fallback can return an out-of-band frequency; that behavior
+is not reproduced. Both FFT padding choices are valid, while the retained periodic Hamming convention and
+interpolated width extraction can produce different numerical spectral results.
+
+The entropy common-pool correction is applied in Python only. Python deliberately retains population-SD tolerance
+and default 50 Hz resampling, whereas the supplied MATLAB estimator uses sample SD and the native input rate.
+The RMS jerk ratios deliberately remain different from MATLAB's differences of LDLJ scores. Per-turn values are
+reported without inferring an aggregation rule from an unavailable MATLAB caller. No MATLAB files are repaired;
+MATLAB-only outcomes and the deferred harmonic-ratio/regularity questions remain outside this change.
 
 ## Turn result migration
 
