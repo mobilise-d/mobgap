@@ -510,12 +510,18 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
     """Analyse the acceleration signal in the frequency domain.
 
     The amplitude and frequency were defined as the amplitude and frequency of the main peak of the power spectral
-    density function. The width of the dominant harmony was defined as the width of the peak at half of its peak
+    density function. The width of the dominant PSD peak was defined as the width of the peak at half of its peak
     amplitude [1]_.
 
     Parameters
     ----------
     %(acc_columns_para)s
+    freq_band_is
+        Inclusive search band in Hz for vertical acceleration, default (0.4, 3.1).
+    freq_band_ml
+        Inclusive search band in Hz for mediolateral acceleration, default (0.15, 1.6).
+    freq_band_pa
+        Inclusive search band in Hz for anteroposterior acceleration, default (0.4, 3.1).
 
     Other Parameters
     ----------------
@@ -535,12 +541,18 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
         - Vertical: 0.4 Hz to 3.1 Hz
         - Antero-posterior: 0.4 Hz to 3.1 Hz
         - Medio-lateral: 0.15 Hz to 1.6 Hz
-    - The FFT length in Welch's method determines the frequency resolution of the PSD estimate. In [1]_, the FFT length
-    is described as "2 times the next higher power of 2 of the signal length". However, this contradicts standard
-    Welch's method, where the FFT length should be based on the segment (window) size, not the total signal length.
-    This appears to be a mis-wording in the original paper. We therefore follow the more common and logically consistent
-    definition, as also used in [2]_, which sets the FFT length as 2 times the next higher power of 2 of the window
-    size (`win_size`).
+    - Axes are standardized with sample SD before Welch PSD estimation. Two-second periodic Hamming windows
+      (or the available shorter signal), default 50%% overlap, no further detrending and a window-based FFT length
+      of twice the next power of two are retained. Total-length zero padding is also valid Welch configuration;
+      zero padding changes the frequency grid, not the information resolution of the finite window.
+    - The strongest local maximum within the inclusive configured band is selected, including boundary peaks
+      established using neighbors outside the band. Exact ties select the lower frequency. No bin-distance pruning
+      is needed to select a single dominant peak. Frequencies stay on the FFT grid. No peak gives NaN outputs.
+    - Half-height crossings are linearly interpolated on both sides. Width is NaN if either crossing is unavailable
+      or outside the configured band. A pure tone has nonzero width because of finite-window broadening.
+    - ``amplitude_*`` is standardized-signal spectral concentration in 1/Hz, not physical acceleration amplitude.
+      Frequency and width are in Hz. Constant, nonfinite or fewer-than-two-sample axes give NaN values. Missing
+      or unconfigured axes are omitted; each configured anatomical axis can be calculated independently.
 
     .. [1] A. Weiss, E. Gazit, T. Herman, J. M. Hausdorff, and A. Mirelman,
     "Toward Automated, At-Home Assessment of Mobility Among Patients With Parkinson Disease, Using a Body-Worn
@@ -580,91 +592,54 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        # at least acc_is required
-        if self.acc_columns is None:
-            return self
-        check_cols = [c for c in self.acc_columns if c in data.columns]
-        if "acc_is" not in check_cols:
-            return self
-
-        acc = data.filter(like="acc").copy()
-        acc = (acc - acc.mean(axis=0)) / acc.std(axis=0).replace(0, 1)
-        n = len(acc)
-        win_size = int(sampling_rate_hz * 2) if n >= 2 * sampling_rate_hz else n
-        fft_length = 2 ** (int(np.ceil(np.log2(win_size))) + 1)
-
-        # welch PSD (should be close to the matlab's pwelch with the following params)
-        def matlab_welch(x: pd.Series) -> tuple[np.ndarray, np.ndarray]:
-            return welch(
-                x.values, fs=sampling_rate_hz, window="hamming", nperseg=win_size, nfft=fft_length, detrend=False
-            )
-
-        f, psd_is = matlab_welch(acc["acc_is"])
-        lower_v, upper_v = self.freq_band_is
-        v_freq_range = np.where((f >= lower_v) & (f <= upper_v))[0]
-        amp_is, freq_is, width_is = self._extract_amp_freq_width(psd_is, f, v_freq_range)
-        results = {
-            "amplitude_is": amp_is,
-            "freq_is": freq_is,
-            "width_is": width_is,
-        }
-
-        if "acc_ml" in check_cols:
-            _, psd_ml = matlab_welch(acc["acc_ml"])
-            lower_ml, upper_ml = self.freq_band_ml
-            ml_freq_range = np.where((f >= lower_ml) & (f <= upper_ml))[0]
-            amp_ml, freq_ml, width_ml = self._extract_amp_freq_width(psd_ml, f, ml_freq_range)
-            results.update(
-                {
-                    "amplitude_ml": amp_ml,
-                    "freq_ml": freq_ml,
-                    "width_ml": width_ml,
-                }
-            )
-
-        if "acc_pa" in check_cols:
-            _, psd_pa = matlab_welch(acc["acc_pa"])
-            lower_pa, upper_pa = self.freq_band_pa
-            ap_freq_range = np.where((f >= lower_pa) & (f <= upper_pa))[0]
-            amp_pa, freq_pa, width_pa = self._extract_amp_freq_width(psd_pa, f, ap_freq_range)
-            results.update(
-                {
-                    "amplitude_pa": amp_pa,
-                    "freq_pa": freq_pa,
-                    "width_pa": width_pa,
-                }
-            )
-
-        self.signal_based_parameters_ = pd.DataFrame([results])
+        results = {}
+        for axis, band in (("is", self.freq_band_is), ("ml", self.freq_band_ml), ("pa", self.freq_band_pa)):
+            column = f"acc_{axis}"
+            if column not in (self.acc_columns or []) or column not in data.columns:
+                continue
+            values = data[column]
+            amplitude, frequency, width = np.nan, np.nan, np.nan
+            if len(values) >= 2 and np.isfinite(values).all() and values.std() > 0:
+                values = (values - values.mean()) / values.std()
+                win_size = min(int(sampling_rate_hz * 2), len(values))
+                fft_length = 2 ** (int(np.ceil(np.log2(win_size))) + 1)
+                freq, psd = welch(
+                    values.to_numpy(),
+                    fs=sampling_rate_hz,
+                    window="hamming",
+                    nperseg=win_size,
+                    nfft=fft_length,
+                    detrend=False,
+                )
+                amplitude, frequency, width = self._extract_amp_freq_width(psd, freq, band)
+            results.update({f"amplitude_{axis}": amplitude, f"freq_{axis}": frequency, f"width_{axis}": width})
+        if results:
+            self.signal_based_parameters_ = pd.DataFrame([results])
         return self
 
     @staticmethod
-    def _extract_amp_freq_width(psd: np.ndarray, freq: np.ndarray, freq_range: np.ndarray) -> tuple[Any, Any, Any]:
-        """Extract amplitude, frequency, width."""
-        psd_sub = psd[freq_range]
-        freq_sub = freq[freq_range]
-        peaks, _ = find_peaks(psd_sub, distance=6)
-        if len(peaks) == 0:
+    def _extract_amp_freq_width(
+        psd: np.ndarray, freq: np.ndarray, band: tuple[float, float]
+    ) -> tuple[float, float, float]:
+        """Select the strongest in-band local peak and interpolate its half-height crossings."""
+        peaks, _ = find_peaks(psd)
+        lower, upper = band
+        peaks = peaks[(freq[peaks] >= lower) & (freq[peaks] <= upper)]
+        if not len(peaks):
             return np.nan, np.nan, np.nan
-
-        peak = peaks[np.argmax(psd_sub[peaks])] if len(peaks) > 1 else peaks[0]
-
-        amp = psd_sub[peak]
-        freq_val = freq_sub[peak]
-        half_amp = 0.5 * amp
-        left_side = psd_sub[:peak]
-        right_side = psd_sub[peak:]
-
-        left_cross = np.where(left_side <= half_amp)[0]
-        right_cross = np.where(right_side <= half_amp)[0]
-
-        if len(left_cross) == 0 or len(right_cross) == 0:
-            return amp, freq_val, np.nan
-
-        width_start = left_cross[-1]
-        width_end = peak + right_cross[0]
-        width = freq_sub[width_end] - freq_sub[width_start]
-        return amp, freq_val, width
+        peak = peaks[np.argmax(psd[peaks])]
+        amplitude = psd[peak]
+        half_height = amplitude / 2
+        left = np.flatnonzero(psd[:peak] <= half_height)
+        right = np.flatnonzero(psd[peak + 1 :] <= half_height)
+        if not len(left) or not len(right):
+            return amplitude, freq[peak], np.nan
+        i = left[-1]
+        j = peak + 1 + right[0]
+        left_cross = freq[i] + (half_height - psd[i]) / (psd[i + 1] - psd[i]) * (freq[i + 1] - freq[i])
+        right_cross = freq[j - 1] + (half_height - psd[j - 1]) / (psd[j] - psd[j - 1]) * (freq[j] - freq[j - 1])
+        width = right_cross - left_cross if lower <= left_cross and right_cross <= upper else np.nan
+        return amplitude, freq[peak], width
 
 
 @base_sdmo_docfiller

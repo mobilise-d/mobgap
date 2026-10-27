@@ -64,6 +64,24 @@ and fewer than two extendible templates give NaN. Changing the sampling rate cha
 therefore the statistic. The internal rate is deliberately different from the supplied native-rate MATLAB estimator.
 The corrected common pool can change existing Python values, independently of that rate difference.
 
+## Spectral outcomes
+
+`FrequencyAmplitudeWidth` standardizes each configured anatomical axis with sample SD and retains two-second
+periodic Hamming segments, 50% overlap, no further detrending, and an FFT length of twice the next power of two of
+the window length. Short signals use the available window. Total-length and window-length zero padding are both
+valid Welch choices; padding changes the sampled grid, not the underlying finite-window resolution.
+
+The strongest local PSD maximum in the inclusive search band is selected, with exact ties going to the lower
+frequency. Boundary peaks use neighboring PSD samples outside the band to establish a local maximum. No six-bin
+separation rule is needed when choosing one dominant peak. Default bands remain IS/PA 0.4–3.1 Hz and ML 0.15–1.6 Hz,
+which differ from the cited paper's single 0.5–3.0 Hz band. Frequencies stay on the FFT grid and never leave the band.
+
+`amplitude_*` is peak spectral concentration of standardized acceleration, in 1/Hz, not physical acceleration
+amplitude. `freq_*` and `width_*` are in Hz. Width uses linear interpolation at both half-height crossings and is
+NaN if a crossing is absent or outside the band. A pure tone has nonzero finite-window width. Missing/unconfigured
+axes are omitted; constant, nonfinite or fewer-than-two-sample axes and absent peaks give NaN outputs. Each axis
+works independently. No slopes or alternate spectral estimator are introduced.
+
 ## Turn result migration
 
 `TurnSDMO` and `MobilisedSDMO` expose `per_turn_parameters_`. Read turn values from this table instead of
