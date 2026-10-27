@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `mobgap.utils.intervals.map_intervals_to_regions` for full interval containment and
+  `mobgap.re_orientation.get_orientation_for_sequences` to select method-specific corrections for walking bouts,
+  turns, or other sequences. Partial overlaps with sections requiring correction raise an error.
+
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level
   names from the first file's recording hierarchy.
