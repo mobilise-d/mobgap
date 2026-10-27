@@ -455,6 +455,29 @@ class TestFrequencyAmplitudeWidthSlope:
 
 
 class TestSampleEntropy:
+    @pytest.mark.parametrize(
+        "values,expected",
+        [
+            ([0.0, 0.0, 0.0, 0.0, 1.0, 0.0], np.log(3)),
+            ([0.0, 0.0, 0.0, 1.0, 0.0], np.inf),
+            ([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], np.nan),
+            ([2.0] * 6, 0.0),
+        ],
+    )
+    @pytest.mark.parametrize("acc_columns", [["acc_is"], ["acc_is", "acc_ml"]])
+    def test_exact_common_extendible_template_counts(self, values, expected, acc_columns):
+        # For 000010: m=2 has 3 unordered matching pairs, m=3 has 1.
+        # 00010 has one matching pair at m=2 and none at m=3.
+        row = (
+            SampleEntropy(acc_columns=acc_columns, r=0.15, num_samples_threshold=0)
+            .calculate(pd.DataFrame({"acc_is": values}), sampling_rate_hz=50)
+            .signal_based_parameters_.iloc[0]
+        )
+        if np.isnan(expected):
+            assert np.isnan(row["sample_entropy_acc_is"])
+        else:
+            assert row["sample_entropy_acc_is"] == pytest.approx(expected)
+
     def test_missing_columns_returns_self(self):
         algo = SampleEntropy(acc_columns=["acc_x"])
         result = algo.calculate(

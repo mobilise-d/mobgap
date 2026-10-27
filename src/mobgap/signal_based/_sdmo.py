@@ -665,11 +665,22 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
 class SampleEntropy(BaseSDMOCalculator):
     """Calculate Sample Entropy for accelerometer data.
 
-    The Sample Entropy is defined as the negative natural average logarithm of the conditional probability
+    The Sample Entropy is defined as the negative natural logarithm of the conditional probability
     that two sequences are similar for m points remain similar when the number of points is increased to m+1.
     Definition is taken from Torres (2013) [1]_. It can be used as a mean to describe the predictability of a
     signal.
-    Useage for sway is given in Sofiane (2009) [2]_.
+    Usage for sway is given in Sofiane (2009) [2]_.
+
+    Both template lengths use the common N-dim extendible starting positions. Self matches are excluded, and
+    Chebyshev distance <= r times population SD defines a match. The result is -ln(A/B), where A and B count
+    matching pairs of length dim+1 and dim. No B matches gives NaN; B>0 with no A matches gives positive infinity.
+    Constant signals give zero with inclusive tolerance. Nonfinite axes give NaN.
+
+    By default input is resampled to 50 Hz before calculating entropy: adjacent samples are 20 ms apart,
+    and dim=2 spans 20 ms between its first and last sample, extended to 40 ms at dim+1.
+    The >200 internal-sample threshold requires
+    more than 4 seconds of data, not 200 steps, and is not a reliability guarantee. Fewer than two extendible
+    templates give NaN even with a lowered threshold. The score is dimensionless.
 
     .. [1] B.D.L.C. Torres, et al. "Entropy in the Analysis of Gait Complexity: A State of the Art". British Journal
        of Applied Science & Technology. 3(4) 1097-1105, 2013.
@@ -733,30 +744,38 @@ class SampleEntropy(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.signal_based_parameters_ = pd.DataFrame()
-        acc_columns = self.acc_columns
-        if not data.columns.isin(acc_columns or []).any():
+        acc_columns = [c for c in self.acc_columns or [] if c in data.columns]
+        if not acc_columns:
             return self
         dim = self.dim
         r = self.r
         num_samples = round(len(data) * self.internal_sampling_rate_hz / sampling_rate_hz)
-        if num_samples <= self.num_samples_threshold:
+        if num_samples <= self.num_samples_threshold or num_samples - dim < 2:
             self.signal_based_parameters_ = pd.DataFrame(
                 [{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}]
             )
             return self
 
-        accs = (
-            Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
-            .transform(data[acc_columns], sampling_rate_hz=sampling_rate_hz)
-            .transformed_data_.to_numpy()
-        )
+        accs = data[acc_columns]
+        if sampling_rate_hz != self.internal_sampling_rate_hz:
+            accs = (
+                Resample(target_sampling_rate_hz=self.internal_sampling_rate_hz, attempt_index_resample=False)
+                .transform(accs, sampling_rate_hz=sampling_rate_hz)
+                .transformed_data_
+            )
 
         se_results = {}
-        for acc, col_name in zip(accs.T, acc_columns):
-            tol = r * np.std(acc)
-            phi_m = np.mean(_phi(acc, dim, tol) / (num_samples - dim))
-            phi_m1 = np.mean(_phi(acc, dim + 1, tol) / (num_samples - dim - 1))
-            se_results[f"sample_entropy_{col_name}"] = -np.log(phi_m1 / phi_m)
+        for acc, col_name in zip(accs.to_numpy().T, acc_columns):
+            value = np.nan
+            if np.isfinite(acc).all():
+                tol = r * np.std(acc)
+                # Both lengths use the same N-dim starting positions. Pair normalization cancels.
+                n_templates = len(acc) - dim
+                matches_m = _count_template_matches(acc, dim, tol, n_templates)
+                matches_m1 = _count_template_matches(acc, dim + 1, tol, n_templates)
+                if matches_m:
+                    value = -np.log(matches_m1 / matches_m) if matches_m1 else np.inf
+            se_results[f"sample_entropy_{col_name}"] = value
         self.signal_based_parameters_ = pd.DataFrame([se_results])
         return self
 
@@ -1216,26 +1235,16 @@ def _log_dimensionless_jerk(signal: np.ndarray, sampling_rate_hz: float, derivat
 
 
 @njit
-def _phi(signal: np.ndarray, m: int, tol: float) -> np.ndarray:
-    n = len(signal)
-    n_dim = n - m + 1
-    matches = np.zeros(n_dim, dtype=np.int32)
-    for i in range(n_dim):
-        count = 0
-        for j in range(n_dim):
-            if i == j:
-                continue
-            # Chebyshev distance (max absolute difference)
-            d = 0.0
+def _count_template_matches(signal: np.ndarray, m: int, tol: float, n_templates: int) -> int:
+    matches = 0
+    for i in range(n_templates):
+        for j in range(i + 1, n_templates):
+            # Chebyshev distance, inclusive tolerance, no self matches.
             for k in range(m):
-                diff = abs(signal[i + k] - signal[j + k])
-                if diff > d:
-                    d = diff
-                    if d > tol:  # early exit
-                        break
-            if d <= tol:
-                count += 1
-        matches[i] = count
+                if abs(signal[i + k] - signal[j + k]) > tol:
+                    break
+            else:
+                matches += 1
     return matches
 
 
