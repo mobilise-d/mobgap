@@ -86,9 +86,11 @@ mobilised_pipeline_docfiller = make_filldoc(
     """,
         "signal_based_calculation": """
     sdmo_calculation
-        A valid instance of a signal based parameter calculation algorithm.
-        This will run on each assembled walking bout individually.
-        The concatenated signal-based parameters are available via the ``per_wb_signal_based_parameters_`` attribute.
+        A signal-based calculator or MobilisedSDMO composite. Calculators with result_level="wb" run on each full
+        accepted WB with WB-local stride and contained-turn metadata. Their results are concatenated in
+        ``per_wb_signal_based_parameters_``. Calculators with result_level="turn" run once on the recording signal
+        with all existing gait-sequence turn detections and recording-local intervals. Their individual rows are
+        available in ``per_turn_parameters_`` and never enter WB aggregation.
     """,
         "aggregation_parameters": """
     dmo_thresholds

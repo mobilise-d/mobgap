@@ -22,7 +22,7 @@ from mobgap.laterality.base import BaseLRClassifier, _unify_ic_lr_list_df
 from mobgap.pipeline._gs_iterator import FullPipelinePerGsResult, GsIterator, iter_gs
 from mobgap.pipeline.base import BaseGaitDatasetT, BaseMobilisedPipeline, mobilised_pipeline_docfiller
 from mobgap.signal_based import MobilisedSDMO
-from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters
+from mobgap.signal_based.base import BaseSDMOCalculator, _empty_turn_parameters, _turn_metadata
 from mobgap.stride_length import SlZijlstra
 from mobgap.stride_length.base import BaseSlCalculator
 from mobgap.turning import TdElGohary
@@ -384,9 +384,14 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             stride_list = self.per_stride_parameters_.loc[wb_region.id].copy()
             if not stride_list.empty:
                 stride_list.loc[:, ["start", "end"]] -= wb_region.start
+            turn_list = _turn_metadata(self.raw_turn_list_).copy()
+            if not turn_list.empty:
+                turn_list = turn_list.query("start >= @wb_region.start and end <= @wb_region.end").copy()
+                turn_list.loc[:, ["start", "end"]] -= wb_region.start
             self.sdmo_calculation_ = calculator.clone().calculate(
                 wb_data,
                 stride_list=stride_list,
+                turn_list=turn_list,
                 sampling_rate_hz=sampling_rate_hz,
                 replicate_matlab=True,
             )
@@ -412,6 +417,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             if calculator is not None
             else _empty_turn_parameters(self.raw_turn_list_)
         )
+        if result.empty:
+            result.index = pd.MultiIndex.from_arrays([[], []], names=["gs_id", "turn_id"])
         # Keep detector identity and recording-local intervals, even outside or across accepted WBs.
         associations = []
         for turn in result.itertuples():
