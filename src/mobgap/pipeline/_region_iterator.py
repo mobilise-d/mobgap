@@ -22,7 +22,8 @@ class RegionIterator(BaseTypedIterator[RegionDataTuple, ResultT], Generic[Result
     the loop. After iteration, the same field in ``results_`` contains a DataFrame whose columns are the Series
     labels and whose rows preserve the source region index and order, including all MultiIndex levels. Series names
     are ignored, different Series labels are aligned as columns, and unset results are omitted independently for each
-    field. There are no coordinate offsets or statistical reductions. An empty iteration produces empty DataFrames
+    field. MultiIndex Series labels become MultiIndex columns with the same level names.
+    There are no coordinate offsets or statistical reductions. An empty iteration produces empty DataFrames
     with the source index schema and no columns.
 
     The iterator retains window data and individual results in ``raw_results_``. Reusing it starts a fresh iteration.

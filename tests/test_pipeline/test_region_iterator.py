@@ -103,3 +103,22 @@ def test_series_labels_align_as_columns_and_names_do_not_replace_region_ids():
         iterator.results_.values,
         pd.DataFrame({"left": [1.0, float("nan")], "right": [2.0, 3.0]}, index=regions.index),
     )
+
+
+def test_keyed_series_keep_two_level_columns_and_repeated_parameter_names():
+    regions = pd.DataFrame({"start": [0, 2], "end": [2, 4]}, index=pd.Index([7, 3], name="region_id"))
+    iterator = RegionIterator(Values)
+    for (_region, window), result in iterator.iterate(pd.DataFrame({"signal": [1, 3, 4, 8]}), regions):
+        result.values = pd.concat(
+            {
+                "offset": pd.Series({"value": window.signal.iloc[0]}),
+                "spread": pd.Series({"value": window.signal.iloc[-1] - window.signal.iloc[0]}),
+            },
+            names=["algorithm", "parameter"],
+        )
+    expected = pd.DataFrame(
+        [[1, 2], [4, 4]],
+        index=regions.index,
+        columns=pd.MultiIndex.from_tuples([("offset", "value"), ("spread", "value")], names=["algorithm", "parameter"]),
+    )
+    assert_frame_equal(iterator.results_.values, expected)

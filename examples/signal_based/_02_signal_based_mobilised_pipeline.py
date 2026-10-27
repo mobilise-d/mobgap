@@ -92,7 +92,7 @@ turns = pipeline.raw_turn_list_.assign(
 # %%
 # Walking-bout outcomes
 # ---------------------
-# Select the non-turn calculators from the composition. The loop owns signal preparation and stride-coordinate
+# Configure a named dictionary of non-turn calculators. The loop owns signal preparation and stride-coordinate
 # rebasing. Retain the full accepted WB signal, including turns and gaps between retained strides.
 from dataclasses import dataclass
 
@@ -105,15 +105,13 @@ class OutcomeResult:
 
 
 # The general iterator assembles each Series field into a DataFrame. The result type belongs to this example.
-wb_calculator = MobilisedSDMO(
-    calculators=tuple(
-        (name, calculator)
-        for name, calculator in MobilisedSDMO.PredefinedParameters.default[
-            "calculators"
-        ]
-        if calculator.result_level == "wb"
-    )
-)
+wb_calculators = {
+    name: calculator
+    for name, calculator in MobilisedSDMO.PredefinedParameters.default[
+        "calculators"
+    ]
+    if calculator.result_level == "wb"
+}
 wb_iterator = RegionIterator(OutcomeResult)
 for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
     correction = wbs.loc[wb.id, "orientation"]
@@ -122,12 +120,19 @@ for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
     )
     strides = pipeline.per_stride_parameters_.loc[wb.id].copy()
     strides.loc[:, ["start", "end"]] -= wb.start
-    result.parameters = (
-        wb_calculator.clone()
-        .calculate(
-            prepared, sampling_rate_hz=sampling_rate_hz, stride_list=strides
-        )
-        .signal_based_parameters_
+    result.parameters = pd.concat(
+        {
+            name: calculator.clone()
+            .calculate(
+                prepared,
+                sampling_rate_hz=sampling_rate_hz,
+                stride_list=strides,
+                replicate_matlab=True,
+            )
+            .signal_based_parameters_
+            for name, calculator in wb_calculators.items()
+        },
+        names=["algorithm", "parameter"],
     )
 
 per_wb_sdmos = wb_iterator.results_.parameters
@@ -138,25 +143,31 @@ per_wb_sdmos
 # ------------------------
 # Every detected turn is processed, including turns outside accepted WBs. Its full identity remains
 # ``(gs_id, turn_id)``; we do not infer WB membership from the GS identifier.
-# TurnSDMO receives exactly one prepared turn window and returns its parameter Series. Recording-local start/end
-# and other metadata are joined back from the source after iteration.
-turn_calculator = TurnSDMO()
+# TurnSDMO receives exactly one prepared turn window and returns its parameter Series. Keep metadata in its own
+# table, aligned to the parameter matrix by the original turn index.
+turn_calculators = {"turn": TurnSDMO()}
 turn_iterator = RegionIterator(OutcomeResult)
 for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
     correction = turns.loc[turn.id, "orientation"]
     prepared = pipeline.per_gs_reorientation.apply_correction(
         window, correction
     )
-    result.parameters = (
-        turn_calculator.clone()
-        .calculate(prepared, sampling_rate_hz=sampling_rate_hz)
-        .signal_based_parameters_
+    result.parameters = pd.concat(
+        {
+            name: calculator.clone()
+            .calculate(prepared, sampling_rate_hz=sampling_rate_hz)
+            .signal_based_parameters_
+            for name, calculator in turn_calculators.items()
+        },
+        names=["algorithm", "parameter"],
     )
 
-per_turn_sdmos = turns.drop(columns="orientation").join(
-    turn_iterator.results_.parameters
-)
+per_turn_sdmos = turn_iterator.results_.parameters
 per_turn_sdmos
+
+# %%
+per_turn_metadata = turns.drop(columns="orientation")
+per_turn_metadata
 
 # %%
 # Optional aggregation across WBs
@@ -166,9 +177,16 @@ per_turn_sdmos
 # Primary-DMO validity thresholds are not automatically applied to secondary outcomes. Turn rows remain separate.
 from mobgap.aggregation import SDMOAggregator
 
-aggregated_sdmos = (
-    SDMOAggregator()
-    .aggregate(per_wb_sdmos.join(wbs[["duration_s"]]))
-    .aggregated_data_
+# Aggregate each algorithm's parameter table with the existing flat-column aggregator, then retain the algorithm
+# keys as the outer column level. No parameter names are flattened or merged across algorithms.
+aggregated_sdmos = pd.concat(
+    {
+        name: SDMOAggregator()
+        .aggregate(per_wb_sdmos[name].join(wbs[["duration_s"]]))
+        .aggregated_data_
+        for name in per_wb_sdmos.columns.get_level_values("algorithm").unique()
+    },
+    axis=1,
+    names=["algorithm", "parameter"],
 )
 aggregated_sdmos
