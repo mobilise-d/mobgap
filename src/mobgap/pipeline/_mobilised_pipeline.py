@@ -340,16 +340,13 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.per_wb_signal_based_parameters_ = self._calculate_per_wb_sdmos(imu_data, sampling_rate_hz)
             self.per_turn_parameters_ = self._calculate_per_turn_sdmos(imu_data, sampling_rate_hz)
 
-        if self.dmo_aggregation is None:
-            self.dmo_aggregation_ = None
-            self.aggregated_parameters_ = None
-            del self._all_action_kwargs
-            return self
-
-        self.dmo_aggregation_ = self.dmo_aggregation.clone().aggregate(
-            self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
-        )
-        self.aggregated_parameters_ = self.dmo_aggregation_.aggregated_data_
+        self.dmo_aggregation_ = None
+        aggregated = []
+        if self.dmo_aggregation is not None:
+            self.dmo_aggregation_ = self.dmo_aggregation.clone().aggregate(
+                self.per_wb_parameters_, wb_dmos_mask=self.per_wb_parameter_mask_
+            )
+            aggregated.append(self.dmo_aggregation_.aggregated_data_)
 
         # aggregations for the signal based parameters
         has_sdmo_values = (
@@ -360,9 +357,8 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             self.sdmo_aggregation_ = self.sdmo_aggregation.clone().aggregate(
                 self.per_wb_signal_based_parameters_, wb_dmos_mask=None
             )
-            self.aggregated_parameters_ = pd.concat(
-                [self.aggregated_parameters_, self.sdmo_aggregation_.aggregated_data_], axis=1
-            )
+            aggregated.append(self.sdmo_aggregation_.aggregated_data_)
+        self.aggregated_parameters_ = pd.concat(aggregated, axis=1) if aggregated else None
 
         del self._all_action_kwargs
         return self
