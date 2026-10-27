@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Window-based secondary outcome calculators return a Series indexed by parameter name, containing all values
+  for the supplied signal window. Callers assemble results across windows.
 - Add `RegionIterator` to assemble typed Series results from arbitrary signal regions into DataFrames while
   preserving the source table's full index. Signal preparation and metadata access remain explicit in the loop.
 - Add `mobgap.utils.intervals.map_intervals_to_regions` for full interval containment and

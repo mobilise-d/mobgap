@@ -32,7 +32,7 @@ class HarmonicRatioFourier(BaseSDMOCalculator):
     contributes, its result is NaN. An exact zero denominator with a positive numerator gives infinity, which is
     retained in the mean; small denominators, including numerical residuals, can give very large finite values.
     No clipping or numerical/clinical QC threshold is applied. Missing or unconfigured axes are omitted. Empty
-    stride lists return an empty table. Accurate stride boundaries and adequate signal bandwidth remain important.
+    stride lists return an empty Series. Accurate stride boundaries and adequate signal bandwidth remain important.
 
     Parameters
     ----------
@@ -77,7 +77,7 @@ class HarmonicRatioFourier(BaseSDMOCalculator):
         self.data = data
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         if stride_list is None or stride_list.empty:
             return self
         results = {}
@@ -99,5 +99,5 @@ class HarmonicRatioFourier(BaseSDMOCalculator):
                     ratios.append(ratio)
             results[f"harmonic_ratio_fourier_{column}"] = np.mean(ratios) if ratios else np.nan
         if results:
-            self.signal_based_parameters_ = pd.DataFrame([results])
+            self.signal_based_parameters_ = pd.Series(results, dtype=float)
         return self

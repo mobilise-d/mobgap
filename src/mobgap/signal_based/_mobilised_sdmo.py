@@ -58,7 +58,7 @@ class MobilisedSDMO(Pipeline):
     _composite_params = ("calculators",)
 
     calculators: tuple[tuple[str, BaseSDMOCalculator]]
-    signal_based_parameters_: pd.DataFrame
+    signal_based_parameters_: pd.Series
     per_turn_parameters_: pd.DataFrame
     perf_: MeasureTimeResults
 
@@ -128,7 +128,7 @@ class MobilisedSDMO(Pipeline):
 
         self.per_turn_parameters_ = _empty_turn_parameters(turn_list)
         if not self.calculators:
-            self.signal_based_parameters_ = pd.DataFrame()
+            self.signal_based_parameters_ = pd.Series(dtype=float)
             return self
 
         params = {
@@ -146,7 +146,7 @@ class MobilisedSDMO(Pipeline):
                 turn_results.append(calculator_.per_turn_parameters_)
             else:
                 results.append(calculator_.signal_based_parameters_)
-        self.signal_based_parameters_ = pd.concat(results, axis=1) if results else pd.DataFrame()
+        self.signal_based_parameters_ = pd.concat(results) if results else pd.Series(dtype=float)
         if turn_results:
             metadata = _turn_metadata(turn_list)
             self.per_turn_parameters_ = pd.concat(

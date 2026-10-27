@@ -14,16 +14,16 @@ def test_signal_based_algorithms(snapshot):
     )
 
     snapshot.assert_match(turn.per_turn_parameters_, "turn_sdmo")
-    snapshot.assert_match(stride_level.signal_based_parameters_, "stride_level_sdmo")
-    snapshot.assert_match(rms.signal_based_parameters_, "rms_sdmo")
-    snapshot.assert_match(regularity_symmetry.signal_based_parameters_, "regularity_symmetry_sdmo")
-    snapshot.assert_match(frequency_amplitude.signal_based_parameters_, "frequency_amplitude_sdmo")
-    snapshot.assert_match(sample_entropy.signal_based_parameters_, "sample_entropy_sdmo")
-    snapshot.assert_match(harmonic_ratio.signal_based_parameters_, "harmonic_ratio_sdmo")
-    snapshot.assert_match(harmonic_ratio_fourier.signal_based_parameters_, "harmonic_ratio_fourier_sdmo")
-    snapshot.assert_match(sd_range.signal_based_parameters_, "sd_range_sdmo")
-    snapshot.assert_match(log_dimensionless_jerk.signal_based_parameters_, "ldlj_sdmo")
-    snapshot.assert_match(rms_jerk_ratio.signal_based_parameters_, "rms_jerk_ratio_sdmo")
+    snapshot.assert_match(stride_level.signal_based_parameters_.to_frame().T, "stride_level_sdmo")
+    snapshot.assert_match(rms.signal_based_parameters_.to_frame().T, "rms_sdmo")
+    snapshot.assert_match(regularity_symmetry.signal_based_parameters_.to_frame().T, "regularity_symmetry_sdmo")
+    snapshot.assert_match(frequency_amplitude.signal_based_parameters_.to_frame().T, "frequency_amplitude_sdmo")
+    snapshot.assert_match(sample_entropy.signal_based_parameters_.to_frame().T, "sample_entropy_sdmo")
+    snapshot.assert_match(harmonic_ratio.signal_based_parameters_.to_frame().T, "harmonic_ratio_sdmo")
+    snapshot.assert_match(harmonic_ratio_fourier.signal_based_parameters_.to_frame().T, "harmonic_ratio_fourier_sdmo")
+    snapshot.assert_match(sd_range.signal_based_parameters_.to_frame().T, "sd_range_sdmo")
+    snapshot.assert_match(log_dimensionless_jerk.signal_based_parameters_.to_frame().T, "ldlj_sdmo")
+    snapshot.assert_match(rms_jerk_ratio.signal_based_parameters_.to_frame().T, "rms_jerk_ratio_sdmo")
 
 
 def test_signal_based_mobilised_pipeline():

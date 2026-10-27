@@ -127,7 +127,7 @@ for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
         .calculate(
             prepared, sampling_rate_hz=sampling_rate_hz, stride_list=strides
         )
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
 
 per_wb_sdmos = wb_iterator.results_.parameters

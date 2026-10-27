@@ -513,7 +513,7 @@ class _TurnContextCalculator(BaseSDMOCalculator):
     def calculate(self, data, turn_list, **kwargs):
         self.data = data
         self.turn_list = turn_list
-        self.signal_based_parameters_ = pd.DataFrame({"custom_metric": [1.0]})
+        self.signal_based_parameters_ = pd.Series({"custom_metric": 1.0})
         return self
 
 
@@ -565,7 +565,7 @@ def test_fourier_harmonic_ratio_uses_pipeline_stride_bounds_and_aggregates():
             stride_list=strides,
             sampling_rate_hz=dataset.sampling_rate_hz,
         )
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
     pd.testing.assert_series_equal(
         result.per_wb_signal_based_parameters_.loc[wb_id, expected.index],

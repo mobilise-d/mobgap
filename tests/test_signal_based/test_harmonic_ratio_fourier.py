@@ -13,7 +13,7 @@ def test_known_harmonics_use_supplied_boundaries_with_nonzero_offset():
     data = pd.DataFrame({"acc_is": np.r_[np.full(23, np.nan), stride, np.full(17, np.nan)]})
     strides = pd.DataFrame({"start": [23], "end": [123]})
     result = HarmonicRatioFourier(acc_columns=["acc_is"]).calculate(data, stride_list=strides, sampling_rate_hz=100)
-    assert result.signal_based_parameters_.iloc[0].harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
+    assert result.signal_based_parameters_.harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
 
 
 @pytest.mark.parametrize("axis,expected", [("acc_is", 3.75), ("acc_pa", 3.75), ("acc_ml", 0.3)])
@@ -30,7 +30,7 @@ def test_mean_of_stride_ratios_with_different_lengths_gaps_scales_and_row_order(
     row = (
         HarmonicRatioFourier(acc_columns=[axis])
         .calculate(pd.DataFrame({axis: signal}), stride_list=strides, sampling_rate_hz=100)
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
     # IS/PA ratios are 5 and 2.5, ML ratios are .2 and .4. Average ratios, not coefficients.
     assert row[f"harmonic_ratio_fourier_{axis}"] == pytest.approx(expected)
@@ -48,7 +48,7 @@ def test_fourier_bins_follow_each_stride_period(length, sampling_rate_hz):
             stride_list=pd.DataFrame({"start": [0], "end": [length]}),
             sampling_rate_hz=sampling_rate_hz,
         )
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
     assert row.harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
 
@@ -73,7 +73,7 @@ def test_undefined_stride_axes_are_omitted_without_changing_valid_stride_ratio(i
         .calculate(
             pd.DataFrame({"acc_is": signal, "acc_ml": np.zeros(len(signal))}), stride_list=strides, sampling_rate_hz=100
         )
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
     assert row.harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
     assert np.isnan(row.harmonic_ratio_fourier_acc_ml)
@@ -115,7 +115,7 @@ def test_exact_missing_harmonic_group_has_unclipped_ratio(axis, expected):
         .calculate(
             pd.DataFrame({axis: signal}), stride_list=pd.DataFrame({"start": [0], "end": [64]}), sampling_rate_hz=100
         )
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
     assert row[f"harmonic_ratio_fourier_{axis}"] == expected
 
@@ -134,7 +134,7 @@ def test_composite_calculates_both_estimators_without_overwriting_either():
             )
         )
         .calculate(data, stride_list=strides, sampling_rate_hz=100)
-        .signal_based_parameters_.iloc[0]
+        .signal_based_parameters_
     )
     assert row.harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
     assert row.harmonic_ratio_acc_is == pytest.approx(25.195295004095286)

@@ -433,8 +433,7 @@ class GenericMobilisedPipeline(BaseMobilisedPipeline[BaseGaitDatasetT], Generic[
             result = self.sdmo_calculation_.signal_based_parameters_.copy()
             if result.empty:
                 continue
-            if len(result) != 1:
-                raise ValueError("The SDMO calculator must return exactly one row per walking bout.")
+            result = result.to_frame().T
             result.index = pd.Index([wb_region.id], name=index_name)
             sdmo_results.append(result)
 

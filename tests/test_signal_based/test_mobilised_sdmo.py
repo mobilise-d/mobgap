@@ -79,7 +79,7 @@ class TestMobilisedSDMORegression:
                 replicate_matlab=replicate_matlab,
             )
             snapshot_name = f"{tuple(datapoint.group_label)!s}_wb{wb_id}_replicate_{replicate_matlab}"
-            snapshot.assert_match(result.signal_based_parameters_, name=snapshot_name)
+            snapshot.assert_match(result.signal_based_parameters_.to_frame().T, name=snapshot_name)
 
 
 class TestMobilisedSDMO:
@@ -129,7 +129,7 @@ def test_composite_keeps_turn_rows_separate_from_bout_values():
     assert len(result.signal_based_parameters_) == 1
     assert result.per_turn_parameters_.index.tolist() == [4, 8]
     assert result.per_turn_parameters_.turn_peak_ang_vel.tolist() == [2.0, 3.0]
-    assert not any(c.startswith("turn_") for c in result.signal_based_parameters_)
+    assert not any(c.startswith("turn_") for c in result.signal_based_parameters_.index)
 
 
 class _ExtraTurnFeature(BaseSDMOCalculator):

@@ -149,7 +149,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
         """
         self.data = data
         self.stride_list = stride_list
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         if stride_list is None or stride_list.empty or len(stride_list) < 2 or self.stride_list_columns is None:
             warnings.warn(
                 "Stride-level SDMOs are not calculated because stride list is not valid.",
@@ -165,7 +165,7 @@ class StrideLevelSDMO(BaseSDMOCalculator):
             )
             return self
         cv = 100 * stride_list[available_cols].std() / stride_list[available_cols].mean()
-        self.signal_based_parameters_ = cv.to_frame().T.add_prefix("cv_")
+        self.signal_based_parameters_ = cv.add_prefix("cv_")
         return self
 
 
@@ -225,7 +225,7 @@ class RMS(BaseSDMOCalculator):
         %(calculate_return)s
         """
         self.data = data
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         acc_columns = [c for c in (self.acc_columns or []) if c in data.columns]
         gyr_columns = [c for c in (self.gyr_columns or []) if c in data.columns]
         if not acc_columns and not gyr_columns:
@@ -254,7 +254,7 @@ class RMS(BaseSDMOCalculator):
             rms["rms_total_acc"] = rms_total_acc
             for column, rms_column in zip(acc_columns, acc_rms_columns):
                 rms[f"rms_ratio_{column}"] = rms[rms_column] / rms_total_acc if rms_total_acc != 0 else np.nan
-        self.signal_based_parameters_ = rms.to_frame().T
+        self.signal_based_parameters_ = rms
         return self
 
 
@@ -349,7 +349,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
         self.replicate_matlab = replicate_matlab
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         # return empty if not all accs are available
         required_acc_columns = ["acc_is", "acc_pa", "acc_ml"]
         if not all(col in data.columns for col in required_acc_columns):
@@ -367,7 +367,7 @@ class RegularitySymmetry(BaseSDMOCalculator):
             )
             reg_sym.update(axis_results)
 
-        self.signal_based_parameters_ = pd.Series(reg_sym).to_frame().T
+        self.signal_based_parameters_ = pd.Series(reg_sym, dtype=float)
         return self
 
     def _compute_axis_metrics(
@@ -604,7 +604,7 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         results = {}
         for axis, band in (("is", self.freq_band_is), ("ml", self.freq_band_ml), ("pa", self.freq_band_pa)):
             column = f"acc_{axis}"
@@ -627,7 +627,7 @@ class FrequencyAmplitudeWidth(BaseSDMOCalculator):
                 amplitude, frequency, width = self._extract_amp_freq_width(psd, freq, band)
             results.update({f"amplitude_{axis}": amplitude, f"freq_{axis}": frequency, f"width_{axis}": width})
         if results:
-            self.signal_based_parameters_ = pd.DataFrame([results])
+            self.signal_based_parameters_ = pd.Series(results, dtype=float)
         return self
 
     @staticmethod
@@ -737,7 +737,7 @@ class SampleEntropy(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         acc_columns = [c for c in self.acc_columns or [] if c in data.columns]
         if not acc_columns:
             return self
@@ -745,8 +745,8 @@ class SampleEntropy(BaseSDMOCalculator):
         r = self.r
         num_samples = round(len(data) * self.internal_sampling_rate_hz / sampling_rate_hz)
         if num_samples <= self.num_samples_threshold or num_samples - dim < 2:
-            self.signal_based_parameters_ = pd.DataFrame(
-                [{f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}]
+            self.signal_based_parameters_ = pd.Series(
+                {f"sample_entropy_{col_name}": np.nan for col_name in acc_columns}, dtype=float
             )
             return self
 
@@ -770,7 +770,7 @@ class SampleEntropy(BaseSDMOCalculator):
                 if matches_m:
                     value = -np.log(matches_m1 / matches_m) if matches_m1 else np.inf
             se_results[f"sample_entropy_{col_name}"] = value
-        self.signal_based_parameters_ = pd.DataFrame([se_results])
+        self.signal_based_parameters_ = pd.Series(se_results, dtype=float)
         return self
 
 
@@ -848,7 +848,7 @@ class HarmonicRatio(BaseSDMOCalculator):
         self.data = data
         self.stride_list = stride_list
         self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         if stride_list is None or stride_list.empty:
             return self
         acc_columns = [c for c in self.acc_columns or [] if c in data.columns]
@@ -862,7 +862,7 @@ class HarmonicRatio(BaseSDMOCalculator):
             hr_val = self._process_single_accelerometer(data[col_name], stride_pairs, sampling_rate_hz)
             hr_results[f"harmonic_ratio_{col_name}"] = hr_val
 
-        self.signal_based_parameters_ = pd.DataFrame([hr_results])
+        self.signal_based_parameters_ = pd.Series(hr_results, dtype=float)
         return self
 
     def _process_single_accelerometer(self, data: pd.Series, stride_pairs: list, sampling_rate_hz: float) -> float:
@@ -989,13 +989,13 @@ class SDRange(BaseSDMOCalculator):
 
         """
         self.data = data
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
         out = {}
         for c in data.columns:
             out[f"sd_{c}"] = data[c].std()
             if "acc" in c:  # range only for the acc columns
                 out[f"range_{c}"] = data[c].max() - data[c].min()
-        self.signal_based_parameters_ = pd.DataFrame([out])
+        self.signal_based_parameters_ = pd.Series(out, dtype=float)
         return self
 
 
@@ -1085,7 +1085,7 @@ class LogDimensionlessJerk(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
 
         out = {}
         for columns, derivative_order in ((self.acc_columns, 1), (self.gyr_columns, 2)):
@@ -1096,7 +1096,7 @@ class LogDimensionlessJerk(BaseSDMOCalculator):
             out.update({f"jerk_{column}": value for column, value in zip(available, values)})
 
         if out:
-            self.signal_based_parameters_ = pd.DataFrame([out])
+            self.signal_based_parameters_ = pd.Series(out, dtype=float)
         return self
 
 
@@ -1153,7 +1153,7 @@ class RMSJerkRatio(BaseSDMOCalculator):
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.signal_based_parameters_ = pd.DataFrame()
+        self.signal_based_parameters_ = pd.Series(dtype=float)
 
         columns = [column for column in ("acc_is", "acc_ml", "acc_pa") if column in data.columns]
         if "acc_is" not in columns or len(columns) < 2:
@@ -1173,7 +1173,7 @@ class RMSJerkRatio(BaseSDMOCalculator):
                 ratio_db = 10 * np.log10(rms_jerk[f"acc_{axis}"] / rms_jerk["acc_is"])
             out[f"jerk_ratio_{axis}_is"] = ratio_db if np.isfinite(ratio_db) else np.nan
 
-        self.signal_based_parameters_ = pd.DataFrame([out])
+        self.signal_based_parameters_ = pd.Series(out, dtype=float)
         return self
 
 

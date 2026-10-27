@@ -13,13 +13,13 @@ base_sdmo_docfiller = make_filldoc(
     {
         "signal_based_parameters_": """
     signal_based_parameters_
-        The main output of the signal-based digital mobility outcomes (SDMO) block as a DataFrame with a single row
-        and multiple columns containing the implemented signal-based parameters.
-        This is a single value per metric per data.
+        A Series of scalar parameters for the supplied signal window, indexed by parameter name.
+        Calculators can return multiple values. Missing required inputs can produce an empty Series;
+        defined parameters with undefined numerical values retain their names and contain NaN.
     """,
         "data_param": """
     data
-        The raw IMU data passed to the ``calculate`` method.
+        The prepared IMU signal window passed to ``calculate``, with correctly oriented body-frame axes.
     """,
         "sampling_rate_param": """
     sampling_rate_hz
@@ -27,7 +27,7 @@ base_sdmo_docfiller = make_filldoc(
     """,
         "stride_list_param": """
     stride_list
-        The stride list associated with the ``data`` passed to the ``calculate`` method.
+        The retained stride list associated with ``data``. Start/end sample positions must be relative to this window.
     """,
         "acc_columns_para": """
     acc_columns
@@ -57,7 +57,7 @@ class BaseSDMOCalculator(Algorithm):
     The method should return the instance of the class with the ``signal_based_parameters_`` attribute.
     By default ``result_level="wb"`` selects the full accepted WB in the main pipeline. Turn calculators declare
     ``result_level="turn"``, return their indexed metadata/features in ``per_turn_parameters_`` and leave the
-    single-row ``signal_based_parameters_`` empty. They run once over all detected turns on the recording signal.
+    ``signal_based_parameters_`` empty. They run once over all detected turns on the recording signal.
     Turn calculators preserve the supplied turn-list index, row order and metadata, and use distinct feature names.
     Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
 
@@ -80,6 +80,11 @@ class BaseSDMOCalculator(Algorithm):
 
     Notes
     -----
+    Signal preparation and window selection belong to the caller. When replaying per-GS reorientation for a WB,
+    check containment before applying a recorded correction; WBs need not be fully contained in a GS. Nominal frame
+    conversion alone cannot correct a misoriented sensor.
+    See :func:`mobgap.re_orientation.get_orientation_for_sequences`.
+
     You can use the :func:`~base_sdmo_docfiller` decorator to fill common parts of the docstring for your subclass.
     See the source of this class for an example.
     """
@@ -93,7 +98,7 @@ class BaseSDMOCalculator(Algorithm):
     data: pd.DataFrame
 
     # results
-    signal_based_parameters_: pd.DataFrame
+    signal_based_parameters_: pd.Series
 
     perf_: MeasureTimeResults
 
