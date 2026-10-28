@@ -2,18 +2,26 @@ import pandas as pd
 import pytest
 
 from mobgap.data import LabExampleDataset
-from mobgap.secondary_outcomes import DEFAULT_WB_SDMO_CALCULATORS
+from mobgap.secondary_outcomes import (
+    DEFAULT_WB_SDMO_CALCULATORS,
+    GaitRegularityAndSymmetry,
+    GaitRegularityAndSymmetryTruncatedMean,
+)
 from mobgap.utils.conversions import to_body_frame
 
 
 class TestDefaultCalculatorCollectionRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP"))
-    @pytest.mark.parametrize("replicate_matlab", [True, False])
-    def test_regression(self, datapoint, replicate_matlab, snapshot):
+    @pytest.mark.parametrize(
+        "regularity_calculator",
+        [
+            pytest.param(GaitRegularityAndSymmetry(), id="symmetric_mean"),
+            pytest.param(GaitRegularityAndSymmetryTruncatedMean(), id="truncated_mean"),
+        ],
+    )
+    def test_regression(self, datapoint, regularity_calculator, snapshot):
         calculators = dict(DEFAULT_WB_SDMO_CALCULATORS)
-        calculators["regularity_symmetry"] = (
-            calculators["regularity_symmetry"].clone().set_params(replicate_matlab=replicate_matlab)
-        )
+        calculators["regularity_symmetry"] = regularity_calculator
         stride_meta = datapoint.reference_parameters_relative_to_wb_.stride_parameters
         if stride_meta.empty:
             pytest.skip("No stride parameters available for this datapoint")
@@ -44,7 +52,7 @@ class TestDefaultCalculatorCollectionRegression:
                 },
                 names=["algorithm", "parameter"],
             )
-            snapshot_name = f"{tuple(datapoint.group_label)!s}_wb{wb_id}_replicate_{replicate_matlab}"
+            snapshot_name = f"{tuple(datapoint.group_label)!s}_wb{wb_id}"
             snapshot.assert_match(
                 result.droplevel("algorithm").to_frame().T.rename_axis(columns=None), name=snapshot_name
             )

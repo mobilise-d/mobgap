@@ -26,6 +26,7 @@ Periodicity
 
     SpectralPeakFeatures
     GaitRegularityAndSymmetry
+    GaitRegularityAndSymmetryTruncatedMean
     HarmonicRatioPeakTrough
     HarmonicRatioFourier
 

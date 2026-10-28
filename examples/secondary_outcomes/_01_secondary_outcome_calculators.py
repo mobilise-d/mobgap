@@ -120,7 +120,9 @@ rms.signal_based_parameters_
 
 from mobgap.secondary_outcomes import GaitRegularityAndSymmetry
 
-regularity_symmetry = GaitRegularityAndSymmetry(replicate_matlab=True)
+# This class uses an odd centered mean with symmetric shrinking edge windows. To use the nominal span with
+# truncated edge windows instead, select :class:`~mobgap.secondary_outcomes.GaitRegularityAndSymmetryTruncatedMean`.
+regularity_symmetry = GaitRegularityAndSymmetry()
 
 regularity_symmetry.calculate(data=data_in_wb_bf, **params)
 

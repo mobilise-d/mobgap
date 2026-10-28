@@ -83,8 +83,10 @@ definitions. The cited studies do not establish these particular windows, thresh
    normalized by its zero-lag value. The full accepted WB is used, with no additional acceleration filtering here.
 2. A moving average smooths the autocovariance to suppress small competing peaks. The nominal span is
    `max(1, floor(0.2 * sampling_rate_hz))` samples for IS/PA and `max(1, floor(0.1 * sampling_rate_hz))` for ML.
-   The default uses odd spans, reducing an even span by one, with shrinking symmetric windows at the edges.
-   The alternative uses a centered pandas rolling mean with the nominal span and truncated edge windows.
+   `GaitRegularityAndSymmetry` uses odd spans, reducing an even span by one, with shrinking symmetric windows at the
+   edges. `GaitRegularityAndSymmetryTruncatedMean` uses a centered pandas rolling mean with the nominal span and
+   truncated edge windows. The default WB preset uses `GaitRegularityAndSymmetry`. Both classes have the same output
+   parameter names, so give them distinct algorithm keys when collecting both results.
 3. Candidate peaks must be separated by at least `floor(sampling_rate_hz / 4) + 1` samples. IS/PA keep nonnegative
    peaks and use the first two corrected candidates as step and stride regularity. ML keeps negative troughs for
    step regularity, reporting their positive magnitude, and positive peaks for stride regularity.

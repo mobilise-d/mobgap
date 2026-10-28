@@ -57,11 +57,9 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
     Normalization of unbiased autocovariance does not guarantee values within [-1, 1]; outputs are not clipped.
     Short or irregular bouts can yield ambiguous periods, and ratio-based asymmetry is sensitive to small denominators.
 
-    Parameters
-    ----------
-    replicate_matlab
-        If True (the default), use an odd centered moving average with shrinking symmetric edge windows; otherwise use a
-        centered pandas rolling mean with truncated edge windows.
+    Autocovariance smoothing uses an odd centered moving average with shrinking symmetric edge windows.
+    An even nominal span is reduced by one. For the variant using the nominal span and truncated edge windows,
+    see :class:`~mobgap.secondary_outcomes.GaitRegularityAndSymmetryTruncatedMean`.
 
     Other Parameters
     ----------------
@@ -83,11 +81,6 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
     .. [3] L. M. A. van Gelder, L. Angelini, E. E. Buckley, and C. Mazza, "A proposal for a linear calculation of gait
         asymmetry," Symmetry, vol. 13, no. 9, p. 1560, 2021.
     """
-
-    replicate_matlab: bool
-
-    def __init__(self, *, replicate_matlab: bool = True) -> None:
-        self.replicate_matlab = replicate_matlab
 
     @timed_action_method
     @base_secondary_outcome_docfiller
@@ -117,7 +110,6 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
                 data[axis].to_numpy(),
                 axis=axis,
                 sampling_rate_hz=sampling_rate_hz,
-                replicate_matlab=self.replicate_matlab,
                 step_reg_is_loc=step_reg_is_loc,
             )
             reg_sym.update(axis_results)
@@ -130,7 +122,6 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
         signal: np.ndarray,
         axis: str,
         sampling_rate_hz: float,
-        replicate_matlab: bool,
         step_reg_is_loc: float,
     ) -> tuple[dict[str, float], float]:
         """Compute regularity metrics for a single axis."""
@@ -150,9 +141,7 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
 
             # in order to remove wrong detections of the irrelevant peaks the signal is smoothened.
             win_size = max(1, int((0.1 if axis == "acc_ml" else 0.2) * sampling_rate_hz))
-            smoothed_c = (
-                _matlab_smooth_moving_ave(c, win_size) if replicate_matlab else _pd_smooth_moving_ave(c, win_size)
-            )
+            smoothed_c = self._smooth_autocovariance(c, win_size)
 
             # detect peaks
             if axis == "acc_ml":
@@ -183,6 +172,10 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
                 }
             )
         return result, step_reg_is_loc
+
+    @staticmethod
+    def _smooth_autocovariance(values: np.ndarray, span: int) -> np.ndarray:
+        return _matlab_smooth_moving_ave(values, span)
 
     def _process_ml_axis(
         self, c: np.ndarray, smoothed_c: np.ndarray, distance: int, step_reg_is_loc: float

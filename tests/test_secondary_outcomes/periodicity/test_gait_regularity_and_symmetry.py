@@ -21,7 +21,7 @@ class TestMetaGaitRegularityAndSymmetry(TestAlgorithmMixin):
 class TestGaitRegularityAndSymmetry:
     def test_missing_columns_returns_self(self):
         data_missing = pd.DataFrame({"acc_is": np.random.randn(100)})
-        algo = GaitRegularityAndSymmetry(replicate_matlab=False)
+        algo = GaitRegularityAndSymmetry()
         result = algo.calculate(data_missing, sampling_rate_hz=100)
         assert result is algo
         assert result.signal_based_parameters_.empty
