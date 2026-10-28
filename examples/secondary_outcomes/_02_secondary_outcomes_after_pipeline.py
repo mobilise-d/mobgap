@@ -102,7 +102,6 @@ for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
                 prepared,
                 sampling_rate_hz=sampling_rate_hz,
                 stride_list=strides,
-                replicate_matlab=True,
             )
             .signal_based_parameters_
             for name, calculator in wb_calculators.items()

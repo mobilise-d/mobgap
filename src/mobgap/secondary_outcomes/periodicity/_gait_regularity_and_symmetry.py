@@ -57,13 +57,16 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
     Normalization of unbiased autocovariance does not guarantee values within [-1, 1]; outputs are not clipped.
     Short or irregular bouts can yield ambiguous periods, and ratio-based asymmetry is sensitive to small denominators.
 
+    Parameters
+    ----------
+    replicate_matlab
+        If True (the default), use an odd centered moving average with shrinking symmetric edge windows; otherwise use a
+        centered pandas rolling mean with truncated edge windows.
+
     Other Parameters
     ----------------
     %(data_param)s
     %(sampling_rate_param)s
-    replicate_matlab
-        If True, use an odd centered moving average with shrinking symmetric edge windows; otherwise use a
-        centered pandas rolling mean with truncated edge windows.
 
     Attributes
     ----------
@@ -81,27 +84,26 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
         asymmetry," Symmetry, vol. 13, no. 9, p. 1560, 2021.
     """
 
+    replicate_matlab: bool
+
+    def __init__(self, *, replicate_matlab: bool = True) -> None:
+        self.replicate_matlab = replicate_matlab
+
     @timed_action_method
     @base_secondary_outcome_docfiller
-    def calculate(
-        self, data: pd.DataFrame, sampling_rate_hz: float, replicate_matlab: bool, **_kwargs: Unpack[dict[str, Any]]
-    ) -> Self:
+    def calculate(self, data: pd.DataFrame, sampling_rate_hz: float, **_kwargs: Unpack[dict[str, Any]]) -> Self:
         """%(calculate_short)s.
 
         Parameters
         ----------
         %(data_param)s
         %(sampling_rate_param)s
-        replicate_matlab
-            If True, use an odd centered moving average with shrinking symmetric edge windows; otherwise use a
-            centered pandas rolling mean with truncated edge windows.
 
         %(calculate_return)s
 
         """
         self.data = data
         self.sampling_rate_hz = sampling_rate_hz
-        self.replicate_matlab = replicate_matlab
         self.signal_based_parameters_ = pd.Series(dtype=float)
         # return empty if not all accs are available
         required_acc_columns = ["acc_is", "acc_pa", "acc_ml"]
@@ -115,7 +117,7 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
                 data[axis].to_numpy(),
                 axis=axis,
                 sampling_rate_hz=sampling_rate_hz,
-                replicate_matlab=replicate_matlab,
+                replicate_matlab=self.replicate_matlab,
                 step_reg_is_loc=step_reg_is_loc,
             )
             reg_sym.update(axis_results)

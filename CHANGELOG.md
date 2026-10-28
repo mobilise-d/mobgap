@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add standalone secondary outcome calculators in `mobgap.secondary_outcomes`, grouped by calculation family with
   one algorithm per module, for stride CV, signal magnitude, entropy, spectral parameters,
   regularity/symmetry, smoothness, harmonic ratios and individual turns. Each exposes a parameter-indexed Series
-  for one prepared window. Calculate these after primary analysis and optionally summarize WB outcomes with
+  for one prepared window. The shared calculator call declares the signal, sampling rate and retained strides;
+  regularity smoothing is configured through `GaitRegularityAndSymmetry(replicate_matlab=...)`.
+  Calculate these after primary analysis and optionally summarize WB outcomes with
   `GenericAggregator`; primary pipeline processing and result tables remain unchanged. A pipeline-first example uses
   the shared `DEFAULT_WB_SDMO_CALCULATORS` preset with explicit WB/turn processing. Original `mobgap.signal_based`
   imports and the `SDMOAggregator` name remain available as aliases.

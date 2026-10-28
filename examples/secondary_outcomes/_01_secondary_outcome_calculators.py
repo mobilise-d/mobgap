@@ -57,16 +57,13 @@ data_in_wb_bf = to_body_frame(data_in_wb)
 
 # %%
 # Then we can initialize a representative algorithm and call the ``calculate`` method.
-# Although there might be some additional parameters in the algorithm init functions, the calculate methods are provided
-# ``**kwargs`` so that they can all be called and executed in the same manner. Note that you must explicitly provide
-# ``data`` argument to all algorithms.
+# The base calculator contract names the inputs used by the shared WB call. Each calculator consumes the inputs it
+# needs and accepts the others through ``**kwargs``. Direct calls can supply only the concrete calculator's inputs.
 # The output ``signal_based_parameters_`` is a Series containing all scalar parameters for one prepared window.
 # Below, we define the extra parameters and we provide examples to all algorithms.
 params = dict(
     stride_list=reference_strides,
     sampling_rate_hz=short_trial.sampling_rate_hz,
-    turn_list=reference_turns,
-    replicate_matlab=True,
 )
 
 # %%
@@ -123,7 +120,7 @@ rms.signal_based_parameters_
 
 from mobgap.secondary_outcomes import GaitRegularityAndSymmetry
 
-regularity_symmetry = GaitRegularityAndSymmetry()
+regularity_symmetry = GaitRegularityAndSymmetry(replicate_matlab=True)
 
 regularity_symmetry.calculate(data=data_in_wb_bf, **params)
 

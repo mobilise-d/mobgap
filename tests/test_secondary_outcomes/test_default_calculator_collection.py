@@ -10,6 +10,10 @@ class TestDefaultCalculatorCollectionRegression:
     @pytest.mark.parametrize("datapoint", LabExampleDataset(reference_system="INDIP"))
     @pytest.mark.parametrize("replicate_matlab", [True, False])
     def test_regression(self, datapoint, replicate_matlab, snapshot):
+        calculators = dict(DEFAULT_WB_SDMO_CALCULATORS)
+        calculators["regularity_symmetry"] = (
+            calculators["regularity_symmetry"].clone().set_params(replicate_matlab=replicate_matlab)
+        )
         stride_meta = datapoint.reference_parameters_relative_to_wb_.stride_parameters
         if stride_meta.empty:
             pytest.skip("No stride parameters available for this datapoint")
@@ -34,10 +38,9 @@ class TestDefaultCalculatorCollectionRegression:
                         imu_data,
                         sampling_rate_hz=sampling_rate_hz,
                         stride_list=stride_list,
-                        replicate_matlab=replicate_matlab,
                     )
                     .signal_based_parameters_
-                    for name, calculator in DEFAULT_WB_SDMO_CALCULATORS.items()
+                    for name, calculator in calculators.items()
                 },
                 names=["algorithm", "parameter"],
             )

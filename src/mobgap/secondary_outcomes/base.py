@@ -27,7 +27,8 @@ base_secondary_outcome_docfiller = make_filldoc(
     """,
         "stride_list_param": """
     stride_list
-        The retained stride list associated with ``data``. Start/end sample positions must be relative to this window.
+        The retained stride list associated with ``data``, including the stride parameters used by the calculator.
+        The ``start`` and ``end`` columns, when used, are sample positions relative to this window, with end exclusive.
     """,
         "acc_columns_para": """
     acc_columns
@@ -58,18 +59,21 @@ class BaseSecondaryOutcomeCalculator(Algorithm):
     The method should return the instance of the class with the ``signal_based_parameters_`` attribute.
     Every calculator consumes one prepared signal window and returns all of its scalar parameters in a Series.
     Callers select windows, preserve interval metadata and assemble results.
-    Further, the calculate methods should set all inputs of the calculate method to attributes of the same name.
+    Calculators store the inputs they consume as attributes of the same name.
 
-    Subclasses may specify further parameters for their calculate methods because individual signal-based parameters
-    require different inputs.
+    The base signature describes the shared walking-bout call: pass ``data``, ``sampling_rate_hz`` and ``stride_list``
+    to every calculator in a configured collection. Subclasses explicitly declare the inputs
+    they consume and accept the remaining shared inputs through ``**kwargs`` without using or storing them.
+    Direct calls to a concrete calculator need only supply that calculator's required inputs. For example,
+    TurnKinematics receives one prepared turn window and its sampling rate, without a stride or turn list.
+    Algorithm-specific configuration belongs in initialization parameters, rather than arguments to ``calculate``.
+    Subclasses may accept additional method-specific inputs through ``**kwargs``.
 
     Other Parameters
     ----------------
     %(data_param)s
     %(sampling_rate_param)s
     %(stride_list_param)s
-    replicate_matlab
-        If True, use MATLAB-compatible smoothing, otherwise the direct pandas-based moving average smoothing.
 
     Attributes
     ----------
@@ -91,6 +95,8 @@ class BaseSecondaryOutcomeCalculator(Algorithm):
 
     # Other Parameters
     data: pd.DataFrame
+    sampling_rate_hz: float
+    stride_list: pd.DataFrame
 
     # results
     signal_based_parameters_: pd.Series
@@ -101,6 +107,9 @@ class BaseSecondaryOutcomeCalculator(Algorithm):
     def calculate(
         self,
         data: pd.DataFrame,
+        *,
+        sampling_rate_hz: float,
+        stride_list: pd.DataFrame,
         **kwargs: Unpack[dict[str, Any]],
     ) -> Self:
         """%(calculate_short)s.
@@ -108,6 +117,8 @@ class BaseSecondaryOutcomeCalculator(Algorithm):
         Parameters
         ----------
         %(data_param)s
+        %(sampling_rate_param)s
+        %(stride_list_param)s
 
         %(calculate_return)s
         """
