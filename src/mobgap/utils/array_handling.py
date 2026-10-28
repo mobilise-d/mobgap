@@ -4,7 +4,7 @@ import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from numpy.lib.stride_tricks import sliding_window_view as np_sliding_window_view
 
-from mobgap._gaitmap.utils.array_handling import (
+from mobgap.utils.intervals import (
     bool_array_to_start_end_array,
     merge_intervals,
     start_end_array_to_bool_array,

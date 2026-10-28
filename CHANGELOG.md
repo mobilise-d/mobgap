@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Consolidate interval matching, counting, conversion, filtering and reduction helpers in `mobgap.utils.intervals`.
+  Existing import paths remain available as re-exports; performance scores remain in the evaluation modules.
+
 - Reduce repeated work and temporary allocations in EPFL filtering, Ionescu and ILUZ gait detection,
   walking-bout raw-contact counting, Madgwick orientation estimation, and DMO threshold checks while preserving
   results. Threshold checks retain the existing path for empty inputs and alternative numeric dtypes.

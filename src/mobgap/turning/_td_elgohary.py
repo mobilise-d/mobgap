@@ -10,9 +10,11 @@ from mobgap.data_transform import ButterworthFilter
 from mobgap.data_transform.base import BaseFilter
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
 from mobgap.turning.base import BaseTurnDetector, base_turning_docfiller
-from mobgap.utils.array_handling import merge_intervals
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.dtypes import get_frame_definition
+from mobgap.utils.intervals import (
+    merge_intervals,
+)
 
 _turn_df_types = {
     "turn_id": "int64",
