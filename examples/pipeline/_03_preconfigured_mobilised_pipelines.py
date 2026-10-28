@@ -186,7 +186,7 @@ pipe_no_agg = MobilisedPipelineHealthy(
 pipe_no_agg.safe_run(long_test_ha)
 
 # %%
-# Now, the aggregated parameters are empty.
+# The aggregated result is None when primary aggregation is disabled.
 pipe_no_agg.aggregated_parameters_
 
 # %%

@@ -6,15 +6,12 @@ from fractions import Fraction
 from math import ceil
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
-
-def _only_start_end(intervals: pd.DataFrame, *, index_name: Optional[str] = None) -> pd.DataFrame:
-    result = intervals[["start", "end"]].astype({"start": "int64", "end": "int64"})
-    if index_name is not None:
-        return result.rename_axis(index_name)
-    return result
+from mobgap.utils.intervals import (
+    _only_start_end,
+    remove_short_interior_intervals,  # noqa: F401 - compatibility re-export
+)
 
 
 def _validate_waking_hours(waking_hours: tuple[time, time]) -> tuple[time, time]:
@@ -143,18 +140,3 @@ def clip_intervals_to_waking_hours(
     )
     clipped = clipped[clipped["end"] > clipped["start"]]
     return clipped.astype({"start": "int64", "end": "int64"})
-
-
-def remove_short_interior_intervals(intervals: np.ndarray, min_samples: int, data_length: int) -> np.ndarray:
-    """Remove intervals shorter than ``min_samples`` unless they touch a recording boundary."""
-    intervals = np.asarray(intervals, dtype=np.int64)
-    if intervals.size == 0:
-        return np.empty((0, 2), dtype=np.int64)
-
-    intervals = intervals.reshape(-1, 2)
-    if min_samples <= 0:
-        return intervals.copy()
-
-    durations = intervals[:, 1] - intervals[:, 0]
-    at_boundary = (intervals[:, 0] == 0) | (intervals[:, 1] == data_length)
-    return intervals[(durations >= min_samples) | at_boundary]

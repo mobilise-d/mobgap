@@ -14,9 +14,11 @@ from mobgap.initial_contacts._evaluation_scorer import (
     icd_score,
 )
 from mobgap.utils.evaluation import (
+    precision_recall_f1_score,
+)
+from mobgap.utils.intervals import (
     combine_detected_and_reference_metrics,
     extract_tp_matches,
-    precision_recall_f1_score,
 )
 
 

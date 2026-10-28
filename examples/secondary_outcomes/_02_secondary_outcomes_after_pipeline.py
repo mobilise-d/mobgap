@@ -1,0 +1,174 @@
+"""
+Secondary outcomes after the primary pipeline
+=============================================
+
+Calculate secondary outcomes after detecting walking bouts and turns. The primary pipeline supplies accepted WBs,
+retained strides, detected turns and the recorded orientation corrections. Two explicit loops prepare the WB and turn
+signals, while :class:`~mobgap.pipeline.RegionIterator` assembles Series results into DataFrames. Finally,
+:class:`~mobgap.aggregation.GenericAggregator` summarizes the calculated WB outcomes across walking bouts.
+
+The iterator returns the existing ``Region`` type. Extra metadata, including the method-specific correction value,
+stays in the source DataFrame and is read by the region's identifier inside the loop.
+"""
+
+# %%
+# Run the primary pipeline
+# ------------------------
+# This trial includes several walking bouts and turns. Run the primary pipeline first, then calculate secondary
+# outcomes from its results. Corrections are retained in the raw GS table even when intermediate retention is
+# disabled. With per-GS reorientation, gait detection must support sensor-frame inputs.
+from mobgap.data import LabExampleDataset
+from mobgap.gait_sequences import GsdIluzAdaptiveGravity
+from mobgap.pipeline import MobilisedPipelineHealthy, RegionIterator
+from mobgap.re_orientation import (
+    ReorientationMethodDM,
+    get_orientation_for_sequences,
+)
+
+short_trial = LabExampleDataset(reference_system="INDIP").get_subset(
+    cohort="HA", participant_id="001", test="Test11", trial="Trial1"
+)
+sampling_rate_hz = short_trial.sampling_rate_hz
+sensor_data = short_trial.data_ss
+pipeline = MobilisedPipelineHealthy(
+    gait_sequence_detection=GsdIluzAdaptiveGravity(),
+    per_gs_reorientation=ReorientationMethodDM(),
+    retain_intermediate_results=False,
+).safe_run(short_trial)
+
+# %%
+# Prepare corrections once, outside the loops
+# -------------------------------------------
+# The pipeline's raw GS table contains the method-specific correction and applied flag for each detected GS.
+# ReorientationMethodDM provides two scipy rotations. Do not re-estimate orientation for each WB or turn.
+import pandas as pd
+from scipy.spatial.transform import Rotation
+
+reorientation_sections = pipeline.gs_list_
+identity_correction = (Rotation.identity(), Rotation.identity())
+wbs = pipeline.per_wb_parameters_.assign(
+    orientation=lambda rows: get_orientation_for_sequences(
+        rows, reorientation_sections, default=identity_correction
+    )
+)
+turns = pipeline.raw_turn_list_.assign(
+    orientation=lambda rows: get_orientation_for_sequences(
+        rows, reorientation_sections, default=identity_correction
+    )
+)
+
+# %%
+# .. warning::
+#    Signal outcomes require correctly oriented body-frame data. Nominal column conversion alone cannot correct a
+#    misoriented sensor. A WB need not be fully contained in a GS: the helper raises if it only partly overlaps any
+#    section requiring correction. It does not extend that correction into gaps or across other sections. Selecting
+#    or replaying a recorded fallback also does not establish that orientation was resolved; inspect the correction
+#    metadata when this matters for your analysis.
+#
+# On this aligned example recording, the recorded corrections are nominal. With reorientation disabled, callers who
+# know their sensor is correctly aligned can use ``to_body_frame(window)`` directly instead.
+
+# %%
+# Walking-bout outcomes
+# ---------------------
+# Configure a named dictionary of non-turn calculators. The loop owns signal preparation and stride-coordinate
+# rebasing. Retain the full accepted WB signal, including turns and gaps between retained strides.
+from dataclasses import dataclass
+
+from mobgap.secondary_outcomes import (
+    DEFAULT_WB_SDMO_CALCULATORS,
+    TurnKinematics,
+)
+
+
+@dataclass
+class OutcomeResult:
+    parameters: pd.Series
+
+
+# The general iterator assembles each Series field into a DataFrame. The result type belongs to this example.
+wb_calculators = dict(DEFAULT_WB_SDMO_CALCULATORS)
+wb_iterator = RegionIterator(OutcomeResult)
+for (wb, window), result in wb_iterator.iterate(sensor_data, wbs):
+    correction = wbs.loc[wb.id, "orientation"]
+    prepared = pipeline.per_gs_reorientation.apply_correction(
+        window, correction
+    )
+    strides = pipeline.per_stride_parameters_.loc[wb.id].copy()
+    strides.loc[:, ["start", "end"]] -= wb.start
+    result.parameters = pd.concat(
+        {
+            name: calculator.clone()
+            .calculate(
+                prepared,
+                sampling_rate_hz=sampling_rate_hz,
+                stride_list=strides,
+            )
+            .signal_based_parameters_
+            for name, calculator in wb_calculators.items()
+        },
+        names=["algorithm", "parameter"],
+    )
+
+per_wb_sdmos = wb_iterator.results_.parameters
+per_wb_sdmos
+
+# %%
+# Individual turn outcomes
+# ------------------------
+# Every detected turn is processed, including turns outside accepted WBs. Its full identity remains
+# ``(gs_id, turn_id)``; we do not infer WB membership from the GS identifier.
+# TurnKinematics receives exactly one prepared turn window and returns its parameter Series. Keep metadata in its own
+# table, aligned to the parameter matrix by the original turn index.
+turn_calculators = {"turn": TurnKinematics()}
+turn_iterator = RegionIterator(OutcomeResult)
+for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
+    correction = turns.loc[turn.id, "orientation"]
+    prepared = pipeline.per_gs_reorientation.apply_correction(
+        window, correction
+    )
+    result.parameters = pd.concat(
+        {
+            name: calculator.clone()
+            .calculate(prepared, sampling_rate_hz=sampling_rate_hz)
+            .signal_based_parameters_
+            for name, calculator in turn_calculators.items()
+        },
+        names=["algorithm", "parameter"],
+    )
+
+per_turn_sdmos = turn_iterator.results_.parameters
+per_turn_sdmos
+
+# %%
+per_turn_metadata = turns.drop(columns="orientation")
+per_turn_metadata
+
+# %%
+# Aggregate secondary outcomes across WBs
+# ---------------------------------------
+# Iterator assembly and statistical aggregation are separate operations. Supply only outcome columns and required
+# duration/grouping metadata to GenericAggregator; the orientation payload is not an outcome. Each WB has equal weight.
+# Primary-DMO validity thresholds are not automatically applied to secondary outcomes. Turn rows remain separate.
+# The defaults calculate median, sample standard deviation, and 10th/90th percentiles for all WBs and the configured
+# duration groups. Each output column identifies its duration group, source parameter and statistic.
+from mobgap.aggregation import GenericAggregator
+
+# Aggregate each algorithm's parameter table with the existing flat-column aggregator, then retain the algorithm
+# keys as the outer column level. No parameter names are flattened or merged across algorithms.
+if per_wb_sdmos.empty:
+    aggregated_sdmos = pd.DataFrame()
+else:
+    aggregated_sdmos = pd.concat(
+        {
+            name: GenericAggregator()
+            .aggregate(per_wb_sdmos[name].join(wbs[["duration_s"]]))
+            .aggregated_data_
+            for name in per_wb_sdmos.columns.get_level_values(
+                "algorithm"
+            ).unique()
+        },
+        axis=1,
+        names=["algorithm", "parameter"],
+    )
+aggregated_sdmos

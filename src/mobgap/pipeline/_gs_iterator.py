@@ -143,7 +143,8 @@ class FullPipelinePerGsResult:
     When using the :class:`~mobgap.pipeline.GsIterator` with the default configuration, an instance of this dataclass
     will be created for each gait-sequence.
 
-    Each value is expected to be a dataframe.
+    Each signal result and the replayable reorientation row is expected to be a dataframe.
+    ``reorientation_result`` retains method-specific diagnostics separately.
 
     Attributes
     ----------
@@ -164,6 +165,11 @@ class FullPipelinePerGsResult:
     walking_speed_per_sec
         The gait speed values within each gait-sequence.
         This dataframe has no further requirements relevant for the iterator.
+    reorientation
+        One row containing the opaque ``orientation`` correction value and ``correction_applied`` flag
+        for the full gait sequence. These values do not contain signal data.
+    reorientation_result
+        Optional method-specific detection diagnostics for the full gait sequence.
 
     """
 
@@ -173,6 +179,7 @@ class FullPipelinePerGsResult:
     stride_length_per_sec: pd.DataFrame
     walking_speed_per_sec: pd.DataFrame
     reorientation_result: Optional[Any] = None
+    reorientation: Optional[pd.DataFrame] = None
 
 
 def _build_id_cols(region: Region, parent_region: Optional[Region]) -> list[str]:
@@ -267,6 +274,12 @@ def create_aggregate_df(
         return pd.concat(to_concat, names=[*iter_index_name, *next(iter(to_concat.values())).index.names])
 
     return aggregate_df
+
+
+def _aggregate_reorientation_corrections(results: list["GsIterator.IteratorResult[Any]"]) -> pd.DataFrame:
+    """Collect correction rows while preserving custom result types without this optional field."""
+    applicable = [r for r in results if hasattr(r.result, "reorientation")]
+    return create_aggregate_df("reorientation", [])(applicable)
 
 
 def _aggregate_reorientation_results(results: list["GsIterator.IteratorResult[Any]"]) -> Union[pd.DataFrame, list]:
@@ -398,6 +411,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                             "walking_speed_per_sec",
                             create_aggregate_df("walking_speed_per_sec", [], fix_offset_index=True),
                         ),
+                        ("reorientation", _aggregate_reorientation_corrections),
                         (
                             "reorientation_result",
                             _aggregate_reorientation_results,
@@ -416,6 +430,7 @@ class GsIterator(BaseTypedIterator[RegionDataTuple, DataclassT], Generic[Datacla
                         ("cadence_per_sec", create_aggregate_df("cadence_per_sec", [])),
                         ("stride_length_per_sec", create_aggregate_df("stride_length", [])),
                         ("walking_speed_per_sec", create_aggregate_df("gait_speed", [])),
+                        ("reorientation", _aggregate_reorientation_corrections),
                     ]
                 ),
             }

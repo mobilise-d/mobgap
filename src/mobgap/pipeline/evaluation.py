@@ -4,11 +4,6 @@ import pandas as pd
 from tpcp.validate import Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDatasetWithReference
-from mobgap.gait_sequences.evaluation import (
-    categorize_intervals,
-    categorize_intervals_per_sample,
-    get_matching_intervals,
-)
 from mobgap.pipeline._error_metrics import (
     CustomErrorAggregations,
     ErrorTransformFuncs,
@@ -24,6 +19,11 @@ from mobgap.pipeline._error_metrics import (
 )
 from mobgap.pipeline.base import BaseMobilisedPipeline
 from mobgap.utils.df_operations import apply_transformations
+from mobgap.utils.intervals import (
+    categorize_intervals,
+    categorize_intervals_per_sample,
+    get_matching_intervals,
+)
 
 E = ErrorTransformFuncs
 

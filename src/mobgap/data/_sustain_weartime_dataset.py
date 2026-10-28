@@ -15,7 +15,10 @@ from tpcp.caching import hybrid_cache
 
 from mobgap.data import ax6 as ax6_module
 from mobgap.data.ax6 import AdditionalChannel, BaseAX6Dataset, CwaRecordingInfo, split_by_local_days
-from mobgap.utils.array_handling import merge_intervals
+from mobgap.utils.intervals import (
+    _complement_intervals,
+    merge_intervals,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -146,21 +149,6 @@ def _format_reference_df(
     intervals = intervals[REFERENCE_COLUMNS].astype({"start": "int64", "end": "int64", "duration": "int64"})
     intervals.index.name = index_name
     return intervals
-
-
-def _complement_intervals(intervals: pd.DataFrame, data_length: int) -> pd.DataFrame:
-    if data_length == 0:
-        return pd.DataFrame(columns=["start", "end"])
-
-    complement: list[tuple[int, int]] = []
-    current_start = 0
-    for start, end in intervals[["start", "end"]].itertuples(index=False):
-        if start > current_start:
-            complement.append((current_start, int(start)))
-        current_start = max(current_start, int(end))
-    if current_start < data_length:
-        complement.append((current_start, data_length))
-    return pd.DataFrame(complement, columns=["start", "end"])
 
 
 class SustainWearTimeDataset(BaseAX6Dataset):

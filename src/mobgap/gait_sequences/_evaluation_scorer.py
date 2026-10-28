@@ -26,7 +26,7 @@ def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitD
     - all outputs of :func:`~mobgap.gait_sequences.evaluation.calculate_matched_gsd_performance_metrics`
       (will be averaged over all datapoints)
     - ``matches``: The matched gait sequences calculated by
-      :func:`~mobgap.gait_sequences.evaluation.categorize_intervals_per_sample` (return as ``no_agg``)
+      :func:`~mobgap.utils.intervals.categorize_intervals_per_sample` (return as ``no_agg``)
     - ``detected``: The detected gait sequences (return as ``no_agg``)
     - ``reference``: The reference gait sequences (return as ``no_agg``)
     - ``sampling_rate_hz``: The sampling rate of the data (return as ``no_agg``)
@@ -52,6 +52,8 @@ def gsd_per_datapoint_score(pipeline: GsdEmulationPipeline, datapoint: BaseGaitD
     from mobgap.gait_sequences.evaluation import (  # noqa: PLC0415
         calculate_matched_gsd_performance_metrics,
         calculate_unmatched_gsd_performance_metrics,
+    )
+    from mobgap.utils.intervals import (  # noqa: PLC0415
         categorize_intervals_per_sample,
     )
 

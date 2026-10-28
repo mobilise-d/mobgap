@@ -1,0 +1,29 @@
+{
+    "schema":{
+        "fields":[
+            {
+                "name":"index",
+                "type":"integer"
+            },
+            {
+                "name":"jerk_ratio_ml_is",
+                "type":"number"
+            },
+            {
+                "name":"jerk_ratio_pa_is",
+                "type":"number"
+            }
+        ],
+        "primaryKey":[
+            "index"
+        ],
+        "pandas_version":"1.4.0"
+    },
+    "data":[
+        {
+            "index":0,
+            "jerk_ratio_ml_is":-0.8931204117,
+            "jerk_ratio_pa_is":-1.1791281211
+        }
+    ]
+}

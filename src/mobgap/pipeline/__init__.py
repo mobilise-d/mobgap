@@ -13,6 +13,7 @@ from mobgap.pipeline._mobilised_pipeline import (
     MobilisedPipelineImpaired,
     MobilisedPipelineUniversal,
 )
+from mobgap.pipeline._region_iterator import RegionIterator
 
 __all__ = [
     "FullPipelinePerGsResult",
@@ -22,6 +23,7 @@ __all__ = [
     "MobilisedPipelineImpaired",
     "MobilisedPipelineUniversal",
     "Region",
+    "RegionIterator",
     "create_aggregate_df",
     "iter_gs",
 ]

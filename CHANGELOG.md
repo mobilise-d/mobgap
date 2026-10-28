@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add standalone secondary outcome calculators in `mobgap.secondary_outcomes`, grouped by calculation family with
+  one algorithm per module, for stride CV, signal magnitude, entropy, spectral parameters,
+  regularity/symmetry, smoothness, harmonic ratios and individual turns. Each exposes a parameter-indexed Series
+  for one prepared window. The shared calculator call declares the signal, sampling rate and retained strides;
+  `GaitRegularityAndSymmetry` and `GaitRegularityAndSymmetryTruncatedMean` provide fixed smoothing variants.
+  Calculate these after primary analysis and optionally summarize WB outcomes with
+  `GenericAggregator`; primary pipeline processing and result tables remain unchanged. A pipeline-first example uses
+  the shared `DEFAULT_WB_SDMO_CALCULATORS` preset with explicit WB/turn processing and WB aggregation.
+  Original `mobgap.signal_based` imports and the `SDMOAggregator` name remain available as aliases.
+- Add `RegionIterator` to collect caller-defined Series result fields into DataFrames while preserving region
+  identities and hierarchical parameter labels. Signal preparation and metadata access remain in the caller's loop.
+- Add generic interval-containment and sequence-orientation helpers. Reorientation methods provide static
+  `apply_correction(data, correction)` while defining their own correction type; `ReorientationMethodDM` replays
+  its gravity/PA rotations, including documented unresolved fallbacks. With per-GS reorientation enabled, the
+  primary pipeline exposes replayable `orientation` and `correction_applied` columns in `gs_list_`, including when
+  intermediate retention is disabled.
+
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level
   names from the first file's recording hierarchy.
@@ -38,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   allows mobgap to be used "end-to-end" with no other installs required. (https://github.com/mobilise-d/mobgap/pull/253)
 
 ### Changed
+
+- Consolidate interval matching, counting, conversion, filtering and reduction helpers in `mobgap.utils.intervals`.
+  Existing import paths remain available as re-exports; performance scores remain in the evaluation modules.
 
 - Reduce repeated work and temporary allocations in EPFL filtering, Ionescu and ILUZ gait detection,
   walking-bout raw-contact counting, Madgwick orientation estimation, and DMO threshold checks while preserving
@@ -73,6 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   task, or input file as applicable.
 
 ### Fixed
+
+- Clear the executed primary aggregator and aggregate result when aggregation is disabled, including when reusing
+  a pipeline after an aggregated run, while still releasing temporary action arguments.
 
 - Fix `Resample` to return an independent, unchanged copy when the input and target sampling rates are equal,
   as documented. Previously, a missing early return still ran FFT resampling, introducing floating-point roundoff,
