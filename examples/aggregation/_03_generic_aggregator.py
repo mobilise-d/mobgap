@@ -1,11 +1,11 @@
 """
 
-.. _sdmo_aggregator_example:
+.. _generic_aggregator_example:
 
-Signal-based digital mobility outcomes (SDMO) Aggregator
-========================================================
+Generic walking-bout aggregation
+================================
 
-This example shows how to use the :class:`.SDMOAggregator` class to aggregate SDMOs over multiple walking bouts.
+This example uses :class:`~mobgap.aggregation.GenericAggregator` to summarize outcome values across walking bouts.
 """
 # %%
 # Loading some example data
@@ -18,7 +18,7 @@ This example shows how to use the :class:`.SDMOAggregator` class to aggregate SD
 
 import pandas as pd
 from mobgap import PROJECT_ROOT
-from mobgap.aggregation import SDMOAggregator
+from mobgap.aggregation import GenericAggregator
 
 DATA_PATH = PROJECT_ROOT / "example_data/original_results/sdmo_aggregator"
 
@@ -35,16 +35,16 @@ data.head()
 # %%
 # Performing the aggregation
 # --------------------------
-# The :class:`.SDMOAggregator` is used to aggregate the input data over several walking bouts, e.g., over all
+# The :class:`~mobgap.aggregation.GenericAggregator` is used to aggregate the input data over several walking bouts, e.g., over all
 # walking bouts from one participant, or over all walking bouts per participant and day, week, or other criteria.
 # The data is grouped using additional columns in the input data, which are not used for the aggregation itself.
 # In this example, the data is grouped by participant (`subject_code`) and day (`visit_date`).
 # Although some aggregations (that are used in the  :class:`.MobilisedPipeline`) are provided as a default,
 # this class can be used to perform any aggregations by providing the `duration_filters`
 # (for walking bout duration filtering) and `metrics` (for calculating statistics)
-agg = SDMOAggregator(
+agg = GenericAggregator(
     **dict(
-        SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+        GenericAggregator.PredefinedParameters.cvs_sdmo_data,
     )
 )
 agg.aggregate(data)

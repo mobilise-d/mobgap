@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from mobgap.data import LabExampleDataset
-from mobgap.signal_based import DEFAULT_WB_SDMO_CALCULATORS
+from mobgap.secondary_outcomes import DEFAULT_WB_SDMO_CALCULATORS
 from mobgap.utils.conversions import to_body_frame
 
 

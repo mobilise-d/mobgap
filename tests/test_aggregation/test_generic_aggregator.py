@@ -5,7 +5,7 @@ from pandas._testing import assert_frame_equal
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap import PROJECT_ROOT
-from mobgap.aggregation import SDMOAggregator
+from mobgap.aggregation import GenericAggregator
 
 DATA_PATH = PROJECT_ROOT / "example_data/original_results/sdmo_aggregator"
 
@@ -27,10 +27,10 @@ def dummy_dmo_data_mask(example_sdmo_data):
     )
 
 
-class TestMetaSDMOAggregator(TestAlgorithmMixin):
+class TestMetaGenericAggregator(TestAlgorithmMixin):
     __test__ = True
 
-    ALGORITHM_CLASS = SDMOAggregator
+    ALGORITHM_CLASS = GenericAggregator
 
     @pytest.fixture
     def after_action_instance(self, example_sdmo_data):
@@ -40,7 +40,7 @@ class TestMetaSDMOAggregator(TestAlgorithmMixin):
         )
 
 
-class TestSDMOAggregator:
+class TestGenericAggregator:
     def test_mask_is_applied_per_measure(self):
         wb_dmos = pd.DataFrame(
             {"duration_s": [12.0, 20.0], "x": [1.0, 3.0], "y": [10.0, 20.0]},
@@ -49,7 +49,7 @@ class TestSDMOAggregator:
         wb_dmos_mask = pd.DataFrame(True, index=wb_dmos.index, columns=wb_dmos.columns)
         wb_dmos_mask.loc[0, "x"] = False
 
-        result = SDMOAggregator(
+        result = GenericAggregator(
             groupby=None,
             duration_filters={"all": (0, np.inf)},
             metrics={"mean": "mean"},
@@ -62,7 +62,7 @@ class TestSDMOAggregator:
     def test_wb_id_can_be_a_column(self):
         wb_dmos = pd.DataFrame({"wb_id": [0, 1], "duration_s": [12.0, 20.0], "x": [1.0, 3.0]})
 
-        result = SDMOAggregator(
+        result = GenericAggregator(
             groupby=None,
             duration_filters={"all": (0, np.inf)},
             metrics={"mean": "mean"},
@@ -78,7 +78,7 @@ class TestSDMOAggregator:
             index=pd.Index(range(4), name="wb_id"),
         )
 
-        result = SDMOAggregator(
+        result = GenericAggregator(
             groupby=None,
             duration_filters={"wb_10_30": (10, 30), "wb_30": (30, np.inf), "wb_60": (60, np.inf)},
             metrics={"mean": "mean"},
@@ -92,32 +92,32 @@ class TestSDMOAggregator:
 
     def test_raise_error_on_wrong_data(self):
         with pytest.raises(ValueError):
-            SDMOAggregator(
-                **SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+            GenericAggregator(
+                **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
             ).aggregate(pd.DataFrame(np.random.rand(10, 10)))
 
     def test_raise_error_on_wrong_groupby(self, example_sdmo_data):
         with pytest.raises(ValueError):
-            SDMOAggregator(
-                **{**SDMOAggregator.PredefinedParameters.cvs_sdmo_data, "groupby": ["do", "not", "exist"]}
+            GenericAggregator(
+                **{**GenericAggregator.PredefinedParameters.cvs_sdmo_data, "groupby": ["do", "not", "exist"]}
             ).aggregate(example_sdmo_data)
 
     def test_raise_error_on_wrong_data_mask(self, example_sdmo_data, dummy_dmo_data_mask):
         with pytest.raises(ValueError):
-            SDMOAggregator(
-                **SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+            GenericAggregator(
+                **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
             ).aggregate(example_sdmo_data, wb_dmos_mask=dummy_dmo_data_mask.iloc[:10])
 
     def test_raise_warning_on_missing_duration_column(self, example_sdmo_data):
         with pytest.warns(UserWarning):
-            SDMOAggregator(
-                **SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+            GenericAggregator(
+                **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
             ).aggregate(example_sdmo_data.drop(columns=["duration_s"]))
 
     def test_input_not_modified(self, example_sdmo_data, dummy_dmo_data_mask):
         data = example_sdmo_data.copy()
-        agg = SDMOAggregator(
-            **SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+        agg = GenericAggregator(
+            **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
         ).aggregate(data, wb_dmos_mask=dummy_dmo_data_mask)
         # check that no rows were dropped
         assert data.shape == agg.filtered_wb_dmos_.shape
@@ -129,18 +129,18 @@ class TestSDMOAggregator:
         data = example_sdmo_data.copy()
         data_mask_wit_nan = dummy_dmo_data_mask.copy().replace(True, np.nan)
 
-        agg_with_nan = SDMOAggregator(
-            **SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+        agg_with_nan = GenericAggregator(
+            **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
         ).aggregate(data, wb_dmos_mask=data_mask_wit_nan)
-        agg_without_nan = SDMOAggregator(
-            **SDMOAggregator.PredefinedParameters.cvs_sdmo_data,
+        agg_without_nan = GenericAggregator(
+            **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
         ).aggregate(data, wb_dmos_mask=dummy_dmo_data_mask)
 
         assert_frame_equal(agg_with_nan.aggregated_data_, agg_without_nan.aggregated_data_)
 
     def test_no_grouping(self, example_sdmo_data, dummy_dmo_data_mask):
         data = example_sdmo_data.copy()
-        agg = SDMOAggregator(**(SDMOAggregator.PredefinedParameters.cvs_sdmo_data | dict(groupby=None))).aggregate(
+        agg = GenericAggregator(**(GenericAggregator.PredefinedParameters.cvs_sdmo_data | dict(groupby=None))).aggregate(
             data, wb_dmos_mask=dummy_dmo_data_mask
         )
 

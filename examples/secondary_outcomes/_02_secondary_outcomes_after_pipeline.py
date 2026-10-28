@@ -74,7 +74,10 @@ turns = pipeline.raw_turn_list_.assign(
 # rebasing. Retain the full accepted WB signal, including turns and gaps between retained strides.
 from dataclasses import dataclass
 
-from mobgap.signal_based import DEFAULT_WB_SDMO_CALCULATORS, TurnSDMO
+from mobgap.secondary_outcomes import (
+    DEFAULT_WB_SDMO_CALCULATORS,
+    TurnKinematics,
+)
 
 
 @dataclass
@@ -115,9 +118,9 @@ per_wb_sdmos
 # ------------------------
 # Every detected turn is processed, including turns outside accepted WBs. Its full identity remains
 # ``(gs_id, turn_id)``; we do not infer WB membership from the GS identifier.
-# TurnSDMO receives exactly one prepared turn window and returns its parameter Series. Keep metadata in its own
+# TurnKinematics receives exactly one prepared turn window and returns its parameter Series. Keep metadata in its own
 # table, aligned to the parameter matrix by the original turn index.
-turn_calculators = {"turn": TurnSDMO()}
+turn_calculators = {"turn": TurnKinematics()}
 turn_iterator = RegionIterator(OutcomeResult)
 for (turn, window), result in turn_iterator.iterate(sensor_data, turns):
     correction = turns.loc[turn.id, "orientation"]
@@ -145,9 +148,9 @@ per_turn_metadata
 # Optional aggregation across WBs
 # -------------------------------
 # Iterator assembly and statistical aggregation are separate operations. Supply only outcome columns and required
-# duration/grouping metadata to SDMOAggregator; the orientation payload is not an outcome. Each WB has equal weight.
+# duration/grouping metadata to GenericAggregator; the orientation payload is not an outcome. Each WB has equal weight.
 # Primary-DMO validity thresholds are not automatically applied to secondary outcomes. Turn rows remain separate.
-from mobgap.aggregation import SDMOAggregator
+from mobgap.aggregation import GenericAggregator
 
 # Aggregate each algorithm's parameter table with the existing flat-column aggregator, then retain the algorithm
 # keys as the outer column level. No parameter names are flattened or merged across algorithms.
@@ -156,7 +159,7 @@ if per_wb_sdmos.empty:
 else:
     aggregated_sdmos = pd.concat(
         {
-            name: SDMOAggregator()
+            name: GenericAggregator()
             .aggregate(per_wb_sdmos[name].join(wbs[["duration_s"]]))
             .aggregated_data_
             for name in per_wb_sdmos.columns.get_level_values(

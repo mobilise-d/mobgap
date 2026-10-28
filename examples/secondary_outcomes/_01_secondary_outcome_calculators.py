@@ -1,8 +1,9 @@
 """
-Signal-based parameters
-=======================
+Secondary outcome calculators
+=============================
 
-This example shows how to use the :class:`.BaseSDMOCalculator` algorithms for calculating signal-based parameters.
+This example shows how to use the
+:class:`~mobgap.secondary_outcomes.base.BaseSecondaryOutcomeCalculator` algorithms to calculate secondary outcomes.
 
 First we load some data.
 
@@ -25,7 +26,7 @@ short_trial = lab_example_data.get_subset(
 # %%
 # SDMO
 # ----
-# To demonstrate the usage of any algorithms (:class:`.BaseSDMOCalculator`), we use the detected walking bout from the
+# To demonstrate the usage of any algorithms (:class:`~mobgap.secondary_outcomes.base.BaseSecondaryOutcomeCalculator`), we use the detected walking bout from the
 # reference system as input.
 reference_strides = (
     short_trial.reference_parameters_relative_to_wb_.stride_parameters
@@ -69,11 +70,11 @@ params = dict(
 )
 
 # %%
-# the :class:`.TurnSDMO` algorithm calculates parameters related to the turning.
+# the :class:`~mobgap.secondary_outcomes.TurnKinematics` algorithm calculates parameters related to the turning.
 
-from mobgap.signal_based import TurnSDMO
+from mobgap.secondary_outcomes import TurnKinematics
 
-turn = TurnSDMO()
+turn = TurnKinematics()
 
 # Select one turn window explicitly. Metadata and iteration over turns belong to the caller.
 first_turn = reference_turns.iloc[0]
@@ -85,11 +86,11 @@ turn.calculate(
 turn.signal_based_parameters_
 
 # %%
-# the :class:`.StrideLevelSDMO` algorithm calculates parameters related to the stride parameters.
+# the :class:`~mobgap.secondary_outcomes.StrideParameterCV` algorithm calculates parameters related to the stride parameters.
 
-from mobgap.signal_based import StrideLevelSDMO
+from mobgap.secondary_outcomes import StrideParameterCV
 
-stride_level = StrideLevelSDMO(
+stride_level = StrideParameterCV(
     stride_list_columns=[
         "stride_duration_s",
         "stride_length_m",
@@ -104,11 +105,11 @@ stride_level.signal_based_parameters_
 
 
 # %%
-# the :class:`.RMS` algorithm.
+# the :class:`~mobgap.secondary_outcomes.RootMeanSquare` algorithm.
 
-from mobgap.signal_based import RMS
+from mobgap.secondary_outcomes import RootMeanSquare
 
-rms = RMS(
+rms = RootMeanSquare(
     acc_columns=["acc_is", "acc_ml", "acc_pa"],
     gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
 )
@@ -118,11 +119,11 @@ rms.calculate(data=data_in_wb_bf, **params)
 rms.signal_based_parameters_
 
 # %%
-# the :class:`.RegularitySymmetry` algorithm.
+# the :class:`~mobgap.secondary_outcomes.GaitRegularityAndSymmetry` algorithm.
 
-from mobgap.signal_based import RegularitySymmetry
+from mobgap.secondary_outcomes import GaitRegularityAndSymmetry
 
-regularity_symmetry = RegularitySymmetry()
+regularity_symmetry = GaitRegularityAndSymmetry()
 
 regularity_symmetry.calculate(data=data_in_wb_bf, **params)
 
@@ -130,11 +131,11 @@ regularity_symmetry.signal_based_parameters_
 
 
 # %%
-# the :class:`.FrequencyAmplitudeWidth` algorithm.
+# the :class:`~mobgap.secondary_outcomes.SpectralPeakFeatures` algorithm.
 
-from mobgap.signal_based import FrequencyAmplitudeWidth
+from mobgap.secondary_outcomes import SpectralPeakFeatures
 
-frequency_amplitude = FrequencyAmplitudeWidth(
+frequency_amplitude = SpectralPeakFeatures(
     acc_columns=["acc_is", "acc_ml", "acc_pa"]
 )
 
@@ -144,9 +145,9 @@ frequency_amplitude.signal_based_parameters_
 
 
 # %%
-# the :class:`.SampleEntropy` algorithm.
+# the :class:`~mobgap.secondary_outcomes.SampleEntropy` algorithm.
 
-from mobgap.signal_based import SampleEntropy
+from mobgap.secondary_outcomes import SampleEntropy
 
 sample_entropy = SampleEntropy(dim=2, r=0.15, acc_columns=["acc_is"])
 
@@ -156,11 +157,11 @@ sample_entropy.signal_based_parameters_
 
 
 # %%
-# the :class:`.HarmonicRatio` algorithm.
+# the :class:`~mobgap.secondary_outcomes.HarmonicRatioPeakTrough` algorithm.
 
-from mobgap.signal_based import HarmonicRatio
+from mobgap.secondary_outcomes import HarmonicRatioPeakTrough
 
-harmonic_ratio = HarmonicRatio(acc_columns=["acc_is", "acc_pa"])
+harmonic_ratio = HarmonicRatioPeakTrough(acc_columns=["acc_is", "acc_pa"])
 
 harmonic_ratio.calculate(data=data_in_wb_bf, **params)
 
@@ -170,7 +171,7 @@ harmonic_ratio.signal_based_parameters_
 # The separate Fourier method reads the same supplied stride intervals, uses actual Fourier amplitudes,
 # and averages per-stride ratios. Its distinct output names allow both methods to be used together.
 # The default WB calculator configuration uses the peak/trough estimator above.
-from mobgap.signal_based import HarmonicRatioFourier
+from mobgap.secondary_outcomes import HarmonicRatioFourier
 
 harmonic_ratio_fourier = HarmonicRatioFourier(
     acc_columns=["acc_is", "acc_pa", "acc_ml"]
@@ -180,11 +181,11 @@ harmonic_ratio_fourier.signal_based_parameters_
 
 
 # %%
-# the :class:`.SDRange` algorithm.
+# the :class:`~mobgap.secondary_outcomes.StandardDeviationAndRange` algorithm.
 
-from mobgap.signal_based import SDRange
+from mobgap.secondary_outcomes import StandardDeviationAndRange
 
-sd_range = SDRange()
+sd_range = StandardDeviationAndRange()
 
 sd_range.calculate(data=data_in_wb_bf, **params)
 
@@ -192,9 +193,9 @@ sd_range.signal_based_parameters_
 
 
 # %%
-# the :class:`.LogDimensionlessJerk` algorithm.
+# the :class:`~mobgap.secondary_outcomes.LogDimensionlessJerk` algorithm.
 
-from mobgap.signal_based import LogDimensionlessJerk
+from mobgap.secondary_outcomes import LogDimensionlessJerk
 
 log_dimensionless_jerk = LogDimensionlessJerk(
     acc_columns=["acc_is", "acc_ml", "acc_pa"],
@@ -206,11 +207,11 @@ log_dimensionless_jerk.calculate(data=data_in_wb_bf, **params)
 log_dimensionless_jerk.signal_based_parameters_
 
 # %%
-# the :class:`.RMSJerkRatio` algorithm.
+# the :class:`~mobgap.secondary_outcomes.JerkRMSRatio` algorithm.
 
-from mobgap.signal_based import RMSJerkRatio
+from mobgap.secondary_outcomes import JerkRMSRatio
 
-rms_jerk_ratio = RMSJerkRatio()
+rms_jerk_ratio = JerkRMSRatio()
 
 rms_jerk_ratio.calculate(data=data_in_wb_bf, **params)
 

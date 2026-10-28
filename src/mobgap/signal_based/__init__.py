@@ -1,4 +1,19 @@
-"""Methods to calculate signal-based DMOs."""
+"""Compatibility imports for secondary mobility outcome calculators."""
+
+from mobgap.secondary_outcomes import (
+    DEFAULT_WB_SDMO_CALCULATORS,
+    HarmonicRatioFourier,
+    LogDimensionlessJerk,
+    SampleEntropy,
+)
+from mobgap.secondary_outcomes import GaitRegularityAndSymmetry as RegularitySymmetry
+from mobgap.secondary_outcomes import HarmonicRatioPeakTrough as HarmonicRatio
+from mobgap.secondary_outcomes import JerkRMSRatio as RMSJerkRatio
+from mobgap.secondary_outcomes import RootMeanSquare as RMS  # noqa: N817 - compatibility alias
+from mobgap.secondary_outcomes import SpectralPeakFeatures as FrequencyAmplitudeWidth
+from mobgap.secondary_outcomes import StandardDeviationAndRange as SDRange
+from mobgap.secondary_outcomes import StrideParameterCV as StrideLevelSDMO
+from mobgap.secondary_outcomes import TurnKinematics as TurnSDMO
 
 __all__ = [
     "DEFAULT_WB_SDMO_CALCULATORS",
@@ -14,18 +29,3 @@ __all__ = [
     "StrideLevelSDMO",
     "TurnSDMO",
 ]
-
-from mobgap.signal_based._harmonic_ratio import HarmonicRatioFourier
-from mobgap.signal_based._presets import DEFAULT_WB_SDMO_CALCULATORS
-from mobgap.signal_based._sdmo import (
-    RMS,
-    FrequencyAmplitudeWidth,
-    HarmonicRatio,
-    LogDimensionlessJerk,
-    RegularitySymmetry,
-    RMSJerkRatio,
-    SampleEntropy,
-    SDRange,
-    StrideLevelSDMO,
-    TurnSDMO,
-)

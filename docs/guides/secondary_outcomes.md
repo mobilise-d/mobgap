@@ -1,4 +1,4 @@
-# Signal-based Digital Mobility Outcomes (SDMOs)
+# Secondary mobility outcomes
 
 The technical validity of several primary DMOs was previously established by Buekers et al. [1], addressing critical
 questions regarding:
@@ -18,9 +18,9 @@ The WB duration categories used for the aggregation were all WBs, WBs > 10 s, WB
 
 Secondary outcomes are calculated after running the primary pipeline, from its accepted WBs, retained strides
 and raw detected turns. Each individual calculator exposes a Series for one prepared window. `RegionIterator`
-assembles these into tables, and `SDMOAggregator` optionally summarizes WB outcomes. Secondary calculations and
+assembles these into tables, and `GenericAggregator` optionally summarizes WB outcomes. Secondary calculations and
 aggregation are independent operations; they are not configured on the primary pipeline. The
-{ref}`sphx_glr_auto_examples_signal_based__02_secondary_outcomes_after_pipeline.py` example shows the complete flow.
+{ref}`sphx_glr_auto_examples_secondary_outcomes__02_secondary_outcomes_after_pipeline.py` example shows the complete flow.
 `DEFAULT_WB_SDMO_CALCULATORS` supplies named prototypes for the WB calculator dictionary.
 
 The clinical reliability and validity of these SDMOs differ by cohort; the current per-cohort recommendations are
@@ -68,7 +68,7 @@ The corrected common pool can change existing Python values, independently of th
 
 ## Regularity and symmetry
 
-`RegularitySymmetry` measures repetition in the acceleration waveform independently of ICs, retained strides,
+`GaitRegularityAndSymmetry` measures repetition in the acceleration waveform independently of ICs, retained strides,
 cadence or other outcome estimates. The normalized unbiased autocovariance and regularity definitions follow
 [Moe-Nilssen and Helbostad (2004)](https://doi.org/10.1016/S0021-9290(03)00233-1).
 The IS asymmetry outputs use the regularity ratio expressed as `abs(1 - step/stride)`, the absolute difference divided
@@ -107,7 +107,7 @@ near zero denominators. These limitations should be considered when interpreting
 
 ## Spectral outcomes
 
-`FrequencyAmplitudeWidth` standardizes each configured anatomical axis with sample SD and retains two-second
+`SpectralPeakFeatures` standardizes each configured anatomical axis with sample SD and retains two-second
 periodic Hamming segments, 50% overlap, no further detrending, and an FFT length of twice the next power of two of
 the window length. Short signals use the available window. Total-length and window-length zero padding are both
 valid Welch choices; padding changes the sampled grid, not the underlying finite-window resolution.
@@ -130,7 +130,7 @@ to the supplied signal. Both preserve nonzero offsets, gaps, overlapping left/ri
 calculation. Neither reconstructs strides from alternating starts nor moves endpoints. Select the primary pipeline's
 retained stride rows for each accepted WB and rebase their recording-local boundaries to the supplied WB window.
 
-`HarmonicRatio` retains the existing `harmonic_ratio_acc_{is,pa,ml}` names, spectral peak/trough extraction,
+`HarmonicRatioPeakTrough` retains the existing `harmonic_ratio_acc_{is,pa,ml}` names, spectral peak/trough extraction,
 normalization and coefficient averaging. Its IS/PA targets use k/T, and it searches neighborhoods of plus/minus 1/T
 for maxima in even slots and minima in odd slots, with slot 2 fixed to 1. The retained optional ML path uses 2k/T,
 fixes slot 1 to 1 and reverses the extrema groups. It averages normalized coefficients across strides, then returns
@@ -153,7 +153,7 @@ Missing/unconfigured axes are omitted and empty stride lists give an empty Serie
 bandwidth and the number of contributing strides affect interpretation; software checks do not establish clinical
 reliability on short bouts.
 
-The standard WB calculator configuration uses `HarmonicRatio`. Both estimators can be included under distinct
+The standard WB calculator configuration uses `HarmonicRatioPeakTrough`. Both estimators can be included under distinct
 algorithm names in the configured dictionary used for post-processing. Their internal parameter names remain
 separate in the resulting two-level column index.
 
@@ -164,7 +164,7 @@ The distinct output names allow both methods to coexist in WB results and aggreg
 
 ## Aggregation and validation limits
 
-`SDMOAggregator` summarizes the distribution of per-WB values with equal weight per contributing bout and NaNs
+`GenericAggregator` summarizes the distribution of per-WB values with equal weight per contributing bout and NaNs
 omitted separately for each metric. With finite observations, medians and percentiles need at least one contributor; sample SD needs
 two. Groups without contributing values return NaN. Duration groups use exclusive lower and inclusive upper bounds.
 These statistics are bout-summary distributions, not pooled whole-recording features. Run aggregation explicitly
@@ -196,7 +196,7 @@ MATLAB-only outcomes remain outside this change.
 
 ## Turn outcomes
 
-`TurnSDMO.calculate` consumes one already-sliced, correctly oriented turn window and returns a
+`TurnKinematics.calculate` consumes one already-sliced, correctly oriented turn window and returns a
 `signal_based_parameters_` Series indexed by parameter name. The caller selects half-open start/end intervals,
 keeps turn identity and metadata, and assembles the per-turn table. No per-WB turn percentage or automatic
 recording-level turn summary is calculated.
@@ -210,7 +210,7 @@ The primary pipeline exposes raw detections in `raw_turn_list_`, with recording-
 `(gs_id, turn_id)` detector index. Process every detected turn afterwards, including turns crossing or outside
 accepted WBs. Turn identity and metadata remain aligned to the parameter table by that index; WB association is
 optional caller-owned interval matching. This does not extend detection beyond the gait sequences. Raw turn
-records and individual turn outcomes do not enter `SDMOAggregator`.
+records and individual turn outcomes do not enter `GenericAggregator`.
 
 ## Recommended SDMOs Per-Cohort
 

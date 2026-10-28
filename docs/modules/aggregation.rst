@@ -15,7 +15,7 @@ Aggregator Classes
    :template: class.rst
 
     MobilisedAggregator
-    SDMOAggregator
+    GenericAggregator
 
 Functions
 +++++++++

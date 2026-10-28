@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.signal_based import HarmonicRatioFourier
+from mobgap.secondary_outcomes import HarmonicRatioFourier
 
 
 def test_known_harmonics_use_supplied_boundaries_with_nonzero_offset():
@@ -121,13 +121,13 @@ def test_exact_missing_harmonic_group_has_unclipped_ratio(axis, expected):
 
 
 def test_named_calculator_loop_calculates_both_estimators_without_overwriting_either():
-    from mobgap.signal_based import HarmonicRatio
+    from mobgap.secondary_outcomes import HarmonicRatioPeakTrough
 
     phase = np.arange(100) / 100
     data = pd.DataFrame({"acc_is": np.sin(4 * np.pi * phase) + 0.4 * np.sin(6 * np.pi * phase)})
     strides = pd.DataFrame({"start": [0], "end": [100]})
     calculators = {
-        "harmonic_ratio": HarmonicRatio(acc_columns=["acc_is"]),
+        "harmonic_ratio": HarmonicRatioPeakTrough(acc_columns=["acc_is"]),
         "harmonic_ratio_fourier": HarmonicRatioFourier(acc_columns=["acc_is"]),
     }
     row = pd.concat(

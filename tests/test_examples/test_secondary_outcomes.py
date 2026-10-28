@@ -1,5 +1,5 @@
-def test_signal_based_algorithms(snapshot):
-    from examples.signal_based._01_signal_based_algorithms import (
+def test_secondary_outcome_calculators(snapshot):
+    from examples.secondary_outcomes._01_secondary_outcome_calculators import (
         log_dimensionless_jerk,
         rms_jerk_ratio,
         frequency_amplitude,
@@ -29,7 +29,7 @@ def test_signal_based_algorithms(snapshot):
 def test_secondary_outcomes_after_pipeline():
     from pandas.testing import assert_frame_equal, assert_index_equal
 
-    from examples.signal_based._02_secondary_outcomes_after_pipeline import (
+    from examples.secondary_outcomes._02_secondary_outcomes_after_pipeline import (
         aggregated_sdmos,
         per_turn_metadata,
         per_turn_sdmos,

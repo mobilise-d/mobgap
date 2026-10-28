@@ -11,7 +11,7 @@ def test_apply_thresholds(snapshot):
     snapshot.assert_match(data_mask, "data_mask")
 
 
-def test_sdmo_aggregator(snapshot):
-    from examples.aggregation._03_sdmo_aggregator import agg
+def test_generic_aggregator(snapshot):
+    from examples.aggregation._03_generic_aggregator import agg
 
     snapshot.assert_match(agg.aggregated_data_, "aggregated_data_sdmo")
