@@ -4731,7 +4731,7 @@
         {
             "visit_type":"T1",
             "participant_id":12345,
-            "measurement_date":"01/01/2026",
+            "measurement_date":"01\/01\/2026",
             "all__Amplitude_is__median":0.371320635,
             "all__Amplitude_is__std":0.1642244856,
             "all__Amplitude_is__p10":0.1742596818,
@@ -5797,7 +5797,7 @@
             "wb_60__Symmetry_K_is__p10":0.2453790168,
             "wb_60__Symmetry_K_is__p90":0.2567478232,
             "wb_60__Asymmetry_G_is__median":-0.0582916215,
-            "wb_60__Asymmetry_G_is__std":8.09871e-05,
+            "wb_60__Asymmetry_G_is__std":0.0000809871,
             "wb_60__Asymmetry_G_is__p10":-0.0583374347,
             "wb_60__Asymmetry_G_is__p90":-0.0582458083,
             "wb_60__StepRegularity_pa__median":0.4695527695,
