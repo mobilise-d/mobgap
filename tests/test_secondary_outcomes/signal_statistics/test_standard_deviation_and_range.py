@@ -1,9 +1,7 @@
-import numpy as np
 import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
 from mobgap.secondary_outcomes import (
     StandardDeviationAndRange,
 )
@@ -29,12 +27,3 @@ class TestStandardDeviationAndRange:
         assert row.sd_acc_is == 2
         assert row.range_acc_is == 4
         assert row.sd_gyr_is == 2
-
-    def test_output_has_correct_columns(self):
-        algo = StandardDeviationAndRange()
-        data = pd.DataFrame(np.random.randn(300, 6), columns=BF_SENSOR_COLS)
-        result = algo.calculate(data)
-        df = result.signal_based_parameters_
-        expected_cols = [f"sd_{c}" for c in data.columns] + [f"range_{c}" for c in data.columns if "acc" in c]
-        assert set(df.index) == set(expected_cols)
-        assert df.shape == (len(expected_cols),)

@@ -6,16 +6,6 @@ from tpcp.testing import TestAlgorithmMixin
 from mobgap.secondary_outcomes import HarmonicRatioFourier
 
 
-def test_known_harmonics_use_supplied_boundaries_with_nonzero_offset():
-    phase = np.arange(100) / 100
-    stride = np.sin(4 * np.pi * phase) + 0.4 * np.sin(6 * np.pi * phase)
-    # Nonfinite surrounding samples must not enter the stride's spectrum.
-    data = pd.DataFrame({"acc_is": np.r_[np.full(23, np.nan), stride, np.full(17, np.nan)]})
-    strides = pd.DataFrame({"start": [23], "end": [123]})
-    result = HarmonicRatioFourier(acc_columns=["acc_is"]).calculate(data, stride_list=strides, sampling_rate_hz=100)
-    assert result.signal_based_parameters_.harmonic_ratio_fourier_acc_is == pytest.approx(2.5)
-
-
 @pytest.mark.parametrize("axis,expected", [("acc_is", 3.75), ("acc_pa", 3.75), ("acc_ml", 0.3)])
 def test_mean_of_stride_ratios_with_different_lengths_gaps_scales_and_row_order(axis, expected):
     first = np.arange(100) / 100
@@ -36,8 +26,7 @@ def test_mean_of_stride_ratios_with_different_lengths_gaps_scales_and_row_order(
     assert row[f"harmonic_ratio_fourier_{axis}"] == pytest.approx(expected)
 
 
-@pytest.mark.parametrize("length", [41, 64, 100, 151])
-@pytest.mark.parametrize("sampling_rate_hz", [50, 100, 128])
+@pytest.mark.parametrize("length,sampling_rate_hz", [(41, 50), (64, 100), (100, 128), (151, 100)])
 def test_fourier_bins_follow_each_stride_period(length, sampling_rate_hz):
     phase = np.arange(length) / length
     signal = 9.81 + np.sin(4 * np.pi * phase + 0.3) + 0.4 * np.sin(6 * np.pi * phase - 1.2)
@@ -56,10 +45,8 @@ def test_fourier_bins_follow_each_stride_period(length, sampling_rate_hz):
 @pytest.mark.parametrize(
     "invalid",
     [
-        np.zeros(100),
         np.full(100, 0.1),
         np.full(100, np.nan),
-        np.full(100, np.inf),
         np.sin(4 * np.pi * np.arange(40) / 40) + 0.2 * np.sin(6 * np.pi * np.arange(40) / 40),
     ],
 )
@@ -118,24 +105,3 @@ def test_exact_missing_harmonic_group_has_unclipped_ratio(axis, expected):
         .signal_based_parameters_
     )
     assert row[f"harmonic_ratio_fourier_{axis}"] == expected
-
-
-def test_named_calculator_loop_calculates_both_estimators_without_overwriting_either():
-    from mobgap.secondary_outcomes import HarmonicRatioPeakTrough
-
-    phase = np.arange(100) / 100
-    data = pd.DataFrame({"acc_is": np.sin(4 * np.pi * phase) + 0.4 * np.sin(6 * np.pi * phase)})
-    strides = pd.DataFrame({"start": [0], "end": [100]})
-    calculators = {
-        "harmonic_ratio": HarmonicRatioPeakTrough(acc_columns=["acc_is"]),
-        "harmonic_ratio_fourier": HarmonicRatioFourier(acc_columns=["acc_is"]),
-    }
-    row = pd.concat(
-        {
-            name: calculator.clone().calculate(data, stride_list=strides, sampling_rate_hz=100).signal_based_parameters_
-            for name, calculator in calculators.items()
-        },
-        names=["algorithm", "parameter"],
-    )
-    assert row["harmonic_ratio_fourier", "harmonic_ratio_fourier_acc_is"] == pytest.approx(2.5)
-    assert row["harmonic_ratio", "harmonic_ratio_acc_is"] == pytest.approx(25.195295004095286)

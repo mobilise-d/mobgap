@@ -48,6 +48,8 @@ class TestGenericAggregator:
         )
         wb_dmos_mask = pd.DataFrame(True, index=wb_dmos.index, columns=wb_dmos.columns)
         wb_dmos_mask.loc[0, "x"] = False
+        original_data = wb_dmos.copy(deep=True)
+        original_mask = wb_dmos_mask.copy(deep=True)
 
         result = GenericAggregator(
             groupby=None,
@@ -58,6 +60,8 @@ class TestGenericAggregator:
 
         assert result.aggregated_data_.loc["all_wbs", "all__x__mean"] == 3.0
         assert result.aggregated_data_.loc["all_wbs", "all__y__mean"] == 15.0
+        assert_frame_equal(wb_dmos, original_data)
+        assert_frame_equal(wb_dmos_mask, original_mask)
 
     def test_wb_id_can_be_a_column(self):
         wb_dmos = pd.DataFrame({"wb_id": [0, 1], "duration_s": [12.0, 20.0], "x": [1.0, 3.0]})
@@ -114,17 +118,6 @@ class TestGenericAggregator:
                 **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
             ).aggregate(example_sdmo_data.drop(columns=["duration_s"]))
 
-    def test_input_not_modified(self, example_sdmo_data, dummy_dmo_data_mask):
-        data = example_sdmo_data.copy()
-        agg = GenericAggregator(
-            **GenericAggregator.PredefinedParameters.cvs_sdmo_data,
-        ).aggregate(data, wb_dmos_mask=dummy_dmo_data_mask)
-        # check that no rows were dropped
-        assert data.shape == agg.filtered_wb_dmos_.shape
-        # check that input data is still the same
-        assert_frame_equal(data, agg.wb_dmos)
-        assert_frame_equal(dummy_dmo_data_mask, agg.wb_dmos_mask)
-
     def test_nan_considered_true(self, example_sdmo_data, dummy_dmo_data_mask):
         data = example_sdmo_data.copy()
         data_mask_wit_nan = dummy_dmo_data_mask.copy().replace(True, np.nan)
@@ -137,12 +130,3 @@ class TestGenericAggregator:
         ).aggregate(data, wb_dmos_mask=dummy_dmo_data_mask)
 
         assert_frame_equal(agg_with_nan.aggregated_data_, agg_without_nan.aggregated_data_)
-
-    def test_no_grouping(self, example_sdmo_data, dummy_dmo_data_mask):
-        data = example_sdmo_data.copy()
-        agg = GenericAggregator(**(GenericAggregator.PredefinedParameters.cvs_sdmo_data | dict(groupby=None))).aggregate(
-            data, wb_dmos_mask=dummy_dmo_data_mask
-        )
-
-        assert len(agg.aggregated_data_) == 1
-        assert agg.aggregated_data_.index[0] == "all_wbs"

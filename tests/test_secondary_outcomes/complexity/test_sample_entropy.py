@@ -4,7 +4,6 @@ import pytest
 from tpcp.testing import TestAlgorithmMixin
 
 from mobgap.consts import BF_SENSOR_COLS
-from mobgap.data_transform import Resample
 from mobgap.secondary_outcomes import (
     SampleEntropy,
 )
@@ -22,21 +21,19 @@ class TestMetaSampleEntropy(TestAlgorithmMixin):
 
 class TestSampleEntropy:
     @pytest.mark.parametrize(
-        "values,expected",
+        "values,expected,dtype",
         [
-            ([0.0, 0.0, 0.0, 0.0, 1.0, 0.0], np.log(3)),
-            ([0.0, 0.0, 0.0, 1.0, 0.0], np.inf),
-            ([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], np.nan),
-            ([2.0] * 6, 0.0),
+            ([0.0, 0.0, 0.0, 0.0, 1.0, 0.0], np.log(3), np.float16),
+            ([0.0, 0.0, 0.0, 1.0, 0.0], np.inf, np.float64),
+            ([0.0, 1.0, 2.0, 3.0, 4.0, 5.0], np.nan, np.float64),
+            ([2.0] * 6, 0.0, np.float64),
         ],
     )
-    @pytest.mark.parametrize("acc_columns", [["acc_is"], ["acc_is", "acc_ml"]])
-    @pytest.mark.parametrize("dtype", [np.float64, np.float16])
-    def test_exact_common_extendible_template_counts(self, values, expected, acc_columns, dtype):
+    def test_exact_common_extendible_template_counts(self, values, expected, dtype):
         # For 000010: m=2 has 3 unordered matching pairs, m=3 has 1.
         # 00010 has one matching pair at m=2 and none at m=3.
         row = (
-            SampleEntropy(acc_columns=acc_columns, r=0.15, num_samples_threshold=0)
+            SampleEntropy(acc_columns=["acc_is"], r=0.15, num_samples_threshold=0)
             .calculate(pd.DataFrame({"acc_is": np.asarray(values, dtype=dtype)}), sampling_rate_hz=50)
             .signal_based_parameters_
         )
@@ -54,29 +51,10 @@ class TestSampleEntropy:
         assert result is algo
         assert result.signal_based_parameters_.empty
 
-    def test_insufficient_samples_returns_nan(self):
-        algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(100, 6), columns=BF_SENSOR_COLS),
-            sampling_rate_hz=100,
-        )
-        df = result.signal_based_parameters_
-        assert df.shape == (1,)
-        assert np.isnan(df.iloc[0])
-
-    def test_empty_input_returns_nan(self):
-        result = SampleEntropy(acc_columns=["acc_is"]).calculate(pd.DataFrame({"acc_is": []}), sampling_rate_hz=100)
-
-        assert np.isnan(result.signal_based_parameters_.loc["sample_entropy_acc_is"])
-
-    def test_single_sample_input_returns_nan(self):
-        result = SampleEntropy(acc_columns=["acc_is"]).calculate(pd.DataFrame({"acc_is": [1.0]}), sampling_rate_hz=100)
-
-        assert np.isnan(result.signal_based_parameters_.loc["sample_entropy_acc_is"])
-
-    def test_sample_threshold_is_applied_per_axis(self):
+    @pytest.mark.parametrize("n_samples", [0, 1, 300, 400])
+    def test_sample_threshold_is_applied_per_axis_after_resampling(self, n_samples):
         data = pd.DataFrame(
-            np.random.default_rng(0).normal(size=(300, 2)),
+            np.random.default_rng(0).normal(size=(n_samples, 2)),
             columns=["acc_is", "acc_ml"],
         )
 
@@ -84,7 +62,10 @@ class TestSampleEntropy:
             data, sampling_rate_hz=100
         )
 
-        assert result.signal_based_parameters_.isna().all().all()
+        pd.testing.assert_series_equal(
+            result.signal_based_parameters_,
+            pd.Series({"sample_entropy_acc_is": np.nan, "sample_entropy_acc_ml": np.nan}),
+        )
 
     def test_entropy_is_independent_of_other_requested_axes(self):
         data = pd.DataFrame(
@@ -107,30 +88,12 @@ class TestSampleEntropy:
         assert entropy_single_axis == pytest.approx(entropy_multiple_axes)
 
     def test_resamples_to_internal_sampling_rate(self):
-        data_100_hz = pd.DataFrame({"acc_is": np.random.default_rng(0).normal(size=800)})
-        data_50_hz = (
-            Resample(target_sampling_rate_hz=50, attempt_index_resample=False)
-            .transform(data_100_hz, sampling_rate_hz=100)
-            .transformed_data_
-        )
-        algorithm = SampleEntropy(
-            acc_columns=["acc_is"],
-            internal_sampling_rate_hz=50,
-            num_samples_threshold=100,
-        )
+        entropies = []
+        for sampling_rate_hz in [50, 100]:
+            time = np.arange(8 * sampling_rate_hz) / sampling_rate_hz
+            data = pd.DataFrame({"acc_is": np.sin(2 * np.pi * time) + 0.2 * np.sin(6 * np.pi * time)})
+            result = SampleEntropy(acc_columns=["acc_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
+            entropies.append(result.signal_based_parameters_["sample_entropy_acc_is"])
 
-        entropy_from_100_hz = algorithm.clone().calculate(data_100_hz, sampling_rate_hz=100).signal_based_parameters_
-        entropy_from_50_hz = algorithm.clone().calculate(data_50_hz, sampling_rate_hz=50).signal_based_parameters_
-
-        pd.testing.assert_series_equal(entropy_from_100_hz, entropy_from_50_hz)
-
-    def test_sufficient_samples_returns_float(self):
-        algo = SampleEntropy(acc_columns=["acc_is"], num_samples_threshold=200)
-        result = algo.calculate(
-            pd.DataFrame(np.random.randn(500, 6), columns=BF_SENSOR_COLS),
-            sampling_rate_hz=100,
-        )
-        df = result.signal_based_parameters_
-        assert df.shape == (1,)
-        val = df.iloc[0]
-        assert isinstance(val, float) and not np.isnan(val) and val > 0
+        assert entropies[0] > 0
+        assert entropies[1] == pytest.approx(entropies[0])

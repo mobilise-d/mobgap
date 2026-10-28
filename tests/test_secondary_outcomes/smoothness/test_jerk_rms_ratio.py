@@ -19,107 +19,32 @@ class TestMetaJerkRMSRatio(TestAlgorithmMixin):
 
 
 class TestJerkRMSRatio:
-    def test_equal_slopes_give_zero_db(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
+    @pytest.mark.parametrize(
+        "ml_scale,pa_scale,expected_ml,expected_pa",
+        [(1.0, 1.0, 0.0, 0.0), (10.0, 0.1, 10.0, -10.0), (-10.0, -0.1, 10.0, -10.0)],
+    )
+    def test_slope_ratios_in_db_ignore_sign_and_unrelated_columns(self, ml_scale, pa_scale, expected_ml, expected_pa):
+        time = np.arange(11) / 10
         data = pd.DataFrame(
-            {
-                "acc_is": 1.0 * time,
-                "acc_ml": 1.0 * time,
-                "acc_pa": 1.0 * time,
-            }
+            {"acc_is": time, "acc_ml": ml_scale * time, "acc_pa": pa_scale * time, "acc_extra": 99 * time}
         )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert row["jerk_ratio_ml_is"] == pytest.approx(0.0)
-        assert row["jerk_ratio_pa_is"] == pytest.approx(0.0)
-
-    def test_ml_ten_times_is_gives_10_db(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_is": 1.0 * time,
-                "acc_ml": 10.0 * time,
-            }
+        row = JerkRMSRatio().calculate(data, sampling_rate_hz=10).signal_based_parameters_
+        pd.testing.assert_series_equal(
+            row, pd.Series({"jerk_ratio_ml_is": expected_ml, "jerk_ratio_pa_is": expected_pa})
         )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert row["jerk_ratio_ml_is"] == pytest.approx(10.0)
 
-    def test_ml_tenth_of_is_gives_minus_10_db(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_is": 10.0 * time,
-                "acc_ml": 1.0 * time,
-            }
-        )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert row["jerk_ratio_ml_is"] == pytest.approx(-10.0)
+    @pytest.mark.parametrize("axis", ["ml", "pa"])
+    def test_one_comparison_axis_does_not_require_the_other(self, axis):
+        time = np.arange(11) / 10
+        data = pd.DataFrame({"acc_is": time, f"acc_{axis}": 10 * time})
+        row = JerkRMSRatio().calculate(data, sampling_rate_hz=10).signal_based_parameters_
+        pd.testing.assert_series_equal(row, pd.Series({f"jerk_ratio_{axis}_is": 10.0}))
 
-    def test_negative_slope_uses_absolute_magnitude(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_is": 1.0 * time,
-                "acc_ml": -10.0 * time,
-            }
-        )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert row["jerk_ratio_ml_is"] == pytest.approx(10.0)
-
-    def test_only_ml_axis_available(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_is": 1.0 * time,
-                "acc_ml": 2.0 * time,
-            }
-        )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert "jerk_ratio_ml_is" in result.signal_based_parameters_.index
-        assert "jerk_ratio_pa_is" not in result.signal_based_parameters_.index
-        assert row["jerk_ratio_ml_is"] == pytest.approx(10.0 * np.log10(2.0))
-
-    def test_only_pa_axis_available(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_is": 1.0 * time,
-                "acc_pa": 2.0 * time,
-            }
-        )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert "jerk_ratio_pa_is" in result.signal_based_parameters_.index
-        assert "jerk_ratio_ml_is" not in result.signal_based_parameters_.index
-        assert row["jerk_ratio_pa_is"] == pytest.approx(10.0 * np.log10(2.0))
-
-    def test_missing_is_axis_returns_empty(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_ml": 1.0 * time,
-                "acc_pa": 1.0 * time,
-            }
-        )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        assert result.signal_based_parameters_.empty
-
-    def test_single_axis_returns_empty(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame({"acc_is": 1.0 * time})
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
+    @pytest.mark.parametrize("columns", [["acc_ml", "acc_pa"], ["acc_is"]])
+    def test_missing_reference_or_comparison_axis_returns_empty(self, columns):
+        time = np.arange(11) / 10
+        data = pd.DataFrame(dict.fromkeys(columns, time))
+        result = JerkRMSRatio().calculate(data, sampling_rate_hz=10)
         assert result.signal_based_parameters_.empty
 
     def test_too_few_samples_returns_empty(self):
@@ -167,18 +92,3 @@ class TestJerkRMSRatio:
         assert r1.signal_based_parameters_.loc["jerk_ratio_ml_is"] == pytest.approx(
             r2.signal_based_parameters_.loc["jerk_ratio_ml_is"]
         )
-
-    def test_handles_other_acceleration_columns_gracefully(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame(
-            {
-                "acc_is": 1.0 * time,
-                "acc_ml": 1.0 * time,
-                "acc_extra": 99.0 * time,
-            }
-        )
-        result = JerkRMSRatio().calculate(data, sampling_rate_hz=sampling_rate_hz)
-        row = result.signal_based_parameters_
-        assert set(result.signal_based_parameters_.index) == {"jerk_ratio_ml_is"}
-        assert row["jerk_ratio_ml_is"] == pytest.approx(0.0)

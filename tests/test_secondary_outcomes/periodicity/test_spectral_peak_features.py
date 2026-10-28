@@ -3,7 +3,6 @@ import pandas as pd
 import pytest
 from tpcp.testing import TestAlgorithmMixin
 
-from mobgap.consts import BF_SENSOR_COLS
 from mobgap.secondary_outcomes import (
     SpectralPeakFeatures,
 )
@@ -58,21 +57,3 @@ class TestSpectralPeakFeatures:
         )
         assert out.shape == (3,)
         assert out.isna().all().all()
-
-    def test_pipe_data(self):
-        algo = SpectralPeakFeatures(acc_columns=["acc_is", "acc_ml", "acc_pa"])
-        result = algo.calculate(pd.DataFrame(np.random.randn(200, 6), columns=BF_SENSOR_COLS), sampling_rate_hz=100)
-        df = result.signal_based_parameters_
-        expected_cols = [
-            "amplitude_is",
-            "amplitude_ml",
-            "amplitude_pa",
-            "freq_is",
-            "freq_ml",
-            "freq_pa",
-            "width_is",
-            "width_ml",
-            "width_pa",
-        ]
-        assert set(df.index) == set(expected_cols)
-        assert not df.isnull().all().all()

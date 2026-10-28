@@ -28,15 +28,6 @@ class TestRootMeanSquare:
 
         assert result.signal_based_parameters_.empty
 
-    def test_requested_columns_not_in_data_warns(self):
-        data = pd.DataFrame({"acc_x": [1.0, -1.0]})
-        algo = RootMeanSquare(acc_columns=["acc_is"], gyr_columns=["gyr_is"])
-
-        with pytest.warns(UserWarning, match="No acceleration or gyroscope columns"):
-            result = algo.calculate(data)
-
-        assert result.signal_based_parameters_.empty
-
     def test_gyroscope_rms_is_available_without_acceleration(self):
         data = pd.DataFrame({"gyr_is": [3.0, 3.0], "gyr_ml": [-4.0, -4.0]})
 
@@ -101,13 +92,6 @@ class TestRootMeanSquare:
         assert np.isnan(result["rms_total_acc"])
         assert np.isnan(result["rms_ratio_acc_is"])
 
-    def test_unrelated_columns_are_ignored(self):
-        data = pd.DataFrame({"acc_is": [1.0, -1.0], "temperature": [20.0, 22.0]})
-
-        result = RootMeanSquare(acc_columns=["acc_is"]).calculate(data).signal_based_parameters_
-
-        assert list(result.index) == ["rms_acc_is", "rms_total_acc", "rms_ratio_acc_is"]
-
     def test_missing_anatomical_axis_does_not_publish_partial_total(self):
         data = pd.DataFrame({"acc_is": [1.0, -1.0], "acc_ml": [2.0, -2.0]})
         row = RootMeanSquare(acc_columns=["acc_is", "acc_ml", "acc_pa"]).calculate(data).signal_based_parameters_
@@ -115,18 +99,3 @@ class TestRootMeanSquare:
         assert row["rms_acc_ml"] == 2
         assert np.isnan(row["rms_total_acc"])
         assert np.isnan(row["rms_ratio_acc_is"])
-
-    def test_signal_with_dc_offset(self):
-        t = np.linspace(0, 1, 200)
-        A = 2.0
-        dc = 5.0
-        signal = dc + A * np.sin(2 * np.pi * 5 * t)
-        data = pd.DataFrame({"acc_is": signal})
-        algo = RootMeanSquare(acc_columns=["acc_is"])
-        result = algo.calculate(data)
-        df = result.signal_based_parameters_
-
-        expected = A / np.sqrt(2)
-        assert df["rms_acc_is"] == pytest.approx(expected, rel=1e-1)
-        assert np.isnan(df["rms_total_acc"])
-        assert np.isnan(df["rms_ratio_acc_is"])

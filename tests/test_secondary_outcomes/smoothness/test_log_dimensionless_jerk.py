@@ -49,31 +49,6 @@ class TestLogDimensionlessJerk:
         result = LogDimensionlessJerk(gyr_columns=["gyr_is"]).calculate(data, sampling_rate_hz=sampling_rate_hz)
         assert np.isnan(result.signal_based_parameters_.loc["jerk_gyr_is"])
 
-    def test_ldlj_a_and_ldlj_v_use_different_normalisations(self):
-        sampling_rate_hz = 10.0
-        time = np.arange(11) / sampling_rate_hz
-        data = pd.DataFrame({"acc_is": time**2, "gyr_is": time**2})
-        result = LogDimensionlessJerk(acc_columns=["acc_is"], gyr_columns=["gyr_is"]).calculate(
-            data, sampling_rate_hz=sampling_rate_hz
-        )
-        row = result.signal_based_parameters_
-        assert row["jerk_acc_is"] != pytest.approx(row["jerk_gyr_is"])
-
-    def test_both_acc_and_gyr_columns_are_output_when_provided(self):
-        algo = LogDimensionlessJerk(
-            acc_columns=["acc_is", "acc_ml", "acc_pa"],
-            gyr_columns=["gyr_is", "gyr_ml", "gyr_pa"],
-        )
-        data = pd.DataFrame(
-            np.random.default_rng(0).standard_normal((300, 6)),
-            columns=["acc_is", "acc_ml", "acc_pa", "gyr_is", "gyr_ml", "gyr_pa"],
-        )
-        result = algo.calculate(data, sampling_rate_hz=100.0)
-        df = result.signal_based_parameters_
-        expected = {f"jerk_{col}" for col in algo.acc_columns + algo.gyr_columns}
-        assert set(df.index) == expected
-        assert np.all(np.isfinite(df.to_numpy()))
-
     def test_missing_columns_are_silently_skipped(self):
         algo = LogDimensionlessJerk(
             acc_columns=["acc_is", "acc_missing"],

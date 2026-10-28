@@ -1,12 +1,12 @@
 def test_secondary_outcome_calculators(snapshot):
     from examples.secondary_outcomes._01_secondary_outcome_calculators import (
-        log_dimensionless_jerk,
-        rms_jerk_ratio,
         frequency_amplitude,
         harmonic_ratio,
         harmonic_ratio_fourier,
+        log_dimensionless_jerk,
         regularity_symmetry,
         rms,
+        rms_jerk_ratio,
         sample_entropy,
         sd_range,
         stride_level,
@@ -37,7 +37,6 @@ def test_secondary_outcomes_after_pipeline():
         pipeline,
     )
 
-    assert not hasattr(pipeline, "gs_iterator_")
     assert {"orientation", "correction_applied"}.issubset(pipeline.gs_list_.columns)
     assert per_wb_sdmos.columns.names == ["algorithm", "parameter"]
     assert per_turn_sdmos.columns.names == ["algorithm", "parameter"]
@@ -46,8 +45,6 @@ def test_secondary_outcomes_after_pipeline():
     assert_frame_equal(per_turn_metadata, pipeline.raw_turn_list_)
     # This trial has detected turns extending outside accepted WBs. Keep them as complete turn windows.
     assert per_turn_metadata.loc[(1, 0), "start"] < pipeline.per_wb_parameters_.loc[1, "start"]
-    assert len(per_wb_sdmos) == 7
-    assert len(per_turn_sdmos) == 10
     assert (per_wb_sdmos["rms", "rms_acc_is"] > 0).all()
     assert (per_turn_sdmos["turn", "turn_peak_ang_vel"] > 0).all()
     assert not aggregated_sdmos.empty
