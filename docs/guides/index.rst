@@ -8,6 +8,7 @@ User Guides
 
 
     Q&A <q_and_a.md>
+    Walking outcomes for clinical research <clinical_research_outputs.md>
     Common Datatypes <common_datatypes.md>
     Coordinate Systems <coordinate_system.md>
     Contribution Guide <contribution.rst>
