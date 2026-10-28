@@ -13,6 +13,12 @@ from mobgap.secondary_outcomes.periodicity._gait_regularity_and_symmetry import 
 class GaitRegularityAndSymmetryTruncatedMean(GaitRegularityAndSymmetry):
     """Calculate regularity and symmetry using a truncated centered moving average.
 
+    This Python variant replaces the custom emulation of MATLAB's ``smooth`` operation with a standard pandas
+    centered rolling mean. The change makes smoothing use the requested nominal span directly, including even
+    spans, and the samples available at each boundary. This path relies on pandas' existing window implementation
+    instead of a custom MATLAB smoothing routine. It changes the window convention; an accuracy advantage over
+    the MATLAB convention has not been established.
+
     All calculations, peak-selection rules, output names and limitations are those of
     :class:`~mobgap.secondary_outcomes.GaitRegularityAndSymmetry`, except for autocovariance smoothing.
     The moving average uses the nominal span of ``max(1, floor(0.2 * sampling_rate_hz))`` samples for IS/PA

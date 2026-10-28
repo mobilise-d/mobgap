@@ -14,6 +14,13 @@ from mobgap.secondary_outcomes.base import BaseSecondaryOutcomeCalculator, base_
 class HarmonicRatioFourier(BaseSecondaryOutcomeCalculator):
     """Calculate a Fourier-amplitude harmonic ratio for each supplied stride, then average.
 
+    This Python variant was introduced to follow the per-stride Fourier-amplitude definition in [1]_ instead of
+    reproducing the legacy MATLAB peak/trough procedure retained by
+    :class:`~mobgap.secondary_outcomes.HarmonicRatioPeakTrough`. Local spectral maxima and minima need not equal
+    the amplitudes at the actual harmonic frequencies, and dividing averaged coefficients need not give the mean
+    of the individual stride ratios. This implementation therefore reads the harmonic amplitudes directly and
+    forms each stride's ratio before averaging. The estimators can give substantially different values.
+
     Following the per-stride definition in [1]_, use the first 20 Fourier amplitudes at integer multiples of
     the stride frequency. IS/PA use summed even amplitudes divided by summed odd amplitudes; ML reverses the ratio.
     Each stride contributes one ratio, with equal weight, including supplied rows from both feet. The output names

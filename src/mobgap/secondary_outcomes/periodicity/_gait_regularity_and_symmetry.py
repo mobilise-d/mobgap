@@ -15,6 +15,14 @@ from mobgap.secondary_outcomes.base import BaseSecondaryOutcomeCalculator, base_
 class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
     """Compute step/stride regularity and symmetry metrics from accelerations.
 
+    This variant aims to reproduce the original MATLAB regularity/symmetry implementation as closely as possible.
+    In particular, its smoothing is intended to match MATLAB's ``smooth(y, span, 'moving')`` exactly: reduce even
+    spans by one and use shrinking symmetric windows at the edges. Full numerical equivalence to the original
+    MATLAB calculator has not been established: the original ``CorrectPeaks`` helper was unavailable, and Python
+    uses the peak-correction, lag-selection and partial-result rules described below.
+    :class:`~mobgap.secondary_outcomes.GaitRegularityAndSymmetryTruncatedMean` instead uses standard pandas
+    rolling-mean semantics, avoiding the custom emulation of MATLAB smoothing.
+
     Step regularity
         Expresses the regularity of the acceleration signal between neighboring steps. Values close to 1 indicate
         greater regularity of the gait pattern. For the mediolateral axis, the absolute

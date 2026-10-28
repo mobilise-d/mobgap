@@ -17,6 +17,12 @@ from mobgap.secondary_outcomes.base import BaseSecondaryOutcomeCalculator, base_
 class HarmonicRatioPeakTrough(BaseSecondaryOutcomeCalculator):
     """Calculate the retained peak/trough variant of harmonic ratio from acceleration.
 
+    This variant aims to reproduce the original MATLAB harmonic-ratio approach as closely as possible by retaining
+    its spectral peak/trough extraction, amplitude normalization and coefficient averaging. It is provided for
+    continuity with that legacy method. Exact numerical replication of the MATLAB calculator is not guaranteed:
+    Python uses the supplied stride boundaries directly rather than reconstructing or adjusting them from contacts,
+    and its spectral candidate handling differs from the original implementation.
+
     Each supplied stride uses its own half-open start/end sample positions relative to the input signal, including
     strides from both feet. No offset subtraction, pairing of starts or endpoint adjustment is performed.
     The output names remain ``harmonic_ratio_acc_is``, ``harmonic_ratio_acc_pa`` and ``harmonic_ratio_acc_ml``.
@@ -25,8 +31,8 @@ class HarmonicRatioPeakTrough(BaseSecondaryOutcomeCalculator):
     maxima for one harmonic group and minima for the other, averages normalized coefficients across strides,
     then divides summed even by summed odd coefficients.
     See :class:`~mobgap.secondary_outcomes.HarmonicRatioFourier` for actual harmonic
-    amplitudes and averaging of individual stride ratios. Existing outputs retain this variant for continuity;
-    correcting the stride intervals can change their values.
+    amplitudes and averaging of individual stride ratios. That Python variant was introduced to follow the
+    Fourier-amplitude definition rather than the legacy peak/trough procedure.
 
     Parameters
     ----------
