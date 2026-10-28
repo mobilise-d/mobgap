@@ -15,8 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GaitRegularityAndSymmetry` and `GaitRegularityAndSymmetryTruncatedMean` provide fixed smoothing variants.
   Calculate these after primary analysis and optionally summarize WB outcomes with
   `GenericAggregator`; primary pipeline processing and result tables remain unchanged. A pipeline-first example uses
-  the shared `DEFAULT_WB_SDMO_CALCULATORS` preset with explicit WB/turn processing. Original `mobgap.signal_based`
-  imports and the `SDMOAggregator` name remain available as aliases.
+  the shared `DEFAULT_WB_SDMO_CALCULATORS` preset with explicit WB/turn processing and WB aggregation.
+  Original `mobgap.signal_based` imports and the `SDMOAggregator` name remain available as aliases.
 - Add `RegionIterator` to collect caller-defined Series result fields into DataFrames while preserving region
   identities and hierarchical parameter labels. Signal preparation and metadata access remain in the caller's loop.
 - Add generic interval-containment and sequence-orientation helpers. Reorientation methods provide static

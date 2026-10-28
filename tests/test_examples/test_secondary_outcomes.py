@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_secondary_outcome_calculators(snapshot):
     from examples.secondary_outcomes._01_secondary_outcome_calculators import (
         frequency_amplitude,
@@ -47,4 +50,7 @@ def test_secondary_outcomes_after_pipeline():
     assert per_turn_metadata.loc[(1, 0), "start"] < pipeline.per_wb_parameters_.loc[1, "start"]
     assert (per_wb_sdmos["rms", "rms_acc_is"] > 0).all()
     assert (per_turn_sdmos["turn", "turn_peak_ang_vel"] > 0).all()
-    assert not aggregated_sdmos.empty
+    assert aggregated_sdmos.columns.names == ["algorithm", "parameter"]
+    assert aggregated_sdmos.loc["all_wbs", ("rms", "all__rms_acc_is__median")] == pytest.approx(
+        per_wb_sdmos["rms", "rms_acc_is"].median()
+    )

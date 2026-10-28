@@ -4,7 +4,8 @@ Secondary outcomes after the primary pipeline
 
 Calculate secondary outcomes after detecting walking bouts and turns. The primary pipeline supplies accepted WBs,
 retained strides, detected turns and the recorded orientation corrections. Two explicit loops prepare the WB and turn
-signals, while :class:`~mobgap.pipeline.RegionIterator` assembles Series results into DataFrames.
+signals, while :class:`~mobgap.pipeline.RegionIterator` assembles Series results into DataFrames. Finally,
+:class:`~mobgap.aggregation.GenericAggregator` summarizes the calculated WB outcomes across walking bouts.
 
 The iterator returns the existing ``Region`` type. Extra metadata, including the method-specific correction value,
 stays in the source DataFrame and is read by the region's identifier inside the loop.
@@ -144,11 +145,13 @@ per_turn_metadata = turns.drop(columns="orientation")
 per_turn_metadata
 
 # %%
-# Optional aggregation across WBs
-# -------------------------------
+# Aggregate secondary outcomes across WBs
+# ---------------------------------------
 # Iterator assembly and statistical aggregation are separate operations. Supply only outcome columns and required
 # duration/grouping metadata to GenericAggregator; the orientation payload is not an outcome. Each WB has equal weight.
 # Primary-DMO validity thresholds are not automatically applied to secondary outcomes. Turn rows remain separate.
+# The defaults calculate median, sample standard deviation, and 10th/90th percentiles for all WBs and the configured
+# duration groups. Each output column identifies its duration group, source parameter and statistic.
 from mobgap.aggregation import GenericAggregator
 
 # Aggregate each algorithm's parameter table with the existing flat-column aggregator, then retain the algorithm
