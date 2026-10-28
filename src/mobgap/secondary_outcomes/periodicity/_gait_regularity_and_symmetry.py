@@ -79,6 +79,11 @@ class GaitRegularityAndSymmetry(BaseSecondaryOutcomeCalculator):
     %(signal_based_parameters_)s
     %(perf_)s
 
+    See Also
+    --------
+    mobgap.secondary_outcomes.GaitRegularityAndSymmetryTruncatedMean
+        Regularity and symmetry with the nominal smoothing span and truncated edge windows.
+
     References
     ----------
     .. [1] R. Moe-Nilssen and J. L. Helbostad, "Estimation of gait cycle characteristics by trunk accelerometry,"

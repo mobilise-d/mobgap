@@ -38,6 +38,11 @@ class GaitRegularityAndSymmetryTruncatedMean(GaitRegularityAndSymmetry):
     ----------
     %(signal_based_parameters_)s
     %(perf_)s
+
+    See Also
+    --------
+    mobgap.secondary_outcomes.GaitRegularityAndSymmetry
+        Regularity and symmetry with odd smoothing spans and shrinking symmetric edge windows.
     """
 
     @staticmethod

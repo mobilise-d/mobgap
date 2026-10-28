@@ -57,6 +57,11 @@ class HarmonicRatioFourier(BaseSecondaryOutcomeCalculator):
     %(signal_based_parameters_)s
     %(perf_)s
 
+    See Also
+    --------
+    mobgap.secondary_outcomes.HarmonicRatioPeakTrough
+        Legacy spectral peak/trough extraction with coefficient averaging before calculating the ratio.
+
     References
     ----------
     .. [1] J. L. Bellanca, K. A. Lowry, J. M. VanSwearingen, J. S. Brach and M. S. Redfern,

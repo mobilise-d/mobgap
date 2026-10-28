@@ -62,6 +62,11 @@ class HarmonicRatioPeakTrough(BaseSecondaryOutcomeCalculator):
     These extraction and aggregation rules define a different statistic from conventional Fourier HR; their
     numerical results should not be treated as interchangeable. No claim of equivalent clinical validity is made.
 
+    See Also
+    --------
+    mobgap.secondary_outcomes.HarmonicRatioFourier
+        Harmonic ratio from Fourier amplitudes, averaged after calculating each stride's ratio.
+
     References
     ----------
     .. [1] J. L. Bellanca, K. A. Lowry, J. M. VanSwearingen, J. S. Brach and M. S. Redfern,
