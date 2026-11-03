@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a clinical research guide covering the pipeline workflow, walking-bout parameters, the main pipeline's
+  25 aggregated outputs, final seven-day CVS aggregation, interpretation limits, validation studies, and the technical
+  and clinical implementation manuals.
+
 - Add `participant_metadata_override` to `GenericMobilisedDataset` for an alternate `infoForAlgo.mat` path or
   normalized metadata shared across all rows. Pass `test_level_names=None` (now the default) to infer index level
   names from the first file's recording hierarchy.
