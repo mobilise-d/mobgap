@@ -13,3 +13,4 @@ Utility functions
     conversions
     evaluation
     tables
+    intervals

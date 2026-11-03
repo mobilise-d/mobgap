@@ -16,9 +16,14 @@ from mobgap.data_transform.base import BaseFilter
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
 from mobgap.orientation_estimation import MadgwickAHRS
 from mobgap.orientation_estimation.base import BaseOrientationEstimation
-from mobgap.utils.array_handling import merge_intervals, sliding_window_view
+from mobgap.utils.array_handling import (
+    sliding_window_view,
+)
 from mobgap.utils.conversions import as_samples
 from mobgap.utils.dtypes import assert_is_sensor_data, get_frame_definition
+from mobgap.utils.intervals import (
+    merge_intervals,
+)
 
 _ILUZ_CORE_COLUMNS = ["acc_is", "acc_pa"]
 _SENSOR_AXES = ("x", "y", "z")

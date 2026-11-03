@@ -56,3 +56,13 @@ Base Classes
    :template: class.rst
 
     BaseReorientationCorrector
+
+Utilities
++++++++++
+.. currentmodule:: mobgap.re_orientation
+
+.. autosummary::
+   :toctree: generated/re_orientation
+   :template: function.rst
+
+    get_orientation_for_sequences

@@ -118,7 +118,7 @@ daily_matches["cadence_spm"]
 # As the first step we need to indentify WBs that match between the detected and reference data.
 # As it is unlikely that the WBs are exactly the same, we need to define a threshold for the overlap between the WBs
 # to consider them as a match.
-# This matching can be done using the :func:`~mobgap.pipeline.evaluation.categorize_intervals` function.
+# This matching can be done using the :func:`~mobgap.utils.intervals.categorize_intervals` function.
 # It classifies every WB in the data either as true positive (TP), false positive (FP), or false negative
 # (TP).
 # In case our data has only WBs from a single recording, we could directly provide the detected and reference data
@@ -144,13 +144,15 @@ per_trial_participant_day_grouper = create_multi_groupby(
 # single dataframe.
 # The ``MultiGroupBy`` object allows us to apply a function to each group across all dataframes.
 #
-# Here we apply :func:`~mobgap.pipeline.evaluation.categorize_intervals` with a threshold of 0.8 to each group.
+# Here we apply :func:`~mobgap.utils.intervals.categorize_intervals` with a threshold of 0.8 to each group.
 # The `overlap_threshold` parameter defines the minimum overlap between the detected and reference WBs to be
 # considered a match.
 # It can be chosen according to your needs, whereby a value closer to 0.5 will yield more matches
 # than a value closer to 1.
 
-from mobgap.pipeline.evaluation import categorize_intervals
+from mobgap.utils.intervals import (
+    categorize_intervals,
+)
 
 wb_tp_fp_fn = per_trial_participant_day_grouper.apply(
     lambda det, ref: categorize_intervals(
@@ -172,8 +174,10 @@ wb_tp_fp_fn
 # Based on the positive matches, we can now extract the DMO data from detected and reference data that is to be
 # compared.
 # To make extracting all the TP WBs a little easier, we can use the
-# :func:`~mobgap.pipeline.evaluation.get_matching_intervals` function.
-from mobgap.pipeline.evaluation import get_matching_intervals
+# :func:`~mobgap.utils.intervals.get_matching_intervals` function.
+from mobgap.utils.intervals import (
+    get_matching_intervals,
+)
 
 wb_matches = get_matching_intervals(
     metrics_detected=detected_dmo,

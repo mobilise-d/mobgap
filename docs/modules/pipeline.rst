@@ -107,6 +107,7 @@ Gait Sequence Iteration
    :template: class.rst
 
     GsIterator
+    RegionIterator
 
 .. autosummary::
    :toctree: generated/pipeline

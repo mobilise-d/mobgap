@@ -21,7 +21,9 @@ from scipy.signal import welch
 from typing_extensions import Self, Unpack
 
 from mobgap._utils_internal.misc import timed_action_method
-from mobgap.utils.array_handling import bool_array_to_start_end_array
+from mobgap.utils.intervals import (
+    bool_array_to_start_end_array,
+)
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df, base_weartime_docfiller
 from mobgap.weartime.utils._intervals import _validate_waking_hours
 from mobgap.weartime.utils.windows_to_weartime import (

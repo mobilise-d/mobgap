@@ -9,9 +9,9 @@ from tpcp.validate import FloatAggregator, Scorer, no_agg
 
 from mobgap.data.base import BaseGaitDataset
 from mobgap.gait_sequences.evaluation import calculate_matched_gsd_performance_metrics
+from mobgap.utils.intervals import _only_start_end
 from mobgap.weartime.pipeline import WtdEmulationPipeline
 from mobgap.weartime.utils import clip_intervals_to_waking_hours
-from mobgap.weartime.utils._intervals import _only_start_end
 
 
 def _categorize_weartime_samples(

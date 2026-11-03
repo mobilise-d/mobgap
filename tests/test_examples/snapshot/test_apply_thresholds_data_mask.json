@@ -3,7 +3,8 @@
         "fields":[
             {
                 "name":"visit_type",
-                "type":"string"
+                "type":"string",
+                "extDtype":"str"
             },
             {
                 "name":"participant_id",
@@ -11,7 +12,8 @@
             },
             {
                 "name":"measurement_date",
-                "type":"string"
+                "type":"string",
+                "extDtype":"str"
             },
             {
                 "name":"wb_id",

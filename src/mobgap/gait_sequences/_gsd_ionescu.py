@@ -3,7 +3,6 @@ from typing import Any, Self, Unpack
 
 import numpy as np
 import pandas as pd
-from intervaltree import IntervalTree
 from numba import njit
 from scipy.signal import find_peaks, hilbert
 
@@ -21,13 +20,14 @@ from mobgap.data_transform import (
     chain_transformers,
 )
 from mobgap.gait_sequences.base import BaseGsDetector, _unify_gs_df, base_gsd_docfiller
-from mobgap.utils.array_handling import (
+from mobgap.utils.conversions import as_samples
+from mobgap.utils.dtypes import get_frame_definition
+from mobgap.utils.intervals import (
     bool_array_to_start_end_array,
+    find_intersections,
     merge_intervals,
     start_end_array_to_bool_array,
 )
-from mobgap.utils.conversions import as_samples
-from mobgap.utils.dtypes import get_frame_definition
 
 _gsd_ionescu_docfiller = make_filldoc(
     base_gsd_docfiller._dict
@@ -608,40 +608,6 @@ def find_pulse_trains(
 
     start_ends_array = np.array(start_ends, dtype=np.int32)
     return start_ends_array
-
-
-def find_intersections(intervals_a: np.ndarray, intervals_b: np.ndarray) -> np.ndarray:
-    """Find the intersections between two sets of intervals.
-
-    Parameters
-    ----------
-    intervals_a
-        The first list of intervals. Each interval is represented as a tuple of two integers.
-    intervals_b
-        The second list of intervals. Each interval is represented as a tuple of two integers.
-
-    Returns
-    -------
-    np.ndarray
-        An array of intervals that are the intersections of the intervals in `intervals_a` and `intervals_b`.
-        Each interval is represented as a list of two integers.
-
-    """
-    # Create Interval Trees
-    intervals_a_tree = IntervalTree.from_tuples(intervals_a)
-    intervals_b_tree = IntervalTree.from_tuples(intervals_b)
-
-    overlap_intervals = []
-
-    for interval in intervals_b_tree:
-        overlaps = sorted(intervals_a_tree.overlap(interval.begin, interval.end))
-        if overlaps:
-            for overlap in overlaps:
-                start = max(interval.begin, overlap.begin)
-                end = min(interval.end, overlap.end)
-                overlap_intervals.append([start, end])
-
-    return merge_intervals(np.array(overlap_intervals)) if len(overlap_intervals) != 0 else np.array([])
 
 
 class NoActivePeriodsDetectedError(Exception):

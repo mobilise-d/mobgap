@@ -91,7 +91,9 @@ reference_gsd_list
 # list that were not detected (`fn`), and (optionally) samples where no gait sequences are present in both the reference and detected gait sequences (`tn`).
 # Note that the tn intervals are not explicitly calculated, but are inferred from the total length of the recording
 # (if provided) and from the other intervals, as everything between them is considered as true negative.
-from mobgap.gait_sequences.evaluation import categorize_intervals_per_sample
+from mobgap.utils.intervals import (
+    categorize_intervals_per_sample,
+)
 
 categorized_intervals = categorize_intervals_per_sample(
     gsd_list_detected=detected_gsd_list,
@@ -165,7 +167,9 @@ unmatched_metrics_dict
 # If multiple detected gait sequences overlap with the same reference gait sequence, only the one with the highest
 # overlap is considered as a match.
 # If one gait sequence is covered by multiple smaller once, possibly none of them is considered as a match.
-from mobgap.gait_sequences.evaluation import categorize_intervals
+from mobgap.utils.intervals import (
+    categorize_intervals,
+)
 
 matches = categorize_intervals(
     gsd_list_detected=detected_gsd_list,

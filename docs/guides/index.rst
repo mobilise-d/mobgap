@@ -12,5 +12,6 @@ User Guides
     Coordinate Systems <coordinate_system.md>
     Contribution Guide <contribution.rst>
     Evaluation Guide <evaluation.rst>
+    Secondary mobility outcomes <secondary_outcomes.md>
     Scope and Project Structure <project_structure.md>
     Developer Guide <developer_guide.md>

@@ -177,6 +177,23 @@ class TestGsIterator:
         for v in asdict(iterator.results_).values():
             assert v.empty
 
+    def test_default_aggregation_preserves_custom_result_types_without_reorientation(self):
+        @dataclass
+        class SignalResults:
+            ic_list: pd.DataFrame
+            turn_list: pd.DataFrame
+            cadence_per_sec: pd.DataFrame
+            stride_length_per_sec: pd.DataFrame
+            walking_speed_per_sec: pd.DataFrame
+
+        iterator = GsIterator(SignalResults)
+        sections = pd.DataFrame({"start": [2], "end": [6]}, index=pd.Index(["s"], name="gs_id"))
+        for _, result in iterator.iterate(pd.DataFrame({"data": range(6)}), sections):
+            result.ic_list = pd.DataFrame({"ic": [1]}).rename_axis("step_id")
+
+        expected = pd.DataFrame({"ic": [3]}, index=pd.MultiIndex.from_tuples([("s", 0)], names=["gs_id", "step_id"]))
+        assert_frame_equal(iterator.results_.ic_list, expected)
+
     def test_reorientation_results_ignore_missing_and_subregion_values(self):
         dummy_sections = pd.DataFrame({"start": [0, 6], "end": [6, 12], "wb_id": ["s1", "s2"]}).set_index("wb_id")
         dummy_data = pd.DataFrame({"data": [0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0]})

@@ -2,8 +2,10 @@
 
 import numpy as np
 
-from mobgap.utils.array_handling import merge_intervals
-from mobgap.weartime.utils._intervals import remove_short_interior_intervals
+from mobgap.utils.intervals import (
+    merge_intervals,
+    remove_short_interior_intervals,
+)
 
 
 def remove_isolated_short_periods_from_intervals(

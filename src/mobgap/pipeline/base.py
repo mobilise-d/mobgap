@@ -30,7 +30,7 @@ mobilised_pipeline_docfiller = make_filldoc(
         Optional per-gait-sequence reorientation algorithm.
         If provided, the pipeline passes sensor-frame gait-sequence data to the algorithm and expects body-frame data
         back via ``corrected_data_``. The corrected body-frame data is then used for all later per-gait-sequence
-        algorithms.
+        algorithms. The algorithm's ``correction_`` and ``correction_applied_`` outputs are recorded in ``gs_list_``.
         Set to None to disable (default). In that case, the pipeline converts the full recording from the Mobilise-D
         sensor frame to the body frame before gait sequence detection assuming correct mounting according to the
         Mobilise-D specifications.
@@ -127,7 +127,8 @@ mobilised_pipeline_docfiller = make_filldoc(
         "primary_results": """
     per_stride_parameters_
         The final list of all strides including their parameters that are part of a valid WB.
-        Note, that all per-stride parameters are interpolated based on the per-sec output of the other algorithms.
+        Cadence, stride length and speed are mapped from per-second estimates. Stride duration comes from
+        same-foot initial-contact boundaries and remains sensitive to contact errors after stride selection.
         Check out the pipeline examples to learn more about this.
     per_wb_parameters_
         Aggregated parameters for each WB.
@@ -148,6 +149,12 @@ mobilised_pipeline_docfiller = make_filldoc(
     gs_list_
         The raw output of the gait sequence detection algorithm.
         This is a DataFrame with the start and end of each detected gait sequence.
+        When per-GS reorientation is enabled, it also contains ``orientation`` (the method-specific replayable
+        correction) and boolean ``correction_applied`` (whether a non-nominal correction was applied).
+        These columns remain available when intermediate retention is disabled and can be passed directly to
+        :func:`~mobgap.re_orientation.get_orientation_for_sequences`. They do not retain signal data.
+        A recorded fallback correction does not prove that orientation was resolved. The detector's own output
+        is not modified; with reorientation disabled, this table keeps the detector's original schema.
     raw_ic_list_
         The raw output of the IC detection and the laterality classification.
         This is a DataFrame with the detected ICs and the corresponding L/R label.
@@ -174,7 +181,7 @@ mobilised_pipeline_docfiller = make_filldoc(
     wba_
         The instance of the WBA algorithm that was run with all of its results.
     dmo_aggregation_
-        The instance of the DMO aggregation algorithm that was run with all of its results.
+        The executed DMO aggregation algorithm, or None when aggregation is disabled for the current run.
     """,
         "step_by_step": """
     The Mobilise-D pipeline consists of the following steps:
