@@ -1,0 +1,11 @@
+{
+  "batch_size": 1024,
+  "convert_to_body_frame": true,
+  "epochs": 57,
+  "fit_verbose": 1,
+  "gradient_clipnorm": 1,
+  "learning_rate": 0.00015030900645056822,
+  "random_seed": 42,
+  "shuffle_buffer_size": 8192,
+  "training_overlap": 0.75
+}

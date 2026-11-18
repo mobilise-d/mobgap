@@ -1,0 +1,13 @@
+{
+  "sampling_rate_hz": 100.0,
+  "window_sec": 5.0,
+  "sensor_cols": [
+    "acc_is",
+    "acc_ml",
+    "acc_pa",
+    "gyr_is",
+    "gyr_ml",
+    "gyr_pa"
+  ],
+  "feature_names": []
+}

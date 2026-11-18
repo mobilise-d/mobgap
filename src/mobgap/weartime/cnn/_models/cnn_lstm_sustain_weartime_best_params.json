@@ -1,0 +1,5 @@
+{
+  "learning_rate": 0.00015030900645056822,
+  "algo__model__dropout_rate": 0.5,
+  "batch_size": 1024
+}
