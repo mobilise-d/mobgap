@@ -114,7 +114,8 @@ class TestKerasWeartimeModel:
     """Test the low-level Keras model wrapper behavior."""
 
     @pytest.mark.parametrize("model_type", [MegaritisCnnWeartimeModel, MegaritisCnnLstmWeartimeModel])
-    def test_builtin_inference_matches_keras_prediction(self, model_type: type) -> None:
+    @pytest.mark.parametrize("batch_size", [0, 4])
+    def test_builtin_inference_matches_keras_prediction(self, model_type: type, batch_size: int) -> None:
         """Keep inference probabilities, order and decisions across partial minibatches and chunks."""
         tf = pytest.importorskip("tensorflow")
         tf.keras.utils.set_random_seed(42)
@@ -123,7 +124,7 @@ class TestKerasWeartimeModel:
             filters=(2, 3, 4),
             dense_units=3,
             model_config=config,
-            predict_batch_size=4,
+            predict_batch_size=batch_size,
             window_batch_size=11,
         )
         model.model = model._create_model(config)
@@ -131,7 +132,7 @@ class TestKerasWeartimeModel:
         # Exercise learned batch-normalization state and dropout's inference behavior.
         model.model(np.ones((4, 20, len(BF_SENSOR_COLS)), dtype=np.float32), training=True)
         reference = KerasWeartimeModel(
-            model=model.model, model_config=config, predict_batch_size=4, window_batch_size=11
+            model=model.model, model_config=config, predict_batch_size=batch_size, window_batch_size=11
         ).run(data, sampling_rate_hz=1)
         before = custom_hash(model.get_params())
         actual = model.run(data, sampling_rate_hz=1)
@@ -140,7 +141,7 @@ class TestKerasWeartimeModel:
         assert_array_equal(actual.window_start_end_, reference.window_start_end_)
         assert custom_hash(model.get_params()) == before
 
-    @pytest.mark.parametrize("hook", ["predict", "predict_step"])
+    @pytest.mark.parametrize("hook", ["predict", "predict_step", "make_predict_function"])
     def test_builtin_wrapper_preserves_custom_prediction_hooks(self, hook: str) -> None:
         """Supplied native models can define prediction behavior beyond their forward pass."""
         tf = pytest.importorskip("tensorflow")
@@ -158,12 +159,64 @@ class TestKerasWeartimeModel:
                 tf.keras.layers.Dense(1, activation="sigmoid"),
             ]
         )
-        if hook == "predict":
+        if hook != "predict_step":
             # An instance-level override on a plain Sequential must also retain its behavior.
             native = tf.keras.Sequential(native.layers)
-            native.predict = lambda windows, **_kwargs: np.ones((len(windows), 1))
+            native.build((None, 20, len(BF_SENSOR_COLS)))
+            if hook == "predict":
+                native.predict = lambda windows, **_kwargs: np.ones((len(windows), 1))
+            else:
+                original_setup = native.make_predict_function
+
+                def setup(force: bool = False) -> None:
+                    original_setup(force=force)
+                    original_predict = native.predict_function
+                    native.predict_function = lambda batches: tf.ones_like(original_predict(batches))
+
+                native.make_predict_function = setup
         result = MegaritisCnnWeartimeModel(model=native, model_config=config).run(_sensor_data(40), sampling_rate_hz=1)
         assert_array_equal(result.window_probabilities_, np.ones(5))
+
+    def test_builtin_wrapper_preserves_eager_only_layers(self) -> None:
+        """A supplied eager model need not support tracing its forward pass."""
+        tf = pytest.importorskip("tensorflow")
+
+        class EagerOnly(tf.keras.layers.Layer):
+            def compute_output_shape(self, input_shape: Any) -> Any:
+                """Declare the shape without tracing an eager-only call."""
+                return input_shape
+
+            def call(self, inputs: Any) -> Any:
+                """Require eager tensors while preserving their values."""
+                return tf.convert_to_tensor(inputs.numpy())
+
+        native = tf.keras.Sequential(
+            [
+                tf.keras.layers.Input((20, len(BF_SENSOR_COLS))),
+                EagerOnly(),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.Dense(1, activation="sigmoid"),
+            ]
+        )
+        native.compile(run_eagerly=True)
+        config = WearTimeModelConfig(1, 20)
+        data = _sensor_data(40)
+        reference = KerasWeartimeModel(model=native, model_config=config).run(data, sampling_rate_hz=1)
+        actual = MegaritisCnnWeartimeModel(model=native, model_config=config).run(data, sampling_rate_hz=1)
+        assert_array_equal(actual.window_probabilities_, reference.window_probabilities_)
+
+    @pytest.mark.parametrize("preset", ["sustain_weartime_cnn", "sustain_weartime_cnn_lstm"])
+    def test_packaged_model_prediction_parity(self, preset: str) -> None:
+        """Keep the saved model's compilation settings, probabilities and decisions."""
+        model = getattr(WtdMegaritisCNN.PredefinedParameters, preset)["model"].clone()
+        data = pd.DataFrame(np.random.default_rng(42).normal(size=(2500, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        model.set_params(predict_batch_size=4, window_batch_size=7)
+        reference = KerasWeartimeModel(
+            model=model.model, model_config=model.model_config, predict_batch_size=4, window_batch_size=7
+        ).run(data, sampling_rate_hz=model.model_config.sampling_rate_hz)
+        actual = model.run(data, sampling_rate_hz=model.model_config.sampling_rate_hz)
+        np.testing.assert_allclose(actual.window_probabilities_, reference.window_probabilities_, rtol=1e-6, atol=1e-7)
+        assert_array_equal(actual.window_predictions_, reference.window_predictions_)
 
     def test_run_creates_window_predictions_without_tensorflow_import(self) -> None:
         """Classify recording windows using a preloaded model object."""

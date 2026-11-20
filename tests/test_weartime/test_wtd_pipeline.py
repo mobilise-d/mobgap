@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from tpcp import Dataset, OptimizableParameter, OptimizablePipeline
 from typing_extensions import Self, Unpack
 
 from mobgap.utils.conversions import to_body_frame
@@ -95,6 +96,38 @@ class MinimalWtd(BaseWeartimeDetector):
         return self
 
 
+class _AccuracyDataset(Dataset):
+    def create_index(self):
+        return pd.DataFrame({"day": [0, 1]})
+
+    @property
+    def data_ss(self):
+        return _sensor_frame_data(10)
+
+    @property
+    def reference_weartime_(self):
+        return _reference([(0, 10)] if self.index.iloc[0].day == 0 else [])
+
+    @property
+    def sampling_rate_hz(self):
+        return 1
+
+    @property
+    def recording_metadata(self):
+        return {}
+
+    @property
+    def participant_metadata(self):
+        return {}
+
+
+class _AccuracyTrainer(WtdEmulationPipeline, OptimizablePipeline):
+    algo: OptimizableParameter[DummyWtd]
+
+    def self_optimize(self, dataset):
+        return self
+
+
 def _intervals(intervals: list[tuple[int, int]], index_name: str = "wt_id") -> pd.DataFrame:
     return pd.DataFrame(intervals, columns=["start", "end"]).rename_axis(index_name)
 
@@ -149,7 +182,7 @@ def test_inner_accuracy_counts_match_dense_sample_labels():
             reference = _with_uncertain(
                 _reference(bool_array_to_start_end_array(wear & ~uncertain).reshape(-1, 2)),
                 bool_array_to_start_end_array(uncertain).reshape(-1, 2),
-            )
+            ).astype({"start": "int64", "end": "int64"})
             correct, known = _known_sample_counts(detected_intervals, reference, n_samples)
             assert correct == np.count_nonzero((detected == wear) & ~uncertain)
             assert known == np.count_nonzero(~uncertain)
@@ -162,6 +195,63 @@ def test_inner_accuracy_rejects_mixed_sampling_rates():
     ]
     with pytest.raises(ValueError, match="Sampling rate is not the same"):
         _wtd_accuracy_score(WtdEmulationPipeline(DummyWtd(_intervals([]))), days)
+
+
+@pytest.mark.parametrize("start,end", [(8, 12), (-3, 12), (0, 20), (9, 3)])
+def test_inner_accuracy_preserves_sample_slice_boundaries(start, end):
+    day = DummyDatapoint(data=_sensor_frame_data(10), reference_weartime=_reference([(start, end)]), sampling_rate_hz=1)
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([])))
+    actual, _ = _wtd_accuracy_score(pipeline, [day])
+    expected, _ = wtd_score(pipeline, [day])
+    assert actual["combined__accuracy"] == expected["combined__accuracy"]
+
+
+def test_inner_accuracy_aggregates_large_counts_without_platform_integer_overflow():
+    days = [DummyDatapoint(data=_sensor_frame_data(1), reference_weartime=_reference([]), sampling_rate_hz=1)] * 2
+
+    def large_counts(pipeline, datapoint):
+        from tpcp.validate import no_agg
+
+        return {"correct_samples": 1_000_000_000, "known_samples": 3_000_000_000, "sampling_rate_hz": no_agg(1)}
+
+    scorer = _wtd_accuracy_score.clone().set_params(score_func=large_counts)
+    aggregate, _ = scorer(WtdEmulationPipeline(DummyWtd(_intervals([]))), days)
+    assert aggregate["combined__accuracy"] == 1 / 3
+
+
+@pytest.mark.parametrize("metric, expected", [("combined__accuracy", 0.5), ("combined__f1_score", 3 / 13)])
+def test_search_preserves_alternate_metric_selection(metric, expected):
+    pytest.importorskip("optuna")
+    from mobgap.weartime.optimization import WearTimeOptunaSearch
+
+    search = WearTimeOptunaSearch(
+        _AccuracyTrainer(DummyWtd(_intervals([(0, 3)]))),
+        lambda trial: None,
+        cv=2,
+        n_trials=1,
+        score_name=metric,
+        return_optimized=False,
+    )
+    result = search.optimize(_AccuracyDataset())
+    assert result.best_score_ == pytest.approx(expected)
+
+
+def test_search_preserves_custom_scorers_for_accuracy():
+    pytest.importorskip("optuna")
+    from mobgap.weartime.optimization import WearTimeOptunaSearch
+
+    from tpcp.validate import Scorer
+
+    scorer = Scorer(lambda pipeline, day: {"combined__accuracy": 0.125})
+    search = WearTimeOptunaSearch(
+        _AccuracyTrainer(DummyWtd(_intervals([(0, 3)]))),
+        lambda trial: None,
+        cv=2,
+        n_trials=1,
+        scoring=scorer,
+        return_optimized=False,
+    )
+    assert search.optimize(_AccuracyDataset()).best_score_ == 0.125
 
 
 def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():

@@ -114,7 +114,8 @@ class KerasWeartimeModel(Algorithm):
     prediction_threshold
         Wear probabilities greater than or equal to this threshold become wear predictions.
     predict_batch_size
-        Batch size passed to Keras predict.
+        Maximum windows per inference minibatch. Passed to Keras ``predict`` on the generic
+        prediction path; built-in graphs slice recording chunks into minibatches of this size.
     window_batch_size
         Maximum number of raw windows prepared at once. No window cache is used.
 
@@ -245,15 +246,20 @@ class MegaritisCnnWeartimeModel(KerasWeartimeModel):
         # graphs need only inference, without rebuilding Keras prediction iteration per chunk.
         if (
             type(self.model) is not keras.Sequential
+            or self.model.run_eagerly
+            or not self.predict_batch_size
+            or self.predict_batch_size < 0
             or getattr(self.model.predict, "__func__", None) is not keras.Model.predict
             or getattr(self.model.predict_step, "__func__", None) is not keras.Model.predict_step
+            or getattr(self.model.make_predict_function, "__func__", None) is not keras.Model.make_predict_function
         ):
             return super()._make_predict_function()
 
         @tf.function(
             input_signature=[
                 tf.TensorSpec((None, self.window_samples_, len(self.model_config.sensor_cols)), tf.float32)
-            ]
+            ],
+            jit_compile=self.model.jit_compile,
         )
         def infer(batch: Any) -> Any:
             return self.model(batch, training=False)

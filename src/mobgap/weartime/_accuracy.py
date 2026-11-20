@@ -18,7 +18,11 @@ def _known_sample_counts(detected: pd.DataFrame, reference: pd.DataFrame, n_samp
     for column, intervals in enumerate(
         (detected, reference.loc[reference["label"] == "wear"], reference.loc[reference["label"] == "uncertain"])
     ):
-        for start, end in intervals[["start", "end"]].itertuples(index=False, name=None):
+        for interval_start, interval_end in intervals[["start", "end"]].itertuples(index=False, name=None):
+            # Match NumPy's slice semantics used by the full sample-label scorer.
+            start, end, _ = slice(interval_start, interval_end).indices(n_samples)
+            if end <= start:
+                continue
             positions.extend((start, end))
             change = [0, 0, 0]
             change[column] = 1
@@ -53,5 +57,5 @@ def _aggregate_accuracy(
 
 
 _wtd_accuracy_score = Scorer(
-    _accuracy_per_datapoint, final_aggregator=_aggregate_accuracy, default_aggregator=FloatAggregator(np.sum)
+    _accuracy_per_datapoint, final_aggregator=_aggregate_accuracy, default_aggregator=FloatAggregator(sum)
 )

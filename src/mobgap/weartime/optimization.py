@@ -8,10 +8,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import optuna
 from tpcp import cf
+from tpcp.misc import custom_hash
 from tpcp.optimize import Optimize
 from tpcp.optimize.optuna import CustomOptunaOptimize
-from tpcp.validate import cross_validate
+from tpcp.validate import Scorer, cross_validate
 
+from mobgap.weartime._accuracy import _wtd_accuracy_score
 from mobgap.weartime.evaluation import wtd_score
 
 if TYPE_CHECKING:
@@ -20,7 +22,7 @@ if TYPE_CHECKING:
     from optuna import Study, Trial
     from optuna.trial import FrozenTrial
     from tpcp.optimize.optuna import StudyParamsDict
-    from tpcp.validate import BaseDatasetSplitter, Scorer
+    from tpcp.validate import BaseDatasetSplitter
     from tpcp.validate._scorer import ScoreType
 
     from mobgap.data.base import BaseGaitDataset
@@ -90,6 +92,9 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
         Callable that suggests parameters on the trial, using pipeline parameter names.
     scoring
         Wear-time per-datapoint scorer or Scorer object, defaulting to ``wtd_score``.
+        When ranking ``combined__accuracy`` with the unmodified ``wtd_score``, inner
+        validation counts known samples without building the full evaluation reports.
+        Other metrics and custom scorers use the supplied scorer unchanged.
     score_name
         Aggregate validation metric to rank. The shared objective averages
         ``test__agg__<score_name>`` across folds. The default ranks ``combined__accuracy``.
@@ -178,6 +183,14 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
 
     def create_objective(self) -> Callable[..., float]:
         """Rank candidates using the configured inner CV objective."""
+        scoring = self.scoring
+        # Compare parameters rather than identity because tpcp clones Scorer objects.
+        if (
+            self.score_name == "combined__accuracy"
+            and isinstance(scoring, Scorer)
+            and custom_hash(scoring.get_params()) == custom_hash(wtd_score.get_params())
+        ):
+            scoring = _wtd_accuracy_score
 
         def objective(trial: Trial, candidate: WearTimeTrainer, dataset: BaseGaitDataset, *, worker_id: int) -> float:
             with self._device_scope(worker_id):
@@ -186,7 +199,7 @@ class WearTimeOptunaSearch(CustomOptunaOptimize["WearTimeTrainer", "BaseGaitData
                 scores = cross_validate(
                     Optimize(candidate, train_dataset_transform=self.train_dataset_transform),
                     dataset,
-                    scoring=self.scoring,
+                    scoring=scoring,
                     cv=self.cv,
                     n_jobs=1,
                     return_train_score=False,
