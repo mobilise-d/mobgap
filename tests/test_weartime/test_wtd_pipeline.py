@@ -8,6 +8,7 @@ from pandas.testing import assert_frame_equal
 from typing_extensions import Self, Unpack
 
 from mobgap.utils.conversions import to_body_frame
+from mobgap.weartime._accuracy import _known_sample_counts, _wtd_accuracy_score
 from mobgap.weartime.base import BaseWeartimeDetector, _unify_weartime_df
 from mobgap.weartime.evaluation import wtd_final_agg, wtd_per_datapoint_score, wtd_score
 from mobgap.weartime.pipeline import WtdEmulationPipeline
@@ -109,6 +110,58 @@ def _sensor_frame_data(n_samples: int) -> pd.DataFrame:
             "gyr_z": [0.0] * n_samples,
         }
     )
+
+
+def test_inner_accuracy_pools_known_samples_instead_of_daily_rates():
+    days = [
+        DummyDatapoint(data=_sensor_frame_data(3), reference_weartime=_reference([(0, 3)]), sampling_rate_hz=1),
+        DummyDatapoint(
+            data=_sensor_frame_data(10),
+            reference_weartime=_reference([]),
+            sampling_rate_hz=1,
+            group_label=GroupLabel("002", "rec_2"),
+        ),
+        DummyDatapoint(
+            data=_sensor_frame_data(5),
+            reference_weartime=_with_uncertain(_reference([]), [(0, 5)]),
+            sampling_rate_hz=1,
+            group_label=GroupLabel("010", "uncertain"),
+        ),
+    ]
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0, 3)])))
+    actual, single = _wtd_accuracy_score(pipeline, days)
+    expected, _ = wtd_score(pipeline, days)
+    assert actual["combined__accuracy"] == expected["combined__accuracy"] == 10 / 13
+    assert single["known_samples"] == [3, 10, 0]
+    assert not any(key.startswith("raw__") for key in single)
+    uncertain, _ = _wtd_accuracy_score(pipeline, days[-1:])
+    assert np.isnan(uncertain["combined__accuracy"])
+
+
+def test_inner_accuracy_counts_match_dense_sample_labels():
+    from mobgap.utils.array_handling import bool_array_to_start_end_array
+
+    rng = np.random.default_rng(42)
+    for n_samples in [0, 1, 2, 37, 100]:
+        for _ in range(10):
+            detected, wear, uncertain = rng.integers(0, 2, (3, n_samples)).astype(bool)
+            detected_intervals = _intervals(bool_array_to_start_end_array(detected).reshape(-1, 2))
+            reference = _with_uncertain(
+                _reference(bool_array_to_start_end_array(wear & ~uncertain).reshape(-1, 2)),
+                bool_array_to_start_end_array(uncertain).reshape(-1, 2),
+            )
+            correct, known = _known_sample_counts(detected_intervals, reference, n_samples)
+            assert correct == np.count_nonzero((detected == wear) & ~uncertain)
+            assert known == np.count_nonzero(~uncertain)
+
+
+def test_inner_accuracy_rejects_mixed_sampling_rates():
+    days = [
+        DummyDatapoint(data=_sensor_frame_data(5), reference_weartime=_reference([]), sampling_rate_hz=rate)
+        for rate in (1, 2)
+    ]
+    with pytest.raises(ValueError, match="Sampling rate is not the same"):
+        _wtd_accuracy_score(WtdEmulationPipeline(DummyWtd(_intervals([]))), days)
 
 
 def test_wtd_emulation_pipeline_converts_to_body_frame_by_default():

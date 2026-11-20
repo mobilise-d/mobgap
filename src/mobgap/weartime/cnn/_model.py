@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence  # noqa: TC003 - tpcp resolves parameter annotations.
-from functools import lru_cache
+from functools import lru_cache, partial
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -169,10 +169,13 @@ class KerasWeartimeModel(Algorithm):
         self.window_samples_, self.step_samples_ = self.model_config.window_parameters(self.overlap)
         self.window_start_end_ = window_start_end(len(data), self.window_samples_, self.step_samples_)
         probability_batches = []
+        predict = None
         for windows, _ in _iter_window_batches(
             data, self.model_config, overlap=self.overlap, window_batch_size=self.window_batch_size
         ):
-            probabilities = self.model.predict(windows, verbose=0, batch_size=self.predict_batch_size)
+            if predict is None:
+                predict = self._make_predict_function()
+            probabilities = predict(windows)
             probability_batches.append(np.asarray(probabilities).reshape(-1))
         self.window_probabilities_ = (
             np.concatenate(probability_batches).astype(np.float32, copy=False)
@@ -182,6 +185,9 @@ class KerasWeartimeModel(Algorithm):
         self.window_predictions_ = (self.window_probabilities_ >= self.prediction_threshold).astype(np.int32)
         return self
 
+    def _make_predict_function(self) -> Any:
+        return partial(self.model.predict, verbose=0, batch_size=self.predict_batch_size)
+
     def _create_model(self, config: WearTimeModelConfig) -> Any:  # noqa: ARG002 - Same factory interface as blueprints.
         """Clone a supplied native untrained network; concrete blueprints build their own graph."""
         return keras.models.clone_model(self.model)
@@ -189,6 +195,9 @@ class KerasWeartimeModel(Algorithm):
 
 class MegaritisCnnWeartimeModel(KerasWeartimeModel):
     """CNN model blueprint owning its graph structure and input configuration.
+
+    Standard Sequential graphs use a traced inference call shared across recording chunks.
+    Supplied models with custom prediction hooks retain Keras ``predict`` behavior.
 
     Parameters
     ----------
@@ -230,6 +239,34 @@ class MegaritisCnnWeartimeModel(KerasWeartimeModel):
         self.pool_size = pool_size
         self.dropout_rate = dropout_rate
         self.dense_units = dense_units
+
+    def _make_predict_function(self) -> Any:
+        # Preserve prediction hooks on supplied custom models. The built-in Sequential
+        # graphs need only inference, without rebuilding Keras prediction iteration per chunk.
+        if (
+            type(self.model) is not keras.Sequential
+            or getattr(self.model.predict, "__func__", None) is not keras.Model.predict
+            or getattr(self.model.predict_step, "__func__", None) is not keras.Model.predict_step
+        ):
+            return super()._make_predict_function()
+
+        @tf.function(
+            input_signature=[
+                tf.TensorSpec((None, self.window_samples_, len(self.model_config.sensor_cols)), tf.float32)
+            ]
+        )
+        def infer(batch: Any) -> Any:
+            return self.model(batch, training=False)
+
+        def predict(windows: np.ndarray) -> np.ndarray:
+            return np.concatenate(
+                [
+                    infer(windows[start : start + self.predict_batch_size]).numpy()
+                    for start in range(0, len(windows), self.predict_batch_size)
+                ]
+            )
+
+        return predict
 
     def _sequence_layers(self) -> list[Any]:
         return [layers.Flatten()]
