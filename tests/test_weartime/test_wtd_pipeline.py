@@ -145,10 +145,10 @@ def test_inner_accuracy_counts_match_dense_sample_labels():
     for n_samples in [0, 1, 2, 37, 100]:
         for _ in range(10):
             detected, wear, uncertain = rng.integers(0, 2, (3, n_samples)).astype(bool)
-            detected_intervals = _intervals(bool_array_to_start_end_array(detected))
+            detected_intervals = _intervals(bool_array_to_start_end_array(detected).reshape(-1, 2))
             reference = _with_uncertain(
-                _reference(bool_array_to_start_end_array(wear & ~uncertain)),
-                bool_array_to_start_end_array(uncertain),
+                _reference(bool_array_to_start_end_array(wear & ~uncertain).reshape(-1, 2)),
+                bool_array_to_start_end_array(uncertain).reshape(-1, 2),
             )
             correct, known = _known_sample_counts(detected_intervals, reference, n_samples)
             assert correct == np.count_nonzero((detected == wear) & ~uncertain)
