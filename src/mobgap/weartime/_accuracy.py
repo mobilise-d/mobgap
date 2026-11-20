@@ -18,7 +18,11 @@ def _known_sample_counts(detected: pd.DataFrame, reference: pd.DataFrame, n_samp
     for column, intervals in enumerate(
         (detected, reference.loc[reference["label"] == "wear"], reference.loc[reference["label"] == "uncertain"])
     ):
-        for interval_start, interval_end in intervals[["start", "end"]].itertuples(index=False, name=None):
+        boundaries = intervals[["start", "end"]]
+        if column < 2:
+            # The full scorer normalizes detected and wear boundaries to int64.
+            boundaries = boundaries.astype("int64")
+        for interval_start, interval_end in boundaries.itertuples(index=False, name=None):
             # Match NumPy's slice semantics used by the full sample-label scorer.
             start, end, _ = slice(interval_start, interval_end).indices(n_samples)
             if end <= start:

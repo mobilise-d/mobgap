@@ -206,6 +206,14 @@ def test_inner_accuracy_preserves_sample_slice_boundaries(start, end):
     assert actual["combined__accuracy"] == expected["combined__accuracy"]
 
 
+def test_inner_accuracy_preserves_float_boundary_normalization():
+    day = DummyDatapoint(data=_sensor_frame_data(10), reference_weartime=_reference([(0.0, 10.0)]), sampling_rate_hz=1)
+    pipeline = WtdEmulationPipeline(DummyWtd(_intervals([(0.0, 3.0)])))
+    actual, _ = _wtd_accuracy_score(pipeline, [day])
+    expected, _ = wtd_score(pipeline, [day])
+    assert actual["combined__accuracy"] == expected["combined__accuracy"] == 0.3
+
+
 def test_inner_accuracy_aggregates_large_counts_without_platform_integer_overflow():
     days = [DummyDatapoint(data=_sensor_frame_data(1), reference_weartime=_reference([]), sampling_rate_hz=1)] * 2
 
