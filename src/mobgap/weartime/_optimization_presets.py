@@ -48,15 +48,19 @@ def _sustain_weartime_optimization_defaults() -> dict[str, Any]:
     It also includes the supplied simulated non-wear pool in every fold's training set,
     keeping those days out of the validation sets.
 
+    Inner validation pools correct and known sample counts within each fold to compute
+    accuracy without generating duration metrics or raw interval reports. The objective
+    averages these fold accuracies; outer evaluation can still use the full wear-time scorer.
+
     The training transform then independently subsamples human and simulated non-wear days
     to limit computation during hyperparameter optimization. These sampling settings can
     be adjusted independently of the splitter to run a more complete search.
     """
-    from mobgap.weartime.evaluation import wtd_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
+    from mobgap.weartime._accuracy import _wtd_accuracy_score  # noqa: PLC0415 - Avoid the scorer/pipeline import cycle.
     from mobgap.weartime.optimization import _seeded_study_params  # noqa: PLC0415 - Resolve after trainer imports.
 
     return {
-        "scoring": wtd_score,
+        "scoring": _wtd_accuracy_score,
         "score_name": "combined__accuracy",
         "cv": CombinedSplitter(
             parts=[

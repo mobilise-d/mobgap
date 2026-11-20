@@ -36,7 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blueprints and SUSTAIN presets have independent artifacts; empty presets configure fresh models and fitting recipes
   without packaged weights. Training supports uncertain reference regions,
   independent training/inference overlap, recording feature caches for XGBoost and lazy CNN windows with in-model
-  standardization. Fitted artifacts carry their native sampling rate and ordered inputs.
+  standardization. Built-in CNN inference reuses a traced forward pass across recording chunks while preserving
+  custom Keras prediction hooks. SUSTAIN inner search scores pooled known-sample accuracy without building
+  the full evaluation reports. Fitted artifacts carry their native sampling rate and ordered inputs.
   (https://github.com/mobilise-d/mobgap/pull/259)
 - `WtdEmulationPipeline` for running wear-time algorithms on datasets, with scoring and evaluation helpers.
   (https://github.com/mobilise-d/mobgap/pull/253)
