@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time as clock
 from datetime import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -22,9 +22,6 @@ pytest.importorskip("tensorflow")
 from mobgap.consts import BF_SENSOR_COLS
 from mobgap.utils.array_handling import bool_array_to_start_end_array
 from mobgap.weartime import WearTimeModelConfig
-from mobgap.weartime.cnn import _detector as cnn_module
-from mobgap.weartime.cnn import _model as keras_model_module
-from mobgap.weartime.cnn import _trainer as trainer_module
 from mobgap.weartime.cnn import (
     KerasWeartimeModel,
     MegaritisCnnLstmWeartimeModel,
@@ -33,6 +30,9 @@ from mobgap.weartime.cnn import (
     WtdMegaritisCNNTrainer,
     load_keras_weartime_model,
 )
+from mobgap.weartime.cnn import _detector as cnn_module
+from mobgap.weartime.cnn import _model as keras_model_module
+from mobgap.weartime.cnn import _trainer as trainer_module
 from mobgap.weartime.utils.windows_to_weartime import (
     filter_short_wear_bouts_by_confidence,
     overlapping_window_predictions_to_sample_labels,
@@ -112,6 +112,58 @@ class TestMetaKerasWeartimeModel(TestAlgorithmMixin):
 
 class TestKerasWeartimeModel:
     """Test the low-level Keras model wrapper behavior."""
+
+    @pytest.mark.parametrize("model_type", [MegaritisCnnWeartimeModel, MegaritisCnnLstmWeartimeModel])
+    def test_builtin_inference_matches_keras_prediction(self, model_type: type) -> None:
+        """Keep inference probabilities, order and decisions across partial minibatches and chunks."""
+        tf = pytest.importorskip("tensorflow")
+        tf.keras.utils.set_random_seed(42)
+        config = WearTimeModelConfig(1, 20)
+        model = model_type(
+            filters=(2, 3, 4),
+            dense_units=3,
+            model_config=config,
+            predict_batch_size=4,
+            window_batch_size=11,
+        )
+        model.model = model._create_model(config)
+        data = pd.DataFrame(np.random.default_rng(42).normal(size=(185, len(BF_SENSOR_COLS))), columns=BF_SENSOR_COLS)
+        # Exercise learned batch-normalization state and dropout's inference behavior.
+        model.model(np.ones((4, 20, len(BF_SENSOR_COLS)), dtype=np.float32), training=True)
+        reference = KerasWeartimeModel(
+            model=model.model, model_config=config, predict_batch_size=4, window_batch_size=11
+        ).run(data, sampling_rate_hz=1)
+        before = custom_hash(model.get_params())
+        actual = model.run(data, sampling_rate_hz=1)
+        np.testing.assert_allclose(actual.window_probabilities_, reference.window_probabilities_, rtol=1e-6, atol=1e-7)
+        assert_array_equal(actual.window_predictions_, reference.window_predictions_)
+        assert_array_equal(actual.window_start_end_, reference.window_start_end_)
+        assert custom_hash(model.get_params()) == before
+
+    @pytest.mark.parametrize("hook", ["predict", "predict_step"])
+    def test_builtin_wrapper_preserves_custom_prediction_hooks(self, hook: str) -> None:
+        """Supplied native models can define prediction behavior beyond their forward pass."""
+        tf = pytest.importorskip("tensorflow")
+
+        class CustomPrediction(tf.keras.Sequential):
+            def predict_step(self, data: Any) -> Any:
+                """Override inference with fixed wear probabilities."""
+                return tf.ones((tf.shape(data)[0], 1))
+
+        config = WearTimeModelConfig(1, 20)
+        native = CustomPrediction(
+            [
+                tf.keras.layers.Input((20, len(BF_SENSOR_COLS))),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.Dense(1, activation="sigmoid"),
+            ]
+        )
+        if hook == "predict":
+            # An instance-level override on a plain Sequential must also retain its behavior.
+            native = tf.keras.Sequential(native.layers)
+            native.predict = lambda windows, **_kwargs: np.ones((len(windows), 1))
+        result = MegaritisCnnWeartimeModel(model=native, model_config=config).run(_sensor_data(40), sampling_rate_hz=1)
+        assert_array_equal(result.window_probabilities_, np.ones(5))
 
     def test_run_creates_window_predictions_without_tensorflow_import(self) -> None:
         """Classify recording windows using a preloaded model object."""
