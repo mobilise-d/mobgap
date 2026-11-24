@@ -298,7 +298,7 @@ class WtdMegaritisCNNTrainer(WtdEmulationPipeline, OptimizablePipeline[BaseGaitD
     ) -> Any:
         output_signature = (
             tf.TensorSpec(shape=(None, window_samples, len(config.sensor_cols)), dtype=tf.float32),
-            tf.TensorSpec(shape=(None,), dtype=tf.int32),
+            tf.TensorSpec(shape=(None,), dtype=tf.float32),
         )
         dataset = tf.data.Dataset.from_generator(
             lambda: self._iter_training_window_batches(training_data, config),
